@@ -14,6 +14,7 @@
  */
 import { ref, computed, getCurrentInstance } from 'vue'
 import { onLoad, onReady } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -65,8 +66,11 @@ const showStyle = ref(false)
 const showNote = ref(false)
 const showContact = ref(false)
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => {
   try {
+    const opts = entryQuery
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
     const s = Number(p.sitting)
@@ -87,6 +91,24 @@ onLoad((opts: Record<string, string> = {}) => {
   } catch {
     invalid.value = true
   }
+}, () => {
+  customer.value = ''
+  sittingIdx.value = 1
+  invalid.value = false
+  heading.value = 0
+  headingSpin.value = 0
+  locked.value = false
+  plate.value = 'sanyuan'
+  mode.value = 'plate'
+  note.value = ''
+  noteDraft.value = ''
+  fpUrl.value = ''
+  fp.value = { x: 0, y: 0, scale: 1, rotate: 0 }
+  showStyle.value = false
+  showNote.value = false
+  showContact.value = false
+  stageCenter = null
+  drag.active = false
 })
 
 const plateName = computed(() => PLATE_STYLES.find((p) => p.id === plate.value)?.name ?? '')
@@ -104,10 +126,14 @@ let stageCenter: { x: number; y: number } | null = null
 const drag = { active: false, lastX: 0, lastY: 0, lastAngle: 0 }
 
 function measureStage() {
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
   uni.createSelectorQuery().in(inst).select('.stage').boundingClientRect().exec((res) => {
+    if (!isCurrent()) return
     const r = (res?.[0] || null) as UniApp.NodeInfo | null
     if (r && typeof r.left === 'number' && r.width) {
       stageCenter = { x: r.left + r.width / 2, y: (r.top ?? 0) + (r.height ?? r.width) / 2 }
+      if (drag.active) drag.lastAngle = pointerAngle(drag.lastX, drag.lastY)
     }
   })
 }
@@ -119,6 +145,7 @@ function pointerAngle(x: number, y: number) {
 }
 
 function onTouchStart(e: any /* uni 触摸事件经 vue-tsc 按原生签名校验，参数须 any */) {
+  if (!preview.allowed.value) return
   const t = (e as { touches: { clientX: number; clientY: number }[] }).touches?.[0]
   if (!t) return
   if (!stageCenter) measureStage()
@@ -141,6 +168,7 @@ function onTouchMove(e: any /* 同上 */) {
     drag.lastX = t.clientX
     drag.lastY = t.clientY
   } else if (mode.value === 'plate' && !locked.value) {
+    if (!stageCenter) return
     const a = pointerAngle(t.clientX, t.clientY)
     let d = a - drag.lastAngle
     if (d > 180) d -= 360
@@ -179,9 +207,12 @@ function toggleMode() {
 }
 
 function chooseFloorplan() {
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
   uni.chooseImage({
     count: 1,
     success: (res) => {
+      if (!isCurrent()) return
       const path = Array.isArray(res.tempFilePaths) ? res.tempFilePaths[0] : String(res.tempFilePaths)
       if (!path) return
       fpUrl.value = path
@@ -242,9 +273,12 @@ function confirmNote() {
 function pad(n: number) { return String(n).padStart(2, '0') }
 
 function save() {
+  if (!preview.allowed.value) return
+  const state = { customer: customer.value, sitting: sittingIdx.value, heading: heading.value,
+    spin: headingSpin.value, plate: plate.value, note: note.value, fpUrl: fpUrl.value, fp: { ...fp.value }, mode: mode.value, locked: locked.value }
   const now = new Date()
   const dateText = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`
-  saveLijichiHistory({
+  const record = {
     client: customer.value || '未命名',
     dateText,
     shanxiang: shanxiang.value,
@@ -252,8 +286,21 @@ function save() {
     heading: Math.round(heading.value * 10) / 10,
     plate: plate.value,
     note: note.value,
+  }
+  void preview.run(() => {
+    saveLijichiHistory(record)
+    customer.value = state.customer
+    sittingIdx.value = state.sitting
+    heading.value = state.heading
+    headingSpin.value = state.spin
+    plate.value = state.plate
+    note.value = state.note
+    fpUrl.value = state.fpUrl
+    fp.value = state.fp
+    mode.value = state.mode
+    locked.value = state.locked
+    uni.showToast({ title: '已保存到历史记录', icon: 'none' })
   })
-  uni.showToast({ title: '已保存到历史记录', icon: 'none' })
 }
 
 function share() {
@@ -282,7 +329,12 @@ const fpStyle = computed(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="立极尺" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       back-href="/pkg-paipan/lijichi/index"

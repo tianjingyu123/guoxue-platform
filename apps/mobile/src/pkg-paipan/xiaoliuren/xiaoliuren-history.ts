@@ -1,7 +1,8 @@
 /**
  * 小六壬·本地起课记录（原页取舍里明写「历史记录本批不还原」，此处补齐 V0 的记录页）
  */
-import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
+import { type HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory } from '@/lib/paipan/private-history'
 
 export interface XiaoliurenParams {
   /** 所占之事 */

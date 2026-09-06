@@ -870,7 +870,8 @@ const checks = [
       hasAll(publishGuideSheet, [
         "focusContainerSelector: '.pgs-sheet'",
         "initialFocusSelector: '.pgs-close'",
-        'aria-label="短视频发布资格"',
+        ':aria-label="`${capabilityLabel}资格`"',
+        "const capabilityLabel = computed(() => capability.value === 'LIVE' ? '直播开播' : '短视频发布')",
         ':aria-disabled="actionBusy"',
       ]) &&
       hasAll(giftPanel, [

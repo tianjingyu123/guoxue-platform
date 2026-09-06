@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { GUARDS_METADATA, HEADERS_METADATA } from "@nestjs/common/constants";
 import { CircleController } from "./circle.controller";
 import { CircleService } from "./circle.service";
 import { CircleInsightService } from "./services/circle-insight.service";
@@ -29,6 +30,7 @@ const mockCircleSvc = {
   toggleTop: jest.fn().mockResolvedValue({ id: "p1", isTop: true }),
   setExpertConfig: jest.fn().mockResolvedValue({ askPrice: 50, callPrice: 100 }),
   getExpertConfig: jest.fn().mockResolvedValue({ askPrice: 50, callPrice: 100 }),
+  getOwnExpertConfig: jest.fn().mockResolvedValue({ audioCallApproved: true }),
   listCircleExperts: jest.fn().mockResolvedValue([{ userId: "u1", askPrice: 50 }]),
   getCircleRanking: jest.fn().mockResolvedValue([{ id: "c1", memberCount: 500 }]),
   getMemberLeaderboard: jest.fn().mockResolvedValue([{ userId: "u1", postCount: 30 }]),
@@ -194,6 +196,17 @@ describe("CircleController", () => {
   it("GET /circles/:id/expert/:userId — 达人咨询配置", async () => {
     const result: any = await ctrl.getExpertConfig("c1", "u1");
     expect(result.askPrice).toBe(50);
+  });
+  it("本人配置只使用 JWT 身份，不读取请求内其他目标用户", async () => {
+    await ctrl.getOwnExpertConfig("c1", { user: { id: "self" }, query: { userId: "other" } } as any);
+    expect(mockCircleSvc.getOwnExpertConfig).toHaveBeenCalledWith("c1", "self");
+    expect(Reflect.getMetadata(GUARDS_METADATA, CircleController.prototype.getOwnExpertConfig)).toContain(JwtAuthGuard);
+    expect(Reflect.getMetadata(HEADERS_METADATA, CircleController.prototype.getOwnExpertConfig)).toContainEqual({ name: "Cache-Control", value: "private, no-store" });
+  });
+  it("管理员代配置仍把真实操作者与自动化标识交给主库校验", async () => {
+    const dto: any = { userId: "target", questionPriceCoin: 0, questionTimeoutHours: 72, callPricePerMinuteCoin: 0 };
+    await ctrl.setExpertConfig("c1", { user: { id: "operator", roles: ["OPERATION_ADMIN"] }, headers: { "x-executor-type": "AUTOMATION" } } as any, dto);
+    expect(mockCircleSvc.setExpertConfig).toHaveBeenCalledWith("c1", "target", dto, { userId: "operator", executor: "AUTOMATION" });
   });
 
   it("GET /circles/:id/experts — 圈子达人", async () => {

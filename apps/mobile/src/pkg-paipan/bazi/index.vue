@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 八字排盘入口页（输入）——从原型 app/paipan/bazi/page.tsx 迁移 */
 import AppIcon from '@/components/common/app-icon.vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import BaziInputForm from '@/components/bazi/input-form.vue'
 import InstantBazi from '@/components/bazi/instant-bazi.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -14,10 +15,17 @@ let hdrTitle = `${BRAND.nameShort}八字`
 // #ifdef MP-WEIXIN
 hdrTitle = '干支历法'
 // #endif
+const preview = useNativePreviewPage(() => {}, () => {  })
+const { allowed, checking } = preview
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">

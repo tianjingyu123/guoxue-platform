@@ -9,7 +9,7 @@ import { BusinessException } from "../../common/business.exception";
 describe("ConsultCallService · 评价与账单申诉", () => {
   let prisma: { $queryRawUnsafe: jest.Mock; $executeRawUnsafe: jest.Mock; $transaction: jest.Mock };
   let coin: { spend: jest.Mock; refund: jest.Mock };
-  let revenue: { record: jest.Mock; settleLedger: jest.Mock };
+  let revenue: { record: jest.Mock; settleLedger: jest.Mock; recordConsultInTransaction: jest.Mock };
   let redis: { runExclusive: jest.Mock };
   let svc: ConsultCallService;
 
@@ -33,14 +33,82 @@ describe("ConsultCallService · 评价与账单申诉", () => {
       $transaction: jest.fn(),
     };
     coin = { spend: jest.fn(), refund: jest.fn() };
-    revenue = { record: jest.fn(), settleLedger: jest.fn().mockResolvedValue(undefined) };
+    revenue = { record: jest.fn(), settleLedger: jest.fn().mockResolvedValue(undefined), recordConsultInTransaction: jest.fn().mockResolvedValue(undefined) };
     redis = { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) };
-    svc = new ConsultCallService(prisma as any, redis as any, coin as any, revenue as any);
+    svc = new ConsultCallService(prisma as any, redis as any, coin as any, revenue as any, {} as any,
+      { lockForStopInTransaction: jest.fn().mockResolvedValue(undefined), requestStopInTransaction: jest.fn().mockResolvedValue({ tracked: true }) } as any);
   });
 
   const mockGetCall = (call: Record<string, unknown>) => prisma.$queryRawUnsafe.mockResolvedValueOnce([call]);
 
+  it('当前通话列表限定本人及活跃状态，安全投影不返回票据', async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: 'call-1', callerId: 'u-caller', expertId: 'u-expert',
+      status: 'WAITING', type: 'VOICE', createdAt: new Date(0), userSig: '不能返回', rtcRoomId: '不能返回' }]);
+    expect(await svc.active('u-expert')).toEqual([{ id: 'call-1', status: 'WAITING', type: 'VOICE', role: 'EXPERT', createdAt: new Date(0) }]);
+    const [sql, actor] = prisma.$queryRawUnsafe.mock.calls[0];
+    expect(sql).toContain('("callerId"=$1 OR "expertId"=$1)');
+    expect(sql).toContain('LIMIT 20');
+    expect(sql).toContain("IN ('WAITING','ONGOING')");
+    expect(actor).toBe('u-expert');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(coin.spend).not.toHaveBeenCalled();
+    expect(coin.refund).not.toHaveBeenCalled();
+  });
+
+  it.each([['u-caller', 'CALLER'], ['u-expert', 'EXPERT']])("通话状态只返回参与者 %s 的安全投影", async (userId, role) => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: 'call-1', status: 'ONGOING', type: 'VOICE',
+      callerId: 'u-caller', startAt: new Date(0), endAt: null, userSig: '不得返回', rtcRoomId: '不得返回' }]);
+    expect(await svc.state(userId, 'call-1')).toEqual({ id: 'call-1', status: 'ONGOING', type: 'VOICE',
+      role, startAt: new Date(0), endAt: null });
+    const [sql, id, actor] = prisma.$queryRawUnsafe.mock.calls[0];
+    expect(sql).toContain('("callerId"=$2 OR "expertId"=$2)');
+    expect([id, actor]).toEqual(['call-1', userId]);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(coin.refund).not.toHaveBeenCalled();
+  });
+
+  it("非参与者或不存在的状态记录统一拒绝，不读票据、不做结算", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([]);
+    await expect(svc.state('outsider', 'call-1')).rejects.toThrow('通话记录不存在');
+    expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(coin.refund).not.toHaveBeenCalled();
+    expect(revenue.record).not.toHaveBeenCalled();
+  });
+
+  it("未知通话状态不映射为等待或通话中", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: 'call-1', status: 'BROKEN', type: 'VOICE' }]);
+    await expect(svc.state('u-caller', 'call-1')).rejects.toThrow('CONSULT_STATE_INVALID');
+  });
+
+  it.each(["end", "cancel"] as const)("自动化 %s 在任何读写和资金动作前拒绝", async (action) => {
+    const result = action === "end" ? svc.end("u-caller", "call-1", "AUTOMATION")
+      : svc.cancel("u-caller", "call-1", "REFUNDED", "AUTOMATION");
+    await expect(result).rejects.toThrow();
+    expect(prisma.$queryRawUnsafe).not.toHaveBeenCalled();
+    expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(coin.refund).not.toHaveBeenCalled();
+    expect(revenue.record).not.toHaveBeenCalled();
+    expect(revenue.settleLedger).not.toHaveBeenCalled();
+  });
+
   // ───────── 评价 rate ─────────
+  it("结算、退款与收益共用同一事务，失败不得返回已结束", async () => {
+    mockGetCall({ ...endedCall(), status: "ONGOING", startAt: new Date(Date.now() - 30000), pricePerMinute: 10, prepaidCoin: 100 });
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(1) };
+    prisma.$transaction.mockImplementation(async fn => fn(tx));
+    revenue.recordConsultInTransaction.mockRejectedValueOnce(new Error("SYNTHETIC_LEDGER_FAILURE"));
+    await expect(svc.end("u-caller", "call-1")).rejects.toThrow("SYNTHETIC_LEDGER_FAILURE");
+    expect(coin.refund).toHaveBeenCalledWith("u-caller", 90, expect.any(String), tx);
+    expect(revenue.recordConsultInTransaction).toHaveBeenCalledWith({ callId: "call-1", callerId: "u-caller", expertId: "u-expert", amountCoin: 10 }, tx);
+    expect(revenue.record).not.toHaveBeenCalled(); expect(revenue.settleLedger).not.toHaveBeenCalled();
+  });
+  it("结束CAS失败时不重复退款或分账", async () => {
+    mockGetCall({ ...endedCall(), status: "ONGOING", startAt: new Date(), pricePerMinute: 10, prepaidCoin: 100 });
+    prisma.$transaction.mockImplementation(async fn => fn({ $executeRawUnsafe: jest.fn().mockResolvedValue(0) }));
+    await expect(svc.end("u-expert", "call-1")).rejects.toThrow("通话已结算");
+    expect(coin.refund).not.toHaveBeenCalled(); expect(revenue.recordConsultInTransaction).not.toHaveBeenCalled();
+  });
 
   it("评价成功：仅 ENDED·24h 内·首次 → 原子 UPDATE（ratedAt IS NULL 锚点）并回传评价", async () => {
     mockGetCall(endedCall());
@@ -171,11 +239,38 @@ describe("ConsultCallService · 评价与账单申诉", () => {
   });
 
   it("refundStaleWaitingCallsCron：期间已被接听(claimed=0)→不退款(防误退进行中通话)", async () => {
+    const log = jest.spyOn((svc as any).logger, "log").mockImplementation(() => undefined);
     prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: "call-1", callerId: "u1", prepaidCoin: 100 }]);
     const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(0) };
     prisma.$transaction.mockImplementation((fn: any) => fn(tx));
 
     await svc.refundStaleWaitingCallsCron();
     expect(coin.refund).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("超时退款统计仅包含已提交事务，跳过和提交失败均不虚报成功", async () => {
+    const log = jest.spyOn((svc as any).logger, "log").mockImplementation(() => undefined);
+    const warn = jest.spyOn((svc as any).logger, "warn").mockImplementation(() => undefined);
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([
+      { id: "skipped", callerId: "u1", prepaidCoin: 100 },
+      { id: "commit-failed", callerId: "u2", prepaidCoin: 100 },
+      { id: "committed", callerId: "u3", prepaidCoin: 100 },
+    ]);
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValueOnce(0).mockResolvedValue(1) };
+    prisma.$transaction
+      .mockImplementationOnce((fn: any) => fn(tx))
+      .mockImplementationOnce(async (fn: any) => { await fn(tx); throw new Error("事务提交失败"); })
+      .mockImplementationOnce((fn: any) => fn(tx));
+
+    await svc.refundStaleWaitingCallsCron();
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith("通话超时未接通自动退款: 1/3 笔");
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(coin.refund).not.toHaveBeenCalledWith("u1", expect.anything(), expect.anything(), expect.anything());
+    log.mockRestore();
+    warn.mockRestore();
   });
 });

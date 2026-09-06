@@ -4,7 +4,8 @@
  * 数据来自本地真实记录（../store），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import ToolHeader from '@/components/paipan/tool-header.vue'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -16,7 +17,7 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadQimingHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -28,22 +29,31 @@ const vms = computed<HistoryVM[]>(() =>
 )
 
 function open(vm: HistoryVM) {
+  if (!preview.allowed.value) return
   const r = vm.raw
   const { id: _id, ts: _ts, pinned: _p, group: _g, dateText: _d, ...params } = r
   navigateTo(`/pkg-paipan2/qiming/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
 }
 function onPin(ids: string[]) {
-  pinQimingHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const selected = [...ids]
+  void preview.run(() => { pinQimingHistory(selected); reload() })
 }
 function onDelete(ids: string[]) {
-  removeQimingHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const selected = [...ids]
+  void preview.run(() => { removeQimingHistory(selected); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!preview.allowed.value">
+    <tool-header title="起名记录" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
   <HistoryPage
+    v-else
     title="起名记录"
     back-href="/paipan/qiming"
     :records="vms"

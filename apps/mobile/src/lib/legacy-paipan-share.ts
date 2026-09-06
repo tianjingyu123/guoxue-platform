@@ -14,8 +14,10 @@ export class LegacyShareError extends Error {
   }
 }
 
-/** 不包含会话、订单或签名参数的正式排盘入口，所有“页面分享”至少回落到此地址。 */
-export const PUBLIC_PAIPAN_SHARE_URL = 'https://api.rebugx.cn/h5/pages/paipan/index'
+/** 只使用构建绑定的公开入口；第三方网页不能决定正式/预发布环境。 */
+const publicH5Base = String(import.meta.env.VITE_PUBLIC_H5_URL || '').replace(/\/+$/, '')
+if (!/^https:\/\/[^/?#@:]+(?:\/[^?#]*)?$/u.test(publicH5Base)) throw new Error('PUBLIC_H5_SHARE_CONFIG_INVALID')
+export const PUBLIC_PAIPAN_SHARE_URL = `${publicH5Base}/pages/paipan/index`
 /** 微信网页卡片需要稳定缩略图；使用随包只读品牌资源，不依赖第三方页面临时图片。 */
 export const LEGACY_SHARE_THUMBNAIL = '/static/logo.webp'
 
@@ -34,6 +36,10 @@ export function publicLegacyShareUrl(value: unknown, image = false): string {
       if (!item || seen.has(item[1])) return ''
       seen.add(item[1])
     }
+  }
+  // 原版 APK 分享前会移除 app_；这里只转换已取证的工具页面，不改参数或其他路径。
+  if (!image && match[2] === '/app_tool.php') {
+    return value.replace('/app_tool.php', '/tool.php')
   }
   return value
 }
@@ -69,6 +75,40 @@ export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | n
       imageUrl,
     }
   } catch { return null }
+}
+
+export interface LegacyPosterPayload {
+  url: string
+  title: string
+  description: string
+  isToolEntry: boolean
+}
+
+let pendingPoster: { payload: LegacyPosterPayload; expiresAt: number } | null = null
+
+/** 海报页一次性交接：不落盘，不把页面链接或用户摘要放进导航参数。 */
+export function stageLegacyPoster(request: LegacyShareRequest): boolean {
+  pendingPoster = null
+  const safe = parseLegacyShareBridgeUrl('rebu://legacy-share?payload=' + encodeURIComponent(JSON.stringify(request)))
+  if (!safe?.url || request.kind === 'save') return false
+  const isToolEntry = safe.url === PUBLIC_PAIPAN_SHARE_URL
+  pendingPoster = {
+    expiresAt: Date.now() + 15_000,
+    payload: {
+      url: safe.url,
+      title: isToolEntry ? '热卜排盘工具' : safe.title,
+      description: isToolEntry ? '扫码打开排盘工具入口，不包含当前排盘结果。' : safe.text,
+      isToolEntry,
+    },
+  }
+  return true
+}
+
+export function consumeLegacyPoster(): LegacyPosterPayload | null {
+  const pending = pendingPoster
+  pendingPoster = null
+  if (!pending || pending.expiresAt <= Date.now()) return null
+  return { ...pending.payload }
 }
 
 type ShareOutcome = 'requested' | 'saved' | 'copied' | 'cancelled'
@@ -158,7 +198,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
     if (!['android', 'ios'].includes(uni.getSystemInfoSync().platform)) {
       throw new LegacyShareError('UNAVAILABLE', '请在热卜 App 中使用原生分享')
     }
-    let action: 'copy-page' | 'friend-page' | 'timeline-page' | 'friend-image' | 'timeline-image' | 'save' | 'link'
+    let action: 'copy-page' | 'friend-page' | 'timeline-page' | 'friend-image' | 'timeline-image' | 'save' | 'link' | 'poster'
     if (request.kind === 'save') {
       const decision = await callback<{ confirm: boolean }>((ok, fail) => uni.showModal({
         title: '保存排盘图片', content: request.imageUrl ? '将这张排盘图片保存到手机相册？' : '将当前页面的可见内容保存到手机相册？',
@@ -174,7 +214,8 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       const items: string[] = []
       if (nativeWeixin && request.url) {
         actions.push('friend-page', 'timeline-page')
-        items.push('微信好友（可打开页面）', '朋友圈（可打开页面）')
+        const destination = request.url === PUBLIC_PAIPAN_SHARE_URL ? '工具入口' : '可打开页面'
+        items.push(`微信好友（${destination}）`, `朋友圈（${destination}）`)
       }
       if (nativeWeixin) {
         actions.push('friend-image', 'timeline-image')
@@ -183,12 +224,25 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       actions.push('save')
       items.push(`保存${source}`)
       if (request.url) { actions.push('link'); items.push('系统分享公开链接') }
-      if (request.url) { actions.push('copy-page'); items.push('复制可打开的 H5 页面链接') }
+      if (request.url) { actions.push('copy-page'); items.push(request.url === PUBLIC_PAIPAN_SHARE_URL ? '复制排盘工具入口链接' : '复制可打开的 H5 页面链接') }
+      if (request.url) { actions.push('poster'); items.push(request.url === PUBLIC_PAIPAN_SHARE_URL ? '生成工具入口二维码海报' : '生成页面二维码海报') }
       const decision = await callback<{ tapIndex: number }>((ok, fail) => uni.showActionSheet({ itemList: items, success: ok, fail }), 0)
       if (!Number.isInteger(decision.tapIndex) || decision.tapIndex < 0 || decision.tapIndex >= items.length) return 'cancelled'
       action = actions[decision.tapIndex]
     }
     assertCurrent(options)
+    if (action === 'poster') {
+      if (!stageLegacyPoster(request)) throw new LegacyShareError('INVALID', '缺少可分享的页面链接')
+      try {
+        await callback<void>((ok, fail) => uni.navigateTo({
+          url: '/pkg-circle/common/share-poster/index?source=paipan', success: () => ok(), fail,
+        }), 0)
+      } catch (error) {
+        consumeLegacyPoster()
+        throw error
+      }
+      return 'requested'
+    }
     if (action === 'copy-page') {
       await callback<void>((ok, fail) => uni.setClipboardData({ data: request.url, success: () => ok(), fail }), 0)
       return 'copied'
@@ -199,8 +253,8 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
         scene: action === 'timeline-page' ? 'WXSceneTimeline' : 'WXSceneSession',
         type: 0,
         href: request.url,
-        title: request.title,
-        summary: request.text || '打开热卜排盘',
+        title: request.url === PUBLIC_PAIPAN_SHARE_URL ? '热卜排盘工具' : request.title,
+        summary: request.url === PUBLIC_PAIPAN_SHARE_URL ? '打开排盘工具入口；此链接不包含当前排盘结果。' : request.text || '打开热卜排盘',
         imageUrl: LEGACY_SHARE_THUMBNAIL,
         success: () => ok(),
         fail,
@@ -209,9 +263,11 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
     }
     if (action === 'link') {
       // 系统分享只支持 text/image；不得沿用旧公共工具里无效的 type:web。
+      const title = request.url === PUBLIC_PAIPAN_SHARE_URL ? '热卜排盘工具' : request.title
+      const description = request.url === PUBLIC_PAIPAN_SHARE_URL ? '此链接为工具入口，不包含当前排盘结果。' : request.text
       await callback<void>((ok, fail) => plus.share.sendWithSystem({
-        type: 'text', href: request.url, title: request.title,
-        content: `${request.title}\n${request.text ? request.text + '\n' : ''}${request.url}`,
+        type: 'text', href: request.url, title,
+        content: `${title}\n${description ? description + '\n' : ''}${request.url}`,
       }, () => ok(), fail), 0)
       return 'requested'
     }

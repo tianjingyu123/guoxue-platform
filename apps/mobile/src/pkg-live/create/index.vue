@@ -198,7 +198,8 @@
               <view class="visibility-pill" :class="{ sel: visibility === 'PLATFORM' }" @tap="visibility = 'PLATFORM'">全平台可见</view>
             </view>
           </view>
-          <text v-if="!isEdit && visibility === 'PLATFORM'" class="visibility-hint">全平台发布需具备发布资格，并受平台内容审核规则约束</text>
+          <button v-if="!isEdit" :disabled="checkingPermission || submitting" @tap="checkLivePermission(true)">{{ checkingPermission ? '正在核对资格…' : '核对开播资格 / 申请开通' }}</button>
+          <text v-if="!isEdit" class="visibility-hint">仅本圈和全平台开播均需发布资格，不影响普通用户观看；平台直授成员也可选择所属圈子。</text>
           <view class="row" @tap="toggleTimePicker">
             <text class="row-k">开播时间</text>
             <view class="row-v">
@@ -273,7 +274,7 @@
         </view>
         <scroll-view scroll-y class="circle-list">
           <view
-            v-for="c in myOwnedCircles"
+            v-for="c in mySelectableCircles"
             :key="c.id"
             class="circle-item"
             :class="{ sel: circleId === c.id }"
@@ -282,7 +283,7 @@
             <text class="circle-name">{{ c.name }}</text>
             <AppIcon v-if="circleId === c.id" name="check" :size="34" color="#C41E3A" />
           </view>
-          <text v-if="!myOwnedCircles.length" class="circle-empty">暂无可开播的圈子</text>
+          <text v-if="!mySelectableCircles.length" class="circle-empty">暂无已加入的圈子</text>
         </scroll-view>
       </view>
     </view>
@@ -333,12 +334,13 @@
         </view>
       </view>
     </view>
+    <PublishGuideSheet :open="showPublishGuide" :circle-id="circleId" capability="LIVE" @close="showPublishGuide = false" @granted="onLiveGranted" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -348,6 +350,38 @@ import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { getCoinBalance } from '@/lib/circle-consult-data'
 import { uploadImage } from '@/utils/request'
 import { isClientFeatureEnabled } from '@/lib/remote-config'
+import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
+import { checkCirclePublishPermission } from '@/lib/publish-permission'
+
+const showPublishGuide = ref(false), checkingPermission = ref(false)
+let admissionGeneration = 0, admissionPageActive = true
+function invalidateAdmission() {
+  admissionPageActive = false
+  admissionGeneration++
+  showPublishGuide.value = false
+}
+onHide(invalidateAdmission)
+onUnload(invalidateAdmission)
+onShow(() => { admissionPageActive = true })
+function onLiveGranted() {
+  showPublishGuide.value = false
+  uni.showToast({ title: '资格已核对，请确认信息后提交', icon: 'none' })
+}
+async function checkLivePermission(showSuccess = false): Promise<boolean> {
+  if (!admissionPageActive || checkingPermission.value || !circleId.value) {
+    if (!circleId.value) uni.showToast({ title: '请先选择所属圈子', icon: 'none' })
+    return false
+  }
+  const selected = circleId.value, generation = admissionGeneration
+  checkingPermission.value = true
+  try {
+    const allowed = await checkCirclePublishPermission('LIVE', selected)
+    if (!admissionPageActive || generation !== admissionGeneration || circleId.value !== selected) return false
+    if (!allowed) showPublishGuide.value = true
+    else if (showSuccess) onLiveGranted()
+    return allowed
+  } finally { checkingPermission.value = false }
+}
 
 // 三态 UI
 const loading = ref(true)
@@ -463,8 +497,8 @@ async function onBuySelected() {
 
 // ── 圈子选择 ──
 const myCircles = ref<MyCircle[]>([])
-// 仅列我能开播的圈子（owner / admin）
-const myOwnedCircles = computed(() => myCircles.value.filter((c) => c.role === 'owner' || c.role === 'admin'))
+// 成员可能获得平台个人直授；选择圈子不等于取得开播资格，提交前仍精确核验。
+const mySelectableCircles = computed(() => myCircles.value)
 const selectedCircleName = computed(() => myCircles.value.find((c) => c.id === circleId.value)?.name || editCircleName.value)
 const showCirclePicker = ref(false)
 function openCirclePicker() { showCirclePicker.value = true }
@@ -616,8 +650,8 @@ async function fetchData() {
     packages.value = packagesRes
     coinBalance.value = balanceRes
     myCircles.value = circlesRes
-    if (!editRoomId.value && !circleId.value && myOwnedCircles.value.length) {
-      circleId.value = myOwnedCircles.value[0].id
+    if (!editRoomId.value && !circleId.value && mySelectableCircles.value.length) {
+      circleId.value = mySelectableCircles.value[0].id
     }
     if (editRoom) fillEditForm(editRoom)
   } catch (e) {
@@ -648,6 +682,7 @@ const primaryDisabled = computed(() =>
   (!!startTime.value && (!cover.value.trim() || !description.value.trim())) ||
   coverUploading.value ||
   submitting.value ||
+  checkingPermission.value ||
   retrying.value ||
   (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0),
 )
@@ -660,6 +695,7 @@ const pushFailMsg = ref('')
 const retrying = ref(false)
 
 async function onPrimary() {
+  if (!admissionPageActive || checkingPermission.value || submitting.value || retrying.value) return
   if (!isEdit.value && createdId.value) {
     await retryPush()
     return
@@ -678,6 +714,7 @@ async function onPrimary() {
     uni.showToast({ title: '直播开播功能正在维护，请稍后重试', icon: 'none' })
     return
   }
+  if (!isEdit.value && !(await checkLivePermission())) return
   const price = isCharge.value ? Number(chargePrice.value) : 0
   if (isCharge.value && !(price > 0)) {
     uni.showToast({ title: '请输入正确的收费金额', icon: 'none' })

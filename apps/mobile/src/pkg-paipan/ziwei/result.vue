@@ -6,6 +6,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -39,7 +40,14 @@ const ziweiSummary = computed(() => {
 const solarText = ref('')
 const loadError = ref('')
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  chart.value = null; solarText.value = ''; loadError.value = ''
+})
+const { allowed, checking } = preview
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Record<string, unknown>
@@ -66,11 +74,15 @@ onLoad((q: Record<string, string> = {}) => {
       solarText.value = `${y}年${m}月${d}日 ${shichenLabel(hour)}`
     }
     // 记入本地排盘记录（index 起盘与深链进入均覆盖）
-    saveZiweiHistory({ name, gender, y, m, d, hour, minute, city, lng, useTrueSolar })
+    if (!recorded) {
+      saveZiweiHistory({ name, gender, y, m, d, hour, minute, city, lng, useTrueSolar })
+      recorded = true
+    }
   } catch (e) {
+    chart.value = null
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
-})
+}
 
 function goInput() {
   navigateTo('/pkg-paipan/ziwei/index')
@@ -78,8 +90,10 @@ function goInput() {
 
 /** 分享：复制盘面文字摘要 */
 function onShare() {
+  if (!allowed.value) return
   const c = chart.value
   if (!c) return
+  const timeText = solarText.value
   const summary = [
     `【紫微排盘】${c.clientName} ${c.gender}命`,
     c.lunarBirth,
@@ -87,15 +101,24 @@ function onShare() {
     c.sihuaNote,
     '—— 来自热卜 · 专业排盘工具',
   ].join('\n')
-  uni.setClipboardData({
-    data: summary,
-    success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+  return preview.run(() => {
+    chart.value = c
+    solarText.value = timeText
+    uni.setClipboardData({
+      data: summary,
+      success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+    })
   })
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" @share="onShare" />
 
     <!-- 参数错误态 -->

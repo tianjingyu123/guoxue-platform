@@ -8,6 +8,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -59,7 +60,11 @@ const r = ref<FeigongResult | null>(null)
 const invalid = ref(false)
 const selected = ref<number | null>(null)
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> | null = null
+let saved = false
+function loadResult() {
+  const opts = entryQuery
+  if (!opts) return
   try {
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
@@ -83,11 +88,19 @@ onLoad((opts: Record<string, string> = {}) => {
     if (params.m === 'random') res.methodLabel = `随机起局（${params.n}）`
     r.value = res
     q.value = params
-    saveFeigongHistory(params, `青龙落${res.qinglongZhi} · ${res.methodLabel.slice(0, 4)}`)
+    if (!saved) saveFeigongHistory(params, `青龙落${res.qinglongZhi} · ${res.methodLabel.slice(0, 4)}`)
+    saved = true
   } catch {
     invalid.value = true
   }
+}
+const preview = useNativePreviewPage(loadResult, () => {
+  q.value = null
+  r.value = null
+  invalid.value = false
+  selected.value = null
 })
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts }; void preview.run() })
 
 // ─── 宫位象意面板 ───
 const detailRows = computed(() => {
@@ -132,7 +145,12 @@ function goInput() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" back-href="/pkg-paipan/feigong/index" @share="onShare">
       <template #actions>
         <view class="th-btn" @tap="goInput">

@@ -683,16 +683,16 @@ export class AuditService {
   /**
    * PLATFORM 待审内容登记 ContentAuditRecord（责任到人：submitterId + circleId + 审核员全链路可追溯）。
    * UGC 机审漏斗在内容 create 前已跑过 → machineStatus=PASSED。
-   * 登记失败只记日志不回滚发布（内容 auditStatus=PENDING 仍圈内可见，可由管理员在内容列表补审）。
+   * 传入事务时登记失败必须回滚业务；旧调用未传事务时保留日志补审兼容语义。
    */
   async openContentAudit(opts: {
     contentType: ContentAuditType;
     contentId: string;
     circleId?: string | null;
     submitterId: string;
-  }): Promise<void> {
+  }, tx?: Prisma.TransactionClient): Promise<void> {
     try {
-      await this.prisma.contentAuditRecord.create({
+      await (tx ?? this.prisma).contentAuditRecord.create({
         data: {
           contentType: opts.contentType,
           contentId: opts.contentId,
@@ -705,6 +705,8 @@ export class AuditService {
         },
       });
     } catch (err) {
+      // 新接入业务与审核记录同事务；失败必须交调用方回滚，不能伪装登记成功。
+      if (tx) throw err;
       this.logger.error(
         `内容审核记录登记失败 [${opts.contentType}:${opts.contentId}]`,
         err instanceof Error ? err.stack : err,
@@ -780,16 +782,19 @@ export class AuditService {
    * 同步回写内容表快照 + 失效对应列表缓存。
    */
   async reviewContent(recordId: string, auditorId: string, action: "approve" | "reject", reason?: string) {
-    const record = await this.prisma.contentAuditRecord.findUnique({ where: { id: recordId } });
-    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "审核记录不存在");
-    if (record.finalStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已审结，不可重复审核");
-
+    if (action !== "approve" && action !== "reject") throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的审核动作");
     const approved = action === "approve";
     const finalStatus = approved ? "APPROVED" : "REJECTED";
     const rejectReason = approved ? null : reason || "内容不符合平台开放规范";
     const now = new Date();
 
-    const updated = await this.prisma.contentAuditRecord.update({
+    const { record, updated, target } = await this.prisma.$transaction(async tx => {
+      // 锁住真实台账行，再读最新终态，避免两个审核员并发覆盖裁决。
+      await tx.$queryRaw`SELECT id FROM "ContentAuditRecord" WHERE id=${recordId} FOR UPDATE`;
+      const record = await tx.contentAuditRecord.findUnique({ where: { id: recordId } });
+      if (!record || record.deletedAt) throw new BusinessException(ErrorCode.NOT_FOUND, "审核记录不存在");
+      if (record.finalStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已审结，不可重复审核");
+      const updated = await tx.contentAuditRecord.update({
       where: { id: recordId },
       data: {
         humanAuditorId: auditorId,
@@ -802,40 +807,52 @@ export class AuditService {
       },
     });
 
-    // 回写内容表 auditStatus 快照（内容已被删除等异常不回滚审核结论，只记日志）
+    // 回写失败必须让台账一并回滚，不能向管理员报告已完成。
     const target = AuditService.CONTENT_AUDIT_TARGETS[record.contentType];
     if (target) {
       const data: Record<string, unknown> = { auditStatus: finalStatus };
       if (target.hasReason) data.auditReason = rejectReason;
-      await (this.prisma[target.model] as unknown as {
+      const delegate = tx[target.model] as unknown as {
+        findUnique: (args: unknown) => Promise<Record<string, any> | null>;
         update: (args: unknown) => Promise<unknown>;
-      })
-        .update({ where: { id: record.contentId }, data })
-        .catch((err: unknown) =>
-          this.logger.error(
-            `审核结果回写内容表失败 [${record.contentType}:${record.contentId}]`,
-            err instanceof Error ? err.stack : err,
-          ),
-        );
-      await Promise.all(target.cachePatterns.map((p) => this.redis.delByPattern(p))).catch(() => undefined);
+      };
+      const demote = !approved && (["VIDEO", "COURSE", "LIVE"] as string[]).includes(record.contentType);
+      if (demote) {
+        // 只使用服务端固定表名；先锁内容行再取恢复快照，防止并发改动使快照过期。
+        const table = { video: '"Video"', course: '"Course"', liveRoom: '"LiveRoom"' }[target.model];
+        if (!table) throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的审核目标");
+        await tx.$queryRaw(Prisma.sql`SELECT id FROM ${Prisma.raw(table)} WHERE id=${record.contentId} FOR UPDATE`);
+      }
+      const previous = demote ? await delegate.findUnique({ where: { id: record.contentId } }) : null;
+      if (demote && !previous) throw new BusinessException(ErrorCode.NOT_FOUND, "审核内容不存在");
+      if (demote) data.visibility = "SELF_ONLY";
+      await delegate.update({ where: { id: record.contentId }, data });
+      if (demote && previous) {
+        // 可见性、申诉恢复快照和站内通知一起提交；此处不调用外部推送。
+        await tx.auditLog.create({ data: { userId: previous.userId, executor: auditorId,
+          action: "CONTENT_DEMOTE_SELF_ONLY", targetType: record.contentType, targetId: record.contentId,
+          detail: JSON.stringify({ verdict: "mild", category: rejectReason, recordId }),
+          rollbackData: { visibility: previous.visibility, status: previous.status ?? null,
+            auditStatus: previous.auditStatus ?? null, deletedAt: previous.deletedAt ?? null } } });
+        const kind = AuditService.POST_PUBLISH_TARGETS[record.contentType as PostPublishContentType];
+        const title = String(previous.title || "").slice(0, 30) || kind.typeName;
+        await tx.notification.create({ data: { userId: previous.userId, type: "AUDIT",
+          title: "内容可见范围调整通知", content: `您发布的${kind.typeName}「${title}」经系统复核，暂时调整为仅自己可见，不影响您查看和管理。如有疑问，请联系客服申诉，我们会尽快为您复核。`,
+          targetType: record.contentType, targetId: record.contentId } });
+      }
+    }
+    return { record, updated, target };
+    });
+    if (target) {
+      const postTarget = AuditService.POST_PUBLISH_TARGETS[record.contentType as PostPublishContentType];
+      await Promise.all([...target.cachePatterns.map((p) => this.redis.delByPattern(p)),
+        ...(postTarget ? [this.redis.del(postTarget.detailKey(record.contentId))] : [])]).catch(() => undefined);
 
       // 🔗 内容向量化触发点（内容理解内核·事件驱动）：审核通过后算语义向量入推荐池、驳回后移除。
       //    approved → ContentVectorizeService.onContentApproved(record.contentType, record.contentId)
       //    !approved → ContentVectorizeService.onContentUnpublished(record.contentType, record.contentId)
       //    当前为避免 audit↔recommend 循环依赖，由 ContentVectorizeTask 定时对账（reconcile）按 auditStatus 托底同步；
       //    如需实时，可将 RecommendModule 导出的 ContentVectorizeService 注入本服务后在此调用（fire-and-forget + catch）。
-    }
-
-    // 审核无感化（第八节）：三类先发后审内容的人工改判驳回 = 轻度违规处置（降 SELF_ONLY + 温和站内信）
-    // 严重违规已由机审直接下架，人工队列里的是「拿不准」样本，改判从轻。ARTICLE/POST 维持原有语义。
-    if (!approved && (["VIDEO", "COURSE", "LIVE"] as string[]).includes(record.contentType)) {
-      await this.applyModerationVerdict(
-        record.contentType as PostPublishContentType,
-        record.contentId,
-        "mild",
-        rejectReason ?? undefined,
-        auditorId,
-      ).catch((err) => this.logger.error(`人工改判处置失败 [${record.contentType}:${record.contentId}]`, err instanceof Error ? err.stack : err));
     }
 
     await this.log({

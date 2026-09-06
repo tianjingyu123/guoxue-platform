@@ -4,7 +4,7 @@
  * 数据来自本地真实记录（../liuyao-history），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -14,7 +14,8 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadLiuyaoHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
+const { allowed, checking } = preview
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -30,17 +31,23 @@ function open(vm: HistoryVM) {
   navigateTo(`/pkg-paipan2/liuyao/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
 }
 function onPin(ids: string[]) {
-  pinLiuyaoHistory(ids)
-  reload()
+  const selected = [...ids]
+  void preview.run(() => { pinLiuyaoHistory(selected); reload() })
 }
 function onDelete(ids: string[]) {
-  removeLiuyaoHistory(ids)
-  reload()
+  const selected = [...ids]
+  void preview.run(() => { removeLiuyaoHistory(selected); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!allowed" role="status" class="preview-gate">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button v-if="!checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
   <HistoryPage
+    v-else
     title="起卦记录"
     back-href="/paipan/liuyao"
     :records="vms"

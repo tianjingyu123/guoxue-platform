@@ -12,7 +12,8 @@
  * 老师的动线：选工具（可自定义常用）→ 真工具页起盘 → 结果页点「生成报告」→ 回工坊。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -42,11 +43,11 @@ function load() {
   recents.value = recentCharts(8)
 }
 
-onMounted(load)
-onShow(load)
+const preview = useNativePreviewPage(load, () => { recents.value = [] })
+onMounted(() => { void preview.run() })
 
 function openTool(href: string) {
-  uni.navigateTo({ url: href.startsWith('/paipan/') ? `/pkg-paipan${href}` : href })
+  navigateTo(href)
 }
 
 /** 最近排盘：直接进对应工具页复盘 */

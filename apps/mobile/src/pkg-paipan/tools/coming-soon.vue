@@ -2,20 +2,19 @@
 /** 功能开发中占位页——从原型 app/paipan/tools/coming-soon/page.tsx 1:1 迁移 */
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
 
 const toolName = ref('此功能')
+let pendingName = ''
+const preview = useNativePreviewPage(() => {
+  try { toolName.value = decodeURIComponent(pendingName) || '此功能' }
+  catch { toolName.value = pendingName || '此功能' }
+}, () => { toolName.value = '此功能' })
 
 onLoad((options) => {
-  const name = options?.name
-  if (name) {
-    try {
-      toolName.value = decodeURIComponent(name)
-    } catch {
-      toolName.value = name
-    }
-  }
+  pendingName = options?.name || ''
 })
 
 function goBack() {
@@ -24,7 +23,12 @@ function goBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="topbar">
       <view class="topbar-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
@@ -46,7 +50,7 @@ function goBack() {
         <text class="pill-t">即将上线</text>
       </view>
 
-      <view class="home-btn" @tap="goBack"><text class="home-btn-t">返回首页</text></view>
+      <view class="home-btn" @tap="navigateTo('/pages/index/index')"><text class="home-btn-t">返回首页</text></view>
     </view>
   </view>
 </template>

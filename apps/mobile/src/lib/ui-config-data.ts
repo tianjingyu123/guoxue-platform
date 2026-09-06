@@ -17,13 +17,10 @@ const DEFAULT_UI_CONFIG: UiConfig = {
   },
 }
 
-// 会话内缓存：一次拉取全局复用（配置低频变化）
-let cached: UiConfig | null = null
-
 export async function getUiConfig(force = false): Promise<UiConfig> {
   try {
     const data = (await hydrateRemoteConfig(force)).ui
-    cached = {
+    return {
       home: { bigCardInterval: Number(data?.home?.bigCardInterval) || DEFAULT_UI_CONFIG.home.bigCardInterval },
       agentCard: {
         categoryColors: data?.agentCard?.categoryColors && typeof data.agentCard.categoryColors === 'object'
@@ -31,7 +28,6 @@ export async function getUiConfig(force = false): Promise<UiConfig> {
           : DEFAULT_UI_CONFIG.agentCard.categoryColors,
       },
     }
-    return cached
   } catch {
     return DEFAULT_UI_CONFIG
   }
@@ -39,7 +35,6 @@ export async function getUiConfig(force = false): Promise<UiConfig> {
 
 /** 同步取已缓存配置（未拉取则返回默认）——供叶子组件同步读取 */
 export function getCachedUiConfig(): UiConfig {
-  if (cached) return cached
   const data = getRemoteConfig().ui
   return data || DEFAULT_UI_CONFIG
 }

@@ -7,6 +7,8 @@ import { createHash } from "crypto";
  */
 @Injectable()
 export class LiveStreamService {
+  // 结束直播的禁推期限必须覆盖此前签发凭据；调用方不能悄悄签出更长有效期。
+  static readonly MAX_PUSH_VALIDITY_SECONDS = 24 * 60 * 60;
   private readonly logger = new Logger(LiveStreamService.name);
 
   constructor() {
@@ -40,6 +42,9 @@ export class LiveStreamService {
     return !!(this.pushDomain && this.playDomain && this.pushKey && this.playKey);
   }
 
+  /** 只公开回调归属范围，绝不返回鉴权密钥。 */
+  callbackScope() { return { domain: this.pushDomain, appName: this.appName }; }
+
   /** 生成 txTime（十六进制时间戳） */
   private genTxTime(validitySeconds: number = 86400): string {
     const expireTime = Math.floor(Date.now() / 1000) + validitySeconds;
@@ -53,6 +58,10 @@ export class LiveStreamService {
 
   /** 生成推流地址（带防盗链） */
   genPushUrl(streamKey: string, validitySeconds: number = 86400): string {
+    if (!Number.isSafeInteger(validitySeconds) || validitySeconds < 1 || validitySeconds > LiveStreamService.MAX_PUSH_VALIDITY_SECONDS) {
+      throw new Error("LIVE_PUSH_VALIDITY_OUT_OF_RANGE");
+    }
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(streamKey)) throw new Error("LIVE_PUSH_STREAM_NAME_INVALID");
     if (!this.pushDomain || !this.pushKey) {
       this.logger.error("推流域名或推流鉴权密钥未配置");
       return "";

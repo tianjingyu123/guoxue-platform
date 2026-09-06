@@ -8,7 +8,7 @@
  *       V0 底部弹层选择器换 uni-app 原生 picker（selector），出生年份加「暂不填写」项保持选填语义。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -69,29 +69,38 @@ const matched = computed(() =>
 
 // ── 排盘记录 ──
 const history = ref<BazhaiHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadBazhaiHistory()
+}, () => {
+  history.value = []
+  customer.value = ''
+  sittingIdx.value = null
+  birthYear.value = null
+  gender.value = 'male'
 })
 
 function onClearHistory() {
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
   uni.showModal({
     title: '清空记录',
     content: '确定清空全部排盘记录？',
     success: (res) => {
-      if (res.confirm) {
-        clearBazhaiHistory()
-        history.value = []
+      if (res.confirm && isCurrent()) {
+        void preview.run(() => { clearBazhaiHistory(); history.value = [] })
       }
     },
   })
 }
 
 function openRecord(h: BazhaiHistoryItem) {
+  if (!preview.allowed.value) return
   navigateTo(`/pkg-paipan3/bazhai/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
 }
 
 // ── 开始排盘 ──
 function handleSubmit() {
+  if (!preview.allowed.value) return
   if (sittingIdx.value === null) {
     uni.showToast({ title: '请先选择住宅坐向', icon: 'none' })
     return
@@ -107,7 +116,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/bazhai/history" :title="hdrTitle" subtitle="大游年起星 · 东西四宅" share />
 
     <scroll-view scroll-y class="body">

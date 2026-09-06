@@ -15,6 +15,11 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 export const FEATURE_FLAG_KEY_PATTERN = /^[a-z][a-z0-9._-]{1,63}$/;
 
 export class UpsertFeatureFlagDto {
+  @ApiPropertyOptional({ description: "预览时的基础指纹，防止覆盖其他管理员修改" })
+  @IsOptional()
+  @Matches(/^[a-f0-9]{64}$/)
+  expectedFingerprint?: string;
+
   @ApiPropertyOptional({ description: "名称" })
   @IsOptional()
   @IsString()
@@ -54,4 +59,17 @@ export class CreateFeatureFlagDto extends UpsertFeatureFlagDto {
     message: "key 必须以小写字母开头，且只能包含小写字母、数字、点、下划线或短横线，长度 2-64",
   })
   key: string;
+}
+
+export class PreviewFeatureFlagDto extends UpsertFeatureFlagDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  sampleUserId?: string;
+}
+
+export class RollbackFeatureFlagDto {
+  @IsOptional()
+  @Matches(/^[a-f0-9]{64}$/)
+  expectedFingerprint?: string;
 }

@@ -2,12 +2,12 @@
 /** 阳盘命理奇门排盘结果页——接 yangpanApi.calculate 真实算法，三态驱动 */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
-import { getToken } from '@/utils/storage'
 import { yangpanApi, type YangpanResult, type YangpanInput } from '@/lib/yangpan-data'
 import { saveYangpanHistory } from './yangpan-history'
 
@@ -48,6 +48,14 @@ const errMsg = ref('')
 const result = ref<YangpanResult | null>(null)
 const saving = ref(false)
 const serverRecordId = ref('')
+let lastRecordedInput = ''
+const preview = useNativePreviewPage(() => {}, () => {
+  result.value = null
+  serverRecordId.value = ''
+  errMsg.value = ''
+  showNotes.value = false
+}, () => { void load() })
+const { allowed, checking } = preview
 
 function buildInput(): YangpanInput {
   return {
@@ -66,25 +74,28 @@ function buildInput(): YangpanInput {
 }
 
 async function load() {
+  const input = buildInput()
   loading.value = true
   errMsg.value = ''
   serverRecordId.value = ''
-  try {
-    result.value = await yangpanApi.calculate(buildInput())
-    saveRecord(result.value)
-  } catch (e) {
-    errMsg.value = (e as Error)?.message || '排盘失败，请稍后重试'
-  } finally {
-    loading.value = false
-  }
+  const accepted = await preview.runTask(async () => await yangpanApi.calculate(input), value => {
+    result.value = value
+    const fingerprint = JSON.stringify(input)
+    if (fingerprint !== lastRecordedInput) {
+      saveRecord(value, input)
+      lastRecordedInput = fingerprint
+    }
+  })
+  loading.value = false
+  return accepted
 }
 
-/** 排盘成功后落本地记录（无需登录）——记录页读的就是它；onSave 存后端是另一回事 */
-function saveRecord(r: YangpanResult | null) {
+/** 排盘成功且复核私有预览资格后落当前账号本地记录；onSave 存后端是另一回事 */
+function saveRecord(r: YangpanResult | null, input: YangpanInput) {
   if (!r) return
   saveYangpanHistory({
-    ...buildInput(),
-    name: q.name || '未命名',
+    ...input,
+    name: input.name || '未命名',
     juLabel: `${r.dunType === 'yang' ? '阳遁' : '阴遁'}${r.juNumber}局`,
     zhiFu: r.zhiFu,
     zhiShiMen: r.zhiShiMen,
@@ -93,15 +104,16 @@ function saveRecord(r: YangpanResult | null) {
 
 /** 保存排盘记录（需登录，防重复提交） */
 async function onSave() {
-  if (saving.value) return
-  if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
+  if (saving.value || !allowed.value || !result.value) return
+  const input = buildInput()
+  const currentResult = result.value
   saving.value = true
   try {
-    const saved = await yangpanApi.save(buildInput())
-    serverRecordId.value = saved.id
-    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+    await preview.runTask(() => yangpanApi.save(input), saved => {
+      result.value = currentResult
+      serverRecordId.value = saved.id
+      uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+    })
   } finally {
     saving.value = false
   }
@@ -153,7 +165,6 @@ onLoad((opts: Record<string, string> = {}) => {
   q.trueSolar = opts.trueSolar !== 'false'   // 默认开启真太阳时，仅显式 false 关闭
   q.earlyLateZi = opts.earlyLateZi === 'true'
   q.daylightSaving = opts.daylightSaving === 'true'
-  load()
 })
 
 // ─── 适配层：后端 YangpanResult → 页面结构 ───
@@ -259,7 +270,12 @@ function goToBazi() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="load()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">

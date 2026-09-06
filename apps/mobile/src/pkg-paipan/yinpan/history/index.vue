@@ -4,7 +4,7 @@
  * 数据来自本地真实记录（../yinpan-history），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -14,7 +14,8 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadYinpanHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
+const { allowed, checking } = preview
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -30,17 +31,23 @@ function open(vm: HistoryVM) {
   navigateTo(`/pkg-paipan/yinpan/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
 }
 function onPin(ids: string[]) {
-  pinYinpanHistory(ids)
-  reload()
+  const target = [...ids]
+  return preview.run(() => { pinYinpanHistory(target); reload() })
 }
 function onDelete(ids: string[]) {
-  removeYinpanHistory(ids)
-  reload()
+  const target = [...ids]
+  return preview.run(() => { removeYinpanHistory(target); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
   <HistoryPage
+    v-else
     title="起局记录"
     back-href="/paipan/yinpan"
     :records="vms"

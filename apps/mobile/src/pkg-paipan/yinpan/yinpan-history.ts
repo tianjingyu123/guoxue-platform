@@ -2,7 +2,8 @@
  * 阴盘奇门排盘记录（本地存储）
  * 存排盘输入（YinpanParams），上限 50 条；结果页排盘成功后写入，入口页历史卡展示。
  */
-import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory } from '@/lib/paipan/private-history'
 
 export interface YinpanParams {
   matter: string
@@ -28,32 +29,14 @@ export interface YinpanRecord {
 export type YinpanHistoryItem = HistoryItem<YinpanRecord>
 
 const KEY = 'rebu:yinpan-records'
-const LEGACY_KEY = 'rebu:yinpan-history'
 
 const store = createHistory<YinpanRecord>(KEY, {
   max: 50,
   sameAs: (a, b) => JSON.stringify(a.params) === JSON.stringify(b.params),
 })
 
-/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
-function migrateLegacy(): void {
-  try {
-    const raw = uni.getStorageSync(LEGACY_KEY)
-    if (!raw) return
-    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
-    if (Array.isArray(old)) {
-      for (const r of [...old].reverse()) {
-        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as YinpanRecord)
-      }
-    }
-    uni.removeStorageSync(LEGACY_KEY)
-  } catch {
-    /* 迁移失败不阻断 */
-  }
-}
-
+/** 无归属旧记录保留，不自动并入当前账号。 */
 export function loadYinpanHistory(): YinpanHistoryItem[] {
-  migrateLegacy()
   return store.load()
 }
 

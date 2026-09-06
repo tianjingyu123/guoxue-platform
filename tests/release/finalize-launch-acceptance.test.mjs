@@ -13,6 +13,8 @@ const requiredChecks = [
   "database_reconciliation",
   "payment_refund",
   "core_clients",
+  "publication_authorization",
+  "media_resource_closure",
   "harmony_client",
   "client_artifacts",
   "monitoring_backup_restore",
@@ -104,7 +106,7 @@ test("可在发布证据目录安全初始化待签字验收表且拒绝覆盖",
   );
   assert.equal(acceptance.releaseId, releaseId);
   assert.equal(acceptance.confirmation, `approve:${releaseId}`);
-  assert.equal(acceptance.checks.length, 9);
+  assert.equal(acceptance.checks.length, 11);
   assert.ok(acceptance.checks.every((item) => item.status === "PENDING"));
 
   const second = spawnSync(process.execPath, command, { cwd: repoRoot, encoding: "utf8" });
@@ -112,16 +114,16 @@ test("可在发布证据目录安全初始化待签字验收表且拒绝覆盖",
   assert.match(second.stderr, /拒绝覆盖/u);
 });
 
-test("标准部署机器九证据与双负责人九项验收完整时给出最终 GO", async (t) => {
+test("标准部署机器九证据与双负责人十一项验收完整时给出最终 GO", async (t) => {
   const { result, report } = await runScenario(t);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(report.decision, "GO");
-  assert.equal(report.summary.requiredManualChecks, 9);
-  assert.equal(report.summary.archivedEvidenceFiles, 9);
+  assert.equal(report.summary.requiredManualChecks, 11);
+  assert.equal(report.summary.archivedEvidenceFiles, 11);
   assert.match(report.sources.manualAcceptance.sha256, /^[a-f0-9]{64}$/u);
 });
 
-test("腾讯部署机器十证据与双负责人九项验收完整时给出最终 GO", async (t) => {
+test("腾讯部署机器十证据与双负责人十一项验收完整时给出最终 GO", async (t) => {
   const { result, report } = await runScenario(t, ({ machineDecision }) => {
     machineDecision.summary = { passed: 10, failed: 0, total: 10 };
     machineDecision.sources.source9 = { sha256: "b".repeat(64) };
@@ -149,6 +151,17 @@ test("缺少任一人工检查项时阻断最终上线", async (t) => {
   assert.equal(report.decision, "BLOCK");
   assert.ok(report.errors.some((item) => item.includes("payment_refund")));
 });
+
+for (const id of ["publication_authorization", "media_resource_closure"]) {
+  test(`机器检查全绿但缺少 ${id} 运营闭环证据仍阻断`, async (t) => {
+    const { result, report } = await runScenario(t, ({ acceptance }) => {
+      acceptance.checks = acceptance.checks.filter((item) => item.id !== id);
+    });
+    assert.equal(result.status, 1);
+    assert.equal(report.decision, "BLOCK");
+    assert.ok(report.errors.some((item) => item.includes(id)));
+  });
+}
 
 test("技术与业务负责人是同一人时阻断最终上线", async (t) => {
   const { result, report } = await runScenario(t, ({ acceptance }) => {

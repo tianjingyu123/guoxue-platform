@@ -32,6 +32,21 @@ CREATE TYPE "CirclePublishScope" AS ENUM ('SHORT_VIDEO', 'LIVE', 'COURSE');
 CREATE TYPE "CirclePublishGrantStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'FROZEN', 'REVOKED');
 
 -- CreateEnum
+CREATE TYPE "CircleCapabilityType" AS ENUM ('LIVE', 'SHORT_VIDEO', 'AUDIO_QUESTION', 'VIDEO_QUESTION');
+
+-- CreateEnum
+CREATE TYPE "CircleCapabilityGrantState" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED', 'REVOKED');
+
+-- CreateEnum
+CREATE TYPE "CircleCapabilityQuotaState" AS ENUM ('HELD', 'ACTIVE', 'COMPLETED', 'RELEASED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "CircleCapabilityQuotaAction" AS ENUM ('RESERVE', 'ACTIVATE', 'COMPLETE', 'RELEASE', 'EXPIRE');
+
+-- CreateEnum
+CREATE TYPE "CircleCapabilityDispatchState" AS ENUM ('READY', 'DISPATCHING', 'CONFIRMED', 'UNKNOWN', 'CANCELLED');
+
+-- CreateEnum
 CREATE TYPE "PostType" AS ENUM ('TEXT', 'IMAGE', 'VIDEO', 'FILE', 'LINK', 'AUDIO');
 
 -- CreateEnum
@@ -440,6 +455,110 @@ CREATE TABLE "CirclePublishGrant" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "CirclePublishGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleCapabilityGrant" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "subjectUserId" TEXT,
+    "subjectKey" VARCHAR(64) NOT NULL,
+    "capability" "CircleCapabilityType" NOT NULL,
+    "source" VARCHAR(24) NOT NULL DEFAULT 'CIRCLE_APPLICATION',
+    "sequence" INTEGER NOT NULL,
+    "policyRevision" INTEGER NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "state" "CircleCapabilityGrantState" NOT NULL DEFAULT 'PENDING',
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "expiresAt" TIMESTAMP(3),
+    "maxUnits" INTEGER,
+    "maxConcurrent" INTEGER,
+    "eligibilitySnapshot" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleCapabilityGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleCapabilityAudit" (
+    "id" TEXT NOT NULL,
+    "grantId" TEXT NOT NULL,
+    "revision" INTEGER NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "action" VARCHAR(24) NOT NULL,
+    "reason" VARCHAR(500) NOT NULL,
+    "beforeSnapshot" JSONB,
+    "afterSnapshot" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CircleCapabilityAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleCapabilityQuota" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "capability" "CircleCapabilityType" NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "subjectUserId" TEXT,
+    "businessType" VARCHAR(40) NOT NULL,
+    "businessId" TEXT NOT NULL,
+    "requestKey" TEXT NOT NULL,
+    "units" INTEGER NOT NULL,
+    "holdSeconds" INTEGER NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "circleGrantId" TEXT,
+    "circleGrantRevision" INTEGER,
+    "providerGrantId" TEXT,
+    "providerGrantRevision" INTEGER,
+    "policyRevision" INTEGER NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "state" "CircleCapabilityQuotaState" NOT NULL DEFAULT 'HELD',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "holdUntil" TIMESTAMP(3) NOT NULL,
+    "activatedAt" TIMESTAMP(3),
+    "terminalAt" TIMESTAMP(3),
+
+    CONSTRAINT "CircleCapabilityQuota_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleCapabilityQuotaReceipt" (
+    "id" TEXT NOT NULL,
+    "reservationId" TEXT NOT NULL,
+    "operationKey" TEXT NOT NULL,
+    "action" "CircleCapabilityQuotaAction" NOT NULL,
+    "appliedRevision" INTEGER NOT NULL,
+    "source" VARCHAR(24) NOT NULL,
+    "actorId" TEXT,
+    "evidenceRef" VARCHAR(128),
+    "beforeSnapshot" JSONB,
+    "afterSnapshot" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CircleCapabilityQuotaReceipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CircleCapabilityDispatch" (
+    "id" TEXT NOT NULL,
+    "reservationId" TEXT NOT NULL,
+    "state" "CircleCapabilityDispatchState" NOT NULL DEFAULT 'READY',
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "providerOperationKey" TEXT NOT NULL,
+    "leaseToken" TEXT,
+    "leaseUntil" TIMESTAMP(3),
+    "dispatchedAt" TIMESTAMP(3),
+    "resolvedAt" TIMESTAMP(3),
+    "evidenceRef" VARCHAR(128),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleCapabilityDispatch_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1214,6 +1333,48 @@ CREATE TABLE "LiveRoom" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LiveRoom_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveMediaEvidence" (
+    "roomId" TEXT NOT NULL,
+    "snapshot" JSONB NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "LiveMediaEvidence_pkey" PRIMARY KEY ("roomId")
+);
+
+-- CreateTable
+CREATE TABLE "LiveMediaCredentialBoundary" (
+    "roomId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "scope" JSONB NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "LiveMediaCredentialBoundary_pkey" PRIMARY KEY ("roomId","provider")
+);
+
+-- CreateTable
+CREATE TABLE "LiveMediaStopIntent" (
+    "roomId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "operationId" TEXT NOT NULL,
+    "requestedBy" TEXT NOT NULL,
+    "scope" JSONB NOT NULL,
+    "credentialRevision" INTEGER NOT NULL,
+    "protectUntil" TIMESTAMP(3) NOT NULL,
+    "state" TEXT NOT NULL DEFAULT 'READY',
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "claimedAt" TIMESTAMP(3),
+    "leaseUntil" TIMESTAMP(3),
+    "resultAt" TIMESTAMP(3),
+    "providerRequestId" TEXT,
+    "verification" JSONB,
+    "completion" JSONB,
+
+    CONSTRAINT "LiveMediaStopIntent_pkey" PRIMARY KEY ("roomId","provider")
 );
 
 -- CreateTable
@@ -5588,6 +5749,18 @@ CREATE TABLE "ConsultCall" (
 );
 
 -- CreateTable
+CREATE TABLE "ConsultCallMediaBoundary" (
+    "callId" TEXT NOT NULL,
+    "scope" JSONB NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revision" INTEGER NOT NULL DEFAULT 1,
+    "stopIntent" JSONB,
+    "mediaEvidence" JSONB,
+
+    CONSTRAINT "ConsultCallMediaBoundary_pkey" PRIMARY KEY ("callId")
+);
+
+-- CreateTable
 CREATE TABLE "ImPolicyConfig" (
     "id" TEXT NOT NULL DEFAULT 'default',
     "allowStrangerDM" BOOLEAN NOT NULL DEFAULT false,
@@ -6298,6 +6471,63 @@ CREATE INDEX "CirclePublishGrant_applicantId_createdAt_idx" ON "CirclePublishGra
 CREATE INDEX "CirclePublishGrant_status_createdAt_idx" ON "CirclePublishGrant"("status", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "CircleCapabilityGrant_scope_created_idx" ON "CircleCapabilityGrant"("circleId", "capability", "subjectKey", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityGrant_state_createdAt_idx" ON "CircleCapabilityGrant"("state", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityGrant_subjectUserId_createdAt_idx" ON "CircleCapabilityGrant"("subjectUserId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityGrant_scope_sequence_key" ON "CircleCapabilityGrant"("circleId", "capability", "subjectKey", "sequence");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityAudit_actorId_createdAt_idx" ON "CircleCapabilityAudit"("actorId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityAudit_grantId_revision_key" ON "CircleCapabilityAudit"("grantId", "revision");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityQuota_requestKey_key" ON "CircleCapabilityQuota"("requestKey");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityQuota_circleId_createdAt_idx" ON "CircleCapabilityQuota"("circleId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityQuota_circle_usage_idx" ON "CircleCapabilityQuota"("circleGrantId", "state", "holdUntil");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityQuota_provider_usage_idx" ON "CircleCapabilityQuota"("providerGrantId", "state", "holdUntil");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityQuota_business_key" ON "CircleCapabilityQuota"("businessType", "businessId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityQuotaReceipt_operationKey_key" ON "CircleCapabilityQuotaReceipt"("operationKey");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityQuotaReceipt_createdAt_idx" ON "CircleCapabilityQuotaReceipt"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityQuotaReceipt_revision_key" ON "CircleCapabilityQuotaReceipt"("reservationId", "appliedRevision");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityDispatch_reservationId_key" ON "CircleCapabilityDispatch"("reservationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityDispatch_providerOperationKey_key" ON "CircleCapabilityDispatch"("providerOperationKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleCapabilityDispatch_leaseToken_key" ON "CircleCapabilityDispatch"("leaseToken");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityDispatch_state_createdAt_idx" ON "CircleCapabilityDispatch"("state", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CircleCapabilityDispatch_state_leaseUntil_idx" ON "CircleCapabilityDispatch"("state", "leaseUntil");
+
+-- CreateIndex
 CREATE INDEX "CircleMember_userId_idx" ON "CircleMember"("userId");
 
 -- CreateIndex
@@ -6716,6 +6946,12 @@ CREATE INDEX "LiveRoom_status_startTime_idx" ON "LiveRoom"("status", "startTime"
 
 -- CreateIndex
 CREATE INDEX "LiveRoom_hostUserId_status_idx" ON "LiveRoom"("hostUserId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveMediaStopIntent_operationId_key" ON "LiveMediaStopIntent"("operationId");
+
+-- CreateIndex
+CREATE INDEX "LiveMediaStopIntent_state_createdAt_idx" ON "LiveMediaStopIntent"("state", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "LiveBooking_roomId_status_idx" ON "LiveBooking"("roomId", "status");
@@ -8602,6 +8838,9 @@ CREATE INDEX "CircleJoinRequest_circleId_status_idx" ON "CircleJoinRequest"("cir
 CREATE INDEX "CircleJoinRequest_userId_idx" ON "CircleJoinRequest"("userId");
 
 -- CreateIndex
+CREATE INDEX "ConsultCall_rtcRoomId_idx" ON "ConsultCall"("rtcRoomId");
+
+-- CreateIndex
 CREATE INDEX "ConsultCall_callerId_idx" ON "ConsultCall"("callerId");
 
 -- CreateIndex
@@ -8860,6 +9099,27 @@ ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_applicantId_
 ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CircleCapabilityGrant" ADD CONSTRAINT "CircleCapabilityGrant_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityAudit" ADD CONSTRAINT "CircleCapabilityAudit_grantId_fkey" FOREIGN KEY ("grantId") REFERENCES "CircleCapabilityGrant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityQuota" ADD CONSTRAINT "CircleCapabilityQuota_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityQuota" ADD CONSTRAINT "CircleCapabilityQuota_circleGrantId_fkey" FOREIGN KEY ("circleGrantId") REFERENCES "CircleCapabilityGrant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityQuota" ADD CONSTRAINT "CircleCapabilityQuota_providerGrantId_fkey" FOREIGN KEY ("providerGrantId") REFERENCES "CircleCapabilityGrant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityQuotaReceipt" ADD CONSTRAINT "CircleCapabilityQuotaReceipt_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "CircleCapabilityQuota"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleCapabilityDispatch" ADD CONSTRAINT "CircleCapabilityDispatch_reservationId_fkey" FOREIGN KEY ("reservationId") REFERENCES "CircleCapabilityQuota"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "CircleMember" ADD CONSTRAINT "CircleMember_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -9008,6 +9268,15 @@ ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_courseId_fkey" FOREIGN KEY ("cou
 
 -- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveMediaEvidence" ADD CONSTRAINT "LiveMediaEvidence_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveMediaCredentialBoundary" ADD CONSTRAINT "LiveMediaCredentialBoundary_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveMediaStopIntent" ADD CONSTRAINT "LiveMediaStopIntent_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveBooking" ADD CONSTRAINT "LiveBooking_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -9572,6 +9841,9 @@ ALTER TABLE "Poetry" ADD CONSTRAINT "Poetry_categoryId_fkey" FOREIGN KEY ("categ
 
 -- AddForeignKey
 ALTER TABLE "Poetry" ADD CONSTRAINT "Poetry_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "PoetryCollection"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ConsultCallMediaBoundary" ADD CONSTRAINT "ConsultCallMediaBoundary_callId_fkey" FOREIGN KEY ("callId") REFERENCES "ConsultCall"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ClientServeLog" ADD CONSTRAINT "ClientServeLog_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "ClientBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;

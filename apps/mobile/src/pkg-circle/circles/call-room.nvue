@@ -1,0 +1,129 @@
+<template>
+  <view class="page" :style="{ paddingTop: top + 'px', paddingBottom: bottom + 'px' }">
+    <view class="header"><text class="back" @click="leave">返回</text><text class="title">{{ callType === 'VIDEO' ? '视频连线' : '语音连线' }}</text></view>
+    <view class="stage">
+      <TRTCCloudUniPlugin-TXRemoteViewComponent v-if="peerId && peerVideo" :userId="peerId" :viewId="remoteViewId" class="remote" />
+      <view v-else class="status"><text class="peer">{{ peerName }}</text><text class="phase">{{ phaseText }}</text></view>
+      <TRTCCloudUniPlugin-TXLocalViewComponent v-if="callType === 'VIDEO'" :viewId="localViewId" class="local" />
+    </view>
+    <text class="notice">{{ errorText || connectionText }}</text>
+    <text v-if="!existingId && view.phase === 'IDLE' && entryValid" class="fee">当前单价 {{ price }} 金币/分钟。发起时预扣金币，未接通全额退回；接通后按服务端计时结算，不足一分钟按一分钟计。预扣额度用尽后自动结束，不自动续费或追加扣款。</text>
+    <view v-if="view.phase === 'IDLE' && !loading && entryValid" class="actions">
+      <text class="primary" @click="start">{{ existingId ? '接听' : '确认发起' }}</text>
+      <text v-if="existingId" class="danger" @click="hangup">拒绝</text>
+    </view>
+    <view v-if="view.phase === 'WAITING' || view.phase === 'ONGOING'" class="actions">
+      <text class="control" @click="toggleMic">{{ muted ? '打开麦克风' : '静音' }}</text>
+      <text v-if="callType === 'VIDEO'" class="control" @click="toggleCamera">{{ cameraOff ? '打开摄像头' : '关闭摄像头' }}</text>
+      <text v-if="callType === 'VIDEO'" class="control" @click="switchCamera">切换镜头</text>
+    </view>
+    <text v-if="view.callId && !['IDLE', 'FINISHED'].includes(view.phase)" class="danger" @click="hangup">{{ view.phase === 'STOPPING' ? '正在确认结束结果' : '结束连线并核对结算' }}</text>
+    <text v-if="view.phase === 'RECOVERY_REQUIRED' && !view.callId" class="control" @click="records">查看通话记录，确认本次是否已创建</text>
+    <text v-if="view.phase === 'FINISHED'" class="primary" @click="records">查看通话账单</text>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, ref } from 'vue'
+import { onLoad, onUnload, onBackPress, onHide, onShow } from '@dcloudio/uni-app'
+import { callApi } from '@/lib/consult-call-data'
+import { consultApi } from '@/lib/circle-consult-data'
+import { createConsultCallSession, type ConsultSessionView } from '@/lib/consult-call-session'
+import { createConsultCallStateSync } from '@/lib/consult-call-state-sync'
+import { createConsultTrtcClient } from './consult-trtc-client'
+import { goBack, navigateTo } from '@/utils/router'
+
+const system = uni.getSystemInfoSync()
+const top = system.statusBarHeight || 0, bottom = Math.max(system.safeAreaInsets?.bottom || 0, 16)
+const localViewId = 'consult-local', remoteViewId = 'consult-remote'
+const callType = ref<'VOICE' | 'VIDEO'>('VOICE'), peerName = ref('连麦咨询')
+const existingId = ref(''), circleId = ref(''), expertId = ref(''), loading = ref(false)
+const entryValid = ref(false)
+const price = ref(0)
+const peerId = ref(''), peerVideo = ref(false), muted = ref(false), cameraOff = ref(false)
+const connectionText = ref('接通前请检查网络与麦克风'), front = ref(true)
+const view = ref<ConsultSessionView>({ phase: 'IDLE', callId: null, error: null })
+let sync: ReturnType<typeof createConsultCallStateSync> | null = null, syncId = '', leaving = false
+const phaseText = computed(() => ({ IDLE: '准备连线', PREPARING: '检查设备权限', CONNECTING: '正在建立媒体连接', WAITING: '等待对方接听', ONGOING: '通话进行中', STOPPING: '正在确认结束结果', FINISHED: '通话已结束', RECOVERY_REQUIRED: '连接异常，请核对通话状态' })[view.value.phase])
+const errorText = computed(() => view.value.error ? ({ DEVICE_UNAVAILABLE: '设备或权限尚未准备完成，本次未发起扣费。请允许相机/麦克风后重试。', ACTION_UNCERTAIN: '请求结果暂未确认。请核对通话记录，不要重复发起。', MEDIA_UNAVAILABLE: '媒体连接未就绪，不能确认双方互通。请结束连线并核对结算。', STATE_UNAVAILABLE: '暂时无法获取通话状态，请检查网络后查看记录。', STATE_INVALID: '通话状态不一致，已停止本机采集，请查看记录。' })[view.value.error] : '')
+const native = createConsultTrtcClient({ localViewId, remoteViewId,
+  onPeer(userId, video) { peerId.value = userId; peerVideo.value = video; if (video) void nextTick(() => native.attachRemote(userId)) },
+  onConnection(state) { connectionText.value = state === 'connected' ? '网络连接已恢复' : state === 'reconnecting' ? '网络不稳定，正在恢复连接' : '媒体连接已断开'; if (state === 'lost') session.mediaLost() },
+})
+const session = createConsultCallSession({
+  prepare: type => native.prepare(type), connect: (ticket, type) => native.connect(ticket, type), disconnect: native.disconnect,
+  initiate: callApi.initiate, accept: callApi.accept, read: callApi.state, end: callApi.end, cancel: id => callApi.cancel(id),
+  onChange(value) {
+    view.value = value
+    if (value.callId && value.callId !== syncId) {
+      sync?.stop(); syncId = value.callId
+      sync = createConsultCallStateSync({ callId: syncId, read: callApi.state, onState: state => session.observe(state),
+        onError: () => { connectionText.value = '通话状态同步中断，请结束连线核对结果'; session.mediaLost() } })
+      sync.start()
+    }
+    if (value.phase === 'FINISHED') sync?.stop()
+  },
+})
+async function start() {
+  if (loading.value || !entryValid.value) return
+  if (existingId.value) await session.accept(existingId.value, callType.value)
+  else if (circleId.value && expertId.value) await session.initiate({ circleId: circleId.value, expertId: expertId.value, type: callType.value })
+}
+async function hangup() { await session.hangup() }
+function toggleMic() { muted.value = !muted.value; native.muteAudio(muted.value) }
+function toggleCamera() { cameraOff.value = !cameraOff.value; native.muteVideo(cameraOff.value) }
+function switchCamera() { front.value = !front.value; native.switchCamera(front.value) }
+function records() { leaving = true; navigateTo('/pkg-circle/circles/my-calls') }
+function leave() {
+  if (!view.value.callId && view.value.phase === 'IDLE' || view.value.phase === 'FINISHED') { leaving = true; goBack(); return }
+  uni.showModal({ title: '结束连线', content: '先结束当前连线并确认结果，再离开此页。', confirmText: '结束连线',
+    success: result => { if (result.confirm) void hangup() } })
+}
+onLoad(async options => {
+  circleId.value = String(options?.circleId || ''); expertId.value = String(options?.expertId || '')
+  callType.value = options?.type === 'VIDEO' ? 'VIDEO' : 'VOICE'; existingId.value = String(options?.id || '')
+  loading.value = true
+  try {
+    if (!existingId.value) {
+      if (!circleId.value || !expertId.value) throw new Error('缺少服务参数')
+      const experts = await consultApi.listExperts(circleId.value)
+      const expert = experts.find(item => item.id === expertId.value)
+      if (!expert || !(callType.value === 'VIDEO' ? expert.videoCallEnabled : expert.audioCallEnabled)) throw new Error('服务未开通')
+      peerName.value = expert.name || '达人'; price.value = expert.callPrice
+      entryValid.value = true
+      return
+    }
+    const state = await callApi.state(existingId.value)
+    callType.value = state.type
+    await session.loadExisting(existingId.value)
+    entryValid.value = view.value.callId === existingId.value && view.value.error === null
+    const record = (await callApi.myCalls()).find(item => item.id === existingId.value)
+    if (record) peerName.value = (state.role === 'CALLER' ? record.expertName : record.callerName) || '对方'
+  } catch { entryValid.value = false; connectionText.value = '无法确认当前服务或通话，请返回服务页重试' }
+  finally { loading.value = false }
+})
+onBackPress(() => { if (leaving) return false; leave(); return true })
+onHide(() => { sync?.stop(); if (['PREPARING', 'CONNECTING', 'ONGOING', 'WAITING'].includes(view.value.phase)) session.mediaLost() })
+onShow(() => sync?.start())
+onUnload(() => { sync?.stop(); session.dispose() })
+</script>
+
+<style scoped>
+.page { flex: 1; background-color: #faf8f5; padding-left: 20px; padding-right: 20px; }
+.header { flex-direction: row; align-items: center; height: 56px; }
+.back { color: #6e6e73; font-size: 16px; padding-right: 24px; }
+.title { color: #2c2c2c; font-size: 20px; font-weight: bold; }
+.stage { flex: 1; background-color: #ede7dd; border-radius: 16px; overflow: hidden; }
+.status { flex: 1; justify-content: center; align-items: center; padding: 24px; }
+.peer { font-size: 24px; color: #2c2c2c; margin-bottom: 16px; }
+.phase { font-size: 17px; color: #6e6e73; text-align: center; }
+.remote { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+.local { position: absolute; width: 96px; height: 128px; right: 12px; top: 12px; }
+.notice { font-size: 15px; color: #6e6e73; line-height: 23px; padding-top: 16px; padding-bottom: 12px; }
+.fee { font-size: 14px; color: #6e6e73; line-height: 22px; margin-bottom: 12px; }
+.actions { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.primary, .danger, .control { padding: 14px; margin: 6px; border-radius: 12px; text-align: center; font-size: 16px; }
+.primary { background-color: #5b8a5e; color: #ffffff; }
+.danger { background-color: #c41e3a; color: #ffffff; }
+.control { background-color: #ede7dd; color: #2c2c2c; }
+</style>

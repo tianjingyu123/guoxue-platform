@@ -358,8 +358,7 @@ export class CirclePublishGrantService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "批准范围不能超出原申请范围");
     }
     const now = new Date();
-    return this.prisma.circlePublishGrant.update({
-      where: { id: grantId },
+    return this.finishReview(grantId, {
       data: {
         scopes,
         status: CirclePublishGrantStatus.APPROVED,
@@ -379,8 +378,7 @@ export class CirclePublishGrantService {
     if (grant.status !== CirclePublishGrantStatus.PENDING) {
       throw new BusinessException(ErrorCode.CONFLICT, "该授权申请已经处理");
     }
-    return this.prisma.circlePublishGrant.update({
-      where: { id: grantId },
+    return this.finishReview(grantId, {
       data: {
         status: CirclePublishGrantStatus.REJECTED,
         reviewerId,
@@ -388,6 +386,21 @@ export class CirclePublishGrantService {
         rejectReason: reason,
       },
     });
+  }
+
+  /** 在同一条写入中核对待审态，避免旧页面覆盖另一名管理员已完成的决定。 */
+  private async finishReview(grantId: string, args: Pick<Prisma.CirclePublishGrantUpdateArgs, "data">) {
+    try {
+      return await this.prisma.circlePublishGrant.update({
+        where: { id: grantId, status: CirclePublishGrantStatus.PENDING },
+        data: args.data,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        throw new BusinessException(ErrorCode.CONFLICT, "该授权申请已变化，请刷新后查看处理结果");
+      }
+      throw error;
+    }
   }
 
   async assertCanPublish(

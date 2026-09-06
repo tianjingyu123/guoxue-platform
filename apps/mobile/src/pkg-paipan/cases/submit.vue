@@ -8,7 +8,8 @@
  * 合规：真人经历是敏感信息，投稿的往往还是别人的八字。
  *   授权勾选是硬门槛（后端也会拒收未授权的），姓名一律不收（后端强制匿名）。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -144,17 +145,29 @@ const reward = computed<number | null>(() => {
   return ordered.find((item) => quality.value >= item.minQuality)?.amount ?? null
 })
 
-onMounted(async () => {
-  try {
-    rewardPlan.value = await caseApi.rewardPlan()
-  } catch {
-    rewardPlan.value = {
-      enabled: false,
-      tiers: [],
-      note: '奖励方案暂时无法确认，当前页面不承诺国学币奖励',
-    }
-  }
-})
+async function loadReward() {
+  if (preview.checking.value) return
+  await preview.runTask(async () => {
+    try { return await caseApi.rewardPlan() }
+    catch { return { enabled: false, tiers: [], note: '奖励方案暂时无法确认，当前页面不承诺国学币奖励' } }
+  }, value => { rewardPlan.value = value })
+}
+
+const preview = useNativePreviewPage(() => {}, () => {
+  submitting.value = false
+  mode.value = 'birth'
+  gender.value = 'male'
+  title.value = ''
+  era.value = ''
+  birth.value = { year: 1990, month: 1, day: 1, hour: 0 }
+  resetBirthPicker()
+  pillars.value = { year: '', month: '', day: '', hour: '' }
+  life.value = {}
+  events.value = []
+  commentary.value = ''
+  consent.value = false
+  rewardPlan.value = null
+}, () => { void loadReward() })
 
 const rewardHint = computed(() => reward.value == null
   ? (rewardPlan.value?.note || '奖励方案读取中，最终以审核通过时的平台配置为准')
@@ -190,11 +203,13 @@ function onZhi(which: 'year' | 'month' | 'day' | 'hour', e: any) {
 }
 
 async function submit() {
-  if (!canSubmit.value || submitting.value) return
+  if (!preview.allowed.value || !canSubmit.value || submitting.value) return
   const p = finalPillars.value!
-  submitting.value = true
-  try {
-    const res = await caseApi.submit({
+  const state = { mode: mode.value, gender: gender.value, title: title.value, era: era.value,
+    birth: { ...birth.value }, pillars: { ...pillars.value }, life: { ...life.value },
+    events: events.value.map(event => ({ ...event })), commentary: commentary.value,
+    consent: consent.value, rewardPlan: rewardPlan.value }
+  const payload = {
       gender: gender.value,
       yearPillar: p.year,
       monthPillar: p.month,
@@ -205,27 +220,53 @@ async function submit() {
         : {}),
       title: title.value.trim(),
       era: era.value.trim() || undefined,
-      life: life.value,
-      events: events.value.filter((e) => e.year && e.event.trim()),
+      life: state.life,
+      events: state.events.filter((e) => e.year && e.event.trim()),
       commentary: commentary.value.trim() || undefined,
       consent: true,
-    })
+  }
+  await preview.runTask(async checkpoint => {
+    if (!await checkpoint()) throw new Error('访问状态已变化')
+    try { return { value: await caseApi.submit(payload), error: '' } }
+    catch (e: any) { return { value: null, error: e?.message || '请稍后再试' } }
+  }, result => {
+    rewardPlan.value = state.rewardPlan
+    if (result.error || !result.value) {
+      mode.value = state.mode
+      gender.value = state.gender
+      title.value = state.title
+      era.value = state.era
+      birth.value = state.birth
+      resetBirthPicker()
+      pillars.value = state.pillars
+      life.value = state.life
+      events.value = state.events
+      commentary.value = state.commentary
+      consent.value = state.consent
+      uni.showModal({ title: '投稿未成功', content: result.error || '请稍后再试', showCancel: false })
+      return
+    }
+    const isCurrent = preview.captureInteraction()
+    let consumed = false
     uni.showModal({
       title: '投稿已提交',
-      content: `质量评级：${res.quality >= 80 ? '精品档' : res.quality >= 50 ? '良好档' : '基础档'}。\n平台将核验内容与授权信息，可在「我的投稿」查看进度。`,
+      content: `质量评级：${result.value.quality >= 80 ? '精品档' : result.value.quality >= 50 ? '良好档' : '基础档'}。\n平台将核验内容与授权信息，可在「我的投稿」查看进度。`,
       showCancel: false,
-      success: () => navigateBack(),
+      success: () => {
+        if (!consumed && isCurrent()) { consumed = true; navigateBack() }
+      },
     })
-  } catch (e: any) {
-    uni.showModal({ title: '投稿未成功', content: e?.message || '请稍后再试', showCancel: false })
-  } finally {
-    submitting.value = false
-  }
+  })
 }
 </script>
 
 <template>
-  <view class="sb">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="投稿案例" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="loadReward">重新确认</button>
+  </view>
+  <view v-else class="sb">
     <ToolHeader title="投稿案例" subtitle="真实经历 · 匿名收录" />
 
     <scroll-view class="sb-body" scroll-y :show-scrollbar="false">

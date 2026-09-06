@@ -21,6 +21,7 @@ describe("Video E2E", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    prisma.$queryRaw.mockReset().mockRejectedValue(new Error("测试未声明的发布身份查询"))
   })
 
   // ═══════════════════ 视频列表 ═══════════════════
@@ -45,6 +46,7 @@ describe("Video E2E", () => {
     it("返回视频详情", async () => {
       prisma.video.findUnique.mockResolvedValue({
         id: "v1", title: "国学研究", videoUrl: "https://v.example.com/1.mp4",
+        userId: "u1", status: "PUBLISHED", visibility: "PUBLIC", isPrivate: false,
         user: { id: "u1", nickname: "讲师", avatar: null },
         circle: null, products: [],
       })
@@ -55,6 +57,18 @@ describe("Video E2E", () => {
         .expect(200)
 
       expect(res.body.title).toBe("国学研究")
+      expect(res.body.isLiked).toBe(false)
+      expect(prisma.video.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { viewCount: { increment: 1 } } })
+    })
+
+    it.each([
+      { status: "DRAFT", visibility: "PUBLIC", isPrivate: false },
+      { status: "PUBLISHED", visibility: "SELF_ONLY", isPrivate: true },
+      { status: "PUBLISHED", visibility: "PUBLIC", isPrivate: false, auditStatus: "REJECTED" },
+    ])("匿名访客不能读取非公开内容，且不增加播放计数：%j", async state => {
+      prisma.video.findUnique.mockResolvedValue({ id: "v1", userId: "u1", videoUrl: "https://v.example.com/1.mp4", ...state })
+      await request(app.getHttpServer()).get("/api/v1/videos/v1").expect(404)
+      expect(prisma.video.update).not.toHaveBeenCalled()
     })
 
     it("视频不存在返回 404", async () => {
@@ -79,6 +93,8 @@ describe("Video E2E", () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       prisma.video.create.mockResolvedValue({ id: "v1", title: "新课", videoUrl: "https://example.com/v.mp4" })
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: "u1", status: "ACTIVE", deletedAt: null }])
+        .mockResolvedValueOnce([{ roleType: "SUPER_ADMIN", bindId: null }])
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos")
@@ -87,6 +103,18 @@ describe("Video E2E", () => {
         .expect(201)
 
       expect(res.body.id).toBe("v1")
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2)
+    })
+
+    it("登录快照仍是管理员但事务内已撤权时拒绝创建", async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: "u1", status: "ACTIVE", deletedAt: null }])
+        .mockResolvedValueOnce([])
+      await request(app.getHttpServer()).post("/api/v1/videos")
+        .set("Authorization", `Bearer ${jwt.sign({ sub: "u1" })}`)
+        .send({ title: "不应创建", videoUrl: "https://example.com/v.mp4" }).expect(403)
+      expect(prisma.video.create).not.toHaveBeenCalled()
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2)
     })
   })
 

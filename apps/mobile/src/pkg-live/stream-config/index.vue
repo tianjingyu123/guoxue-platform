@@ -23,11 +23,28 @@
       <view class="card skeleton-card"><view class="skeleton skeleton-text" /><view class="skeleton skeleton-faq" v-for="i in 3" :key="i" /></view>
     </view>
 
+    <!-- 只浏览本人场次不签发凭据，用户明确选择后才占用资源。 -->
+    <view v-else-if="!roomId" class="body">
+      <view class="card">
+        <text class="card-title">选择本次直播间</text>
+        <text class="field-warn">领取推流信息后会占用直播并发额度；不再使用时请在“我的直播”结束本场。</text>
+        <text v-if="error" class="error-text">{{ error }}</text>
+        <view v-for="room in rooms" :key="room.id" class="field" @tap="selectRoom(String(room.id))">
+          <text class="room-title">{{ room.title }}</text>
+          <text class="retry-btn-txt">{{ room.status === 'live' ? '直播中' : '待开播' }} · 领取本场推流信息 ›</text>
+        </view>
+        <text v-if="!rooms.length && !error" class="error-text">暂无可用的 OBS 直播间</text>
+        <view class="retry-btn" @tap="fetchData">刷新场次</view>
+        <view class="retry-btn" @tap="openManage">管理或创建直播间</view>
+      </view>
+    </view>
+
     <!-- 错误状态 -->
     <view v-else-if="error" class="body">
       <view class="card error-card">
         <text class="error-text">{{ error }}</text>
         <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+        <view class="retry-btn" @tap="chooseAnother">选择其他直播间</view>
       </view>
     </view>
 
@@ -42,6 +59,7 @@
           <view class="room-info">
             <text class="room-title">{{ config.roomTitle || 'OBS 推流账户' }}</text>
             <text class="room-id">推流标识: {{ config.roomId || '暂未生成' }}</text>
+            <text class="retry-btn-txt" @tap="chooseAnother">选择其他直播间</text>
           </view>
         </view>
       </view>
@@ -176,16 +194,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { liveApi, obsConfigSteps, streamConfigFaq, type StreamConfig } from '@/lib/live-data'
+import { goBack, navigateTo } from '@/utils/router'
+import { liveApi, obsConfigSteps, streamConfigFaq, type StreamConfig, type LiveManageItem } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const loading = ref(true)
 const error = ref('')
-const config = ref<StreamConfig>({
+const roomId = ref('')
+const rooms = ref<LiveManageItem[]>([])
+const emptyConfig = (): StreamConfig => ({
   roomId: '',
   roomTitle: '',
   streamUrl: '',
@@ -193,6 +214,7 @@ const config = ref<StreamConfig>({
   playUrl: '',
   recommendedSettings: { resolution: '', bitrate: '', fps: '', encoder: '' },
 })
+const config = ref<StreamConfig>(emptyConfig())
 const obsSteps = ref(obsConfigSteps)
 const faq = ref(streamConfigFaq)
 
@@ -205,16 +227,37 @@ const currentStep = ref(0)
 const configReady = computed(() => Boolean(config.value.streamUrl && config.value.streamKey))
 
 async function fetchData() {
+  if (checking.value) return
   loading.value = true
   error.value = ''
+  config.value = emptyConfig()
+  showKey.value = false
+  copiedKey.value = copiedUrl.value = false
   try {
-    const res = await liveApi.getStreamConfig()
-    config.value = res
+    if (!roomId.value) {
+      rooms.value = []
+      const res = await liveApi.getManageList(true)
+      rooms.value = res.list.filter(room => room.orientation === 'landscape' && !room.removed && ['preview', 'live'].includes(room.status))
+    } else {
+      config.value = await liveApi.getStreamConfig(roomId.value)
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
+}
+
+function openManage() { navigateTo('/pkg-live/manage/index') }
+function selectRoom(id: string) {
+  if (loading.value || checking.value) return
+  roomId.value = id
+  void fetchData()
+}
+function chooseAnother() {
+  if (loading.value || checking.value) return
+  roomId.value = ''
+  void fetchData()
 }
 
 function copyUrl() {
@@ -250,13 +293,16 @@ function copyKey() {
   })
 }
 async function handleRefresh() {
-  if (checking.value) return
+  if (checking.value || loading.value || !roomId.value) return
   checking.value = true
+  config.value = emptyConfig()
+  showKey.value = false
+  error.value = ''
   try {
-    config.value = await liveApi.getStreamConfig()
+    config.value = await liveApi.getStreamConfig(roomId.value)
     uni.showToast({ title: '推流信息已更新', icon: 'none' })
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '更新失败，请重试', icon: 'none' })
+    error.value = (e as Error)?.message || '更新失败，请重试'
   } finally {
     checking.value = false
   }
@@ -281,7 +327,10 @@ function nextStep() {
   if (currentStep.value < obsSteps.value.length - 1) currentStep.value++
 }
 
-onMounted(() => { fetchData() })
+onLoad(options => {
+  roomId.value = String(options?.roomId || options?.id || '')
+  void fetchData()
+})
 </script>
 
 <style scoped>

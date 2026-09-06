@@ -15,6 +15,8 @@ export interface ConsultExpert {
   questionPrice: number  // 图文提问价（金币/次），0 表示未开通
   peekPrice: number      // 围观价（金币/次），由达人本人设定，0=不开放围观
   callPrice: number      // 电话连麦价（金币/分钟），0 表示未开通
+  audioCallEnabled: boolean
+  videoCallEnabled: boolean
   responseHours: number  // 提问响应时限（小时）
   /** 所属圈子（仅跨圈模式 listAllExperts 返回）。定价按圈子走，下单必须用这一项的 circleId */
   circleId?: string
@@ -32,6 +34,8 @@ export interface UserConsultService {
   questionPrice: number  // 图文提问价（金币/次），0=未开通
   peekPrice: number      // 围观价（金币/次），0=不开放围观
   callPrice: number      // 连麦价（金币/分钟），0=未开通
+  audioCallEnabled: boolean
+  videoCallEnabled: boolean
   responseHours: number
 }
 
@@ -44,6 +48,24 @@ interface RawExpertMember {
   questionPriceCoin?: number | string; peekPriceCoin?: number | string
   callPricePerMinuteCoin?: number | string; questionTimeoutHours?: number | string
   circleId?: string; circle?: { id?: string; name?: string; cover?: string } | null
+  audioCallEnabled?: boolean; videoCallEnabled?: boolean
+}
+
+function expertRows(response: RawExpertMember[] | { data?: RawExpertMember[] }): RawExpertMember[] {
+  const rows = Array.isArray(response) ? response : response?.data
+  if (!Array.isArray(rows) || rows.some(row => !row || typeof row !== 'object' || Array.isArray(row))) {
+    throw new Error('咨询服务响应异常，请重试')
+  }
+  return rows
+}
+
+/** 仅信服务端明确的独立授权；旧价格、字符串 true 或路由参数都不能替代。 */
+function callAvailability(m: RawExpertMember) {
+  const price = Number(m.callPricePerMinuteCoin)
+  const validPrice = Number.isSafeInteger(price) && price > 0
+  const audioCallEnabled = validPrice && m.audioCallEnabled === true
+  const videoCallEnabled = validPrice && m.videoCallEnabled === true
+  return { audioCallEnabled, videoCallEnabled, callPrice: audioCallEnabled || videoCallEnabled ? price : 0 }
 }
 
 /** 达人好评率（来自通话评价·rating≥4 占比）。无评价的达人不在结果里 → 前端不渲染该行 */
@@ -74,7 +96,7 @@ export const consultApi = {
   listExperts: async (circleId: string): Promise<ConsultExpert[]> => {
     try {
       const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/${circleId}/experts`)
-      const arr = Array.isArray(res) ? res : (res?.data ?? [])
+      const arr = expertRows(res)
       return arr.map((m: RawExpertMember): ConsultExpert => ({
         id: m.user?.id != null ? String(m.user.id) : (m.userId || ''),
         name: m.user?.nickname || '',
@@ -82,11 +104,11 @@ export const consultApi = {
         roleLabel: ROLE_LABEL[m.role || ''] || '达人',
         questionPrice: Number(m.questionPriceCoin) || 0,
         peekPrice: Number(m.peekPriceCoin) || 0,
-        callPrice: Number(m.callPricePerMinuteCoin) || 0,
+        ...callAvailability(m),
         responseHours: Number(m.questionTimeoutHours) || 0,
       }))
     } catch {
-      return []
+      throw new Error('咨询服务加载失败，请重试')
     }
   },
 
@@ -98,7 +120,7 @@ export const consultApi = {
   listAllExperts: async (limit = 50): Promise<ConsultExpert[]> => {
     try {
       const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/experts/discover?limit=${limit}`)
-      const arr = Array.isArray(res) ? res : (res?.data ?? [])
+      const arr = expertRows(res)
       return arr.map((m: RawExpertMember): ConsultExpert => ({
         id: m.user?.id != null ? String(m.user.id) : (m.userId || ''),
         name: m.user?.nickname || '',
@@ -106,21 +128,21 @@ export const consultApi = {
         roleLabel: ROLE_LABEL[m.role || ''] || '达人',
         questionPrice: Number(m.questionPriceCoin) || 0,
         peekPrice: Number(m.peekPriceCoin) || 0,
-        callPrice: Number(m.callPricePerMinuteCoin) || 0,
+        ...callAvailability(m),
         responseHours: Number(m.questionTimeoutHours) || 0,
         circleId: m.circleId || m.circle?.id || '',
         circleName: m.circle?.name || '',
       }))
     } catch {
-      return []
+      throw new Error('咨询服务加载失败，请重试')
     }
   },
 
-  /** 用户在所有圈子开通的咨询服务聚合 — GET /circles/expert-services/by-user/:userId（查询失败返回 []，由调用方按"无服务"降级，不展示假数据） */
+  /** 用户咨询服务聚合；错误交给页面展示重试，不冒充无服务。 */
   getUserConsultServices: async (userId: string): Promise<UserConsultService[]> => {
     try {
       const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/expert-services/by-user/${userId}`)
-      const arr = Array.isArray(res) ? res : (res?.data ?? [])
+      const arr = expertRows(res)
       return arr.map((m: RawExpertMember): UserConsultService => ({
         circleId: m.circleId || m.circle?.id || '',
         circleName: m.circle?.name || '',
@@ -130,18 +152,18 @@ export const consultApi = {
         expertAvatar: m.user?.avatar || '',
         questionPrice: Number(m.questionPriceCoin) || 0,
         peekPrice: Number(m.peekPriceCoin) || 0,
-        callPrice: Number(m.callPricePerMinuteCoin) || 0,
+        ...callAvailability(m),
         responseHours: Number(m.questionTimeoutHours) || 0,
       }))
     } catch {
-      return []
+      throw new Error('咨询服务加载失败，请重试')
     }
   },
 }
 
 /* ───────────────────────── 达人自助配置（我的达人设置）─────────────────────────
- * 真连 GET /circles/:id/expert/:userId（读回）+ POST /circles/:id/expert/config（保存）。
- * 后端只认 JWT 里的 userId（只能配置自己），且要求 role ∈ OWNER/PARTNER/GUEST，否则 403。
+ * 真连 GET /circles/:id/expert-config/me（本人读回）+ POST /circles/:id/expert/config（保存）。
+ * 本人目标由 JWT 决定；音视频使用独立授权，平台代配置另由主库平台角色核验。
  * 保存是全量覆盖：四个价格/时限字段必须一起提交，漏传 questionTimeoutHours /
  * callPricePerMinuteCoin 会 400，漏传 peekPriceCoin 会被重置为 0。
  */
@@ -153,13 +175,16 @@ export interface ExpertConfig {
   peekPriceCoin: number          // 围观价（金币/次），0=不开放围观
   questionTimeoutHours: number   // 响应时限（小时），超时自动全额退款
   callPricePerMinuteCoin: number // 连麦价（金币/分钟），0=不接连麦
+  textConfigAllowed: boolean
+  audioCallApproved: boolean
+  videoCallApproved: boolean
 }
 
 export const expertConfigApi = {
-  /** 读回我在该圈的咨询配置 — GET /circles/:id/expert/:userId（错误上抛，供页面三态） */
-  get: async (circleId: string, userId: string): Promise<ExpertConfig> => {
-    const m = await apiGet<RawExpertMember & { questionTimeoutHours?: number | string }>(
-      `/circles/${circleId}/expert/${userId}`,
+  /** 读回当前登录者在该圈的配置，不允许通过传用户 ID 读取他人私有设置。 */
+  get: async (circleId: string): Promise<ExpertConfig> => {
+    const m = await apiGet<RawExpertMember & { textConfigAllowed?: boolean; audioCallApproved?: boolean; videoCallApproved?: boolean }>(
+      `/circles/${circleId}/expert-config/me`,
     )
     return {
       role: (m?.role || '').toUpperCase(),
@@ -167,11 +192,14 @@ export const expertConfigApi = {
       peekPriceCoin: Number(m?.peekPriceCoin) || 0,
       questionTimeoutHours: Number(m?.questionTimeoutHours) || 72,
       callPricePerMinuteCoin: Number(m?.callPricePerMinuteCoin) || 0,
+      textConfigAllowed: m?.textConfigAllowed === true,
+      audioCallApproved: m?.audioCallApproved === true,
+      videoCallApproved: m?.videoCallApproved === true,
     }
   },
 
   /** 保存配置 — POST /circles/:id/expert/config（全量覆盖·错误上抛由页面 toast） */
-  set: async (circleId: string, cfg: Omit<ExpertConfig, 'role'>): Promise<void> => {
+  set: async (circleId: string, cfg: Pick<ExpertConfig, 'questionPriceCoin' | 'peekPriceCoin' | 'questionTimeoutHours' | 'callPricePerMinuteCoin'>): Promise<void> => {
     await apiPost<unknown>(`/circles/${circleId}/expert/config`, {
       questionPriceCoin: cfg.questionPriceCoin,
       peekPriceCoin: cfg.peekPriceCoin,

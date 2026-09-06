@@ -4,7 +4,7 @@
  * 结构：透明顶栏 → 封面 → 身份区(名称/简介/数据) → 圈主行 → 圈主的话(intro 降级) → 权益清单 → 内容抢先看(精华2条+锁) → 底部加入通栏(三方式)
  * 加入三方式（circle-join-modes.html）：免费直接加入 / 免费需审批提交申请 / 付费走确认弹层→支付。
  * 数据：circleDetailApi.detail + getJoinStatus + posts（真连）；付费支付复用 PurchaseSheet（bizType=CIRCLE）。
- * 降级（后端缺）：圈主的话图文块→description/announcement 文本；权益清单→通用四项；本周更新数/圈主头衔副行→隐藏；申请理由输入→后端 join 无 message 字段不做。
+ * 降级（后端缺）：圈主的话图文块→description/announcement 文本；缺少逐圈权益契约时展示入圈边界说明，不承诺额外服务；本周更新数/圈主头衔副行→隐藏。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -16,7 +16,7 @@ import { getToken } from '@/utils/storage'
 import { formatPrice } from '@/utils/format'
 import { track } from '@/composables/useTrack'
 import {
-  circleDetailApi, memberBenefits,
+  circleDetailApi, circleMembershipNotes,
   type CircleDetail, type CirclePost,
 } from '@/lib/circle-detail-data'
 import { growthApi } from '@/lib/circle-growth-data'
@@ -215,10 +215,10 @@ onLoad((q) => {
       </view>
     </template>
 
-    <!-- 权益清单（后端无圈子自定义权益 → 通用四项降级） -->
-    <text class="jp-label">加入后你将获得</text>
+    <!-- 缺少逐圈权益契约时说明入圈边界，不承诺未开通能力。 -->
+    <text class="jp-label">入圈前请了解</text>
     <view class="jp-benefits">
-      <view v-for="(b, i) in memberBenefits" :key="i" class="jp-benefit">
+      <view v-for="(b, i) in circleMembershipNotes" :key="i" class="jp-benefit">
         <view class="jp-benefit-icon"><app-icon :name="b.icon" :size="34" color="#C9A96E" /></view>
         <view class="jp-benefit-main">
           <text class="jp-benefit-title">{{ b.title }}</text>
@@ -239,7 +239,7 @@ onLoad((q) => {
       </view>
       <view class="jp-preview-lock">
         <app-icon name="lock" :size="26" color="#999999" />
-        <text class="jp-preview-lock-t">加入后解锁全部 {{ fmt(circle.posts) }} 条内容</text>
+        <text class="jp-preview-lock-t">本圈共 {{ fmt(circle.posts) }} 条内容，访问范围以各内容说明为准</text>
       </view>
     </template>
 
@@ -299,7 +299,7 @@ onLoad((q) => {
         </view>
 
         <view class="jp-sheet-benefits">
-          <view v-for="(b, i) in memberBenefits" :key="i" class="jp-sheet-benefit">
+          <view v-for="(b, i) in circleMembershipNotes" :key="i" class="jp-sheet-benefit">
             <view class="jp-sheet-benefit-icon"><app-icon :name="b.icon" :size="30" color="#C9A96E" /></view>
             <view class="jp-benefit-main">
               <text class="jp-sheet-benefit-title">{{ b.title }}</text>

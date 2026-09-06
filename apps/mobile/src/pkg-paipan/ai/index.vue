@@ -9,7 +9,8 @@
  * 🔴 AI 只解读，不算盘：盘面是后端已存档的排盘记录（引擎算的），
  * AI 拿到的是算好的结果。合规红线由后端 prompt 内置（不断生死、不诊病、不承诺）。
  */
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -31,49 +32,61 @@ const failed = ref(false)
 const records = ref<any[]>([])
 const picked = ref<any>(null)
 const school = ref('')
-const analyzing = ref(false)
 const result = ref<any>(null)
+const preview = useNativePreviewPage(() => {}, () => {
+  loading.value = false
+  failed.value = false
+  records.value = []
+  picked.value = null
+  school.value = ''
+  result.value = null
+}, () => { void loadRecords() })
 
 async function loadRecords() {
-  loading.value = true
-  failed.value = false
-  try {
-    const res = await apiGet<any>('/paipan/bazi?page=1&pageSize=30')
-    records.value = res?.items ?? res?.list ?? (Array.isArray(res) ? res : [])
-  } catch {
-    failed.value = true
-  } finally {
-    loading.value = false
-  }
+  if (preview.checking.value) return
+  await preview.runTask(async () => {
+    try {
+      const res = await apiGet<any>('/paipan/bazi?page=1&pageSize=30')
+      const items = res?.items ?? res?.list ?? res
+      if (!Array.isArray(items)) throw new Error('排盘记录格式异常')
+      return { items, failed: false }
+    } catch {
+      return { items: [], failed: true }
+    }
+  }, value => {
+    records.value = value.items
+    failed.value = value.failed
+  })
 }
 
-onMounted(loadRecords)
-
 async function analyze() {
+  if (!preview.allowed.value) return
   if (!picked.value) {
     uni.showToast({ title: '请先选一个盘', icon: 'none' })
     return
   }
-  analyzing.value = true
-  result.value = null
-  try {
-    const res = await apiPost<any>(
-      '/paipan/bazi/analyze',
-      { recordId: picked.value.id, school: school.value || undefined },
-      undefined,
-      90000, // AI 生成慢，给足超时
-    )
-    result.value = res
-  } catch (e: any) {
-    // 会员额度/限流的话术由后端给，原样透出，不自己编
-    uni.showModal({
-      title: '解盘未完成',
-      content: e?.message || 'AI 服务暂不可用，请稍后再试',
-      showCancel: false,
-    })
-  } finally {
-    analyzing.value = false
-  }
+  const snapshot = { records: records.value, picked: picked.value, school: school.value }
+  await preview.runTask(async checkpoint => {
+    if (!await checkpoint()) throw new Error('访问状态已变化')
+    try {
+      const value = await apiPost<any>(
+        '/paipan/bazi/analyze',
+        { recordId: snapshot.picked.id, school: snapshot.school || undefined },
+        undefined,
+        90000, // AI 生成慢，给足超时
+      )
+      return { value, error: '' }
+    } catch (e: any) {
+      return { value: null, error: e?.message || 'AI 服务暂不可用，请稍后再试' }
+    }
+  }, value => {
+    records.value = snapshot.records
+    picked.value = snapshot.picked
+    school.value = snapshot.school
+    result.value = value.value
+    // 只对仍有效的页面展示本次错误；迟到响应不弹窗干扰其他页面。
+    if (value.error) uni.showModal({ title: '解盘未完成', content: value.error, showCancel: false })
+  })
 }
 
 function goBazi() {
@@ -100,7 +113,12 @@ function bodyOf(res: any): string {
 </script>
 
 <template>
-  <view class="ai">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="AI 智能解盘" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="loadRecords">重新确认</button>
+  </view>
+  <view v-else class="ai">
     <ToolHeader title="AI 智能解盘" subtitle="选盘 · 择流派 · 深度解读" />
 
     <scroll-view class="ai-body" scroll-y :show-scrollbar="false">
@@ -164,7 +182,7 @@ function bodyOf(res: any): string {
 
         <view class="ai-btn ai-btn--primary" @tap="analyze">
           <AppIcon name="sparkles" :size="18" color="#fff" />
-          <text class="ai-btn-txt ai-btn-txt--primary">{{ analyzing ? 'AI 解读中…' : '开始解盘' }}</text>
+          <text class="ai-btn-txt ai-btn-txt--primary">开始解盘</text>
         </view>
       </PaperCard>
 

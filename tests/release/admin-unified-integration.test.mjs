@@ -18,7 +18,9 @@ test("AI 决策账本路由与六类旧排盘隔离同时保留", async () => {
   const router = await read("apps/admin/src/router/index.ts");
   assert.match(router, /path: "ai\/decisions"/);
   assert.equal((router.match(/nativePaipan: true/g) ?? []).length, 6);
-  assert.match(router, /to\.meta\?\.nativePaipan === true && \(await refreshPaipanMode\(\)\) !== "native"/);
+  assert.match(router, /to\.meta\?\.nativePaipan === true &&\s*\(!access\.roles\.includes\("SUPER_ADMIN"\) \|\| \(await refreshPaipanMode\(\)\) !== "native"\)/);
+  assert.match(router, /to\.meta\?\.nativePreviewManage === true &&\s*\(!access\.roles\.includes\("SUPER_ADMIN"\) \|\| !await canManageNativePreview\(\)\)/);
+  assert.match(router, /return \{ name: "NotFound", params:/);
 });
 
 test("AI 总览保留账本操作入口且失败重试支持键盘", async () => {

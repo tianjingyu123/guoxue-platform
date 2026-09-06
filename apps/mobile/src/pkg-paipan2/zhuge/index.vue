@@ -9,6 +9,7 @@
  *         result 页保持静态引（引擎打进独立 chunk，两处共享同一份，不重复下载）
  */
 import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -26,51 +27,62 @@ const trimmed = computed(() => chars.value.trim())
 const charList = computed(() => Array.from(trimmed.value))
 const valid = computed(() => charList.value.length === 3 && charList.value.every(isHan))
 
-// 防重入：动态加载引擎期间重复点「开始」不重复触发
-let submitting = false
-
 async function submit() {
-  if (!valid.value || submitting) return
-  submitting = true
-  try {
-    // 摇签动作后才动态加载引擎（签库+康熙笔画数据随 chunk 此刻才下载）
-    const { paiZhuge } = await import('@/pkg-paipan2/lib/zhuge-engine')
-    // 预检：生僻字不在康熙字典库时提前拦截（占卜须准确，不静默兜底）
+  if (!preview.allowed.value || !valid.value) return
+  const text = trimmed.value
+  let successful = false
+  const current = await preview.runTask(async checkpoint => {
     try {
-      paiZhuge(trimmed.value)
+      const { paiZhuge } = await import('@/pkg-paipan2/lib/zhuge-engine')
+      if (!await checkpoint()) throw new Error('访问状态已变化')
+      paiZhuge(text)
+      return ''
     } catch (e) {
-      uni.showToast({ title: e instanceof Error ? e.message : '起卦失败，请换字再测', icon: 'none' })
-      return
+      return e instanceof Error ? e.message : '加载签库失败，请重试'
     }
-    navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(trimmed.value)}`)
-  } catch {
-    // 弱网下引擎 chunk 加载失败：给明确提示，可重试
-    uni.showToast({ title: '网络不佳，加载签库失败，请重试', icon: 'none' })
-  } finally {
-    submitting = false
-  }
+  }, error => {
+    chars.value = text
+    successful = !error
+    if (error) uni.showToast({ title: error, icon: 'none' })
+  })
+  if (current && successful) navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(text)}`)
 }
 
 // ─── 测算历史（本地存储弹层） ───
 const showHistory = ref(false)
 const records = ref<ZhugeHistoryRecord[]>([])
+const preview = useNativePreviewPage(() => { records.value = loadZhugeHistory() }, () => {
+  chars.value = ''
+  records.value = []
+  showHistory.value = false
+})
 
 function openHistory() {
-  records.value = loadZhugeHistory()
-  showHistory.value = true
+  if (!preview.allowed.value) return
+  const text = chars.value
+  void preview.run(() => { chars.value = text; records.value = loadZhugeHistory(); showHistory.value = true })
 }
 function onClearHistory() {
-  clearZhugeHistory()
-  records.value = []
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
+  uni.showModal({ title: '清空记录', content: '仅清空当前账号的诸葛神数记录，是否继续？', success: res => {
+    if (res.confirm && isCurrent()) void preview.run(() => { clearZhugeHistory(); records.value = [] })
+  } })
 }
 function openRecord(r: ZhugeHistoryRecord) {
+  if (!preview.allowed.value) return
   showHistory.value = false
   navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(r.input)}`)
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header title="诸葛神数" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="诸葛神数"
       subtitle="随心三字 · 签由念起"

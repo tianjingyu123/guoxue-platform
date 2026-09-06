@@ -8,13 +8,18 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
-import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { LivePublicationService } from "./live-publication.service";
+import { LiveMediaEvidenceRepository } from "./live-media-evidence.repository";
+import { LiveMediaCredentialRepository } from "./live-media-credential.repository";
+import { LiveMediaStopRepository } from "./live-media-stop.repository";
 import { LivePresenceService } from "./live-presence.service";
 import { toLiveObsTrtcUserId, toLiveTrtcRoomId } from "./live-trtc.util";
 import { CoinService } from "../coin/coin.service";
 
 const mockPrisma = {
+  $executeRaw: jest.fn(),
   liveRoom: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -110,6 +115,7 @@ const mockPrisma = {
     count: jest.fn(),
   },
   $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 
 const mockRedis = {
@@ -132,19 +138,33 @@ const mockNotification = {
   batchSend: jest.fn().mockResolvedValue({ success: true, count: 0 }),
 };
 const mockStream = {
+  callbackScope: jest.fn().mockReturnValue({ domain: "push.example.invalid", appName: "live" }),
   isReady: jest.fn().mockReturnValue(true),
   genPushUrl: jest.fn().mockReturnValue("rtmp://push.example.com/live/room_r1"),
   genPlayUrls: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
   genPlayUrlWithAuth: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+const mockMediaEvidence = { recordCssInTransaction: jest.fn(), runtimeInTransaction: jest.fn(), lockRoom: jest.fn(), readInTransaction: jest.fn() };
+const mockCredentials = { recordCssInTransaction: jest.fn(), recordTrtcInTransaction: jest.fn(), readInTransaction: jest.fn().mockResolvedValue([]) };
 const mockIm = {
   createGroup: jest.fn().mockResolvedValue({ GroupId: "live_r1" }),
   sendGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
   relayLiveGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
   relayLiveGift: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
 };
-const mockPublishGrants = { assertCanPublish: jest.fn().mockResolvedValue(undefined) };
+// 此套验证 LiveService 接线，授权主体/锁顺序由 LivePublicationService 专项覆盖。
+const mockPublishGrants = { createInTransaction: jest.fn((_tx, _input, write) => write()),
+  signInTransaction: jest.fn(async (tx, input, sign) => sign(await tx.liveRoom.findUnique({ where: { id: input.roomId } }))),
+  startInTransaction: jest.fn((tx, input) => tx.liveRoom.update({ where: { id: input.roomId }, data: {
+    status: "LIVING", startTime: new Date(), pushUrl: input.pushUrl, pullUrl: input.pullUrl, trtcRoomId: input.trtcRoomId,
+  } })),
+  endInTransaction: jest.fn(async (tx, input) => {
+    const room = await tx.liveRoom.findUnique({ where: { id: input.roomId } });
+    if (!input.isAdmin && room.hostUserId !== input.operatorId) throw new BusinessException(ErrorCode.FORBIDDEN);
+    if (room.status === "ENDED") return { room, changed: false };
+    return { room: await tx.liveRoom.update({ where: { id: input.roomId }, data: { status: "ENDED" } }), changed: true };
+  }) };
 const mockPresence = {
   getOnlineCount: jest.fn().mockResolvedValue(2),
   touch: jest.fn().mockResolvedValue({ onlineCount: 2, firstVisit: true }),
@@ -178,7 +198,10 @@ describe("LiveService", () => {
         { provide: LiveStreamService, useValue: mockStream },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
-        { provide: CirclePublishGrantService, useValue: mockPublishGrants },
+        { provide: LivePublicationService, useValue: mockPublishGrants },
+        { provide: LiveMediaEvidenceRepository, useValue: mockMediaEvidence },
+        { provide: LiveMediaCredentialRepository, useValue: mockCredentials },
+        { provide: LiveMediaStopRepository, useValue: { prepareInTransaction: jest.fn() } },
         { provide: LivePresenceService, useValue: mockPresence },
         { provide: CoinService, useValue: mockCoin },
         { provide: NotificationService, useValue: mockNotification },
@@ -190,6 +213,10 @@ describe("LiveService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockMediaEvidence.recordCssInTransaction.mockResolvedValue({ ignored: false, changed: true, revision: 1, status: "ONLINE" });
+    mockMediaEvidence.runtimeInTransaction.mockResolvedValue({ status: "unknown", connectedAt: null, lastEventAt: null });
+    mockMediaEvidence.lockRoom.mockResolvedValue(undefined);
+    mockMediaEvidence.readInTransaction.mockResolvedValue(null);
     mockStream.isReady.mockReturnValue(true);
     mockRedis.getJson.mockResolvedValue(null);
     mockRedis.setNX.mockResolvedValue(true);
@@ -202,6 +229,44 @@ describe("LiveService", () => {
     delete process.env.TRTC_SDK_APP_ID;
     delete process.env.TRTC_SECRET_KEY;
     mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
+  });
+
+  describe("room-bound stream config", () => {
+    const id = "00000000-0000-4000-8000-000000000001";
+    it.each([undefined, "", "user-stream", "../room"])("不接受无效房间 %s，也不签发", async roomId => {
+      await expect(svc.getStreamConfig("host1", roomId)).rejects.toThrow("选择本次直播间");
+      expect(mockPublishGrants.signInTransaction).not.toHaveBeenCalled();
+      expect(mockStream.genPushUrl).not.toHaveBeenCalled();
+    });
+    it("配置页复用指定房间签发事务，返回真实房间与完整串流密钥", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id, hostUserId: "host1", title: "本次场次", status: "WAITING", orientation: "portrait" });
+      mockStream.genPushUrl.mockReturnValueOnce(`rtmp://push.example.invalid/live/room_${id}?synthetic=1`);
+      const result = await svc.getStreamConfig("host1", id, false, "HUMAN");
+      expect(mockPublishGrants.signInTransaction).toHaveBeenCalledWith(mockPrisma,
+        { roomId: id, operatorId: "host1", isAdmin: false, executor: "HUMAN" }, expect.any(Function));
+      expect(result).toMatchObject({ roomId: id, roomTitle: "本次场次", streamUrl: "rtmp://push.example.invalid/live/",
+        streamKey: `room_${id}?synthetic=1` });
+    });
+    it("授权事务拒绝后配置页不能产生任何凭据", async () => {
+      mockPublishGrants.signInTransaction.mockRejectedValueOnce(new BusinessException(ErrorCode.FORBIDDEN));
+      await expect(svc.getStreamConfig("host1", id, false, "AUTOMATION")).rejects.toThrow();
+      expect(mockStream.genPushUrl).not.toHaveBeenCalled();
+    });
+    it("TRTC 配置按真实服务器前缀拆分，不用平台 UUID 猜测哈希流名", async () => {
+      const spy = jest.spyOn(svc, "getStreamUrls").mockResolvedValueOnce({
+        ingestMode: "TRTC_RTMP", roomTitle: "合成场次", serverUrl: "rtmp://rtmp.rtc.qq.com/push/",
+        streamKey: "room_hashed?synthetic=1", pushUrl: "rtmp://rtmp.rtc.qq.com/push/room_hashed?synthetic=1",
+        playUrls: { flv: "https://example.invalid/live.flv" }, expiresAt: "2026-09-05T00:00:00Z",
+      } as never);
+      try {
+        expect(await svc.getStreamConfig("host1", id)).toMatchObject({ streamUrl: "rtmp://rtmp.rtc.qq.com/push/", streamKey: "room_hashed?synthetic=1" });
+      } finally { spy.mockRestore(); }
+    });
+    it("其他用户不能从配置页领取主播凭据", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id, hostUserId: "host1", status: "WAITING" });
+      await expect(svc.getStreamConfig("outsider", id)).rejects.toThrow("只有主播");
+      expect(mockStream.genPushUrl).not.toHaveBeenCalled();
+    });
   });
 
   describe("streamer settings", () => {
@@ -377,17 +442,17 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.create.mockResolvedValue({ id: "r1", title: "国学直播", products: [] });
       const result = await svc.createRoom("u1", { title: "国学直播", hostUserId: "u1", circleId: "c1" });
       expect(result.id).toBe("r1");
-      expect(mockPublishGrants.assertCanPublish).not.toHaveBeenCalled();
+      expect(mockPublishGrants.createInTransaction).toHaveBeenCalledWith(mockPrisma, expect.objectContaining({ userId: "u1", circleId: "c1", executor: "HUMAN" }), expect.any(Function));
       expect(mockAudit.resolveContentVisibility).toHaveBeenCalledWith(expect.objectContaining({
         visibility: "CIRCLE_ONLY",
         circleId: "c1",
       }));
     });
 
-    it("只有明确选择全平台时才申请平台发布资格", async () => {
+    it("全平台与圈内发布均核对新发布资格，展示范围不充当授权", async () => {
       mockPrisma.liveRoom.create.mockResolvedValue({ id: "r-platform", title: "平台直播", products: [] });
       await svc.createRoom("u1", { title: "平台直播", circleId: "c1", visibility: "PLATFORM" });
-      expect(mockPublishGrants.assertCanPublish).toHaveBeenCalledWith("u1", "c1", "LIVE", false);
+      expect(mockPublishGrants.createInTransaction).toHaveBeenCalledWith(mockPrisma, expect.objectContaining({ userId: "u1", circleId: "c1" }), expect.any(Function));
       expect(mockAudit.resolveContentVisibility).toHaveBeenCalledWith(expect.objectContaining({ visibility: "PLATFORM" }));
     });
 
@@ -400,22 +465,41 @@ describe("LiveService", () => {
     });
 
     it("拒绝普通成员冒用他人圈子发起直播", async () => {
-      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      mockPublishGrants.createInTransaction.mockRejectedValueOnce(new BusinessException(ErrorCode.FORBIDDEN, "未获发布授权"));
       await expect(svc.createRoom("u1", {
         title: "越权直播",
         circleId: "c1",
-      })).rejects.toThrow("只有圈主或圈子管理员可以在该圈发起直播");
+      })).rejects.toThrow("未获发布授权");
       expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
     });
 
-    it("圈子合伙人与管理员一样可以在所属圈子开播", async () => {
+    it("授权服务通过的个人直授不再被旧静态成员角色拦截", async () => {
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "partner1" });
       mockPrisma.liveRoom.create.mockResolvedValue({ id: "partner-live", products: [] });
       await expect(svc.createRoom("u1", { title: "合伙人直播", circleId: "c1" }))
         .resolves.toEqual(expect.objectContaining({ id: "partner-live" }));
-      expect(mockPrisma.circleMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ role: { in: ["OWNER", "ADMIN", "PARTNER"] } }),
-      }));
+      expect(mockPrisma.circleMember.findFirst).not.toHaveBeenCalled();
+      expect(mockPublishGrants.createInTransaction).toHaveBeenCalled();
+    });
+
+    it("审核记录与房间共用主事务，失败不调度外部机审", async () => {
+      mockPrisma.liveRoom.create.mockResolvedValue({ id: "r-audit", products: [] });
+      mockAudit.resolveContentVisibility.mockResolvedValueOnce({ visibility: "PLATFORM", auditStatus: "PENDING" });
+      mockAudit.openContentAudit.mockRejectedValueOnce(new Error("AUDIT_FAILED"));
+      await expect(svc.createRoom("u1", { title: "审核回滚", circleId: "c1" })).rejects.toThrow("AUDIT_FAILED");
+      expect(mockAudit.openContentAudit).toHaveBeenCalledWith(expect.objectContaining({ contentId: "r-audit" }), mockPrisma);
+      expect(mockAudit.queueContentModeration).not.toHaveBeenCalled();
+    });
+
+    it("真人平台管理员无需圈子申请资格，自动化不可借管理员旁路", async () => {
+      mockPrisma.$queryRaw.mockResolvedValueOnce([{ id: "admin", status: "ACTIVE", deletedAt: null }])
+        .mockResolvedValueOnce([{ roleType: "SUPER_ADMIN", bindId: null }]);
+      mockPrisma.liveRoom.create.mockResolvedValue({ id: "admin-live", products: [] });
+      await svc.createRoom("admin", { title: "平台直播", visibility: "PLATFORM" }, true);
+      expect(mockPublishGrants.createInTransaction).not.toHaveBeenCalled();
+      mockPrisma.liveRoom.create.mockClear();
+      await expect(svc.createRoom("admin", { title: "自动化直播", visibility: "PLATFORM" }, true, "AUTOMATION")).rejects.toThrow();
+      expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
     });
 
     it("带商品创建直播间成功", async () => {
@@ -886,39 +970,29 @@ describe("LiveService", () => {
     });
   });
 
-  describe("updateStatus", () => {
-    it("WAITING → LIVING 成功", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
-      mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", pushUrl: "rtmp://example.com" });
-      const result = await svc.updateStatus("r1", "LIVING", { pushUrl: "rtmp://example.com" });
-      expect(result.status).toBe("LIVING");
+  describe("开播事务后的预约通知", () => {
+    it("不再提供绕过操作者和额度事务的通用状态写入口", () => {
+      expect("updateStatus" in svc).toBe(false);
     });
 
-    it("LIVING → ENDED 成功", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
-      mockPrisma.liveRoom.update.mockImplementation(({ data }) =>
-        Promise.resolve({ id: "r1", ...data }),
-      );
-      const result = await svc.updateStatus("r1", "ENDED");
-      expect(result.status).toBe("ENDED");
-      expect(result.endTime).toBeInstanceOf(Date);
-    });
-
-    it("LIVING 不能绕过人工发布入口直接进入回放", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
-      await expect(svc.updateStatus("r1", "REPLAY", { replayUrl: "https://example.com/replay.mp4" }))
-        .rejects.toThrow("不允许从 LIVING 变更为 REPLAY");
-      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    it("开播事务拒绝时不通知、不建群、不发送开播事件", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING", hostUserId: "host1" });
+      mockPublishGrants.startInTransaction.mockRejectedValueOnce(new BusinessException(ErrorCode.FORBIDDEN));
+      await expect(svc.startLive("r1", "host1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveBooking.findMany).not.toHaveBeenCalled();
+      expect(mockNotification.batchSend).not.toHaveBeenCalled();
+      expect(mockIm.createGroup).not.toHaveBeenCalled();
+      expect(mockWebhook.fire).not.toHaveBeenCalled();
     });
 
     it("开播（→LIVING）时给预约用户发 LIVE 类圈内通知（#25/#36）", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING", hostUserId: "host1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "客厅布局答疑", circleId: "c1" });
       mockPrisma.liveBooking.findMany.mockResolvedValue([
         { id: "b1", userId: "u1" },
         { id: "b2", userId: "u2" },
       ]);
-      await svc.updateStatus("r1", "LIVING", { pushUrl: "rtmp://example.com" });
+      await svc.startLive("r1", "host1");
       await new Promise((r) => setImmediate(r)); // fire-and-forget 刷微任务
       expect(mockPrisma.liveBooking.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { roomId: "r1", status: "BOOKED", notifiedAt: null },
@@ -937,18 +1011,18 @@ describe("LiveService", () => {
     });
 
     it("开播但无人预约：不发通知", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING", hostUserId: "host1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "t", circleId: null });
       mockPrisma.liveBooking.findMany.mockResolvedValue([]);
-      await svc.updateStatus("r1", "LIVING");
+      await svc.startLive("r1", "host1");
       await new Promise((r) => setImmediate(r));
       expect(mockNotification.batchSend).not.toHaveBeenCalled();
     });
 
     it("非开播流转（→ENDED）不触发预约通知", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
-      await svc.updateStatus("r1", "ENDED");
+      await svc.endRoom("r1", "host1");
       await new Promise((r) => setImmediate(r));
       expect(mockPrisma.liveBooking.findMany).not.toHaveBeenCalled();
       expect(mockNotification.batchSend).not.toHaveBeenCalled();
@@ -1065,12 +1139,11 @@ describe("LiveService", () => {
   });
 
   describe("endRoom", () => {
-    it("结束直播间成功（内部调用·无操作者时跳过房主校验）", async () => {
+    it("内部结束也必须有明确操作者，不能靠省略身份绕过", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
-      const result = await svc.endRoom("r1");
-      expect(result.status).toBe("ENDED");
-      expect(mockPrisma.liveMic.deleteMany).toHaveBeenCalledWith({ where: { liveRoomId: "r1" } });
+      await expect(svc.endRoom("r1")).rejects.toThrow("下播操作者不能为空");
+      expect(mockPrisma.liveMic.deleteMany).not.toHaveBeenCalled();
     });
 
     it("房主本人可结束直播", async () => {
@@ -1078,6 +1151,16 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
       const result = await svc.endRoom("r1", "host1", false);
       expect(result.status).toBe("ENDED");
+    });
+
+    it("下播不伪造媒体离线，重复结束不重复外发结束通知", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "ENDED", hostUserId: "host1" });
+      mockRedis.getJson.mockResolvedValue({ status: "online", lastEventAt: "2026-09-01T00:00:00Z" });
+      await svc.endRoom("r1", "host1");
+      expect(mockRedis.setJson).toHaveBeenCalledWith("live:stream-status:r1", expect.objectContaining({
+        status: "online", lastEventAt: "2026-09-01T00:00:00Z", roomEnded: true,
+      }), expect.any(Number));
+      expect(mockWebhook.fire).not.toHaveBeenCalled();
     });
 
     it("非房主且非管理员结束直播 → 403", async () => {
@@ -1390,6 +1473,12 @@ describe("LiveService", () => {
   });
 
   describe("deleteRoom", () => {
+    it("已有媒体证据返回明确业务错误而非外键500，不删除记录", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "u1", status: "ENDED" });
+      mockMediaEvidence.readInTransaction.mockResolvedValue({ revision: 1 });
+      await expect(svc.deleteRoom("u1", "r1")).rejects.toThrow("已有直播活动记录");
+      expect(mockPrisma.liveRoom.delete).not.toHaveBeenCalled();
+    });
     it("删除直播间成功", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "u1" });
       mockPrisma.liveRoom.delete.mockResolvedValue({});
@@ -1475,25 +1564,27 @@ describe("LiveService", () => {
         expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
       });
 
-      it("推流与断流回调写入真实连接态", async () => {
+      it("CSS 回调委托持久事务，Redis 仅写质量指标不覆盖状态", async () => {
         mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" });
         mockRedis.getJson.mockResolvedValue(null);
 
-        await svc.handleLiveEvent("room_r1", 1, { width: 1280, height: 720, video_fps: 30 });
+        const body = { event_type: 1, width: 1280, height: 720, video_fps: 30 };
+        await svc.handleLiveEvent("room_r1", 1, body);
+        expect(mockMediaEvidence.recordCssInTransaction).toHaveBeenCalledWith(mockPrisma, body,
+          expect.objectContaining({ roomId: "r1", domain: "push.example.invalid", appName: "live" }));
         expect(mockRedis.setJson).toHaveBeenLastCalledWith(
-          "live:stream-status:r1",
+          "live:css-metrics:r1",
           expect.objectContaining({
-            status: "online",
             metrics: { resolution: "1280x720", fps: 30 },
           }),
           172800,
         );
 
         mockRedis.getJson.mockResolvedValue({ status: "online", connectedAt: "2026-08-15T00:00:00.000Z" });
-        await svc.handleLiveEvent("room_r1", 0, { errmsg: "network" });
+        await svc.handleLiveEvent("room_r1", 0, { event_type: 0, errmsg: "network" });
         expect(mockRedis.setJson).toHaveBeenLastCalledWith(
-          "live:stream-status:r1",
-          expect.objectContaining({ status: "offline", reason: "network" }),
+          "live:css-metrics:r1",
+          { metrics: {} },
           172800,
         );
       });
@@ -1506,11 +1597,32 @@ describe("LiveService", () => {
         expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
       });
 
+      it("CSS 旧 Redis 即使写 online，也不能替代缺失的主库媒体证据", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1", status: "WAITING", orientation: "landscape" });
+        mockRedis.getJson.mockResolvedValue({ status: "online", connectedAt: new Date().toISOString() });
+        expect(await svc.getStreamStatus("r1", "host1")).toMatchObject({ status: "unknown", connectedAt: null });
+        await expect(svc.startObsLive("r1", "host1")).rejects.toThrow("尚未检测到 OBS 推流");
+        expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+      });
+
+      it("媒体事务失败向上抛出供回调重试，不写缓存成功态", async () => {
+        mockMediaEvidence.recordCssInTransaction.mockRejectedValueOnce(new Error("SYNTHETIC_DB_FAILURE"));
+        await expect(svc.handleLiveEvent("room_r1", 1, { event_type: 1 })).rejects.toThrow("SYNTHETIC_DB_FAILURE");
+        expect(mockRedis.setJson).not.toHaveBeenCalled();
+      });
+
+      it("无效媒体事件被忽略，不写质量缓存", async () => {
+        mockMediaEvidence.recordCssInTransaction.mockResolvedValueOnce({ ignored: true });
+        expect(await svc.handleLiveEvent("room_r1", 1, { event_type: 1 })).toEqual({ ignored: true });
+        expect(mockRedis.setJson).not.toHaveBeenCalled();
+      });
+
       it("CSS 模式也拒绝通过 OBS 专用接口启动竖屏房间", async () => {
         mockPrisma.liveRoom.findUnique.mockResolvedValue({
           id: "r1", hostUserId: "host1", status: "WAITING", orientation: "portrait",
         });
         mockRedis.getJson.mockResolvedValue({ status: "online" });
+        mockMediaEvidence.runtimeInTransaction.mockResolvedValue({ status: "online" });
 
         await expect(svc.startObsLive("r1", "host1", false)).rejects.toThrow(
           "该直播间不是 OBS 电脑直播形态",
@@ -1525,6 +1637,7 @@ describe("LiveService", () => {
         };
         mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
         mockRedis.getJson.mockResolvedValue({ status: "online", connectedAt: "2026-08-27T00:00:00.000Z" });
+        mockMediaEvidence.runtimeInTransaction.mockResolvedValue({ status: "online", connectedAt: "2026-08-27T00:00:00.000Z" });
         mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
 
         const result: any = await svc.startObsLive("r1", "host1", false);
@@ -1550,6 +1663,20 @@ describe("LiveService", () => {
           "rtmp://push.example.com/live/room_r1?txSecret=fresh&txTime=FRESH",
         );
         expect(result.pushUrl).not.toContain("EXPIRED");
+      });
+
+      it.each(["ENDED", "REPLAY", "BANNED", "CANCELLED"])("%s 房间连管理员也不能再次领取推流凭据", async status => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1", status, orientation: "landscape" });
+        await expect(svc.getStreamUrls("r1", "admin1", true)).rejects.toThrow("不能再领取推流凭据");
+        expect(mockStream.genPushUrl).not.toHaveBeenCalled();
+        expect(mockRedis.set).not.toHaveBeenCalled();
+      });
+
+      it("已下架 WAITING 房间和缺操作者均不能签发", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1", status: "WAITING", auditStatus: "REJECTED" });
+        await expect(svc.getStreamUrls("r1", "host1")).rejects.toThrow("不能再领取推流凭据");
+        await expect(svc.getStreamUrls("r1")).rejects.toThrow("领取人不能为空");
+        expect(mockStream.genPushUrl).not.toHaveBeenCalled();
       });
 
       it("OBS 同房模式返回 TRTC RTMP 地址并登记回调房间映射", async () => {

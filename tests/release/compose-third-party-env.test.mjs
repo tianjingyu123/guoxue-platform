@@ -10,6 +10,10 @@ const compose = readFileSync(path.join(repoRoot, "docker/docker-compose.yml"), "
 const requiredRuntimeKeys = [
   "TRTC_SDK_APP_ID",
   "TRTC_SECRET_KEY",
+  "CONSULT_TRTC_SDK_APP_ID",
+  "CONSULT_TRTC_SECRET_KEY",
+  "CONSULT_TRTC_CALLBACK_KEY",
+  "CONSULT_TRTC_STOP_REGION",
   "HUIFU_APP_ID",
   "HUIFU_MERCHANT_ID",
   "HUIFU_PRODUCT_ID",
@@ -45,5 +49,13 @@ test("生产容器透传已接入的第三方能力配置", () => {
       lines.some((line) => line.startsWith(expectedPrefix) && line.endsWith("}")),
       `docker-compose.yml 未向 server 容器透传 ${key}`,
     );
+  }
+});
+
+test("咨询停流地域默认不启用，示例不包含真实咨询凭据", () => {
+  const example = readFileSync(path.join(repoRoot, ".env.example"), "utf8");
+  for (const key of requiredRuntimeKeys.filter(key => key.startsWith("CONSULT_TRTC_"))) {
+    assert.match(example, new RegExp(`^${key}=\\r?$`, "m"));
+    assert.ok(compose.includes(`${key}: \${${key}:-}`));
   }
 });

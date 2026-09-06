@@ -41,6 +41,13 @@ async function findArtifactFiles(directory) {
   return nested.flat().sort((left, right) => left.localeCompare(right));
 }
 
+/** 维护范围按实际产物路径检查，不能只依赖菜单及分包声明。 */
+export function validateMpMaintenancePath(artifactPath) {
+  const normalized = String(artifactPath).replaceAll("\\", "/");
+  return /^(?:pkg-paipan(?:2|3)?\/|pkg-common\/(?:legacy-paipan|compass)\/)/.test(normalized)
+    ? ["微信维护模式不得残留排盘工具页面或代码"] : [];
+}
+
 export async function validateMpArtifactDirectory(directory = DEFAULT_DIST) {
   const artifactFiles = await findArtifactFiles(directory);
   const files = artifactFiles.filter((file) => TEXT_EXTENSIONS.has(extname(file)));
@@ -58,9 +65,19 @@ export async function validateMpArtifactDirectory(directory = DEFAULT_DIST) {
   }
 
   const xingmingEngine = resolve(directory, "pkg-paipan2", "lib", "xingming-engine.js");
-  const xingmingSource = await readFile(xingmingEngine, "utf8");
-  if (!xingmingSource.includes("JSON.parse")) {
-    failures.push({ file: xingmingEngine, message: "康熙字库未使用微信兼容的分段 JSON 解析" });
+  const manifest = JSON.parse(await readFile(resolve(directory, "app.json"), "utf8"));
+  const packages = manifest.subPackages || manifest.subpackages || [];
+  if (packages.some((item) => item.root === "pkg-paipan2")) {
+    const xingmingSource = await readFile(xingmingEngine, "utf8");
+    if (!xingmingSource.includes("JSON.parse")) {
+      failures.push({ file: xingmingEngine, message: "康熙字库未使用微信兼容的分段 JSON 解析" });
+    }
+  }
+  if (packages.some((item) => /^pkg-paipan(?:2|3)?$/.test(item.root))) {
+    failures.push({ file: resolve(directory, "app.json"), message: "微信维护模式不得声明排盘工具分包" });
+  }
+  for (const file of artifactFiles) {
+    for (const message of validateMpMaintenancePath(relative(directory, file))) failures.push({ file, message });
   }
   return { files, failures };
 }

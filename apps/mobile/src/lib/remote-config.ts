@@ -9,6 +9,7 @@
  */
 import { apiGetOptionalAuth } from '@/utils/request'
 import { ref } from 'vue'
+import { getToken } from '@/utils/storage'
 
 export type ClientEnvironment = 'development' | 'staging' | 'production'
 
@@ -46,24 +47,21 @@ const EXPECTED_ENVIRONMENT: ClientEnvironment = (() => {
 })()
 
 // 同一设备覆盖安装预发布/正式包时仍各自保留最近有效快照，绝不串用。
-const STORAGE_KEY = `client:remote-config:v1:${EXPECTED_ENVIRONMENT}`
+// v1 未区分匿名/账号灰度，不读取旧缓存，以免升级后继承他人的开启状态。
+// v2 把缺失的模块键补成 false，无法区分管理员关闭与客户端合成值，不复用。
+const STORAGE_KEY = `client:remote-config:v3:${EXPECTED_ENVIRONMENT}:anonymous`
 const MAINTENANCE_NOTICE_KEY = `client:maintenance:last-revision:${EXPECTED_ENVIRONMENT}`
 
 const DEFAULT_FEATURES: Record<string, boolean> = {
   client_wechat_app_login: false,
-  client_module_live: false,
-  client_module_merchant: false,
-  client_module_shop: false,
-  client_module_member: false,
-  client_module_video: false,
-  client_module_circle: false,
-  client_module_ai: false,
   live_start: true,
   member_purchase: true,
   merchant_onboarding: false,
   shop_checkout: true,
 }
-const SENSITIVE_FEATURE_KEYS = Object.keys(DEFAULT_FEATURES).filter((key) => key.startsWith('client_module_'))
+function isSensitiveFeature(key: string): boolean {
+  return key.startsWith('client_module_') || key.startsWith('client_share_') || key === 'client_wechat_app_login'
+}
 
 const DEFAULT_UI: RemoteUiConfig = {
   home: { bigCardInterval: 6 },
@@ -85,7 +83,7 @@ function defaultSnapshot(): RemoteConfigSnapshot {
     cacheTtlSeconds: 60,
     environment: EXPECTED_ENVIRONMENT,
     features: { ...DEFAULT_FEATURES },
-    ui: DEFAULT_UI,
+    ui: { home: { ...DEFAULT_UI.home }, agentCard: { categoryColors: { ...DEFAULT_UI.agentCard.categoryColors } } },
     maintenance: { enabled: false },
   }
 }
@@ -93,6 +91,11 @@ function defaultSnapshot(): RemoteConfigSnapshot {
 let current = defaultSnapshot()
 let fetchedAt = 0
 let inflight: Promise<RemoteConfigSnapshot> | null = null
+// 凭据只在内存比较，不写入配置缓存；退出/切换账号后不能继承上一账号的灰度结果。
+let sessionToken = getToken()
+let sessionEpoch = 0
+let expiryTimer: ReturnType<typeof setTimeout> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 // 让依赖 isClientFeatureEnabled 的 computed 在远端快照更新后自动重算。
 const configEpoch = ref(0)
 
@@ -107,6 +110,8 @@ function sanitizeFeatures(value: unknown): Record<string, boolean> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result
   for (const [key, enabled] of Object.entries(value as Record<string, unknown>)) {
     if (FEATURE_KEY_RE.test(key) && typeof enabled === 'boolean') result[key] = enabled
+    // 显式模块字段格式错误不能被当成缺失而恢复入口。
+    else if (/^client_module_(live|merchant|shop|member|video|circle|ai)$/.test(key)) result[key] = false
   }
   return result
 }
@@ -155,11 +160,14 @@ function readCache(): CachedRemoteConfig | null {
     const raw = uni.getStorageSync(STORAGE_KEY) as CachedRemoteConfig | string | null
     const parsed = typeof raw === 'string' ? JSON.parse(raw) as CachedRemoteConfig : raw
     if (!parsed || !Number.isFinite(parsed.fetchedAt)) return null
-    if (Date.now() - parsed.fetchedAt > OFFLINE_CACHE_MAX_AGE) return null
+    const age = Date.now() - parsed.fetchedAt
+    if (age < 0 || age > OFFLINE_CACHE_MAX_AGE) return null
     const snapshot = sanitizeSnapshot(parsed.snapshot)
     if (snapshot && Date.now() - parsed.fetchedAt > SENSITIVE_FEATURE_CACHE_MAX_AGE) {
       // 普通样式可离线沿用七天；审核敏感板块的“开启”状态最多信任五分钟，超时即安全关闭。
-      for (const key of SENSITIVE_FEATURE_KEYS) snapshot.features[key] = false
+      for (const key of Object.keys(snapshot.features)) {
+        if (isSensitiveFeature(key)) snapshot.features[key] = false
+      }
     }
     return snapshot ? { fetchedAt: parsed.fetchedAt, snapshot } : null
   } catch {
@@ -168,6 +176,8 @@ function readCache(): CachedRemoteConfig | null {
 }
 
 function persist(snapshot: RemoteConfigSnapshot, time: number): void {
+  // 已登录快照可能包含个人灰度授权，不能作为设备级离线配置保存。
+  if (sessionToken) return
   try {
     uni.setStorageSync(STORAGE_KEY, { fetchedAt: time, snapshot })
   } catch {
@@ -176,16 +186,56 @@ function persist(snapshot: RemoteConfigSnapshot, time: number): void {
 }
 
 function applyCacheIfNeeded(): void {
-  if (fetchedAt > 0) return
+  if (fetchedAt > 0 || sessionToken) return
   const cached = readCache()
   if (!cached) return
   current = cached.snapshot
   fetchedAt = cached.fetchedAt
   configEpoch.value += 1
+  scheduleSensitiveExpiry()
+}
+
+function ensureSession(): void {
+  const token = getToken()
+  if (token === sessionToken) return
+  sessionToken = token
+  sessionEpoch += 1
+  current = defaultSnapshot()
+  fetchedAt = 0
+  inflight = null
+  if (expiryTimer !== null) clearTimeout(expiryTimer)
+  expiryTimer = null
+  configEpoch.value += 1
+}
+
+function expireSensitiveFeatures(): void {
+  if (!fetchedAt) return
+  const age = Date.now() - fetchedAt
+  if (age >= 0 && age < SENSITIVE_FEATURE_CACHE_MAX_AGE) return
+  let changed = false
+  const features = { ...current.features }
+  for (const key of Object.keys(features)) {
+    if (isSensitiveFeature(key) && features[key]) { features[key] = false; changed = true }
+  }
+  if (changed) { current = { ...current, features }; configEpoch.value += 1 }
+}
+
+function scheduleSensitiveExpiry(): void {
+  if (expiryTimer !== null) clearTimeout(expiryTimer)
+  const epoch = sessionEpoch
+  expiryTimer = setTimeout(() => {
+    expiryTimer = null
+    if (epoch !== sessionEpoch) return
+    expireSensitiveFeatures()
+  }, Math.max(0, SENSITIVE_FEATURE_CACHE_MAX_AGE - (Date.now() - fetchedAt)))
 }
 
 export function getRemoteConfig(): RemoteConfigSnapshot {
+  void configEpoch.value
+  ensureSession()
   applyCacheIfNeeded()
+  // 不能只在重启读取磁盘时过期：长时间前台/断网也必须关闭失效的敏感开关。
+  expireSensitiveFeatures()
   return current
 }
 
@@ -196,24 +246,42 @@ export function isClientFeatureEnabled(key: string, fallback?: boolean): boolean
 }
 
 export function hydrateRemoteConfig(force = false): Promise<RemoteConfigSnapshot> {
-  applyCacheIfNeeded()
-  const ttlMs = current.cacheTtlSeconds * 1000
-  if (!force && fetchedAt > 0 && Date.now() - fetchedAt < ttlMs) return Promise.resolve(current)
+  getRemoteConfig()
+  // 服务端普通样式 TTL 可以较长，但不能让敏感开启状态过期后一直等到该 TTL 才刷新。
+  const ttlMs = Math.min(current.cacheTtlSeconds * 1000, SENSITIVE_FEATURE_CACHE_MAX_AGE)
+  const age = Date.now() - fetchedAt
+  if (!force && fetchedAt > 0 && age >= 0 && age < ttlMs) return Promise.resolve(current)
   if (inflight) return inflight
 
-  inflight = apiGetOptionalAuth<unknown>('/config/client')
+  const epoch = sessionEpoch
+  const request = apiGetOptionalAuth<unknown>('/config/client')
     .then((response) => {
+      ensureSession()
+      if (epoch !== sessionEpoch) return getRemoteConfig()
       const snapshot = sanitizeSnapshot(response)
-      if (!snapshot) return current
+      if (!snapshot) return getRemoteConfig()
       current = snapshot
       fetchedAt = Date.now()
       configEpoch.value += 1
       persist(snapshot, fetchedAt)
+      scheduleSensitiveExpiry()
       return current
     })
-    .catch(() => current)
-    .finally(() => { inflight = null })
-  return inflight
+    .catch(() => getRemoteConfig())
+    .finally(() => { if (inflight === request) inflight = null })
+  inflight = request
+  return request
+}
+
+/** 只在前台低频拉取数据配置，复用缓存和同一次请求；后台不轮询。 */
+export function startRemoteConfigRefresh(): void {
+  if (refreshTimer !== null) return
+  refreshTimer = setInterval(() => { void hydrateRemoteConfig() }, 60_000)
+}
+
+export function stopRemoteConfigRefresh(): void {
+  if (refreshTimer !== null) clearInterval(refreshTimer)
+  refreshTimer = null
 }
 
 /** 维护提示只展示一次；维护模式不锁死客户端，具体不可用接口仍由服务端裁决。 */

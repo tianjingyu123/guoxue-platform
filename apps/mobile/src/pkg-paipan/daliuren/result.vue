@@ -6,6 +6,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -81,7 +82,16 @@ function recompute() {
   }
 }
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  params.value = null
+  r.value = null
+  hourOffset.value = 0
+  loadError.value = ''
+})
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少起课参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<DaliurenParams>
@@ -103,25 +113,36 @@ onLoad((q: Record<string, string> = {}) => {
     }
     recompute()
     // 记入本地排盘记录（index 起课与深链进入均覆盖）
-    if (r.value) {
+    if (r.value && !recorded) {
       const res = r.value
       saveDaliurenHistory(
         params.value,
         `${res.sizhu.day.gan}${res.sizhu.day.zhi}日 ${res.yuejiang.zhi}将${res.sizhu.hour.zhi}时`,
       )
+      recorded = true
     }
   } catch (e) {
+    params.value = null
+    r.value = null
     loadError.value = (e as Error)?.message || '起课参数无效'
   }
-})
+}
 
 function prevHour() {
-  hourOffset.value -= 1
-  recompute()
+  return changeHour(-1)
 }
 function nextHour() {
-  hourOffset.value += 1
-  recompute()
+  return changeHour(1)
+}
+function changeHour(delta: number) {
+  if (!preview.allowed.value || !params.value) return
+  const target = { ...params.value }
+  const offset = hourOffset.value + delta
+  return preview.run(() => {
+    params.value = target
+    hourOffset.value = offset
+    recompute()
+  })
 }
 
 // ─── 派生展示 ───
@@ -161,8 +182,11 @@ function goEdit() {
 
 /** 分享：复制盘面文字摘要 */
 function onShare() {
+  if (!preview.allowed.value) return
   const res = r.value
   if (!res) return
+  const target = params.value ? { ...params.value } : null
+  const offset = hourOffset.value
   const summary = [
     `【大六壬排盘】${res.sizhu.day.gan}${res.sizhu.day.zhi}日 ${res.yuejiang.zhi}将${res.sizhu.hour.zhi}时`,
     timeText.value,
@@ -170,15 +194,25 @@ function onShare() {
     `课体：${res.keti.join(' · ')}`,
     '—— 来自热卜 · 专业排盘工具',
   ].join('\n')
-  uni.setClipboardData({
+  return preview.run(() => {
+    params.value = target
+    hourOffset.value = offset
+    recompute()
+    uni.setClipboardData({
     data: summary,
     success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+  })
   })
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" @share="onShare" />
 
     <!-- 参数错误态 -->

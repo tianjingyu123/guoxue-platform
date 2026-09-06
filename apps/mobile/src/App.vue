@@ -7,10 +7,12 @@ import { hydrateBrandConfig } from '@/lib/brand'
 import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
 import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
-import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
+import { hydrateRemoteConfig, notifyMaintenanceIfNeeded, startRemoteConfigRefresh, stopRemoteConfigRefresh } from '@/lib/remote-config'
 import { parseAppEntryLink } from '@/utils/app-entry-link'
 import { enforceCurrentClientModule, resolveRoute } from '@/utils/router'
 import { hydratePaipanRuntime } from '@/lib/paipan-runtime'
+import { mpPaipanMaintenanceTarget } from '@/lib/mp-paipan-maintenance'
+import { interceptPaipanNavigation, invalidatePaipanNavigation } from '@/lib/paipan-suite-navigation'
 import {
   clientFeatureUnavailableRoute,
   clientModuleForRoute,
@@ -289,15 +291,23 @@ function consumeAndroidAppLinkIntent(rawArgument: string): boolean {
  * App 冷启动时 onShow 早于首个页面入栈，立即 reLaunch 会先成功、随后又被首页初始化覆盖。
  * 等页面栈就绪再执行一次确定性跳转；热启动已有页面栈，因此不会引入可感知等待。
  */
-function reLaunchAppEntryWhenReady(target: string, retries = 20): void {
+let appEntryNavigationGeneration = 0
+function reLaunchAppEntryWhenReady(target: string, retries = 20, generation = ++appEntryNavigationGeneration): void {
   // #ifdef APP-PLUS
+  // 等待首屏期间新深链可取代旧深链，旧定时任务不能恢复过期目标。
+  if (generation !== appEntryNavigationGeneration) return
   if (getCurrentPages().length === 0 && retries > 0) {
-    setTimeout(() => reLaunchAppEntryWhenReady(target, retries - 1), 100)
+    setTimeout(() => reLaunchAppEntryWhenReady(target, retries - 1, generation), 100)
     return
   }
   uni.reLaunch({
     url: target,
-    fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+    fail: (error) => {
+      if (generation !== appEntryNavigationGeneration) return
+      // 用户已返回、切页或进入后台时，旧深链取消不得再把当前页面拉回首页。
+      if (error.errMsg?.includes('navigation superseded')) return
+      uni.reLaunch({ url: '/pages/index/index' })
+    },
   })
   // #endif
 }
@@ -377,7 +387,8 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
     /* 归因失败不影响启动 */
   }
   // 全局路由埋点：拦截四类跳转，统一上报 page_view（一处接入、全局覆盖，无需逐页改）
-  const routeApis = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab']
+  uni.addInterceptor('navigateBack', { invoke: invalidatePaipanNavigation })
+  const routeApis = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'] as const
   routeApis.forEach((api) => {
     uni.addInterceptor(api, {
       invoke(args: { url?: string }) {
@@ -391,8 +402,18 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
         }
         // 兜住未使用统一 router 的历史页面：关闭板块后任何站内跳转都只能到合规停用页。
         const target = resolveRoute(String(args?.url || ''))
+        const paipanMaintenance = mpPaipanMaintenanceTarget(String(args?.url || ''))
+        if (paipanMaintenance) { args.url = paipanMaintenance; return }
         const module = clientModuleForRoute(target)
         if (module && !isClientModuleEnabled(module)) args.url = clientFeatureUnavailableRoute(module)
+        // 只对整套自研分包在线核验；共用罗盘、第三方页及其他板块不等待此请求。
+        return interceptPaipanNavigation(args, (next) => {
+          const options = { ...next, url: next.url || '/pages/paipan/index' }
+          if (api === 'navigateTo') uni.navigateTo(options)
+          else if (api === 'redirectTo') uni.redirectTo(options)
+          else if (api === 'reLaunch') uni.reLaunch(options)
+          else uni.switchTab(options)
+        })
         // 不返回 false，正常放行跳转
       },
     })
@@ -401,6 +422,7 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  startRemoteConfigRefresh()
   // DCloud 官方约定：冷启动/恢复前台在 onShow 读取 runtime.arguments；热启动同时由
   // newintent 全局事件接管。去重逻辑会阻止持久化的旧参数造成循环跳转。
   openCurrentAppEntryArgument('lifecycle', options)
@@ -420,7 +442,7 @@ onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appSchem
   void hydratePaipanRuntime()
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失
-onHide(() => { track.flushNow() })
+onHide(() => { invalidatePaipanNavigation(); stopRemoteConfigRefresh(); track.flushNow() })
 // 全局未捕获错误兜底（小程序/App 运行时错误、未处理 Promise rejection）
 onError((err) => {
   console.error('[App.onError]', err)
@@ -433,6 +455,8 @@ onError((err) => {
 // 全局路由兜底：访问不存在/已退役的页面路径（错误 URL、被删的旧路由）时，
 // 回首页而非留白屏（uni onPageNotFound 在 H5 亦触发；首页路径恒存在，不会循环）。
 onPageNotFound((res) => {
+  const paipanMaintenance = mpPaipanMaintenanceTarget(String(res?.path || ''))
+  if (paipanMaintenance) { uni.reLaunch({ url: paipanMaintenance }); return }
   try { track.custom('page_not_found', { path: res?.path || '' }) } catch { /* 上报失败不影响兜底 */ }
   uni.reLaunch({ url: '/pages/index/index' })
 })

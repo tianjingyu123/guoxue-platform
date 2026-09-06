@@ -40,7 +40,7 @@ const config: Config = {
   moduleNameMapper: {
     // 用 require.resolve 动态查找，避免硬编码 pnpm 版本号
     "^@prisma/client$": require.resolve("@prisma/client"),
-    "^bcryptjs$": "<rootDir>/../../node_modules/.pnpm/bcryptjs@2.4.3/node_modules/bcryptjs",
+    "^bcryptjs$": require.resolve("bcryptjs"),
     "^@guoxue/shared$": "<rootDir>/../../packages/shared/src/index.ts",
   },
 };

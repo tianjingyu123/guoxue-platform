@@ -5,6 +5,7 @@
  */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
@@ -16,8 +17,7 @@ import SimilarCases from '../components/similar-cases.vue'
 import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { saveBaziHistory } from './bazi-history'
-import { navigateBack } from '@/utils/router'
-import { getToken } from '@/utils/storage'
+import { navigateBack, navigateTo } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
@@ -29,6 +29,14 @@ const error = ref('')
 const baziResult = ref<any>(null)
 // 已保存的排盘记录 id（从历史等入口带入时回显该盘师父点评）
 const recordIdFromQuery = ref('')
+let lastRecordedInput = ''
+const preview = useNativePreviewPage(() => {}, () => {
+  baziResult.value = null
+  showEditModal.value = false
+  showNotes.value = false
+  error.value = ''
+}, () => { void loadResult() })
+const { allowed, checking } = preview
 
 const userInput = reactive({
   name: '', gender: '男',
@@ -45,26 +53,41 @@ const calcOpts = reactive({ trueSolar: true, earlyZi: false, dst: false })
  * 现在 onLoad/confirmEdit 先写 userInput，再统一走这里。
  */
 async function loadResult() {
+  const input = { ...userInput }
+  const options = { ...calcOpts }
+  const existingId = recordIdFromQuery.value
+  const request = {
+    name: input.name || undefined,
+    gender: input.gender || '男',
+    year: input.year, month: input.month, day: input.day,
+    hour: input.hour, minute: input.minute,
+    city: input.city || input.province || undefined,
+    useTrueSolarTime: options.trueSolar,
+    useDaylightSaving: options.dst,
+    earlyZi: options.earlyZi,
+  }
   loading.value = true
   error.value = ''
-  try {
-    const result = await baziApi.calculate({
-      name: userInput.name || undefined,
-      gender: userInput.gender || '男',
-      year: userInput.year, month: userInput.month, day: userInput.day,
-      hour: userInput.hour, minute: userInput.minute,
-      city: userInput.city || userInput.province || undefined,
-      useTrueSolarTime: calcOpts.trueSolar,
-      useDaylightSaving: calcOpts.dst,
-      earlyZi: calcOpts.earlyZi,
-    })
+  const accepted = await preview.runTask(async checkpoint => {
+    const result = await baziApi.calculate(request)
+    let serverId = existingId
+    if (!serverId) {
+      // 计算与保存是两个请求；不得在计算期间撤权后继续发出保存请求。
+      if (!await checkpoint()) throw new Error('预览资格已失效')
+      try { serverId = (await baziApi.createRecord(request)).id } catch { /* 复核通过后仍可保留本地记录 */ }
+    }
+    return { result, serverId }
+  }, ({ result, serverId }) => {
     baziResult.value = result
-    await saveRecord(result)
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+    recordIdFromQuery.value = serverId
+    const fingerprint = JSON.stringify([input, options, serverId])
+    if (fingerprint !== lastRecordedInput) {
+      saveRecord(result, input, serverId)
+      lastRecordedInput = fingerprint
+    }
+  })
+  loading.value = false
+  return accepted
 }
 
 /** 本盘四柱（拼成「甲子」这样的干支）—— 拿去案例库找同类八字 */
@@ -79,62 +102,23 @@ const myPillars = computed(() => {
   }
 })
 
-/**
- * 排盘成功后落记录 —— 本地 + 后端双写。
- *
- * 🔴 此前只写本地：后端 PaipanRecord 表因此长期是空的，导致
- *    ① AI 智能解盘页（读 GET /paipan/bazi）对所有人恒空；
- *    ② 「请师父点评」每次都要临时补建一条记录；
- *    ③ 换设备/重装后排盘记录全丢。
- *    盘明明排出来了，后端却不知道 —— 现在补上这一步。
- *
- * 未登录只写本地（不弹登录打断排盘），已登录才同步落库；
- * 落库失败也不打断（本地记录已在，用户无感），只是拿不到 serverId。
- */
-async function saveRecord(result: any) {
+/** 仅在本次资格复核的同步作用域内保存当前账号历史。 */
+function saveRecord(result: any, input: typeof userInput, serverId: string) {
   const sz = result?.siZhu || {}
-  const params = {
-    name: userInput.name || '未命名',
-    gender: userInput.gender,
-    year: userInput.year, month: userInput.month, day: userInput.day,
-    hour: userInput.hour, minute: userInput.minute,
-    city: userInput.city || undefined,
+  saveBaziHistory({
+    name: input.name || '未命名',
+    gender: input.gender,
+    year: input.year, month: input.month, day: input.day,
+    hour: input.hour, minute: input.minute,
+    city: input.city || undefined,
+    serverId: serverId || undefined,
     pillars: {
       yearGan: sz.year?.gan || '', yearZhi: sz.year?.zhi || '',
       monthGan: sz.month?.gan || '', monthZhi: sz.month?.zhi || '',
       dayGan: sz.day?.gan || '', dayZhi: sz.day?.zhi || '',
       hourGan: sz.hour?.gan || '', hourZhi: sz.hour?.zhi || '',
     },
-  }
-
-  // 从历史/记录页带 id 进来的，本就是后端已有的盘，不必重复落库
-  if (recordIdFromQuery.value) {
-    saveBaziHistory({ ...params, serverId: recordIdFromQuery.value })
-    return
-  }
-
-  let serverId: string | undefined
-  if (getToken()) {
-    try {
-      serverId = (await baziApi.createRecord({
-        name: userInput.name || undefined,
-        gender: userInput.gender,
-        year: userInput.year, month: userInput.month, day: userInput.day,
-        hour: userInput.hour, minute: userInput.minute,
-        // 校正项同口径落库，保证后端记录复算出的盘与用户看到的一致
-        city: userInput.city || userInput.province || undefined,
-        useTrueSolarTime: calcOpts.trueSolar,
-        useDaylightSaving: calcOpts.dst,
-        earlyZi: calcOpts.earlyZi,
-      }, true)).id
-      // 交给 school-analysis：它拿到 recordId 就不会再自己建一条
-      recordIdFromQuery.value = serverId
-    } catch {
-      // 静默：本地记录仍然写，用户看得到自己的盘
-    }
-  }
-
-  saveBaziHistory({ ...params, serverId })
+  })
 }
 
 onLoad((q: Record<string, string> = {}) => {
@@ -155,7 +139,6 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.trueSolar !== undefined) calcOpts.trueSolar = q.trueSolar === 'true'
   if (q.earlyZi !== undefined) calcOpts.earlyZi = q.earlyZi === 'true'
   if (q.dst !== undefined) calcOpts.dst = q.dst === 'true'
-  loadResult()
 })
 
 const data = computed(() => {
@@ -260,7 +243,12 @@ function onShare() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="loadResult()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view class="hdr">
       <view class="hdr-bar">

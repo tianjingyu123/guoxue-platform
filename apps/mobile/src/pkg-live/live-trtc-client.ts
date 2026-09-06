@@ -1,4 +1,6 @@
 import type { LiveRtcConfig } from './live-mic-data'
+import { claimNativeRtc, releaseNativeRtc, ownsNativeRtc } from '@/lib/native-rtc-owner'
+const rtcOwner = Symbol('live')
 
 type NativeModule = Record<string, (...args: any[]) => any>
 
@@ -28,12 +30,18 @@ function getNativePlugin(name: string): NativeModule | null {
 }
 
 function ensureModules() {
+  claimNativeRtc(rtcOwner)
+  try {
   trtcModule ||= getNativePlugin(MODULE_NAME)
   eventModule ||= getNativePlugin(EVENT_MODULE_NAME)
   if (!trtcModule || !eventModule || typeof trtcModule.sharedInstance !== 'function') {
     throw new Error('当前安装包未包含 TRTC 原生插件，请升级到正式 App 包')
   }
   return { trtc: trtcModule, events: eventModule }
+  } catch (error) {
+    releaseNativeRtc(rtcOwner)
+    throw error
+  }
 }
 
 function removeListeners() {
@@ -263,6 +271,7 @@ export function setLiveAudioMuted(muted: boolean) {
 }
 
 export function leaveLiveAudio() {
+  if (!ownsNativeRtc(rtcOwner)) return
   if (trtcModule) {
     for (const userId of [...remoteVideoUsers]) stopLiveRemoteVideo(userId)
     if (localPreviewActive) {
@@ -279,6 +288,7 @@ export function leaveLiveAudio() {
   try { trtcModule?.destroySharedInstance?.() } catch {}
   trtcModule = null
   eventModule = null
+  releaseNativeRtc(rtcOwner)
 }
 
 export const leaveLiveVideo = leaveLiveAudio

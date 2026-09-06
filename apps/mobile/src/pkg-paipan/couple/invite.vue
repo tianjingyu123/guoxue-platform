@@ -4,7 +4,8 @@
  * 选我的八字盘 → 生成合盘邀请 → 展示邀请卡（分享 + 复制链接）。
  * R3：邀请只携带令牌，不暴露任何生辰/命盘；对方授权后双方仅共享合婚报告文本。
  */
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
@@ -25,70 +26,81 @@ const selectedId = ref('')
 const submitting = ref(false)
 const invited = ref<CoupleInviteResult | null>(null)
 
-/** 分享落地路径（携带令牌；useShare 会自动追加分享者 ref 归因） */
-function sharePath(): string {
-  return `/pkg-paipan/couple/accept?token=${invited.value?.inviteToken || ''}`
-}
-
 async function loadRecords() {
-  loading.value = true
-  error.value = ''
-  try {
-    records.value = await coupleApi.myBaziRecords()
-    if (records.value.length && !selectedId.value) selectedId.value = records.value[0].id
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
-  } finally {
+  return preview.runTask(async () => {
+    try { return { records: await coupleApi.myBaziRecords(), error: '' } }
+    catch (e) { return { records: [] as MyBaziRecord[], error: (e as Error)?.message || '加载失败，请重试' } }
+  }, (value) => {
+    records.value = value.records
+    selectedId.value = value.records[0]?.id || ''
+    error.value = value.error
+    loggedIn.value = true
     loading.value = false
-  }
+  })
 }
 
 async function onGenerate() {
-  if (submitting.value || !selectedId.value) return
+  if (!preview.allowed.value || submitting.value || !selectedId.value || invited.value) return
+  const targetId = selectedId.value
+  const snapshot = records.value
   submitting.value = true
-  try {
-    invited.value = await coupleApi.invite(selectedId.value)
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '生成失败', icon: 'none' })
-  } finally {
+  return preview.runTask(async () => {
+    try { return { invited: await coupleApi.invite(targetId), error: '' } }
+    catch (e) { return { invited: null, error: (e as Error)?.message || '生成失败' } }
+  }, (value) => {
+    records.value = snapshot
+    selectedId.value = targetId
+    invited.value = value.invited
+    error.value = value.error
+    if (value.error) uni.showToast({ title: value.error, icon: 'none' })
     submitting.value = false
-  }
+  })
 }
 
 function copyLink() {
-  const url = invited.value?.shareUrl
-  if (!url) return
-  uni.setClipboardData({
-    data: url,
-    success: () => uni.showToast({ title: '链接已复制，发给 TA 即可', icon: 'none' }),
+  const snapshot = invited.value
+  if (!preview.allowed.value || !snapshot?.shareUrl) return
+  return preview.run(() => {
+    invited.value = snapshot
+    uni.setClipboardData({
+      data: snapshot.shareUrl,
+      success: () => uni.showToast({ title: '邀请链接已复制，仅限获准预览账号使用', icon: 'none' }),
+    })
   })
 }
 
 function goResult() {
   // 邀请刚生成时对方尚未授权，进详情页可查看等待态
-  if (invited.value?.id) navigateTo(`/pkg-paipan/couple/result?id=${invited.value.id}`)
+  const targetId = invited.value?.id
+  if (preview.allowed.value && targetId) return preview.run(() => navigateTo(`/pkg-paipan/couple/result?id=${targetId}`))
 }
 
-onMounted(() => {
-  if (!getToken()) {
-    loggedIn.value = false
-    loading.value = false
-    return
-  }
-  loadRecords()
-})
+const preview = useNativePreviewPage(() => {}, () => {
+  records.value = []
+  selectedId.value = ''
+  invited.value = null
+  error.value = ''
+  loading.value = false
+  submitting.value = false
+  loggedIn.value = !!getToken()
+}, () => { void loadRecords() })
 
 // 微信原生分享（好友/群 + 朋友圈）；路径自动带 ref 归因
 onShareAppMessage(() =>
-  toAppMessage({ title: '和我测测我们的缘分合盘', path: sharePath() }),
+  toAppMessage({ title: '热卜', path: '/pages/index/index' }),
 )
 onShareTimeline(() =>
-  toTimeline({ title: '和我测测我们的缘分合盘', path: sharePath() }),
+  toTimeline({ title: '热卜', path: '/pages/index/index' }),
 )
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="loadRecords">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶栏 -->
     <view class="hdr">
       <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666" /></view>
@@ -116,10 +128,9 @@ onShareTimeline(() =>
         <view class="card invite-card">
           <view class="ic-badge"><app-icon name="check" :size="36" color="#fff" /></view>
           <text class="ic-title">邀请已生成</text>
-          <text class="ic-sub">把链接发给 TA，对方授权自己的八字盘后即可生成合婚报告。邀请 7 天内有效。</text>
+          <text class="ic-sub">当前仅供获准预览账号联调。复制邀请链接后，对方仍需通过独立资格核验；邀请 7 天内有效。</text>
           <view class="ic-url"><text class="ic-url-t">{{ invited.shareUrl }}</text></view>
           <view class="ic-actions">
-            <button class="share-btn" open-type="share"><app-icon name="share-2" :size="30" color="#fff" /><text class="share-btn-t">分享给 TA</text></button>
             <view class="copy-btn" @tap="copyLink"><app-icon name="copy" :size="30" color="var(--brand)" /><text class="copy-btn-t">复制链接</text></view>
           </view>
         </view>

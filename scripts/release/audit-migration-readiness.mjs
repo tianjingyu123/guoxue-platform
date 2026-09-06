@@ -84,9 +84,10 @@ const legacyRouteStart = mobilePages.indexOf('"path": "legacy-paipan/index"');
 const legacyRouteConfig = mobilePages.slice(legacyRouteStart, legacyRouteStart + 320);
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端旧排盘正式承接且新排盘仅隔离 QA 开放",
+  "整套排盘运行模式以服务端实时配置为准，第三方异常不回退自研",
   paipanClient.includes("/legacy-paipan/entry") &&
-    paipanService.includes("this.runtime.isNative()") &&
+    paipanService.includes('await this.runtime.getCurrentMode(this.prisma) === "native"') &&
+    !paipanService.includes("this.runtime.isNative()") &&
     paipanService.includes('return { mode: "native", url: null') &&
     paipanPage.includes('if (runtimeMode === "native")') &&
     paipanPage.includes('if (runtimeMode !== "legacy")') &&
@@ -101,7 +102,7 @@ add(
     legacyRouteConfig.includes('"navigationStyle": "custom"') &&
     !legacyRouteConfig.includes('"navigationBarTitleText"') &&
     !paipanPage.includes("核心工具仍可使用"),
-  "服务端明确 legacy 时普通用户统一进入旧排盘；探针失败不泄露新排盘，四端保留稳定退出路径",
+  "服务端明确 legacy 时普通用户统一进入原有排盘；native 使用整套资格，探针失败不泄露自研，小程序另行维护隔离",
 );
 
 const productionTemplate = read("docker/.env.production.example");

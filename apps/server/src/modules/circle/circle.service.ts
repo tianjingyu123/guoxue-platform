@@ -220,12 +220,16 @@ export class CircleService {
     questionTimeoutHours: number;
     callPricePerMinuteCoin: number;
     callAvailableHours?: Array<{ day: string; start: string; end: string }>;
-  }) {
-    return this.expertSvc.setExpertConfig(circleId, userId, dto);
+  }, actor: { userId: string; executor: "HUMAN" | "AUTOMATION" }) {
+    return this.expertSvc.setExpertConfig(circleId, userId, dto, actor);
   }
 
   getExpertConfig(circleId: string, userId: string) {
     return this.expertSvc.getExpertConfig(circleId, userId);
+  }
+
+  getOwnExpertConfig(circleId: string, userId: string) {
+    return this.expertSvc.getOwnExpertConfig(circleId, userId);
   }
 
   listCircleExperts(circleId: string) {
@@ -287,16 +291,17 @@ export class CircleService {
 
   // ───────── 达人预约 ─────────
 
-  getExpertSlots(expertId: string, date?: string) {
-    return this.expertSvc.getExpertSlots(expertId, date);
+  getExpertSlots(expertId: string, date?: string, circleId?: string) {
+    return this.expertSvc.getExpertSlots(expertId, date, circleId);
   }
 
   createExpertBooking(
     expertId: string,
     bookerUserId: string,
-    body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+    body: { circleId: string; slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+    executor: "HUMAN" | "AUTOMATION" = "HUMAN",
   ) {
-    return this.expertSvc.createExpertBooking(expertId, bookerUserId, body);
+    return this.expertSvc.createExpertBooking(expertId, bookerUserId, body, executor);
   }
 
   // ───────── 帖子打赏 ─────────

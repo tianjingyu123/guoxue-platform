@@ -57,7 +57,9 @@ export class SettlementService {
   constructor(private prisma: PrismaService) {}
 
   /** 唯一入账入口：按场景规则分账落总账（幂等：同凭据同场景已入账则返回既有记录） */
-  async settle(params: SettleParams) {
+  async settle(params: SettleParams, tx?: Prisma.TransactionClient) {
+    // 调用方已持有业务凭据锁时，沿用同一事务，禁止总账游离于业务提交之外。
+    const db = tx ?? this.prisma;
     // L2：无凭据不入账
     if (!params.refType || !params.refId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "结算必须携带交易凭据(refType/refId)");
@@ -66,7 +68,7 @@ export class SettlementService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "结算金额必须为正数");
     }
 
-    const rule = await this.prisma.settlementRule.findUnique({ where: { scene: params.scene } });
+    const rule = await db.settlementRule.findUnique({ where: { scene: params.scene } });
     if (!rule || !rule.enabled) {
       this.logger.debug(`场景 ${params.scene} 未配置或未启用，跳过结算`);
       return [];
@@ -83,7 +85,7 @@ export class SettlementService {
     }
 
     // 幂等守卫
-    const existing = await this.prisma.ledgerEntry.findMany({
+    const existing = await db.ledgerEntry.findMany({
       where: { refType: params.refType, refId: params.refId, scene: params.scene, amount: { gt: 0 } },
     });
     if (existing.length > 0) return existing;
@@ -143,8 +145,8 @@ export class SettlementService {
     }
 
     if (rows.length === 0) return [];
-    await this.prisma.ledgerEntry.createMany({ data: rows });
-    return this.prisma.ledgerEntry.findMany({
+    await db.ledgerEntry.createMany({ data: rows });
+    return db.ledgerEntry.findMany({
       where: { refType: params.refType, refId: params.refId, scene: params.scene },
     });
   }

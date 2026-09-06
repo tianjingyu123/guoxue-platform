@@ -7,6 +7,8 @@ import { ModerationAiService } from "./moderation-ai.service"
 import { SensitiveWordService } from "./sensitive-word.service"
 
 const mockPrisma = {
+  $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
   auditLog: {
     create: jest.fn(),
     findMany: jest.fn(),
@@ -27,11 +29,13 @@ const mockPrisma = {
   },
   article: { findMany: jest.fn(), update: jest.fn() },
   course: { findMany: jest.fn(), update: jest.fn() },
-  video: { findMany: jest.fn(), update: jest.fn() },
+  video: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  notification: { create: jest.fn() },
   liveRoom: { findMany: jest.fn(), update: jest.fn() },
 }
 
 const mockRedis = {
+  del: jest.fn().mockResolvedValue(undefined),
   delByPattern: jest.fn().mockResolvedValue(undefined),
 }
 
@@ -73,6 +77,8 @@ describe("AuditService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.$transaction.mockImplementation(callback => callback(mockPrisma))
+    mockPrisma.$queryRaw.mockResolvedValue([])
   })
 
   describe("log", () => {
@@ -304,6 +310,22 @@ describe("AuditService", () => {
       id: "rec1", contentType: "VIDEO", contentId: "v1", circleId: "c1",
       submitterId: "u1", finalStatus: "PENDING",
     }
+    it("业务回写失败向外抛出，缓存和成功日志不得提前执行", async () => {
+      mockPrisma.contentAuditRecord.findUnique.mockResolvedValue(pendingRecord)
+      mockPrisma.contentAuditRecord.update.mockResolvedValue({ ...pendingRecord, finalStatus: "APPROVED" })
+      mockPrisma.video.update.mockRejectedValueOnce(new Error("SYNTHETIC_WRITE_FAILURE"))
+      await expect(svc.reviewContent("rec1", "admin1", "approve")).rejects.toThrow("SYNTHETIC_WRITE_FAILURE")
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(mockPrisma.contentAuditRecord.findUnique.mock.invocationCallOrder[0])
+      expect(mockRedis.delByPattern).not.toHaveBeenCalled()
+      expect(mockPrisma.auditLog.create).not.toHaveBeenCalled()
+    })
+    it("软删除或非法动作不进入审核写入", async () => {
+      mockPrisma.contentAuditRecord.findUnique.mockResolvedValue({ ...pendingRecord, deletedAt: new Date() })
+      await expect(svc.reviewContent("rec1", "admin1", "approve")).rejects.toThrow("审核记录不存在")
+      await expect(svc.reviewContent("rec1", "admin1", "unknown" as any)).rejects.toThrow("不支持的审核动作")
+      expect(mockPrisma.contentAuditRecord.update).not.toHaveBeenCalled()
+    })
 
     it("通过：回写内容表 APPROVED + 失效列表缓存 + 记审计日志", async () => {
       mockPrisma.contentAuditRecord.findUnique.mockResolvedValue(pendingRecord)
@@ -324,6 +346,8 @@ describe("AuditService", () => {
     })
 
     it("驳回：记驳回原因（发布者可见）+ 回写 REJECTED", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", userId: "u1", title: "合成视频", visibility: "PLATFORM", auditStatus: "PENDING" })
+      mockPrisma.notification.create.mockResolvedValue({})
       mockPrisma.contentAuditRecord.findUnique.mockResolvedValue(pendingRecord)
       mockPrisma.contentAuditRecord.update.mockImplementation(({ data }: any) => Promise.resolve({ ...pendingRecord, ...data }))
       mockPrisma.video.update.mockResolvedValue({})
@@ -334,8 +358,10 @@ describe("AuditService", () => {
       expect(r.rejectReason).toBe("内容与平台调性不符")
       expect(mockPrisma.video.update).toHaveBeenCalledWith({
         where: { id: "v1" },
-        data: { auditStatus: "REJECTED", auditReason: "内容与平台调性不符" },
+        data: { auditStatus: "REJECTED", auditReason: "内容与平台调性不符", visibility: "SELF_ONLY" },
       })
+      expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "CONTENT_DEMOTE_SELF_ONLY" }) }))
     })
 
     it("已审结记录不可重复审核（抛业务异常）", async () => {

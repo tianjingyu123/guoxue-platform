@@ -1,9 +1,56 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import fs from 'node:fs'
+import vm from 'node:vm'
+import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
 
 import { parseAppEntryLink } from '../../apps/mobile/src/utils/app-entry-link.ts'
 
 const formalApiOrigin = 'https://api.rebugx.cn'
+
+test('冷启动先后收到两条深链，只允许最新目标在页面就绪后打开', () => {
+  const ts = createRequire(resolve('apps/mobile/package.json'))('typescript')
+  const source = fs.readFileSync('apps/mobile/src/App.vue', 'utf8')
+  const start = source.indexOf('function reLaunchAppEntryWhenReady(')
+  const end = source.indexOf('function installAppEntryLinkRouting(', start)
+  let ready = false
+  const tasks = [], calls = []
+  const context = {
+    appEntryNavigationGeneration: 0,
+    getCurrentPages: () => ready ? [{}] : [],
+    setTimeout: callback => tasks.push(callback),
+    uni: { reLaunch: args => calls.push(args) },
+  }
+  vm.runInNewContext(ts.transpileModule(source.slice(start, end), {}).outputText, context)
+  context.reLaunchAppEntryWhenReady('/pkg-paipan/bazi/index')
+  context.reLaunchAppEntryWhenReady('/pkg-circle/detail/index?id=new')
+  ready = true
+  for (const task of tasks.splice(0)) task()
+  assert.deepEqual(calls.map(call => call.url), ['/pkg-circle/detail/index?id=new'])
+})
+
+test('原生深链权限核验被新导航取消时不触发首页兜底，真实失败仍兜底', () => {
+  const ts = createRequire(resolve('apps/mobile/package.json'))('typescript')
+  const source = fs.readFileSync('apps/mobile/src/App.vue', 'utf8')
+  const start = source.indexOf('function reLaunchAppEntryWhenReady(')
+  const end = source.indexOf('function installAppEntryLinkRouting(', start)
+  assert.ok(start > 0 && end > start)
+  const calls = []
+  const context = {
+    appEntryNavigationGeneration: 0,
+    getCurrentPages: () => [{}],
+    uni: { reLaunch: args => calls.push(args) },
+    setTimeout: () => { throw Error('已有页面，不应延迟') },
+  }
+  vm.runInNewContext(ts.transpileModule(source.slice(start, end), {}).outputText, context)
+  context.reLaunchAppEntryWhenReady('/pkg-paipan/bazi/index')
+  calls[0].fail({ errMsg: 'navigateTo:fail navigation superseded' })
+  assert.equal(calls.length, 1)
+  calls[0].fail({ errMsg: 'reLaunch:fail page not found' })
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].url, '/pages/index/index')
+})
 const parseFormalAppEntryLink = (raw) => parseAppEntryLink(raw, formalApiOrigin)
 
 test('生产 App Link 映射为站内路由并保留普通查询参数', () => {

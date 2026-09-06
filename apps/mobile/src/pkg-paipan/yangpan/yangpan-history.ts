@@ -2,7 +2,8 @@
  * 阳盘奇门·本地排盘记录
  * 原 yangpan/history 页是硬编码假记录；现改为 result 页排盘成功后落盘的真实记录。
  */
-import { createHistory, createGroupNames, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory, createPrivateGroupNames as createGroupNames } from '@/lib/paipan/private-history'
 
 export interface YangpanParams {
   name: string

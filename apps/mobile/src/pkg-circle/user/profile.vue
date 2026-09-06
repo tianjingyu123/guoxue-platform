@@ -16,7 +16,7 @@
  * query: id
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -44,6 +44,9 @@ const relation = ref<ImRelation | ''>('')
 /** 能否私信：圈友/付费/互关/单向关注均可（关注后即时态不刷新，保持现状） */
 const canDM = ref(false)
 const consultServices = ref<UserConsultService[]>([])
+const consultLoading = ref(false)
+const consultError = ref('')
+let consultRequest = 0
 /** 可发起图文付费咨询的服务（需提问价>0） */
 const consultable = computed(() => consultServices.value.filter((s) => s.questionPrice > 0))
 const hasConsult = computed(() => consultable.value.length > 0)
@@ -90,12 +93,21 @@ onLoad((q) => {
     userIdStr.value = String(q.id)
   }
   loadProfile()
-  loadRelationAndConsult()
 })
+onShow(loadRelationAndConsult)
+function invalidateConsultServices() {
+  ++consultRequest
+  consultServices.value = []
+  consultError.value = ''
+  consultLoading.value = false
+}
+onHide(invalidateConsultServices)
+onUnload(invalidateConsultServices)
 
 // 加载私信关系 + 付费咨询服务（独立于资料展示，失败保守降级，不阻塞页面）
 async function loadRelationAndConsult() {
   if (!userIdStr.value) return
+  void loadConsultServices()
   try {
     const p = await imApi.getRelationPolicy(userIdStr.value)
     relation.value = p.relation
@@ -106,7 +118,23 @@ async function loadRelationAndConsult() {
     // 拿不到关系：保守按"不可私信"处理（策略B 下隐藏私信入口）
     canDM.value = false
   }
-  consultServices.value = await consultApi.getUserConsultServices(userIdStr.value)
+}
+
+async function loadConsultServices() {
+  const requestedUser = userIdStr.value
+  const request = ++consultRequest
+  consultServices.value = []
+  consultError.value = ''
+  consultLoading.value = true
+  try {
+    if (!requestedUser) return
+    const services = await consultApi.getUserConsultServices(requestedUser)
+    if (request === consultRequest && requestedUser === userIdStr.value) consultServices.value = services
+  } catch {
+    if (request === consultRequest && requestedUser === userIdStr.value) consultError.value = '咨询服务加载失败'
+  } finally {
+    if (request === consultRequest) consultLoading.value = false
+  }
 }
 
 async function loadProfile() {
@@ -430,6 +458,11 @@ function toggleMore() {
       </view>
 
       <!-- ============ 内容 Tab（sticky·暖底半透明+blur·选中加粗+朱红下划线） ============ -->
+      <text v-if="consultLoading" class="up-relation-note">正在查询咨询服务…</text>
+      <view v-else-if="consultError" class="up-consult-error">
+        <text>{{ consultError }}</text>
+        <button class="up-consult-retry" @tap="loadConsultServices">重新查询咨询服务</button>
+      </view>
       <view class="up-tabs">
         <view
           v-for="tab in contentTabs"
@@ -754,6 +787,8 @@ function toggleMore() {
   line-height: 1.6;
   text-align: center;
 }
+.up-consult-error { margin: 16rpx 32rpx; text-align: center; font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.up-consult-retry { margin-top: 12rpx; font-size: 26rpx; color: var(--brand, #c41e3a); background: transparent; }
 
 /* ============ 内容 Tab（sticky·V0 .tabs） ============ */
 .up-tabs {

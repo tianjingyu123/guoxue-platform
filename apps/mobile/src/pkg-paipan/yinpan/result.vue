@@ -8,6 +8,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -66,7 +67,15 @@ const editedMatter = ref('')
 const editDraft = ref('')
 const yongShenTarget = ref<string | null>(null)
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  params.value = null; loadError.value = ''; juOverride.value = null
+  showNotes.value = false; showEditMatter.value = false; selectedPalace.value = null
+})
+const { allowed, checking } = preview
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<YinpanParams>
@@ -90,11 +99,15 @@ onLoad((q: Record<string, string> = {}) => {
     const m = params.value.customJu.match(/(阳遁|阴遁)(\d)局/)
     if (m) juOverride.value = { isYang: m[1] === '阳遁', num: parseInt(m[2] || '1', 10) }
     // 记入本地排盘记录（index 排盘与深链进入均覆盖）
-    if (qr.value) saveYinpanHistory(params.value, `${panTypeLabel.value}·${juLabel.value}`)
+    if (qr.value && !recorded) {
+      saveYinpanHistory(params.value, `${panTypeLabel.value}·${juLabel.value}`)
+      recorded = true
+    }
   } catch (e) {
+    params.value = null
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
-})
+}
 
 // ─── 真实排盘（阴盘=转盘拆补，中宫寄坤2）───
 const baseDate = computed(() => {
@@ -239,9 +252,15 @@ function confirmEditMatter() {
 
 function handleSave() {
   const p = params.value
-  if (!p || !qr.value) return
-  saveYinpanHistory({ ...p, matter: editedMatter.value }, `${panTypeLabel.value}·${juLabel.value}`)
-  uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+  if (!allowed.value || !p || !qr.value) return
+  const target = { ...p, matter: editedMatter.value }
+  const summary = `${panTypeLabel.value}·${juLabel.value}`
+  return preview.run(() => {
+    saveYinpanHistory(target, summary)
+    entryQuery = { payload: encodeURIComponent(JSON.stringify(target)) }
+    initialize(entryQuery)
+    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+  })
 }
 
 function handleShare() {
@@ -268,7 +287,12 @@ function goInput() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" @share="handleShare" />
 
     <!-- 参数错误态 -->

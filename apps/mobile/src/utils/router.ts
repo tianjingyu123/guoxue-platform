@@ -12,6 +12,7 @@
 
 import { requestParentContentLayerClose, tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
 import { clientFeatureUnavailableRoute, clientModuleForRoute, isClientModuleEnabled } from '@/lib/client-module-policy'
+import { mpPaipanMaintenanceTarget } from '@/lib/mp-paipan-maintenance'
 
 const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
 
@@ -95,7 +96,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/xiaoliuren': '/pkg-paipan/xiaoliuren/index',
   '/paipan/xiaoliuren/history': '/pkg-paipan/xiaoliuren/history/index',
   '/paipan/kongming': '/pkg-paipan3/kongming/index',
-  '/paipan/luopan': '/pkg-paipan3/luopan/index',
+  '/paipan/luopan': '/pkg-common/compass/index',
   '/paipan/ziwei': '/pkg-paipan/ziwei/index',
   '/paipan/ziwei/result': '/pkg-paipan/ziwei/result',
   // V0 排盘第二批（占卜类）：大六壬/金口诀/金钱课/小成图/太乙/诸葛
@@ -559,6 +560,8 @@ function normalize(url: string): string {
 
 /** 解析原型路径到 uni 路径，保留 query 串 */
 export function resolveRoute(url: string): string {
+  const maintenance = mpPaipanMaintenanceTarget(url)
+  if (maintenance) return maintenance
   const u = normalize(url)
   const qIdx = u.indexOf('?')
   const path = qIdx >= 0 ? u.slice(0, qIdx) : u

@@ -4,7 +4,7 @@
  * 数据来自本地真实记录（../xiaoliuren-history），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -16,7 +16,7 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadXiaoliurenHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -28,21 +28,27 @@ const vms = computed<HistoryVM[]>(() =>
 )
 
 function open(vm: HistoryVM) {
-  const r = vm.raw
-  navigateTo(`/pkg-paipan/xiaoliuren/index?replay=${encodeURIComponent(JSON.stringify(r))}`)
+  const replay = encodeURIComponent(JSON.stringify(vm.raw))
+  return preview.run(() => navigateTo(`/pkg-paipan/xiaoliuren/index?replay=${replay}`))
 }
 function onPin(ids: string[]) {
-  pinXiaoliurenHistory(ids)
-  reload()
+  const targets = [...ids]
+  return preview.run(() => { pinXiaoliurenHistory(targets); reload() })
 }
 function onDelete(ids: string[]) {
-  removeXiaoliurenHistory(ids)
-  reload()
+  const targets = [...ids]
+  return preview.run(() => { removeXiaoliurenHistory(targets); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!preview.allowed.value">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
   <HistoryPage
+    v-else
     title="起课记录"
     back-href="/paipan/xiaoliuren"
     :records="vms"

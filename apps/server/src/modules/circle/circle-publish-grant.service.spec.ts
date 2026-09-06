@@ -1,4 +1,4 @@
-import { CirclePublishGrantStatus, IdentityLevel } from "@prisma/client";
+import { CirclePublishGrantStatus, IdentityLevel, Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CirclePublishGrantService } from "./circle-publish-grant.service";
@@ -50,6 +50,30 @@ describe("CirclePublishGrantService", () => {
     prisma = createPrismaMock();
     prisma.userRole.findFirst.mockResolvedValue(null);
     service = new CirclePublishGrantService(prisma as unknown as PrismaService);
+  });
+
+  describe("审批不能覆盖已处理决定", () => {
+    beforeEach(() => {
+      prisma.circlePublishGrant.findUnique.mockResolvedValue({ id: "grant-1", status: "PENDING", scopes: ["SHORT_VIDEO"] });
+    });
+    it.each(["approve", "reject"] as const)("%s 在实际写入时要求仍为待审", async action => {
+      prisma.circlePublishGrant.update.mockResolvedValue({ id: "grant-1" });
+      await service[action]("grant-1", "reviewer", { reason: "人工处理" });
+      expect(prisma.circlePublishGrant.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "grant-1", status: "PENDING" },
+        data: expect.objectContaining({ status: action === "approve" ? "APPROVED" : "REJECTED", reviewerId: "reviewer" }),
+      }));
+    });
+    it.each(["approve", "reject"] as const)("%s 发现并发修改时返回业务冲突，不重试覆盖", async action => {
+      prisma.circlePublishGrant.update.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("synthetic", { code: "P2025", clientVersion: "test" }));
+      await expect(service[action]("grant-1", "reviewer", { reason: "人工处理" })).rejects.toThrow("该授权申请已变化");
+      expect(prisma.circlePublishGrant.update).toHaveBeenCalledTimes(1);
+    });
+    it("数据库异常不得伪装为审批成功或被吞掉", async () => {
+      const failure = new Error("SYNTHETIC_DB_UNAVAILABLE");
+      prisma.circlePublishGrant.update.mockRejectedValue(failure);
+      await expect(service.approve("grant-1", "reviewer", {})).rejects.toBe(failure);
+    });
   });
 
   describe("assertCanPublish", () => {

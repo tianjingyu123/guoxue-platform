@@ -4,7 +4,7 @@
  * 表单：姓名/性别/公历生日/时辰；历史记录本地存储（最近 20 条）点击回填。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -100,9 +100,10 @@ const useTrueSolar = computed(() => !!birthLng.value && !!exactTime.value)
 
 // ── 历史记录 ──
 const history = ref<ZiweiHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadZiweiHistory()
-})
+}, () => { history.value = [] })
+const { allowed, checking } = preview
 
 function fillFromHistory(h: ZiweiHistoryItem) {
   name.value = h.name === '未知' ? '' : h.name
@@ -126,8 +127,7 @@ function onClearHistory() {
     content: '确定清空全部排盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearZiweiHistory()
-        history.value = []
+        void preview.run(() => { clearZiweiHistory(); history.value = [] })
       }
     },
   })
@@ -155,7 +155,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/ziwei/history" :title="hdrTitle" />
 
     <scroll-view scroll-y class="body">

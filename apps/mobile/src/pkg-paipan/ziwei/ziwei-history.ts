@@ -1,9 +1,10 @@
 /**
  * 紫微斗数·本地排盘记录
  * 走统一底座 lib/paipan/history-core（带 id/pinned，支持删单条/置顶，V0 排盘记录页依赖）。
- * 老 key「rebu:ziwei-history」存的是裸数组（无 id），底座 load 时会自动补 id 回写，故沿用同一 key。
+ * 无归属旧 key 保留原样，仅在本次资格核验作用域内读写账号隔离记录。
  */
-import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory } from '@/lib/paipan/private-history'
 
 export interface ZiweiParams {
   name: string

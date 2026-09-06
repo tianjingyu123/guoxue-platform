@@ -7,7 +7,8 @@
  *       V0 select 年份改原生 picker；R4 合规：小程序端标题改文化研究表述。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -72,29 +73,61 @@ const showHistory = ref(false)
 const records = ref<HistoryRecord[]>([])
 
 function loadRecords() {
+  const key = nativeHistoryKey(HISTORY_KEY)
+  if (!key) { records.value = []; return }
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    records.value = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
+    const raw = uni.getStorageSync(key)
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    records.value = Array.isArray(parsed) ? parsed.filter(item => item && typeof item.params === 'object') : []
   } catch {
     records.value = []
   }
 }
-onShow(loadRecords)
+const gate = useNativePreviewPage(loadRecords, () => {
+  name.value = ''
+  deg.value = 0
+  yearIdx.value = 10
+  showHistory.value = false
+  records.value = []
+})
 
 function openHistory() {
-  loadRecords()
-  showHistory.value = true
+  if (!gate.allowed.value) return
+  const state = { name: name.value, deg: deg.value, yearIdx: yearIdx.value }
+  void gate.run(() => {
+    name.value = state.name
+    deg.value = state.deg
+    yearIdx.value = state.yearIdx
+    loadRecords()
+    showHistory.value = true
+  })
 }
 function clearHistory() {
-  uni.setStorageSync(HISTORY_KEY, '[]')
-  records.value = []
+  if (!gate.allowed.value) return
+  const isCurrent = gate.captureInteraction()
+  const state = { name: name.value, deg: deg.value, yearIdx: yearIdx.value }
+  uni.showModal({ title: '清空排盘记录', content: '仅清空当前账号的山向奇门记录，是否继续？', success: response => {
+    if (!response.confirm || !isCurrent()) return
+    void gate.run(() => {
+      const key = nativeHistoryKey(HISTORY_KEY)
+      if (!key) throw new Error('账号无法确认')
+      uni.setStorageSync(key, '[]')
+      name.value = state.name
+      deg.value = state.deg
+      yearIdx.value = state.yearIdx
+      records.value = []
+      showHistory.value = true
+    })
+  } })
 }
 function openRecord(r: HistoryRecord) {
+  if (!gate.allowed.value) return
   showHistory.value = false
   navigateTo(`/pkg-paipan/shanxiang/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
 }
 
 function start() {
+  if (!gate.allowed.value) return
   const params: Record<string, unknown> = {
     name: name.value.trim(),
     deg: clampDeg(deg.value),
@@ -106,7 +139,12 @@ function start() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!gate.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ gate.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="gate.checking.value" @tap="gate.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       subtitle="向角度定局 · 堪舆文化研究"

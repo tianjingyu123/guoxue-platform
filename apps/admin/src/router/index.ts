@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { refreshPaipanMode } from "@/lib/paipan-runtime";
+import { canManageNativePreview, refreshPaipanMode } from "@/lib/paipan-runtime";
 import { useAuthStore } from "@/store/auth";
 import { clearAdminSession, rememberAdminRedirect } from "@/utils/auth-session";
 
@@ -125,7 +125,13 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
-      // === 社区 ===
+        // === 社区 ===
+        {
+          path: "circle-capabilities",
+          name: "CircleCapabilityList",
+          component: () => import("@/views/circles/CircleCapabilityList.vue"),
+          meta: { title: "发布能力授权", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        },
       {
         path: "circles",
         name: "CircleList",
@@ -1001,6 +1007,12 @@ const routes = [
         meta: { title: "功能开关", roles: ["SUPER_ADMIN"] },
       },
       {
+        path: "system/native-paipan-preview",
+        name: "NativePaipanPreview",
+        component: () => import("@/views/system/NativePaipanPreview.vue"),
+        meta: { title: "排盘开发预览设置", roles: ["SUPER_ADMIN"], nativePreviewManage: true },
+      },
+      {
         path: "system/third-party",
         name: "ThirdPartyConfig",
         component: () => import("@/views/system/ThirdPartyConfig.vue"),
@@ -1647,7 +1659,10 @@ router.beforeEach(async (to) => {
   if (to.name === "Forbidden" || to.name === "NotFound") return true;
 
   // 菜单隐藏之外再做直达路由门禁；配置读取失败按 legacy 返回 404。
-  if (to.meta?.nativePaipan === true && (await refreshPaipanMode()) !== "native") {
+  if ((to.meta?.nativePaipan === true &&
+      (!access.roles.includes("SUPER_ADMIN") || (await refreshPaipanMode()) !== "native")) ||
+      (to.meta?.nativePreviewManage === true &&
+      (!access.roles.includes("SUPER_ADMIN") || !await canManageNativePreview()))) {
     return { name: "NotFound", params: { pathMatch: ["page-not-found"] } };
   }
 

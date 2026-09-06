@@ -4,6 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
+import AppEmpty from '@/components/common/app-empty.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
@@ -320,7 +321,8 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
           <text class="guess-title">猜你喜欢</text>
           <view class="guess-line" />
         </view>
-        <view class="prod-grid">
+        <AppEmpty v-if="mallProducts.length === 0" title="暂无推荐商品" desc="可以先浏览上方商品分类，也可以下拉刷新。" />
+        <view v-else class="prod-grid">
           <view v-for="p in mallProducts" :key="p.id" class="prod-cell">
             <ProductCard :data="p" />
           </view>

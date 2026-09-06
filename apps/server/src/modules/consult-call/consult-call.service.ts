@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -8,28 +8,42 @@ import { RevenueService } from "../revenue/revenue.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { buildTrtcConfig } from "./trtc-sig.util";
+import { circleExpertWhere, lockCircleExpertRows } from "../../common/circle-expert-availability";
+import { CircleCapabilityService } from "../circle/circle-capability.service";
+import { assertHumanForRedLine, ExecutorType, RedLine } from "../../common/red-lines";
+import { CONSULT_PREPAY_MINUTES, CONSULT_WAITING_SECONDS, CONSULT_ACCEPT_TICKET_SECONDS, CONSULT_INITIATE_TICKET_SECONDS, isValidConsultCallPrice } from "../../common/consult-call-pricing";
+import { ConsultCallResourceService } from "./consult-call-resource.service";
+
+// 通话的服务者头衔由独立授权判定；平台直授可以覆盖普通成员，但不放宽账号、成员有效期及价格。
+const callProviderWhere = () => {
+  const where = circleExpertWhere("CALL");
+  delete where.role;
+  return where;
+};
 
 /**
  * 圈子达人语音/视频付费通话（规格 docs/circle-consult-rules-v1.md）。
  * 计费：达人 callPricePerMinuteCoin × 分钟，预充值预扣 PREPAY_MINUTES 分钟额度，结束按实际时长结算多退少不补；不足1分钟按1分钟。
  * 分账：达人 50% / 平台 50%（revenue.record scene=AUDIO_CALL rate=0.5）。RTC：腾讯 TRTC。
  *
- * ⚠️ 资金代码：本地无真实通话/余额场景，端到端结算未做 e2e。上线前须人工 review + 真实付费数据 e2e。
+ * 资金代码：本地隔离 PostgreSQL 已验证退款与双账原子性；不等于供应商实通或真实付款验收。
  * 新表 ConsultCall 用 $queryRawUnsafe/$executeRawUnsafe 访问（prisma generate 被锁）。
  */
 @Injectable()
 export class ConsultCallService {
   private readonly logger = new Logger(ConsultCallService.name);
-  private readonly PREPAY_MINUTES = 10; // 预扣额度（分钟）
+  private readonly PREPAY_MINUTES = CONSULT_PREPAY_MINUTES;
 
   /** 未接通超时阈值：WAITING 超过此时长仍未被 accept → 视为未接通，全额退还预扣金币 */
-  private readonly WAITING_TIMEOUT_MS = 10 * 60 * 1000;
+  private readonly WAITING_TIMEOUT_MS = CONSULT_WAITING_SECONDS * 1000;
 
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private coin: CoinService,
     private revenue: RevenueService,
+    private capabilities: CircleCapabilityService,
+    private resources: ConsultCallResourceService,
   ) {}
 
   /**
@@ -43,21 +57,25 @@ export class ConsultCallService {
     await this.redis.runExclusive("consult_call_refund_stale_waiting", 300, async () => {
       const cutoff = new Date(Date.now() - this.WAITING_TIMEOUT_MS);
       const stale = await this.prisma.$queryRawUnsafe<any[]>(
-        `SELECT "id","callerId","prepaidCoin" FROM "ConsultCall" WHERE "status"='WAITING' AND "createdAt" < $1 LIMIT 200`,
-        cutoff,
+        `SELECT "id","callerId","prepaidCoin" FROM "ConsultCall" WHERE "status"='WAITING' AND "createdAt" < $1::timestamp(3) LIMIT 200`,
+        cutoff.toISOString(),
       );
       let refunded = 0;
       for (const call of stale) {
         try {
-          await this.prisma.$transaction(async (tx) => {
+          const didRefund = await this.prisma.$transaction(async (tx) => {
+            await this.resources.lockForStopInTransaction(tx, call.id);
             const claimed = await tx.$executeRawUnsafe(
-              `UPDATE "ConsultCall" SET "status"='MISSED', "endAt"=CURRENT_TIMESTAMP, "refundedCoin"=$2 WHERE "id"=$1 AND "status"='WAITING'`,
+              `UPDATE "ConsultCall" SET "status"='MISSED', "endAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'), "refundedCoin"=$2 WHERE "id"=$1 AND "status"='WAITING'`,
               call.id, call.prepaidCoin,
             );
-            if (claimed === 0) return; // 期间已被接听/取消,不重复退
+            if (claimed === 0) return false; // 期间已被接听/取消,不重复退，也不计入成功退款
+            await this.resources.requestStopInTransaction(tx, call.id, "WAITING_TIMEOUT", null);
             await this.coin.refund(call.callerId, call.prepaidCoin, `通话超时未接通全额退还（通话ID ${call.id}）`, tx);
+            return true;
           });
-          refunded++;
+          // 只有退款所在事务成功提交才计数，避免运营把跳过或回滚误判成已退款。
+          if (didRefund) refunded++;
         } catch (err) {
           this.logger.warn(`通话超时退款失败 [${call.id}]`, err instanceof Error ? err.message : err);
         }
@@ -72,49 +90,122 @@ export class ConsultCallService {
     return rows[0];
   }
 
+  /** 主库只读状态：非参与者与不存在记录统一 404，避免枚举他人通话。 */
+  async active(userId: string) {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{
+      id: string; status: string; type: string; callerId: string; expertId: string; createdAt: Date;
+    }>>(`SELECT "id","status","type","callerId","expertId","createdAt" FROM "ConsultCall"
+      WHERE ("callerId"=$1 OR "expertId"=$1) AND "status" IN ('WAITING','ONGOING')
+      ORDER BY "createdAt" DESC,"id" DESC LIMIT 20`, userId);
+    return rows.map(call => ({ id: call.id, status: call.status, type: call.type,
+      role: call.callerId === userId ? "CALLER" : "EXPERT", createdAt: call.createdAt }));
+  }
+
+  /** 主库只读状态：非参与者与不存在记录统一 404，避免枚举他人通话。 */
+  async state(userId: string, callId: string) {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{
+      id: string; status: string; type: string; callerId: string;
+      startAt: Date | null; endAt: Date | null;
+    }>>(
+      `SELECT "id","status","type","callerId","startAt","endAt" FROM "ConsultCall"
+       WHERE "id"=$1 AND ("callerId"=$2 OR "expertId"=$2)`, callId, userId,
+    );
+    if (!rows.length) throw new BusinessException(ErrorCode.NOT_FOUND, "通话记录不存在");
+    const call = rows[0];
+    if (rows.length !== 1 || !["WAITING", "ONGOING", "ENDED", "MISSED", "REFUNDED"].includes(call.status)
+      || !["VOICE", "VIDEO"].includes(call.type)) throw new Error("CONSULT_STATE_INVALID");
+    return { id: call.id, status: call.status, type: call.type,
+      role: call.callerId === userId ? "CALLER" : "EXPERT",
+      startAt: call.startAt, endAt: call.endAt };
+  }
+
   /** 发起通话：校验达人定价 → 预扣 → 建记录 → 返回 TRTC 接入配置 */
-  async initiate(callerId: string, dto: { circleId: string; expertId: string; type: "VOICE" | "VIDEO" }) {
+  async initiate(callerId: string, dto: { circleId: string; expertId: string; type: "VOICE" | "VIDEO" }, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH, RedLine.MONEY]);
     if (callerId === dto.expertId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能向自己发起通话");
+    if (!["VOICE", "VIDEO"].includes(dto.type)) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话类型无效");
 
     const member = await this.prisma.circleMember.findFirst({
-      where: { circleId: dto.circleId, userId: dto.expertId },
-      select: { callPricePerMinuteCoin: true },
+      where: { ...callProviderWhere(), circleId: dto.circleId, userId: dto.expertId },
+      select: { id: true, callPricePerMinuteCoin: true },
     });
-    if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "达人不在该圈子");
+    if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开放有效的付费通话服务");
     const pricePerMinute = member.callPricePerMinuteCoin;
-    if (!pricePerMinute || pricePerMinute <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开通付费通话");
+    if (!isValidConsultCallPrice(pricePerMinute)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "通话价格配置无效，请联系平台处理");
+    }
 
     const id = randomUUID();
     const prepaidCoin = pricePerMinute * this.PREPAY_MINUTES;
     const roomId = "consult_" + id.replace(/-/g, "").slice(0, 16);
+    const trtc = buildTrtcConfig(callerId, roomId, dto.type, CONSULT_INITIATE_TICKET_SECONDS);
+    if (!trtc.configured || !trtc.userSig || !trtc.privateMapKey) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话服务暂不可用，未扣除金币");
 
     await this.prisma.$transaction(async (tx) => {
-      // 预扣（余额不足 coin.spend 内部抛错，事务回滚不建记录）
-      await this.coin.spend(callerId, { amountCoin: prepaidCoin, scene: "CONSULT_CALL_PREPAY", refId: id, description: "达人通话预扣" }, tx);
-      await tx.$executeRawUnsafe(
+      // 与管理员撤权采用同圈锁顺序；授权等待结束后，必须再次读价格，扣费前失败即回滚。
+      await this.capabilities.assertAuthorizationInTransaction(tx, dto.circleId,
+        dto.type === "VOICE" ? "AUDIO_QUESTION" : "VIDEO_QUESTION", { userId: callerId, executor }, dto.expertId);
+      const locked = await lockCircleExpertRows(tx, dto.circleId, dto.expertId);
+      if (!locked.circleIds.includes(dto.circleId) || !locked.userIds.includes(dto.expertId) || !locked.memberIds.includes(member.id)) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "咨询服务状态已更新，请返回重新选择");
+      }
+      const current = await tx.circleMember.findFirst({ where: { ...callProviderWhere(), id: member.id, circleId: dto.circleId, userId: dto.expertId },
+        select: { callPricePerMinuteCoin: true } });
+      if (!current) throw new BusinessException(ErrorCode.FORBIDDEN, "咨询服务状态已更新，请返回重新选择");
+      if (current.callPricePerMinuteCoin !== pricePerMinute) throw new BusinessException(ErrorCode.CONFLICT, "咨询价格已更新，请确认后重新提交", HttpStatus.CONFLICT);
+      await this.revenue.assertConsultReadyInTransaction(tx);
+      // 同事务先取得资源，再预扣；额度失败不调用扣币，余额失败回滚记录/资源/边界。
+      const inserted = await tx.$executeRawUnsafe(
         `INSERT INTO "ConsultCall"("id","circleId","callerId","expertId","type","pricePerMinute","prepaidCoin","status","rtcRoomId","createdAt")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'WAITING',$8,CURRENT_TIMESTAMP)`,
-        id, dto.circleId, callerId, dto.expertId, dto.type, pricePerMinute, prepaidCoin, roomId,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'WAITING',$8,$9::timestamp(3))`,
+        id, dto.circleId, callerId, dto.expertId, dto.type, pricePerMinute, prepaidCoin, roomId, new Date().toISOString(),
       );
+      if (inserted !== 1) throw new Error("CONSULT_CALL_INSERT_FAILED");
+      await this.resources.issueInTransaction(tx, id, "INITIATE", { userId: callerId, executor }, trtc);
+      await this.coin.spend(callerId, { amountCoin: prepaidCoin, scene: "CONSULT_CALL_PREPAY", refId: id, description: "达人通话预扣" }, tx);
     });
 
     return {
       id, rtcRoomId: roomId, pricePerMinute, prepaidCoin, prepayMinutes: this.PREPAY_MINUTES,
-      trtc: buildTrtcConfig(callerId, roomId),
+      trtc,
     };
   }
 
   /** 达人接听：WAITING → ONGOING */
-  async accept(expertId: string, callId: string) {
+  async accept(expertId: string, callId: string, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH, RedLine.MONEY]);
     const call = await this.getCall(callId);
     if (call.expertId !== expertId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有受邀达人可接听");
     if (call.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态不可接听");
-    await this.prisma.$executeRawUnsafe(`UPDATE "ConsultCall" SET "status"='ONGOING', "startAt"=CURRENT_TIMESTAMP WHERE "id"=$1`, callId);
-    return { ...call, status: "ONGOING", trtc: buildTrtcConfig(expertId, call.rtcRoomId) };
+    if (!["VOICE", "VIDEO"].includes(call.type)) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话类型无效");
+    const trtc = buildTrtcConfig(expertId, call.rtcRoomId, call.type, CONSULT_ACCEPT_TICKET_SECONDS);
+    if (!trtc.configured || !trtc.userSig || !trtc.privateMapKey) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话服务暂不可用，请稍后重试或取消通话");
+    await this.prisma.$transaction(async tx => {
+      await this.capabilities.assertAuthorizationInTransaction(tx, call.circleId,
+        call.type === "VOICE" ? "AUDIO_QUESTION" : "VIDEO_QUESTION", { userId: expertId, executor }, expertId);
+      const locked = await lockCircleExpertRows(tx, call.circleId, expertId);
+      if (!locked.circleIds.includes(call.circleId) || !locked.userIds.includes(expertId)) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "咨询服务已不可用，请取消通话退还预扣");
+      }
+      // 只复核当前准入，不按新价格重算已经确认的预扣订单。
+      const current = await tx.circleMember.findFirst({ where: {
+        ...callProviderWhere(), circleId: call.circleId, userId: expertId, id: { in: locked.memberIds },
+      }, select: { id: true } });
+      if (!current) throw new BusinessException(ErrorCode.FORBIDDEN, "咨询服务已不可用，请取消通话退还预扣");
+      await this.revenue.assertConsultReadyInTransaction(tx);
+      await this.resources.issueInTransaction(tx, callId, "ACCEPT", { userId: expertId, executor }, trtc);
+      const acceptedAt = new Date();
+      const claimed = await tx.$executeRawUnsafe(`UPDATE "ConsultCall" SET "status"='ONGOING', "startAt"=$2::timestamp(3)
+        WHERE "id"=$1 AND "status"='WAITING' AND "createdAt">$3::timestamp(3) AND "createdAt"<=$2::timestamp(3)`,
+        callId, acceptedAt.toISOString(), new Date(acceptedAt.getTime() - this.WAITING_TIMEOUT_MS).toISOString());
+      if (claimed !== 1) throw new BusinessException(ErrorCode.CONFLICT, "通话状态已变化，无法重复接听", HttpStatus.CONFLICT);
+    });
+    return { ...call, status: "ONGOING", trtc };
   }
 
   /** 结束通话结算：按实际时长（不足1分钟按1分钟）扣费、达人50%分账、多退预扣 */
-  async end(userId: string, callId: string) {
+  async end(userId: string, callId: string, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.MONEY, RedLine.EXTERNAL_PUBLISH]);
     const call = await this.getCall(callId);
     if (call.callerId !== userId && call.expertId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此通话");
     if (call.status !== "ONGOING") throw new BusinessException(ErrorCode.BAD_REQUEST, "通话未在进行中");
@@ -125,52 +216,42 @@ export class ConsultCallService {
     const settledCoin = Math.min(minutes * call.pricePerMinute, call.prepaidCoin);
     const refundedCoin = call.prepaidCoin - settledCoin;
 
-    // 退还多扣 + 落库（同事务）；达人分账走 revenue.record（事务外，失败异步补偿，与 question 一致）
+    // 结束状态、停止意图、退款、达人收益及统一总账必须同成同败。
     await this.prisma.$transaction(async (tx) => {
       // 原子认领：仅 ONGOING→ENDED 抢到的请求才继续退款，防并发 end 双重退款+双重分账（TOCTOU）
+      await this.resources.lockForStopInTransaction(tx, callId);
       const claimed = await tx.$executeRawUnsafe(
-        `UPDATE "ConsultCall" SET "status"='ENDED', "endAt"=CURRENT_TIMESTAMP, "durationSec"=$2, "settledCoin"=$3, "refundedCoin"=$4 WHERE "id"=$1 AND "status"='ONGOING'`,
+        `UPDATE "ConsultCall" SET "status"='ENDED', "endAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'), "durationSec"=$2, "settledCoin"=$3, "refundedCoin"=$4 WHERE "id"=$1 AND "status"='ONGOING'`,
         callId, durationSec, settledCoin, refundedCoin,
       );
       if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话已结算");
+      await this.resources.requestStopInTransaction(tx, callId, "END", userId);
       if (refundedCoin > 0) {
         await this.coin.refund(call.callerId, refundedCoin, `通话结算退还预扣（通话ID ${callId}）`, tx);
       }
+      if (settledCoin > 0) await this.revenue.recordConsultInTransaction({ callId, callerId: call.callerId,
+        expertId: call.expertId, amountCoin: settledCoin }, tx);
     });
-
-    if (settledCoin > 0) {
-      this.revenue
-        .record({ userId: call.expertId, scene: "AUDIO_CALL", refId: callId, amountCoin: settledCoin, rate: 0.5 })
-        .catch((err) => this.logger.warn(`通话分账记录失败（callId ${callId}），需补偿: ${err.message}`));
-
-      // 统一总账影子双写。scene 用 CONSULT_CALL（达人咨询·独立规则），与 call 模块的连麦
-      // AUDIO_CALL 区分；两条规则当前同为 达人50%/平台50%，与上方硬传的 rate 0.5 一致。
-      this.revenue.settleLedger({
-        scene: "CONSULT_CALL",
-        refType: "CONSULT_CALL",
-        refId: callId,
-        amountCoin: settledCoin,
-        payerId: call.callerId,
-        parties: { PROVIDER: { type: "USER", id: call.expertId, userId: call.expertId } },
-      }).catch(() => undefined);
-    }
 
     return { id: callId, status: "ENDED", durationSec, minutes, settledCoin, refundedCoin };
   }
 
   /** 取消/未接通：全额退预扣 → MISSED(达人未接) / REFUNDED(主叫取消) */
-  async cancel(userId: string, callId: string, reason: "MISSED" | "REFUNDED" = "REFUNDED") {
+  async cancel(userId: string, callId: string, reason: "MISSED" | "REFUNDED" = "REFUNDED", executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.MONEY, RedLine.EXTERNAL_PUBLISH]);
     const call = await this.getCall(callId);
     if (call.callerId !== userId && call.expertId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此通话");
     if (call.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅未接通的通话可取消");
 
     await this.prisma.$transaction(async (tx) => {
       // 原子认领：仅 WAITING→reason 抢到的请求才退款，防并发 cancel/end 竞态下双重退款（TOCTOU）
+      await this.resources.lockForStopInTransaction(tx, callId);
       const claimed = await tx.$executeRawUnsafe(
-        `UPDATE "ConsultCall" SET "status"=$2, "endAt"=CURRENT_TIMESTAMP, "refundedCoin"=$3 WHERE "id"=$1 AND "status"='WAITING'`,
+        `UPDATE "ConsultCall" SET "status"=$2, "endAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'), "refundedCoin"=$3 WHERE "id"=$1 AND "status"='WAITING'`,
         callId, reason, call.prepaidCoin,
       );
       if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态已变更，无法取消");
+      await this.resources.requestStopInTransaction(tx, callId, "CANCEL", userId);
       await this.coin.refund(call.callerId, call.prepaidCoin, `通话未接通全额退还（通话ID ${callId}）`, tx);
     });
     return { id: callId, status: reason, refundedCoin: call.prepaidCoin };
@@ -207,7 +288,7 @@ export class ConsultCallService {
       .slice(0, 5);
 
     const claimed = await this.prisma.$executeRawUnsafe(
-      `UPDATE "ConsultCall" SET "rating"=$2, "ratingTags"=$3, "ratingComment"=$4, "ratedAt"=CURRENT_TIMESTAMP
+      `UPDATE "ConsultCall" SET "rating"=$2, "ratingTags"=$3, "ratingComment"=$4, "ratedAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
        WHERE "id"=$1 AND "ratedAt" IS NULL`,
       callId, rating, tags.length ? tags.join(",") : null, comment || null,
     );
@@ -231,7 +312,7 @@ export class ConsultCallService {
     if (reason.length > 500) throw new BusinessException(ErrorCode.BAD_REQUEST, "申诉原因最多 500 字");
 
     const claimed = await this.prisma.$executeRawUnsafe(
-      `UPDATE "ConsultCall" SET "disputeReason"=$2, "disputedAt"=CURRENT_TIMESTAMP, "disputeStatus"='PENDING'
+      `UPDATE "ConsultCall" SET "disputeReason"=$2, "disputedAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'), "disputeStatus"='PENDING'
        WHERE "id"=$1 AND "disputedAt" IS NULL`,
       callId, reason,
     );
@@ -294,7 +375,7 @@ export class ConsultCallService {
     if (call.disputeStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉不在待处理状态");
     const note = (dto.note || "").trim().slice(0, 500);
     const claimed = await this.prisma.$executeRawUnsafe(
-      `UPDATE "ConsultCall" SET "disputeStatus"=$2, "disputeResolveNote"=$3, "disputeResolvedAt"=CURRENT_TIMESTAMP, "disputeReviewerId"=$4
+      `UPDATE "ConsultCall" SET "disputeStatus"=$2, "disputeResolveNote"=$3, "disputeResolvedAt"=(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'), "disputeReviewerId"=$4
        WHERE "id"=$1 AND "disputeStatus"='PENDING'`,
       callId, dto.status, note || null, reviewerId,
     );

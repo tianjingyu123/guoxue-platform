@@ -9,6 +9,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -110,12 +111,22 @@ function persist() {
 }
 
 function onNameDone() {
-  editingName.value = false
-  persist()
+  if (!preview.allowed.value || !params.value) return
+  const next = { ...params.value, customer: customer.value.trim().slice(0, 20) }
+  void preview.run(() => {
+    params.value = next
+    customer.value = next.customer
+    persist()
+    entryQuery = { payload: encodeURIComponent(JSON.stringify(next)) }
+  })
 }
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let saved = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => {
   try {
+    const q = entryQuery
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<BazhaiParams>
     const sitting = Number(p.sitting)
@@ -129,10 +140,17 @@ onLoad((q: Record<string, string> = {}) => {
       birthYear,
     }
     customer.value = params.value.customer
-    persist()
+    if (!saved) { persist(); saved = true }
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效，请重新排盘'
   }
+}, () => {
+  params.value = null
+  customer.value = ''
+  loadError.value = ''
+  editingName.value = false
+  panMode.value = 'zhai'
+  selectedGua.value = null
 })
 
 function goInput() {
@@ -169,7 +187,12 @@ const guaDetail = computed(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       :subtitle="zhai ? `${zhai}宅 ${shanxiangLabel}${ming ? ` · ${ming}命` : ''}` : ''"

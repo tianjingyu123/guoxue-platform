@@ -37,13 +37,50 @@ export interface ConsultCallRecord {
 /** 通话发起/控制接口的后端响应（含 TRTC 配置或更新后的通话记录，真机 SDK 联调前无强类型消费方，宽松占位） */
 interface CallActionResult { [k: string]: unknown }
 
+/** 入房凭据仅由通话控制器保存在内存，禁止写入路由参数、持久化状态或日志。 */
+export interface ConsultRtcTicket {
+  sdkAppId: number
+  userId: string
+  roomId: string
+  strRoomId: string
+  userSig: string | null
+  privateMapKey: string | null
+  expiresAt: string | null
+  configured: boolean
+}
+export interface ConsultConnectResult {
+  id: string
+  rtcRoomId: string
+  trtc: ConsultRtcTicket
+}
+
+/** 仅用于实时通话业务状态同步；不包含 TRTC 票据。 */
+export interface ConsultCallState {
+  id: string
+  status: 'WAITING' | 'ONGOING' | 'ENDED' | 'MISSED' | 'REFUNDED'
+  type: 'VOICE' | 'VIDEO'
+  role: 'CALLER' | 'EXPERT'
+  startAt: string | null
+  endAt: string | null
+}
+
+export interface ConsultActiveCall {
+  id: string
+  status: 'WAITING' | 'ONGOING'
+  type: 'VOICE' | 'VIDEO'
+  role: 'CALLER' | 'EXPERT'
+  createdAt: string
+}
+
 export const callApi = {
+  active: () => apiGet<ConsultActiveCall[]>('/consult-calls/active'),
+  state: (id: string) => apiGet<ConsultCallState>(`/consult-calls/${encodeURIComponent(id)}/state`),
   /** 我的通话记录 GET /consult-calls/my */
   myCalls: () => apiGet<ConsultCallRecord[]>('/consult-calls/my'),
   /** 发起通话（预扣 + 返回 TRTC 配置）POST /consult-calls/initiate */
   initiate: (body: { circleId: string; expertId: string; type: 'VOICE' | 'VIDEO' }) =>
-    apiPost<CallActionResult>('/consult-calls/initiate', body),
-  accept: (id: string) => apiPost<CallActionResult>(`/consult-calls/${id}/accept`),
+    apiPost<ConsultConnectResult>('/consult-calls/initiate', body),
+  accept: (id: string) => apiPost<ConsultConnectResult>(`/consult-calls/${id}/accept`),
   end: (id: string) => apiPost<CallActionResult>(`/consult-calls/${id}/end`),
   cancel: (id: string, reason?: 'MISSED' | 'REFUNDED') => apiPost<CallActionResult>(`/consult-calls/${id}/cancel`, { reason }),
   /** 评价通话（星级 1-5 + 标签 + 文字 ≤200 字）POST /consult-calls/:id/rate */

@@ -5,7 +5,7 @@
  * V0 独立 history 页砍成本页内嵌记录卡（key: rebu:yinpan-history，上限 50）。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -91,9 +91,10 @@ function pickJu(ju: string) {
 
 // ── 排盘记录（V0 独立 history 页砍成内嵌卡）──
 const history = ref<YinpanHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadYinpanHistory()
-})
+}, () => { history.value = []; showDatePicker.value = false; showJuPicker.value = false })
+const { allowed, checking } = preview
 
 function onClearHistory() {
   uni.showModal({
@@ -101,8 +102,7 @@ function onClearHistory() {
     content: '确定清空全部排盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearYinpanHistory()
-        history.value = []
+        void preview.run(() => { clearYinpanHistory(); history.value = [] })
       }
     },
   })
@@ -133,7 +133,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/yinpan/history" :title="hdrTitle" subtitle="阴盘遁甲 · 拆补定局" share />
 
     <scroll-view scroll-y class="body">

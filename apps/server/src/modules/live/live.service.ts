@@ -18,7 +18,8 @@ import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
-import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { LivePublicationService } from "./live-publication.service";
+import { assertHumanForRedLine, ExecutorType, RedLine } from "../../common/red-lines";
 import {
   buildLiveObsRtmpPushUrl,
   buildLiveTrtcTicket,
@@ -28,6 +29,10 @@ import {
 } from "./live-trtc.util";
 import { LivePresenceService } from "./live-presence.service";
 import { LiveMixingService } from "./live-mixing.service";
+import { LiveMediaEvidenceRepository } from "./live-media-evidence.repository";
+import { LiveMediaCredentialRepository } from "./live-media-credential.repository";
+import { LiveMediaStopRepository } from "./live-media-stop.repository";
+import { assertPublicationActorInTransaction } from "../../common/publication-actor";
 
 @Injectable()
 export class LiveService {
@@ -41,7 +46,10 @@ export class LiveService {
     private stream: LiveStreamService,
     private webhook: WebhookService,
     private audit: AuditService,
-    private publishGrants: CirclePublishGrantService,
+    private publication: LivePublicationService,
+    private mediaEvidence: LiveMediaEvidenceRepository,
+    private credentials: LiveMediaCredentialRepository,
+    private mediaStops: LiveMediaStopRepository,
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
     @Optional() private notification?: NotificationService,
@@ -90,21 +98,12 @@ export class LiveService {
     }
   }
 
-  async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
+  async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH]);
     this.validatePreviewPublish(dto.startTime, dto.cover, dto.description);
     const requestedVisibility = dto.visibility || "CIRCLE_ONLY";
     if (requestedVisibility === "CIRCLE_ONLY" && !dto.circleId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "仅圈子可见的直播必须选择所属圈子");
-    }
-    if (dto.circleId && !isAdmin) {
-      const manager = await this.prisma.circleMember.findFirst({
-        where: { circleId: dto.circleId, userId, role: { in: ["OWNER", "ADMIN", "PARTNER"] } },
-        select: { id: true },
-      });
-      if (!manager) throw new BusinessException(ErrorCode.FORBIDDEN, "只有圈主或圈子管理员可以在该圈发起直播");
-    }
-    if (requestedVisibility === "PLATFORM") {
-      await this.publishGrants.assertCanPublish(userId, dto.circleId, "LIVE", isAdmin);
     }
     let parsedStartTime: Date | undefined;
     if (dto.startTime) {
@@ -155,11 +154,20 @@ export class LiveService {
       ...(productIds.length ? { products: { create: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) } } : {}),
     };
 
-    const room = await this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
-
-    if (auditStatus === "PENDING") {
-      await this.audit.openContentAudit({ contentType: "LIVE", contentId: room.id, circleId: dto.circleId, submitterId: userId });
-    }
+    const room = await this.prisma.$transaction(async tx => {
+      const write = async () => {
+        const created = await tx.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
+        if (auditStatus === "PENDING") {
+          await this.audit.openContentAudit({ contentType: "LIVE", contentId: created.id, circleId: dto.circleId, submitterId: userId }, tx);
+        }
+        return created;
+      };
+      if (isAdmin) {
+        await assertPublicationActorInTransaction(tx, userId, true);
+        return write();
+      }
+      return this.publication.createInTransaction(tx, { circleId: dto.circleId, userId, hostUserId: dto.hostUserId || userId, executor }, write);
+    }, { maxWait: 5000, timeout: 15000 });
 
     // 异步机审（fire-and-forget·不阻塞创建响应）：标题文本 / 封面图
     this.audit.queueContentModeration({
@@ -314,43 +322,6 @@ export class LiveService {
     if (!relation) throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品不在本场直播商品清单中");
     await this.redis.set(this.featuredProductKey(roomId), normalized, LiveService.STREAM_STATUS_TTL_SECONDS);
     return { featuredProductId: normalized };
-  }
-
-  private static readonly STATE_MACHINE: Record<string, string[]> = {
-    WAITING: ["LIVING", "CANCELLED"],
-    LIVING: ["ENDED"],
-    REPLAY: ["ENDED"],
-  };
-
-  async updateStatus(id: string, status: string, extra?: { pushUrl?: string; pullUrl?: string; trtcRoomId?: string; replayUrl?: string }) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { status: true } });
-    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-
-    const allowed = LiveService.STATE_MACHINE[room.status];
-    if (!allowed || !allowed.includes(status)) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `不允许从 ${room.status} 变更为 ${status}`);
-    }
-    const data: Record<string, unknown> = { status: status as LiveStatus };
-    if (status === "LIVING") {
-      data.startTime = new Date();
-      if (extra?.pushUrl) data.pushUrl = extra.pushUrl;
-      if (extra?.pullUrl) data.pullUrl = extra.pullUrl;
-      if (extra?.trtcRoomId) data.trtcRoomId = extra.trtcRoomId;
-    }
-    if (status === "ENDED") data.endTime = new Date();
-
-    const updated = await this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
-
-    // 开播 → 通知预约用户（圈内通知中心·直播 LIVE·fire-and-forget 不阻断开播）
-    // TODO(#25 通知部分·后续)：开播前 15 分钟提醒需定时任务扫描预约集合，本轮只做开播即时通知。
-    if (status === "LIVING") {
-      this.notifyBookedUsers(updated).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
-    }
-
-    // 直播回放画面+音频机审（先发后审·VM 异步轮询·四档处置）：回放是可下载录像，VM 适用。
-    // 命中 severe → 回放下架 + 通知（applyModerationVerdict 对 LIVE 走 auditStatus=REJECTED）。
-    // 注：LIVING 实时流审核需腾讯云「直播流审核」独立能力（Type=LIVE_VIDEO/推流回调），非本次录像任务制覆盖，后续接入。
-    return updated;
   }
 
   /** 人工确认发布回放：录制回调只生成草稿，只有此入口会让回放进入观众端。 */
@@ -514,7 +485,10 @@ export class LiveService {
   }
 
   /** 开始直播（房主本人或管理员），自动生成推拉流地址 + 创建 IM 弹幕群（fail-open） */
-  async startLive(id: string, operatorId?: string, isAdmin = false, options: { obsPreflight?: boolean } = {}) {
+  async startLive(id: string, operatorId?: string, isAdmin = false, options: { obsPreflight?: boolean; executor?: ExecutorType } = {}) {
+    const executor = options.executor ?? "HUMAN";
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH]);
+    if (!operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "开播操作者不能为空");
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (operatorId && room.hostUserId !== operatorId && !isAdmin) {
@@ -534,19 +508,24 @@ export class LiveService {
 
     const streamKey = `room_${id}`;
     const obsPush = useObsTrtc ? buildLiveObsRtmpPushUrl(id) : null;
+    const obsSdkAppId = Number(process.env.TRTC_SDK_APP_ID || 0);
     if (useObsTrtc && !obsPush) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "TRTC OBS 推流签发配置不完整");
     }
     const trtcRoomId = obsPush?.trtcRoomId || room.trtcRoomId || toLiveTrtcRoomId(id);
     const pushUrl = obsPush?.pushUrl || this.stream.genPushUrl(streamKey);
     const playUrls = this.stream.genPlayUrls(streamKey);
+    const result = await this.prisma.$transaction(async tx => {
+      const started = await this.publication.startInTransaction(tx, {
+      roomId: id, operatorId, isAdmin, executor, obsPreflight: !!options.obsPreflight,
+      pushUrl, pullUrl: JSON.stringify(playUrls), trtcRoomId,
+      });
+      if (obsPush) await this.credentials.recordTrtcInTransaction(tx, id, obsSdkAppId, obsPush.trtcRoomId, obsPush.expiresAt, Date.now());
+      else await this.credentials.recordCssInTransaction(tx, id, pushUrl, Date.now());
+      return started;
+    }, { maxWait: 5000, timeout: 15000 });
     await this.registerTrtcRoomMap(id, trtcRoomId);
-
-    const result = await this.updateStatus(id, "LIVING", {
-      pushUrl,
-      pullUrl: JSON.stringify(playUrls),
-      trtcRoomId,
-    });
+    this.notifyBookedUsers(result).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
     await this.presence?.clearActive(id);
 
     // IM 弹幕群：开播时才建（WAITING 房可能永不开播·不浪费群资源）。
@@ -585,22 +564,27 @@ export class LiveService {
   }
 
   /** 获取指定房间的推/拉流地址（主播或管理员用） */
-  async getStreamUrls(id: string, userId?: string, isAdmin = false) {
-    const room = await this.prisma.liveRoom.findUnique({
-      where: { id },
-      select: { id: true, hostUserId: true, status: true, pushUrl: true, orientation: true, trtcRoomId: true },
-    });
+  async getStreamUrls(id: string, userId?: string, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    if (!userId) throw new BusinessException(ErrorCode.FORBIDDEN, "推流凭据领取人不能为空");
+    const signed = await this.prisma.$transaction(async tx => {
+      let sdkAppId = 0;
+      const result = await this.publication.signInTransaction(tx,
+      { roomId: id, operatorId: userId, isAdmin, executor }, room => {
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (userId && room.hostUserId !== userId && !isAdmin) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
+    if (!["WAITING", "LIVING"].includes(room.status) || room.auditStatus === "REJECTED") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "直播已结束或不可用，不能再领取推流凭据");
+    }
 
     const streamKey = `room_${id}`;
     if (room.orientation === "landscape" && this.obsTrtcIngestEnabled()) {
       const obsPush = buildLiveObsRtmpPushUrl(id);
+      sdkAppId = Number(process.env.TRTC_SDK_APP_ID || 0);
       if (!obsPush) throw new BusinessException(ErrorCode.BAD_REQUEST, "TRTC OBS 推流签发配置不完整");
-      await this.registerTrtcRoomMap(id, obsPush.trtcRoomId);
       const serverUrl = "rtmp://rtmp.rtc.qq.com/push/";
       return {
         pushUrl: obsPush.pushUrl,
+        roomTitle: room.title,
         serverUrl,
         streamKey: obsPush.pushUrl.slice(serverUrl.length),
         playUrls: this.stream.genPlayUrls(`${streamKey}_mix`),
@@ -610,11 +594,23 @@ export class LiveService {
     }
     // 推流鉴权地址是短期凭证，不能复用房间中历史持久化的 pushUrl。
     // 主播重新进入 OBS 工作台时必须重新签发，否则 LIVING 房间会持续拿到已过期的 txTime。
+    const pushUrl = this.stream.genPushUrl(streamKey);
+    if (!pushUrl) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播推流签发配置不完整");
     return {
-      pushUrl: this.stream.genPushUrl(streamKey),
+      pushUrl,
       playUrls: this.stream.genPlayUrls(streamKey),
+      roomTitle: room.title,
       ingestMode: "CSS_RTMP" as const,
     };
+    });
+      if (result.ingestMode === "TRTC_RTMP") await this.credentials.recordTrtcInTransaction(tx, id, sdkAppId,
+        toLiveTrtcRoomId(id), result.expiresAt, Date.now());
+      else await this.credentials.recordCssInTransaction(tx, id, result.pushUrl, Date.now());
+      return result;
+    }, { maxWait: 5000, timeout: 15000 });
+    // 事务提交后才建立外部缓存映射；失败时保留资源占用，刷新不会重复扣额。
+    if (signed.ingestMode === "TRTC_RTMP") await this.registerTrtcRoomMap(id, toLiveTrtcRoomId(id));
+    return signed;
   }
 
   /**
@@ -631,14 +627,17 @@ export class LiveService {
       throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可查看推流状态");
     }
 
-    const runtime = await this.redis.getJson<{
-      status?: "online" | "offline";
+    const useTrtc = room.orientation === "landscape" && this.obsTrtcIngestEnabled();
+    const cached = await this.redis.getJson<{
+      status?: "online" | "offline" | "unknown";
       connectedAt?: string | null;
       disconnectedAt?: string | null;
       lastEventAt?: string | null;
       reason?: string | null;
       metrics?: Record<string, number | string>;
-    }>(this.streamStatusKey(id));
+    }>(useTrtc ? this.streamStatusKey(id) : `live:css-metrics:${id}`);
+    const runtime = useTrtc ? cached : await this.prisma.$transaction(tx => this.mediaEvidence.runtimeInTransaction(tx, id,
+      { ...this.stream.callbackScope(), nowMs: Date.now() }), { maxWait: 5000, timeout: 15000 });
     const connectedAt = runtime?.connectedAt || null;
     const durationSeconds = runtime?.status === "online" && connectedAt
       ? Math.max(0, Math.floor((Date.now() - new Date(connectedAt).getTime()) / 1000))
@@ -648,18 +647,19 @@ export class LiveService {
       roomId: id,
       roomStatus: room.status,
       orientation: room.orientation,
-      status: runtime?.status === "online" ? "online" : "offline",
+      status: runtime?.status ?? "unknown",
       connectedAt,
       disconnectedAt: runtime?.disconnectedAt || null,
       lastEventAt: runtime?.lastEventAt || null,
       durationSeconds,
       reason: runtime?.reason || null,
-      metrics: runtime?.metrics || {},
+      metrics: cached?.metrics || {},
     };
   }
 
   /** OBS 专用开播：必须先收到真实推流回调，避免无画面房间进入公共直播池。 */
-  async startObsLive(id: string, operatorId?: string, isAdmin = false) {
+  async startObsLive(id: string, operatorId?: string, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH]);
     const status = await this.getStreamStatus(id, operatorId, isAdmin);
     if (status.status !== "online") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未检测到 OBS 推流，请先在 OBS 中点击开始推流");
@@ -668,7 +668,7 @@ export class LiveService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该直播间不是 OBS 电脑直播形态");
     }
     if (!this.obsTrtcIngestEnabled()) {
-      return this.startLive(id, operatorId, isAdmin, { obsPreflight: true });
+      return this.startLive(id, operatorId, isAdmin, { obsPreflight: true, executor });
     }
     if (!this.mixing) throw new BusinessException(ErrorCode.BAD_REQUEST, "OBS 云端输出服务不可用");
 
@@ -677,7 +677,7 @@ export class LiveService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "OBS 画面已进入 TRTC，但 CDN 输出尚未建立，请稍后重试");
     });
     try {
-      return await this.startLive(id, operatorId, isAdmin, { obsPreflight: true });
+      return await this.startLive(id, operatorId, isAdmin, { obsPreflight: true, executor });
     } catch (cause) {
       await this.mixing.stopRoom(id).catch(() => undefined);
       throw cause;
@@ -709,16 +709,18 @@ export class LiveService {
   }
 
   /** 结束直播（房主本人或管理员） */
-  async endRoom(id: string, operatorId?: string, isAdmin = false) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
-    if (operatorId) {
-      if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-      if (room.hostUserId !== operatorId && !isAdmin) {
-        throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以结束直播");
-      }
-    }
-    const result = await this.updateStatus(id, "ENDED");
-    // 下播后立即撤销所有连麦授权，避免旧票据在房间结束后继续占用麦克风。
+  async endRoom(id: string, operatorId?: string, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH]);
+    if (!operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "下播操作者不能为空");
+    const ended = await this.prisma.$transaction(async tx => {
+      const result = await this.publication.endInTransaction(tx, {
+      roomId: id, operatorId, isAdmin, executor,
+      });
+      await this.mediaStops.prepareInTransaction(tx, id, operatorId, new Date());
+      return result;
+    }, { maxWait: 5000, timeout: 15000 });
+    const result = ended.room;
+    // 移除业务麦位阻止续领；旧票据/既有连接需可信停流收尾，不能宣称此处已撤销供应商票据。
     await this.prisma.liveMic.deleteMany({ where: { liveRoomId: id } });
     await this.mixing?.stopRoom(id).catch((e: unknown) =>
       this.logger.error(`直播间 ${id} 下播时停止混流失败`, e instanceof Error ? e.message : String(e)),
@@ -731,16 +733,14 @@ export class LiveService {
       const now = new Date().toISOString();
       await this.redis.setJson(this.streamStatusKey(id), {
         ...previous,
-        status: "offline",
-        disconnectedAt: now,
-        lastEventAt: now,
-        reason: "room_ended",
+        endRequestedAt: now,
+        roomEnded: true,
       }, LiveService.STREAM_STATUS_TTL_SECONDS);
     }
 
-    await this.webhook.fire("LIVE_ENDED", {
+    if (ended.changed) await this.webhook.fire("LIVE_ENDED", {
       roomId: id,
-      title: room?.title,
+      title: result.title,
     }).catch((e: unknown) => this.logger.warn("LIVE_ENDED webhook 发送失败", e instanceof Error ? e.message : String(e)));
 
     return result;
@@ -1472,10 +1472,18 @@ export class LiveService {
   }
 
   async deleteRoom(userId: string, id: string, isAdmin = false) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
-    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的直播间");
-    await this.prisma.liveRoom.delete({ where: { id } });
+    await this.prisma.$transaction(async tx => {
+      await this.mediaEvidence.lockRoom(tx, id);
+      await tx.$executeRaw`SELECT id FROM "LiveRoom" WHERE id=${id} FOR UPDATE`;
+      const room = await tx.liveRoom.findUnique({ where: { id }, select: { hostUserId: true, status: true } });
+      if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+      if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的直播间");
+      if (room.status === "LIVING" || await this.mediaEvidence.readInTransaction(tx, id)
+        || (await this.credentials.readInTransaction(tx, id)).length > 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "已有直播活动记录，不能直接删除；请结束直播并保留记录");
+      }
+      await tx.liveRoom.delete({ where: { id } });
+    }, { maxWait: 5000, timeout: 15000 });
     return { success: true };
   }
 
@@ -1665,37 +1673,17 @@ export class LiveService {
     const roomId = streamKey.slice("room_".length);
 
     switch (eventType) {
-      case 0: { // 断流
-        const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { id: true } });
-        if (!room) return { ignored: true };
-        const now = new Date().toISOString();
-        const previous = await this.redis.getJson<Record<string, unknown>>(this.streamStatusKey(roomId));
-        await this.redis.setJson(this.streamStatusKey(roomId), {
-          ...previous,
-          status: "offline",
-          disconnectedAt: now,
-          lastEventAt: now,
-          reason: String(body.errmsg || body.errcode || "upstream_disconnected"),
-          metrics: this.callbackMetrics(body),
-        }, LiveService.STREAM_STATUS_TTL_SECONDS);
-        this.logger.log(`直播间 ${roomId} 断流`);
-        return { roomId, status: "offline" };
-      }
-      case 1: { // 推流
-        const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { id: true } });
-        if (!room) return { ignored: true };
-        const now = new Date().toISOString();
-        const previous = await this.redis.getJson<{ status?: string; connectedAt?: string | null }>(this.streamStatusKey(roomId));
-        await this.redis.setJson(this.streamStatusKey(roomId), {
-          status: "online",
-          connectedAt: previous?.status === "online" && previous.connectedAt ? previous.connectedAt : now,
-          disconnectedAt: null,
-          lastEventAt: now,
-          reason: null,
-          metrics: this.callbackMetrics(body),
-        }, LiveService.STREAM_STATUS_TTL_SECONDS);
-        this.logger.log(`直播间 ${roomId} 开始推流`);
-        return { roomId, status: "online" };
+      case 0:
+      case 1: {
+        // 控制器已经验签；实际类型/流名/域/应用名仍由证据解析器逐项核对。
+        if (body.event_type !== eventType) return { ignored: true };
+        const result = await this.prisma.$transaction(tx => this.mediaEvidence.recordCssInTransaction(tx, body,
+          { roomId, ...this.stream.callbackScope(), nowMs: Date.now() }), { maxWait: 5000, timeout: 15000 });
+        if (result.ignored) return result;
+        // 主库提交后仅缓存非权威质量指标，不把乱序状态写回 Redis 覆盖另一节点。
+        await this.redis.setJson(`live:css-metrics:${roomId}`, { metrics: this.callbackMetrics(body) }, LiveService.STREAM_STATUS_TTL_SECONDS);
+        this.logger.log(`直播间 ${roomId} CSS 媒体证据已记录 revision=${result.revision} state=${result.status}`);
+        return { roomId, status: result.status, revision: result.revision };
       }
       case 100: { // 录制回调
         const videoUrl = (body.video_url || body.file_url) as string;
@@ -1953,11 +1941,9 @@ export class LiveService {
    * 仅主播或已经主播批准的嘉宾可取得 TRTC 票据。
    * 票据十分钟过期且绑定字符串房间号；未配置时硬失败，不返回假成功。
    */
-  async getRtcConfig(roomId: string, userId: string) {
-    const room = await this.prisma.liveRoom.findUnique({
-      where: { id: roomId },
-      select: { status: true, hostUserId: true, trtcRoomId: true },
-    });
+  async getRtcConfig(roomId: string, userId: string, executor: ExecutorType = "HUMAN") {
+    return this.prisma.$transaction(async tx => {
+      const result = await this.publication.rtcInTransaction(tx, { roomId, userId, executor }, (room, mic) => {
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING" || !room.trtcRoomId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
@@ -1967,7 +1953,6 @@ export class LiveService {
     let mediaMode: "AUDIO" | "VIDEO" = "VIDEO";
     let privilegeMap = 255;
     if (room.hostUserId !== userId) {
-      const mic = await this.prisma.liveMic.findFirst({ where: { liveRoomId: roomId, userId } });
       if (!mic || !["OCCUPIED", "MUTED"].includes(mic.status)) {
         throw new BusinessException(ErrorCode.FORBIDDEN, "连麦申请尚未获主播批准");
       }
@@ -1994,6 +1979,10 @@ export class LiveService {
       hostTrtcUserId: toLiveTrtcUserId(room.hostUserId),
       streamId: role === "HOST" ? `room_${roomId}` : undefined,
     };
+      });
+      await this.credentials.recordTrtcInTransaction(tx, roomId, result.sdkAppId, result.strRoomId, result.expiresAt, Date.now());
+      return result;
+    }, { maxWait: 5000, timeout: 15000 });
   }
 
   // ───────── 课件管理 ─────────
@@ -2750,29 +2739,21 @@ export class LiveService {
   }
 
   /** 推流配置 — 返回带防盗链签名的推流地址/密钥/推荐参数 */
-  async getStreamConfig(_userId: string) {
-    // 安全：streamName 经服务端密钥派生(不可从 userId 直接推算、且不泄露 userId)；
-    // 推流地址统一走 LiveStreamService 生成(含 txSecret 防盗链签名)，杜绝原先「可预测 streamKey + 无签名裸流」被劫持推流的风险。
-    const seed = _userId + (process.env.LIVE_PUSH_KEY || "guoxue-live");
-    const streamName = "u" + createHash("sha256").update(seed).digest("hex").slice(0, 24);
-    const fullPush = this.stream.genPushUrl(streamName);
-    const playUrls = this.stream.genPlayUrls(streamName);
-
-    // 拆为 OBS 所需的「服务器地址 + 流密钥(含签名)」两段；域名未配置时 fullPush 为空，降级返回空串而非硬编码假域名
-    let streamUrl = "";
-    let streamKey = streamName;
-    const sepIdx = fullPush.indexOf(streamName);
-    if (sepIdx > 0) {
-      streamUrl = fullPush.slice(0, sepIdx);
-      streamKey = fullPush.slice(sepIdx);
+  async getStreamConfig(userId: string, roomId?: string, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    if (!roomId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomId)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先选择本次直播间");
     }
-
+    // 通用配置页也必须经过房间签发事务，禁止签发游离用户流绕过授权与额度。
+    const signed = await this.getStreamUrls(roomId, userId, isAdmin, executor);
+    const sepIdx = signed.ingestMode === "TRTC_RTMP"
+      ? signed.serverUrl.length : signed.pushUrl.indexOf(`room_${roomId}`);
+    if (sepIdx <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "推流配置格式异常，请联系管理员");
     return {
-      roomTitle: "我的直播间",
-      roomId: _userId.slice(0, 8),
-      streamUrl,
-      streamKey,
-      playUrl: playUrls.flv,
+      roomTitle: signed.roomTitle,
+      roomId,
+      streamUrl: signed.pushUrl.slice(0, sepIdx),
+      streamKey: signed.pushUrl.slice(sepIdx),
+      playUrl: signed.playUrls.flv,
       recommendedSettings: {
         resolution: "1920×1080",
         bitrate: "4000 Kbps",

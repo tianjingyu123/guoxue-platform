@@ -5,8 +5,30 @@
  */
 import HistoryGroups from '@/components/paipan/history-groups.vue'
 import { qimenGroups, qimenStore } from '../qimen-history'
+import { ref } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { changePrivateHistoryGroup, type PrivateGroupChange } from '@/lib/paipan/private-history'
+import { navigateTo } from '@/utils/router'
+
+const groups = ref<string[]>([])
+const records = ref<ReturnType<typeof qimenStore.load>>([])
+function reload() { groups.value = qimenGroups.load(); records.value = qimenStore.load() }
+const preview = useNativePreviewPage(reload, () => { groups.value = []; records.value = [] })
+const { allowed, checking } = preview
+function change(command: PrivateGroupChange) {
+  const target = { ...command }
+  return preview.run(() => { changePrivateHistoryGroup(qimenGroups, qimenStore, target); reload() })
+}
 </script>
 
 <template>
-  <HistoryGroups title="分组管理" back-href="/paipan/qimen/history" :group-store="qimenGroups" :record-store="qimenStore" />
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <HistoryGroups v-else title="分组管理" back-href="/paipan/qimen/history" :groups="groups" :records="records"
+    @add="name => change({ type: 'add', name })"
+    @rename="event => change({ type: 'rename', ...event })"
+    @remove="old => change({ type: 'remove', old })" />
 </template>

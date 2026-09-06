@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes, Header } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
 import { CreateCircleDto, UpdateCircleDto, AdminSetCircleStatusDto, AdminUpdateCircleDto, AdminAddMemberDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
@@ -14,7 +14,7 @@ import { SanitizePipe } from "../../common/sanitize.pipe";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Request } from "express";
-import { RedLineGate, RedLine } from "../../common/red-lines";
+import { RedLineGate, RedLine, resolveExecutorType } from "../../common/red-lines";
 
 @ApiTags("圈子")
 @Controller("circles")
@@ -559,10 +559,18 @@ export class CircleController {
   setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
     // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）且传 userId 时替该用户配置；其余情况维持原状（配置本人）
     const targetUserId = dto.userId && this.isPlatformAdmin(req) ? dto.userId : req.user.id;
-    return this.circle.setExpertConfig(circleId, targetUserId, dto);
+    return this.circle.setExpertConfig(circleId, targetUserId, dto, { userId: req.user.id, executor: resolveExecutorType(req) });
+  }
+
+  @Get(":id/expert-config/me")
+  @UseGuards(JwtAuthGuard)
+  @Header("Cache-Control", "private, no-store")
+  getOwnExpertConfig(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.getOwnExpertConfig(circleId, req.user.id);
   }
 
   @Get(":id/expert/:userId")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "获取达人咨询配置", description: "查看某成员的提问/连麦价格设置" })
   @ApiResponse({ status: 200, description: "成功返回达人配置" })
   @ApiResponse({ status: 404, description: "成员或配置不存在" })
@@ -577,6 +585,7 @@ export class CircleController {
    * 此前该入口跳达人列表页时 circleId 为空 → GET /circles//experts → 恒空列表 + 提问按钮点不动。
    */
   @Get("experts/discover")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "全平台达人列表", description: "跨圈聚合所有开通了提问/连麦的达人，供发现页全局入口使用" })
   @ApiResponse({ status: 200, description: "成功返回达人列表（含所属圈子）" })
   listAllExperts(@Query("limit") limit?: string) {
@@ -584,6 +593,7 @@ export class CircleController {
   }
 
   @Get(":id/experts")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "圈子达人列表", description: "获取圈子内所有可提问/连麦的达人" })
   @ApiResponse({ status: 200, description: "成功返回达人列表" })
   listExperts(@Param("id") circleId: string) {
@@ -591,6 +601,7 @@ export class CircleController {
   }
 
   @Get("expert-services/by-user/:userId")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "用户的达人咨询服务聚合", description: "聚合该用户在所有圈子开通的提问/连麦服务，供个人主页付费咨询入口使用" })
   @ApiBearerAuth()
@@ -701,26 +712,35 @@ export class CircleController {
   // ───────── 达人预约 ─────────
 
   @Get("expert/:expertId/slots")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取达人可预约时段", description: "返回达人某日可用的时间段" })
+  @ApiQuery({ name: "circleId", required: true, type: String, description: "用户所选圈子，不能默认切换其他圈子" })
   @ApiBearerAuth()
   getExpertSlots(
     @Param("expertId") expertId: string,
     @Query("date") date?: string,
+    @Query("circleId") circleId?: string,
   ) {
-    return this.circle.getExpertSlots(expertId, date);
+    return this.circle.getExpertSlots(expertId, date, circleId);
   }
 
   @Post("expert/:expertId/bookings")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建达人预约" })
+  @ApiBody({ schema: { type: "object", required: ["circleId", "slotDate", "slotStart", "slotEnd"], properties: {
+    circleId: { type: "string", description: "必须与查时段时所选圈子一致" },
+    slotDate: { type: "string", example: "2026-09-08" }, slotStart: { type: "string", example: "09:00" }, slotEnd: { type: "string", example: "10:00" },
+    topic: { type: "string" }, notes: { type: "string" },
+  } } })
   @ApiBearerAuth()
   createExpertBooking(
     @Param("expertId") expertId: string,
     @Req() req: Request,
-    @Body() body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+    @Body() body: { circleId: string; slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
   ) {
-    return this.circle.createExpertBooking(expertId, req.user.id, body);
+    return this.circle.createExpertBooking(expertId, req.user.id, body, resolveExecutorType(req));
   }
 
   // ───────── 帖子打赏 ─────────

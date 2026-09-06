@@ -6,11 +6,12 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
 import { saveXiaoliurenHistory } from './xiaoliuren-history'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
@@ -76,7 +77,8 @@ function parseNumbers(raw: string): number[] {
 const numbersValid = computed(() => qikeMode.value !== 'number' || parseNumbers(numbers.value).length > 0)
 
 function handleSubmit() {
-  if (!numbersValid.value) return
+  if (!preview.allowed.value || !numbersValid.value) return
+  return preview.run(() => {
   selectedPalace.value = null
   phase.value = 'result'
   // 落本地记录（落宫结果一并存下，记录卡不必重算）
@@ -89,10 +91,18 @@ function handleSubmit() {
     numbers: qikeMode.value === 'number' ? numbers.value : undefined,
     palace: PALACES[result.value.hourPalace],
   })
+  })
 }
 
 /** 从记录页回放（带参进来直接出盘） */
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  phase.value = 'input'
+  selectedPalace.value = null
+  showModePicker.value = false
+})
+function initialize(opts: Record<string, string>) {
   if (!opts.replay) return
   try {
     const r = JSON.parse(decodeURIComponent(opts.replay))
@@ -105,7 +115,7 @@ onLoad((opts: Record<string, string> = {}) => {
   } catch {
     // 参数坏了就停在表单相
   }
-})
+}
 
 // ─── 结果相 ───
 const selectedPalace = ref<number | null>(null)
@@ -153,6 +163,7 @@ const sel = computed<PalaceResult | null>(() => (selectedPalace.value !== null ?
 const gridPalaces = computed(() => GRID_ORDER.map((idx) => ({ idx, p: result.value.palaces[idx] })))
 
 function togglePalace(idx: number) {
+  if (!preview.allowed.value) return
   selectedPalace.value = selectedPalace.value === idx ? null : idx
 }
 
@@ -163,7 +174,12 @@ function handleBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/xiaoliuren/history"
       :title="phase === 'input' ? '小六壬排盘' : '热卜小六壬'"
       subtitle="掐指一算 · 六宫定吉凶"

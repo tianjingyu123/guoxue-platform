@@ -63,6 +63,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/circle-refunds"), // 圈子退款审核
       M("/circle-appeals"), // 圈子申诉仲裁
       M("/call-disputes"), // 通话账单申诉
+      M("/circle-capabilities"), // 发布资格审核及平台直接授权
       M("/bounty/reviews", "悬赏审核"),
       M("/users/identity"), // 实名审核
       M("/teacher/certifications"), // 讲师认证审核
@@ -373,6 +374,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/system-settings"),
       M("/system/role-permission"),
       M("/system/feature-flags"),
+      M("/system/native-paipan-preview"),
       M("/system/third-party"),
       M("/system/brand"),
       M("/banners"),
@@ -449,7 +451,7 @@ export function buildMenus(userRoles: string[], nativePaipanEnabled = false): Me
     if (r.name === "NotFound" || r.matched.length === 0) return null;
     claimed.add(leaf.path);
     const meta = r.meta as { title?: string; roles?: string[]; nativePaipan?: boolean };
-    if (meta?.nativePaipan && !nativePaipanEnabled) return null;
+    if (meta?.nativePaipan && (!isSuper || !nativePaipanEnabled)) return null;
     if (!roleAllows(meta?.roles)) return null;
     return { title: leaf.title || meta?.title || leaf.path, path: leaf.path, workspace: ws };
   };
@@ -483,8 +485,10 @@ export function buildMenus(userRoles: string[], nativePaipanEnabled = false): Me
       hidden?: boolean;
       guest?: boolean;
       roles?: string[];
+      nativePaipan?: boolean;
     };
     if (!meta?.title || meta.hidden || meta.guest) continue;
+    if (meta.nativePaipan && (!isSuper || !nativePaipanEnabled)) continue;
     const p = rt.path;
     if (!p || p === "/" || p.includes(":")) continue;
     // 商家后台菜单由 store/auth 按 isMerchant 注入（路由无 roles·后端 MerchantGuard 校验）

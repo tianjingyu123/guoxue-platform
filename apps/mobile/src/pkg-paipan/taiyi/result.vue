@@ -7,6 +7,7 @@
  */
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -59,7 +60,11 @@ const tab = ref<TabKey>('geju')
 const PAN_SHI_SET: TaiyiPanShi[] = ['year', 'month', 'day', 'hour']
 const SUAN_FA_SET: TaiyiSuanFa[] = ['tongzong', 'zhijin', 'jinjing']
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> | null = null
+let saved = false
+function loadResult() {
+  const q = entryQuery
+  if (!q) return
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<TaiyiParams>
@@ -81,14 +86,21 @@ onLoad((q: Record<string, string> = {}) => {
     result.value = r
     topic.value = String(p.topic || '').slice(0, 30)
     // 记入本地排盘记录（index 起课与深链进入均覆盖）
-    saveTaiyiHistory(
+    if (!saved) saveTaiyiHistory(
       { topic: topic.value, year, month, day, hour, minute, panShi, suanFa },
       `${r.dunType}${r.juNumber}局`,
     )
+    saved = true
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效，请重新起课'
   }
+}
+const preview = useNativePreviewPage(loadResult, () => {
+  result.value = null
+  topic.value = ''
+  loadError.value = ''
 })
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q }; void preview.run() })
 
 function goInput() {
   navigateTo('/pkg-paipan/taiyi/index')
@@ -133,7 +145,12 @@ function onShare() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="太乙盘" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="isMp ? '太乙文化研究' : result ? `太乙盘 · ${result.panShiLabel}` : '太乙盘'"
       :subtitle="result ? `【${result.panShiLabel}】【${result.suanFaLabel}】${topic ? ` · ${topic}` : ''}` : ''"

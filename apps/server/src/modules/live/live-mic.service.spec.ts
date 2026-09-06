@@ -5,6 +5,7 @@ describe("LiveService 直播连麦", () => {
   const originalTrtcSdkAppId = process.env.TRTC_SDK_APP_ID;
   const originalTrtcSecretKey = process.env.TRTC_SECRET_KEY;
   const prisma = {
+    $transaction: jest.fn(async run => run(prisma)),
     liveRoom: { findUnique: jest.fn() },
     user: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
     liveMic: {
@@ -17,12 +18,20 @@ describe("LiveService 直播连麦", () => {
       deleteMany: jest.fn(),
     },
   };
+  const publication = { rtcInTransaction: jest.fn(async (tx, input, sign) => {
+    const room = await tx.liveRoom.findUnique({ where: { id: input.roomId } });
+    const mic = room?.hostUserId === input.userId ? null : await tx.liveMic.findFirst({ where: { liveRoomId: input.roomId, userId: input.userId } });
+    return sign(room, mic);
+  }) };
   const service = new LiveService(
     prisma as any,
     {} as any,
     {} as any,
     {} as any,
     {} as any,
+    publication as any,
+    {} as any,
+    { recordTrtcInTransaction: jest.fn() } as any,
     {} as any,
   );
 

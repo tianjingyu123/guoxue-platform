@@ -107,11 +107,11 @@ export const mockCircleDetail: CircleDetail = {
   needApproval: false,
 }
 
-export const memberBenefits: MemberBenefit[] = [
-  { icon: 'book-open', title: '专属内容', desc: '解锁全部精华帖子' },
-  { icon: 'message-circle', title: '直接提问', desc: '向圈主发起提问' },
-  { icon: 'play', title: '直播回放', desc: '观看历史直播' },
-  { icon: 'award', title: '专属勋章', desc: '展示会员身份' },
+// 尚无逐圈权益契约时只说明边界，不编造已开通服务或将入圈费包装为全包权益。
+export const circleMembershipNotes: MemberBenefit[] = [
+  { icon: 'book-open', title: '内容范围', desc: '可访问内容以本圈实际发布及各内容的访问规则为准。' },
+  { icon: 'message-circle', title: '服务说明', desc: '入圈不自动开通额外服务；可用服务、条件及费用以对应页面说明为准。' },
+  { icon: 'users', title: '参与规则', desc: '发帖、活动等参与条件以圈规和页面提示为准。' },
 ]
 
 export const mockColumns: CircleColumn[] = [

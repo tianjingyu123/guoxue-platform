@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe, Header } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FeatureFlagService } from "./feature-flag.service";
-import { CreateFeatureFlagDto, UpsertFeatureFlagDto } from "./feature-flag.dto";
+import { CreateFeatureFlagDto, UpsertFeatureFlagDto, PreviewFeatureFlagDto, RollbackFeatureFlagDto } from "./feature-flag.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -30,11 +30,27 @@ export class FeatureFlagController {
     return this.service.list();
   }
 
+  @Get("archived/list")
+  @Roles("SUPER_ADMIN")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "列出已删除且保留历史的开关" })
+  async archived() {
+    return this.service.listArchived();
+  }
+
   @Get(":key")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "获取单个功能开关" })
   @ApiResponse({ status: 200, description: "成功" })
   async get(@Param("key") key: string) {
     return this.service.getByKey(key);
+  }
+
+  @Post(":key/preview")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "只读预览开关草稿，不发布、不修改线上配置" })
+  async preview(@Param("key") key: string, @Body() dto: PreviewFeatureFlagDto) {
+    return this.service.preview(key, dto);
   }
 
   @Post()
@@ -44,7 +60,7 @@ export class FeatureFlagController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async create(@Body() dto: CreateFeatureFlagDto, @Req() req: Request) {
-    return this.service.upsert(dto.key, dto, this.operator(req));
+    return this.service.upsert(dto.key, dto, this.operator(req), true);
   }
 
   @Put(":key")
@@ -76,8 +92,9 @@ export class FeatureFlagController {
     @Param("key") key: string,
     @Param("version", ParseIntPipe) version: number,
     @Req() req: Request,
+    @Body() dto: RollbackFeatureFlagDto = {},
   ) {
-    return this.service.rollback(key, version, this.operator(req));
+    return this.service.rollback(key, version, this.operator(req), dto.expectedFingerprint);
   }
 
   @Delete(":key")
@@ -87,8 +104,8 @@ export class FeatureFlagController {
   @ApiOperation({ summary: "删除功能开关" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async delete(@Param("key") key: string) {
-    await this.service.delete(key);
+  async delete(@Param("key") key: string, @Body() dto: RollbackFeatureFlagDto = {}) {
+    await this.service.delete(key, dto.expectedFingerprint);
     return { success: true };
   }
 
@@ -109,6 +126,7 @@ export class FeatureFlagPublicController {
   ) {}
 
   @Get("features")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取当前启用的功能列表（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -118,6 +136,7 @@ export class FeatureFlagPublicController {
   }
 
   @Get("client")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取客户端远程配置 V1（公开、安全白名单、可缓存）" })
   @ApiResponse({ status: 200, description: "成功" })

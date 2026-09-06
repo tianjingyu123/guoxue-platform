@@ -60,11 +60,11 @@ export class PaipanController {
     private prisma: PrismaService,
   ) {}
 
-  /** 八字排盘预览（不登录也可用） */
+  /** 八字排盘预览，遵循整套排盘访问权限。 */
   @Post("bazi/preview")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
-  @ApiOperation({ summary: "八字排盘预览（无需登录，结果缓存10分钟）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "八字排盘预览（整套排盘权限）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
   @ApiResponse({ status: 400, description: "参数校验失败（缺少必填字段或格式错误）" })
   baziPreview(@Body() dto: BaziInputDto) {
@@ -82,7 +82,7 @@ export class PaipanController {
 
   @Get("bazi/calculate")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "八字排盘计算（GET，兼容前端）" })
   baziCalculate(
     @Query("year") year?: number,
@@ -105,8 +105,8 @@ export class PaipanController {
   /** 八字排盘 CDN 静态化 GET 接口（不敏感部分，公开可缓存） */
   @Get("bazi/public")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=3600, s-maxage=86400")
-  @ApiOperation({ summary: "八字排盘公开结果（CDN缓存1天，无需登录）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "八字排盘结果（整套排盘权限）" })
   baziPublic(
     @Query("year") year: number,
     @Query("month") month: number,
@@ -226,10 +226,10 @@ export class PaipanController {
 
   // ────────── 紫微斗数 ──────────
 
-  /** 紫微斗数预览（不登录也可用） */
+  /** 紫微斗数预览，遵循整套排盘访问权限。 */
   @Post("ziwei/preview")
   @UseGuards(StrictRedisThrottleGuard)
-  @ApiOperation({ summary: "紫微斗数预览（无需登录）" })
+  @ApiOperation({ summary: "紫微斗数预览（整套排盘权限）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   ziweiPreview(@Body() dto: ZiweiInputDto) {
@@ -333,11 +333,11 @@ export class PaipanController {
 
   // ────────── 奇门遁甲 ──────────
 
-  /** 奇门遁甲排盘（无需登录，公开排盘） */
+  /** 奇门遁甲排盘，遵循整套排盘访问权限。 */
   @Post("qimen")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
-  @ApiOperation({ summary: "奇门遁甲排盘（无需登录，结果缓存10分钟）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "奇门遁甲排盘（整套排盘权限）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   qimenCalc(@Body() dto: QimenInputDto) {
@@ -373,11 +373,11 @@ export class PaipanController {
     return this.paipan.getQimenRecord(id, req.user.id);
   }
 
-  /** 阳盘命理奇门排盘（无需登录） */
+  /** 阳盘命理奇门排盘，遵循整套排盘访问权限。 */
   @Post("yangpan")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
-  @ApiOperation({ summary: "阳盘命理奇门排盘（无需登录，结果缓存10分钟）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "阳盘命理奇门排盘（整套排盘权限）" })
   @ApiResponse({ status: 201, description: "排盘成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   yangpanCalc(@Body() dto: YangpanInputDto) {
@@ -417,8 +417,8 @@ export class PaipanController {
 
   @Post("liuyao")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
-  @ApiOperation({ summary: "六爻排盘（无需登录）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "六爻排盘（整套排盘权限）" })
   liuyaoCalc(@Body() dto: LiuYaoInputDto) {
     return this.paipan.calcLiuYao(dto);
   }
@@ -451,8 +451,8 @@ export class PaipanController {
 
   @Post("daliuren")
   @UseGuards(StrictRedisThrottleGuard)
-  @Header("Cache-Control", "public, max-age=600")
-  @ApiOperation({ summary: "大六壬排盘（无需登录）" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "大六壬排盘（整套排盘权限）" })
   daliurenCalc(@Body() dto: DaLiuRenInputDto) {
     return this.paipan.calcDaLiuRen(dto);
   }
@@ -483,9 +483,9 @@ export class PaipanController {
 
   // ────────── 案例库 ──────────
 
-  /** 获取八字案例库（公开，无需登录） */
+  /** 获取八字案例库，遵循整套排盘访问权限。 */
   @Get("cases")
-  @Header("Cache-Control", "public, max-age=3600")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "获取八字案例库（公开）" })
   getCases(@Query() q: CaseQueryDto) {
     return this.paipan.getCases(q);

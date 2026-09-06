@@ -12,7 +12,7 @@
  *    couple 出于隐私红线永远拿不到对方生辰，本工具是从业者当场录入双方生辰的排盘工具。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -84,9 +84,10 @@ function onDateConfirm(d: {
 
 // ── 排盘记录 ──
 const history = ref<HepanHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadHepanHistory()
-})
+}, () => { history.value = []; showDatePicker.value = false })
+const { allowed, checking } = preview
 
 function onClearHistory() {
   uni.showModal({
@@ -94,8 +95,7 @@ function onClearHistory() {
     content: '确定清空全部合盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearHepanHistory()
-        history.value = []
+        void preview.run(() => { clearHepanHistory(); history.value = [] })
       }
     },
   })
@@ -121,7 +121,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/hepan/history" :title="hdrTitle" subtitle="双人四柱 · 五维合参" share />
 
     <scroll-view scroll-y class="body">

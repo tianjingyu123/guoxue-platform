@@ -4,6 +4,7 @@ import { FeatureFlagService } from "./feature-flag.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { SystemService } from "../system/system.service";
+import { HEADERS_METADATA } from "@nestjs/common/constants";
 
 const mockFlagSvc = {
   list: jest.fn().mockResolvedValue([{ key: "merchant_onboarding", enabled: false }]),
@@ -68,13 +69,24 @@ describe("FeatureFlagController", () => {
       { user: { nickname: "管理员" } } as any,
     );
     expect(result.enabled).toBe(false);
-    expect(mockFlagSvc.rollback).toHaveBeenCalledWith("merchant_onboarding", 1, "管理员");
+    expect(mockFlagSvc.rollback).toHaveBeenCalledWith("merchant_onboarding", 1, "管理员", undefined);
+  });
+
+  it("新增接口强制仅创建，不能降级成更新已有配置", async () => {
+    const dto = { key: "client_new", name: "新增" };
+    await ctrl.create(dto, { user: { id: "admin1" } } as any);
+    expect(mockFlagSvc.upsert).toHaveBeenCalledWith("client_new", dto, "admin1", true);
+  });
+
+  it("回滚转交预览指纹，不从请求体接受操作人", async () => {
+    await ctrl.rollback("client_demo", 2, { user: { id: "admin1" } } as any, { expectedFingerprint: "a".repeat(64) });
+    expect(mockFlagSvc.rollback).toHaveBeenCalledWith("client_demo", 2, "admin1", "a".repeat(64));
   });
 
   it("DELETE /admin/feature-flags/:key — 删除开关", async () => {
     const result: any = await ctrl.delete("merchant_onboarding");
     expect(result.success).toBe(true);
-    expect(mockFlagSvc.delete).toHaveBeenCalledWith("merchant_onboarding");
+    expect(mockFlagSvc.delete).toHaveBeenCalledWith("merchant_onboarding", undefined);
   });
 });
 
@@ -85,6 +97,11 @@ describe("FeatureFlagPublicController", () => {
   );
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it.each(["getEnabledFeatures", "getClientConfig"] as const)("%s 的个人灰度快照禁止共享缓存", (method) => {
+    expect(Reflect.getMetadata(HEADERS_METADATA, FeatureFlagPublicController.prototype[method]))
+      .toContainEqual({ name: "Cache-Control", value: "private, no-store" });
+  });
 
   it("GET /config/features — 只返回客户端可见开关", async () => {
     const result = await ctrl.getEnabledFeatures({ user: { id: "u1" } } as any);

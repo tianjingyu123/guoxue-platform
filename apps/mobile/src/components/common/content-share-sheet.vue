@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { shareLink } from '@/utils/share'
+import { isShareCancelled } from '@/lib/public-share-context'
 
 type ShareKind = 'classic' | 'article' | 'video' | 'live' | 'course' | 'product' | 'circle' | 'station' | 'activity' | 'agent' | 'tool'
 
@@ -65,7 +66,7 @@ async function shareFriend() {
     href: props.url,
     imageUrl: props.cover || undefined,
     success: () => emit('close'),
-    fail: () => { void shareMore() },
+    fail: (error: unknown) => { if (!isShareCancelled(error)) void shareMore() },
   })
   return
   // #endif
@@ -119,26 +120,8 @@ async function shareTimeline() {
 }
 
 async function shareMore() {
-  // #ifdef APP-PLUS
-  try {
-    await new Promise<void>((resolve, reject) => {
-      plus.share.sendWithSystem(
-        {
-          type: 'web',
-          title: props.title,
-          content: props.summary || props.title,
-          href: props.url,
-          thumbs: props.cover ? [props.cover] : undefined,
-        },
-        () => resolve(),
-        (error) => reject(error),
-      )
-    })
-    emit('close')
-    return
-  } catch { /* 系统分享不可用时继续走正式链接兜底 */ }
-  // #endif
-  const ok = await shareLink({ title: props.title, text: props.summary, url: props.url })
+  // 统一适配器只尝试一次系统分享，避免失败后在两个层级重复弹面板。
+  const ok = await shareLink({ title: props.title, text: props.summary, url: props.url, imageUrl: props.cover })
   if (ok) emit('close')
 }
 

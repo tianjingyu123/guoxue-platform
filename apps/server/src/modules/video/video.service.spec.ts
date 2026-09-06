@@ -4,8 +4,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
-import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { VideoPublicationTransactionService } from "./video-publication-transaction.service";
 
 const mockPrisma = {
   video: {
@@ -13,6 +14,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
     count: jest.fn(),
   },
@@ -38,6 +40,7 @@ const mockPrisma = {
   },
   follow: { findMany: jest.fn() },
   $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 
 const mockVod = {
@@ -54,6 +57,8 @@ const mockVod = {
   parseEventNotification: jest.fn(),
 };
 
+const mockPublication = { createInTransaction: jest.fn() };
+
 describe("VideoService", () => {
   let svc: VideoService;
 
@@ -63,7 +68,7 @@ describe("VideoService", () => {
         VideoService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VodService, useValue: mockVod },
-        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
+        { provide: VideoPublicationTransactionService, useValue: mockPublication },
         {
           provide: AuditService,
           useValue: {
@@ -81,14 +86,34 @@ describe("VideoService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPublication.createInTransaction.mockReset().mockImplementation((_tx, input, write) => write(input.videoId));
     mockPrisma.like.findMany.mockResolvedValue([]);
     mockPrisma.collect.findMany.mockResolvedValue([]);
     mockPrisma.follow.findMany.mockResolvedValue([]);
     mockPrisma.video.findMany.mockResolvedValue([]);
+    mockPrisma.video.updateMany.mockResolvedValue({ count: 1 });
     mockPrisma.$transaction.mockImplementation(async (operation) => operation(mockPrisma));
   });
 
   describe("create", () => {
+    it.each([undefined, "CIRCLE_ONLY", "PLATFORM", "SELF_ONLY"])("可见范围 %s 不能绕过投稿授权", async visibility => {
+      mockPublication.createInTransaction.mockRejectedValue(new BusinessException(ErrorCode.FORBIDDEN, "未开通发布资格"));
+      await expect(svc.create("u1", { circleId: "c1", visibility, videoUrl: "https://example.com/video.mp4" })).rejects.toThrow("未开通发布资格");
+      expect(mockPublication.createInTransaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.video.create).not.toHaveBeenCalled();
+    });
+    it("真人平台管理员保留直接发布能力，不消耗圈子授权额度", async () => {
+      mockPrisma.$queryRaw.mockResolvedValueOnce([{ id: "admin", status: "ACTIVE", deletedAt: null }])
+        .mockResolvedValueOnce([{ roleType: "SUPER_ADMIN", bindId: null }]);
+      mockPrisma.video.create.mockResolvedValue({ id: "admin-video" });
+      await expect(svc.create("admin", { videoUrl: "https://example.com/video.mp4" }, true)).resolves.toMatchObject({ id: "admin-video" });
+      expect(mockPublication.createInTransaction).not.toHaveBeenCalled();
+    });
+    it("自动化即使带管理员身份也不能创建视频", async () => {
+      await expect(svc.create("admin", { videoUrl: "https://example.com/video.mp4" }, true, "AUTOMATION")).rejects.toThrow();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.video.create).not.toHaveBeenCalled();
+    });
     it("创建视频成功", async () => {
       mockPrisma.video.create.mockResolvedValue({ id: "v1", title: "国学视频", videoUrl: "https://example.com/video.mp4" });
       const result = await svc.create("u1", { videoUrl: "https://example.com/video.mp4" });
@@ -103,6 +128,16 @@ describe("VideoService", () => {
   });
 
   describe("update", () => {
+    it.each(["PUBLISHED", "PROCESSING", "AUDITING", "APPROVED", "REJECTED"])("作者编辑不能把状态设为%s", async status => {
+      await expect(svc.update("u1", "v1", { status })).rejects.toThrow("恢复发布请通过审核流程");
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
+    });
+    it("作者可以隐藏，额外内部字段不能进入更新", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ userId: "u1" });
+      mockPrisma.video.update.mockResolvedValue({ id: "v1", status: "HIDDEN" });
+      await svc.update("u1", "v1", { status: "HIDDEN", auditStatus: "APPROVED", userId: "other" } as any);
+      expect(mockPrisma.video.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { title: undefined, coverUrl: undefined, status: "HIDDEN" } });
+    });
     it("更新视频成功", async () => {
       mockPrisma.video.findUnique.mockResolvedValue({ userId: "u1" });
       mockPrisma.video.update.mockResolvedValue({ id: "v1", title: "新标题" });
@@ -115,6 +150,30 @@ describe("VideoService", () => {
       mockPrisma.video.update.mockResolvedValue({ id: "v1", coverUrl: "new-cover.jpg" });
       const result = await svc.update("u1", "v1", { coverUrl: "new-cover.jpg" });
       expect(result.coverUrl).toBe("new-cover.jpg");
+    });
+  });
+
+  describe("audit", () => {
+    it("管理审核通过同时更新发布和审核状态，清除旧驳回原因", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1" });
+      await svc.audit("v1", "approve");
+      expect(mockPrisma.video.update).toHaveBeenCalledWith({ where: { id: "v1" },
+        data: { status: "PUBLISHED", auditStatus: "APPROVED", auditReason: null } });
+    });
+    it("管理驳回同时关闭发布与审核状态", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1" });
+      await svc.audit("v1", "reject", "需修改");
+      expect(mockPrisma.video.update).toHaveBeenCalledWith({ where: { id: "v1" },
+        data: { status: "REJECTED", auditStatus: "REJECTED", auditReason: "需修改" } });
+    });
+    it("非法审核动作不当成默认驳回", async () => {
+      await expect(svc.audit("v1", "other" as any)).rejects.toThrow("不支持的审核动作");
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
+    });
+    it("不存在视频不更新审核状态", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue(null);
+      await expect(svc.audit("missing", "approve")).rejects.toThrow("视频不存在");
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
     });
   });
 
@@ -160,6 +219,18 @@ describe("VideoService", () => {
       mockPrisma.video.count.mockResolvedValue(0);
       await svc.list({ scope: "all" });
       expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where.id).toBeUndefined();
+    });
+    it.each(["HIDDEN", "REJECTED", "AUDITING", "PROCESSING"])("普通列表不能用%s筛选读取非发布内容", async status => {
+      mockPrisma.video.findMany.mockResolvedValue([]); mockPrisma.video.count.mockResolvedValue(0);
+      await svc.list({ circleId: "c1", status });
+      const where = mockPrisma.video.findMany.mock.calls.at(-1)![0].where;
+      expect(where).toMatchObject({ status: "PUBLISHED", isPrivate: false, auditStatus: { not: "REJECTED" }, visibility: { not: "SELF_ONLY" } });
+      expect(mockPrisma.video.count).toHaveBeenCalledWith({ where });
+    });
+    it("管理授权后的scope保留审核状态筛选", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([]); mockPrisma.video.count.mockResolvedValue(0);
+      await svc.list({ scope: "all", status: "REJECTED" });
+      expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where).toEqual({ status: "REJECTED" });
     });
   });
 
@@ -209,9 +280,25 @@ describe("VideoService", () => {
   });
 
   describe("getDetail", () => {
+    it("同一账号发布被拒后仍可阅读，阅读不消耗或校验发布授权", async () => {
+      mockPublication.createInTransaction.mockRejectedValue(new BusinessException(ErrorCode.FORBIDDEN, "未开通发布资格"));
+      await expect(svc.create("ordinary-viewer", { circleId: "c1", visibility: "PLATFORM",
+        videoUrl: "https://example.com/video.mp4" })).rejects.toThrow("未开通发布资格");
+      expect(mockPrisma.video.create).not.toHaveBeenCalled();
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", userId: "author", circleId: "c1",
+        status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", isPrivate: false });
+      await expect(svc.getDetail("v1", "ordinary-viewer")).resolves.toMatchObject({ id: "v1" });
+      await expect(svc.list({ circleId: "c1" })).resolves.toBeDefined();
+      expect(mockPublication.createInTransaction).toHaveBeenCalledTimes(1);
+    });
+    it.each([undefined, "ordinary-viewer"])("发布授权不成为普通读者的详情门槛：%s", async viewerId => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", userId: "author", circleId: "c1",
+        status: "PUBLISHED", visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", isPrivate: false });
+      await expect(svc.getDetail("v1", viewerId)).resolves.toMatchObject({ id: "v1" });
+    });
     it("获取视频详情成功", async () => {
       mockPrisma.video.findUnique.mockResolvedValue({
-        id: "v1", title: "视频", user: {}, circle: {}, products: [],
+        id: "v1", title: "视频", status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", user: {}, circle: {}, products: [],
       });
       mockPrisma.video.update.mockResolvedValue({});
       const result = await svc.getDetail("v1");
@@ -221,6 +308,27 @@ describe("VideoService", () => {
     it("视频不存在抛出 NotFoundException", async () => {
       mockPrisma.video.findUnique.mockResolvedValue(null);
       await expect(svc.getDetail("invalid")).rejects.toThrow(BusinessException);
+    });
+
+    it.each([
+      { status: "HIDDEN" }, { status: "REJECTED" }, { status: "PROCESSING" },
+      { status: "AUDITING" }, { isPrivate: true }, { visibility: "SELF_ONLY" }, { auditStatus: "REJECTED" },
+    ])("直接详情也拒绝不可公开视频 %p，且不计播放量", async restricted => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", userId: "owner", status: "PUBLISHED", ...restricted });
+      await expect(svc.getDetail("v1", "other")).rejects.toThrow(BusinessException);
+      await expect(svc.getDetail("v1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
+      expect(mockPrisma.like.findMany).not.toHaveBeenCalled();
+      await expect(svc.getDetail("v1", "owner")).resolves.toMatchObject({ id: "v1" });
+    });
+
+    it("公开详情读取后下架，下一次请求重新读库而非复用旧发布态", async () => {
+      mockPrisma.video.findUnique.mockResolvedValueOnce({ id: "v1", userId: "owner", status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED" })
+        .mockResolvedValueOnce({ id: "v1", userId: "owner", status: "HIDDEN" });
+      await expect(svc.getDetail("v1")).resolves.toMatchObject({ id: "v1" });
+      await expect(svc.getDetail("v1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.video.findUnique).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.video.update).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -364,6 +472,13 @@ describe("VideoService", () => {
   });
 
   describe("handleVodCallback", () => {
+    it.each([undefined, null, "", " ", " f1", 123, {}])("无效媒资ID %p 不查询或修改任何视频", async fileId => {
+      mockVod.parseEventNotification.mockReturnValue({ eventType: "TranscodeComplete", fileId });
+      await svc.handleVodCallback({});
+      expect(mockPrisma.video.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.video.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
+    });
     it("处理转码完成回调", async () => {
       mockVod.parseEventNotification.mockReturnValue({
         eventType: "TranscodeComplete",
@@ -373,14 +488,14 @@ describe("VideoService", () => {
         coverUrl: "https://cover.example.com/c.jpg",
         duration: 300,
       });
-      mockPrisma.video.findMany.mockResolvedValue([{ id: "v1", videoUrl: "vod-file-1" }]);
+      mockPrisma.video.findMany.mockResolvedValue([{ id: "v1", videoUrl: "vod-file-1", status: "PROCESSING", auditStatus: "APPROVED" }]);
       mockPrisma.video.update.mockResolvedValue({});
 
       await svc.handleVodCallback({ EventType: "TranscodeComplete" });
 
-      expect(mockPrisma.video.update).toHaveBeenCalledWith(
+      expect(mockPrisma.video.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "v1" },
+          where: { id: "v1", status: "PROCESSING", auditStatus: "APPROVED", videoUrl: "vod-file-1" },
           data: expect.objectContaining({
             videoUrl: "https://play.example.com/v.mp4",
             coverUrl: "https://cover.example.com/c.jpg",
@@ -397,12 +512,12 @@ describe("VideoService", () => {
         fileId: "vod-file-2",
         status: "SUCCESS",
       });
-      mockPrisma.video.findMany.mockResolvedValue([{ id: "v2", videoUrl: "vod-file-2" }]);
+      mockPrisma.video.findMany.mockResolvedValue([{ id: "v2", videoUrl: "vod-file-2", status: "PUBLISHED", auditStatus: "APPROVED" }]);
       mockPrisma.video.update.mockResolvedValue({});
 
       await svc.handleVodCallback({ EventType: "NewFileUpload" });
 
-      expect(mockPrisma.video.update).toHaveBeenCalledWith(
+      expect(mockPrisma.video.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: "PROCESSING" }),
         }),
@@ -413,6 +528,35 @@ describe("VideoService", () => {
       mockVod.parseEventNotification.mockReturnValue(null);
       await svc.handleVodCallback({});
       expect(mockPrisma.video.update).not.toHaveBeenCalled();
+      expect(mockPrisma.video.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each(["HIDDEN", "REJECTED", "AUDITING"])("转码和上传回调不能恢复 %s 视频", async status => {
+      mockPrisma.video.findMany.mockResolvedValue([{ id: "v1", videoUrl: "f1", status, auditStatus: "APPROVED" }]);
+      for (const eventType of ["TranscodeComplete", "NewFileUpload"]) {
+        mockVod.parseEventNotification.mockReturnValue({ eventType, fileId: "f1" });
+        await svc.handleVodCallback({});
+      }
+      expect(mockPrisma.video.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each(["PENDING", "REJECTED"])("转码不能绕过平台审核 %s", async auditStatus => {
+      mockPrisma.video.findMany.mockResolvedValue([{ id: "v1", videoUrl: "f1", status: "PROCESSING", auditStatus }]);
+      mockVod.parseEventNotification.mockReturnValue({ eventType: "TranscodeComplete", fileId: "f1" });
+      await svc.handleVodCallback({});
+      expect(mockPrisma.video.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("查找后并发下架使条件更新失败，不再无条件重试发布", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([{ id: "v1", videoUrl: "f1", status: "PROCESSING", auditStatus: "APPROVED" }]);
+      mockPrisma.video.updateMany.mockResolvedValue({ count: 0 });
+      mockVod.parseEventNotification.mockReturnValue({ eventType: "TranscodeComplete", fileId: "f1" });
+      await svc.handleVodCallback({});
+      expect(mockPrisma.video.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.video.update).not.toHaveBeenCalled();
+      expect(mockPrisma.video.updateMany.mock.calls[0][0].where).toEqual({
+        id: "v1", status: "PROCESSING", auditStatus: "APPROVED", videoUrl: "f1",
+      });
     });
   });
 

@@ -7,7 +7,7 @@
  * 能力：搜索（姓名/四柱/出生年月）+ 分组标签 + 置顶 + 批量删除/分组。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -32,12 +32,16 @@ function colorOf(ch: string): string {
 }
 
 const records = ref<BaziHistoryItem[]>([])
-const groupNames = ref<string[]>(baziGroups.load())
+const groupNames = ref<string[]>([])
 function reload() {
   groupNames.value = baziGroups.load()
   records.value = loadBaziHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => {
+  records.value = []
+  groupNames.value = []
+})
+const { allowed, checking } = preview
 
 function pillarChars(r: BaziHistoryItem): string[] {
   const p = r.pillars
@@ -65,13 +69,28 @@ function open(vm: HistoryVM) {
   if (r.serverId) q.push(`id=${encodeURIComponent(r.serverId)}`)
   navigateTo(`/paipan/bazi/result?${q.join('&')}`)
 }
-function onPin(ids: string[]) { pinBaziHistory(ids); reload() }
-function onDelete(ids: string[]) { removeBaziHistory(ids); reload() }
-function onGroup(p: { ids: string[]; group: string }) { groupBaziHistory(p.ids, p.group); reload() }
+function onPin(ids: string[]) {
+  const target = [...ids]
+  return preview.run(() => { pinBaziHistory(target); reload() })
+}
+function onDelete(ids: string[]) {
+  const target = [...ids]
+  return preview.run(() => { removeBaziHistory(target); reload() })
+}
+function onGroup(p: { ids: string[]; group: string }) {
+  const target = [...p.ids]; const group = p.group
+  return preview.run(() => { groupBaziHistory(target, group); reload() })
+}
 </script>
 
 <template>
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
   <HistoryPage
+    v-else
     title="排盘记录"
     back-href="/paipan/bazi"
     :records="vms"

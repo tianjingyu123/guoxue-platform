@@ -33,7 +33,8 @@ export class ClientModuleGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<{ method?: string; originalUrl?: string; url?: string; user?: { id?: string } }>()
     const key = clientModuleFlagForRequest(request.method || '', request.originalUrl || request.url || '')
     if (!key) return true
-    if (!await this.featureFlags.isEnabled(key, request.user?.id)) throw new NotFoundException('资源不存在')
+    // 仅模块总闸兼容缺失配置；不改变角色、发布资格、支付、红线等后续守卫。
+    if (!await this.featureFlags.isEnabled(key, request.user?.id, true)) throw new NotFoundException('资源不存在')
     return true
   }
 }

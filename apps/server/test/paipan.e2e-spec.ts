@@ -2,12 +2,15 @@ import { INestApplication } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import request from "supertest"
 import { createE2eApp } from "./e2e-setup"
+import { PAIPAN_SUITE_MODE_KEY } from "../src/common/paipan-suite-policy"
 
 describe("Paipan E2E", () => {
   const originalMode = process.env.PAIPAN_MODE
   let app: INestApplication
   let prisma: any
   let jwt: JwtService
+  let storedMode: "native" | "legacy" = "native"
+  let consumerToken: string
 
   beforeAll(async () => {
     process.env.PAIPAN_MODE = "native"
@@ -25,20 +28,38 @@ describe("Paipan E2E", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    storedMode = "native"
+    consumerToken = jwt.sign({ sub: "u1" })
+    prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+    // 真实 JWT 与整套守卫保留，只模拟其主库查询；未知 SQL 不默认放行。
+    prisma.$queryRaw.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      if (!Array.isArray(strings) || !strings.join("").includes("WITH mode AS") || values[0] !== PAIPAN_SUITE_MODE_KEY) {
+        throw new Error("未声明的排盘测试 SQL")
+      }
+      return [{ allowed: storedMode === "native" && ["u1", "admin1"].includes(String(values[2])) }]
+    })
   })
 
   it("legacy 模式下普通用户直达自研接口返回 404", async () => {
-    process.env.PAIPAN_MODE = "legacy"
+    storedMode = "legacy"
+    await request(app.getHttpServer()).post("/api/v1/paipan/bazi/preview")
+      .set("Authorization", `Bearer ${consumerToken}`).send({}).expect(404)
+      .expect("Cache-Control", "private, no-store")
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it("native 模式匿名预览仍隐藏入口，不查询主库或计算", async () => {
     await request(app.getHttpServer()).post("/api/v1/paipan/bazi/preview").send({}).expect(404)
-    process.env.PAIPAN_MODE = "native"
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
   })
 
   // ═══════════════════ 八字预览 ═══════════════════
 
   describe("POST /api/v1/paipan/bazi/preview", () => {
-    it("无需认证，返回排盘结果", async () => {
+    it("整套模式允许的登录用户返回排盘结果", async () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/paipan/bazi/preview")
+        .set("Authorization", `Bearer ${consumerToken}`)
         .send({
           gender: "男",
           year: 1984, month: 11, day: 15, hour: 8,
@@ -51,6 +72,7 @@ describe("Paipan E2E", () => {
     it("缺少必填字段返回 400", async () => {
       await request(app.getHttpServer())
         .post("/api/v1/paipan/bazi/preview")
+        .set("Authorization", `Bearer ${consumerToken}`)
         .send({ name: "测试" })
         .expect(400)
     })
@@ -59,11 +81,11 @@ describe("Paipan E2E", () => {
   // ═══════════════════ 八字排盘保存 ═══════════════════
 
   describe("POST /api/v1/paipan/bazi", () => {
-    it("未认证返回 401", async () => {
+    it("未认证时由整套门禁隐藏为 404", async () => {
       await request(app.getHttpServer())
         .post("/api/v1/paipan/bazi")
         .send({ gender: "男", year: 1984, month: 11, day: 15, hour: 8 })
-        .expect(401)
+        .expect(404)
     })
 
     it("保存排盘记录成功", async () => {
@@ -129,9 +151,10 @@ describe("Paipan E2E", () => {
   // ═══════════════════ 紫微斗数预览 ═══════════════════
 
   describe("POST /api/v1/paipan/ziwei/preview", () => {
-    it("无需认证，返回紫微盘", async () => {
+    it("整套模式允许的登录用户返回紫微盘", async () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/paipan/ziwei/preview")
+        .set("Authorization", `Bearer ${consumerToken}`)
         .send({
           name: "测试",
           gender: "女",

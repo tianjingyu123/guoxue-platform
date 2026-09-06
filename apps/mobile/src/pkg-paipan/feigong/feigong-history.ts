@@ -3,6 +3,8 @@
  * 存起局输入（FeigongParams），上限 50 条；结果页起局成功后写入，入口页内嵌历史卡展示。
  */
 
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
+
 export interface FeigongParams {
   topic: string
   year: number
@@ -27,28 +29,35 @@ const HISTORY_KEY = 'rebu:feigong-history'
 const MAX_ITEMS = 50
 
 export function loadFeigongHistory(): FeigongHistoryItem[] {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) return []
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as FeigongHistoryItem[]) : []
+    const raw = uni.getStorageSync(storageKey)
+    const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(list) ? list.filter(item => item?.params && typeof item.params === 'object') : []
   } catch {
     return []
   }
 }
 
 export function saveFeigongHistory(params: FeigongParams, summary: string) {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('请重新确认排盘访问状态')
   try {
     const key = JSON.stringify(params)
     const list = loadFeigongHistory().filter((it) => JSON.stringify(it.params) !== key)
     list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
+    uni.setStorageSync(storageKey, JSON.stringify(list.slice(0, MAX_ITEMS)))
   } catch {
     /* 本地存储失败不阻断排盘 */
   }
 }
 
 export function clearFeigongHistory() {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('请重新确认排盘访问状态')
   try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
+    uni.setStorageSync(storageKey, '[]')
   } catch {
     /* noop */
   }

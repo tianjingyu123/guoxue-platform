@@ -9,6 +9,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -45,65 +46,95 @@ const revealed = computed(() => !!answer.value)
 const selfScore = ref<number | null>(null)
 
 const guessedCount = computed(() => LIFE_DIMENSIONS.filter((d) => (guess.value[d.key] || '').trim()).length)
+const preview = useNativePreviewPage(() => {}, () => {
+  c.value = null
+  guess.value = {}
+  answer.value = null
+  selfScore.value = null
+  activeMethod.value = 'BAZI'
+  loading.value = false
+  failed.value = false
+  saving.value = false
+  revealing.value = false
+}, () => { void load() })
 
-onLoad(async (q: Record<string, string> = {}) => {
+onLoad((q: Record<string, string> = {}) => {
   id.value = q.id || ''
   const method = String(q.method || 'BAZI').toUpperCase() as CaseMethod
   requestedMethod.value = ['BAZI', 'ZIWEI', 'MINGLI'].includes(method) ? method : 'BAZI'
-  if (!id.value) {
-    failed.value = true
-    loading.value = false
-    return
-  }
-  await load()
 })
 
 async function load() {
-  loading.value = true
-  failed.value = false
-  try {
-    c.value = await caseApi.detail(id.value)
-    activeMethod.value = availableMethods.value.includes(requestedMethod.value as any)
-      ? requestedMethod.value as Exclude<CaseMethod, 'ALL'>
-      : 'BAZI'
-    // 登录用户：拉我的练手状态（已公布过答案的，直接回显答案）
+  if (preview.checking.value) return
+  const targetId = id.value
+  await preview.runTask(async checkpoint => {
     try {
-      const mine = await caseApi.myAttempt(id.value)
-      guess.value = { ...(mine?.guess ?? {}) }
-      selfScore.value = mine?.selfScore ?? null
-      if (mine?.revealed && mine.life) {
-        answer.value = {
+      if (!targetId) throw new Error('缺少案例编号')
+      const item = await caseApi.detail(targetId)
+      if (!await checkpoint()) throw new Error('访问状态已变化')
+      const mine = await caseApi.myAttempt(targetId)
+      return { item, mine }
+    } catch {
+      return null
+    }
+  }, value => {
+    if (!value) { failed.value = true; return }
+    c.value = value.item
+    activeMethod.value = availableMethods.value.includes(requestedMethod.value as any)
+      ? requestedMethod.value as Exclude<CaseMethod, 'ALL'> : 'BAZI'
+    const mine = value.mine
+    guess.value = { ...(mine?.guess ?? {}) }
+    selfScore.value = mine?.selfScore ?? null
+    if (mine?.revealed && mine.life) {
+      answer.value = {
           life: mine.life as CaseAnswer['life'],
           events: (mine.events as CaseAnswer['events']) ?? [],
           commentary: mine.commentary,
           commentarySrc: mine.commentarySrc,
           myGuess: mine.guess as CaseAnswer['myGuess'],
+      }
+    }
+  })
+}
+
+/** 写请求使用点击时快照；每一步前核验，退出后不继续链路，也不自动重试。 */
+async function perform(action: 'save' | 'reveal' | 'score', score?: number) {
+  if (!preview.allowed.value || !c.value) return
+  const state = { id: id.value, item: c.value, guess: { ...guess.value }, answer: answer.value,
+    score: selfScore.value, method: activeMethod.value }
+  await preview.runTask(async checkpoint => {
+    if (!await checkpoint()) throw new Error('访问状态已变化')
+    try {
+      let nextAnswer = state.answer
+      if (action === 'score') await caseApi.selfScore(state.id, score!)
+      else {
+        if (action === 'save' || Object.values(state.guess).some(value => value.trim())) {
+          await caseApi.saveGuess(state.id, state.guess)
+        }
+        if (action === 'reveal') {
+          if (!await checkpoint()) throw new Error('访问状态已变化')
+          nextAnswer = await caseApi.reveal(state.id)
         }
       }
-    } catch {
-      // 未登录：能看八字，不能练手（点公布答案时会走登录）
+      return { answer: nextAnswer, error: '' }
+    } catch (e: any) {
+      return { answer: state.answer, error: e?.message || '操作未完成，请稍后重试' }
     }
-  } catch {
-    failed.value = true
-  } finally {
-    loading.value = false
-  }
+  }, value => {
+    c.value = state.item
+    guess.value = state.guess
+    activeMethod.value = state.method
+    answer.value = value.answer
+    selfScore.value = action === 'score' && !value.error ? score! : state.score
+    if (value.error) uni.showModal({ title: '操作未完成', content: value.error, showCancel: false })
+    else if (action === 'save') uni.showToast({ title: '断语已存', icon: 'none' })
+  })
 }
-
-async function saveGuess() {
-  if (saving.value) return
-  saving.value = true
-  try {
-    await caseApi.saveGuess(id.value, guess.value)
-    uni.showToast({ title: '断语已存', icon: 'none' })
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
-  } finally {
-    saving.value = false
-  }
-}
+async function saveGuess() { if (!revealed.value) await perform('save') }
 
 function confirmReveal() {
+  if (!preview.allowed.value || revealed.value) return
+  const isCurrent = preview.captureInteraction()
   const n = guessedCount.value
   uni.showModal({
     title: '公布答案',
@@ -113,32 +144,17 @@ function confirmReveal() {
         : `你断了 ${n} 项。公布后断语将锁定，不能再改。确定？`,
     confirmText: '公布答案',
     success: (r) => {
-      if (r.confirm) doReveal()
+      if (r.confirm && isCurrent()) void doReveal()
     },
   })
 }
 
 async function doReveal() {
-  if (revealing.value) return
-  revealing.value = true
-  try {
-    // 先把断语落库，再公布 —— 否则用户填了没点保存，断语就丢了
-    if (guessedCount.value > 0) await caseApi.saveGuess(id.value, guess.value)
-    answer.value = await caseApi.reveal(id.value)
-  } catch (e: any) {
-    uni.showModal({ title: '未能公布答案', content: e?.message || '请稍后再试', showCancel: false })
-  } finally {
-    revealing.value = false
-  }
+  if (!revealed.value) await perform('reveal')
 }
 
 async function setScore(n: number) {
-  selfScore.value = n
-  try {
-    await caseApi.selfScore(id.value, n)
-  } catch {
-    // 自评存不上不影响看答案
-  }
+  if (revealed.value) await perform('score', n)
 }
 
 /** 用当前术式重新起这份真实档案；不同视角共享同一案例答案。 */
@@ -178,7 +194,12 @@ function labelOf(k: string) {
 </script>
 
 <template>
-  <view class="cd">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="案例练手" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="load">重新确认</button>
+  </view>
+  <view v-else class="cd">
     <ToolHeader title="案例练手" subtitle="先断 · 后看真实经历" />
 
     <scroll-view class="cd-body" scroll-y :show-scrollbar="false">

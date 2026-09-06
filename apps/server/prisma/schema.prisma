@@ -525,6 +525,8 @@ model Circle {
   circleGuestEarnings CircleGuestEarning[]
   events              CircleEvent[]
   publishGrants       CirclePublishGrant[]
+  capabilityGrants    CircleCapabilityGrant[]
+  capabilityQuotas    CircleCapabilityQuota[]
 
   @@index([ownerId])
   @@index([status])
@@ -560,6 +562,174 @@ model CirclePublishGrant {
   @@index([circleId, status, createdAt])
   @@index([applicantId, createdAt])
   @@index([status, createdAt])
+}
+
+enum CircleCapabilityType {
+  LIVE
+  SHORT_VIDEO
+  AUDIO_QUESTION
+  VIDEO_QUESTION
+}
+
+enum CircleCapabilityGrantState {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  REVOKED
+}
+
+// 一条申请的完整生命周期；重申请创建新 sequence，旧记录和审计保留。
+model CircleCapabilityGrant {
+  id                  String                     @id @default(uuid())
+  circleId            String
+  ownerId             String // 申请时圈主快照，不随圈主转移漂移
+  applicantId         String
+  subjectUserId       String?
+  subjectKey          String                     @db.VarChar(64) // circle 或 user:<uuid>，避免 NULL 唯一约束漏洞
+  capability          CircleCapabilityType
+  source              String                     @default("CIRCLE_APPLICATION") @db.VarChar(24)
+  sequence            Int
+  policyRevision      Int
+  revision            Int                        @default(1)
+  state               CircleCapabilityGrantState @default(PENDING)
+  enabled             Boolean                    @default(false)
+  expiresAt           DateTime?
+  maxUnits            Int?
+  maxConcurrent       Int?
+  eligibilitySnapshot Json
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  circle Circle                  @relation(fields: [circleId], references: [id], onDelete: Restrict)
+  audits CircleCapabilityAudit[]
+  circleQuotas CircleCapabilityQuota[] @relation("CircleQuotaGrant")
+  providerQuotas CircleCapabilityQuota[] @relation("ProviderQuotaGrant")
+
+  @@unique([circleId, capability, subjectKey, sequence], map: "CircleCapabilityGrant_scope_sequence_key")
+  @@index([circleId, capability, subjectKey, createdAt], map: "CircleCapabilityGrant_scope_created_idx")
+  @@index([state, createdAt])
+  @@index([subjectUserId, createdAt])
+}
+
+model CircleCapabilityAudit {
+  id             String   @id @default(uuid())
+  grantId        String
+  revision       Int
+  actorId        String
+  action         String   @db.VarChar(24)
+  reason         String   @db.VarChar(500)
+  beforeSnapshot Json?
+  afterSnapshot  Json
+  createdAt      DateTime @default(now())
+
+  grant CircleCapabilityGrant @relation(fields: [grantId], references: [id], onDelete: Restrict)
+
+  @@unique([grantId, revision])
+  @@index([actorId, createdAt])
+}
+
+enum CircleCapabilityQuotaState {
+  HELD
+  ACTIVE
+  COMPLETED
+  RELEASED
+  EXPIRED
+}
+
+enum CircleCapabilityQuotaAction {
+  RESERVE
+  ACTIVATE
+  COMPLETE
+  RELEASE
+  EXPIRE
+}
+
+// 一次业务实例的额度账本；业务身份和原授权修订在创建后不可由状态更新修改。
+model CircleCapabilityQuota {
+  id                    String @id @default(uuid())
+  circleId              String
+  capability            CircleCapabilityType
+  actorId               String
+  subjectUserId         String?
+  businessType          String @db.VarChar(40)
+  businessId            String
+  requestKey            String @unique
+  units                 Int
+  holdSeconds           Int
+  ownerId               String
+  circleGrantId         String?
+  circleGrantRevision   Int?
+  providerGrantId       String?
+  providerGrantRevision Int?
+  policyRevision        Int
+  revision              Int @default(1)
+  state                 CircleCapabilityQuotaState @default(HELD)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  holdUntil             DateTime
+  activatedAt           DateTime?
+  terminalAt            DateTime?
+
+  circle        Circle @relation(fields: [circleId], references: [id], onDelete: Restrict)
+  circleGrant   CircleCapabilityGrant? @relation("CircleQuotaGrant", fields: [circleGrantId], references: [id], onDelete: Restrict)
+  providerGrant CircleCapabilityGrant? @relation("ProviderQuotaGrant", fields: [providerGrantId], references: [id], onDelete: Restrict)
+  receipts      CircleCapabilityQuotaReceipt[]
+  dispatch      CircleCapabilityDispatch?
+
+  @@unique([businessType, businessId], map: "CircleCapabilityQuota_business_key")
+  @@index([circleId, createdAt])
+  @@index([circleGrantId, state, holdUntil], map: "CircleCapabilityQuota_circle_usage_idx")
+  @@index([providerGrantId, state, holdUntil], map: "CircleCapabilityQuota_provider_usage_idx")
+}
+
+// 初次预留及每次状态变化都留回执，不删除；真实业务适配器的证据不存秘密参数。
+model CircleCapabilityQuotaReceipt {
+  id             String @id @default(uuid())
+  reservationId  String
+  operationKey   String @unique
+  action         CircleCapabilityQuotaAction
+  appliedRevision Int
+  source         String @db.VarChar(24)
+  actorId        String?
+  evidenceRef    String? @db.VarChar(128)
+  beforeSnapshot Json?
+  afterSnapshot  Json
+  createdAt      DateTime @default(now())
+
+  reservation CircleCapabilityQuota @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@unique([reservationId, appliedRevision], map: "CircleCapabilityQuotaReceipt_revision_key")
+  @@index([createdAt])
+}
+
+// 一次额度业务的可靠派发状态；未知外部结果不得自动退回 READY 或释放额度。
+enum CircleCapabilityDispatchState {
+  READY
+  DISPATCHING
+  CONFIRMED
+  UNKNOWN
+  CANCELLED
+}
+
+model CircleCapabilityDispatch {
+  id                   String @id @default(uuid())
+  reservationId        String @unique
+  state                CircleCapabilityDispatchState @default(READY)
+  revision             Int @default(1)
+  providerOperationKey String @unique
+  leaseToken           String? @unique
+  leaseUntil           DateTime?
+  dispatchedAt         DateTime?
+  resolvedAt           DateTime?
+  evidenceRef          String? @db.VarChar(128)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  reservation CircleCapabilityQuota @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@index([state, createdAt])
+  @@index([state, leaseUntil])
 }
 
 model CircleMember {
@@ -1666,6 +1836,9 @@ model LiveRoom {
   auditLogs       LiveAuditLog[]
   watchProgresses LiveWatchProgress[]
   bookings        LiveBooking[]
+  mediaEvidence   LiveMediaEvidence?
+  credentialBoundaries LiveMediaCredentialBoundary[]
+  mediaStopIntents LiveMediaStopIntent[]
 
   @@index([userId])
   @@index([status])
@@ -1676,6 +1849,50 @@ model LiveRoom {
   @@index([stationId])
   @@index([status, startTime])
   @@index([hostUserId, status])
+}
+
+/// 内部媒体会话证据，不保存原始回调/签名；不能仅凭断流事件释放并发额度。
+model LiveMediaEvidence {
+  roomId    String @id
+  snapshot  Json
+  revision  Int @default(1)
+  room      LiveRoom @relation(fields: [roomId], references: [id], onDelete: Restrict)
+}
+
+/// 只记录签发的媒体范围与最晚过期时间，不保存凭据原文。
+model LiveMediaCredentialBoundary {
+  roomId       String
+  provider     String
+  scope        Json
+  expiresAt    DateTime
+  revision     Int @default(1)
+  room         LiveRoom @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@id([roomId, provider])
+}
+
+/// 结束直播与停流意图同事务，超时不自动重发供应商写操作。
+model LiveMediaStopIntent {
+  roomId            String
+  provider          String
+  operationId       String @unique
+  requestedBy       String
+  scope             Json
+  credentialRevision Int
+  protectUntil      DateTime
+  state             String @default("READY")
+  revision          Int @default(1)
+  createdAt         DateTime
+  claimedAt         DateTime?
+  leaseUntil        DateTime?
+  resultAt          DateTime?
+  providerRequestId String?
+  verification      Json?
+  completion        Json?
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@id([roomId, provider])
+  @@index([state, createdAt])
 }
 
 /// 直播预约必须持久化，Redis 只可作为加速层，不能作为用户预约事实真源。
@@ -7311,11 +7528,24 @@ model ConsultCall {
   disputeResolveNote String?
   disputeResolvedAt  DateTime?
   disputeReviewerId  String?
+  mediaBoundary      ConsultCallMediaBoundary?
 
+  @@index([rtcRoomId])
   @@index([callerId])
   @@index([expertId, status])
   @@index([expertId, rating])
   @@index([disputeStatus])
+}
+
+/// 咨询已签发票据的非敏感范围与最晚到期，不保存票据本体。
+model ConsultCallMediaBoundary {
+  callId    String @id
+  scope     Json
+  expiresAt DateTime
+  revision  Int @default(1)
+  stopIntent Json?
+  mediaEvidence Json?
+  call      ConsultCall @relation(fields: [callId], references: [id], onDelete: Restrict)
 }
 
 // ───────── IM 社交权限（阶段一·2026-06-28） ─────────

@@ -25,6 +25,9 @@ function buildSvc() {
     webhook as never,
     audit as never,
     publishGrants as never,
+    {} as never,
+    {} as never,
+    {} as never,
   );
   return { svc, prisma };
 }

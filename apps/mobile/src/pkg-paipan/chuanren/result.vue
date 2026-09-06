@@ -7,6 +7,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -38,7 +39,11 @@ const invalid = ref(false)
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> | null = null
+let saved = false
+function loadResult() {
+  const opts = entryQuery
+  if (!opts) return
   try {
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
@@ -66,14 +71,21 @@ onLoad((opts: Record<string, string> = {}) => {
     })
     r.value = res
     q.value = params
-    saveChuanrenHistory(
+    if (!saved) saveChuanrenHistory(
       params,
       `${res.qimen.ju.label} · ${res.liuren.yuejiang.zhi}将${res.liuren.sizhu.hour.zhi}时`,
     )
+    saved = true
   } catch {
     invalid.value = true
   }
+}
+const preview = useNativePreviewPage(loadResult, () => {
+  q.value = null
+  r.value = null
+  invalid.value = false
 })
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts }; void preview.run() })
 
 // ─── 派生展示 ───
 const infoRows = computed<[string, string][]>(() => {
@@ -134,7 +146,12 @@ function goInput() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" back-href="/pkg-paipan/chuanren/index" @share="onShare" />
 
     <!-- 参数错误态 -->

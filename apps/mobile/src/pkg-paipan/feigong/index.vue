@@ -7,7 +7,7 @@
  *       结果页按已定数重算（展示口径仍标「随机起局」），历史重开结果一致。
  */
 import { ref, computed, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -89,11 +89,18 @@ const numberValid = computed(() => {
 
 // ─── 排盘记录（内嵌卡） ───
 function loadRecords() { history.value = loadFeigongHistory() }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => {
+  history.value = []
+  topic.value = ''
+  num.value = ''
+})
 
 function onClearHistory() {
-  clearFeigongHistory()
-  history.value = []
+  const current = preview.captureInteraction()
+  uni.showModal({
+    title: '清空记录', content: '确定清空当前账号的飞宫排盘记录？',
+    success: res => { if (res.confirm && current()) void preview.run(() => { clearFeigongHistory(); history.value = [] }) },
+  })
 }
 function openRecord(h: FeigongHistoryItem) {
   navigateTo(`/pkg-paipan/feigong/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
@@ -118,7 +125,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" subtitle="民间快占 · 时上起青龙" share share-title="飞宫小奇门排盘" />
 
     <scroll-view scroll-y class="body">

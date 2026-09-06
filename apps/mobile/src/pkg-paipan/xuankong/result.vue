@@ -11,6 +11,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -107,11 +108,24 @@ function persist() {
 }
 
 function onNameDone() {
-  editingName.value = false
-  persist()
+  if (!allowed.value || !params.value) return
+  const target = { ...params.value, customer: customer.value.trim().slice(0, 20) }
+  return preview.run(() => {
+    params.value = target; customer.value = target.customer
+    persist()
+    entryQuery = { payload: encodeURIComponent(JSON.stringify(target)) }
+  })
 }
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  params.value = null; loadError.value = ''; customer.value = ''
+  editingName.value = false; showDatePicker.value = false; selectedPalace.value = null
+})
+const { allowed, checking } = preview
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<XuankongParams>
@@ -135,11 +149,12 @@ onLoad((q: Record<string, string> = {}) => {
     }
     customer.value = params.value.customer
     flyDate.value = { year, month, day, hour, minute }
-    persist()
+    if (!recorded) { persist(); recorded = true }
   } catch (e) {
+    params.value = null
     loadError.value = (e as Error)?.message || '排盘参数无效，请重新排盘'
   }
-})
+}
 
 function goInput() {
   navigateTo('/pkg-paipan/xuankong/index')
@@ -162,18 +177,24 @@ function onDateConfirm(d: {
 
 /** 分享：复制盘面文字摘要 */
 function onShare() {
+  if (!allowed.value) return
   const p = params.value
   const c = chart.value
   if (!p || !c) return
+  const name = customer.value
   const summary = [
     `【玄空飞星】${customer.value ? `${customer.value} · ` : ''}${CN_NUM[p.period]}运 ${shanxiang.value} ${p.ti ? '替卦' : '下卦'}`,
     `格局：${c.geju} · 水口在${MOUNTAINS[p.shuikou]}`,
     `山星${CN_NUM[c.shanCenter]}入中${c.shanForward ? '顺' : '逆'}飞 · 向星${CN_NUM[c.xiangCenter]}入中${c.xiangForward ? '顺' : '逆'}飞`,
     '—— 来自热卜 · 专业排盘工具',
   ].join('\n')
-  uni.setClipboardData({
-    data: summary,
-    success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+  return preview.run(() => {
+    params.value = p
+    customer.value = name
+    uni.setClipboardData({
+      data: summary,
+      success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+    })
   })
 }
 
@@ -252,7 +273,12 @@ const palaceDetail = computed(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       :subtitle="chart && params ? `${CN_NUM[params.period]}运 ${shanxiang} ${params.ti ? '替卦' : '下卦'}` : ''"

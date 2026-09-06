@@ -1,4 +1,5 @@
 import { BRAND } from "@/lib/brand";
+import { isShareCancelled, parseShareQuery, publicShareContext } from "@/lib/public-share-context";
 
 export interface ShareLinkOptions {
   title?: string;
@@ -30,16 +31,26 @@ export function buildH5Url(route: string, params: ShareQuery = {}): string {
   return `${url}${query ? `?${query}` : ""}`;
 }
 
-/** 生成当前页面的正式 H5 链接；H5 保留浏览器完整 query，App/小程序从页面栈重建。 */
+/** 默认只分享公开页面定位；专用授权邀请仍由调用方显式 buildH5Url 构造。 */
 export function getCurrentShareUrl(): string {
-  if (typeof window !== "undefined" && window.location?.href) return window.location.href;
   const pages = getCurrentPages();
   const current = pages[pages.length - 1] as unknown as {
     route?: string;
     options?: Record<string, string | number | boolean | undefined | null>;
   };
-  const route = String(current?.route || "pages/index/index").replace(/^\//, "");
-  return buildH5Url(route, current?.options || {});
+  let route = String(current?.route || "").replace(/^\//, "");
+  let options = current?.options || {};
+  // #ifdef H5
+  if (typeof window !== "undefined" && window.location) {
+    const basePath = `/${String((import.meta as any).env?.BASE_URL || "/h5/")}`.replace(/\/+/g, "/").replace(/\/+$/, "");
+    const pathname = window.location.pathname;
+    if (pathname.startsWith(`${basePath}/`)) route = pathname.slice(basePath.length + 1);
+    else if (pathname === basePath || pathname === `${basePath}/`) route = "pages/index/index";
+    options = parseShareQuery(window.location.search);
+  }
+  // #endif
+  const context = publicShareContext(route, options);
+  return buildH5Url(context.route, context.params);
 }
 
 function copyLink(url: string): Promise<boolean> {
@@ -63,7 +74,12 @@ function copyLink(url: string): Promise<boolean> {
  * 用户主动取消系统分享不伪报成功，也不强行回退剪贴板。
  */
 export async function shareLink(options: ShareLinkOptions = {}): Promise<boolean> {
-  const url = options.url || getCurrentShareUrl();
+  let url: string;
+  try { url = options.url || getCurrentShareUrl(); }
+  catch {
+    uni.showToast({ title: "此页面暂不支持公开分享", icon: "none" });
+    return false;
+  }
   if (!url) {
     uni.showToast({ title: "分享链接生成失败", icon: "none" });
     return false;
@@ -84,7 +100,8 @@ export async function shareLink(options: ShareLinkOptions = {}): Promise<boolean
       );
     });
     return true;
-  } catch {
+  } catch (error) {
+    if (isShareCancelled(error)) return false;
     // 系统分享不可用时继续尝试浏览器分享，最终才复制链接。
   }
   // #endif
@@ -97,7 +114,7 @@ export async function shareLink(options: ShareLinkOptions = {}): Promise<boolean
         await nav.share({ title: options.title, text: options.text, url });
         return true;
       } catch (error) {
-        if ((error as { name?: string })?.name === "AbortError") return false;
+        if (isShareCancelled(error)) return false;
         // 系统分享异常时回退复制，保证用户仍能完成动作。
       }
     }

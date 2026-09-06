@@ -1,14 +1,17 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiExcludeController, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { BaziCaseService } from "./bazi-case.service";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 /**
  * 八字案例库
+ * 开发阶段全部入口先要求当前有效超级管理员及私有预览开关；
+ * 下述“不含答案”规则是预览资格通过后的第二层数据保护，不表示公开开放。
  *
  * 🔴 答案 = 真实人生经历（life + events）；断语（commentary）只是参考。
  *
@@ -19,11 +22,13 @@ import { RedLineGate, RedLine } from "../../common/red-lines";
  * 这样即便有人扒接口，没点过「公布答案」也拿不到答案。
  */
 @ApiTags("八字案例库")
+@ApiExcludeController()
 @Controller("bazi-cases")
+@UseGuards(NativePaipanGuard)
 export class BaziCaseController {
   constructor(private readonly svc: BaziCaseService) {}
 
-  // ── 浏览（公开）──
+  // ── 开发预览浏览（当前超级管理员且私有开关开启）──
 
   @Get()
   @ApiOperation({ summary: "案例列表（仅已审核通过；不含答案）" })
@@ -132,8 +137,9 @@ export class BaziCaseController {
 
 /** 审核台（admin） */
 @ApiTags("八字案例库·审核")
+@ApiExcludeController()
 @Controller("admin/bazi-cases")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(NativePaipanGuard, RolesGuard)
 @ApiBearerAuth()
 export class BaziCaseAdminController {
   constructor(private readonly svc: BaziCaseService) {}

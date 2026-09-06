@@ -4,7 +4,7 @@ import { authApi } from "@/api";
 import { ElMessage } from "element-plus";
 import { buildMenus } from "@/lib/menu-structure";
 import { clearAdminSession } from "@/utils/auth-session";
-import { isNativePaipanEnabled, refreshPaipanMode } from "@/lib/paipan-runtime";
+import { canManageNativePreview, clearNativePreviewState, isNativePaipanEnabled, refreshPaipanMode } from "@/lib/paipan-runtime";
 
 export interface MenuItem {
   title: string;
@@ -112,11 +112,13 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function fetchMenus() {
+    const requestToken = localStorage.getItem("token");
+    const previewManager = isSuperAdmin.value && await canManageNativePreview();
     // 目录重构批（2026-07-11）：菜单改为前端按员工工作流分组生成（lib/menu-structure.ts·可见性以路由 meta.roles 为准），
     // 后端 /auth/menus 仅作兜底（前端构建异常/为空时回退旧菜单·后端不动可随时回滚）
     let base: MenuItem[] = [];
     try {
-      await refreshPaipanMode();
+      if (isSuperAdmin.value) await refreshPaipanMode();
       base = buildMenus(roles.value, isNativePaipanEnabled());
     } catch {
       base = [];
@@ -129,7 +131,7 @@ export const useAuthStore = defineStore("auth", () => {
         base = [];
       }
     }
-    if (!isNativePaipanEnabled()) {
+    if (!isSuperAdmin.value || !isNativePaipanEnabled()) {
       const nativePaths = new Set(["/bazi", "/ziwei", "/qimen", "/liuyao", "/daliuren", "/paipan-records"]);
       const stripNative = (items: MenuItem[]): MenuItem[] => items
         .filter((item) => !item.path || !nativePaths.has(item.path))
@@ -137,11 +139,20 @@ export const useAuthStore = defineStore("auth", () => {
         .filter((item) => !item.children || item.children.length > 0);
       base = stripNative(base);
     }
+    if (!previewManager) {
+      const stripPrivate = (items: MenuItem[]): MenuItem[] => items
+        .filter(item => item.path !== "/system/native-paipan-preview")
+        .map(item => ({ ...item, children: item.children ? stripPrivate(item.children) : undefined }))
+        .filter(item => !item.children || item.children.length > 0);
+      base = stripPrivate(base);
+    }
+    if (localStorage.getItem("token") !== requestToken) return;
     // 商家用户追加商家后台菜单
     menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
   }
 
   function logout(options: { notify?: boolean } = {}) {
+    clearNativePreviewState();
     token.value = null;
     user.value = null;
     menus.value = [];

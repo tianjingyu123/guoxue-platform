@@ -7,7 +7,7 @@
  *       V0 底部弹层选择器换 uni-app 原生 picker（selector）。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -104,9 +104,10 @@ function onShuikouChange(e: { detail: { value: string | number } }) {
 
 // ── 排盘记录 ──
 const history = ref<XuankongHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadXuankongHistory()
-})
+}, () => { history.value = []; showDatePicker.value = false })
+const { allowed, checking } = preview
 
 function onClearHistory() {
   uni.showModal({
@@ -114,8 +115,7 @@ function onClearHistory() {
     content: '确定清空全部排盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearXuankongHistory()
-        history.value = []
+        void preview.run(() => { clearXuankongHistory(); history.value = [] })
       }
     },
   })
@@ -149,7 +149,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/xuankong/history" :title="hdrTitle" subtitle="三元九运 · 挨星飞布" share />
 
     <scroll-view scroll-y class="body">

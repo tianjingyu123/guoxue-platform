@@ -163,7 +163,7 @@
       </view>
 
       <!-- 点赞（已赞 → 朱红实心·爆红心 scale 动效 200ms·纯 transform 无 filter） -->
-      <view class="vp__act" @tap="onLike()">
+      <view class="vp__act" role="button" tabindex="0" :aria-label="currentVideo.isLiked ? '取消点赞' : '点赞视频'" :aria-pressed="currentVideo.isLiked" @tap="onLike()" @keydown.enter.prevent="onLike()" @keydown.space.prevent="onLike()">
         <view class="vp__act-ico" :class="{ 'vp__act-ico--liked': currentVideo.isLiked }">
           <AppIcon name="heart" :size="58" :color="currentVideo.isLiked ? '#C41E3A' : 'rgba(255,255,255,0.94)'" :fill="currentVideo.isLiked" />
         </view>
@@ -171,7 +171,7 @@
       </view>
 
       <!-- 评论 -->
-      <view class="vp__act" @tap="openComments">
+      <view class="vp__act" role="button" tabindex="0" aria-label="打开评论" @tap="openComments" @keydown.enter.prevent="openComments" @keydown.space.prevent="openComments">
         <view class="vp__act-ico">
           <AppIcon name="message-circle" :size="54" color="rgba(255,255,255,0.94)" />
         </view>
@@ -179,7 +179,7 @@
       </view>
 
       <!-- 收藏（收藏 → 金星 scale 动效 240ms·star 图标·金 #C9A96E） -->
-      <view class="vp__act" @tap="onCollect">
+      <view class="vp__act" role="button" tabindex="0" :aria-label="currentVideo.isCollected ? '取消收藏' : '收藏视频'" :aria-pressed="currentVideo.isCollected" @tap="onCollect" @keydown.enter.prevent="onCollect" @keydown.space.prevent="onCollect">
         <view class="vp__act-ico" :class="{ 'vp__act-ico--starred': currentVideo.isCollected }">
           <AppIcon name="star" :size="54" :color="currentVideo.isCollected ? '#C9A96E' : 'rgba(255,255,255,0.94)'" :fill="currentVideo.isCollected" />
         </view>
@@ -187,7 +187,7 @@
       </view>
 
       <!-- 分享（弹分享面板：复制链接 + 微信内转发引导） -->
-      <view class="vp__act" @tap.stop="onShare">
+      <view class="vp__act" role="button" tabindex="0" aria-label="分享视频" @tap.stop="onShare" @keydown.enter.stop.prevent="onShare" @keydown.space.stop.prevent="onShare">
         <view class="vp__act-ico">
           <AppIcon name="share-2" :size="54" color="rgba(255,255,255,0.94)" />
         </view>
@@ -195,7 +195,7 @@
       </view>
 
       <!-- 争议内容出口：直达真实举报表单，避免只能退出或在评论区发泄。 -->
-      <view class="vp__act" @tap.stop="onReport">
+      <view class="vp__act" role="button" tabindex="0" aria-label="举报视频" @tap.stop="onReport" @keydown.enter.stop.prevent="onReport" @keydown.space.stop.prevent="onReport">
         <view class="vp__act-ico">
           <AppIcon name="flag" :size="48" color="rgba(255,255,255,0.88)" />
         </view>

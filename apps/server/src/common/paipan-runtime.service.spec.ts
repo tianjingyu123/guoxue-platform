@@ -40,4 +40,22 @@ describe("PaipanRuntimeService", () => {
       }),
     ).toBe(false);
   });
+
+  it("运行入口主库值优先，查询失败不沿用旧 native 环境配置", async () => {
+    process.env.PAIPAN_MODE = "native";
+    const findUnique = jest.fn().mockResolvedValue({ configValue: "legacy" });
+    const prisma = { configSystem: { findUnique } } as any;
+    const runtime = new PaipanRuntimeService();
+    expect(await runtime.getCurrentMode(prisma)).toBe("legacy");
+    findUnique.mockRejectedValue(new Error("unavailable"));
+    await expect(runtime.getCurrentMode(prisma)).rejects.toMatchObject({ status: 503 });
+  });
+
+  it.each([[], ["OPERATION_ADMIN"], ["CONTENT_AUDITOR"], ["USER"]].map(roles => ({ roles })))("旧白名单不得授予非超级管理员预览：%j", ({ roles }) => {
+    process.env.PAIPAN_NATIVE_QA_ENABLED = "true";
+    process.env.PAIPAN_NATIVE_QA_HOST = "pre-api.rebugx.cn";
+    process.env.PUBLIC_API_URL = "https://pre-api.rebugx.cn";
+    process.env.PAIPAN_NATIVE_QA_ALLOWLIST = "user:qa,role:OPERATION_ADMIN,role:CONTENT_AUDITOR";
+    expect(new PaipanRuntimeService().isQaRequestAllowed("pre-api.rebugx.cn", { id: "qa", roles })).toBe(false);
+  });
 });

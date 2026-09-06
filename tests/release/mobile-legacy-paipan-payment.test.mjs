@@ -188,7 +188,7 @@ test('双桥支付不再跳微信内网页，iOS 的 webkit 支付消息也走�
     assert.equal(assigned.some((url) => url.includes('mod=pay')), false)
   }
   assert.match(page, /action === 'legacy-payment'\) void requestLegacyPayment\(url, child\)/u)
-  assert.match(page, /onShow\(\(\) => \{\s*legacyPageVisible = true\s*flushLegacyPaymentResult\(\)/u)
+  assert.match(page, /onShow\(\(\) => \{\s*legacyPageVisible = true\s*legacyCompassOpening = false\s*flushLegacyPaymentResult\(\)/u)
   assert.match(page, /pending\.documentVersion !== legacyDocumentVersion/u)
   assert.match(page, /pending\.child\.getURL\?\.\(\) !== pending\.url/u)
 })

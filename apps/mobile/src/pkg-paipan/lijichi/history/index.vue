@@ -4,7 +4,8 @@
  * 数据来自本地真实记录（../lijichi-history），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import ToolHeader from '@/components/paipan/tool-header.vue'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -14,7 +15,7 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadLijichiHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -26,6 +27,7 @@ const vms = computed<HistoryVM[]>(() =>
 )
 
 function open(vm: HistoryVM) {
+  if (!preview.allowed.value) return
   const r = vm.raw
   const params: Record<string, unknown> = { customer: r.client === '未命名' ? '' : r.client, sitting: r.sitting }
   if (typeof r.heading === 'number') params.heading = r.heading
@@ -34,17 +36,25 @@ function open(vm: HistoryVM) {
   navigateTo(`/pkg-paipan/lijichi/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
 }
 function onPin(ids: string[]) {
-  pinLijichiHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const target = [...ids]
+  return preview.run(() => { pinLijichiHistory(target); reload() })
 }
 function onDelete(ids: string[]) {
-  removeLijichiHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const target = [...ids]
+  return preview.run(() => { removeLijichiHistory(target); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="测量记录" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
   <HistoryPage
+    v-else
     title="测量记录"
     back-href="/paipan/lijichi"
     :records="vms"

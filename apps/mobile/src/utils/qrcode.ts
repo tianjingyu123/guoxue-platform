@@ -29,6 +29,8 @@ interface UQRCodeInstance {
 }
 
 export interface DrawQrOptions {
+  /** 在给定方框内部保留至少四个码元静区，并按整数像素绘制；尺寸不足时拒绝导出。 */
+  contained?: boolean
   /** 码点颜色（默认 #2d2a26·近黑保证识别率） */
   foreground?: string
   /** 白色衬底颜色（默认 #ffffff） */
@@ -57,8 +59,9 @@ export function drawQrToCanvas(
   size: number,
   options: DrawQrOptions = {},
 ): boolean {
-  if (!text || size <= 0) return false
+  if (!text || ![x, y, size].every(Number.isFinite) || size <= 0) return false
   const {
+    contained = false,
     foreground = '#2d2a26',
     background = '#ffffff',
     padding = 6,
@@ -77,9 +80,17 @@ export function drawQrToCanvas(
     const count = qr.moduleCount
     if (!modules || !count) return false
 
+    const cell = contained ? Math.floor(size / (count + 8)) : 0
+    if (contained && cell < 1) return false
+    const coreSize = contained ? cell * count : size
+    const inset = contained ? (size - coreSize) / 2 : 0
+    const drawX = x + inset
+    const drawY = y + inset
+
     // 白色衬底（含静区，保证深色卡面上的识别率）
     ctx.setFillStyle(background)
-    roundRectPath(ctx, x - padding, y - padding, size + padding * 2, size + padding * 2, radius)
+    roundRectPath(ctx, contained ? x : x - padding, contained ? y : y - padding,
+      contained ? size : size + padding * 2, contained ? size : size + padding * 2, contained ? 0 : radius)
     ctx.fill()
 
     // 码点：精确整数边界（round(i*size/count)）逐格填充，无重叠无白缝
@@ -88,10 +99,10 @@ export function drawQrToCanvas(
     for (let row = 0; row < count; row++) {
       for (let col = 0; col < count; col++) {
         if (!modules[row][col] || !modules[row][col].isBlack) continue
-        const px0 = x + Math.round((col * size) / count)
-        const px1 = x + Math.round(((col + 1) * size) / count)
-        const py0 = y + Math.round((row * size) / count)
-        const py1 = y + Math.round(((row + 1) * size) / count)
+        const px0 = drawX + Math.round((col * coreSize) / count)
+        const px1 = drawX + Math.round(((col + 1) * coreSize) / count)
+        const py0 = drawY + Math.round((row * coreSize) / count)
+        const py1 = drawY + Math.round(((row + 1) * coreSize) / count)
         ctx.fillRect(px0, py0, px1 - px0, py1 - py0)
       }
     }

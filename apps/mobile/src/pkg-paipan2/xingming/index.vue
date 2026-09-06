@@ -6,7 +6,7 @@
  *       ②真太阳时开关与 V0 一致仅作展示口径（生肖按出生年判定，不受分钟级修正影响）
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -45,6 +45,7 @@ function onDateConfirm(v: {
   year: number; month: number; day: number
   hour: number | null; minute: number | null; isLunar?: boolean
 }) {
+  if (!preview.allowed.value) return
   // 农历输入归一为公历：computeBazi 入参恒为公历，否则农历数字会被当公历排四柱
   const { date, ok } = toSolarSafe({
     year: v.year, month: v.month, day: v.day,
@@ -58,7 +59,7 @@ function onDateConfirm(v: {
 }
 
 function handleSubmit() {
-  if (!canSubmit.value) return
+  if (!preview.allowed.value || !canSubmit.value) return
   const payload = {
     name: fullName.value.trim(),
     gender: gender.value,
@@ -71,11 +72,17 @@ function handleSubmit() {
 
 // ── 解析记录（内嵌卡·本地存储） ──
 const history = ref<XingmingHistoryRecord[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadXingmingHistory()
+}, () => {
+  history.value = []; fullName.value = ''; gender.value = '男'; trueSolar.value = true
+  birthDate.value = { year: 1990, month: 1, day: 1, hour: 12, minute: 0 }
+  birthPlace.value = { province: '', city: '', district: '', timezone: '北京时间' }
+  dateOpen.value = false; locationOpen.value = false
 })
 
 function openRecord(r: XingmingHistoryRecord) {
+  if (!preview.allowed.value) return
   const payload = {
     name: r.name,
     gender: r.gender,
@@ -87,13 +94,19 @@ function openRecord(r: XingmingHistoryRecord) {
 }
 
 function onClearHistory() {
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
+  const snapshot = { name: fullName.value, gender: gender.value, solar: trueSolar.value, date: { ...birthDate.value }, place: { ...birthPlace.value } }
   uni.showModal({
     title: '清空记录',
     content: '确定清空全部解析记录？',
     success: (res) => {
-      if (res.confirm) {
-        clearXingmingHistory()
-        history.value = []
+      if (res.confirm && isCurrent()) {
+        void preview.run(() => {
+          clearXingmingHistory(); history.value = []
+          fullName.value = snapshot.name; gender.value = snapshot.gender; trueSolar.value = snapshot.solar
+          birthDate.value = snapshot.date; birthPlace.value = snapshot.place
+        })
       }
     },
   })
@@ -101,7 +114,12 @@ function onClearHistory() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/xingming/history" :title="hdrTitle" />
 
     <scroll-view scroll-y class="body">
@@ -235,7 +253,7 @@ function onClearHistory() {
       :open="locationOpen"
       :initial-location="birthPlace.province ? birthPlace : undefined"
       @close="locationOpen = false"
-      @confirm="(v) => birthPlace = v"
+      @confirm="(v) => { if (preview.allowed.value) birthPlace = v }"
     />
   </view>
 </template>

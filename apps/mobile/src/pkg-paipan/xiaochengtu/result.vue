@@ -10,6 +10,8 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -61,7 +63,16 @@ const result = ref<XctResult | null>(null)
 const invalid = ref(false)
 const selected = ref(3)
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  result.value = null
+  invalid.value = false
+  selected.value = 3
+})
+const { allowed, checking } = preview
+function initialize(opts: Record<string, string>) {
   try {
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
@@ -85,18 +96,20 @@ onLoad((opts: Record<string, string> = {}) => {
       num3: p.n3 !== undefined ? Number(p.n3) : undefined,
     })
     result.value = r
-    saveRecord(Number(p.ts) || Date.now(), p, r)
+    if (!recorded) recorded = saveRecord(Number(p.ts) || Date.now(), p, r)
   } catch {
     invalid.value = true
   }
-})
+}
 
 /** 排盘记录自动留存（以起卦 ts 去重，重开历史不重复写） */
 function saveRecord(id: number, params: Record<string, unknown>, r: XctResult) {
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const key = nativeHistoryKey(HISTORY_KEY)
+    if (!key) return false
+    const raw = uni.getStorageSync(key)
     const records = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
-    if (records.some((it) => it.id === id)) return
+    if (records.some((it) => it.id === id)) return true
     records.unshift({
       id,
       matter: r.topic || '未命名事项',
@@ -105,8 +118,9 @@ function saveRecord(id: number, params: Record<string, unknown>, r: XctResult) {
       params,
       createdAt: Date.now(),
     })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(records.slice(0, 100)))
-  } catch { /* 留存失败不影响排盘 */ }
+    uni.setStorageSync(key, JSON.stringify(records.slice(0, 100)))
+    return true
+  } catch { return false /* 留存失败不影响排盘，恢复后可重试 */ }
 }
 
 const sel = computed<XctPalace | null>(() => {
@@ -137,7 +151,12 @@ function isRising(gua: string) { return RISING.has(gua) }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="小成图排盘"
       back-href="/pkg-paipan/xiaochengtu/index"

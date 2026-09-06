@@ -8,7 +8,7 @@
  * 数据层沿用原实现（circleDetailApi 全套 + 角色/加入/审批/付费/弹窗逻辑），不改后端契约。
  */
 import { ref, computed } from 'vue'
-import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -21,7 +21,7 @@ import { VOICE } from '@/lib/voice'
 import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
-  circleDetailApi, memberBenefits,
+  circleDetailApi, circleMembershipNotes,
   type CircleDetail, type CirclePost, type CircleMember, type CircleArticle, type CircleCourse, type CircleLive, type CircleProduct,
 } from '@/lib/circle-detail-data'
 import { track } from '@/composables/useTrack'
@@ -107,13 +107,29 @@ const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
 const qaExperts = ref<ConsultExpert[]>([])
 const qaLoading = ref(false)
 const qaLoaded = ref(false)
+const qaError = ref('')
+let qaRequest = 0
+function invalidateQaExperts() {
+  ++qaRequest
+  qaLoaded.value = false
+  qaLoading.value = false
+  qaExperts.value = []
+  qaError.value = ''
+}
 async function loadQaExperts() {
   if (qaLoaded.value || qaLoading.value) return
+  const request = ++qaRequest
+  const requestedCircle = circleId.value
   qaLoading.value = true
+  qaError.value = ''
+  qaExperts.value = []
   try {
-    qaExperts.value = await consultApi.listExperts(circleId.value)
-  } catch { qaExperts.value = [] }
-  finally { qaLoading.value = false; qaLoaded.value = true }
+    const experts = await consultApi.listExperts(requestedCircle)
+    if (request !== qaRequest || requestedCircle !== circleId.value) return
+    qaExperts.value = experts.filter(expert => expert.questionPrice > 0)
+    qaLoaded.value = true
+  } catch { if (request === qaRequest) { qaError.value = '问答服务加载失败，请重试'; qaLoaded.value = false } }
+  finally { if (request === qaRequest) qaLoading.value = false }
 }
 function onTabTap(id: typeof activeTab.value) {
   activeTab.value = id
@@ -132,11 +148,17 @@ onLoad((q) => {
   uni.$on('circle:refresh', onCircleRefresh)
 })
 onUnload(() => {
+  invalidateQaExperts()
   uni.$off('circle:refresh', onCircleRefresh)
   if (fabTimer) clearTimeout(fabTimer)
 })
 // 返回本页（发帖返回/其他页回来）也重拉；首次 onShow 被 isLoading 防抖天然跳过
-onShow(() => { if (circle.value) refresh() })
+onShow(() => {
+  if (circle.value) refresh()
+  invalidateQaExperts()
+  if (activeTab.value === 'qa') void loadQaExperts()
+})
+onHide(invalidateQaExperts)
 
 function onCircleRefresh(id?: string) {
   if (!id || id === circleId.value) refresh()
@@ -537,6 +559,10 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
         </view>
         <view v-if="qaLoading" class="empty"><AppLoading /></view>
+        <view v-else-if="qaError" class="empty">
+          <text class="empty-txt">{{ qaError }}</text>
+          <button class="qa-link" @tap="loadQaExperts">重新加载问答服务</button>
+        </view>
         <template v-else-if="qaExperts.length">
           <view v-for="e in qaExperts" :key="e.id" class="qa-card">
             <smart-avatar :src="e.avatar" :name="e.name || ''" class="qa-avatar" />
@@ -662,10 +688,10 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
         <view class="sheet-head">
           <view class="sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
           <text class="sheet-title">加入「{{ circle.name }}」</text>
-          <text class="sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + formatPrice(circle.price) + '/年' : '¥' + formatPrice(circle.price) }}，解锁以下专属权益</text>
+          <text class="sheet-sub">{{ circle.type === 'FREE' ? '免费加入' : circle.type === 'YEARLY' ? '¥' + formatPrice(circle.price) + '/年' : '¥' + formatPrice(circle.price) }}，入圈前请了解以下说明</text>
         </view>
         <view class="benefits">
-          <view v-for="(b, i) in memberBenefits" :key="i" class="benefit">
+          <view v-for="(b, i) in circleMembershipNotes" :key="i" class="benefit">
             <view class="benefit-icon"><app-icon :name="b.icon" :size="28" color="#C41E3A" /></view>
             <view class="benefit-main">
               <text class="benefit-title">{{ b.title }}</text>

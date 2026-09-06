@@ -6,10 +6,11 @@
  * 口径（后端为准）：达人侧入账 = settledCoin × 50%（后端 consult-call.service end() 分账硬编码 rate 0.5，
  *   与 V0「分账 50%」一致）；未接(MISSED)/取消(REFUNDED)预扣全额退回。点击已结束通话 → 结算单页(call-end)。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
+import { callApi, type ConsultCallRecord, type ConsultActiveCall } from '@/lib/consult-call-data'
 import { getCurrentUserId } from '@/lib/circle-consult-data'
 
 type Dir = 'all' | 'outgoing' | 'incoming' | 'missed'
@@ -18,6 +19,22 @@ const calls = ref<ConsultCallRecord[]>([])
 const loading = ref(true)
 const error = ref('')
 const me = ref('')
+const activeCalls = ref<ConsultActiveCall[]>([])
+const activeError = ref('')
+let generation = 0, timer: ReturnType<typeof setTimeout> | null = null
+function stopRefresh() { generation++; if (timer !== null) clearTimeout(timer); timer = null }
+async function refreshActive(current: number) {
+  try {
+    const result = await callApi.active()
+    if (current !== generation) return
+    activeCalls.value = result
+    activeError.value = ''
+    timer = setTimeout(() => { timer = null; void refreshActive(current) }, 5000)
+  } catch {
+    if (current === generation) activeError.value = '来电列表暂未刷新，点击重试'
+  }
+}
+function retryActive() { stopRefresh(); void refreshActive(generation) }
 
 const filterTabs: { key: Dir; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -67,26 +84,40 @@ const filtered = computed(() =>
   filter.value === 'all' ? calls.value : calls.value.filter(c => direction(c) === filter.value),
 )
 
-function openDetail(c: ConsultCallRecord) {
-  if (c.status === 'WAITING' || c.status === 'ONGOING') return
+function openDetail(c: Pick<ConsultCallRecord, 'id' | 'status'>) {
+  if (c.status === 'WAITING' || c.status === 'ONGOING') {
+    // #ifdef APP-PLUS
+    navigateTo(`/pkg-circle/circles/call-room?id=${encodeURIComponent(c.id)}`)
+    // #endif
+    return
+  }
   navigateTo(`/pkg-circle/circles/call-end?id=${c.id}`)
 }
 
 async function load() {
+  const current = generation
   loading.value = true
   error.value = ''
   try {
     me.value = getCurrentUserId()
-    calls.value = await callApi.myCalls()
+    const result = await callApi.myCalls()
+    if (current !== generation) return
+    calls.value = result
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
-    calls.value = []
+    if (current === generation) { error.value = '加载失败，请重试'; calls.value = [] }
   } finally {
-    loading.value = false
+    if (current === generation) loading.value = false
   }
 }
 
-onMounted(load)
+onShow(() => {
+  stopRefresh(); void load()
+  // #ifdef APP-PLUS
+  void refreshActive(generation)
+  // #endif
+})
+onHide(stopRefresh)
+onUnload(stopRefresh)
 </script>
 
 <template>
@@ -116,6 +147,13 @@ onMounted(load)
     </view>
     <!-- #endif -->
 
+    <!-- 来电独立于最近 50 条历史，避免高频记录挤掉待接通入口。 -->
+    <!-- #ifdef APP-PLUS -->
+    <view v-for="call in activeCalls" :key="'active-' + call.id" class="mcl-item" @tap="openDetail(call)">
+      <text class="mcl-name">{{ call.role === 'EXPERT' && call.status === 'WAITING' ? '新来电 · 点击接听或拒绝' : '当前连线 · 点击查看' }}（{{ call.type === 'VIDEO' ? '视频' : '语音' }}）</text>
+    </view>
+    <view v-if="activeError" class="mcl-item" @tap="retryActive"><text class="mcl-state-t">{{ activeError }}</text></view>
+    <!-- #endif -->
     <!-- 三态 -->
     <view v-if="loading" class="mcl-state"><view class="mcl-skel" /><view class="mcl-skel" /></view>
     <view v-else-if="error" class="mcl-state">

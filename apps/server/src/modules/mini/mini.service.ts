@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, NotFoundException } from "@nestjs/common";
 import { SystemService } from "../system/system.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -131,71 +131,74 @@ export class MiniService {
     return { items, total, page, pageSize, hasMore: page * pageSize < total };
   }
 
-  /** 小程序内容详情（精简版，60秒缓存） */
+  /** 公开详情必须实时确认发布状态；不能以旧缓存绕过下架/软删除。 */
   async getContentDetail(id: string) {
-    const cacheKey = `mini:content:${id}`;
-    const cached = await this.redis.getJson(cacheKey);
-    if (cached) return cached;
-
-    const content = await this.prisma.content.findUnique({
-      where: { id },
+    return this.prisma.content.findFirst({
+      where: {
+        id, status: "PUBLISHED", deletedAt: null,
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+      },
       select: {
         id: true, title: true, type: true, author: true, dynasty: true,
         body: true, cover: true, tags: true, excerpt: true,
         viewCount: true, likeCount: true, status: true, createdAt: true,
       },
     });
-
-    if (!content) return null;
-
-    this.redis.setJson(cacheKey, content, 120).catch((err) => this.logger.warn("缓存写入失败", err));
-    return content;
   }
 
-  /** 小程序分享配置（微信分享卡片标题、图片、路径） */
+  /** 只返回已存在、可公开且有真实页面的内容；不回退首页或另一内容类型。 */
   async getShareConfig(dto: { targetType: string; targetId: string; stationId?: string }) {
     const { targetType, targetId } = dto;
-    let title = "国学传统文化";
-    let imageUrl: string | undefined;
+    const routes: Record<string, string> = {
+      ARTICLE: "/pkg-circle/articles/detail",
+      COURSE: "/pkg-course/detail/index",
+      PRODUCT: "/pkg-mall/product/detail",
+    };
+    if (!Object.prototype.hasOwnProperty.call(routes, targetType)) {
+      // Content 是独立内容库，并不是 Article；当前客户端没有其通用详情页。
+      throw new BadRequestException("此内容类型暂未配置可分享页面");
+    }
+    if (!targetId?.trim()) throw new BadRequestException("缺少分享内容");
 
-    // 提前发起分站查询，与目标内容查询并行
-    const stationPromise = dto.stationId
-      ? this.prisma.station.findUnique({ where: { id: dto.stationId }, select: { miniPages: true } }).catch((err) => { this.logger.warn("获取分站分享页配置失败", err); return null; })
-      : null;
-
-    if (targetType === "CONTENT") {
-      const c = await this.prisma.content.findUnique({
-        where: { id: targetId }, select: { title: true, cover: true },
-      }).catch((err) => { this.logger.warn("获取分享内容信息失败", err); return null; });
-      if (c) { title = c.title; imageUrl = c.cover || undefined; }
-    } else if (targetType === "ARTICLE") {
-      const a = await this.prisma.article.findUnique({
-        where: { id: targetId }, select: { title: true, cover: true },
-      }).catch((err) => { this.logger.warn("获取分享文章信息失败", err); return null; });
-      if (a) { title = a.title; imageUrl = a.cover || undefined; }
+    const now = new Date();
+    const published = {
+      id: targetId, deletedAt: null, auditStatus: "APPROVED", visibility: "PLATFORM",
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+    };
+    let target: { title: string; cover?: string | null; images?: string[] } | null;
+    if (targetType === "ARTICLE") {
+      target = await this.prisma.article.findFirst({
+        where: { ...published, circle: { status: "ACTIVE", deletedAt: null } },
+        select: { title: true, cover: true },
+      });
     } else if (targetType === "COURSE") {
-      const cr = await this.prisma.course.findUnique({
-        where: { id: targetId }, select: { title: true, cover: true },
-      }).catch((err) => { this.logger.warn("获取分享课程信息失败", err); return null; });
-      if (cr) { title = cr.title; imageUrl = cr.cover || undefined; }
-    } else if (targetType === "PRODUCT") {
-      const p = await this.prisma.product.findUnique({
-        where: { id: targetId }, select: { title: true },
-      }).catch((err) => { this.logger.warn("获取分享商品信息失败", err); return null; });
-      if (p) title = p.title;
+      target = await this.prisma.course.findFirst({
+        where: {
+          ...published,
+          AND: [
+            { OR: [{ scheduledOnAt: null }, { scheduledOnAt: { lte: now } }] },
+            { OR: [{ scheduledOffAt: null }, { scheduledOffAt: { gt: now } }] },
+            { OR: [{ circleId: null }, { circle: { status: "ACTIVE", deletedAt: null } }] },
+          ],
+        },
+        select: { title: true, cover: true },
+      });
+    } else {
+      target = await this.prisma.product.findFirst({
+        where: {
+          id: targetId, status: "ON_SALE", deletedAt: null,
+          OR: [{ circleId: null }, { circle: { status: "ACTIVE", deletedAt: null } }],
+        },
+        select: { title: true, images: true },
+      });
     }
-
-    let path = `/pages/content/detail?id=${targetId}`;
-    if (stationPromise) {
-      const station = await stationPromise;
-      if (station?.miniPages) {
-        const pages = station.miniPages as Record<string, string>;
-        if (pages.share) path = `${pages.share}?id=${targetId}`;
-        else if (pages.home) path = `${pages.home}?id=${targetId}`;
-      }
-    }
-
-    return { title, imageUrl, path, targetType, targetId };
+    if (!target) throw new NotFoundException("内容不存在或不可公开分享");
+    // stationId 不能改变落地内容或执行数据库内的任意页面地址。
+    return {
+      title: target.title, imageUrl: target.cover || target.images?.[0] || undefined,
+      path: `${routes[targetType]}?id=${encodeURIComponent(targetId)}`,
+      targetType, targetId,
+    };
   }
 
   // ───────── 多小程序配置 ─────────

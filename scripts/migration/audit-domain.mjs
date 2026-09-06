@@ -115,6 +115,7 @@ function classify(relative, line) {
     relative.includes("/prisma/migrations/") ||
     relative.includes("/__fixtures__/") ||
     relative.endsWith(".spec.ts") ||
+    relative.endsWith(".e2e-spec.ts") ||
     relative.endsWith(".test.ts") ||
     /(^|\/)(seed|mock|demo)[^/]*\./i.test(relative)
   ) {

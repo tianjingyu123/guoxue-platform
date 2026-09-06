@@ -11,7 +11,7 @@ function readModeSnapshot(): PaipanRuntimeMode {
   const mode = uni.getStorageSync(MODE_KEY);
   if (mode !== "legacy" && mode !== "native") return "unknown";
   const observedAt = Number(uni.getStorageSync(MODE_OBSERVED_AT_KEY));
-  if (!Number.isFinite(observedAt) || Date.now() - observedAt > MODE_SNAPSHOT_TTL_MS) {
+  if (!Number.isFinite(observedAt) || observedAt <= 0 || observedAt > Date.now() || Date.now() - observedAt > MODE_SNAPSHOT_TTL_MS) {
     return "unknown";
   }
   return mode;
@@ -22,7 +22,13 @@ export function hydratePaipanRuntime(): Promise<PaipanRuntimeMode> {
   pendingRuntimeRequest = legacyPaipanApi
     .runtime()
     .then((result) => {
-      const mode = result.mode === "native" ? "native" : "legacy";
+      // 配置异常不能猜测另一套排盘，也不能继续保留此前模式作为离线兜底。
+      if (result?.mode !== "native" && result?.mode !== "legacy") {
+        uni.setStorageSync(MODE_KEY, "unknown");
+        uni.setStorageSync(MODE_OBSERVED_AT_KEY, 0);
+        return "unknown" as PaipanRuntimeMode;
+      }
+      const mode = result.mode;
       uni.setStorageSync(MODE_KEY, mode);
       uni.setStorageSync(MODE_OBSERVED_AT_KEY, Date.now());
       return mode;

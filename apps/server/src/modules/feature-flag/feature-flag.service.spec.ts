@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { FeatureFlagService } from "./feature-flag.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { Prisma } from "@prisma/client";
 
 const mockPrisma = {
   featureFlag: {
@@ -47,7 +48,25 @@ describe("FeatureFlagService", () => {
     mockPrisma.configVersion.create.mockResolvedValue({});
   });
 
+  it("新增同名开关即使持有当前预览指纹也不能覆盖", async () => {
+    mockPrisma.featureFlag.findUnique.mockResolvedValue({ key: "client_demo", name: "原配置", enabled: false, percentage: 10, targetUserIds: [] });
+    const preview = await svc.preview("client_demo", {});
+    await expect(svc.upsert("client_demo", { name: "覆盖", expectedFingerprint: preview.baseFingerprint }, "QA", true))
+      .rejects.toMatchObject({ status: 409 });
+    expect(mockPrisma.featureFlag.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.configVersion.create).not.toHaveBeenCalled();
+    expect(mockRedis.del).not.toHaveBeenCalled();
+  });
+
   describe("isEnabled", () => {
+    it("模块兼容只对缺失配置生效，明确关闭和灰度规则不被覆盖", async () => {
+      mockPrisma.featureFlag.findUnique.mockResolvedValue(null);
+      expect(await svc.isEnabled("client_module_circle", undefined, true)).toBe(true);
+      mockPrisma.featureFlag.findUnique.mockResolvedValue({ enabled: false, percentage: 100, targetUserIds: [] });
+      expect(await svc.isEnabled("client_module_circle", undefined, true)).toBe(false);
+      mockPrisma.featureFlag.findUnique.mockResolvedValue({ enabled: true, percentage: 0, targetUserIds: [] });
+      expect(await svc.isEnabled("client_module_circle", undefined, true)).toBe(false);
+    });
     it("开关不存在返回 false", async () => {
       mockPrisma.featureFlag.findUnique.mockResolvedValue(null);
       const result = await svc.isEnabled("nonexistent");
@@ -154,14 +173,16 @@ describe("FeatureFlagService", () => {
       const flag = { key: "f1", enabled: true, percentage: 100, targetUserIds: [] };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.getByKey("f1");
-      expect(result.key).toBe("f1");
+      expect(result?.key).toBe("f1");
     });
 
-    it("缓存命中", async () => {
+    it("管理编辑读取主库最新值，不复用运行时缓存", async () => {
       const cached = { key: "cached", enabled: true };
       mockRedis.getJson.mockResolvedValue(cached);
+      mockPrisma.featureFlag.findUnique.mockResolvedValue({ ...cached, enabled: false });
       const result = await svc.getByKey("cached");
-      expect(result.key).toBe("cached");
+      expect(result).toMatchObject({ key: "cached", enabled: false });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
     });
   });
 
@@ -256,6 +277,33 @@ describe("FeatureFlagService", () => {
   });
 
   describe("history / rollback", () => {
+    it("回滚遇到当前配置与预览不一致，在写入前停止", async () => {
+      mockPrisma.configVersion.findFirst.mockResolvedValue({ value: {
+        key: "client_demo", name: "历史", description: null, enabled: false, percentage: 10, targetUserIds: [],
+      } });
+      mockPrisma.featureFlag.findUnique.mockResolvedValue({
+        key: "client_demo", name: "其他管理员新值", description: null, enabled: true, percentage: 30, targetUserIds: [],
+      });
+      await expect(svc.rollback("client_demo", 1, "admin", "0".repeat(64))).rejects.toThrow("其他管理员修改");
+      expect(mockPrisma.featureFlag.upsert).not.toHaveBeenCalled();
+      expect(mockPrisma.configVersion.create).not.toHaveBeenCalled();
+      expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { percentage: undefined }, { percentage: 101 }, { percentage: -1 }, { percentage: 2.5 },
+      { enabled: "true" }, { targetUserIds: [123] }, { targetUserIds: [""] },
+      { targetUserIds: undefined }, { name: " " }, { description: {} },
+    ])("历史快照损坏时拒绝回滚，不默认全量开放：%j", async (patch) => {
+      mockPrisma.configVersion.findFirst.mockResolvedValue({ value: {
+        key: "client_demo", name: "演示", description: null, enabled: true,
+        percentage: 10, targetUserIds: [], ...patch,
+      } });
+      await expect(svc.rollback("client_demo", 1, "admin")).rejects.toThrow("历史快照校验失败");
+      expect(mockPrisma.featureFlag.upsert).not.toHaveBeenCalled();
+      expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+
     it("查询最近 50 条开关历史", async () => {
       mockPrisma.configVersion.findMany.mockResolvedValue([{ version: 2 }, { version: 1 }]);
       const result = await svc.getHistory("client_demo");
@@ -297,8 +345,15 @@ describe("FeatureFlagService", () => {
     });
 
     it("删除不存在开关不抛异常", async () => {
-      mockPrisma.featureFlag.delete.mockRejectedValue(new Error("Not found"));
+      mockPrisma.featureFlag.delete.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Not found", { code: "P2025", clientVersion: "test" }));
       await expect(svc.delete("nonexistent")).resolves.toBeUndefined();
+    });
+
+    it("数据库删除失败必须报错，不伪装成功或清理缓存", async () => {
+      const failure = new Error("SYNTHETIC_CONNECTION_FAILURE");
+      mockPrisma.featureFlag.delete.mockRejectedValue(failure);
+      await expect(svc.delete("client_demo")).rejects.toBe(failure);
+      expect(mockRedis.del).not.toHaveBeenCalled();
     });
   });
 

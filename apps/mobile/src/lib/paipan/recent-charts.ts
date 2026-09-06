@@ -15,6 +15,7 @@
  * 「假数据直接删除」的规矩弃用——老师没排过盘，这里就该是空的。
  */
 import { formatRecordTime } from './history-core'
+import { nativeHistoryKey } from './native-history-scope'
 
 export interface RecentChart {
   toolKey: string
@@ -222,7 +223,9 @@ export function toolSpecOf(key: string): ToolSpec | undefined {
 function readOne(spec: ToolSpec): RecentChart[] {
   let raw: unknown
   try {
-    raw = uni.getStorageSync(spec.storageKey)
+    const key = nativeHistoryKey(spec.storageKey)
+    if (!key) return []
+    raw = uni.getStorageSync(key)
   } catch {
     return []
   }

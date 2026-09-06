@@ -18,6 +18,19 @@ describe("LiveStreamService", () => {
   })
 
   describe("genPushUrl", () => {
+    it.each([0, -1, 86401, Infinity, NaN, 1.5])("拒绝无效或超过24小时的签发期限 %s", value => {
+      expect(() => svc.genPushUrl("room123", value)).toThrow("LIVE_PUSH_VALIDITY_OUT_OF_RANGE")
+    })
+    it.each(["room/path", "room?txTime=1", "", "x".repeat(129)])("流名不得注入路径或鉴权参数", value => {
+      expect(() => svc.genPushUrl(value)).toThrow("LIVE_PUSH_STREAM_NAME_INVALID")
+    })
+    it("签发期限实际受24小时上限约束", () => {
+      const before = Math.floor(Date.now() / 1000)
+      const value = new URL(svc.genPushUrl("room123", 86400))
+      const expiry = parseInt(value.searchParams.get("txTime")!, 16)
+      expect(expiry).toBeGreaterThanOrEqual(before + 86400)
+      expect(expiry).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 86400)
+    })
     it("生成带防盗链的推流地址", () => {
       const url = svc.genPushUrl("room123")
       expect(url).toContain("rtmp://push.example.com/live/room123")

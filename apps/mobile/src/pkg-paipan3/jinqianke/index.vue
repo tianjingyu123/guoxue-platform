@@ -6,6 +6,7 @@
  *       AI 深断区块本批砍掉；卦象六爻图按 V0 体例（阳爻墨色整条、阴爻朱红两段）以 CSS 绘制。
  */
 import { ref, computed, onUnmounted } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -24,7 +25,14 @@ const coins = ref<(boolean | null)[]>([null, null, null, null, null, null])
 const castResult = ref<CoinCast | null>(null)
 let timer: ReturnType<typeof setInterval> | null = null
 
-onUnmounted(() => { if (timer) clearInterval(timer) })
+function clearSession() {
+  if (timer) { clearInterval(timer); timer = null }
+  phase.value = 'idle'
+  coins.value = [null, null, null, null, null, null]
+  castResult.value = null
+}
+const preview = useNativePreviewPage(() => {}, clearSession)
+onUnmounted(clearSession)
 
 /** 随机布尔序列：优先 crypto 真随机（与 V0 一致），端上无 crypto 时退化 Math.random */
 function randomBools(n: number): boolean[] {
@@ -40,14 +48,18 @@ function randomBools(n: number): boolean[] {
 }
 
 function startShake() {
+  if (!preview.allowed.value || phase.value !== 'idle') return
+  const isCurrent = preview.captureInteraction()
   phase.value = 'shaking'
   castResult.value = null
   timer = setInterval(() => {
+    if (!isCurrent()) return
     coins.value = Array.from({ length: 6 }, () => Math.random() > 0.5)
   }, 120)
 }
 
 function stopShake() {
+  if (!preview.allowed.value || phase.value !== 'shaking') return
   if (timer) { clearInterval(timer); timer = null }
   // 真随机六爻定卦，铜钱定格即卦象（与 V0 一致：六钱直接成六爻）
   const cast = randomBools(6) as CoinCast
@@ -57,9 +69,7 @@ function stopShake() {
 }
 
 function reset() {
-  phase.value = 'idle'
-  coins.value = [null, null, null, null, null, null]
-  castResult.value = null
+  clearSession()
 }
 
 const hexName = computed(() => (castResult.value ? castToHexName(castResult.value) : null))
@@ -85,7 +95,12 @@ const tipText = computed(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header title="金钱课" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="金钱课"
       subtitle="文王六十四卦 · 金钱起卦"

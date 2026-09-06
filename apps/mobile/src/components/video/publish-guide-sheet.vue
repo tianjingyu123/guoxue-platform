@@ -1,11 +1,11 @@
 <template>
-  <view v-if="open" class="pgs-mask" role="dialog" aria-modal="true" aria-label="短视频发布资格" @tap="onClose" @touchmove.self.prevent>
+  <view v-if="open" class="pgs-mask" role="dialog" aria-modal="true" :aria-label="`${capabilityLabel}资格`" @tap="onClose" @touchmove.self.prevent>
     <view class="pgs-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <view class="pgs-handle" />
       <view class="pgs-head">
         <view>
-          <text class="pgs-kicker">全平台创作者通行证</text>
-          <text class="pgs-title">让优质内容走出圈子</text>
+          <text class="pgs-kicker">{{ capabilityLabel }}资格</text>
+          <text class="pgs-title">核对授权与申请进度</text>
         </view>
         <view
           class="pgs-close"
@@ -25,6 +25,8 @@
       </view>
 
       <template v-else>
+        <view v-if="loadError" class="pgs-fast"><text>{{ loadError }}</text><button @tap="loadStatus">重新核对</button></view>
+        <view v-else class="pgs-fast"><text>{{ stateText }}</text></view>
         <view v-if="activeCircle" class="pgs-circle">
           <view class="pgs-circle-copy">
             <text class="pgs-circle-label">当前圈子</text>
@@ -57,26 +59,27 @@
             <text class="pgs-identity-title">身份可信等级</text>
             <text class="pgs-identity-desc">{{ identityText }}</text>
           </view>
-          <text class="pgs-identity-level">{{ status?.identityLevel || 'NONE' }}</text>
         </view>
 
         <view class="pgs-fast">
-          <text class="pgs-fast-title">已有其他平台影响力？</text>
-          <text class="pgs-fast-desc">粉丝达到 1 万可准备主页与数据证明，走快速审核通道。</text>
+          <text class="pgs-fast-title">名师与平台合作伙伴</text>
+          <text class="pgs-fast-desc">平台可直接授权，无需达到圈子申请门槛。此处仅管理发布资格，不限制普通浏览。</text>
         </view>
+        <textarea v-if="canApply" v-model="reason" maxlength="500" placeholder="填写申请原因（必填）" class="pgs-fast" :disabled="actionBusy" />
 
         <view class="pgs-foot">
           <view
             class="pgs-btn pgs-btn-ghost"
             role="button"
-            aria-label="先发到圈内"
+            aria-label="暂不申请"
             tabindex="0"
             @tap="onClose"
             @keydown="activateOnKeyboard($event, onClose)"
           >
-            <text>先发到圈内</text>
+            <text>暂不申请</text>
           </view>
           <view
+            v-if="canApply || canEnable || allowed || loadError"
             class="pgs-btn pgs-btn-primary"
             :class="{ disabled: actionBusy }"
             role="button"
@@ -95,18 +98,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
-  applyCirclePublishGrant,
+  checkCirclePublishPermission,
   getCirclePublishGrantStatus,
   type CirclePublishGrantStatus,
   type CirclePublishStatus,
 } from '@/lib/publish-permission'
-import { navigateTo } from '@/utils/router'
+import { apiGet, apiPost } from '@/utils/request'
+import { getCurrentUserId } from '@/lib/circle-consult-data'
 
-const props = defineProps<{ open: boolean; circleId?: string }>()
+const props = defineProps<{ open: boolean; circleId?: string; capability?: 'SHORT_VIDEO' | 'LIVE' }>()
+const capability = computed(() => props.capability || 'SHORT_VIDEO')
+const capabilityLabel = computed(() => capability.value === 'LIVE' ? '直播开播' : '短视频发布')
 const emit = defineEmits<{ (e: 'close'): void; (e: 'granted'): void }>()
 
 useOverlayScrollLock(
@@ -121,81 +127,97 @@ useOverlayScrollLock(
 const loading = ref(false)
 const actionBusy = ref(false)
 const status = ref<CirclePublishGrantStatus | null>(null)
+const allowed = ref(false), loadError = ref(''), reason = ref('')
+type Progress = { key: string; current: number; required: number; passed: boolean }
+type Eligibility = { eligible: boolean; progress: Progress[]; scope: { circleId: string; capability: string } }
+type Grant = { id: string; revision: number; circleId: string; capability: string; subjectUserId: string | null; state: string; enabled: boolean; expiresAt: string | null }
+const eligibility = ref<Eligibility | null>(null), grant = ref<Grant | null>(null)
+type ApplicationContext = { circleId: string; capability: string; subjectUserId: string | null; canApply: boolean; reason: string; progress: Progress[] }
+const application = ref<ApplicationContext | null>(null), checkedCircle = ref('')
+const scopeMatches = computed(() => !!checkedCircle.value && (!props.circleId || props.circleId === checkedCircle.value)
+  && (!grant.value || (grant.value.circleId === checkedCircle.value && grant.value.capability === capability.value
+    && (grant.value.subjectUserId === null || grant.value.subjectUserId === getCurrentUserId()))))
+let generation = 0
+onBeforeUnmount(() => { generation++ })
 
 const activeCircle = computed<CirclePublishStatus | null>(() => {
   const circles = status.value?.circles || []
-  return circles.find((item) => item.id === props.circleId) || circles[0] || null
+  return props.circleId ? circles.find((item) => item.id === props.circleId) || null : circles[0] || null
 })
 
 const progressItems = computed(() => {
-  const progress = activeCircle.value?.progress
-  const requiredMap = {
-    operatingDays: 30,
-    members: 100,
-    works: 30,
-    recentWorks: 8,
-  } as const
-  const items = [
-    ['operatingDays', '运营天数'],
-    ['members', '圈友人数'],
-    ['works', '累计作品'],
-    ['recentWorks', '近 30 天新增'],
-  ] as const
-  return items.map(([key, name]) => {
-    const item = progress?.[key] || { current: 0, required: requiredMap[key], passed: false }
-    return {
-      key,
-      name,
-      ...item,
-      percent: Math.min(100, Math.round((item.current / Math.max(1, item.required)) * 100)),
-    }
-  })
+  const labels: Record<string, string> = { operatingDays: '运营天数', validMembers: '有效成员', publishedPosts: '有效圈内帖子', recentPosts: '近期有效帖子', activeViolations: '有效违规（上限）' }
+  return (eligibility.value?.progress || []).filter(item => labels[item.key]).map(item => ({ ...item, name: labels[item.key],
+    percent: item.key === 'activeViolations' ? (item.passed ? 100 : 0) : Math.min(100, Math.round(item.current / Math.max(1, item.required) * 100)) }))
 })
-
+const canApply = computed(() => !loading.value && scopeMatches.value && !loadError.value && !allowed.value && application.value?.canApply === true
+  && application.value.circleId === checkedCircle.value && application.value.capability === capability.value && application.value.subjectUserId === null)
+const canEnable = computed(() => !loading.value && scopeMatches.value && !loadError.value && grant.value?.state === 'APPROVED' && grant.value.enabled === false && !!grant.value.expiresAt && Date.parse(grant.value.expiresAt) > Date.now())
 const stateText = computed(() => {
-  const grant = activeCircle.value?.activeGrant
-  if (activeCircle.value?.canPublish) return '已开通'
-  if (grant?.status === 'PENDING') return '审核中'
-  if (grant?.status === 'REJECTED') return '待完善'
-  if (activeCircle.value?.regularEligible) return '可申请'
-  return '成长中'
+  if (allowed.value) return '已开通'
+  if (grant.value?.state === 'PENDING') return '审核中'
+  if (canEnable.value) return '已批准，待启用'
+  if (canApply.value) return '可申请'
+  if (application.value?.reason === 'REAPPLY_COOLDOWN') return '暂处于再次申请间隔，请稍后重新核对'
+  if (grant.value?.subjectUserId && grant.value.state === 'REVOKED') return '个人资格已撤销，请联系平台'
+  return grant.value?.state === 'SUSPENDED' ? '资格已暂停' : '尚未满足发布条件'
 })
-
 const identityText = computed(() => {
-  if (activeCircle.value?.identityReady) return '实名认证已满足短视频发布要求'
-  return '请先完成 L1 实名认证，再提交发布授权'
+  const item = eligibility.value?.progress.find(row => row.key === 'identity')
+  return item ? (item.passed ? '身份条件已满足' : '请完成平台要求的实名认证') : '按服务端当前规则核对，不影响普通浏览'
 })
-
-const actionText = computed(() => {
-  if (!activeCircle.value) return '去创建圈子'
-  if (activeCircle.value.canPublish) return '继续全平台发布'
-  if (activeCircle.value.activeGrant?.status === 'PENDING') return '等待审核结果'
-  if (!activeCircle.value.identityReady) return '去完成实名认证'
-  if (activeCircle.value.regularEligible) return '提交授权申请'
-  return '查看成长进度'
-})
+const actionText = computed(() => loadError.value ? '重新核对' : allowed.value ? '继续发布' : canEnable.value ? '确认启用发布' : '提交授权申请')
 
 async function loadStatus() {
-  loading.value = true
+  const ticket = ++generation, selected = props.circleId
+  loading.value = true; allowed.value = false; loadError.value = ''; eligibility.value = null; grant.value = null; application.value = null; checkedCircle.value = ''
   try {
-    status.value = await getCirclePublishGrantStatus('SHORT_VIDEO')
-    if (status.value.isPlatformAdmin || activeCircle.value?.canPublish) emit('granted')
+    const permitted = await checkCirclePublishPermission(capability.value, selected)
+    if (ticket !== generation || !props.open) return
+    if (permitted) { allowed.value = true; emit('granted'); return }
+    const current = await getCirclePublishGrantStatus(capability.value)
+    if (ticket !== generation || !props.open) return
+    status.value = current // 仅复用圈主圈子名称列表，不复用旧授权和旧门槛。
+    const circleId = selected || activeCircle.value?.id
+    if (!circleId) throw new Error('请先在发布页选择圈子；申请由圈主发起，合作伙伴可联系平台直授。')
+    if (!selected && await checkCirclePublishPermission(capability.value, circleId)) {
+      if (ticket === generation && props.open) { allowed.value = true; emit('granted') }
+      return
+    }
+    const currentGrant = await apiGet<{ circleId: string; capability: string; grant: Grant | null }>(`/circle-capabilities/circles/${encodeURIComponent(circleId)}/current?capability=${capability.value}`)
+    if (ticket !== generation || !props.open) return
+    if (currentGrant.circleId !== circleId || currentGrant.capability !== capability.value || currentGrant.grant === undefined) throw new Error('授权响应不完整，请重新核对')
+    if (currentGrant.grant && (currentGrant.grant.circleId !== circleId || currentGrant.grant.capability !== capability.value
+      || (currentGrant.grant.subjectUserId !== null && currentGrant.grant.subjectUserId !== getCurrentUserId()))) throw new Error('授权对象不匹配')
+    grant.value = currentGrant.grant
+    checkedCircle.value = circleId
+    // 个人直授的本人启用不依赖圈主申请接口；暂停或撤销仍不可自行恢复。
+    if (currentGrant.grant?.subjectUserId) return
+    const facts = await apiGet<ApplicationContext>(`/circle-capabilities/circles/${encodeURIComponent(circleId)}/application-context?capability=${capability.value}`)
+    if (ticket !== generation || !props.open) return
+    if (facts.circleId !== circleId || facts.capability !== capability.value || facts.subjectUserId !== null
+      || typeof facts.canApply !== 'boolean' || !Array.isArray(facts.progress)) throw new Error('申请响应不完整')
+    application.value = facts
+    eligibility.value = { eligible: facts.canApply, progress: facts.progress, scope: { circleId, capability: capability.value } }
   } catch {
-    status.value = null
+    if (ticket === generation) loadError.value = '暂未取得申请资格。请确认已选择圈子；申请由圈主发起，合作伙伴可联系平台直接授权。'
   } finally {
-    loading.value = false
+    if (ticket === generation) loading.value = false
   }
 }
 
 watch(
-  () => props.open,
-  (open) => {
+  () => [props.open, props.circleId, props.capability] as const,
+  ([open]) => {
     if (open) loadStatus()
+    else { generation++; loading.value = false }
   },
   { immediate: true },
 )
 
 function onClose() {
+  if (actionBusy.value) return
+  generation++
   emit('close')
 }
 
@@ -206,42 +228,20 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
 }
 
 async function handleAction() {
-  if (actionBusy.value) return
-  const circle = activeCircle.value
-  if (!circle) {
-    onClose()
-    navigateTo('/circles/create')
-    return
-  }
-  if (circle.canPublish) {
-    emit('granted')
-    onClose()
-    return
-  }
-  if (circle.activeGrant?.status === 'PENDING') {
-    uni.showToast({ title: '申请正在审核中', icon: 'none' })
-    return
-  }
-  if (!circle.identityReady) {
-    onClose()
-    navigateTo('/mine/verification')
-    return
-  }
-  if (!circle.regularEligible) {
-    uni.showToast({ title: '继续运营圈子，达到进度后即可申请', icon: 'none' })
-    return
-  }
+  if (actionBusy.value || loading.value || !props.open) return
+  if (loadError.value || allowed.value) { await loadStatus(); return }
+  const circleId = checkedCircle.value
+  if (!circleId || (!canApply.value && !canEnable.value)) return
+  if (canApply.value && !reason.value.trim()) { uni.showToast({ title: '请填写申请原因', icon: 'none' }); return }
   actionBusy.value = true
   try {
-    await applyCirclePublishGrant({
-      circleId: circle.id,
-      scopes: ['SHORT_VIDEO'],
-      channel: 'REGULAR',
-    })
-    uni.showToast({ title: '申请已提交', icon: 'success' })
+    if (canEnable.value && grant.value) await apiPost(`/circle-capabilities/grants/${grant.value.id}/enabled`, { expectedRevision: grant.value.revision, enabled: true, reason: `本人确认启用${capabilityLabel.value}` })
+    else await apiPost(`/circle-capabilities/circles/${circleId}/applications`, { capability: capability.value, reason: reason.value.trim() })
+    uni.showToast({ title: '已提交，正在核对状态', icon: 'none' })
     await loadStatus()
-  } catch (error) {
-    uni.showToast({ title: (error as Error)?.message || '提交失败，请稍后重试', icon: 'none' })
+  } catch {
+    uni.showToast({ title: '结果未确认，刷新核对后再操作', icon: 'none' })
+    await loadStatus() // 只重读，不自动重发申请或启用。
   } finally {
     actionBusy.value = false
   }
@@ -259,6 +259,8 @@ async function handleAction() {
   backdrop-filter: blur(8px);
 }
 .pgs-sheet {
+  max-height: 90vh;
+  overflow-y: auto;
   width: 100%;
   box-sizing: border-box;
   padding: 16rpx 32rpx calc(28rpx + env(safe-area-inset-bottom));

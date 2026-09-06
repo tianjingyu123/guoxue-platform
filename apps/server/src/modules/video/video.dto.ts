@@ -61,8 +61,8 @@ export class UpdateVideoDto {
   @IsOptional() @IsString()
   coverUrl?: string;
 
-  @ApiPropertyOptional({ description: "状态" })
-  @IsOptional() @IsString()
+  @ApiPropertyOptional({ description: "作者仅可隐藏，恢复发布须走审核", enum: ["HIDDEN"] })
+  @IsOptional() @IsIn(["HIDDEN"])
   status?: string;
 }
 

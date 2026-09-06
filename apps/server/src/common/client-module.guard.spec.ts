@@ -32,6 +32,6 @@ describe('ClientModuleGuard', () => {
     } as any
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(NotFoundException)
     await expect(guard.canActivate(context)).resolves.toBe(true)
-    expect(featureFlags.isEnabled).toHaveBeenCalledWith('client_module_video', 'u1')
+    expect(featureFlags.isEnabled).toHaveBeenCalledWith('client_module_video', 'u1', true)
   })
 })

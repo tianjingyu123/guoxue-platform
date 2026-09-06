@@ -7,6 +7,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -83,7 +84,11 @@ const expandedDaYun = ref<number | null>(null)
 /** 运年联动：点大运/流年，其干支落宫在盘面高亮 */
 const linkedGanZhi = ref<{ gan: string; zhi: string; label: string } | null>(null)
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> | null = null
+let saved = false
+function loadResult() {
+  const q = entryQuery
+  if (!q) return
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const p = JSON.parse(decodeURIComponent(q.payload)) as Partial<MingliParams>
@@ -104,11 +109,21 @@ onLoad((q: Record<string, string> = {}) => {
       lng: Number(p.lng) || 115.42,
     }
     // 记入本地排盘记录
-    if (qr.value) saveMingliHistory(params.value, juLabel.value)
+    if (qr.value && !saved) { saveMingliHistory(params.value, juLabel.value); saved = true }
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
+}
+const preview = useNativePreviewPage(loadResult, () => {
+  params.value = null
+  loadError.value = ''
+  juOverride.value = null
+  selectedPalace.value = null
+  showNotes.value = false
+  expandedDaYun.value = null
+  linkedGanZhi.value = null
 })
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q }; void preview.run() })
 
 // ─── 真实排盘（以出生时间起局，阴盘=转盘）───
 const birthDate = computed(() => {
@@ -286,8 +301,14 @@ function goToBazi() {
 function handleSave() {
   const p = params.value
   if (!p || !qr.value) return
-  saveMingliHistory(p, juLabel.value)
-  uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+  const target = { ...p }
+  const override = juOverride.value ? { ...juOverride.value } : null
+  const label = juLabel.value
+  void preview.run(() => {
+    params.value = target
+    juOverride.value = override
+    saveMingliHistory(target, label)
+  }).then(ok => { if (ok) uni.showToast({ title: '已保存到排盘记录', icon: 'success' }) })
 }
 
 function handleShare() {
@@ -314,7 +335,12 @@ function goInput() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" @share="handleShare" />
 
     <!-- 参数错误态 -->

@@ -83,6 +83,7 @@
     // #endif
   ],
   "subPackages": [
+    // #ifndef MP-WEIXIN
     {
       "root": "pkg-paipan",
       "pages": [
@@ -596,6 +597,7 @@
         }
       ]
     },
+    // #endif
     {
       "root": "pkg-course",
       "pages": [
@@ -1274,12 +1276,18 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "circles/booking",
+          {
+            "path": "circles/booking",
           "style": {
             "navigationStyle": "custom"
-          }
-        },
+            }
+          },
+          // #ifdef APP-PLUS
+          {
+            "path": "circles/call-room",
+            "style": { "navigationStyle": "custom", "disableSwipeBack": true }
+          },
+          // #endif
         {
           "path": "circles/checkin",
           "style": {
@@ -2385,12 +2393,14 @@
             "navigationStyle": "custom"
           }
         },
+        // #ifndef MP-WEIXIN
         {
           "path": "submissions/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
+        // #endif
         {
           "path": "drafts/index",
           "style": {
@@ -2752,6 +2762,7 @@
             "navigationStyle": "custom"
           }
         },
+        // #ifndef MP-WEIXIN
         {
           "path": "legacy-paipan/index",
           "style": {
@@ -2759,6 +2770,13 @@
             "disableScroll": true
           }
         },
+        {
+          "path": "compass/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        // #endif
         {
           "path": "feature-unavailable/index",
           "style": {

@@ -4,6 +4,7 @@ import { StationPaipanSyncService } from "./station-paipan-sync.service";
 
 describe("StationPaipanSyncService", () => {
   const prisma = {
+    configSystem: { findUnique: jest.fn().mockResolvedValue(null) },
     user: { findUnique: jest.fn() },
     station: {
       findFirst: jest.fn(),

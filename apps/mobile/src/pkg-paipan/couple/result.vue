@@ -5,7 +5,8 @@
  * 分享按钮引导他人发起自己的合盘（再裂变）；删除软删己方可见性。
  * R3：仅报告文本 + 昵称，绝不含任何生辰/命盘。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack, redirectTo } from '@/utils/router'
@@ -34,45 +35,42 @@ const paragraphs = computed(() => {
     })
 })
 
-const shareTitle = computed(() =>
-  detail.value
-    ? `${detail.value.initiatorNickname || 'TA'} 与 ${detail.value.partnerNickname || 'TA'} 的缘分合婚`
-    : '来测测你们的缘分合盘',
-)
-
 async function loadDetail() {
-  loading.value = true
-  error.value = ''
-  forbidden.value = false
-  try {
-    detail.value = await coupleApi.detail(id.value)
-  } catch (e) {
-    const msg = (e as Error)?.message || '加载失败'
-    if (msg.includes('无权')) forbidden.value = true
-    error.value = msg
-  } finally {
+  const targetId = id.value
+  return preview.runTask(async () => {
+    if (!targetId) return { detail: null, error: '合盘 ID 缺失' }
+    try { return { detail: await coupleApi.detail(targetId), error: '' } }
+    catch (e) { return { detail: null, error: (e as Error)?.message || '加载失败' } }
+  }, (value) => {
+    detail.value = value.detail
+    error.value = value.error
+    forbidden.value = value.error.includes('无权')
     loading.value = false
-  }
+  })
 }
 
 function onDelete() {
-  if (deleting.value) return
+  if (!preview.allowed.value || deleting.value || !detail.value) return
+  const targetId = id.value
   uni.showModal({
     title: '删除合盘',
     content: '删除后你将不再看到这份合婚报告，确定删除吗？',
     confirmColor: '#c41e3a',
     success: async (r) => {
-      if (!r.confirm || deleting.value) return
+      if (!r.confirm || deleting.value || !preview.allowed.value) return
       deleting.value = true
-      try {
-        await coupleApi.remove(id.value)
+      await preview.runTask(async () => {
+        try { await coupleApi.remove(targetId); return { error: '' } }
+        catch (e) { return { error: (e as Error)?.message || '删除失败' } }
+      }, (value) => {
+        if (value.error) {
+          error.value = value.error
+          uni.showToast({ title: value.error, icon: 'none' })
+          return
+        }
         uni.showToast({ title: '已删除', icon: 'none' })
         redirectTo('/pkg-paipan/couple/mine')
-      } catch (e) {
-        uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
-      } finally {
-        deleting.value = false
-      }
+      })
     },
   })
 }
@@ -81,22 +79,26 @@ onLoad((q: Record<string, string> = {}) => {
   id.value = q.id || ''
 })
 
-onMounted(() => {
-  if (!id.value) {
-    error.value = '合盘 ID 缺失'
-    loading.value = false
-    return
-  }
-  loadDetail()
-})
+const preview = useNativePreviewPage(() => {}, () => {
+  detail.value = null
+  error.value = ''
+  forbidden.value = false
+  loading.value = false
+  deleting.value = false
+}, () => { void loadDetail() })
 
-// 分享引导他人发起自己的合盘（本人报告私密不可分享，故分享落地到合盘发起页）
-onShareAppMessage(() => toAppMessage({ title: shareTitle.value + '，你也来测测？', path: '/pkg-paipan/couple/invite' }))
-onShareTimeline(() => toTimeline({ title: shareTitle.value + '，你也来测测？', path: '/pkg-paipan/couple/invite' }))
+// 私有预览不对外暴露昵称、报告或自研工具入口，平台原生分享仅落到公共首页。
+onShareAppMessage(() => toAppMessage({ title: '热卜', path: '/pages/index/index' }))
+onShareTimeline(() => toTimeline({ title: '热卜', path: '/pages/index/index' }))
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="loadDetail">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <view class="hdr">
       <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666" /></view>
       <text class="hdr-title">合婚报告</text>

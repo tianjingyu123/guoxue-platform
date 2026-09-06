@@ -7,6 +7,8 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -45,7 +47,16 @@ const q = ref<JkjQuery | null>(null)
 const result = ref<JkjResult | null>(null)
 const invalid = ref(false)
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  q.value = null
+  result.value = null
+  invalid.value = false
+  saved.value = false
+})
+function initialize(opts: Record<string, string>) {
   try {
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
@@ -78,10 +89,13 @@ onLoad((opts: Record<string, string> = {}) => {
     // 展示口径仍按原起法（自选/报数/随机）
     if (query.dm === 'random') result.value.difen.method = '随机'
     q.value = query
+    saved.value = recorded
   } catch {
+    q.value = null
+    result.value = null
     invalid.value = true
   }
-})
+}
 
 function onBack() {
   const pages = getCurrentPages()
@@ -117,10 +131,17 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 
 /** 保存排盘记录（本地存储，与入口页弹层共用，上限 50） */
 function handleSave() {
-  if (saved.value || !result.value || !q.value) return
+  if (!preview.allowed.value || saved.value || !result.value || !q.value) return
+  const target = { ...q.value }
+  const snapshot = result.value
+  return preview.run(() => {
+  q.value = target
+  result.value = snapshot
   try {
-    const r = result.value
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const storageKey = nativeHistoryKey(HISTORY_KEY)
+    if (!storageKey) throw new Error('未取得本次排盘资格')
+    const r = snapshot
+    const raw = uni.getStorageSync(storageKey)
     const records = raw ? (JSON.parse(raw) as unknown[]) : []
     records.unshift({
       id: Date.now(),
@@ -130,36 +151,36 @@ function handleSave() {
       params: { ...q.value },
       createdAt: Date.now(),
     })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(records.slice(0, 50)))
+    uni.setStorageSync(storageKey, JSON.stringify(records.slice(0, 50)))
     saved.value = true
+    recorded = true
     uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
   } catch {
     uni.showToast({ title: '保存失败', icon: 'none' })
   }
+  })
 }
 
-/** 分享：H5 系统分享/复制链接，其余端复制课盘摘要 */
+/** 私有开发预览只复制摘要，不通过分享泄露未公开的工具路由或出生参数链接。 */
 function handleShare() {
+  if (!preview.allowed.value) return
   const r = result.value
   if (!r) return
   const summary = `金口诀：${r.pillars.day}日 月将${r.yuejiang.zhi} 地分${r.difen.zhi}，用爻${r.yongRole}${r.keTi.length ? `（${r.keTi.map((k) => k.name).join('、')}）` : ''}`
-  // #ifdef H5
-  const url = window.location.href
-  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
-  if (nav.share) {
-    nav.share({ title: summary, url }).catch(() => {})
-  } else {
-    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
-  }
-  // #endif
-  // #ifndef H5
-  uni.setClipboardData({ data: summary, success: () => uni.showToast({ title: '课盘已复制', icon: 'none' }) })
-  // #endif
+  return preview.run(() => {
+    initialize(entryQuery)
+    uni.setClipboardData({ data: summary, success: () => uni.showToast({ title: '课盘已复制', icon: 'none' }) })
+  })
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="金口诀排盘" subtitle="大六壬金口诀 · 神将贵人" @back="onBack" />
 
     <!-- 参数缺失/损坏：错误态 -->

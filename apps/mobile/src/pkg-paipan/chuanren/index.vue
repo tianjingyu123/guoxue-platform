@@ -6,7 +6,7 @@
  * 年命生肖沿 V0 特色交互：十二生肖 + 不选，uni 端以 picker 呈现。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -105,11 +105,19 @@ function onNianmingChange(e: { detail: { value: string | number } }) {
 
 // ─── 排盘记录（内嵌卡） ───
 function loadRecords() { history.value = loadChuanrenHistory() }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => {
+  history.value = []
+  topic.value = ''
+  customYsIdx.value = 0
+  nianmingIdx.value = 0
+})
 
 function onClearHistory() {
-  clearChuanrenHistory()
-  history.value = []
+  const current = preview.captureInteraction()
+  uni.showModal({
+    title: '清空记录', content: '确定清空当前账号的穿壬排盘记录？',
+    success: res => { if (res.confirm && current()) void preview.run(() => { clearChuanrenHistory(); history.value = [] }) },
+  })
 }
 function openRecord(h: ChuanrenHistoryItem) {
   navigateTo(`/pkg-paipan/chuanren/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
@@ -130,7 +138,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" subtitle="奇门 · 大六壬 双盘合参" share share-title="奇门穿壬排盘" />
 
     <scroll-view scroll-y class="body">

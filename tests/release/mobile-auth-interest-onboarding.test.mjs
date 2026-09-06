@@ -37,8 +37,9 @@ function runtime() {
       return copy(saveResponseOverride === undefined ? remote.get(id) : saveResponseOverride)
     },
   })
-  for (const file of ['utils/storage.ts', 'utils/interests.ts', 'utils/router.ts', 'lib/interest-data.ts', 'utils/auth-journey.ts']) {
-    const source = read(`apps/mobile/src/${file}`).replace(/^import[^\r\n]*$/gm, '').replace(/\bexport\s+/g, '')
+  for (const file of ['utils/storage.ts', 'utils/interests.ts', 'lib/mp-paipan-maintenance.ts', 'utils/router.ts', 'lib/interest-data.ts', 'utils/auth-journey.ts']) {
+    // 本组模拟H5登录回跳；微信独立维护策略由专用分端测试覆盖。
+    const source = read(`apps/mobile/src/${file}`).replace(/\/\/ #ifdef MP-WEIXIN[\s\S]*?\/\/ #endif/g, '').replace(/^import[^\r\n]*$/gm, '').replace(/\bexport\s+/g, '')
     vm.runInContext(stripTypeScriptTypes(source), context, { filename: file })
   }
   const api = vm.runInContext('({clearAuthSession,setToken,setUserInfo,continueAfterLogin,completeAccountInterestGuide,hasCompletedInterestGuide,getInterestThemes,interestGuideStatus,interestThemesForCategories,hydrateAccountInterests,hydrateConfirmedInterestSave,finishAuthJourney,safeLoginRedirect})', context)

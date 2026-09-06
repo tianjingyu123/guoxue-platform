@@ -28,6 +28,18 @@ function runAudit(workspace) {
   });
 }
 
+test("E2E Host 夹具按测试分类，旁边生产文件仍阻断", async () => {
+  await withWorkspace({
+    "apps/server/test/example.e2e-spec.ts": 'const host = "api.rebugx.cn";',
+  }, async workspace => {
+    const result = runAudit(workspace);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /历史\/测试数据 1/);
+    await writeFile(join(workspace, 'apps/server/test/runtime.ts'), 'const host = "api.rebugx.cn";');
+    assert.equal(runAudit(workspace).status, 1);
+  });
+});
+
 test("正式域名仅出现在批准的客户端基线文件时通过", async () => {
   await withWorkspace(
     {

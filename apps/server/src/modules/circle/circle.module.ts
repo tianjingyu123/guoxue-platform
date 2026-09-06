@@ -29,11 +29,17 @@ import { AuditModule } from "../audit/audit.module";
 import { TrackModule } from "../track/track.module";
 import { CirclePublishGrantController } from "./circle-publish-grant.controller";
 import { CirclePublishGrantService } from "./circle-publish-grant.service";
+import { CircleCapabilityService } from "./circle-capability.service";
+import { CircleCapabilityController } from "./circle-capability.controller";
+import { CircleCapabilityRepository } from "./circle-capability.repository";
+import { CircleCapabilityEligibilityService } from "./circle-capability-eligibility.service";
+import { CircleConsultVisibilityService } from "./circle-consult-visibility.service";
 
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
-  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
-  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
-  exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
+  // 独立发布授权仅管理发布者资格；读取内容仍沿用各业务既有可见性规则。
+  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController, CircleCapabilityController],
+  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleConsultVisibilityService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService, CircleCapabilityService, CircleCapabilityRepository, CircleCapabilityEligibilityService],
+  exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService, CircleCapabilityService],
 })
 export class CircleModule {}

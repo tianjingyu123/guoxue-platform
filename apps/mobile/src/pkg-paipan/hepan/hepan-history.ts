@@ -3,7 +3,8 @@
  * 存合盘输入（HepanParams），结果页排盘成功后写入，入口页历史卡展示（点击重看）。
  * 去重键忽略双方姓名：结果页改名后可原位覆盖同参记录。
  */
-import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory } from '@/lib/paipan/private-history'
 
 export interface HepanPersonParams {
   name: string
@@ -32,7 +33,6 @@ export interface HepanRecord {
 export type HepanHistoryItem = HistoryItem<HepanRecord>
 
 const KEY = 'rebu:hepan-records'
-const LEGACY_KEY = 'rebu:hepan-history'
 
 /** 去重键（沿用原规则） */
 function dedupeKey(p: HepanParams): string {
@@ -48,25 +48,8 @@ const store = createHistory<HepanRecord>(KEY, {
   sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
 })
 
-/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
-function migrateLegacy(): void {
-  try {
-    const raw = uni.getStorageSync(LEGACY_KEY)
-    if (!raw) return
-    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
-    if (Array.isArray(old)) {
-      for (const r of [...old].reverse()) {
-        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as HepanRecord)
-      }
-    }
-    uni.removeStorageSync(LEGACY_KEY)
-  } catch {
-    /* 迁移失败不阻断 */
-  }
-}
-
+/** 无归属旧记录保留原样，不自动读入当前账号。 */
 export function loadHepanHistory(): HepanHistoryItem[] {
-  migrateLegacy()
   return store.load()
 }
 

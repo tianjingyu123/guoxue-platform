@@ -2,12 +2,12 @@
 /** 奇门遁甲排盘结果页——接 qimenApi.calculate 真实算法，三态驱动 */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
-import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
 import { computeQimenLocal } from '@/pkg-paipan/lib/qimen-adapter'
 import { saveQimenHistory } from './qimen-history'
@@ -48,6 +48,14 @@ const errMsg = ref('')
 const result = ref<QimenResult | null>(null)
 const saving = ref(false)
 const serverRecordId = ref('')
+let lastRecordedInput = ''
+const preview = useNativePreviewPage(() => {}, () => {
+  result.value = null
+  serverRecordId.value = ''
+  errMsg.value = ''
+  showNotes.value = false
+}, () => { void load() })
+const { allowed, checking } = preview
 
 function buildInput(): QimenInput {
   return {
@@ -69,29 +77,32 @@ function buildInput(): QimenInput {
  * 此前走 qimenApi.calculate → 后端 qimen.calculator 只有转盘法，飞盘被错误委托给阴盘引擎
  * （阴盘是另一流派，以月柱推局），导致选「飞盘」时拿到的是阴盘。
  */
-function load() {
+async function load() {
+  const input = buildInput()
   loading.value = true
   errMsg.value = ''
   serverRecordId.value = ''
-  try {
-    result.value = computeQimenLocal(buildInput())
-    saveRecord(result.value)
-  } catch (e) {
-    errMsg.value = (e as Error)?.message || '排盘失败，请检查起局参数'
-  } finally {
-    loading.value = false
-  }
+  const accepted = await preview.runTask(async () => computeQimenLocal(input), value => {
+    result.value = value
+    const fingerprint = JSON.stringify(input)
+    if (fingerprint !== lastRecordedInput) {
+      saveRecord(value, input)
+      lastRecordedInput = fingerprint
+    }
+  })
+  loading.value = false
+  return accepted
 }
 
 /**
- * 起局成功后落本地记录（无需登录）——记录页读的就是它。
+ * 起局成功且本次私有预览资格核验通过后，落当前账号的本地记录。
  * 与下方 onSave（登录后存后端、供 AI 解盘/从业者调阅）是两码事，不要合并。
  */
-function saveRecord(r: QimenResult | null) {
+function saveRecord(r: QimenResult | null, input: QimenInput) {
   if (!r) return
   saveQimenHistory({
-    ...buildInput(),
-    matter: q.matter || '',
+    ...input,
+    matter: input.matter || '',
     juLabel: `${r.dunType === 'yang' ? '阳遁' : '阴遁'}${r.juNumber}局`,
     zhiFu: r.zhiFu,
     zhiShiMen: r.zhiShiMen,
@@ -101,15 +112,16 @@ function saveRecord(r: QimenResult | null) {
 
 /** 保存排盘记录（需登录，防重复提交） */
 async function onSave() {
-  if (saving.value) return
-  if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
+  if (saving.value || !allowed.value || !result.value) return
+  const input = buildInput()
+  const currentResult = result.value
   saving.value = true
   try {
-    const saved = await qimenApi.save(buildInput())
-    serverRecordId.value = saved.id
-    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+    await preview.runTask(() => qimenApi.save(input), saved => {
+      result.value = currentResult
+      serverRecordId.value = saved.id
+      uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+    })
   } finally {
     saving.value = false
   }
@@ -163,7 +175,6 @@ onLoad((opts: Record<string, string> = {}) => {
   q.lat = Number(opts.lat) || 0
   q.lng = Number(opts.lng) || 0
   editedMatter.value = q.matter
-  load()
 })
 
 // ─── 适配层：QimenResult → 页面结构 ───
@@ -292,7 +303,12 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="load()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">

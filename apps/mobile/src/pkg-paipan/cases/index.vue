@@ -5,8 +5,9 @@
  * 🔴 案例的「答案」是这个八字的**真实人生经历**，不是断语。
  *    列表页只给八字和身份，看答案得进去先断、再点「公布答案」。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -42,84 +43,82 @@ const rankLoading = ref(false)
 // 我的投稿（称号）
 const myBadge = ref<string | null>(null)
 const myApproved = ref(0)
+let entryMethod: CaseMethod = 'ALL'
+const preview = useNativePreviewPage(() => {}, () => {
+  tab.value = 'lib'
+  list.value = []
+  total.value = 0
+  page.value = 1
+  loading.value = false
+  failed.value = false
+  noMore.value = false
+  source.value = ''
+  keyword.value = ''
+  method.value = entryMethod
+  rank.value = []
+  rankLoading.value = false
+  myBadge.value = null
+  myApproved.value = 0
+}, () => { void load(true) })
 
 async function load(reset = false) {
-  if (reset) {
-    page.value = 1
-    noMore.value = false
-  }
-  loading.value = true
-  failed.value = false
-  try {
-    const res = await caseApi.list({
-      page: page.value,
-      pageSize: 20,
-      source: source.value || undefined,
-      keyword: keyword.value.trim() || undefined,
-      method: method.value,
-    })
-    const items = res?.items ?? []
-    list.value = reset ? items : [...list.value, ...items]
-    total.value = res?.total ?? 0
+  if (preview.checking.value) return
+  const state = { tab: tab.value, list: list.value, total: total.value, page: page.value,
+    source: source.value, keyword: keyword.value, method: method.value }
+  const nextPage = reset ? 1 : state.page + 1
+  await preview.runTask(async checkpoint => {
+    const mine = await caseApi.mine().catch(() => null)
+    if (!await checkpoint()) throw new Error('访问状态已变化')
+    try {
+      if (state.tab === 'rank') return { mine, ranking: await caseApi.leaderboard(20), items: state.list, total: state.total, failed: false }
+      const res = await caseApi.list({ page: nextPage, pageSize: 20,
+        source: state.source || undefined, keyword: state.keyword.trim() || undefined, method: state.method })
+      return { mine, ranking: [], items: reset ? res.items : [...state.list, ...res.items], total: res.total, failed: false }
+    } catch {
+      return { mine, ranking: [], items: reset ? [] : state.list, total: reset ? 0 : state.total, failed: true }
+    }
+  }, value => {
+    tab.value = state.tab
+    source.value = state.source
+    keyword.value = state.keyword
+    method.value = state.method
+    list.value = value.items
+    total.value = value.total
+    page.value = value.failed || state.tab === 'rank' ? state.page : nextPage
     noMore.value = list.value.length >= total.value
-  } catch {
-    failed.value = true
-  } finally {
-    loading.value = false
-  }
+    rank.value = value.ranking ?? []
+    failed.value = value.failed
+    myBadge.value = value.mine?.badge ?? null
+    myApproved.value = value.mine?.approved ?? 0
+  })
 }
 
-async function loadRank() {
-  if (rank.value.length) return
-  rankLoading.value = true
-  try {
-    rank.value = (await caseApi.leaderboard(20)) ?? []
-  } catch {
-    rank.value = []
-  } finally {
-    rankLoading.value = false
-  }
-}
-
-async function loadMine() {
-  try {
-    const r = await caseApi.mine()
-    myBadge.value = r?.badge ?? null
-    myApproved.value = r?.approved ?? 0
-  } catch {
-    // 未登录：不显示称号，不报错
-  }
-}
-
-onMounted(() => {
-  load(true)
-  loadMine()
-})
-// 投稿回来刷新我的称号
-onShow(loadMine)
 onLoad((q: Record<string, string> = {}) => {
   const requested = String(q.method || '').toUpperCase() as CaseMethod
-  if (CASE_METHODS.some((item) => item.key === requested)) method.value = requested
+  if (CASE_METHODS.some((item) => item.key === requested)) entryMethod = requested
+  method.value = entryMethod
 })
 
 function onTab(k: 'lib' | 'rank') {
+  if (!preview.allowed.value) return
   tab.value = k
-  if (k === 'rank') loadRank()
+  void load(true)
 }
 
 function onSource(k: string) {
+  if (!preview.allowed.value) return
   source.value = k
   load(true)
 }
 
 function onMethod(k: CaseMethod) {
+  if (!preview.allowed.value) return
   method.value = k
   load(true)
 }
 
 function more() {
-  if (noMore.value || loading.value) return
-  page.value += 1
+  if (!preview.allowed.value || tab.value !== 'lib' || noMore.value || loading.value) return
   load()
 }
 
@@ -141,7 +140,12 @@ const emptyText = computed(() =>
 </script>
 
 <template>
-  <view class="cs">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader title="排盘案例库" />
+    <text>{{ preview.checking.value ? '正在加载，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="load(true)">重新确认</button>
+  </view>
+  <view v-else class="cs">
     <ToolHeader title="排盘案例库" subtitle="一份经历 · 多术式交叉印证" />
 
     <view class="cs-tabs">
@@ -270,6 +274,12 @@ const emptyText = computed(() =>
         </PaperCard>
 
         <view v-if="rankLoading" class="cs-skeleton" />
+
+        <PaperCard v-else-if="failed" padding="lg">
+          <view class="cs-empty" @tap="load(true)">
+            <text class="cs-empty-txt">贡献榜加载失败，点击重试</text>
+          </view>
+        </PaperCard>
 
         <PaperCard v-else-if="!rank.length" padding="lg">
           <view class="cs-empty">

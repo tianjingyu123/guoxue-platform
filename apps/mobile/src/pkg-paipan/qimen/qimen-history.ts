@@ -2,7 +2,8 @@
  * 奇门遁甲·本地起局记录
  * 原 qimen/history 页是硬编码假记录；现改为 result 页起局成功后落盘的真实记录。
  */
-import { createHistory, createGroupNames, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory, createPrivateGroupNames as createGroupNames } from '@/lib/paipan/private-history'
 
 export interface QimenParams {
   /** 所问之事 */

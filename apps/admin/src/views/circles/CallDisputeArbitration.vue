@@ -21,6 +21,8 @@
       </template>
     </el-alert>
 
+    <ConsultMediaStatusPanel ref="mediaPanel" />
+
     <el-tabs
       v-model="statusTab"
       @tab-change="onTabChange"
@@ -130,6 +132,11 @@
           {{ row.disputeResolveNote || '--' }}
         </template>
       </el-table-column>
+      <el-table-column label="媒体核查" width="110">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="mediaPanel?.inspect(row.id)">媒体状态</el-button>
+        </template>
+      </el-table-column>
       <el-table-column
         v-if="statusTab === 'PENDING'"
         label="操作"
@@ -206,6 +213,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { callDisputeApi } from '@/api'
+import ConsultMediaStatusPanel from './ConsultMediaStatusPanel.vue'
+const mediaPanel = ref<InstanceType<typeof ConsultMediaStatusPanel> | null>(null)
 
 interface DisputeRow {
   id: string

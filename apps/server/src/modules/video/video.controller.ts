@@ -15,7 +15,7 @@ import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { Auditable } from "../../common/audit.decorator";
-import { RedLineGate, RedLine } from "../../common/red-lines";
+import { RedLineGate, RedLine, resolveExecutorType } from "../../common/red-lines";
 
 @ApiTags("视频")
 @Controller("videos")
@@ -23,6 +23,7 @@ export class VideoController {
   constructor(private svc: VideoService) {}
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建视频" })
   @ApiBearerAuth()
@@ -31,7 +32,7 @@ export class VideoController {
   create(@Req() req: Request, @Body() dto: CreateVideoDto) {
     const roles = (req.user as { roles?: string[] }).roles || [];
     const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
-    return this.svc.create(req.user.id, dto, isAdmin);
+    return this.svc.create(req.user.id, dto, isAdmin, resolveExecutorType(req));
   }
 
   @Get()
@@ -85,6 +86,7 @@ export class VideoController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新视频" })
   @ApiBearerAuth()
@@ -286,8 +288,9 @@ export class VideoController {
   @ApiOperation({ summary: "VOD事件回调（转码/截图/上传完成通知）" })
   @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 401, description: "签名验证失败" })
-  vodCallback(@Body() body: Record<string, unknown>) {
-    this.svc.handleVodCallback(body);
+  async vodCallback(@Body() body: Record<string, unknown>) {
+    // 持久化失败必须反馈给回调方，不得先返回成功再丢失异步错误。
+    await this.svc.handleVodCallback(body);
     return { code: 0 };
   }
 

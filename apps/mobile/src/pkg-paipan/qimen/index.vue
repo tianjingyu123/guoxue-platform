@@ -2,6 +2,7 @@
 /** 奇门遁甲排盘入口页（输入）——从原型 app/paipan/qimen/page.tsx 1:1 迁移 */
 import { ref, reactive, onMounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
 import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
@@ -99,7 +100,7 @@ function handleSubmit() {
     lng: String(coordinates.lng),
   }
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
-  navigateTo(`/paipan/qimen/result?${qs}`)
+  void preview.run(() => navigateTo(`/paipan/qimen/result?${qs}`))
 }
 
 /** 分享：H5 系统分享/复制链接，其余端复制标题（照 jinkoujue/meihua 范式） */
@@ -118,10 +119,17 @@ function handleShare() {
   uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
   // #endif
 }
+const preview = useNativePreviewPage(() => {}, () => { showJuPicker.value = false; showDatePicker.value = false })
+const { allowed, checking } = preview
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <!-- 顶部导航 -->
     <view class="hdr">
       <view class="hdr-inner">

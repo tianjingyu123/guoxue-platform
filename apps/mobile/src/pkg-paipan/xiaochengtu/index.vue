@@ -8,7 +8,8 @@
  *       在线摇卦在本页以真随机成象六爻并定动爻后随 payload 传递，保证记录可复现。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -166,21 +167,31 @@ function randInt(n: number): number {
 /** 读取本地排盘记录 */
 function loadRecords() {
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const key = nativeHistoryKey(HISTORY_KEY)
+    if (!key) { records.value = []; return }
+    const raw = uni.getStorageSync(key)
     records.value = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
   } catch {
     records.value = []
   }
 }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => {
+  records.value = []
+  showHistory.value = false
+})
+const { allowed, checking } = preview
 
 function openHistory() {
-  loadRecords()
-  showHistory.value = true
+  void preview.run(() => { loadRecords(); showHistory.value = true })
 }
 function clearHistory() {
-  uni.setStorageSync(HISTORY_KEY, '[]')
-  records.value = []
+  void preview.run(() => {
+    const key = nativeHistoryKey(HISTORY_KEY)
+    if (!key) return
+    uni.setStorageSync(key, '[]')
+    records.value = []
+    showHistory.value = true
+  })
 }
 function openRecord(r: HistoryRecord) {
   showHistory.value = false
@@ -226,7 +237,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="小成图"
       subtitle="九宫布卦 · 卦气升降"

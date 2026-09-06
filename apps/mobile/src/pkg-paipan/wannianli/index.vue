@@ -16,6 +16,7 @@
  * 数据全部来自 @/pkg-paipan/lib/{wannianli,zeji}-engine 本地真算，无网络请求。
  */
 import { ref, computed, nextTick } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -50,6 +51,16 @@ const showEra = ref(false)
 const selectedDate = ref<Date>(new Date())
 // 从黄历宜忌点进择日时带入的事项
 const seedEvent = ref<ZejiEvent | null>(null)
+let viewGeneration = 0
+const preview = useNativePreviewPage(() => {}, () => {
+  viewGeneration++
+  tab.value = 'calendar'
+  calView.value = 'day'
+  bodyScrollTop.value = 0
+  showEra.value = false
+  seedEvent.value = null
+  selectedDate.value = new Date()
+})
 
 // 黄历页头随选中日期动态显示岁次干支
 const headerTitle = computed(() => {
@@ -57,6 +68,7 @@ const headerTitle = computed(() => {
   return tab.value === 'zeji' ? '择吉通书' : '万年历 · 黄历'
 })
 const headerSubtitle = computed(() => {
+  if (!preview.allowed.value) return ''
   if (showEra.value) return '历法 · 干支 · 纪元'
   if (tab.value === 'zeji') return '按事项择吉日 · 黄历真算'
   return `${buildAlmanac(selectedDate.value).day.lunarYear} · 择吉通书`
@@ -68,13 +80,17 @@ const headerSubtitle = computed(() => {
  * 确保用户从黄历、择吉、月历、年历之间切换时总能看到新页面首屏。
  */
 function resetBodyScroll() {
+  if (!preview.allowed.value) return
+  const generation = viewGeneration
   bodyScrollTop.value = 1
   nextTick(() => {
+    if (!preview.allowed.value || generation !== viewGeneration) return
     bodyScrollTop.value = 0
   })
 }
 
 function onNav(key: string) {
+  if (!preview.allowed.value) return
   tab.value = key as 'calendar' | 'zeji'
   // 手动切到择日时清掉上次带入的事项，回到默认事项
   if (key === 'zeji') seedEvent.value = null
@@ -87,6 +103,7 @@ function onNav(key: string) {
  * 映射不到的（如「馀事勿取」这种不是事项的词）就不跳，避免点了没反应还切走了页。
  */
 function onPickYiJi(term: string) {
+  if (!preview.allowed.value) return
   const e = findEventByTerm(term)
   if (!e) {
     uni.showToast({ title: `「${term}」暂不支持择吉`, icon: 'none' })
@@ -99,6 +116,7 @@ function onPickYiJi(term: string) {
 
 /** 择日结果点「看这天的完整黄历」→ 回黄历日视图并定位到那天 */
 function onOpenDay(d: Date) {
+  if (!preview.allowed.value) return
   selectedDate.value = d
   calView.value = 'day'
   tab.value = 'calendar'
@@ -112,19 +130,23 @@ const isTodaySelected = computed(() => {
 })
 
 function onChangeDate(d: Date) {
+  if (!preview.allowed.value) return
   selectedDate.value = d
 }
 
 function goToday() {
+  if (!preview.allowed.value) return
   selectedDate.value = new Date()
 }
 
 function onSegChange(key: string) {
+  if (!preview.allowed.value) return
   calView.value = key
   resetBodyScroll()
 }
 
 function openEra() {
+  if (!preview.allowed.value) return
   showEra.value = true
   resetBodyScroll()
 }
@@ -148,7 +170,12 @@ function handleBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="headerTitle"
       :subtitle="headerSubtitle"

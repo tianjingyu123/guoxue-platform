@@ -10,7 +10,7 @@
  *      摇卦铜钱图片改为 CSS 绘制的铜钱（避免新增图片资源）。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -133,9 +133,10 @@ function pickGua(g: string) {
 
 // ── 排盘记录 ──
 const history = ref<LiuyaoHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadLiuyaoHistory()
-})
+}, () => { history.value = [] })
+const { allowed, checking } = preview
 
 function onClearHistory() {
   uni.showModal({
@@ -143,8 +144,7 @@ function onClearHistory() {
     content: '确定清空全部排盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearLiuyaoHistory()
-        history.value = []
+        void preview.run(() => { clearLiuyaoHistory(); history.value = [] })
       }
     },
   })
@@ -186,7 +186,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status" class="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button v-if="!checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/liuyao/history" :title="hdrTitle" subtitle="纳甲装卦 · 六亲六神" share />
 
     <scroll-view scroll-y class="body">

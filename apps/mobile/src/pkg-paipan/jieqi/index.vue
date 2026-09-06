@@ -8,6 +8,7 @@
  * 说明：本页是节气「工具」；pkg-solar-term 那个「节气仪式」是打卡运营页，两者不是一回事。
  */
 import { ref, computed, onUnmounted } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import CultureModule from './components/culture-module.vue'
@@ -30,12 +31,27 @@ const MODULES: { key: ModuleKey; label: string; hint: string }[] = [
 ]
 
 const now = ref(new Date())
-const timer = setInterval(() => (now.value = new Date()), 30000)
-onUnmounted(() => clearInterval(timer))
+let timer: ReturnType<typeof setInterval> | null = null
 
 const year = ref(new Date().getFullYear())
 const selected = ref<string | null>(null)
 const activeModule = ref<ModuleKey>('culture')
+let clockGeneration = 0
+function clearSession() {
+  clockGeneration++
+  if (timer) { clearInterval(timer); timer = null }
+  selected.value = null
+  activeModule.value = 'culture'
+  year.value = new Date().getFullYear()
+}
+const preview = useNativePreviewPage(() => {
+  now.value = new Date()
+  const current = clockGeneration
+  timer = setInterval(() => {
+    if (current === clockGeneration) now.value = new Date()
+  }, 30000)
+}, clearSession)
+onUnmounted(clearSession)
 
 const cur = computed(() => currentJieqi(now.value))
 const table = computed(() => jieqiTableOfYear(year.value))
@@ -79,7 +95,12 @@ const nextTerm = computed(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <ToolHeader :title="hdrTitle" />
 
     <!-- 当前节气 Hero -->

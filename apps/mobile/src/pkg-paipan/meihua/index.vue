@@ -5,7 +5,7 @@
  * 排盘记录本地存储（key: rebu:meihua:history），底部弹层查看/重开。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -124,15 +124,16 @@ function pickMode(m: QiguaMode) {
 function loadRecords() {
   records.value = loadMeihuaHistory()
 }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => {
+  records.value = []; showHistory.value = false; showModePicker.value = false; showDatePicker.value = false
+})
+const { allowed, checking } = preview
 
 function openHistory() {
-  loadRecords()
-  showHistory.value = true
+  void preview.run(() => { loadRecords(); showHistory.value = true })
 }
 function clearHistory() {
-  clearMeihuaHistory()
-  records.value = []
+  void preview.run(() => { clearMeihuaHistory(); records.value = []; showHistory.value = true })
 }
 function openRecord(r: MeihuaHistoryItem) {
   showHistory.value = false
@@ -164,7 +165,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/meihua/history" title="梅花易数" subtitle="观物取象 · 体用生克" share>
       <template #actions>
         <view class="th-history-btn" @tap="openHistory">

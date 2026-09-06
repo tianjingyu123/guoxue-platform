@@ -8,6 +8,7 @@
  *       ②AI 解读走自家 DeepSeek（POST /zidian/ai），返回结构与 V0 的 zod schema 一致。
  */
 import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import StrokeOrder from './components/stroke-order.vue'
@@ -42,29 +43,26 @@ const results = ref<ZidianResult[]>([])
 const r = computed<ZidianResult | null>(() => results.value[Math.min(active.value, results.value.length - 1)] ?? null)
 
 async function submit(q?: string) {
+  if (!preview.allowed.value) return
   const text = (q ?? input.value).trim()
   if (!text) return
-  if (q) input.value = q
-  mode.value = 'lookup'
-  active.value = 0
-  ai.value = null
-  aiError.value = ''
-  query.value = text
-  loading.value = true
-  errMsg.value = ''
-  try {
-    const list = await queryText(text)
-    results.value = list
-    if (!list.length) errMsg.value = '未识别到汉字，请输入中文字符'
-  } catch (e) {
-    errMsg.value = e instanceof Error ? e.message : '查询失败'
-    results.value = []
-  } finally {
-    loading.value = false
-  }
+  await preview.runTask(async () => {
+    try {
+      const list = await queryText(text)
+      return { list, error: list.length ? '' : '未识别到汉字，请输入中文字符' }
+    } catch (e) {
+      return { list: [] as ZidianResult[], error: e instanceof Error ? e.message : '查询失败' }
+    }
+  }, value => {
+    input.value = text
+    query.value = text
+    results.value = value.list
+    errMsg.value = value.error
+  })
 }
 
 function pickChar(i: number) {
+  if (!preview.allowed.value) return
   active.value = i
   ai.value = null
   aiError.value = ''
@@ -72,6 +70,8 @@ function pickChar(i: number) {
 
 /** V0 的 CSV 下载在小程序无处可落 → 复制成表格文本，可粘贴进任何表格软件 */
 function copyTable() {
+  if (!preview.allowed.value || !results.value.length) return
+  const isCurrent = preview.captureInteraction()
   const head = '汉字\t繁体\t拼音\t康熙部首\t康熙笔画\t字形五行\t数理五行\t五音\t数理吉凶\t数理名称\t宜生肖\t忌生肖\t统一码'
   const rows = results.value.map((x) =>
     [
@@ -82,7 +82,7 @@ function copyTable() {
   )
   uni.setClipboardData({
     data: [head, ...rows].join('\n'),
-    success: () => uni.showToast({ title: '表格已复制', icon: 'none' }),
+    success: () => { if (isCurrent()) uni.showToast({ title: '表格已复制', icon: 'none' }) },
   })
 }
 
@@ -102,18 +102,27 @@ const aiError = ref('')
 const birth = ref('')
 
 async function runAi(char: string) {
-  aiLoading.value = true
-  aiError.value = ''
-  ai.value = null
-  aiFor.value = char
-  try {
-    const res = await apiPost<{ ai: AiResult }>('/zidian/ai', { char, birth: birth.value.trim() || undefined })
-    ai.value = res.ai
-  } catch (e) {
-    aiError.value = e instanceof Error ? e.message : 'AI 解读失败'
-  } finally {
-    aiLoading.value = false
-  }
+  if (!preview.allowed.value || !char) return
+  const snapshot = { input: input.value, query: query.value, results: results.value, active: active.value, birth: birth.value }
+  await preview.runTask(async checkpoint => {
+    // 发起可能消耗额度的请求前再次确认当前会话；服务端仍独立校验权益。
+    if (!await checkpoint()) throw new Error('访问状态已变化')
+    try {
+      const res = await apiPost<{ ai: AiResult }>('/zidian/ai', { char, birth: snapshot.birth.trim() || undefined })
+      return { result: res.ai, error: '' }
+    } catch (e) {
+      return { result: null, error: e instanceof Error ? e.message : 'AI 解读失败' }
+    }
+  }, value => {
+    input.value = snapshot.input
+    query.value = snapshot.query
+    results.value = snapshot.results
+    active.value = snapshot.active
+    birth.value = snapshot.birth
+    aiFor.value = char
+    ai.value = value.result
+    aiError.value = value.error
+  })
 }
 
 /* ── 选字广场 ── */
@@ -141,10 +150,30 @@ function resetFilter() {
   fStructure.value = ''
   fRadical.value = ''
 }
+const preview = useNativePreviewPage(() => {}, () => {
+  mode.value = 'lookup'
+  input.value = ''
+  query.value = ''
+  active.value = 0
+  loading.value = false
+  errMsg.value = ''
+  results.value = []
+  aiFor.value = ''
+  ai.value = null
+  aiLoading.value = false
+  aiError.value = ''
+  birth.value = ''
+  resetFilter()
+})
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <ToolHeader :title="hdrTitle" />
 
     <!-- 模式切换 -->

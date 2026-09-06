@@ -8,6 +8,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -48,9 +49,12 @@ function parseBirth(birth: string): { year: number; month: number; day: number; 
   return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]), hour: Number(m[4]), minute: Number(m[5]) }
 }
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => {
   try {
-    const p = JSON.parse(decodeURIComponent(opts.payload ?? '')) as Record<string, string>
+    const p = JSON.parse(decodeURIComponent(entryQuery.payload ?? '')) as Record<string, string>
     const birth = parseBirth(p.birth ?? '')
     if (!p.surname || !birth) {
       errMsg.value = '参数无效，请返回重新填写。'
@@ -72,7 +76,8 @@ onLoad((opts: Record<string, string> = {}) => {
     input.value = qi
     result.value = generateNames(qi)
     favNames.value = new Set(loadQimingFavorites().map((x) => x.name))
-    saveQimingHistory({
+    if (!recorded) {
+      saveQimingHistory({
       surname: qi.surname,
       gender: qi.gender,
       nameType: qi.nameType,
@@ -83,10 +88,15 @@ onLoad((opts: Record<string, string> = {}) => {
       fixChar: qi.fixChar,
       fixPosition: qi.fixPosition,
       blockChars: qi.blockChars,
-    })
+      })
+      recorded = true
+    }
   } catch {
     errMsg.value = '参数解析失败，请返回重新填写。'
   }
+}, () => {
+  result.value = null; input.value = null; errMsg.value = ''; gender.value = '男'; surname.value = ''
+  profileOpen.value = true; wuxingFilter.value = null; favNames.value = new Set(); compareOpen.value = false
 })
 
 const profile = computed(() => result.value?.profile ?? null)
@@ -103,6 +113,7 @@ const filtered = computed<NameCandidate[]>(() => {
 })
 
 function toggleFilter(w: string) {
+  if (!preview.allowed.value) return
   wuxingFilter.value = wuxingFilter.value === w ? null : w
 }
 
@@ -111,12 +122,17 @@ const favNames = ref<Set<string>>(new Set())
 const fullNameOf = (c: NameCandidate) => c.chars.map((ch) => ch.char).join('')
 
 function onToggleFavorite(c: NameCandidate) {
+  if (!preview.allowed.value || !result.value) return
   const name = fullNameOf(c)
-  const on = toggleQimingFavorite({ name, gender: gender.value, score: c.score, subScores: c.subScores })
-  const next = new Set(favNames.value)
-  if (on) next.add(name)
-  else next.delete(name)
-  favNames.value = next
+  const snapshot = { result: result.value, input: input.value, gender: gender.value, surname: surname.value,
+    profileOpen: profileOpen.value, filter: wuxingFilter.value, compareOpen: compareOpen.value }
+  void preview.run(() => {
+    result.value = snapshot.result; input.value = snapshot.input; gender.value = snapshot.gender; surname.value = snapshot.surname
+    profileOpen.value = snapshot.profileOpen; wuxingFilter.value = snapshot.filter; compareOpen.value = snapshot.compareOpen
+    try { toggleQimingFavorite({ name, gender: snapshot.gender, score: c.score, subScores: c.subScores }) }
+    catch { uni.showToast({ title: '收藏未保存，请重试', icon: 'none' }) }
+    favNames.value = new Set(loadQimingFavorites().map(x => x.name))
+  })
 }
 
 /** 当前结果中已收藏的候选 */
@@ -132,6 +148,7 @@ const SUB_LABELS: { key: 'yin' | 'xing' | 'yi' | 'li'; label: string }[] = [
 ]
 
 function goDetail(c: NameCandidate) {
+  if (!preview.allowed.value) return
   navigateTo(`/pkg-paipan2/qiming/detail?name=${encodeURIComponent(fullNameOf(c))}&gender=${gender.value}`)
 }
 
@@ -143,7 +160,12 @@ function retry() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" share :share-title="hdrTitle" />
 
     <!-- 错误态 -->

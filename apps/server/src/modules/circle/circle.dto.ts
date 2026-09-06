@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max, IsBoolean, IsIn, ValidateNested, ArrayMaxSize } from "class-validator";
 import { Type } from "class-transformer";
+import { CONSULT_MAX_PRICE_PER_MINUTE } from "../../common/consult-call-pricing";
 
 export class CreateCircleDto {
   @ApiProperty({ description: "圈子名称", minLength: 2, maxLength: 30, example: "国学论语圈" })
@@ -327,9 +328,10 @@ export class ExpertConfigDto {
   @Max(720)
   questionTimeoutHours: number;
 
-  @ApiProperty({ description: "连麦价格（虚拟币/分钟），0=不接连麦", minimum: 0 })
+  @ApiProperty({ description: "连麦价格（虚拟币/分钟），0=不接连麦", minimum: 0, maximum: CONSULT_MAX_PRICE_PER_MINUTE })
   @IsInt()
   @Min(0)
+  @Max(CONSULT_MAX_PRICE_PER_MINUTE)
   callPricePerMinuteCoin: number;
 
   @ApiPropertyOptional({ description: "可接听时段" })

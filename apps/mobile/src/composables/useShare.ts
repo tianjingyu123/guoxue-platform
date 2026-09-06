@@ -11,7 +11,7 @@
  *   // 生成分享海报：
  *   openPoster('course', id)
  */
-import { navigateTo } from '@/utils/router'
+import { navigateTo, resolveRoute } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { withRef } from '@/utils/referral'
 
@@ -27,14 +27,14 @@ export interface ShareContent {
 export function useShare() {
   /** 生成 onShareAppMessage 返回值（好友/群）；路径自动携带分享者 ref（推荐归因·全平台唯一分享链接） */
   function toAppMessage(c: ShareContent) {
-    const path = withRef(c.path)
+    const path = withRef(resolveRoute(c.path))
     track.share('app_message', c.path)
     return { title: c.title, path, imageUrl: c.cover }
   }
 
   /** 生成 onShareTimeline 返回值（朋友圈）；query 自动携带分享者 ref */
   function toTimeline(c: ShareContent) {
-    const path = withRef(c.path)
+    const path = withRef(resolveRoute(c.path))
     track.share('timeline', c.path)
     const query = path.includes('?') ? path.split('?')[1] : ''
     return { title: c.title, query, imageUrl: c.cover }

@@ -485,6 +485,7 @@ export const videoApi = {
 
 // 直播
 export const liveApi = {
+  mediaClosure: (id: string) => api.get(`/live/admin/media-closure/${encodeURIComponent(id)}`),
   rooms: (params?: Record<string, unknown>) => api.get("/live/rooms", { params }),
   detail: (id: string) => api.get(`/live/rooms/${id}`),
   create: (data: Record<string, unknown>) => api.post("/live/rooms", data),
@@ -877,7 +878,14 @@ export const circleAppealApi = {
 };
 
 // 通话账单申诉（达人咨询·只记结论不动资金·退款走人工金币退款审批流）
+export interface ConsultMediaStatus {
+  closureChecks?: Array<{ code: string; message: string }>;
+  callId: string; checkedAt: string; orderStatus: string; boundaryStatus: string;
+  credentialRevision: number | null; credentialExpiresAt: string | null; stopState: string; stopRequestedAt: string | null;
+  mediaObservation: string; evidenceRevision: number | null; lastEventAt: string | null; quotaState: string; canRelease: false; notice: string;
+}
 export const callDisputeApi = {
+  mediaStatus: (id: string) => api.get<ConsultMediaStatus>(`/consult-calls/admin/media-status/${encodeURIComponent(id)}`),
   list: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/consult-calls/admin/disputes", { params }),
   resolve: (id: string, data: { status: "RESOLVED" | "REJECTED"; note?: string }) =>

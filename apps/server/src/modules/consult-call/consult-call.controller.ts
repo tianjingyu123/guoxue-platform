@@ -1,46 +1,60 @@
-import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards, Header, ParseUUIDPipe } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { ConsultCallService } from "./consult-call.service";
+import { ConsultMediaStatusService } from "./consult-media-status.service";
 import { InitiateCallDto, CancelCallDto, RateCallDto, DisputeCallDto, ResolveDisputeDto } from "./consult-call.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLine, RedLineGate, resolveExecutorType } from "../../common/red-lines";
 
 @ApiTags("达人通话")
 @ApiBearerAuth()
 @Controller("consult-calls")
 @UseGuards(JwtAuthGuard)
 export class ConsultCallController {
-  constructor(private svc: ConsultCallService) {}
+  constructor(private svc: ConsultCallService, private mediaStatus: ConsultMediaStatusService) {}
+
+  @Get("admin/media-status/:id")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "只读核查咨询媒体待办、回调观察与资源记录，不触发任何收尾动作" })
+  mediaStatusDetail(@Param("id") id: string) {
+    return this.mediaStatus.read(id);
+  }
 
   @Post("initiate")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "发起付费通话（预扣金币 + 返回 TRTC 接入配置）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数/余额校验失败" })
   initiate(@Req() req: Request, @Body() dto: InitiateCallDto) {
-    return this.svc.initiate(req.user.id, dto);
+    return this.svc.initiate(req.user.id, dto, resolveExecutorType(req));
   }
 
   @Post(":id/accept")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "达人接听" })
   @ApiResponse({ status: 201, description: "成功" })
   accept(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.accept(req.user.id, id);
+    return this.svc.accept(req.user.id, id, resolveExecutorType(req));
   }
 
   @Post(":id/end")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "结束通话并结算（按实际时长扣费、达人50%分账、多退预扣）" })
   @ApiResponse({ status: 201, description: "成功" })
   end(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.end(req.user.id, id);
+    return this.svc.end(req.user.id, id, resolveExecutorType(req));
   }
 
   @Post(":id/cancel")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "取消未接通通话（全额退还预扣）" })
   @ApiResponse({ status: 201, description: "成功" })
   cancel(@Req() req: Request, @Param("id") id: string, @Body() dto: CancelCallDto) {
-    return this.svc.cancel(req.user.id, id, dto?.reason);
+    return this.svc.cancel(req.user.id, id, dto?.reason, resolveExecutorType(req));
   }
 
   @Get("my")
@@ -48,6 +62,18 @@ export class ConsultCallController {
   @ApiResponse({ status: 200, description: "成功" })
   myCalls(@Req() req: Request) {
     return this.svc.myCalls(req.user.id);
+  }
+
+  @Get("active")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "本人待接听和进行中的通话，不返回媒体票据" })
+  active(@Req() req: Request) { return this.svc.active(req.user.id); }
+
+  @Get(":id/state")
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "通话双方读取最新业务状态，不返回入房凭据、不触发结算" })
+  state(@Req() req: Request, @Param("id", new ParseUUIDPipe({ version: "4" })) id: string) {
+    return this.svc.state(req.user.id, id);
   }
 
   // ───────── 评价与账单申诉（待办 #31） ─────────

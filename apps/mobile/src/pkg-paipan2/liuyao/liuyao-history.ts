@@ -5,6 +5,7 @@
  */
 import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
 import type { QiguaMethodKey } from '@/pkg-paipan2/lib/liuyao-data'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 
 export interface LiuyaoParams {
   /** 所占事项（选填，≤30 字） */
@@ -32,48 +33,35 @@ export interface LiuyaoRecord {
 export type LiuyaoHistoryItem = HistoryItem<LiuyaoRecord>
 
 const KEY = 'rebu:liuyao-records'
-const LEGACY_KEY = 'rebu:liuyao-history'
 
 /** 去重键（沿用原规则） */
 function dedupeKey(p: LiuyaoParams): string {
   return JSON.stringify({ ...p, matter: '' })
 }
 
-const store = createHistory<LiuyaoRecord>(KEY, {
-  max: 50,
-  sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
-})
-
-/** 老记录（JSON 字符串数组、无 id）一次性迁入新库 */
-function migrateLegacy(): void {
-  try {
-    const raw = uni.getStorageSync(LEGACY_KEY)
-    if (!raw) return
-    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
-    if (Array.isArray(old)) {
-      for (const r of [...old].reverse()) {
-        if (r?.params) store.save({ params: r.params, summary: r.summary ?? '' } as LiuyaoRecord)
-      }
-    }
-    uni.removeStorageSync(LEGACY_KEY)
-  } catch {
-    /* 迁移失败不阻断 */
-  }
+function currentStore() {
+  const key = nativeHistoryKey(KEY)
+  if (!key) throw new Error('请重新核验访问权限')
+  return createHistory<LiuyaoRecord>(key, {
+    max: 50,
+    sameAs: (a, b) => dedupeKey(a.params) === dedupeKey(b.params),
+  })
 }
 
 export function loadLiuyaoHistory(): LiuyaoHistoryItem[] {
-  migrateLegacy()
-  return store.load()
+  if (!nativeHistoryKey(KEY)) return []
+  // 旧设备共享记录没有可证明归属；保留原键，不读取、不自动迁入、不删除。
+  return currentStore().load()
 }
 
 /** 写入一条记录（签名与旧版一致，调用方无需改） */
 export function saveLiuyaoHistory(params: LiuyaoParams, summary: string) {
-  store.save({ params, summary } as LiuyaoRecord)
+  currentStore().save({ params, summary } as LiuyaoRecord)
 }
 
-export const removeLiuyaoHistory = store.remove
-export const pinLiuyaoHistory = store.togglePin
-export const clearLiuyaoHistory = store.clear
+export const removeLiuyaoHistory = (ids: string[]) => currentStore().remove(ids)
+export const pinLiuyaoHistory = (ids: string[]) => currentStore().togglePin(ids)
+export const clearLiuyaoHistory = () => currentStore().clear()
 
 export function formatParamsTime(p: LiuyaoParams): string {
   const pad = (n: number) => String(n).padStart(2, '0')

@@ -4,7 +4,8 @@
  * 数据来自本地真实记录（../history），无记录即空态——不塞任何示例数据。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import ToolHeader from '@/components/paipan/tool-header.vue'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -14,7 +15,7 @@ const records = ref<any[]>([])
 function reload() {
   records.value = loadXingmingHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => { records.value = [] })
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -26,27 +27,31 @@ const vms = computed<HistoryVM[]>(() =>
 )
 
 function open(vm: HistoryVM) {
+  if (!preview.allowed.value) return
   const r = vm.raw
-  const q = [
-    `name=${encodeURIComponent(r.name)}`, `gender=${encodeURIComponent(r.gender)}`,
-    `birth=${encodeURIComponent(r.birth)}`,
-    r.city ? `city=${encodeURIComponent(r.city)}` : '',
-    r.district ? `district=${encodeURIComponent(r.district)}` : '',
-  ].filter(Boolean).join('&')
-  navigateTo(`/pkg-paipan2/xingming/result?${q}`)
+  const payload = { name: r.name, gender: r.gender, birth: r.birth, city: r.city ?? '', district: r.district ?? '' }
+  navigateTo(`/pkg-paipan2/xingming/result?payload=${encodeURIComponent(JSON.stringify(payload))}`)
 }
 function onPin(ids: string[]) {
-  pinXingmingHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const selected = [...ids]
+  void preview.run(() => { pinXingmingHistory(selected); reload() })
 }
 function onDelete(ids: string[]) {
-  removeXingmingHistory(ids)
-  reload()
+  if (!preview.allowed.value) return
+  const selected = [...ids]
+  void preview.run(() => { removeXingmingHistory(selected); reload() })
 }
 </script>
 
 <template>
+  <view v-if="!preview.allowed.value">
+    <tool-header title="解析记录" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
   <HistoryPage
+    v-else
     title="解析记录"
     back-href="/paipan/xingming"
     :records="vms"

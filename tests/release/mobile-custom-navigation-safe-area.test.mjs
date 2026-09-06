@@ -7,7 +7,7 @@ const repoRoot = path.resolve('.')
 const mobileSource = path.join(repoRoot, 'apps/mobile/src')
 const pagesSource = readFileSync(path.join(mobileSource, 'pages.json'), 'utf8')
 
-function compilePages(appPlus) {
+function compilePages(platform) {
   const output = []
   const stack = []
   let active = true
@@ -20,8 +20,9 @@ function compilePages(appPlus) {
     }
     const [, kind, expression] = directive
     if (kind === 'ifdef' || kind === 'ifndef') {
-      assert.equal(expression.trim(), 'APP-PLUS', `安全区审计尚未支持条件标识 ${expression.trim()}`)
-      const condition = kind === 'ifdef' ? appPlus : !appPlus
+      assert.ok(['APP-PLUS', 'MP-WEIXIN'].includes(expression.trim()), `安全区审计尚未支持条件标识 ${expression.trim()}`)
+      const matches = expression.trim() === platform
+      const condition = kind === 'ifdef' ? matches : !matches
       stack.push({ parent: active, condition })
       active = active && condition
     } else if (kind === 'else') {
@@ -40,7 +41,7 @@ function compilePages(appPlus) {
 
 function registeredPages() {
   const routes = new Map()
-  for (const config of [compilePages(true), compilePages(false)]) {
+  for (const config of ['APP-PLUS', 'H5', 'MP-WEIXIN', 'APP-HARMONY'].map(compilePages)) {
     for (const page of config.pages || []) routes.set(page.path, page)
     for (const group of config.subPackages || []) {
       for (const page of group.pages || []) routes.set(`${group.root}/${page.path}`, page)

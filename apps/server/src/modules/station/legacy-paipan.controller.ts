@@ -8,7 +8,7 @@ import {
 } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { NativePaipanQaGuard } from "../../common/paipan-runtime.service";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 import { StationPaipanSyncService } from "./station-paipan-sync.service";
 
 @ApiTags("旧排盘兼容")
@@ -63,11 +63,11 @@ export class LegacyPaipanController {
 
   @Get("native-qa/access")
   @ApiExcludeEndpoint()
-  @UseGuards(NativePaipanQaGuard)
+  @UseGuards(NativePaipanGuard)
   @Header("Cache-Control", "no-store")
   @Header("X-Robots-Tag", "noindex, nofollow, noarchive")
-  @ApiOperation({ summary: "预发布自研排盘 QA 门禁探针" })
-  getNativeQaAccess() {
-    return { allowed: true as const };
+  @ApiOperation({ summary: "整套自研访问探针（兼容原预览路径）" })
+  getNativeQaAccess(@Req() req: Request) {
+    return { allowed: true as const, subjectId: req.user.id };
   }
 }

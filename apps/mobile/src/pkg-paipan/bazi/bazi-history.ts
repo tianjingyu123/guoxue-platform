@@ -4,7 +4,8 @@
  * 原 bazi/history 页是硬编码的 6 条假记录（孙哥儿子/王雷…），八字排完根本不落盘。
  * 现改为真实记录：result 页排盘成功后写入，记录页只读本地存储，无记录即空态。
  */
-import { createHistory, createGroupNames, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory as createHistory, createPrivateGroupNames as createGroupNames } from '@/lib/paipan/private-history'
 
 export interface BaziParams {
   name: string

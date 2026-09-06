@@ -2,11 +2,14 @@ import "reflect-metadata";
 import { ShopController } from "../modules/shop/shop.controller";
 import { LiveController } from "../modules/live/live.controller";
 import { VersionController } from "../modules/system/version.controller";
+import { ConsultCallController } from "../modules/consult-call/consult-call.controller";
 import { RED_LINE_KEY, RedLine } from "./red-lines";
 
 describe("关键业务动作红线元数据", () => {
   const cases: Array<[string, (...args: any[]) => unknown, RedLine[]]> = [
     ["商品外发", ShopController.prototype.createProduct, [RedLine.EXTERNAL_PUBLISH]],
+    ["咨询结束结算", ConsultCallController.prototype.end, [RedLine.MONEY, RedLine.EXTERNAL_PUBLISH]],
+    ["咨询取消退款", ConsultCallController.prototype.cancel, [RedLine.MONEY, RedLine.EXTERNAL_PUBLISH]],
     ["商品编辑与改价", ShopController.prototype.updateProduct, [RedLine.MONEY, RedLine.EXTERNAL_PUBLISH]],
     ["商品状态变更", ShopController.prototype.updateProductStatus, [RedLine.EXTERNAL_PUBLISH]],
     ["商品删除", ShopController.prototype.deleteProduct, [RedLine.IRREVERSIBLE]],

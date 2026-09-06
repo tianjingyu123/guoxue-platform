@@ -6,10 +6,10 @@ const srcDir = path.join(repoRoot, 'apps', 'mobile', 'src')
 const pagesFile = path.join(srcDir, 'pages.json')
 // uni-app 允许在 pages.json 中用条件编译把同一路由分别注册为 App 主包页和
 // 非 App 分包页。直接删除编译指令会把两个互斥分支拼在一起，误报重复路由。
-// 分别解析 APP-PLUS 与非 APP-PLUS 两个实际配置，再对路由取并集。
+// 分别解析 App、微信和其余网页配置，再对路由取并集，不能将互斥分支拼成一份配置。
 const rawPagesSource = fs.readFileSync(pagesFile, 'utf8')
 
-function compilePagesSource(source, appPlus) {
+function compilePagesSource(source, platform) {
   const stack = []
   let active = true
   const output = []
@@ -24,10 +24,10 @@ function compilePagesSource(source, appPlus) {
     const [, kind, expression] = directive
     if (kind === 'ifdef' || kind === 'ifndef') {
       const symbol = expression.trim()
-      if (symbol !== 'APP-PLUS') {
+      if (!['APP-PLUS', 'MP-WEIXIN', 'H5'].includes(symbol)) {
         throw new Error(`pages.json 含导航审计尚未支持的条件编译标识：${symbol}`)
       }
-      const condition = kind === 'ifdef' ? appPlus : !appPlus
+      const condition = kind === 'ifdef' ? platform === symbol : platform !== symbol
       stack.push({ parentActive: active, condition, hasElse: false })
       active = active && condition
       continue
@@ -50,8 +50,8 @@ function compilePagesSource(source, appPlus) {
   return output.join('\n')
 }
 
-const pagesConfigs = [true, false].map((appPlus) =>
-  JSON.parse(compilePagesSource(rawPagesSource, appPlus)),
+const pagesConfigs = ['APP-PLUS', 'MP-WEIXIN', 'H5'].map((platform) =>
+  JSON.parse(compilePagesSource(rawPagesSource, platform)),
 )
 
 const validSet = new Set()
@@ -100,7 +100,7 @@ function findSourceFiles(dir) {
     if (['node_modules', 'dist', 'unpackage'].includes(entry.name)) continue
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) files.push(...findSourceFiles(full))
-    else if (/\.(vue|ts|js)$/.test(entry.name)) files.push(full)
+    else if (/\.(vue|nvue|uvue|ts|js)$/.test(entry.name)) files.push(full)
   }
   return files
 }

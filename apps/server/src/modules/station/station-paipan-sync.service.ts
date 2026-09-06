@@ -23,8 +23,8 @@ export class StationPaipanSyncService {
     private readonly runtime: PaipanRuntimeService,
   ) {}
 
-  getRuntime() {
-    return { mode: this.runtime.getMode() };
+  async getRuntime() {
+    return { mode: await this.runtime.getCurrentMode(this.prisma) };
   }
 
   async getUserEntry(userId: string): Promise<LegacyPaipanEntry> {
@@ -38,7 +38,7 @@ export class StationPaipanSyncService {
   async getStationEntry(
     stationId: string,
   ): Promise<{ mode: "legacy" | "native"; url: string | null }> {
-    if (this.runtime.isNative()) return { mode: "native", url: null };
+    if (await this.runtime.getCurrentMode(this.prisma) === "native") return { mode: "native", url: null };
     const station = await this.prisma.station.findFirst({
       where: { id: stationId, status: "ACTIVE" },
       select: { paipanLink: true, paipanUserId: true },
@@ -176,7 +176,7 @@ export class StationPaipanSyncService {
     userId: string,
     target: "tool" | "my",
   ): Promise<LegacyPaipanEntry> {
-    if (this.runtime.isNative()) return { mode: "native", url: null, attributionReady: true };
+    if (await this.runtime.getCurrentMode(this.prisma) === "native") return { mode: "native", url: null, attributionReady: true };
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { phone: true, phoneEnc: true, attributionStationId: true },

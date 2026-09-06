@@ -9,7 +9,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { circleApi, isExpertRole, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
+import { circleApi, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 
 const loading = ref(true)
@@ -23,7 +23,6 @@ const ownerCircle = computed(() => myCircles.value.find((c) => c.role === 'owner
  * 达人资格（可自助配置咨询价格）：后端白名单 OWNER/PARTNER/GUEST。
  * 必须看 rawRole —— role 的三档归并会把 GUEST 压成 member，用它会漏掉嘉宾达人。
  */
-const expertCircles = computed(() => myCircles.value.filter((c) => isExpertRole(c.rawRole)))
 const createdCount = computed(() => myCircles.value.filter((c) => c.role === 'owner').length)
 // 退款进行中提示
 const activeRefund = computed(() =>
@@ -84,16 +83,16 @@ onMounted(load)
         <app-icon name="chevron-right" :size="30" color="#999999" />
       </view>
 
-      <!-- 达人设置入口：圈主/合伙人/嘉宾可自助定价（提问价/围观价/连麦价） -->
-      <view v-if="expertCircles.length" class="owner-card expert-card" @tap="go('/pkg-circle/circles/expert-config')">
+      <!-- 设置可供本人查看，能否启用由主库授权决定，不再漏掉平台直授普通成员。 -->
+      <view v-if="myCircles.length" class="owner-card expert-card" @tap="go('/pkg-circle/circles/expert-config')">
         <view class="owner-icon expert-icon"><app-icon name="message-square" :size="32" color="#C41E3A" /></view>
         <view class="owner-body">
           <view class="owner-title">
             <text class="owner-title-txt">我的达人设置</text>
-            <text class="expert-badge">咨询定价</text>
+            <text class="expert-badge">服务状态</text>
           </view>
           <text class="owner-sub">
-            设置提问价 · 围观价 · 连麦价{{ expertCircles.length > 1 ? ` · ${expertCircles.length} 个圈子` : '' }}
+            查看可用服务 · 管理已授权服务的价格
           </text>
         </view>
         <app-icon name="chevron-right" :size="30" color="#999999" />

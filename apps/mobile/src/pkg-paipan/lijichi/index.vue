@@ -7,7 +7,7 @@
  *       V0 SEED 假数据不带（诚实空态）；分享用 tool-header 内置；R4 合规：小程序端标题改文化研究表述。
  */
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -37,6 +37,7 @@ function pickSitting(i: number) {
 }
 
 function handleCreate() {
+  if (!preview.allowed.value) return
   if (sittingIdx.value === null) {
     uni.showToast({ title: '请先选择山向', icon: 'none' })
     return
@@ -55,17 +56,34 @@ const records = ref<LijichiHistoryItem[]>([])
 function loadRecords() {
   records.value = loadLijichiHistory()
 }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => {
+  customer.value = ''
+  sittingIdx.value = null
+  showPicker.value = false
+  showHelp.value = false
+  showHistory.value = false
+  records.value = []
+})
 
 function openHistory() {
-  loadRecords()
-  showHistory.value = true
+  if (!preview.allowed.value) return
+  const state = { customer: customer.value, sitting: sittingIdx.value }
+  void preview.run(() => {
+    customer.value = state.customer
+    sittingIdx.value = state.sitting
+    loadRecords()
+    showHistory.value = true
+  })
 }
 function clearHistory() {
-  clearLijichiHistory()
-  records.value = []
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
+  uni.showModal({ title: '清空测量记录', content: '仅清空当前账号的立极尺记录，是否继续？', success: res => {
+    if (res.confirm && isCurrent()) void preview.run(() => { clearLijichiHistory(); records.value = [] })
+  } })
 }
 function openRecord(r: LijichiHistoryItem) {
+  if (!preview.allowed.value) return
   showHistory.value = false
   const params: Record<string, unknown> = {
     customer: r.client === '未命名' ? '' : r.client,
@@ -79,7 +97,12 @@ function openRecord(r: LijichiHistoryItem) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header history-href="/paipan/lijichi/history"
       :title="hdrTitle"
       subtitle="以宅中心立极 · 定二十四山向"

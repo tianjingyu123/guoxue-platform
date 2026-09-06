@@ -314,7 +314,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
@@ -407,6 +407,28 @@ onMounted(async () => {
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const submitting = ref(false)
+const checkingPermission = ref(false)
+let publicationGeneration = 0, publicationPageActive = true
+function invalidatePublication() {
+  publicationPageActive = false
+  publicationGeneration++
+  showPublishGuide.value = false
+}
+onHide(invalidatePublication)
+onUnload(invalidatePublication)
+onShow(() => { publicationPageActive = true })
+
+async function checkPublicationPermission(): Promise<boolean> {
+  if (checkingPermission.value || !publicationPageActive) return false
+  const generation = publicationGeneration, selected = selectedCircle.value?.id
+  checkingPermission.value = true
+  try {
+    const allowed = await checkVideoPublishPermission(selected)
+    if (!publicationPageActive || generation !== publicationGeneration || selected !== selectedCircle.value?.id) return false
+    if (!allowed) showPublishGuide.value = true
+    return allowed
+  } finally { checkingPermission.value = false }
+}
 
 const coverPreview = computed(() => coverUploadedUrl.value || coverTempPath.value)
 const durationText = computed(() => {
@@ -419,11 +441,10 @@ const durationText = computed(() => {
 const canSubmit = computed(() => !!videoTempPath.value && !!title.value.trim())
 
 async function requestPlatformVisibility() {
-  if (await checkVideoPublishPermission(selectedCircle.value?.id)) {
+  if (await checkPublicationPermission()) {
     visibility.value = 'PLATFORM'
     return
   }
-  showPublishGuide.value = true
 }
 
 function enablePlatformVisibility() {
@@ -498,14 +519,12 @@ function searchProducts() {
 }
 
 async function handlePublish() {
-  if (uploading.value || submitting.value) return
-  if (
-    visibility.value === 'PLATFORM' &&
-    !(await checkVideoPublishPermission(selectedCircle.value?.id))
-  ) {
-    showPublishGuide.value = true
-    return
-  }
+  if (uploading.value || submitting.value || checkingPermission.value || !publicationPageActive) return
+  const generation = publicationGeneration, selected = selectedCircle.value?.id
+  // 所有发布范围都需发布资格；仅本圈不是权限豁免。
+  if (!(await checkPublicationPermission())) return
+  const isCurrent = () => publicationPageActive && generation === publicationGeneration && selected === selectedCircle.value?.id
+  if (!isCurrent()) return
   // 统一校验：滚动定位到第一个错误项，无弹窗打断
   videoError.value = false
   titleError.value = ''
@@ -535,6 +554,7 @@ async function handlePublish() {
     const videoUrl = await uploadVideo(videoTempPath.value, (p) => {
       uploadProgress.value = Math.min(90, Math.round(p * 0.9))
     })
+    if (!isCurrent()) return
     // 2. 封面：优先用户上传的封面，其次视频缩略图（若平台提供）
     let coverUrl = coverUploadedUrl.value
     if (!coverUrl && coverTempPath.value) {
@@ -545,9 +565,10 @@ async function handlePublish() {
       }
     }
     uploadProgress.value = 95
+    if (!isCurrent()) return
     // 3. 发布（字段对齐后端 CreateVideoDto）
     await videoApi.publish({
-      circleId: circleId.value || undefined,
+      circleId: selected || undefined,
       title: title.value.trim(),
       description: description.value.trim() || undefined,
       videoUrl,

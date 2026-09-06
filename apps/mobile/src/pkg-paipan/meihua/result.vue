@@ -6,6 +6,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import { Solar } from '@/pkg-paipan/lib/lunar/index.js'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -56,7 +57,14 @@ const q = ref({
 const ready = ref(false)
 const invalid = ref(false)
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  ready.value = false; invalid.value = false
+  showNotes.value = false; selectedHex.value = null; editingMatter.value = false
+})
+const { allowed, checking } = preview
+function initialize(opts: Record<string, string>) {
   try {
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
@@ -78,7 +86,7 @@ onLoad((opts: Record<string, string> = {}) => {
   } catch {
     invalid.value = true
   }
-})
+}
 
 function onBack() {
   const pages = getCurrentPages()
@@ -281,8 +289,8 @@ const dateText = computed(() =>
 
 /** 保存排盘记录（统一走 meihua-history 模块，记录页/入口弹层同一份数据） */
 function handleSave() {
-  if (saved.value) return
-  saveMeihuaHistory({
+  if (saved.value || !allowed.value || !ready.value) return
+  const record = {
     matter: matterText.value || '未命名事项',
     dateText: dateText.value,
     guaText: `${ben.value.name} 之 ${hexes.value.bian.name}`,
@@ -295,9 +303,13 @@ function handleSave() {
       yaos: q.value.yaosParam,
       moving: q.value.movingParam,
     },
+  }
+  return preview.run(() => {
+    saveMeihuaHistory(record)
+    ready.value = true
+    saved.value = true
+    uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
   })
-  saved.value = true
-  uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
 }
 
 /** 分享：H5 系统分享/复制链接，其余端复制卦象摘要 */
@@ -319,7 +331,12 @@ function handleShare() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="梅花易数" subtitle="观物取象 · 体用生克" @back="onBack" />
 
     <!-- 参数缺失/损坏：错误态 -->

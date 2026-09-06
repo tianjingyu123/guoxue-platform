@@ -10,6 +10,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -52,7 +53,16 @@ const lines = computed(() => {
 
 const VALID_METHODS: QiguaMethodKey[] = ['manual', 'coin', 'guaname', 'number1', 'number2', 'time', 'auto']
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  params.value = null
+  detailLine.value = null
+  loadError.value = ''
+})
+const { allowed, checking } = preview
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少起卦参数')
     const raw = JSON.parse(decodeURIComponent(q.payload)) as Record<string, unknown>
@@ -94,14 +104,16 @@ onLoad((q: Record<string, string> = {}) => {
       guaPick: p.guaPick,
     })
     const moving = r.chart.lines.filter((l) => l.movingMark).length
-    saveLiuyaoHistory(
+    if (!recorded) saveLiuyaoHistory(
       p,
       `${r.chart.benShort} → ${r.chart.bianShort}${moving ? ` · ${moving}爻动` : ' · 静卦'}`,
     )
+    recorded = true
   } catch (e) {
+    params.value = null
     loadError.value = (e as Error).message || '起卦参数无效'
   }
-})
+}
 
 function onShare() {
   const r = result.value
@@ -123,7 +135,12 @@ function onShare() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status" class="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button v-if="!checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="六爻排盘" back-href="/paipan/liuyao" share @share="onShare" />
 
     <!-- 错误态 -->

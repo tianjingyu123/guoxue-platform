@@ -14,8 +14,9 @@ export function clientModuleForRoute(value: string): ClientModule | null {
 }
 
 export function isClientModuleEnabled(module: ClientModule): boolean {
-  // 审核敏感模块必须由服务端明确开启；无缓存、接口失败或未知字段时安全关闭。
-  return isClientFeatureEnabled(`client_module_${module}`, false)
+  // 模块总闸不是发布资格：旧服务端未配置时保留原有入口，明确 false 才停用。
+  // 展示入口不授予发文、开播、接单或支付权限，这些仍由各业务服务端裁决。
+  return isClientFeatureEnabled(`client_module_${module}`, true)
 }
 
 export function isClientRouteEnabled(value: string): boolean {

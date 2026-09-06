@@ -13,6 +13,7 @@ const txProxy = new Proxy({} as any, {
 
 const mockPrisma: any = {
   $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(txProxy) : Promise.all(Array.isArray(arg) ? arg : [arg])),
+  $queryRaw: jest.fn().mockResolvedValue([]),
   circle: { findUnique: jest.fn() },
   circleMember: { findFirst: jest.fn() },
   // 圈子治理 #10：发起提问前禁言直查（默认无禁言）
@@ -76,13 +77,13 @@ describe("QuestionService", () => {
     })
 
     it("回答者不在圈子中", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue(null)
       await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
     })
 
     it("提问成功", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       const result = await svc.ask("u1", askDto)
@@ -93,7 +94,7 @@ describe("QuestionService", () => {
 
     // 🔴 定价以达人配置为准，忽略客户端传入 priceCoin —— 防提问者压低达人收入
     it("扣费与围观价以达人(answerer)配置为准，不信客户端 priceCoin", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       // 客户端恶意传 priceCoin=1 想只花 1 币
@@ -105,7 +106,7 @@ describe("QuestionService", () => {
     })
 
     it("达人未开放付费提问(questionPriceCoin=0)时拒绝且不扣币", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 0, peekPriceCoin: 0 })
       await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
       expect(mockCoin.spend).not.toHaveBeenCalled()
@@ -113,7 +114,7 @@ describe("QuestionService", () => {
 
     // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问
     it("圈内禁言中：发起提问被拦且不扣币", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 86400000) })
       await expect(svc.ask("u1", askDto)).rejects.toThrow("禁言")
@@ -122,13 +123,61 @@ describe("QuestionService", () => {
     })
 
     it("禁言查询限定本圈生效禁言（circleId+MUTE+ACTIVE+未到期）·无禁言正常提问", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       await svc.ask("u1", askDto)
       const where = mockPrisma.circleViolation.findFirst.mock.calls[0][0].where
       expect(where).toMatchObject({ circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE" })
       expect(where.expiresAt).toHaveProperty("gt")
+    })
+
+    it.each([
+      { status: "DISABLED", deletedAt: null },
+      { status: "PENDING", deletedAt: null },
+      { status: "ACTIVE", deletedAt: new Date() },
+    ])("停用/未开放/已删除圈子不能新接单：%j", async state => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", ...state })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("圈子不存在或已停用")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockAudit.moderateTextOrThrow).not.toHaveBeenCalled()
+    })
+
+    it("直接下单也校验服务者角色、账号和成员有效期，不能只靠正价格", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null)
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("未开放有效")
+      expect(mockPrisma.circleMember.findFirst.mock.calls[0][0].where).toMatchObject({
+        circleId: "c1", userId: "u2", role: { in: ["OWNER", "PARTNER", "GUEST"] },
+        user: { status: "ACTIVE", deletedAt: null }, circle: { status: "ACTIVE", deletedAt: null },
+        questionPriceCoin: { gt: 0 }, AND: [{ OR: [{ expireAt: null }, { expireAt: { gt: expect.any(Date) } }] }],
+      })
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
+    it("审核等待期间停用服务，事务二次检查失败且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
+      mockPrisma.circleMember.findFirst.mockResolvedValueOnce({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 }).mockResolvedValueOnce(null)
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("咨询服务状态已更新")
+      expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(3)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("审核期间价格变化需重新确认，不能静默改价扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
+      mockPrisma.circleMember.findFirst.mockResolvedValueOnce({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+        .mockResolvedValueOnce({ id: "m1", questionPriceCoin: 100, peekPriceCoin: 10 })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("咨询价格已更新")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
+    it("锁失败不继续扣费，异常不被兜底吞掉", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", deletedAt: null })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.$queryRaw.mockRejectedValueOnce(new Error("lock-failed"))
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("lock-failed")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
     })
   })
 

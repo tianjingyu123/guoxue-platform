@@ -31,6 +31,8 @@ describe("关键业务红线 E2E", () => {
   });
 
   const cases = [
+    ["post", "/api/v1/consult-calls/00000000-0000-4000-8000-000000000001/end", undefined],
+    ["post", "/api/v1/consult-calls/00000000-0000-4000-8000-000000000001/cancel", { reason: "REFUNDED" }],
     ["post", "/api/v1/shop/products", { title: "自动化商品", price: 1, stock: 1, detail: "QA", images: ["https://example.com/qa.jpg"] }],
     ["put", "/api/v1/shop/products/p1", { title: "自动化改价", price: 2 }],
     ["put", "/api/v1/shop/products/p1/status", { status: "ON_SHELF" }],
@@ -80,6 +82,27 @@ describe("关键业务红线 E2E", () => {
       .send({ title: "人工商品", price: 1, stock: 1, detail: "人工审核后发布", images: ["https://example.com/human.jpg"] })
       .expect(201);
     expect(response.body.id).toBe("human-product");
+  });
+
+  it("咨询媒体只读核查拒绝匿名和普通账号，管理员可查不存在记录404", async () => {
+    const path = "/api/v1/consult-calls/admin/media-status/00000000-0000-4000-8000-000000000001";
+    await request(app.getHttpServer()).get(path).expect(401);
+    prisma.user.findUnique.mockResolvedValue({ id: "admin-red-line", status: "ACTIVE", roles: [] });
+    await request(app.getHttpServer()).get(path).set("Authorization", `Bearer ${token}`).expect(403);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    prisma.user.findUnique.mockResolvedValue({ id: "admin-red-line", status: "ACTIVE", roles: [{ roleType: "OPERATION_ADMIN" }] });
+    prisma.$queryRaw.mockResolvedValueOnce([]);
+    await request(app.getHttpServer()).get(path).set("Authorization", `Bearer ${token}`).expect(404);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it.each(["end", "cancel"])("真人咨询 %s 仍进入业务层，不存在记录返回404", async (action) => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([]);
+    await request(app.getHttpServer()).post(`/api/v1/consult-calls/00000000-0000-4000-8000-000000000001/${action}`)
+      .set("Authorization", `Bearer ${token}`).set("x-executor-type", "HUMAN")
+      .send(action === "cancel" ? { reason: "REFUNDED" } : {}).expect(404);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("真人管理员发布不存在的合法 UUID 版本返回 404", async () => {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards, NotFoundException } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards, NotFoundException, Header } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -29,7 +29,8 @@ export class MiniController {
   }
 
   @Get("content/:id")
-  @ApiOperation({ summary: "小程序内容详情", description: "精简版内容详情，含缓存" })
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "小程序内容详情", description: "仅返回当前已发布且可公开访问的内容，不缓存可见状态" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   async getContentDetail(@Param("id") id: string) {
@@ -39,6 +40,7 @@ export class MiniController {
   }
 
   @Get("share-config")
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "小程序分享配置", description: "获取微信分享卡片所需的标题、图片、路径" })
   @ApiResponse({ status: 200, description: "成功" })
   getShareConfig(@Query() query: MiniShareQueryDto) {

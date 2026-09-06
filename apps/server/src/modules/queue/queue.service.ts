@@ -28,12 +28,20 @@ export class QueueService {
     queueName: QueueName,
     name: string,
     data: T,
-    opts?: { delay?: number; priority?: number; dedupKey?: string; dedupTtl?: number },
+    opts?: { delay?: number; priority?: number; dedupKey?: string; dedupTtl?: number }, // dedupTtl 单位为毫秒
   ): Promise<Job<T>> {
+    const { dedupKey, dedupTtl, ...jobOptions } = opts ?? {};
+    if (dedupKey !== undefined && (typeof dedupKey !== "string" || !dedupKey.trim() || dedupKey !== dedupKey.trim())) {
+      throw new Error("任务去重标识无效");
+    }
+    if (dedupTtl !== undefined && (!dedupKey || !Number.isSafeInteger(dedupTtl) || dedupTtl <= 0)) {
+      throw new Error("任务去重期限必须绑定标识且为正整数毫秒");
+    }
     const job = await this.getQueue(queueName).add(name, data, {
       attempts: 3,
       backoff: { type: "exponential", delay: 2000 },
-      ...opts,
+      ...jobOptions,
+      ...(dedupKey ? { deduplication: { id: dedupKey, ...(dedupTtl === undefined ? {} : { ttl: dedupTtl }) } } : {}),
     });
     this.logger.debug(`[${queueName}] 任务入队: ${name} (job=${job.id})`);
     return job;

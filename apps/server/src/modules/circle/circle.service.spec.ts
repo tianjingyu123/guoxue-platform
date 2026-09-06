@@ -5,6 +5,10 @@ import { CircleCoreService } from "./services/circle-core.service";
 import { CircleMembershipService } from "./services/circle-membership.service";
 import { CirclePostService } from "./services/circle-post.service";
 import { CircleExpertService } from "./services/circle-expert.service";
+import { CircleConsultVisibilityService } from "./circle-consult-visibility.service";
+import { CircleCapabilityRepository } from "./circle-capability.repository";
+import { CircleCapabilityService } from "./circle-capability.service";
+import { CircleCapabilityEligibilityService } from "./circle-capability-eligibility.service";
 import { CircleGovernanceService } from "./governance/circle-governance.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -90,6 +94,11 @@ describe("CircleService", () => {
         CircleMembershipService,
         CirclePostService,
         CircleExpertService,
+        // 保留真实咨询可见性与能力依赖，不能用默认放行替代新权限边界。
+        CircleConsultVisibilityService,
+        CircleCapabilityRepository,
+        CircleCapabilityService,
+        CircleCapabilityEligibilityService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },

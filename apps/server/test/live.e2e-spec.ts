@@ -2,6 +2,8 @@ import { INestApplication } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import request from "supertest"
 import { createE2eApp } from "./e2e-setup"
+import { LiveStreamService } from "../src/modules/live/live-stream.service"
+import { quotaFixture } from "./fixtures/circle-capability-quota"
 
 describe("Live E2E", () => {
   let app: INestApplication
@@ -17,6 +19,7 @@ describe("Live E2E", () => {
     prisma = ctx.prisma
     redis = ctx.redis
     jwt = app.get(JwtService)
+    app.get(LiveStreamService).callbackScope = jest.fn().mockReturnValue({ domain: "push.example.com", appName: "live" })
     token = jwt.sign({ sub: "u1" })
     adminToken = jwt.sign({ sub: "admin1" })
     prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
@@ -36,8 +39,53 @@ describe("Live E2E", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    prisma.$queryRaw.mockReset().mockResolvedValue([{ 1: 1 }])
+    prisma.$executeRaw = jest.fn().mockRejectedValue(new Error("未声明的原生 SQL 测试写入"))
+    prisma.liveRoom.updateMany.mockReset().mockResolvedValue({ count: 1 })
+    prisma.liveRoom.findUniqueOrThrow.mockReset()
     mockRegularUser()
   })
+
+  // HTTP 层仅模拟明确的锁与无历史媒体记录；事务/并发语义另由真实 PG 集成测试验证。
+  function mockEmptyMediaHistory(actorId?: string, platformRoles: string[] = []) {
+    prisma.$executeRaw.mockImplementation(async (parts: TemplateStringsArray) => {
+      const sql = parts.join("?")
+      if (/^SELECT pg_advisory_xact_lock\(/.test(sql)
+        || /^SELECT id FROM "LiveRoom" WHERE id=\? FOR UPDATE$/.test(sql)) return 1
+      throw new Error("测试未声明的媒体 SQL 写入")
+    })
+    prisma.$queryRaw.mockImplementation(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = parts.join("?")
+      if (actorId && values[0] === actorId && /FROM "User" WHERE id=\? FOR SHARE$/.test(sql))
+        return [{ id: actorId, status: "ACTIVE", deletedAt: null }]
+      if (actorId && values[0] === actorId && /FROM "UserRole"\s+WHERE "userId"=\? ORDER BY id FOR SHARE$/.test(sql))
+        return platformRoles.map(roleType => ({ roleType, bindId: null }))
+      if (/^SELECT \* FROM "LiveMedia(Evidence|CredentialBoundary)"/.test(sql)) return []
+      throw new Error("测试未声明的媒体 SQL 查询")
+    })
+  }
+
+  function mockOwnerLiveAuthorization(enabled = true) {
+    mockEmptyMediaHistory()
+    const policy = quotaFixture().authorization.policy
+    if (!policy.ok) throw new Error("测试规则不完整")
+    prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", deletedAt: null, identityLevel: "L1", roles: [] })
+    prisma.circle.findUnique.mockResolvedValue({ id: "c1", ownerId: "u1", status: "ACTIVE", deletedAt: null })
+    prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+    prisma.userRole.findMany.mockResolvedValue([])
+    prisma.configSystem.findUnique.mockResolvedValue({ id: "config1", configValue: { version: 1, rules: { LIVE: policy.rule } } })
+    prisma.$queryRaw.mockImplementation(async (query: TemplateStringsArray | { strings: string[] }) => {
+      const sql = ("strings" in query ? query.strings : query).join("?")
+      if (/FROM "ConfigSystem"/.test(sql)) return [{ id: "config1" }]
+      if (/FROM "Circle"/.test(sql)) return [{ id: "c1" }]
+      if (/FROM "User"/.test(sql)) return [{ id: "u1" }]
+      if (/FROM "CircleMember"/.test(sql)) return [{ id: "cm1" }]
+      if (/FROM "UserRole"/.test(sql)) return []
+      if (/FROM "CircleCapabilityGrant"/.test(sql)) return [{ ...quotaFixture().authorization.circleGrant,
+        circleId: "c1", ownerId: "u1", applicantId: "u1", enabled, expiresAt: new Date(Date.now() + 3600000) }]
+      throw new Error("测试未声明的授权 SQL 查询")
+    })
+  }
 
   // ═══════════════════ 直播间 CRUD ═══════════════════
 
@@ -50,7 +98,7 @@ describe("Live E2E", () => {
     })
 
     it("创建直播间成功", async () => {
-      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      mockOwnerLiveAuthorization()
       prisma.liveRoom.create.mockResolvedValue({ id: "r1", title: "国学直播", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
@@ -61,7 +109,7 @@ describe("Live E2E", () => {
     })
 
     it("关联课程创建直播间", async () => {
-      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      mockOwnerLiveAuthorization()
       prisma.liveRoom.create.mockResolvedValue({ id: "r2", title: "课程直播", courseId: "co1", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
@@ -69,6 +117,14 @@ describe("Live E2E", () => {
         .send({ title: "课程直播", hostUserId: "u1", courseId: "co1", circleId: "c1" })
         .expect(201)
       expect(res.body.courseId).toBe("co1")
+    })
+
+    it("已停用的圈主发布授权不能创建直播间", async () => {
+      mockOwnerLiveAuthorization(false)
+      await request(app.getHttpServer()).post("/api/v1/live/rooms")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: "拒绝停用授权", hostUserId: "u1", circleId: "c1" }).expect(403)
+      expect(prisma.liveRoom.create).not.toHaveBeenCalled()
     })
   })
 
@@ -231,7 +287,8 @@ describe("Live E2E", () => {
   describe("DELETE /api/v1/live/rooms/:id", () => {
     it("删除直播间成功", async () => {
       mockAdminUser()
-      prisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "admin1" })
+      mockEmptyMediaHistory()
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "admin1", status: "ENDED" })
       prisma.liveRoom.delete.mockResolvedValue({})
       const res = await request(app.getHttpServer())
         .delete("/api/v1/live/rooms/r1")
@@ -246,29 +303,77 @@ describe("Live E2E", () => {
   describe("PUT /api/v1/live/rooms/:id/start", () => {
     it("开始直播成功", async () => {
       mockAdminUser()
-      prisma.liveRoom.findUnique.mockResolvedValueOnce({ id: "r1", status: "WAITING" }).mockResolvedValueOnce({ status: "WAITING" })
-      prisma.liveRoom.update.mockResolvedValue({
-        id: "r1", status: "LIVING", pushUrl: "rtmp://push.example.com", pullUrl: "{}",
+      mockEmptyMediaHistory("admin1", ["SUPER_ADMIN"])
+      const roomId = "00000000-0000-4000-8000-000000000002"
+      const room = { id: roomId, title: "直播", hostUserId: "admin1", circleId: null, orientation: "portrait",
+        auditStatus: "APPROVED", status: "WAITING", pushUrl: "", pullUrl: "" }
+      const pushUrl = `rtmp://push.example.com/live/room_${roomId}?txTime=${Math.floor(Date.now() / 1000 + 3600).toString(16)}&txSecret=synthetic`
+      ;(app.get(LiveStreamService).genPushUrl as jest.Mock).mockReturnValue(pushUrl)
+      prisma.liveRoom.findUnique.mockImplementation(async () => ({ ...room }))
+      prisma.liveRoom.updateMany.mockImplementation(async ({ data }: { data: object }) => { Object.assign(room, data); return { count: 1 } })
+      prisma.liveRoom.findUniqueOrThrow.mockImplementation(async () => ({ ...room }))
+      const lockSql = prisma.$executeRaw.getMockImplementation()
+      const boundaries: unknown[][] = []
+      prisma.$executeRaw.mockImplementation(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+        if (parts.join("?").startsWith('INSERT INTO "LiveMediaCredentialBoundary"')) { boundaries.push(values); return 1 }
+        return lockSql(parts, ...values)
       })
       const res = await request(app.getHttpServer())
-        .put("/api/v1/live/rooms/r1/start")
+        .put(`/api/v1/live/rooms/${roomId}/start`)
         .set("Authorization", `Bearer ${adminToken}`)
         .expect(200)
       expect(res.body.status).toBe("LIVING")
       expect(res.body).toHaveProperty("pushUrl")
+      expect(boundaries).toHaveLength(1)
+      expect(boundaries[0][0]).toBe(roomId)
+      expect(JSON.parse(String(boundaries[0][2]))).toEqual({ provider: "CSS", domain: "push.example.com", appName: "live", streamName: `room_${roomId}` })
+      expect(JSON.stringify(boundaries)).not.toContain("synthetic")
     })
   })
 
   describe("PUT /api/v1/live/rooms/:id/end", () => {
     it("结束直播成功", async () => {
-      mockAdminUser()
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", title: "直播", status: "LIVING" })
-      prisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" })
+      const actorId = "00000000-0000-4000-8000-000000000001"
+      prisma.user.findUnique.mockResolvedValue({ id: actorId, status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
+      mockEmptyMediaHistory(actorId, ["SUPER_ADMIN"])
+      const room = { id: "r1", title: "直播", hostUserId: actorId, circleId: null, status: "LIVING" }
+      prisma.liveRoom.findUnique.mockImplementation(async () => ({ ...room }))
+      prisma.liveRoom.updateMany.mockImplementation(async () => { room.status = "ENDED"; return { count: 1 } })
+      prisma.liveRoom.findUniqueOrThrow.mockImplementation(async () => ({ ...room }))
       const res = await request(app.getHttpServer())
         .put("/api/v1/live/rooms/r1/end")
-        .set("Authorization", `Bearer ${adminToken}`)
+        .set("Authorization", `Bearer ${jwt.sign({ sub: actorId })}`)
         .expect(200)
       expect(res.body.status).toBe("ENDED")
+      expect(prisma.liveRoom.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1", status: "LIVING", hostUserId: actorId, circleId: null },
+        data: expect.objectContaining({ status: "ENDED" }),
+      }))
+      expect(prisma.liveRoom.update).not.toHaveBeenCalled()
+      expect(prisma.$executeRaw.mock.calls.some(([parts]: [TemplateStringsArray]) => parts.join("").includes("INSERT"))).toBe(false)
+    })
+
+    it("下播状态抢占失败返回409，不继续生成停流待办", async () => {
+      mockAdminUser()
+      mockEmptyMediaHistory("admin1", ["SUPER_ADMIN"])
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "admin1", circleId: null })
+      prisma.liveRoom.updateMany.mockResolvedValue({ count: 0 })
+      await request(app.getHttpServer()).put("/api/v1/live/rooms/r1/end")
+        .set("Authorization", `Bearer ${adminToken}`).expect(409)
+      expect(prisma.liveRoom.findUniqueOrThrow).not.toHaveBeenCalled()
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2)
+      expect(prisma.$queryRaw.mock.calls.every(([parts]: [TemplateStringsArray]) =>
+        /FROM "User(Role)?"/.test(parts.join("?")))).toBe(true)
+    })
+
+    it("登录后管理员被撤权不能下播，也不产生停流请求", async () => {
+      mockAdminUser()
+      mockEmptyMediaHistory("admin1", [])
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "admin1", circleId: null })
+      await request(app.getHttpServer()).put("/api/v1/live/rooms/r1/end")
+        .set("Authorization", `Bearer ${adminToken}`).expect(403)
+      expect(prisma.liveRoom.updateMany).not.toHaveBeenCalled()
+      expect(prisma.$executeRaw.mock.calls.some(([parts]: [TemplateStringsArray]) => parts.join("").includes("INSERT"))).toBe(false)
     })
   })
 
@@ -447,20 +552,36 @@ describe("Live E2E", () => {
       prisma.liveRoom.update.mockResolvedValue({})
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
-        .send({ stream_param: "room_r1", event_type: 100, video_url: "https://replay.example.com/live.mp4" })
+        .send({ stream_id: "room_r1", event_type: 100, video_url: "https://replay.example.com/live.mp4" })
         .expect(200)
       expect(res.body.code).toBe(0)
+      expect(prisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1" },
+        data: expect.objectContaining({ replayStatus: "DRAFT", replayUrl: "https://replay.example.com/live.mp4" }),
+      }))
     })
 
     it("按腾讯云 stream_id 识别推流，并忽略 stream_param 中的鉴权参数", async () => {
       prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" })
       redis.getJson.mockResolvedValue(null)
+      mockEmptyMediaHistory()
+      const lockSql = prisma.$executeRaw.getMockImplementation()
+      const snapshots: unknown[] = []
+      prisma.$executeRaw.mockImplementation(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+        if (parts.join("?").startsWith('INSERT INTO "LiveMediaEvidence"')) {
+          snapshots.push(JSON.parse(String(values[1])))
+          return 1
+        }
+        return lockSql(parts, ...values)
+      })
+      const eventTime = Math.floor(Date.now() / 1000)
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
         .send({
           stream_id: "room_r1",
           stream_param: "txSecret=secret&txTime=12345678",
           event_type: 1,
+          app: "push.example.com", appname: "live", sequence: "synthetic-session-1", event_time: eventTime,
         })
         .expect(200)
       expect(res.body.code).toBe(0)
@@ -468,11 +589,12 @@ describe("Live E2E", () => {
         where: { id: "r1" },
         select: { id: true },
       })
-      expect(redis.setJson).toHaveBeenCalledWith(
-        "live:stream-status:r1",
-        expect.objectContaining({ status: "online" }),
-        expect.any(Number),
-      )
+      expect(snapshots).toEqual([{ version: 1, domain: "push.example.com", appName: "live",
+        evidence: { uncertain: false, sessions: [{ sessionHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          beganAtMs: eventTime * 1000, endedAtMs: null }] } }])
+      expect(JSON.stringify(snapshots)).not.toMatch(/txSecret|txTime|synthetic-session-1/)
+      expect(redis.setJson).toHaveBeenCalledWith("live:css-metrics:r1", expect.objectContaining({ metrics: expect.any(Object) }), expect.any(Number))
+      expect(redis.setJson.mock.calls.some(([key]: [string]) => key === "live:stream-status:r1")).toBe(false)
     })
   })
 

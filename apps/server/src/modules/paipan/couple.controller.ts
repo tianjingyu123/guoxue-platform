@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiExcludeController } from "@nestjs/swagger";
 import { CoupleService } from "./couple.service";
 import { CoupleInviteDto, CoupleAcceptDto } from "./couple.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -21,6 +21,7 @@ import { NativePaipanGuard } from "../../common/paipan-runtime.service";
  * R3 最小授权：任何端点都不返回对方 recordId/生辰/四柱，双方唯一共享内容=合婚报告文本
  */
 @ApiTags("双人合盘")
+@ApiExcludeController()
 @Controller("paipan/couple")
 @UseGuards(NativePaipanGuard)
 export class CoupleController {

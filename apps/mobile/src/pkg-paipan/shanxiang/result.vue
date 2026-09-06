@@ -9,6 +9,8 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -41,9 +43,14 @@ const result = ref<ShanxiangResult | null>(null)
 const custName = ref('')
 const useYear = ref(new Date().getFullYear())
 const invalid = ref(false)
+let entryQuery: Record<string, string> = {}
+let saved = false
+const entryId = Date.now()
 
-onLoad((opts: Record<string, string> = {}) => {
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const gate = useNativePreviewPage(() => {
   try {
+    const opts = entryQuery
     if (!opts.payload) throw new Error('missing payload')
     const p = JSON.parse(decodeURIComponent(opts.payload)) as Record<string, unknown>
     const deg = Number(p.deg)
@@ -53,17 +60,29 @@ onLoad((opts: Record<string, string> = {}) => {
     useYear.value = year
     const r = paiShanxiang(deg, year)
     result.value = r
-    saveRecord(Number(p.ts) || Date.now(), p, r)
+    if (!saved) {
+      const recordId = Number(p.ts) || entryId
+      saveRecord(recordId, { ...p, ts: recordId }, r)
+      saved = true
+    }
   } catch {
     invalid.value = true
   }
+}, () => {
+  result.value = null
+  custName.value = ''
+  useYear.value = new Date().getFullYear()
+  invalid.value = false
 })
 
 /** 排盘记录自动留存（以 ts 去重，重开历史不重复写；上限 50） */
 function saveRecord(id: number, params: Record<string, unknown>, r: ShanxiangResult) {
+  const key = nativeHistoryKey(HISTORY_KEY)
+  if (!key) throw new Error('账号无法确认')
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    const records = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
+    const raw = uni.getStorageSync(key)
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const records: HistoryRecord[] = Array.isArray(parsed) ? parsed.filter(item => item && typeof item.params === 'object') : []
     if (records.some((it) => it.id === id)) return
     records.unshift({
       id,
@@ -73,7 +92,7 @@ function saveRecord(id: number, params: Record<string, unknown>, r: ShanxiangRes
       params,
       createdAt: Date.now(),
     })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(records.slice(0, 50)))
+    uni.setStorageSync(key, JSON.stringify(records.slice(0, 50)))
   } catch { /* 留存失败不影响排盘 */ }
 }
 
@@ -125,7 +144,12 @@ const xunshouText = computed(() => result.value?.chart.xunshou.name.slice(0, 2) 
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!gate.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ gate.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="gate.checking.value" @tap="gate.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       back-href="/pkg-paipan/shanxiang/index"

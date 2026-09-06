@@ -165,8 +165,9 @@ interface RawPostForPoster {
  * 任一步失败上抛，由页面走错误态 —— 绝不回退成假数据（错误的海报会被发到朋友圈）。
  */
 export async function getPosterData(type: PosterType, targetId?: string, circleId?: string): Promise<PosterRes> {
+  if (!Object.prototype.hasOwnProperty.call(TYPE_TITLE, type)) throw new Error('不支持的海报类型')
   // 邀请海报：平台自我介绍，本就是静态品牌文案（非假数据）；链接指向平台首页
-  if (type === 'invite' || !targetId) {
+  if (type === 'invite') {
     const me = getStorage<{ nickname?: string; avatar?: string }>('userInfo')
     return {
       code: 200,
@@ -184,6 +185,9 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
       },
     }
   }
+
+  if (!targetId) throw new Error('缺少分享内容，无法生成海报')
+  if (type === 'post' && !circleId) throw new Error('缺少圈子信息，无法生成海报')
 
   if (type === 'circle') {
     const c = await circleDetailApi.detail(targetId)

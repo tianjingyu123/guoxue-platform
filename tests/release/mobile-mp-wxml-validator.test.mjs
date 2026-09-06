@@ -4,6 +4,7 @@ import test from "node:test";
 import { validateWxml } from "../../apps/mobile/scripts/validate-mp-wxml.mjs";
 import {
   validateMpArtifactPath,
+  validateMpMaintenancePath,
   validateMpTextArtifact,
 } from "../../apps/mobile/scripts/validate-mp-artifacts.mjs";
 
@@ -60,4 +61,13 @@ test("微信文本产物门禁拦截不兼容 WXSS 选择器", () => {
 test("微信产物门禁拦截平台会忽略的双下划线保留目录", () => {
   assert.equal(validateMpArtifactPath("pkg-paipan/__shared__/tool.js").length, 1);
   assert.equal(validateMpArtifactPath("pkg-paipan/shared-components/tool.js").length, 0);
+});
+
+test("微信维护产物检查包含共用罗盘，不误拦客服与维护入口", () => {
+  for (const file of ["pkg-paipan/bazi/index.js", "pkg-paipan2/qiming/index.wxml", "pkg-paipan3/luopan/index.json", "pkg-common/legacy-paipan/index.js", "pkg-common/compass/index.js", "pkg-common\\compass\\compass.js"]) {
+    assert.equal(validateMpMaintenancePath(file).length, 1, file);
+  }
+  for (const file of ["pages/paipan/index.js", "pkg-common/customer-service/index.js", "pkg-circle/detail/index.js", "pkg-common/compass-help/index.js"]) {
+    assert.deepEqual(validateMpMaintenancePath(file), [], file);
+  }
 });

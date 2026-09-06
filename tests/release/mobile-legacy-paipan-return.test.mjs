@@ -5,6 +5,8 @@ import vm from 'node:vm'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
+// 常规移动发布门禁运行此文件时，同步覆盖子窗口尺寸计算。
+import './legacy-webview-layout.test.mjs'
 
 const page = fs.readFileSync('apps/mobile/src/pkg-common/legacy-paipan/index.vue', 'utf8')
 const preload = fs.readFileSync('apps/mobile/src/static/legacy-paipan-preload.js', 'utf8')
@@ -13,8 +15,8 @@ const legacyData = fs.readFileSync('apps/mobile/src/lib/legacy-paipan-data.ts', 
 const pages = fs.readFileSync('apps/mobile/src/pages.json', 'utf8')
 const videoPage = fs.readFileSync('apps/mobile/src/pkg-video/detail/index.vue', 'utf8')
 const manifest = fs.readFileSync('apps/mobile/src/manifest.json', 'utf8')
-const nativeCompass = fs.readFileSync('apps/mobile/src/pkg-paipan3/luopan/compass.ts', 'utf8')
-const nativeCompassPage = fs.readFileSync('apps/mobile/src/pkg-paipan3/luopan/index.vue', 'utf8')
+const nativeCompass = fs.readFileSync('apps/mobile/src/pkg-common/compass/compass.ts', 'utf8')
+const nativeCompassPage = fs.readFileSync('apps/mobile/src/pkg-common/compass/index.vue', 'utf8')
 
 test('H5 旧排盘由用户手势新窗口打开并保留可见返回入口', () => {
   assert.match(page, /window\.open\('', '_blank'\)/u)
@@ -69,8 +71,9 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /child\.setJsFile\?\.\('_www\/static\/legacy-paipan-preload\.js'\)/u)
   assert.match(page, /parent\.append\(child\)/u)
   assert.match(page, /child\.loadURL\(legacyUrl\.value\)/u)
-  assert.match(page, /top: `\$\{safeTop\.value\}px`/u)
-  assert.match(page, /bottom: '0px'/u)
+  assert.match(page, /legacyWebviewLayout\(uni\.getSystemInfoSync\(\)\)/u)
+  assert.match(page, /parent\.append\(child\)[\s\S]*child\.setStyle\(layout\)/u)
+  assert.doesNotMatch(page, /bottom: '0px'/u)
   assert.match(page, /__rebuNativeSafeBottom/u)
   assert.match(page, /data-rebu-native-bottom/u)
   assert.match(page, /Math\.max\(bodyPadding,inset\)/u)
@@ -124,7 +127,7 @@ test('旧排盘保留定位桥，电子罗盘改为平台自有原生页面', ()
   assert.match(page, /callback\(\$\{latitude\},\$\{longitude\}\)/u)
   assert.match(page, /else if \(action === 'location'\) requestLegacyLocation\(\)/u)
   assert.match(page, /else if \(action === 'compass-start'\) openNativeCompass\(child\)/u)
-  assert.match(page, /url: '\/pkg-paipan3\/luopan\/index\?source=paipan'/u)
+  assert.match(page, /url: '\/pkg-common\/compass\/index\?source=paipan'/u)
   assert.match(nativeCompassPage, /createCompass\(\{/u)
   assert.match(nativeCompass, /uni\.onCompassChange\(mpHandler\)/u)
   assert.match(nativeCompass, /orientation\.watchOrientation/u)
@@ -159,13 +162,19 @@ test('第三方绝对定位与 fixed 购买栏都会抬到真实 WebView 安全�
   const fixed = makeBar('fixed')
   const absolute = makeBar('absolute')
   const ordinary = makeBar('static')
+  const hiddenBar = makeBar('fixed')
+  hiddenBar.computed.bottom = '-56px'
+  hiddenBar.getBoundingClientRect = () => ({ bottom: 856, width: 360, height: 56 })
+  const offscreenBar = makeBar('absolute')
+  offscreenBar.getBoundingClientRect = () => ({ bottom: 1600, width: 360, height: 56 })
   const bodyValues = new Map()
   const body = { style: { setProperty: (key, value) => bodyValues.set(key, value) }, computed: { paddingBottom: '12px' } }
   const rootValues = new Map()
+  const resizeListeners = new Map()
   const document = {
     body,
     documentElement: { clientHeight: 800, clientWidth: 360, style: { setProperty: (key, value) => rootValues.set(key, value) } },
-    querySelectorAll: selector => selector === 'body *' ? [fixed, absolute, ordinary] : [],
+    querySelectorAll: selector => selector === 'body *' ? [fixed, absolute, ordinary, hiddenBar, offscreenBar] : [],
     addEventListener: () => {},
   }
   const window = {
@@ -175,14 +184,50 @@ test('第三方绝对定位与 fixed 购买栏都会抬到真实 WebView 安全�
     location: { href: 'https://www.yrydai.cn/member' },
     history: { length: 1 },
     getComputedStyle: node => node.computed,
+    addEventListener: (name, handler) => resizeListeners.set(name, handler),
   }
   window.window = window
   vm.runInNewContext(bridge, { URL, window, document })
   assert.equal(fixed.values.get('bottom'), '34px')
   assert.equal(absolute.values.get('bottom'), '34px')
   assert.equal(ordinary.values.has('bottom'), false)
+  assert.equal(hiddenBar.values.has('bottom'), false, '不得把原站刻意隐藏的负偏移栏拉到前台')
+  assert.equal(offscreenBar.values.has('bottom'), false, '视口外的文档元素不得误判为底栏')
   assert.equal(bodyValues.get('padding-bottom'), '34px')
   assert.equal(rootValues.get('--rebu-native-safe-bottom'), '34px')
+  assert.equal(typeof resizeListeners.get('resize'), 'function')
+  window.__rebuNativeSafeBottom = 16
+  resizeListeners.get('resize')()
+  assert.equal(fixed.values.get('bottom'), '16px')
+  assert.equal(absolute.values.get('bottom'), '16px')
+  assert.equal(bodyValues.get('padding-bottom'), '16px')
+  window.__rebuNativeSafeBottom = 0
+  resizeListeners.get('resize')()
+  assert.equal(fixed.values.get('bottom'), '0px')
+  assert.equal(bodyValues.get('padding-bottom'), '12px')
+  assert.equal(ordinary.values.has('bottom'), false)
+  fixed.computed.bottom = '-56px'
+  fixed.values.set('bottom', '-56px')
+  window.__rebuNativeSafeBottom = 34
+  resizeListeners.get('resize')()
+  resizeListeners.get('resize')()
+  assert.equal(fixed.values.get('bottom'), '-56px', '已适配栏后来主动隐藏时不能被再次展开')
+})
+
+test('窗口变化重新读取系统安全区，不保留上一次较大底部值', () => {
+  const refresh = page.match(/function refreshLegacySafeBottom\(\) \{([\s\S]*?)\n\}\nrefreshLegacySafeBottom\(\)/u)[1]
+  const state = { value: 99 }
+  let system = { screenHeight: 844, safeArea: { bottom: 810 }, safeAreaInsets: { bottom: 34 } }
+  let native = { bottom: 34, deviceBottom: 34 }
+  const context = { safeBottom: state, uni: { getSystemInfoSync: () => system }, plus: { navigator: { getSafeAreaInsets: () => native } } }
+  vm.runInNewContext(refresh, context)
+  assert.equal(state.value, 34)
+  system = { screenHeight: 390, safeArea: { bottom: 390 }, safeAreaInsets: { bottom: 0 } }
+  native = { bottom: 0, deviceBottom: 0 }
+  vm.runInNewContext(refresh, context)
+  assert.equal(state.value, 0)
+  assert.match(page, /onResize\(\(\) => \{\s*refreshLegacySafeBottom\(\)/u)
+  assert.match(page, /installLegacyNavigationBridge\(legacyChildWebview\)/u)
 })
 
 test('预载桥只允许排盘官方 HTTPS 导航，支付交易号交给独立原生桥', () => {
@@ -366,10 +411,12 @@ test('空链接和锚点确认控件不被兼容桥拦成不支持，外链限�
 test('原生罗盘并行监听 uni 与 HTML5+，且离页清理两条数据源', () => {
   assert.match(nativeCompass, /uni\.onCompassChange\(mpHandler\)/u)
   assert.match(nativeCompass, /orientation\.watchOrientation/u)
-  assert.match(nativeCompass, /magneticHeading[\s\S]*trueHeading[\s\S]*alpha/u)
+  assert.match(nativeCompass, /const heading = \[reading\?\.magneticHeading, reading\?\.trueHeading\]/u)
+  assert.doesNotMatch(nativeCompass, /reading\?\.alpha/u)
   assert.match(nativeCompass, /u\.offCompassChange\?\.\(mpHandler\)/u)
   assert.match(nativeCompass, /orientation\?\.clearWatch\?\.\(appOrientationWatchId\)/u)
-  assert.match(nativeCompass, /if \(!gotReading\) opts\.onStatus\('unavailable'\)/u)
+  assert.match(nativeCompass, /if \(running && current === generation && revision === fallbackRevision\) \{\s*fallbackTimer = null\s*gotReading = false\s*\/\/ #ifdef H5\s*\/\/[^\n]*\s*h5Source = null\s*\/\/ #endif\s*opts\.onStatus\('unavailable'\)/u)
+  assert.match(nativeCompass, /const clearFallback = \(\) => \{\s*fallbackRevision\+\+/u)
 })
 
 test('小程序构建排除 App 原生预载桥，不删其他运行时静态文件', () => {

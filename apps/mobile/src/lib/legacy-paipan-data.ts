@@ -33,7 +33,7 @@ export const legacyPaipanApi = {
   entry: () => apiGetOptionalAuth<LegacyPaipanEntry>("/legacy-paipan/entry"),
   account: () => apiGetOptionalAuth<LegacyPaipanEntry>("/legacy-paipan/account"),
   runtime: () => apiGet<{ mode: "legacy" | "native" }>("/legacy-paipan/runtime"),
-  nativeQaAccess: () => apiGet<{ allowed: true }>("/legacy-paipan/native-qa/access"),
+  nativeQaAccess: () => apiGet<{ allowed: true; subjectId: string }>("/legacy-paipan/native-qa/access"),
   stationEntry: (stationId: string) =>
     apiGet<{ mode: "legacy" | "native"; url: string | null }>(
       `/legacy-paipan/station/${encodeURIComponent(stationId)}/entry`,

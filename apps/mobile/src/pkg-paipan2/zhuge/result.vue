@@ -9,6 +9,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -23,21 +24,21 @@ import { saveZhugeHistory } from './history'
 const result = ref<ZhugeResult | null>(null)
 const errMsg = ref('')
 
-onLoad((opts: Record<string, string> = {}) => {
-  const w = opts.input ? decodeURIComponent(opts.input) : ''
-  if (!w) {
-    errMsg.value = '参数无效，请重新输入三个汉字。'
-    return
-  }
+let entryQuery: Record<string, string> = {}
+let saved = false
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => {
   try {
+    const w = entryQuery.input ? decodeURIComponent(entryQuery.input) : ''
+    if (!w) throw new Error('参数无效，请重新输入三个汉字。')
     const r = paiZhuge(w)
     result.value = r
-    saveZhugeHistory({ input: r.input, signNumber: r.signNumber, luck: r.sign.luck })
+    if (!saved) { saveZhugeHistory({ input: r.input, signNumber: r.signNumber, luck: r.sign.luck }); saved = true }
   } catch (e) {
     errMsg.value = e instanceof Error ? e.message : '起卦失败，请重新输入三个汉字。'
     uni.showToast({ title: errMsg.value, icon: 'none' })
   }
-})
+}, () => { result.value = null; errMsg.value = '' })
 
 /** 签等配色：上=朱砂吉、下=弱化、中=琥珀 */
 const luckColor = computed(() => {
@@ -71,7 +72,12 @@ function onBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header title="诸葛神数" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="诸葛神数"
       subtitle="随心三字 · 签由念起"

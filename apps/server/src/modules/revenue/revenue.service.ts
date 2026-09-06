@@ -4,6 +4,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { COIN_TO_RMB } from "../../common/constants";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { SettlementService, SettleParty } from "../settlement/settlement.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 // 分佣比例回退默认值（优先读 SettlementRule 场景规则表，未配置时回退此处）
 const DEFAULT_RATES = {
@@ -107,6 +109,43 @@ export class RevenueService {
     } catch (e) {
       this.logger.warn(`统一总账影子双写失败(${params.refType}:${params.refId})`, e);
     }
+  }
+
+  /** 预扣或接听前检查既定分账规则；只读、不创建默认规则或调整平台配置。 */
+  async assertConsultReadyInTransaction(tx: Prisma.TransactionClient) {
+    const rule = this.settlement ? await tx.settlementRule.findUnique({ where: { scene: "CONSULT_CALL" } }) : null;
+    const splits = rule?.splits;
+    const valid = rule?.enabled && Number.isInteger(rule.bufferDays) && rule.bufferDays >= 0
+      && (!rule.requireApproval || rule.approvalThreshold !== null && Number(rule.approvalThreshold) > 0)
+      && Array.isArray(splits) && splits.length === 2
+      && ["PROVIDER", "PLATFORM"].every(role => splits.filter(split => {
+        if (!split || typeof split !== "object" || Array.isArray(split)) return false;
+        return split.role === role && split.rate === 0.5 && split.basis === "GROSS"
+          && split.category === (role === "PROVIDER" ? "SERVICE" : "PLATFORM");
+      }).length === 1);
+    if (!valid) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话结算配置暂不可用，请稍后重试");
+  }
+
+  /** 咨询专用：调用方必须持有通话锁并传入退款所在事务。 */
+  async recordConsultInTransaction(params: { callId: string; callerId: string; expertId: string; amountCoin: number }, tx: Prisma.TransactionClient) {
+    if (!this.settlement) throw new Error("CONSULT_SETTLEMENT_UNAVAILABLE");
+    if (!Number.isSafeInteger(params.amountCoin) || params.amountCoin <= 0) throw new Error("CONSULT_SETTLEMENT_AMOUNT_INVALID");
+    const earning = await this.record({ userId: params.expertId, scene: "AUDIO_CALL", refId: params.callId,
+      amountCoin: params.amountCoin, rate: 0.5 }, tx);
+    // 不使用会吞异常的影子双写入口；缺规则、金额漂移或总账失败必须回滚通话与退款。
+    const rows = await this.settlement.settle({ scene: "CONSULT_CALL", refType: "CONSULT_CALL", refId: params.callId,
+      amount: params.amountCoin / COIN_TO_RMB, payerId: params.callerId,
+      parties: { PROVIDER: { type: "USER", id: params.expertId, userId: params.expertId } } }, tx);
+    const provider = rows.filter(row => row.role === "PROVIDER" && row.beneficiaryType === "USER" && row.beneficiaryId === params.expertId);
+    const platform = rows.filter(row => row.role === "PLATFORM" && row.beneficiaryType === "PLATFORM" && row.beneficiaryId === "PLATFORM");
+    const expectedCents = Math.round(params.amountCoin / COIN_TO_RMB * 0.5 * 100);
+    if (rows.length !== 2 || provider.length !== 1 || platform.length !== 1
+      || rows.some(row => row.scene !== "CONSULT_CALL" || row.refType !== "CONSULT_CALL" || row.refId !== params.callId)
+      || rows.some(row => !["PENDING", "FROZEN", "SETTLED"].includes(row.status) || Number(row.rate) !== 0.5)
+      || provider[0].category !== "SERVICE" || platform[0].category !== "PLATFORM"
+      || Math.round(Number(earning.amountRmb) * 100) !== expectedCents
+      || Math.round(Number(provider[0].amount) * 100) !== expectedCents
+      || Math.round(Number(platform[0].amount) * 100) !== expectedCents) throw new Error("CONSULT_SETTLEMENT_LEDGER_MISMATCH");
   }
 
   /** 查询用户收益汇总 */

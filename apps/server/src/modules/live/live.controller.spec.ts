@@ -1,4 +1,7 @@
 import { Test } from "@nestjs/testing";
+import { createHmac } from "crypto";
+import { ExecutionContext } from "@nestjs/common";
+import { Request } from "express";
 import { LiveController } from "./live.controller";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
@@ -6,6 +9,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
+import { ConsultMediaEvidenceService } from "../consult-call/consult-media-evidence.service";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -32,7 +36,6 @@ const mockLiveSvc = {
   getStreamStatus: jest.fn().mockResolvedValue({ roomId: "r1", roomStatus: "WAITING", status: "online" }),
   getPlayUrl: jest.fn().mockResolvedValue({ playUrl: "https://...flv" }),
   endRoom: jest.fn().mockResolvedValue({ id: "r1", status: "ENDED" }),
-  updateStatus: jest.fn().mockResolvedValue({ id: "r1", status: "REPLAY" }),
   publishReplay: jest.fn().mockResolvedValue({ id: "r1", status: "REPLAY", replayStatus: "PUBLISHED" }),
   unpublishReplay: jest.fn().mockResolvedValue({ id: "r1", status: "ENDED", replayStatus: "DRAFT" }),
   deleteRoom: jest.fn().mockResolvedValue({ success: true }),
@@ -71,6 +74,8 @@ const mockLiveSvc = {
   getPreview: jest.fn().mockResolvedValue({ id: "r1", isBooked: true }),
 };
 
+const mockConsultEvidence = { handle: jest.fn().mockResolvedValue({ handled: false }) };
+
 const mockQualitySvc = {
   listPackages: jest.fn().mockResolvedValue([{ id: "p1", quality: "hd" }]),
   getQuota: jest.fn().mockResolvedValue({ hdMinutes: 600, uhdMinutes: 0 }),
@@ -87,6 +92,7 @@ describe("LiveController", () => {
       providers: [
         { provide: LiveService, useValue: mockLiveSvc },
         { provide: LiveQualityService, useValue: mockQualitySvc },
+        { provide: ConsultMediaEvidenceService, useValue: mockConsultEvidence },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
@@ -99,14 +105,14 @@ describe("LiveController", () => {
     ctrl = mod.get(LiveController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.clearAllMocks(); mockConsultEvidence.handle.mockResolvedValue({ handled: false }); });
 
   it("POST /live/rooms — 创建直播间", async () => {
     const req: any = { user: { id: "u1" } };
     const dto: any = { title: "国学直播" };
     const result: any = await ctrl.createRoom(req, dto);
     expect(result.title).toBe("国学直播");
-    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto, false);
+    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto, false, "HUMAN");
   });
 
   it("GET /live/rooms — 直播列表", async () => {
@@ -193,13 +199,13 @@ describe("LiveController", () => {
     const req: any = { user: { id: "u1", roles: [] } };
     const result: any = await ctrl.startRoom("r1", req);
     expect(result.pushUrl).toBeTruthy();
-    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "u1", false);
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "u1", false, { executor: "HUMAN" });
   });
 
   it("PUT /live/rooms/:id/start — 管理员开播（isAdmin=true 透传）", async () => {
     const req: any = { user: { id: "admin1", roles: ["SUPER_ADMIN"] } };
     await ctrl.startRoom("r1", req);
-    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "admin1", true);
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "admin1", true, { executor: "HUMAN" });
   });
 
   it("GET /live/rooms/:id/stream-urls — 推拉流地址", async () => {
@@ -218,7 +224,7 @@ describe("LiveController", () => {
     const req: any = { user: { id: "u1", roles: [] } };
     const result: any = await ctrl.endRoom("r1", req);
     expect(result.status).toBe("ENDED");
-    expect(mockLiveSvc.endRoom).toHaveBeenCalledWith("r1", "u1", false);
+    expect(mockLiveSvc.endRoom).toHaveBeenCalledWith("r1", "u1", false, "HUMAN");
   });
 
   it("PUT /live/rooms/:id/replay — 设置回放", async () => {
@@ -294,7 +300,7 @@ describe("LiveController", () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.getRtcConfig("r1", req);
     expect(result.sdkAppId).toBe(1600030106);
-    expect(mockLiveSvc.getRtcConfig).toHaveBeenCalledWith("r1", "u1");
+    expect(mockLiveSvc.getRtcConfig).toHaveBeenCalledWith("r1", "u1", "HUMAN");
   });
 
   it("GET /live/scheduled — 直播预告", async () => {
@@ -379,11 +385,30 @@ describe("LiveController", () => {
     expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalledWith("room_r2", 0, body);
   });
 
-  it("POST /live/trtc/callback — TRTC 房间与媒体回调", async () => {
-    const body = { EventGroupId: 2, EventType: 201, EventInfo: { RoomId: "room_r1", UserId: "u_1" } };
-    const result: any = await ctrl.handleTrtcCallback(body);
-    expect(result.code).toBe(0);
-    expect(mockLiveSvc.handleTrtcEvent).toHaveBeenCalledWith(body);
+  it.each([false, true])("POST /live/trtc/callback — 咨询已处理=%s 时不重复交给直播", async handled => {
+    const original = process.env;
+    try {
+      process.env = { ...original, TRTC_CALLBACK_KEY: "SYNTHETIC_KEY", TRTC_SDK_APP_ID: "1600030106" };
+      const body = { EventGroupId: 2, EventType: 201, CallbackTs: Date.now(), EventInfo: { RoomId: "room_r1", UserId: "u_1" } };
+      const rawBody = Buffer.from(JSON.stringify(body));
+      const req = { rawBody, body: { forged: true }, headers: { sdkappid: "1600030106", sign: createHmac("sha256", "SYNTHETIC_KEY").update(rawBody).digest("base64") } };
+      new TrtcCallbackGuard().canActivate({ switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext);
+      mockConsultEvidence.handle.mockResolvedValue({ handled });
+      const result = await ctrl.handleTrtcCallback(req as unknown as Request);
+      expect(result.code).toBe(0); expect(mockConsultEvidence.handle).toHaveBeenCalledWith(req);
+      if (handled) expect(mockLiveSvc.handleTrtcEvent).not.toHaveBeenCalled();
+      else expect(mockLiveSvc.handleTrtcEvent).toHaveBeenCalledWith(body);
+    } finally { process.env = original; }
+  });
+  it("TRTC 控制器不能仅凭请求 body 绕过已验证原文", async () => {
+    await expect(ctrl.handleTrtcCallback({ body: { EventType: 104 } } as Request)).rejects.toThrow("尚未通过原文验证");
+    expect(mockLiveSvc.handleTrtcEvent).not.toHaveBeenCalled();
+  });
+
+  it("回调只有 stream_param 时绝不把鉴权参数作为流名传入", async () => {
+    const body = { event_type: 1, stream_param: "room_forged" };
+    await ctrl.handleCallback(body);
+    expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalledWith("", 1, body);
   });
 
   it("PUT/DELETE /live/rooms/:id/host/ready — 主播统一输出租约", async () => {
@@ -405,7 +430,7 @@ describe("LiveController", () => {
     const req: any = { user: { id: "host1", roles: [] } };
     const result: any = await ctrl.startObsRoom("r1", req);
     expect(result.status).toBe("LIVING");
-    expect(mockLiveSvc.startObsLive).toHaveBeenCalledWith("r1", "host1", false);
+    expect(mockLiveSvc.startObsLive).toHaveBeenCalledWith("r1", "host1", false, "HUMAN");
   });
 
   it("POST /live/audit/callback — 审核回调", async () => {

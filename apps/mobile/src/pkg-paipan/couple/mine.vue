@@ -3,8 +3,8 @@
  * V4 双人合盘 · 我的合盘列表
  * 我发起的 + 我参与的，role/status 标签，点进合婚报告，空态引导发起。
  */
-import { ref, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { getToken } from '@/utils/storage'
@@ -37,32 +37,32 @@ function fmtDate(s: string): string {
 }
 
 async function load() {
-  if (!getToken()) {
-    loggedIn.value = false
+  return preview.runTask(async () => {
+    try { return { list: await coupleApi.mine(), error: '' } }
+    catch (e) { return { list: [] as CoupleMineItem[], error: (e as Error)?.message || '加载失败，请重试' } }
+  }, (value) => {
+    list.value = value.list
+    error.value = value.error
+    loggedIn.value = true
     loading.value = false
-    return
-  }
-  loggedIn.value = true
-  loading.value = true
-  error.value = ''
-  try {
-    list.value = await coupleApi.mine()
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
-  } finally {
-    loading.value = false
-  }
+  })
 }
 
-onMounted(load)
-// 从报告页删除后返回列表需刷新
-onShow(() => {
-  if (!loading.value) load()
-})
+const preview = useNativePreviewPage(() => {}, () => {
+  list.value = []
+  error.value = ''
+  loading.value = false
+  loggedIn.value = !!getToken()
+}, () => { void load() })
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="load">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <view class="hdr">
       <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666" /></view>
       <text class="hdr-title">我的合盘</text>

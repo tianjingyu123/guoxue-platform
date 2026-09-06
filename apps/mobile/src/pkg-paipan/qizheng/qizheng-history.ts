@@ -4,6 +4,8 @@
  * 去重键忽略姓名：结果页改名后可原位覆盖同参记录。
  */
 
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
+
 export interface QizhengParams {
   /** 姓名（选填，≤20 字） */
   name: string
@@ -36,8 +38,10 @@ function dedupeKey(p: QizhengParams): string {
 }
 
 export function loadQizhengHistory(): QizhengHistoryItem[] {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) return []
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const raw = uni.getStorageSync(storageKey)
     return raw ? (JSON.parse(raw) as QizhengHistoryItem[]) : []
   } catch {
     return []
@@ -46,19 +50,23 @@ export function loadQizhengHistory(): QizhengHistoryItem[] {
 
 /** 写入一条记录（同参去重置顶，截断 50 条；存储失败不阻断排盘） */
 export function saveQizhengHistory(params: QizhengParams, summary: string) {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('未取得本次排盘资格')
   try {
     const key = dedupeKey(params)
     const list = loadQizhengHistory().filter((it) => dedupeKey(it.params) !== key)
     list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
+    uni.setStorageSync(storageKey, JSON.stringify(list.slice(0, MAX_ITEMS)))
   } catch {
     /* 本地存储失败不阻断排盘 */
   }
 }
 
 export function clearQizhengHistory() {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('未取得本次排盘资格')
   try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
+    uni.setStorageSync(storageKey, '[]')
   } catch {
     /* noop */
   }

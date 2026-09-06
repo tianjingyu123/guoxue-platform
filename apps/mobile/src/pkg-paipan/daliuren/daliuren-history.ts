@@ -3,6 +3,8 @@
  * 存起课输入（DaliurenParams），上限 50 条；结果页起课成功后写入，入口页历史卡展示。
  */
 
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
+
 export interface DaliurenParams {
   matter: string
   year: number
@@ -29,8 +31,10 @@ const HISTORY_KEY = 'rebu:daliuren-history'
 const MAX_ITEMS = 50
 
 export function loadDaliurenHistory(): DaliurenHistoryItem[] {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) return []
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const raw = uni.getStorageSync(storageKey)
     return raw ? (JSON.parse(raw) as DaliurenHistoryItem[]) : []
   } catch {
     return []
@@ -38,19 +42,23 @@ export function loadDaliurenHistory(): DaliurenHistoryItem[] {
 }
 
 export function saveDaliurenHistory(params: DaliurenParams, summary: string) {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('未取得本次排盘资格')
   try {
     const key = JSON.stringify(params)
     const list = loadDaliurenHistory().filter((it) => JSON.stringify(it.params) !== key)
     list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
+    uni.setStorageSync(storageKey, JSON.stringify(list.slice(0, MAX_ITEMS)))
   } catch {
     /* 本地存储失败不阻断排盘 */
   }
 }
 
 export function clearDaliurenHistory() {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('未取得本次排盘资格')
   try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
+    uni.setStorageSync(storageKey, '[]')
   } catch {
     /* noop */
   }

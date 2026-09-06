@@ -4,7 +4,8 @@
  * 看邀请（发起人昵称）→ 登录 → 选我的八字盘 → 授权合盘 / 婉拒。
  * R3：授权的是「用自己的盘参与本次合盘」，不向发起方暴露生辰/命盘，双方仅共享报告文本。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, redirectTo, navigateBack } from '@/utils/router'
@@ -35,76 +36,91 @@ const actionable = computed(
 )
 
 async function loadInvite() {
-  loading.value = true
-  error.value = ''
-  try {
-    info.value = await coupleApi.getInvite(token.value)
-  } catch (e) {
-    error.value = (e as Error)?.message || '邀请加载失败'
-  } finally {
+  const targetToken = token.value
+  return preview.runTask(async (checkpoint) => {
+    const value = { info: null as CoupleInviteInfo | null, records: [] as MyBaziRecord[], error: '', recordsError: '' }
+    if (!targetToken) { value.error = '邀请令牌缺失'; return value }
+    try { value.info = await coupleApi.getInvite(targetToken) }
+    catch (e) { value.error = (e as Error)?.message || '邀请加载失败'; return value }
+    if (value.info.status === 'PENDING_INVITE' && !value.info.expired && await checkpoint()) {
+      try { value.records = await coupleApi.myBaziRecords() }
+      catch (e) { value.recordsError = (e as Error)?.message || '排盘记录加载失败' }
+    }
+    return value
+  }, value => {
+    info.value = value.info
+    records.value = value.records
+    selectedId.value = value.records[0]?.id || ''
+    error.value = value.error
+    recordsError.value = value.recordsError
+    loggedIn.value = true
     loading.value = false
-  }
-  // 已登录 + 可操作 → 顺带加载我的盘
-  if (actionable.value && loggedIn.value) loadRecords()
+  })
 }
 
 async function loadRecords() {
-  recordsLoading.value = true
-  recordsError.value = ''
-  try {
-    records.value = await coupleApi.myBaziRecords()
-    if (records.value.length && !selectedId.value) selectedId.value = records.value[0].id
-  } catch (e) {
-    recordsError.value = (e as Error)?.message || '排盘记录加载失败'
-  } finally {
-    recordsLoading.value = false
-  }
+  // 重试时同时刷新邀请状态，不能依据陈旧的可操作标识继续加载个人盘。
+  return loadInvite()
 }
 
 async function onAccept() {
-  if (submitting.value || rejecting.value || !selectedId.value) return
+  if (!preview.allowed.value || !actionable.value || submitting.value || rejecting.value || !selectedId.value) return
+  const targetToken = token.value
+  const targetId = selectedId.value
   submitting.value = true
-  try {
-    const res = await coupleApi.accept(token.value, selectedId.value)
-    redirectTo(`/pkg-paipan/couple/result?id=${res.chartId}`)
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '授权失败', icon: 'none' })
-  } finally {
+  return preview.runTask(async () => {
+    try { return { result: await coupleApi.accept(targetToken, targetId), error: '' } }
+    catch (e) { return { result: null, error: (e as Error)?.message || '授权失败' } }
+  }, value => {
+    if (value.result) redirectTo(`/pkg-paipan/couple/result?id=${value.result.chartId}`)
+    else { error.value = value.error; uni.showToast({ title: value.error, icon: 'none' }) }
     submitting.value = false
-  }
+  })
 }
 
 async function onReject() {
-  if (submitting.value || rejecting.value) return
+  if (!preview.allowed.value || !actionable.value || submitting.value || rejecting.value) return
+  const targetToken = token.value
+  const snapshot = info.value
   rejecting.value = true
-  try {
-    await coupleApi.reject(token.value)
-    uni.showToast({ title: '已婉拒', icon: 'none' })
-    if (info.value) info.value.status = 'REJECTED'
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
-  } finally {
+  return preview.runTask(async () => {
+    try { await coupleApi.reject(targetToken); return { error: '' } }
+    catch (e) { return { error: (e as Error)?.message || '操作失败' } }
+  }, value => {
+    if (value.error) { error.value = value.error; uni.showToast({ title: value.error, icon: 'none' }) }
+    else {
+      info.value = snapshot ? { ...snapshot, status: 'REJECTED' } : null
+      uni.showToast({ title: '已婉拒', icon: 'none' })
+    }
     rejecting.value = false
-  }
+  })
 }
 
 onLoad((q: Record<string, string> = {}) => {
   token.value = q.token || ''
 })
 
-onMounted(() => {
+const preview = useNativePreviewPage(() => {}, () => {
+  info.value = null
+  records.value = []
+  selectedId.value = ''
+  error.value = ''
+  recordsError.value = ''
+  recordsLoading.value = false
+  loading.value = false
+  submitting.value = false
+  rejecting.value = false
   loggedIn.value = !!getToken()
-  if (!token.value) {
-    error.value = '邀请令牌缺失'
-    loading.value = false
-    return
-  }
-  loadInvite()
-})
+}, () => { void loadInvite() })
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="loadInvite">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <view class="hdr">
       <view class="hdr-back" @tap="navigateBack()"><app-icon name="chevron-left" :size="40" color="#666" /></view>
       <text class="hdr-title">合盘邀请</text>

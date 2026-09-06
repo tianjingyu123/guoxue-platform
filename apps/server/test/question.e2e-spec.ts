@@ -54,7 +54,7 @@ describe("Question E2E", () => {
         if (args?.where?.id === "u1") return { id: "u1", status: "ACTIVE", roles: [] }
         return null
       })
-      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈" })
+      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈", status: "ACTIVE", deletedAt: null })
       // 达人 u2 的定价：提问 50 / 围观 10
       prisma.circleMember.findFirst.mockResolvedValue({
         id: "cm1", circleId: "ci1", userId: "u2", role: "GUEST",
@@ -94,7 +94,7 @@ describe("Question E2E", () => {
         if (args?.where?.id === "u1") return { id: "u1", status: "ACTIVE", roles: [] }
         return null
       })
-      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈" })
+      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学圈", status: "ACTIVE", deletedAt: null })
       prisma.circleMember.findFirst.mockResolvedValue({
         id: "cm1", circleId: "ci1", userId: "u2", role: "GUEST", questionPriceCoin: 0, peekPriceCoin: 0,
       })
@@ -108,6 +108,39 @@ describe("Question E2E", () => {
   })
 
   // ═══════════════════ 回答问题 ═══════════════════
+
+  describe("新增咨询基础准入 HTTP 门禁", () => {
+    const body = { circleId: "ci1", answererId: "u2", questionTitle: "测试问题", question: "隔离回归", priceCoin: 50 }
+    let token: string
+    beforeEach(() => {
+      token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", status: "ACTIVE", deletedAt: null })
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1", questionPriceCoin: 50, peekPriceCoin: 10 })
+    })
+
+    it("圈子已停用时404且无扣费/建单", async () => {
+      prisma.circle.findUnique.mockResolvedValueOnce({ id: "ci1", status: "DISABLED", deletedAt: null })
+      await request(app.getHttpServer()).post("/api/v1/question/ask").set("Authorization", `Bearer ${token}`).send(body).expect(404)
+      expect(prisma.virtualCoinAccount.updateMany).not.toHaveBeenCalled()
+      expect(prisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("第一次准入通过、事务时服务不可用返回403且不扣费", async () => {
+      prisma.circleMember.findFirst.mockResolvedValueOnce({ id: "cm1", questionPriceCoin: 50, peekPriceCoin: 10 }).mockResolvedValueOnce(null)
+      await request(app.getHttpServer()).post("/api/v1/question/ask").set("Authorization", `Bearer ${token}`).send(body).expect(403)
+      expect(prisma.virtualCoinAccount.updateMany).not.toHaveBeenCalled()
+      expect(prisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("事务前后价格变化返回409，不静默提升本次扣费", async () => {
+      prisma.circleMember.findFirst.mockResolvedValueOnce({ id: "cm1", questionPriceCoin: 50, peekPriceCoin: 10 })
+        .mockResolvedValueOnce({ id: "cm1", questionPriceCoin: 100, peekPriceCoin: 10 })
+      await request(app.getHttpServer()).post("/api/v1/question/ask").set("Authorization", `Bearer ${token}`).send(body).expect(409)
+      expect(prisma.virtualCoinAccount.updateMany).not.toHaveBeenCalled()
+      expect(prisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+  })
 
   describe("POST /api/v1/question/:id/answer", () => {
     it("非回答者不能回答", async () => {

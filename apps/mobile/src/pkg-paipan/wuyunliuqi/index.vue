@@ -12,6 +12,7 @@
  *  ④ R4 合规：小程序端标题条件编译为「运气学说研究」
  */
 import { ref, computed, watch } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -35,6 +36,7 @@ const nowYear = new Date().getFullYear()
 const year = ref(nowYear)
 
 function shiftYear(delta: number) {
+  if (!preview.allowed.value) return
   const next = year.value + delta
   if (next < YEAR_MIN || next > YEAR_MAX) {
     uni.showToast({ title: `仅支持 ${YEAR_MIN} — ${YEAR_MAX} 年`, icon: 'none' })
@@ -50,15 +52,16 @@ const selectedStep = ref(1)
 function resetStep() {
   selectedStep.value = year.value === nowYear ? (currentStepIndex(result.value) ?? 3) : 3
 }
-resetStep()
-watch(year, resetStep)
+watch(year, () => { if (preview.allowed.value) resetStep() })
 
 const step = computed(() => result.value.steps.find((s) => s.step === selectedStep.value) ?? result.value.steps[2])
 
 function prevStep() {
+  if (!preview.allowed.value) return
   selectedStep.value = selectedStep.value > 1 ? selectedStep.value - 1 : 6
 }
 function nextStep() {
+  if (!preview.allowed.value) return
   selectedStep.value = selectedStep.value < 6 ? selectedStep.value + 1 : 1
 }
 
@@ -83,10 +86,20 @@ function goComingSoon(name: string) {
   navigateTo('/pkg-paipan/tools/coming-soon?name=' + encodeURIComponent(name))
 }
 const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replace(/（.*）/, '')).join(' · '))
+const preview = useNativePreviewPage(resetStep, () => {
+  year.value = nowYear
+  selectedStep.value = 1
+  consKey.value = 'pinghe'
+})
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       :title="hdrTitle"
       subtitle="基于《黄帝内经》的运气学研习"

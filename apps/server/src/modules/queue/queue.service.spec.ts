@@ -52,6 +52,32 @@ describe("QueueService", () => {
   });
 
   describe("add", () => {
+    it("去重参数转换为当前 BullMQ 支持的字段，期限按毫秒保留", async () => {
+      notificationQueue.add.mockResolvedValue({ id: "job-dedup" });
+      await svc.add("notification", "notice", { id: "synthetic" }, { dedupKey: "notice-one", dedupTtl: 60000, delay: 10 });
+      const opts = notificationQueue.add.mock.calls[0][2];
+      expect(opts.deduplication).toEqual({ id: "notice-one", ttl: 60000 });
+      expect(opts.delay).toBe(10);
+      expect(opts).not.toHaveProperty("dedupKey");
+      expect(opts).not.toHaveProperty("dedupTtl");
+    });
+
+    it("未设置期限时不擅自添加默认过期时间", async () => {
+      notificationQueue.add.mockResolvedValue({ id: "job-dedup" });
+      await svc.add("notification", "notice", {}, { dedupKey: "notice-one" });
+      expect(notificationQueue.add.mock.calls[0][2].deduplication).toEqual({ id: "notice-one" });
+    });
+
+    it.each([
+      { dedupKey: "" }, { dedupKey: " " }, { dedupKey: " key" },
+      { dedupTtl: 1000 }, { dedupKey: "key", dedupTtl: 0 },
+      { dedupKey: "key", dedupTtl: -1 }, { dedupKey: "key", dedupTtl: 1.5 },
+      { dedupKey: "key", dedupTtl: Infinity },
+    ])("无效去重选项 %p 入队前拒绝", async opts => {
+      await expect(svc.add("notification", "notice", {}, opts)).rejects.toThrow();
+      expect(notificationQueue.add).not.toHaveBeenCalled();
+    });
+
     it("添加任务到通知队列", async () => {
       notificationQueue.add.mockResolvedValue({ id: "job-1", name: "send-push" });
 

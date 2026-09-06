@@ -3,6 +3,8 @@
  * 存起课输入（TaiyiParams），结果页起课成功后写入，入口页历史卡展示（点击重看）。
  */
 
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
+
 export type TaiyiPanShi = 'year' | 'month' | 'day' | 'hour'
 export type TaiyiSuanFa = 'tongzong' | 'zhijin' | 'jinjing'
 
@@ -42,9 +44,12 @@ export const SUAN_FA_LABELS: Record<TaiyiSuanFa, string> = {
 }
 
 export function loadTaiyiHistory(): TaiyiHistoryItem[] {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) return []
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as TaiyiHistoryItem[]) : []
+    const raw = uni.getStorageSync(storageKey)
+    const list = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(list) ? list.filter(item => item?.params && typeof item.params === 'object') : []
   } catch {
     return []
   }
@@ -52,19 +57,23 @@ export function loadTaiyiHistory(): TaiyiHistoryItem[] {
 
 /** 写入一条记录（同参去重置顶，截断 50 条；存储失败不阻断排盘） */
 export function saveTaiyiHistory(params: TaiyiParams, summary: string) {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('请重新确认排盘访问状态')
   try {
     const key = JSON.stringify(params)
     const list = loadTaiyiHistory().filter((it) => JSON.stringify(it.params) !== key)
     list.unshift({ params, summary, ts: Date.now() })
-    uni.setStorageSync(HISTORY_KEY, JSON.stringify(list.slice(0, MAX_ITEMS)))
+    uni.setStorageSync(storageKey, JSON.stringify(list.slice(0, MAX_ITEMS)))
   } catch {
     /* 本地存储失败不阻断排盘 */
   }
 }
 
 export function clearTaiyiHistory() {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) throw new Error('请重新确认排盘访问状态')
   try {
-    uni.setStorageSync(HISTORY_KEY, '[]')
+    uni.setStorageSync(storageKey, '[]')
   } catch {
     /* noop */
   }

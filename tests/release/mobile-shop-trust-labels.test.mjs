@@ -4,6 +4,27 @@ import test from 'node:test'
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8')
 
+test('商城无推荐商品时说明真实空态，不显示无解释的空白货架', async () => {
+  const page = await read('apps/mobile/src/pkg-mall/home/index.vue')
+  assert.match(page, /v-else-if="error"/u)
+  assert.match(page, /<AppEmpty v-if="mallProducts.length === 0" title="暂无推荐商品"/u)
+  assert.match(page, /<view v-else class="prod-grid">/u)
+  assert.match(page, /onPullDownRefresh\(async/u)
+})
+
+test('圈子购买说明不固定承诺未开通的提问、回放或全量内容', async () => {
+  const data = await read('apps/mobile/src/lib/circle-detail-data.ts')
+  const notes = data.match(/export const circleMembershipNotes[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1]
+  assert.ok(notes)
+  assert.doesNotMatch(notes, /直接提问|直播回放|专属勋章|解锁全部/)
+  assert.match(notes, /入圈不自动开通额外服务/)
+  for (const name of ['preview', 'detail']) {
+    const page = await read(`apps/mobile/src/pkg-circle/circles/${name}.vue`)
+    assert.match(page, /v-for="\(b, i\) in circleMembershipNotes"/)
+    assert.doesNotMatch(page, /解锁以下专属权益|加入后解锁全部|in memberBenefits/)
+  }
+})
+
 test('普通商家商品不冒充官方自营或平台严选', async () => {
   const [dataSource, card, category] = await Promise.all([
     read('apps/mobile/src/lib/shop-data.ts'),

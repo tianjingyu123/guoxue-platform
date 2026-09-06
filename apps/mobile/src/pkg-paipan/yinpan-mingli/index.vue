@@ -5,7 +5,7 @@
  * V0 独立 history 页砍成本页内嵌记录卡（key: rebu:yinpan-mingli-history，上限 50）。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -73,18 +73,24 @@ function pickJu(ju: string) {
 
 // ── 排盘记录（V0 独立 history 页砍成内嵌卡）──
 const history = ref<MingliHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadMingliHistory()
+}, () => {
+  history.value = []
+  name.value = ''
+  showDatePicker.value = false
+  showJuPicker.value = false
+  dateTouched.value = false
 })
 
 function onClearHistory() {
+  const current = preview.captureInteraction()
   uni.showModal({
     title: '清空记录',
     content: '确定清空全部排盘记录？',
     success: (res) => {
-      if (res.confirm) {
-        clearMingliHistory()
-        history.value = []
+      if (res.confirm && current()) {
+        void preview.run(() => { clearMingliHistory(); history.value = [] })
       }
     },
   })
@@ -120,7 +126,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" subtitle="以生辰起局 · 命理遁甲" share />
 
     <scroll-view scroll-y class="body">

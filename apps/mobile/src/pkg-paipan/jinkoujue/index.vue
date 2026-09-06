@@ -6,7 +6,8 @@
  * 取舍：V0「随机」地分在结果页 Math.random，重开会变——改为提交时落定具体支存入 payload，历史重开结果一致。
  */
 import { ref, computed, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -108,26 +109,31 @@ const numberValid = computed(() => {
 
 /** 读取本地排盘记录 */
 function loadRecords() {
+  const storageKey = nativeHistoryKey(HISTORY_KEY)
+  if (!storageKey) { records.value = []; return }
   try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
+    const raw = uni.getStorageSync(storageKey)
     records.value = raw ? (JSON.parse(raw) as HistoryRecord[]) : []
   } catch {
     records.value = []
   }
 }
-onShow(loadRecords)
+const preview = useNativePreviewPage(loadRecords, () => { records.value = []; showHistory.value = false })
 
 function openHistory() {
-  loadRecords()
-  showHistory.value = true
+  return preview.run(() => { loadRecords(); showHistory.value = true })
 }
 function clearHistory() {
-  uni.setStorageSync(HISTORY_KEY, '[]')
-  records.value = []
+  return preview.run(() => {
+    const storageKey = nativeHistoryKey(HISTORY_KEY)
+    if (!storageKey) throw new Error('未取得本次排盘资格')
+    uni.setStorageSync(storageKey, '[]')
+    records.value = []
+  })
 }
 function openRecord(r: HistoryRecord) {
-  showHistory.value = false
-  navigateTo(`/pkg-paipan/jinkoujue/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
+  const payload = encodeURIComponent(JSON.stringify(r.params))
+  return preview.run(() => navigateTo(`/pkg-paipan/jinkoujue/result?payload=${payload}`))
 }
 
 function handleSubmit() {
@@ -148,12 +154,17 @@ function handleSubmit() {
   if (difenMethod.value === 'number') params.dn = Number.parseInt(difenNumber.value, 10)
   // 随机：提交时落定具体支，保证结果页刷新/历史重开一致
   if (difenMethod.value === 'random') params.dz = ZHI[Math.floor(Math.random() * 12)]
-  navigateTo(`/pkg-paipan/jinkoujue/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
+  return preview.run(() => navigateTo(`/pkg-paipan/jinkoujue/result?payload=${encodeURIComponent(JSON.stringify(params))}`))
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="金口诀" subtitle="大六壬金口诀 · 神将贵人" share share-title="金口诀排盘">
       <template #actions>
         <view class="th-history-btn" @tap="openHistory">

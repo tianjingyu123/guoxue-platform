@@ -6,11 +6,10 @@
  * 降级（后端为准·记台账）：
  *  - 后端无预约模型（ConsultCall.initiate 为即时通话·无时段/预约时长字段）→ V0「选择时段/预计时长/
  *    预扣金额=时长×单价」不做，费用区改为真实计费规则说明（预扣按后端 initiate 返回为准）。
- *  - App 端 TRTC 通话组件尚未集成（后端 initiate 已就绪但无通话界面）→ 发起按钮暂不接真实预扣，
- *    防「扣金币无界面」资金事故；提示待通话组件联调后开放。
+ *  - App 端先进入通话控制页，设备能力和权限检查通过后，用户确认才发起预扣。
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
@@ -19,7 +18,6 @@ const circleId = ref('')
 const expertId = ref('')
 const fallbackName = ref('')
 const fallbackAvatar = ref('')
-const fallbackPrice = ref(0)
 
 const loading = ref(true)
 const error = ref('')
@@ -28,27 +26,35 @@ const callType = ref<'VOICE' | 'VIDEO'>('VOICE')
 
 const name = computed(() => expert.value?.name || fallbackName.value || '达人')
 const avatar = computed(() => expert.value?.avatar || fallbackAvatar.value)
-const price = computed(() => expert.value?.callPrice || fallbackPrice.value)
+const price = computed(() => expert.value?.callPrice ?? 0)
+let loadRequest = 0
 
 async function load() {
+  const request = ++loadRequest
+  const requestedCircle = circleId.value, requestedExpert = expertId.value
   if (!circleId.value || !expertId.value) { error.value = '缺少达人参数，请从达人列表进入'; loading.value = false; return }
   loading.value = true
   error.value = ''
+  expert.value = null
   try {
-    const list = await consultApi.listExperts(circleId.value)
-    expert.value = list.find(e => e.id === expertId.value) || null
-    if (!expert.value && !fallbackPrice.value) error.value = '该达人暂未开通连麦咨询'
+    const list = await consultApi.listExperts(requestedCircle)
+    if (request !== loadRequest || requestedCircle !== circleId.value || requestedExpert !== expertId.value) return
+    expert.value = list.find(e => e.id === requestedExpert) || null
+    if (!expert.value?.callPrice || (!expert.value.audioCallEnabled && !expert.value.videoCallEnabled)) {
+      expert.value = null
+      error.value = '该达人暂未开通连麦咨询，请返回重新选择'
+    } else callType.value = expert.value.audioCallEnabled ? 'VOICE' : 'VIDEO'
   } catch {
-    // 反查失败但入口带了价格 → 用兜底展示；否则报错
-    if (!fallbackPrice.value) error.value = '加载失败'
+    if (request === loadRequest) error.value = '加载失败，请重新查询服务状态'
   } finally {
-    loading.value = false
+    if (request === loadRequest) loading.value = false
   }
 }
 
-/** App 端发起：TRTC 通话组件未集成，暂不接真实预扣（后端 initiate 已就绪） */
+/** 只导航，不在预约页创建收费通话。 */
 function onInitiate() {
-  uni.showToast({ title: '实时通话组件正在真机联调，暂未开放', icon: 'none' })
+  if (loading.value || error.value || !expert.value) return
+  navigateTo(`/pkg-circle/circles/call-room?circleId=${encodeURIComponent(circleId.value)}&expertId=${encodeURIComponent(expertId.value)}&type=${callType.value}`)
 }
 
 function goMyCalls() { navigateTo('/pkg-circle/circles/my-calls') }
@@ -59,9 +65,16 @@ onLoad((opt) => {
   expertId.value = (opt?.expertId || '') as string
   fallbackName.value = decodeURIComponent((opt?.name || '') as string)
   fallbackAvatar.value = decodeURIComponent((opt?.avatar || '') as string)
-  fallbackPrice.value = Number(opt?.price) || 0
-  load()
 })
+function invalidateServices() {
+  ++loadRequest
+  expert.value = null
+  error.value = ''
+  loading.value = true
+}
+onShow(load)
+onHide(invalidateServices)
+onUnload(invalidateServices)
 </script>
 
 <template>
@@ -96,11 +109,11 @@ onLoad((opt) => {
         <!-- #ifdef APP-PLUS -->
         <text class="bk-field-label">通话方式</text>
         <view class="bk-types">
-          <view class="bk-type" :class="{ 'is-active': callType === 'VOICE' }" @tap="callType = 'VOICE'">
+          <view v-if="expert?.audioCallEnabled" class="bk-type" :class="{ 'is-active': callType === 'VOICE' }" @tap="callType = 'VOICE'">
             <app-icon name="phone" :size="30" :color="callType === 'VOICE' ? '#C41E3A' : '#6E6E73'" />
             <text class="bk-type-t" :class="{ 'is-active': callType === 'VOICE' }">语音通话</text>
           </view>
-          <view class="bk-type" :class="{ 'is-active': callType === 'VIDEO' }" @tap="callType = 'VIDEO'">
+          <view v-if="expert?.videoCallEnabled" class="bk-type" :class="{ 'is-active': callType === 'VIDEO' }" @tap="callType = 'VIDEO'">
             <app-icon name="video" :size="30" :color="callType === 'VIDEO' ? '#C41E3A' : '#6E6E73'" />
             <text class="bk-type-t" :class="{ 'is-active': callType === 'VIDEO' }">视频通话</text>
           </view>
@@ -116,7 +129,7 @@ onLoad((opt) => {
 
         <!-- #ifdef APP-PLUS -->
         <view class="bk-book-btn" @tap="onInitiate"><text class="bk-book-btn-t">发起{{ callType === 'VIDEO' ? '视频' : '语音' }}通话</text></view>
-        <text class="bk-book-note">实时通话组件正在真机联调，开放后此处将直接预扣并进入通话。</text>
+        <text class="bk-book-note">下一步检查设备权限并确认发起；请保持通话页面在前台。</text>
         <!-- #endif -->
       </view>
 

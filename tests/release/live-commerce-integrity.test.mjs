@@ -89,7 +89,8 @@ test('横屏 OBS 开播必须经过真实媒体在线预检，前后端均不可
 
   assert.match(manage, /if \(item\.orientation === 'landscape'\) \{[\s\S]*?pkg-live\/obs\/index\?id=\$\{item\.id\}[\s\S]*?return/u)
   assert.match(live, /const isObsRoom = room\.orientation === "landscape";[\s\S]*?if \(isObsRoom && !options\.obsPreflight\)/u)
-  assert.match(live, /if \(!this\.obsTrtcIngestEnabled\(\)\) \{[\s\S]*?startLive\(id, operatorId, isAdmin, \{ obsPreflight: true \}\)/u)
+  assert.match(live, /if \(!this\.obsTrtcIngestEnabled\(\)\) \{[\s\S]*?startLive\(id, operatorId, isAdmin, \{ obsPreflight: true, executor \}\)/u)
+  assert.match(live, /if \(status\.status !== "online"\) \{[\s\S]*?throw new BusinessException[\s\S]*?if \(!this\.obsTrtcIngestEnabled\(\)\)/u)
   assert.match(obs, /obsCapabilityLabel/u)
   assert.match(obs, /runtime\.value\?\.ingestMode === 'TRTC_RTMP'[\s\S]*?'TRTC 同房连麦'[\s\S]*?'腾讯云标准推流'/u)
 })

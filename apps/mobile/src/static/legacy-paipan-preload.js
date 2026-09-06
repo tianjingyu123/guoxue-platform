@@ -35,7 +35,6 @@
     try {
       var url = new URL(value)
       if (url.protocol !== 'https:' || url.href !== value || url.username || url.password || url.port) return ''
-      if (url.href === 'https://api.rebugx.cn/h5/pages/paipan/index') return url.href
       if (url.hash) return ''
       if (['yrydai.cn', 'www.yrydai.cn', 'yrydai.com', 'www.yrydai.com', 'rebu.net.cn', 'www.rebu.net.cn'].indexOf(url.hostname) < 0) return ''
       if (url.pathname.indexOf('%') >= 0 || /guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname)) return ''
@@ -46,13 +45,16 @@
         if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || seen[k]) valid = false
         seen[k] = true
       })
-      return valid ? url.href : ''
+      if (!valid) return ''
+      // 仅转换原版 APK 已取证的工具页路径，不改变查询值、私有入口或图片路径。
+      if (!image && url.pathname === '/app_tool.php') url.pathname = '/tool.php'
+      return url.href
     } catch (_error) { return '' }
   }
 
   function openLegacyShare(kind, value) {
     var data = value && typeof value === 'object' ? value : {}
-    var publicEntry = 'https://api.rebugx.cn/h5/pages/paipan/index'
+    var publicEntry = '' // 未提供安全公开结果时，由原生层按当前构建环境选择入口。
     var payload = JSON.stringify({
       kind: kind,
       title: safeShareText(data.title, 80),
@@ -67,7 +69,7 @@
   function shareLegacyPage(_type, _scene, _miniId, title, description) {
     // 旧 APK 的前三个参数是类型/场景/小程序标识，不是链接或图片路径。
     // 原生菜单明确提供当前页面截图，不伪造未配置的小程序卡片。
-    var publicEntry = 'https://api.rebugx.cn/h5/pages/paipan/index'
+    var publicEntry = ''
     openLegacyShare('page', {
       title: title,
       remark: description,
@@ -75,7 +77,9 @@
     })
   }
 
-  function shareLegacyPicture(url) { openLegacyShare('image', { shareImgUrl: url }) }
+  function shareLegacyPicture(url) {
+    openLegacyShare('image', { shareImgUrl: url, path: safeShareUrl(window.location.href, false) })
+  }
   function saveLegacyPicture(url) { openLegacyShare('save', { shareImgUrl: url }) }
 
   function legacyTradeNo(value) {

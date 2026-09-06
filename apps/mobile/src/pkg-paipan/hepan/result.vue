@@ -12,6 +12,7 @@
  */
 import { ref, computed, watch, nextTick } from 'vue'
 import { onLoad, onReady } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -85,7 +86,16 @@ function normPerson(raw: unknown, role: string) {
   return { name: String(p.name ?? ''), gender: gender as '男' | '女', year, month, day, hour, minute }
 }
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+let renderGeneration = 0
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  renderGeneration++
+  params.value = null; detailAspect.value = null; loadError.value = ''
+})
+const { allowed, checking } = preview
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少合盘参数')
     const raw = JSON.parse(decodeURIComponent(q.payload)) as Record<string, unknown>
@@ -99,18 +109,25 @@ onLoad((q: Record<string, string> = {}) => {
     params.value = p
     const r = computeHepan(p.scene, p.a, p.b)
     const grade = r.totalScore >= 85 ? '上上之配' : r.totalScore >= 75 ? '上乘之配' : r.totalScore >= 62 ? '中上之配' : r.totalScore >= 50 ? '中平之配' : '须多经营之配'
-    saveHepanHistory(p, `${grade} · ${r.totalScore}分`)
+    if (!recorded) {
+      saveHepanHistory(p, `${grade} · ${r.totalScore}分`)
+      recorded = true
+    }
   } catch (e) {
+    params.value = null
     loadError.value = (e as Error).message || '合盘参数无效'
   }
-})
+}
 
 /** 五维契合雷达（canvas 绘制：三层网格 + 五轴 + 数据多边形 + 顶点 + 标签） */
 async function drawRadar() {
+  const generation = renderGeneration
+  if (!allowed.value) return
   const r = result.value
   if (!r) return
   try {
     await renderToCanvas('#hepan-radar', { width: RADAR_W, height: RADAR_H }, (ctx) => {
+      if (generation !== renderGeneration || !allowed.value) return
       const cx = RADAR_W / 2
       const cy = RADAR_H / 2 - 6
       const R = 74
@@ -212,7 +229,12 @@ function onShare() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="八字合盘" back-href="/paipan/hepan" share @share="onShare" />
 
     <!-- 错误态 -->

@@ -12,7 +12,7 @@ const props = withDefaults(defineProps<{
   subtitle?: string
   /** 返回目标；不传则回退上一页（无历史时回排盘首页） */
   backHref?: string
-  /** 显示分享按钮（内置 H5 Web Share / 复制链接，其余端复制链接） */
+  /** 保留历史调用参数；私有预览仅在父级提供受控分享处理器时显示按钮。 */
   share?: boolean
   /** 分享标题（内置分享时使用） */
   shareTitle?: string
@@ -30,11 +30,11 @@ const emit = defineEmits<{
   (e: 'help'): void
 }>()
 
-// 是否被父级监听（vue3：绑定的事件会挂到 attrs 上）
-import { useAttrs } from 'vue'
-const attrs = useAttrs()
-const hasCustomBack = () => !!attrs.onBack
-const hasCustomShare = () => !!attrs.onShare
+// defineEmits 声明的事件不会进入 attrs，须从当前组件 VNode 读取父级监听器。
+import { getCurrentInstance } from 'vue'
+const instance = getCurrentInstance()
+const hasCustomBack = () => !!instance?.vnode.props?.onBack
+const hasCustomShare = () => !!instance?.vnode.props?.onShare
 
 function handleBack() {
   if (hasCustomBack()) { emit('back'); return }
@@ -46,19 +46,8 @@ function handleBack() {
 
 function handleShare() {
   if (hasCustomShare()) { emit('share'); return }
-  // #ifdef H5
-  const url = window.location.href
-  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
-  if (nav.share) { nav.share({ title: props.shareTitle ?? props.title, url }).catch(() => {}); return }
-  // #endif
-  let clipData = props.shareTitle ?? props.title
-  // #ifdef H5
-  clipData = window.location.href
-  // #endif
-  uni.setClipboardData({
-    data: clipData,
-    success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
-  })
+  // 默认当前地址可能携带生辰/私有工具参数，不得绕过父页面资格核验进行分享。
+  uni.showToast({ title: '当前工具暂不支持对外分享', icon: 'none' })
 }
 </script>
 
@@ -82,7 +71,7 @@ function handleShare() {
         <view v-if="historyHref" class="th-btn" @tap="navigateTo(historyHref!)">
           <app-icon name="history" :size="36" color="var(--text-ink)" />
         </view>
-        <view v-if="share || hasCustomShare()" class="th-btn" @tap="handleShare">
+        <view v-if="hasCustomShare()" class="th-btn" @tap="handleShare">
           <app-icon name="share-2" :size="36" color="var(--text-ink)" />
         </view>
       </view>

@@ -1,7 +1,12 @@
 <template>
   <view class="poster-page">
-    <!-- 加载态 -->
-    <view v-if="isLoading || !posterData" class="poster-loading">
+    <!-- 失败时必须有重试/返回，不能停留在永久加载动画。 -->
+    <view v-if="loadError" class="poster-loading" role="alert">
+      <text class="poster-loading__text">{{ loadError }}</text>
+      <button @tap="loadData">重新加载</button>
+      <button @tap="goBack">返回</button>
+    </view>
+    <view v-else-if="isLoading || !posterData" class="poster-loading">
       <view class="poster-loading__spinner" />
       <text class="poster-loading__text">加载中…</text>
     </view>
@@ -67,6 +72,7 @@
 
       <!-- 底部操作面板 -->
       <view class="panel">
+        <text v-if="posterError" class="poster-loading__text" role="alert">{{ posterError }}</text>
         <!-- 风格选择 -->
         <view class="panel__section">
           <text class="panel__label">选择风格</text>
@@ -120,7 +126,7 @@
           </view>
           <view class="action-btn action-btn--primary" @tap="handleShare">
             <AppIcon name="share-2" :size="36" color="#ffffff" />
-            <text class="action-btn__txt">立即分享</text>
+            <text class="action-btn__txt">{{ isPaipanPoster ? '分享页面链接' : '立即分享' }}</text>
           </view>
         </view>
       </view>
@@ -134,6 +140,7 @@
       :summary="posterData.desc"
       :meta="[posterData.subtitle, posterData.author].filter(Boolean).join(' · ')"
       :url="posterData.link"
+      :cover="isPaipanPoster ? '/static/logo.webp' : ''"
       @close="showShareSheet = false"
       @poster="handleSave"
     />
@@ -141,8 +148,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import BrandSeal from '@/components/common/brand-seal.vue'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
@@ -159,6 +166,12 @@ import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { goBack as platformGoBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
+import { createPosterExportState } from '@/lib/poster-export-state'
+import { consumeLegacyPoster, type LegacyPosterPayload } from '@/lib/legacy-paipan-share'
+import { buildLegacyPosterData } from '@/lib/legacy-poster-data'
+
+const isPaipanPoster = ref(false)
+let paipanPayload: LegacyPosterPayload | null = null
 
 const statusBarHeight = ref(0)
 const posterType = ref<PosterType>('invite')
@@ -172,7 +185,17 @@ const posterData = ref<PosterData | null>(null)
 const themeIndex = ref(0)
 const toneIndex = ref(0)
 const isSaving = ref(false)
-const posterTempPath = ref('')
+const posterError = ref('')
+let exportTimeout: ReturnType<typeof setTimeout> | undefined
+const posterExport = createPosterExportState((state) => {
+  if (exportTimeout) clearTimeout(exportTimeout)
+  exportTimeout = undefined
+  if (state.status === 'rendering') {
+    exportTimeout = setTimeout(() => posterExport.fail(state.revision, '海报生成超时，请重试'), 10_000)
+  }
+  posterError.value = state.error
+})
+let loadRevision = 0
 const showShareSheet = ref(false)
 const { toAppMessage, toTimeline } = useShare()
 
@@ -180,7 +203,7 @@ const { toAppMessage, toTimeline } = useShare()
 const canvasW = 300
 const canvasH = 420
 
-const typeTitle = computed(() => getPosterTypeTitle(posterType.value))
+const typeTitle = computed(() => isPaipanPoster.value ? '排盘分享海报' : getPosterTypeTitle(posterType.value))
 /** 印面文字：品牌名前二字（nameShort 缺省时回退全名取前二字） */
 const sealChars = computed(() => Array.from(BRAND.nameShort || BRAND.name).slice(0, 2).join(''))
 const activeTheme = computed(() => POSTER_THEMES[themeIndex.value])
@@ -188,6 +211,7 @@ const currentTone = computed(() =>
   posterData.value ? SHARE_TONES[toneIndex.value].build(posterData.value.title) : '',
 )
 const shareKind = computed(() => {
+  if (isPaipanPoster.value) return 'tool'
   const kinds = {
     invite: 'circle',
     circle: 'circle',
@@ -217,8 +241,17 @@ const miniSharePath = computed(() => {
   }
   return paths[posterType.value]
 })
+// 朋友圈只能携带当前页 query，海报页必须保留 type/targetId，不能只传内容详情的 id。
+const posterPageSharePath = computed(() => {
+  const query = [`type=${encodeURIComponent(posterType.value)}`]
+  if (targetId.value) query.push(`targetId=${encodeURIComponent(targetId.value)}`)
+  if (circleId.value) query.push(`circleId=${encodeURIComponent(circleId.value)}`)
+  return `/pkg-circle/common/share-poster/index?${query.join('&')}`
+})
 
 onLoad((q) => {
+  isPaipanPoster.value = q?.source === 'paipan'
+  paipanPayload = isPaipanPoster.value ? consumeLegacyPoster() : null
   if (q?.type) posterType.value = q.type as PosterType
   if (q?.targetId) targetId.value = String(q.targetId)
   if (q?.circleId) circleId.value = String(q.circleId)
@@ -230,26 +263,37 @@ onLoad((q) => {
 const loadError = ref('')
 
 async function loadData() {
+  const revision = ++loadRevision
+  posterExport.invalidate()
+  posterData.value = null
   isLoading.value = true
   loadError.value = ''
   try {
-    const res = await getPosterData(posterType.value, targetId.value, circleId.value)
+    const res = isPaipanPoster.value
+      ? { code: 200, data: buildLegacyPosterData(paipanPayload) }
+      : await getPosterData(posterType.value, targetId.value, circleId.value)
+    if (revision !== loadRevision) return
     if (res.code === 200 && res.data) {
       posterData.value = res.data
-      setTimeout(() => drawPoster(), 100)
+      setTimeout(() => { if (revision === loadRevision) drawPoster() }, 100)
+    } else {
+      throw new Error('内容加载失败，请重试')
     }
   } catch (e) {
+    if (revision !== loadRevision) return
     // 绝不回退成假数据：错误的海报会被用户发到朋友圈
     loadError.value = (e as Error)?.message || '内容加载失败，请重试'
     uni.showToast({ title: loadError.value, icon: 'none' })
   } finally {
-    isLoading.value = false
+    if (revision === loadRevision) isLoading.value = false
   }
 }
 
 function drawPoster() {
+  const revision = posterExport.begin()
   const data = posterData.value
-  if (!data) return
+  if (!data) { posterExport.fail(revision, '内容未加载，无法生成海报'); return }
+  try {
   const theme = activeTheme.value
   const ctx = uni.createCanvasContext('posterCanvas')
   const W = canvasW
@@ -298,11 +342,12 @@ function drawPoster() {
   if (data.author) ctx.fillText(data.author, 32, H - 60)
   ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
 
-  /* 真二维码（2026-07-14 补）：原代码注释写「底部二维码 + 作者」，但只画了作者文字 ——
-   * 导出的海报根本没有二维码，用户发出去别人连扫都没得扫，分享零转化。
-   * 现按 data.link 用 uqrcodejs 现画指向真实内容的码（失败静默降级，不影响存图）。 */
-  const QR = 72
-  drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { padding: 4 })
+  // 二维码失败就终止本次导出，不能向用户交付无法扫码的图片。
+  const QR = 100
+  if (!drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { contained: true })) {
+    posterExport.fail(revision, '二维码生成失败，请重试')
+    return
+  }
 
   /* 品牌朱印（视觉签名批1）：与预览区 brand-seal 同构，画在二维码左侧、底边对齐——
    * 预览 96rpx=48px、间距 12px，绝不与二维码/作者行重叠 */
@@ -311,20 +356,33 @@ function drawPoster() {
 
   ctx.draw(false, () => {
     setTimeout(() => {
-      uni.canvasToTempFilePath({
-        canvasId: 'posterCanvas',
-        success: (r) => {
-          posterTempPath.value = r.tempFilePath
-        },
-        fail: () => {},
-      })
+      if (!posterExport.isCurrent(revision)) return
+      try {
+        uni.canvasToTempFilePath({
+          canvasId: 'posterCanvas',
+          destWidth: canvasW * 3,
+          destHeight: canvasH * 3,
+          success: (r) => {
+            posterExport.complete(revision, r.tempFilePath)
+          },
+          fail: () => posterExport.fail(revision, '海报导出失败，请重试'),
+        })
+      } catch {
+        posterExport.fail(revision, '海报导出失败，请重试')
+      }
     }, 150)
   })
 
   // 预览区的小二维码（与导出图同一 link，保证所见即所存）
   const pctx = uni.createCanvasContext('previewQr')
-  drawQrToCanvas(pctx, data.link, 0, 0, 56, { padding: 2 })
+  if (!drawQrToCanvas(pctx, data.link, 0, 0, 80, { contained: true })) {
+    posterExport.fail(revision, '二维码预览生成失败，请重试')
+    return
+  }
   pctx.draw()
+  } catch {
+    posterExport.fail(revision, '海报生成失败，请重试')
+  }
 }
 
 // 重绘随主题切换
@@ -427,16 +485,20 @@ function copyTone() {
 
 async function handleSave() {
   if (isSaving.value) return
+  const path = posterExport.readyPath()
+  if (!path) {
+    uni.showToast({ title: posterError.value || '海报正在生成，请稍后再试', icon: 'none' })
+    if (posterError.value) drawPoster()
+    return
+  }
   isSaving.value = true
   // #ifdef H5
   try {
-    if (posterTempPath.value) {
-      const a = document.createElement('a')
-      a.download = `${BRAND.nameShort}-${typeTitle.value}-${Date.now()}.png`
-      a.href = posterTempPath.value
-      a.click()
-    }
-    uni.showToast({ title: '海报已保存', icon: 'success' })
+    const a = document.createElement('a')
+    a.download = `${BRAND.nameShort}-${typeTitle.value}-${Date.now()}.png`
+    a.href = path
+    a.click()
+    uni.showToast({ title: '已发起下载，请在浏览器确认', icon: 'none' })
     await recordPosterShare(posterType.value, targetId.value, 'save')
   } catch {
     uni.showToast({ title: '保存失败', icon: 'none' })
@@ -446,7 +508,7 @@ async function handleSave() {
   // #endif
   // #ifndef H5
   uni.saveImageToPhotosAlbum({
-    filePath: posterTempPath.value,
+    filePath: path,
     success: async () => {
       uni.showToast({ title: '海报已保存', icon: 'success' })
       await recordPosterShare(posterType.value, targetId.value, 'save')
@@ -471,10 +533,10 @@ onShareAppMessage(() => toAppMessage({
 onShareTimeline(() => toTimeline({
   title: posterData.value?.title || BRAND.name,
   summary: posterData.value?.desc,
-  path: miniSharePath.value,
+  path: posterPageSharePath.value,
 }))
 
-onMounted(() => {})
+onUnload(() => { loadRevision += 1; posterExport.invalidate(); paipanPayload = null; posterData.value = null })
 </script>
 
 <style scoped>
@@ -639,11 +701,11 @@ onMounted(() => {})
   gap: 8rpx;
 }
 .poster-card__qr-img {
-  width: 120rpx;
-  height: 120rpx;
+  width: 80px;
+  height: 80px;
   background: #ffffff;
   border-radius: 8rpx;
-  padding: 6rpx;
+  padding: 0;
   box-sizing: border-box;
 }
 .poster-card__qr-label {

@@ -8,6 +8,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -46,46 +47,52 @@ const detail = ref<NameDetail | null>(null)
 const errMsg = ref('')
 const favorite = ref(false)
 
-onLoad((opts: Record<string, string> = {}) => {
-  const name = opts.name ? decodeURIComponent(opts.name) : ''
+let entryQuery: Record<string, string> = {}
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => {
+  try {
+  const name = entryQuery.name ? decodeURIComponent(entryQuery.name) : ''
   if (!name || [...name].length < 2) {
     errMsg.value = '参数无效，请从推荐列表进入详批。'
     return
   }
   fullName.value = name
-  gender.value = opts.gender === '女' ? '女' : '男'
-  try {
+  gender.value = entryQuery.gender === '女' ? '女' : '男'
     detail.value = analyzeName({ fullName: name, gender: gender.value })
     favorite.value = isQimingFavorite(name)
   } catch {
     errMsg.value = '解析失败，请返回重试。'
   }
+}, () => {
+  fullName.value = ''; gender.value = '男'; detail.value = null; errMsg.value = ''; favorite.value = false
 })
 
 const c = computed(() => detail.value?.candidate ?? null)
 
 function onToggleFavorite() {
-  if (!c.value) return
-  favorite.value = toggleQimingFavorite({
-    name: fullName.value,
-    gender: gender.value,
-    score: c.value.score,
-    subScores: c.value.subScores,
-  })
-  uni.showToast({ title: favorite.value ? '已收藏此名' : '已取消收藏', icon: 'none' })
+  changeFavorite(false)
 }
 
 function onChoose() {
-  if (!c.value) return
-  if (!favorite.value) {
-    favorite.value = toggleQimingFavorite({
-      name: fullName.value,
-      gender: gender.value,
-      score: c.value.score,
-      subScores: c.value.subScores,
-    })
-  }
-  uni.showToast({ title: `已选定「${fullName.value}」并加入收藏`, icon: 'none' })
+  changeFavorite(true)
+}
+
+function changeFavorite(choose: boolean) {
+  if (!preview.allowed.value || !c.value || !detail.value) return
+  const snapshot = { name: fullName.value, gender: gender.value, detail: detail.value }
+  void preview.run(() => {
+    fullName.value = snapshot.name; gender.value = snapshot.gender; detail.value = snapshot.detail
+    try {
+      // 选择操作幂等，依据当前存储而不是打开详情时的旧星标。
+      if (!choose || !isQimingFavorite(snapshot.name)) toggleQimingFavorite({ name: snapshot.name, gender: snapshot.gender,
+        score: snapshot.detail.candidate.score, subScores: snapshot.detail.candidate.subScores })
+      favorite.value = isQimingFavorite(snapshot.name)
+      uni.showToast({ title: choose ? `已选定「${snapshot.name}」并加入收藏` : favorite.value ? '已收藏此名' : '已取消收藏', icon: 'none' })
+    } catch {
+      favorite.value = isQimingFavorite(snapshot.name)
+      uni.showToast({ title: '收藏未保存，请重试', icon: 'none' })
+    }
+  })
 }
 
 function onBack() {
@@ -96,7 +103,12 @@ function onBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" @back="onBack">
       <template #actions>
         <view v-if="detail" class="hdr-fav" @tap="onToggleFavorite">

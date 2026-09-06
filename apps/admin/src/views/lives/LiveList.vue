@@ -220,6 +220,9 @@
           >
             详情
           </el-button>
+          <el-button v-if="row.status === 'ENDED' || row.status === 'REPLAY'" size="small" @click="openClosure(row)">
+            资源核验
+          </el-button>
           <el-button
             size="small"
             type="danger"
@@ -231,6 +234,7 @@
       </el-table-column>
     </el-table>
 
+    <LiveMediaClosureDialog v-model="closureVisible" :room-id="closureRoom?.id || ''" :room-title="closureRoom?.title" />
     <!-- 创建/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
@@ -616,6 +620,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import LiveMediaClosureDialog from "./LiveMediaClosureDialog.vue";
 import { circleApi, liveApi, productApi, userApi } from "@/api";
 
 /** 直播主播信息 */
@@ -638,6 +643,9 @@ const loading = ref(false);
 const loadError = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
+const closureVisible = ref(false);
+const closureRoom = ref<LiveRow | null>(null);
+function openClosure(row: LiveRow) { closureRoom.value = row; closureVisible.value = true; }
 const detail = ref<LiveRow | null>(null);
 const circleOptions = ref<CircleOption[]>([]);
 const productOptions = ref<ProductOption[]>([]);

@@ -5,7 +5,7 @@
  * 起课后跳结果页本地重算；排盘记录本地存储（key: rebu:taiyi-history，上限 50）。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -97,18 +97,22 @@ function onDateConfirm(d: {
 
 // ── 排盘记录 ──
 const history = ref<TaiyiHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadTaiyiHistory()
+}, () => {
+  history.value = []
+  topic.value = ''
+  showDatePicker.value = false
 })
 
 function onClearHistory() {
+  const current = preview.captureInteraction()
   uni.showModal({
     title: '清空记录',
     content: '确定清空全部排盘记录？',
     success: (res) => {
-      if (res.confirm) {
-        clearTaiyiHistory()
-        history.value = []
+      if (res.confirm && current()) {
+        void preview.run(() => { clearTaiyiHistory(); history.value = [] })
       }
     },
   })
@@ -140,7 +144,12 @@ function handleSubmit() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <ToolHeader :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在确认访问状态' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" subtitle="三式之尊 · 积数定局" share />
 
     <scroll-view scroll-y class="body">

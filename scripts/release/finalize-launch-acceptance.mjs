@@ -10,6 +10,8 @@ const REQUIRED_CHECKS = [
   ["database_reconciliation", "数据库与核心业务数据对账"],
   ["payment_refund", "支付与退款闭环"],
   ["core_clients", "H5、微信小程序与 App 核心流程"],
+  ["publication_authorization", "发布资格申请、后台审批、平台直授与撤权闭环（不限制普通阅读）"],
+  ["media_resource_closure", "直播与咨询媒体终态、不可重入、资源账本及幂等回执"],
   ["harmony_client", "Harmony 成品与关键流程"],
   ["client_artifacts", "五端成品、审计报告与公开配置绑定"],
   ["monitoring_backup_restore", "监控告警、备份与隔离恢复"],

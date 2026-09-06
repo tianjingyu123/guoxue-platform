@@ -12,6 +12,7 @@
  *     遵循分包自包含惯例——同 bazi-engine 双分包副本做法，不做跨分包 lib import）
  */
 import { ref, computed, watch } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
@@ -81,6 +82,7 @@ watch(input, (v) => {
 })
 
 function setKind(id: InputKind) {
+  if (!preview.allowed.value) return
   if (kind.value === id) return
   kind.value = id
   input.value = ''
@@ -89,15 +91,21 @@ function setKind(id: InputKind) {
 }
 
 function analyze() {
-  const r = extractDigits(kind.value, input.value)
+  if (!preview.allowed.value) return
+  const currentKind = kind.value, raw = input.value, label = kindMeta.value.label
+  const r = extractDigits(currentKind, raw)
   if (!r.ok) {
     error.value = r.error ?? '输入有误'
     digits.value = null
     return
   }
-  error.value = null
-  digits.value = r.digits
-  saveShuziHistory({ kind: kind.value, kindLabel: kindMeta.value.label, raw: input.value, digits: r.digits })
+  void preview.run(() => {
+    kind.value = currentKind
+    input.value = raw
+    error.value = null
+    digits.value = r.digits
+    saveShuziHistory({ kind: currentKind, kindLabel: label, raw, digits: r.digits })
+  })
 }
 
 // ─── 结果（本地纯计算，同 V0 useMemo） ───
@@ -147,16 +155,38 @@ function chipTone(star: StarName): string {
 // ─── 测算历史（本地存储弹层） ───
 const showHistory = ref(false)
 const records = ref<ShuziHistoryRecord[]>([])
+const preview = useNativePreviewPage(() => { records.value = loadShuziHistory() }, () => {
+  kind.value = 'phone'
+  input.value = ''
+  digits.value = null
+  error.value = null
+  records.value = []
+  showHistory.value = false
+})
+
+// 核验期间清空私有视图；通过后恢复同一次交互的输入和结果。
+function preserveView(action: () => void) {
+  const snapshot = { kind: kind.value, input: input.value, digits: digits.value, error: error.value }
+  return preview.run(() => {
+    kind.value = snapshot.kind; input.value = snapshot.input
+    digits.value = snapshot.digits; error.value = snapshot.error
+    action()
+  })
+}
 
 function openHistory() {
-  records.value = loadShuziHistory()
-  showHistory.value = true
+  if (!preview.allowed.value) return
+  void preserveView(() => { records.value = loadShuziHistory(); showHistory.value = true })
 }
 function onClearHistory() {
-  clearShuziHistory()
-  records.value = []
+  if (!preview.allowed.value) return
+  const isCurrent = preview.captureInteraction()
+  uni.showModal({ title: '清空记录', content: '仅清空当前账号的数字解读记录，是否继续？', success: res => {
+    if (res.confirm && isCurrent()) void preserveView(() => { clearShuziHistory(); records.value = []; showHistory.value = true })
+  } })
 }
 function openRecord(r: ShuziHistoryRecord) {
+  if (!preview.allowed.value) return
   showHistory.value = false
   kind.value = r.kind
   input.value = r.raw
@@ -165,7 +195,12 @@ function openRecord(r: ShuziHistoryRecord) {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header title="数字能量解读" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header
       title="数字能量解读"
       subtitle="八星磁场 · 生命灵数 · 梅花象数"

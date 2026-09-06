@@ -1,10 +1,12 @@
 /**
  * 周易起名 · 本地存储（历史 + 收藏）
  * 历史：走统一底座 lib/paipan/history-core（带 id/pinned，支持删单条/置顶，V0 起名记录页依赖）；
- *       老 key「rebu:qiming-history」的 JSON 字符串记录首次读取时自动迁入新 key。
+ *       公共旧记录保留原样，不自动认领到当前账号。
  * 收藏 key: rebu:qiming-favorites（上限 50 · 按全名去重）——结果页星标/详批收藏共用
  */
-import { createHistory, type HistoryItem } from '@/lib/paipan/history-core'
+import type { HistoryItem } from '@/lib/paipan/history-core'
+import { createPrivateHistory } from '@/lib/paipan/private-history'
+import { nativeHistoryKey } from '@/lib/paipan/native-history-scope'
 
 export interface QimingParams {
   surname: string
@@ -33,7 +35,6 @@ export interface QimingFavorite {
 }
 
 const HISTORY_KEY = 'rebu:qiming-records'
-const LEGACY_HISTORY_KEY = 'rebu:qiming-history'
 const FAVORITES_KEY = 'rebu:qiming-favorites'
 const LIMIT = 50
 
@@ -44,8 +45,10 @@ function nowText(): string {
 }
 
 function loadList<T>(key: string): T[] {
+  const scoped = nativeHistoryKey(key)
+  if (!scoped) return []
   try {
-    const raw = uni.getStorageSync(key) as string
+    const raw = uni.getStorageSync(scoped) as string
     const list = raw ? (JSON.parse(raw) as T[]) : []
     return Array.isArray(list) ? list : []
   } catch {
@@ -54,16 +57,15 @@ function loadList<T>(key: string): T[] {
 }
 
 function saveList<T>(key: string, list: T[]): void {
-  try {
-    uni.setStorageSync(key, JSON.stringify(list.slice(0, LIMIT)))
-  } catch {
-    /* 存储异常忽略（非关键路径） */
-  }
+  const scoped = nativeHistoryKey(key)
+  if (!scoped) throw new Error('账号无法确认')
+  // 写入失败必须交给调用方处理，不能显示虚假的收藏成功。
+  uni.setStorageSync(scoped, JSON.stringify(list.slice(0, LIMIT)))
 }
 
 /* ── 起名历史（统一底座） ── */
 
-const historyStore = createHistory<QimingParams>(HISTORY_KEY, {
+const historyStore = createPrivateHistory<QimingParams>(HISTORY_KEY, {
   max: LIMIT,
   sameAs: (a, b) =>
     a.surname === b.surname && a.gender === b.gender && a.nameType === b.nameType &&
@@ -71,26 +73,7 @@ const historyStore = createHistory<QimingParams>(HISTORY_KEY, {
     (a.blockChars ?? '') === (b.blockChars ?? ''),
 })
 
-/** 老格式（JSON 字符串、数字 id）一次性迁入新库 */
-function migrateLegacyHistory(): void {
-  try {
-    const raw = uni.getStorageSync(LEGACY_HISTORY_KEY)
-    if (!raw) return
-    const old = (typeof raw === 'string' ? JSON.parse(raw) : raw) as any[]
-    if (Array.isArray(old)) {
-      for (const r of [...old].reverse()) {
-        const { id: _id, ...rest } = r || {}
-        historyStore.save(rest as QimingParams)
-      }
-    }
-    uni.removeStorageSync(LEGACY_HISTORY_KEY)
-  } catch {
-    /* 迁移失败不阻断 */
-  }
-}
-
 export function loadQimingHistory(): QimingHistoryRecord[] {
-  migrateLegacyHistory()
   return historyStore.load()
 }
 

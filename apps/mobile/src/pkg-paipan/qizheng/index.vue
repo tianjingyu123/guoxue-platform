@@ -9,7 +9,7 @@
  *      （经纬度进 Observer 与真太阳时），故地点为必选项而非装饰。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -75,8 +75,12 @@ function onLocationConfirm(loc: { province: string; city: string; district: stri
 
 // ── 排盘记录 ──
 const history = ref<QizhengHistoryItem[]>([])
-onShow(() => {
+const preview = useNativePreviewPage(() => {
   history.value = loadQizhengHistory()
+}, () => {
+  history.value = []
+  showDatePicker.value = false
+  showLocationPicker.value = false
 })
 
 function onClearHistory() {
@@ -85,15 +89,15 @@ function onClearHistory() {
     content: '确定清空全部排盘记录？',
     success: (res) => {
       if (res.confirm) {
-        clearQizhengHistory()
-        history.value = []
+        void preview.run(() => { clearQizhengHistory(); history.value = [] })
       }
     },
   })
 }
 
 function openRecord(h: QizhengHistoryItem) {
-  navigateTo(`/pkg-paipan/qizheng/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
+  const payload = encodeURIComponent(JSON.stringify(h.params))
+  return preview.run(() => navigateTo(`/pkg-paipan/qizheng/result?payload=${payload}`))
 }
 
 // ── 开始排盘 ──
@@ -115,12 +119,17 @@ function handleSubmit() {
     isLunar: isLunar.value,
     city,
   }
-  navigateTo(`/pkg-paipan/qizheng/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
+  return preview.run(() => navigateTo(`/pkg-paipan/qizheng/result?payload=${encodeURIComponent(JSON.stringify(params))}`))
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" subtitle="十一曜实测天度 · 果老星宗" share />
 
     <scroll-view scroll-y class="body">

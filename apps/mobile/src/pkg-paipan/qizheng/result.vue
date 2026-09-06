@@ -10,6 +10,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -87,7 +88,18 @@ const qizhengSummary = computed(() => {
 
 const highlightYear = computed(() => (mode.value === 'annual' ? viewTime.value?.year : undefined))
 
-onLoad((q: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((q: Record<string, string> = {}) => { entryQuery = { ...q } })
+const preview = useNativePreviewPage(() => initialize(entryQuery), () => {
+  params.value = null
+  birth.value = null
+  viewTime.value = null
+  loadError.value = ''
+  mode.value = 'natal'
+  tab.value = 'sizhu'
+})
+function initialize(q: Record<string, string>) {
   try {
     if (!q.payload) throw new Error('缺少排盘参数')
     const raw = JSON.parse(decodeURIComponent(q.payload)) as Record<string, unknown>
@@ -136,14 +148,18 @@ onLoad((q: Record<string, string> = {}) => {
       longitude: cityLongitude(p.city),
       latitude: cityLatitude(p.city),
     })
-    saveQizhengHistory(
+    if (!recorded) saveQizhengHistory(
       p,
       `立命${r.ming.zhi}宫${r.ming.mansion}宿 · 恩${r.enYongChouNan.en}用${r.enYongChouNan.yong}`,
     )
+    recorded = true
   } catch (e) {
+    params.value = null
+    birth.value = null
+    viewTime.value = null
     loadError.value = (e as Error).message || '排盘参数无效'
   }
-})
+}
 
 /** 流年步进：逐字段构造 Date，规避各端字符串解析差异 */
 function step(days: number, hours: number) {
@@ -171,6 +187,7 @@ function houseOf(zhi: string): string {
 }
 
 function onShare() {
+  if (!preview.allowed.value) return
   const r = result.value
   const p = params.value
   if (!r || !p) return
@@ -183,15 +200,23 @@ function onShare() {
     `安身 ${r.shen.zhi}宫 ${r.shen.mansion}宿${r.shen.mansionDeg.toFixed(2)}°`,
     `恩${r.enYongChouNan.en} 用${r.enYongChouNan.yong} 仇${r.enYongChouNan.chou} 难${r.enYongChouNan.nan}`,
   ].join('\n')
-  uni.setClipboardData({
+  return preview.run(() => {
+    initialize(entryQuery)
+    uni.setClipboardData({
     data: txt,
     success: () => uni.showToast({ title: '盘面已复制', icon: 'none' }),
+  })
   })
 }
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value" class="page">
+    <text>{{ preview.checking.value ? '正在核验访问资格…' : '当前无法使用此工具' }}</text>
+    <button @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
+  <view v-else class="page">
     <tool-header title="七政四余星盘" back-href="/paipan/qizheng" share @share="onShare" />
 
     <!-- 错误态 -->

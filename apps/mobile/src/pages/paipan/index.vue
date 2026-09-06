@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { navigateTo } from '@/utils/router'
+import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import { PAIPAN_MAINTENANCE_MESSAGE } from '@/lib/mp-paipan-maintenance'
+import { consumePaipanColdTarget } from '@/lib/paipan-suite-cold-entry'
+// #ifndef MP-WEIXIN
 /**
  * 排盘工具主页（V0 排盘工具 7月10日版 v0.5-v0.7 首页重构还原）
  * 结构：顶栏 / 今日时刻Hero / AI智能解盘卡 / 双人合盘卡 / 为你推荐(收藏夹·可管理) /
@@ -7,12 +12,11 @@
  * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
 import { ref, computed, onMounted } from "vue";
-import { onLoad, onShow } from "@dcloudio/uni-app";
+import { onHide, onLoad, onShow } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import SmartAvatar from "@/components/common/smart-avatar.vue";
 import ToolIcon from "@/components/paipan/tool-icon.vue";
 import TodayHero from "@/components/paipan/today-hero.vue";
-import BottomNav from "@/components/bottom-nav/bottom-nav.vue";
 import { type Tool, type ToolCategory, tools, medicalTools } from "@/lib/tools-data";
 import { agentsSquareApi, type SquareBot } from "@/lib/agents-square-data";
 import { agentThemeStyle } from "@/lib/agent-experience";
@@ -24,8 +28,8 @@ import {
   recordToolUsage,
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
-import { navigateTo } from "@/utils/router";
 import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
+import { getToken } from "@/utils/storage";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -43,6 +47,8 @@ const loginRequired = ref(false);
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
+let entryGeneration = 0;
+let previewNeedsRecheck = false;
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -201,6 +207,25 @@ function removeFav(id: string) {
 }
 
 async function loadPaipanEntry() {
+  const generation = ++entryGeneration;
+  const requestToken = getToken();
+  const stillCurrent = () => generation === entryGeneration && requestToken === getToken();
+  const openPrivatePreview = async () => {
+    previewNeedsRecheck = true;
+    if (!requestToken) throw new Error("页面不存在");
+    const access = await legacyPaipanApi.nativeQaAccess();
+    if (!stillCurrent() || access.allowed !== true) throw new Error("页面不存在");
+    const coldTarget = consumePaipanColdTarget();
+    if (coldTarget) {
+      uni.redirectTo({ url: coldTarget, fail: () => {
+        if (stillCurrent()) entryError.value = "排盘页面暂时无法打开，请重试";
+      } });
+      return;
+    }
+    allowNative.value = true;
+    favIds.value = getFavorites();
+    await loadPlatformAgents();
+  };
   entryLoading.value = true;
   entryError.value = "";
   allowNative.value = false;
@@ -208,22 +233,15 @@ async function loadPaipanEntry() {
   loginRequired.value = false;
   try {
     if (nativeQaRequested) {
-      const access = await legacyPaipanApi.nativeQaAccess();
-      if (!access.allowed) throw new Error("页面不存在");
-      allowNative.value = true;
-      favIds.value = getFavorites();
-      await loadPlatformAgents();
+      await openPrivatePreview();
       return;
     }
 
-    // 正式运营由服务端统一决定 legacy/native。只有本次明确返回 native
-    // 才可展示隔离的平台新排盘；探针失败或快照过期必须停在错误态，
-    // 不得在 legacy 模式下自动回退或泄露新排盘。
+    // 公开模式仅决定入口走向，绝不是新工具授权。任何 native 结果
+    // （包括旧快照）仍必须通过本次主库整套模式及账号资格探针。
     const runtimeMode = await hydratePaipanRuntime();
     if (runtimeMode === "native") {
-      allowNative.value = true;
-      favIds.value = getFavorites();
-      await loadPlatformAgents();
+      await openPrivatePreview();
       return;
     }
     if (runtimeMode !== "legacy") {
@@ -236,7 +254,9 @@ async function loadPaipanEntry() {
         : entryTarget === "station"
           ? await legacyPaipanApi.stationEntry(entryStationId)
           : await legacyPaipanApi.entry();
+    if (!stillCurrent()) return;
     if (entry.mode === "legacy") {
+      consumePaipanColdTarget(); // 当前选择第三方体系，不留待将来重放的自研地址。
       if (!entry.url || !entry.url.startsWith("https://")) {
         throw new Error("排盘服务地址未正确配置");
       }
@@ -256,20 +276,20 @@ async function loadPaipanEntry() {
       });
       return;
     }
-    allowNative.value = true;
-    favIds.value = getFavorites();
-    await loadPlatformAgents();
+    await openPrivatePreview();
   } catch (error) {
-    qaNotFound.value = nativeQaRequested;
+    if (!stillCurrent()) return;
+    allowNative.value = false;
+    qaNotFound.value = nativeQaRequested || previewNeedsRecheck;
     const message = (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
     loginRequired.value = !nativeQaRequested && /未登录|登录已过期/u.test(message);
-    entryError.value = nativeQaRequested
+    entryError.value = qaNotFound.value
       ? "页面不存在"
       : loginRequired.value
         ? "登录后即可安全进入排盘工具；首页、圈子、发现等内容仍可直接浏览。"
         : message;
   } finally {
-    entryLoading.value = false;
+    if (generation === entryGeneration) entryLoading.value = false;
   }
 }
 
@@ -323,11 +343,27 @@ onShow(() => {
     uni.reLaunch({ url: "/pages/index/index" });
     return;
   }
+  if (previewNeedsRecheck) { void loadPaipanEntry(); return; }
   favIds.value = getFavorites();
 });
+onHide(() => {
+  entryGeneration++;
+  allowNative.value = false;
+});
+// #endif
 </script>
 
 <template>
+  <!-- #ifdef MP-WEIXIN -->
+  <view class="entry-gate">
+    <text class="entry-gate-title">排盘工具维护升级中</text>
+    <text class="entry-gate-desc">{{ PAIPAN_MAINTENANCE_MESSAGE }}</text>
+    <button @tap="navigateTo('/customer-service')">联系智能客服</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+    <BottomNav active="paipan" />
+  </view>
+  <!-- #endif -->
+  <!-- #ifndef MP-WEIXIN -->
   <view v-if="entryLoading || legacyRouting" class="entry-gate" role="status" aria-live="polite">
     <view class="entry-gate-spinner" />
     <text class="entry-gate-title">正在进入排盘工具</text>
@@ -773,6 +809,7 @@ onShow(() => {
     <button v-else-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
     <button v-if="!qaNotFound && !loginRequired" class="degraded-retry" @tap="browsePublicContent">返回首页</button>
   </view>
+  <!-- #endif -->
 </template>
 
 <style scoped lang="scss">

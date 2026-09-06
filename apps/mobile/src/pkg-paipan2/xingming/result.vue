@@ -8,6 +8,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -64,9 +65,14 @@ function parseBirth(birth: string): { year: number; month: number; day: number; 
   return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]), hour: Number(m[4]), minute: Number(m[5]) }
 }
 
-onLoad((opts: Record<string, string> = {}) => {
+let entryQuery: Record<string, string> = {}
+let recorded = false
+onLoad((opts: Record<string, string> = {}) => { entryQuery = { ...opts } })
+const preview = useNativePreviewPage(() => {
   try {
-    const p = JSON.parse(decodeURIComponent(opts.payload ?? '')) as Record<string, string>
+    const p = entryQuery.payload
+      ? JSON.parse(decodeURIComponent(entryQuery.payload)) as Record<string, string>
+      : entryQuery
     const name = (p.name ?? '').trim()
     if (!name || [...name].length < 2) {
       errMsg.value = '参数无效，请返回重新填写。'
@@ -98,23 +104,29 @@ onLoad((opts: Record<string, string> = {}) => {
 
     detail.value = analyzeName({ fullName: name, gender: gender.value, shengxiao: birthInfo.value.shengxiao })
     // 进入页面即自动留存历史（保存按钮为显式确认）
-    saveXingmingHistory({
+    if (!recorded) {
+      saveXingmingHistory({
       name,
       gender: gender.value,
       birth: p.birth ?? '',
       city: p.city || undefined,
       district: p.district || undefined,
       score: detail.value.candidate.score,
-    })
+      })
+      recorded = true
+    }
   } catch {
     errMsg.value = '参数解析失败，请返回重新填写。'
   }
+}, () => {
+  fullName.value = ''; gender.value = '男'; detail.value = null
+  errMsg.value = ''; birthInfo.value = {}; saved.value = false
 })
 
 const c = computed(() => detail.value?.candidate ?? null)
 
 function onSave() {
-  if (saved.value) return
+  if (!preview.allowed.value || !detail.value || saved.value) return
   saved.value = true
   uni.showToast({ title: '已存入解析记录', icon: 'none' })
 }
@@ -131,7 +143,12 @@ function onBack() {
 </script>
 
 <template>
-  <view class="page">
+  <view v-if="!preview.allowed.value">
+    <tool-header :title="hdrTitle" />
+    <text>{{ preview.checking.value ? '正在处理，请稍候' : '当前无法访问，请重新确认' }}</text>
+    <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+  </view>
+  <view v-else class="page">
     <tool-header :title="hdrTitle" share :share-title="hdrTitle" @back="onBack" />
 
     <!-- 错误态 -->

@@ -42,7 +42,8 @@ test("排盘模式探针失败时不泄露新排盘，且只复用短时快照",
   assert.doesNotMatch(runtime, /if \(mode === "native"\) return mode/u);
   assert.doesNotMatch(runtime, /uni\.reLaunch/u);
   assert.match(page, /const runtimeMode = await hydratePaipanRuntime\(\)/u);
-  assert.match(page, /if \(runtimeMode === "native"\)[\s\S]*allowNative\.value = true/u);
+  assert.match(page, /if \(runtimeMode === "native"\) \{\s*await openPrivatePreview\(\)/u);
+  assert.match(page, /access\.allowed !== true[\s\S]*allowNative\.value = true/u);
   assert.match(page, /if \(runtimeMode !== "legacy"\)[\s\S]*排盘服务状态暂时无法确认/u);
   assert.doesNotMatch(page, /if \(entryTarget !== "station" && !getToken\(\)\)/u);
   assert.match(page, /const entry =\s*entryTarget === "account"/u);
@@ -68,12 +69,16 @@ test("自研排盘接口与后台直达有服务端门禁，移动端不做全�
   assert.match(router, /name: "NotFound"/u);
 });
 
-test("正式运营默认旧排盘，新排盘仅对预发布 QA 白名单隔离开放", () => {
+test("初始默认第三方，正式自研按整套模式开放，管理员预览保持隔离", () => {
   const template = read("docker/.env.production.example");
   assert.match(template, /^PAIPAN_MODE=legacy$/mu);
   assert.match(template, /^PAIPAN_NATIVE_QA_ENABLED=false$/mu);
   const runtime = read("apps/server/src/common/paipan-runtime.service.ts");
-  assert.match(runtime, /return "legacy";/u);
+  assert.match(runtime, /normalizePaipanSuiteMode/);
+  assert.match(runtime, /getCurrentMode/);
+  assert.match(runtime, /currentNativeSuiteAllowed/);
+  const policy = read("apps/server/src/common/paipan-suite-policy.ts");
+  assert.match(policy, /nativeAllowed: input.mode === "native" \|\| input.previewVerified/);
   assert.match(runtime, /pre-api\.rebugx\.cn/u);
   assert.ok((runtime.match(/new NotFoundException\("页面不存在"\)/gu) || []).length >= 2);
   const qaController = read("apps/server/src/modules/station/legacy-paipan.controller.ts");

@@ -9,8 +9,8 @@
  *   另展示真实 responseHours（提问响应时限）。
  * 通话：TRTC 仅 App 端，H5/小程序按 V0 做「去 App 预约」弱化按钮 → 通话预约页(booking)。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -37,22 +37,30 @@ function roleClass(label: string) {
  * 原先不带 circleId 时会请求 GET /circles//experts → 恒空列表 + 提问按钮点不动。
  */
 const isDiscoverMode = computed(() => !circleId.value)
+let loadRequest = 0
 
 async function load() {
+  const request = ++loadRequest
+  const requestedCircle = circleId.value
   loading.value = true
   error.value = ''
+  experts.value = []
+  ratingStats.value = {}
   try {
-    experts.value = isDiscoverMode.value
+    const result = !requestedCircle
       ? await consultApi.listAllExperts()
-      : await consultApi.listExperts(circleId.value)
+      : await consultApi.listExperts(requestedCircle)
+    if (request !== loadRequest || requestedCircle !== circleId.value) return
+    experts.value = result
     // 好评率回流（失败静默 {}，达人卡不渲染该行）
     if (experts.value.length) {
-      ratingStats.value = await consultApi.getExpertRatingStats(experts.value.map(e => e.id))
+      const stats = await consultApi.getExpertRatingStats(result.map(e => e.id))
+      if (request === loadRequest && requestedCircle === circleId.value) ratingStats.value = stats
     }
   } catch {
-    error.value = '加载失败'
+    if (request === loadRequest) error.value = '咨询服务加载失败，请重试'
   } finally {
-    loading.value = false
+    if (request === loadRequest) loading.value = false
   }
 }
 
@@ -78,7 +86,16 @@ function goMyOrders() {
 }
 
 onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
-onMounted(load)
+function invalidateServices() {
+  ++loadRequest
+  experts.value = []
+  ratingStats.value = {}
+  error.value = ''
+  loading.value = true
+}
+onShow(load)
+onHide(invalidateServices)
+onUnload(invalidateServices)
 </script>
 
 <template>

@@ -8,8 +8,8 @@
  *
  * 记录都是真的（本地 storage），没排过盘就是空的 —— 不造任何示例数据。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -44,18 +44,26 @@ function load() {
   counts.value = chartCounts()
 }
 
-onMounted(load)
-onShow(load)
+const preview = useNativePreviewPage(load, () => {
+  all.value = []
+  counts.value = {}
+  filter.value = ''
+  keyword.value = ''
+})
 
 function open(r: RecentChart) {
-  navigateTo(r.href)
+  if (preview.allowed.value) navigateTo(r.href)
 }
 </script>
 
 <template>
   <view class="ph">
     <ToolHeader title="排盘记录" subtitle="全部工具 · 随取随看" />
-
+    <view v-if="!preview.allowed.value" role="status">
+      <text>{{ preview.checking.value ? '正在确认排盘记录访问状态' : '当前无法访问排盘记录，请重新确认' }}</text>
+      <button :disabled="preview.checking.value" @tap="preview.run()">重新确认</button>
+    </view>
+    <template v-else>
     <view class="ph-bar">
       <view class="ph-search">
         <AppIcon name="search" :size="16" color="#B8AA9A" />
@@ -126,6 +134,7 @@ function open(r: RecentChart) {
 
       <view class="ph-space" />
     </scroll-view>
+    </template>
   </view>
 </template>
 

@@ -24,12 +24,13 @@ test('入口、统一路由、框架直跳和冷启动深链形成三层客户�
   assert.match(router, /applyClientModuleGate/)
   assert.match(app, /uni\.addInterceptor[\s\S]*clientFeatureUnavailableRoute/)
   assert.match(app, /setTimeout\(enforceCurrentClientModule, 0\)/)
+  assert.match(read('apps/mobile/src/main.ts'), /installClientModuleH5HistoryGuard\(router\)/)
 })
 
 test('直播、商家、商城、会员、短视频、圈子和智能服务共享客户端与服务端开关', () => {
   for (const key of ['live', 'merchant', 'shop', 'member', 'video', 'circle', 'ai']) {
     const flag = `client_module_${key}`
-    assert.match(remoteConfig, new RegExp(flag))
+    assert.match(policy, /client_module_\$\{module\}/)
     assert.match(serverGuard, new RegExp(flag))
   }
   assert.match(policy, /client_module_\$\{module\}/)

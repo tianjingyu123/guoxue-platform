@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { onBackPress, onHide, onReady, onShow } from '@dcloudio/uni-app'
+import { onBackPress, onHide, onReady, onResize, onShow } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
+import { legacyWebviewLayout } from '@/lib/legacy-webview-layout'
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
@@ -22,18 +23,19 @@ let locationRequestId = 0
 let legacyDocumentVersion = 0
 let legacyPaymentBusy = false
 let legacyShareBusy = false
+let legacyCompassOpening = false
 let legacyPaymentLoading = false
 let pendingLegacyPayment: { child: any; url: string; documentVersion: number; outcome: LegacyPaymentOutcome } | null = null
 // #endif
 const componentInstance = getCurrentInstance()
 const legacyAppMounted = ref(false)
 let appPageReady = false
-const safeTop = ref(0)
 const safeBottom = ref(0)
 
+function refreshLegacySafeBottom() {
+safeBottom.value = 0
 try {
   const systemInfo = uni.getSystemInfoSync()
-  safeTop.value = Math.max(0, systemInfo.statusBarHeight || 0, systemInfo.safeAreaInsets?.top || 0)
   const safeAreaBottom = Number(systemInfo.safeArea?.bottom || 0)
   const screenHeight = Number(systemInfo.screenHeight || 0)
   safeBottom.value = Math.max(
@@ -49,6 +51,8 @@ try {
   safeBottom.value = Math.max(safeBottom.value, Number(insets?.bottom || 0), Number(insets?.deviceBottom || 0))
 } catch { /* 旧运行时继续使用 systemInfo 结果 */ }
 // #endif
+}
+refreshLegacySafeBottom()
 
 /** 只允许对排盘服务官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
@@ -88,7 +92,6 @@ function legacyNavigationBridgeScript(): string {
       try{
         var url=new URL(value);
         if(url.protocol!=='https:'||url.href!==value||url.username||url.password||url.port)return '';
-        if(url.href==='https://api.rebugx.cn/h5/pages/paipan/index')return url.href;
         if(url.hash)return '';
         if(['yrydai.cn','www.yrydai.cn','yrydai.com','www.yrydai.com','rebu.net.cn','www.rebu.net.cn'].indexOf(url.hostname)<0)return '';
         if(url.pathname.indexOf('%')>=0||/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname))return '';
@@ -99,22 +102,24 @@ function legacyNavigationBridgeScript(): string {
           if(['id','aid','cid','tid','shareId','type','mod','m','c','a','page'].indexOf(k)<0||!/^[A-Za-z0-9_-]{1,100}$/.test(v)||seen[k])valid=false;
           seen[k]=true;
         });
-        return valid?url.href:'';
+        if(!valid)return '';
+        if(!image&&url.pathname==='/app_tool.php')url.pathname='/tool.php';
+        return url.href;
       }catch(_error){return '';}
     }
     function openLegacyShare(kind,value){
       var data=value&&typeof value==='object'?value:{};
-      var publicEntry='https://api.rebugx.cn/h5/pages/paipan/index';
+      var publicEntry='';
       var payload=JSON.stringify({kind:kind,
         title:safeShareText(data.title,80),text:safeShareText(data.remark,300),
         url:safeShareUrl(data.path,false)||(kind!=='save'?publicEntry:''),imageUrl:safeShareUrl(data.shareImgUrl,true)});
       openRebuAction('legacy-share?payload='+encodeURIComponent(payload));
     }
     function shareLegacyPage(_type,_scene,_miniId,title,description){
-      var publicEntry='https://api.rebugx.cn/h5/pages/paipan/index';
+      var publicEntry='';
       openLegacyShare('page',{title:title,remark:description,path:safeShareUrl(window.location.href,false)||publicEntry});
     }
-    function shareLegacyPicture(url){openLegacyShare('image',{shareImgUrl:url});}
+    function shareLegacyPicture(url){openLegacyShare('image',{shareImgUrl:url,path:safeShareUrl(window.location.href,false)});}
     function saveLegacyPicture(url){openLegacyShare('save',{shareImgUrl:url});}
     function legacyTradeNo(value){
       if(value&&typeof value==='object'){
@@ -214,28 +219,42 @@ function legacyNavigationBridgeScript(): string {
       for(var j=0;j<forms.length;j++)forms[j].setAttribute('target','_self');
     }
     var safeBottomScheduled=false;
+    var safeBottomApplied=false;
+    var safeBodyPaddings=new WeakMap();
+    var safeBarBottoms=new WeakMap();
     function normalizeSafeBottom(){
       safeBottomScheduled=false;
       var inset=Math.max(0,Math.round(Number(window.__rebuNativeSafeBottom)||0));
-      if(!inset)return;
+      if(!inset&&!safeBottomApplied)return;
+      safeBottomApplied=true;
       document.documentElement.style.setProperty('--rebu-native-safe-bottom',inset+'px');
       if(document.body){
-        var bodyPadding=parseFloat(window.getComputedStyle(document.body).paddingBottom)||0;
-        document.body.style.setProperty('padding-bottom',Math.max(bodyPadding,inset)+'px','important');
+        if(inset&&!safeBodyPaddings.has(document.body))safeBodyPaddings.set(document.body,parseFloat(window.getComputedStyle(document.body).paddingBottom)||0);
+        if(safeBodyPaddings.has(document.body)){
+          var bodyPadding=safeBodyPaddings.get(document.body);
+          document.body.style.setProperty('padding-bottom',Math.max(bodyPadding,inset)+'px','important');
+        }
       }
       var viewportHeight=window.innerHeight||document.documentElement.clientHeight||0;
       var viewportWidth=window.innerWidth||document.documentElement.clientWidth||0;
       var nodes=document.querySelectorAll('body *');
       for(var i=0;i<nodes.length;i++){
         var node=nodes[i];
-        if(node.getAttribute('data-rebu-native-bottom')==='1')continue;
         var style=window.getComputedStyle(node);
         var bottom=parseFloat(style.bottom);
+        // 重用同一购买栏时按新安全区重新计算，不叠加上一次补偿。
+        if(safeBarBottoms.has(node)){
+          // 原站后来主动隐藏该栏时，不得用补偿值把它重新拉回视口。
+          if(Number.isFinite(bottom)&&bottom<0){safeBarBottoms.delete(node);continue;}
+          if(style.position==='fixed'||style.position==='absolute')node.style.setProperty('bottom',Math.max(safeBarBottoms.get(node),inset)+'px','important');
+          continue;
+        }
         var rect=node.getBoundingClientRect&&node.getBoundingClientRect();
         var anchored=style.position==='fixed'||style.position==='absolute';
-        var touchesViewportBottom=rect&&viewportHeight>0&&rect.bottom>=viewportHeight-4;
+        var touchesViewportBottom=rect&&viewportHeight>0&&Math.abs(rect.bottom-viewportHeight)<=4;
         var looksLikeActionBar=rect&&viewportWidth>0&&rect.width>=viewportWidth*0.5&&rect.height>0&&rect.height<=Math.max(240,viewportHeight*0.35);
-        if(anchored&&Number.isFinite(bottom)&&bottom<=4&&touchesViewportBottom&&looksLikeActionBar){
+        if(inset&&anchored&&Number.isFinite(bottom)&&bottom>=0&&bottom<=4&&touchesViewportBottom&&looksLikeActionBar){
+          safeBarBottoms.set(node,bottom);
           node.setAttribute('data-rebu-native-bottom','1');
           node.style.setProperty('bottom',inset+'px','important');
         }
@@ -301,6 +320,8 @@ function legacyNavigationBridgeScript(): string {
     },true);
     normalize();
     normalizeSafeBottom();
+    window.__rebuRefreshSafeBottom=scheduleNormalizeSafeBottom;
+    if(window.addEventListener)window.addEventListener('resize',scheduleNormalizeSafeBottom);
     if(window.MutationObserver){
       new MutationObserver(function(){normalize();scheduleNormalizeSafeBottom();}).observe(document.documentElement,{childList:true,subtree:true});
     }
@@ -389,16 +410,24 @@ function requestLegacyLocation() {
 }
 
 function openNativeCompass(child: any) {
-  if (child !== legacyChildWebview || !legacyPageVisible) return
+  if (child !== legacyChildWebview || !legacyPageVisible || legacyCompassOpening) return
+  legacyCompassOpening = true
+  const documentVersion = legacyDocumentVersion
+  const requestUrl = child.getURL?.()
+  const sameDocument = () => legacyPageVisible && child === legacyChildWebview
+    && documentVersion === legacyDocumentVersion && child.getURL?.() === requestUrl
   try {
     // 第三方网页罗盘无法稳定接收 App 传感器；回退其历史后打开平台自有原生罗盘。
     child.canBack?.((event: { canBack?: boolean }) => {
-      if (event?.canBack && child === legacyChildWebview) child.back?.()
+      if (event?.canBack && sameDocument()) child.back?.()
     })
   } catch { /* 子页无历史时直接打开原生罗盘 */ }
   uni.navigateTo({
-    url: '/pkg-paipan3/luopan/index?source=paipan',
-    fail: () => uni.showToast({ title: '电子罗盘暂时无法打开，请稍后重试', icon: 'none' }),
+    url: '/pkg-common/compass/index?source=paipan',
+    fail: () => {
+      legacyCompassOpening = false
+      if (sameDocument()) uni.showToast({ title: '电子罗盘暂时无法打开，请稍后重试', icon: 'none' })
+    },
   })
 }
 
@@ -406,7 +435,7 @@ function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
   if (!child) return false
   try {
     if (!isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
-    child.evalJS(`window.__rebuNativeSafeBottom=${Math.max(0, Math.round(safeBottom.value))};`)
+    child.evalJS(`window.__rebuNativeSafeBottom=${Math.max(0, Math.round(safeBottom.value))};if(typeof window.__rebuRefreshSafeBottom==='function')window.__rebuRefreshSafeBottom();`)
     child.evalJS(legacyNavigationBridgeScript())
     return true
   } catch { return false }
@@ -573,11 +602,10 @@ function mountLegacyAppWebview() {
   if (!parent) return false
   let child: any | null = null
   try {
+    const layout = legacyWebviewLayout(uni.getSystemInfoSync())
+    if (!layout) throw new Error('LEGACY_WINDOW_SIZE_UNAVAILABLE')
     const childStyle: any = {
-      top: `${safeTop.value}px`,
-      // 子 WebView 延伸到窗口底部，再由桥接把 fixed 底栏抬到系统安全区之上。
-      // 直接缩短 WebView 会令第三方页面仍按整屏布局，导致分享/购买按钮被裁掉。
-      bottom: '0px',
+      ...layout,
       background: '#FAF8F5',
       scrollIndicator: 'none',
       plusrequire: 'none',
@@ -590,6 +618,8 @@ function mountLegacyAppWebview() {
     child.setJsFile?.('_www/static/legacy-paipan-preload.js')
     bindLegacyChildWebview(child)
     parent.append(child)
+    // 挂载后重申显式尺寸，避免首次创建和父窗口挂载采用不同推导基准。
+    child.setStyle(layout)
     child.loadURL(legacyUrl.value)
     return true
   } catch {
@@ -603,6 +633,18 @@ function mountLegacyAppWebview() {
   return false
 }
 // #endif
+
+onResize(() => {
+  refreshLegacySafeBottom()
+  // #ifdef APP-PLUS
+  if (!legacyChildWebview) return
+  try {
+    const layout = legacyWebviewLayout(uni.getSystemInfoSync())
+    if (layout) legacyChildWebview.setStyle(layout)
+    installLegacyNavigationBridge(legacyChildWebview)
+  } catch { /* 保留最后一次有效尺寸，不把未知值写成零高度 */ }
+  // #endif
+})
 
 function scheduleLegacyNavigationBridge() {
   // #ifdef APP-PLUS
@@ -707,6 +749,7 @@ onHide(() => {
 })
 onShow(() => {
   legacyPageVisible = true
+  legacyCompassOpening = false
   flushLegacyPaymentResult()
 })
 // #endif

@@ -6,7 +6,7 @@
  * 现在：数据全部来自本地真实记录（result 页起局成功即写入），无记录就是空态。
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { useNativePreviewPage } from '@/composables/useNativePreviewPage'
 import HistoryPage, { type HistoryVM } from '@/components/paipan/history-page.vue'
 import { navigateTo } from '@/utils/router'
 import { formatRecordTime } from '@/lib/paipan/history-core'
@@ -18,12 +18,16 @@ import {
 const PAN_LABEL: Record<string, string> = { zhuan: '转盘', fei: '飞盘' }
 
 const records = ref<QimenHistoryItem[]>([])
-const groupNames = ref<string[]>(qimenGroups.load())
+const groupNames = ref<string[]>([])
 function reload() {
   groupNames.value = qimenGroups.load()
   records.value = loadQimenHistory()
 }
-onShow(reload)
+const preview = useNativePreviewPage(reload, () => {
+  records.value = []
+  groupNames.value = []
+})
+const { allowed, checking } = preview
 
 const vms = computed<HistoryVM[]>(() =>
   records.value.map((r) => ({
@@ -46,9 +50,18 @@ function open(vm: HistoryVM) {
   ].filter(Boolean).join('&')
   navigateTo(`/paipan/qimen/result?${q}`)
 }
-function onPin(ids: string[]) { pinQimenHistory(ids); reload() }
-function onDelete(ids: string[]) { removeQimenHistory(ids); reload() }
-function onGroup(p: { ids: string[]; group: string }) { groupQimenHistory(p.ids, p.group); reload() }
+function onPin(ids: string[]) {
+  const target = [...ids]
+  return preview.run(() => { pinQimenHistory(target); reload() })
+}
+function onDelete(ids: string[]) {
+  const target = [...ids]
+  return preview.run(() => { removeQimenHistory(target); reload() })
+}
+function onGroup(p: { ids: string[]; group: string }) {
+  const target = [...p.ids]; const group = p.group
+  return preview.run(() => { groupQimenHistory(target, group); reload() })
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -56,7 +69,13 @@ function pad(n: number) {
 </script>
 
 <template>
+  <view v-if="!allowed" role="status">
+    <text>{{ checking ? '正在核验访问权限' : '页面不存在或当前无法访问' }}</text>
+    <button :disabled="checking" @tap="preview.run()">重新核验</button>
+    <button @tap="navigateTo('/pages/index/index')">返回首页</button>
+  </view>
   <HistoryPage
+    v-else
     title="起局记录"
     back-href="/paipan/qimen"
     :records="vms"

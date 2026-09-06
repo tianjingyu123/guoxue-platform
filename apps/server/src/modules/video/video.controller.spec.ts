@@ -50,7 +50,7 @@ describe("VideoController", () => {
     const dto: any = { title: "国学讲座", fileId: "f1" };
     const result: any = await ctrl.create(req, dto);
     expect(result.id).toBe("v1");
-    expect(mockVideoSvc.create).toHaveBeenCalledWith("u1", dto, false);
+    expect(mockVideoSvc.create).toHaveBeenCalledWith("u1", dto, false, "HUMAN");
   });
 
   it("GET /videos — 视频列表", async () => {
@@ -162,6 +162,31 @@ describe("VideoController", () => {
     const result: any = await ctrl.vodCallback(body);
     expect(result.code).toBe(0);
     expect(mockVideoSvc.handleVodCallback).toHaveBeenCalledWith(body);
+  });
+  it.each([undefined, { id: "viewer", roles: [] }, { id: "owner", roles: ["CIRCLE_OWNER"] }])("非管理角色不能提交scope=all：%j", async user => {
+    await ctrl.list({ user } as any, { scope: "all", status: "REJECTED" } as any);
+    expect(mockVideoSvc.list).toHaveBeenCalledWith(expect.objectContaining({ scope: undefined }), user?.id);
+  });
+  it.each(["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"])("%s保留管理审核筛选", async role => {
+    await ctrl.list({ user: { id: "reviewer", roles: [role] } } as any, { scope: "all", status: "REJECTED" } as any);
+    expect(mockVideoSvc.list).toHaveBeenCalledWith(expect.objectContaining({ scope: "all", status: "REJECTED" }), "reviewer");
+  });
+
+  it("VOD回调持久化完成之前不提前确认成功", async () => {
+    let complete!: () => void;
+    mockVideoSvc.handleVodCallback.mockReturnValueOnce(new Promise<void>(resolve => { complete = resolve; }));
+    let acknowledged = false;
+    const pending = ctrl.vodCallback({}).then(result => { acknowledged = true; return result; });
+    await Promise.resolve();
+    expect(acknowledged).toBe(false);
+    complete();
+    await expect(pending).resolves.toEqual({ code: 0 });
+  });
+
+  it("VOD持久化失败向调用方传播，不返回假成功", async () => {
+    const failure = new Error("SYNTHETIC_DATABASE_UNAVAILABLE");
+    mockVideoSvc.handleVodCallback.mockRejectedValueOnce(failure);
+    await expect(ctrl.vodCallback({})).rejects.toBe(failure);
   });
 
   it("POST /videos/:id/collect — 收藏切换", async () => {

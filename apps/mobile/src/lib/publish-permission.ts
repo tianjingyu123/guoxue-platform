@@ -60,15 +60,25 @@ export function applyCirclePublishGrant(input: ApplyCirclePublishGrantInput) {
 }
 
 /**
- * 权限接口或网络异常时一律关闭全平台发布，圈内发布仍可正常使用。
+ * 发布资格只控制投稿，不控制普通浏览；网络异常不能误报有权限。
  * 真实权限由服务端二次校验，前端只负责提前给出清晰引导。
  */
 export async function checkVideoPublishPermission(circleId?: string): Promise<boolean> {
+  return checkCirclePublishPermission('SHORT_VIDEO', circleId)
+}
+
+export async function checkCirclePublishPermission(capability: 'SHORT_VIDEO' | 'LIVE', circleId?: string): Promise<boolean> {
   try {
-    const status = await getCirclePublishGrantStatus('SHORT_VIDEO')
-    if (status.isPlatformAdmin) return true
-    if (circleId) return !!status.circles.find((circle) => circle.id === circleId)?.canPublish
-    return status.canPublish
+    if (circleId) {
+      const status = await apiGet<{ circleId: string; capability: string; canPublish: boolean }>(
+        `/circle-capabilities/circles/${encodeURIComponent(circleId)}/use-status?capability=${capability}`,
+      )
+      if (status.circleId !== circleId || status.capability !== capability) return false
+      if (status.canPublish === true) return true
+    }
+    // 无圈子只有平台管理员能投稿；旧圈级批准不能作为新独立能力的替代凭证。
+    const status = await getCirclePublishGrantStatus(capability)
+    return status.isPlatformAdmin === true
   } catch {
     return false
   }

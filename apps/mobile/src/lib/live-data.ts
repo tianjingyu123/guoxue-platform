@@ -1633,7 +1633,7 @@ export const liveApi = {
   },
 
   /** 获取直播管理列表 — GET /live/manage */
-  async getManageList(): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
+  async getManageList(strict = false): Promise<{ stats: LiveManageStat[]; list: LiveManageItem[] }> {
     // 经营概览（真实聚合，无运行数据则为 0；后端 GET /live/my-rooms BFF）
     const buildStats = (s?: { monthCount?: number; totalViews?: number; endedCount?: number }): LiveManageStat[] => {
       const views = s?.totalViews ?? 0
@@ -1680,7 +1680,8 @@ export const liveApi = {
     try {
       const data = await apiGet<RawMyRooms>('/live/my-rooms')
       return { stats: buildStats(data?.stats), list: (data?.rooms || []).map(adapt) }
-    } catch {
+    } catch (error) {
+      if (strict) throw error
       // 未登录 / 无直播间 → 空概览 + 空列表（页面走空态，不回退假数据）
       return { stats: buildStats(), list: [] }
     }
@@ -2246,8 +2247,9 @@ export const liveApi = {
   },
 
   /** 获取推流配置 — GET /live/stream-config */
-  async getStreamConfig(): Promise<StreamConfig> {
-    const cfg = await apiGet<RawStreamConfig>('/live/stream-config')
+  async getStreamConfig(roomId: string): Promise<StreamConfig> {
+    if (!roomId) throw new Error('请先选择本次直播间')
+    const cfg = await apiGet<RawStreamConfig>(`/live/stream-config?roomId=${encodeURIComponent(roomId)}`)
     const rs = cfg?.recommendedSettings || {}
     return {
       roomId: cfg?.roomId || '',

@@ -10,10 +10,11 @@ import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
-import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
+import { TrtcCallbackGuard, getVerifiedTrtcCallback } from "../../common/trtc-callback.guard";
+import { ConsultMediaEvidenceService } from "../consult-call/consult-media-evidence.service";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
-import { RedLineGate, RedLine } from "../../common/red-lines";
+import { RedLineGate, RedLine, resolveExecutorType } from "../../common/red-lines";
 import { StationId } from "../../common/station-id.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -28,6 +29,7 @@ export class LiveController {
   constructor(
     private svc: LiveService,
     private qualitySvc: LiveQualityService,
+    private consultEvidence: ConsultMediaEvidenceService,
   ) {}
 
   /** 是否平台管理员（超管/运营）——开播/下播/推流地址在 service 层做「房主或管理员」逻辑校验 */
@@ -48,7 +50,7 @@ export class LiveController {
   createRoom(@Req() req: AuthRequest, @Body() dto: CreateRoomDto) {
     const roles = (req.user as { roles?: string[] }).roles || [];
     const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
-    return this.svc.createRoom(req.user.id, dto, isAdmin);
+    return this.svc.createRoom(req.user.id, dto, isAdmin, resolveExecutorType(req));
   }
 
   @Get("rooms")
@@ -266,7 +268,7 @@ export class LiveController {
   @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
   startRoom(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.startLive(id, req.user.id, this.isAdmin(req));
+    return this.svc.startLive(id, req.user.id, this.isAdmin(req), { executor: resolveExecutorType(req) });
   }
 
   @Get("rooms/:id/stream-urls")
@@ -277,7 +279,7 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getStreamUrls(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getStreamUrls(id, req.user.id, this.isAdmin(req));
+    return this.svc.getStreamUrls(id, req.user.id, this.isAdmin(req), resolveExecutorType(req));
   }
 
   @Get("rooms/:id/stream-status")
@@ -300,7 +302,7 @@ export class LiveController {
   @ApiResponse({ status: 400, description: "尚未检测到推流或房间状态错误" })
   @ApiBearerAuth()
   startObsRoom(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.startObsLive(id, req.user.id, this.isAdmin(req));
+    return this.svc.startObsLive(id, req.user.id, this.isAdmin(req), resolveExecutorType(req));
   }
 
   @Get("rooms/:id/play-url")
@@ -323,7 +325,7 @@ export class LiveController {
   @ApiResponse({ status: 403, description: "无权限（仅房主本人或管理员）" })
   @ApiBearerAuth()
   endRoom(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.endRoom(id, req.user.id, this.isAdmin(req));
+    return this.svc.endRoom(id, req.user.id, this.isAdmin(req), resolveExecutorType(req));
   }
 
   @Put("rooms/:id/replay")
@@ -507,7 +509,7 @@ export class LiveController {
   @ApiOperation({ summary: "获取直播连麦临时 TRTC 票据（仅主播或已获批嘉宾）" })
   @ApiBearerAuth()
   getRtcConfig(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getRtcConfig(id, req.user.id);
+    return this.svc.getRtcConfig(id, req.user.id, resolveExecutorType(req));
   }
 
   // ───────── 预告与预约 ─────────
@@ -721,7 +723,7 @@ export class LiveController {
     // 腾讯云 CSS 推断流回调使用 stream_id 表示直播流名称；stream_param
     // 只是推流 URL 携带的查询参数（通常包含 txSecret/txTime），不能当作流名。
     // StreamName 仅用于兼容其他腾讯云事件的字段命名。
-    const streamKey = (body.stream_id as string) || (body.StreamName as string) || (body.stream_param as string) || "";
+    const streamKey = typeof body.stream_id === "string" ? body.stream_id : typeof body.StreamName === "string" ? body.StreamName : "";
     const eventType = Number(body.event_type);
     await this.svc.handleLiveEvent(streamKey, eventType, body);
     return { code: 0 };
@@ -732,8 +734,10 @@ export class LiveController {
   @UseGuards(TrtcCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云 TRTC 房间/媒体回调（HMAC-SHA256 原文验签）" })
-  async handleTrtcCallback(@Body() body: Record<string, unknown>) {
-    await this.svc.handleTrtcEvent(body);
+  async handleTrtcCallback(@Req() req: Request) {
+    const verified = getVerifiedTrtcCallback(req);
+    const consult = await this.consultEvidence.handle(req);
+    if (!consult.handled) await this.svc.handleTrtcEvent(verified.body);
     return { code: 0 };
   }
 
@@ -956,8 +960,9 @@ export class LiveController {
   @ApiOperation({ summary: "获取推流配置（地址、密钥、推荐参数）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getStreamConfig(@Req() req: AuthRequest) {
-    return this.svc.getStreamConfig(req.user.id);
+  @ApiQuery({ name: "roomId", required: true, type: String, description: "本次真实直播间 ID" })
+  getStreamConfig(@Req() req: AuthRequest, @Query("roomId") roomId: string) {
+    return this.svc.getStreamConfig(req.user.id, roomId, this.isAdmin(req), resolveExecutorType(req));
   }
 
   // ───────── 内容审核 ─────────

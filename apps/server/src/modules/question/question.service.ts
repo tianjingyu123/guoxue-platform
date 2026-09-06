@@ -10,6 +10,7 @@ import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
+import { circleExpertWhere, lockCircleExpertRows } from "../../common/circle-expert-availability";
 
 @Injectable()
 export class QuestionService {
@@ -49,12 +50,14 @@ export class QuestionService {
     if (userId === dto.answererId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能向自己提问", HttpStatus.CONFLICT);
 
     const circle = await this.prisma.circle.findUnique({ where: { id: dto.circleId } });
-    if (!circle) throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+    if (!circle || circle.status !== "ACTIVE" || circle.deletedAt) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在或已停用");
+    }
 
     const member = await this.prisma.circleMember.findFirst({
-      where: { circleId: dto.circleId, userId: dto.answererId },
+      where: { ...circleExpertWhere("QUESTION"), circleId: dto.circleId, userId: dto.answererId },
     });
-    if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
+    if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开放有效的付费提问服务");
 
     // 🔴 定价以达人(answerer)本人在该圈的配置为准，绝不信客户端传入的 priceCoin/peekPriceCoin。
     //    否则提问者可自设最低价(@Min10)压达人收入 —— 付款方单方面决定了收款方的收益。
@@ -86,6 +89,16 @@ export class QuestionService {
 
     // 扣币与创建问题在同一事务内，确保中间异常时币不会丢失
     return this.prisma.$transaction(async (tx) => {
+      await lockCircleExpertRows(tx, dto.circleId, dto.answererId);
+      const currentMember = await tx.circleMember.findFirst({
+        where: { ...circleExpertWhere("QUESTION"), circleId: dto.circleId, userId: dto.answererId },
+      });
+      if (!currentMember) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "咨询服务状态已更新，请返回重新选择");
+      }
+      if (currentMember.questionPriceCoin !== priceCoin || (currentMember.peekPriceCoin ?? 0) !== peekPriceCoin) {
+        throw new BusinessException(ErrorCode.CONFLICT, "咨询价格已更新，请确认后重新提交", HttpStatus.CONFLICT);
+      }
       await this.coin.spend(userId, {
         amountCoin: priceCoin,
         scene: "PAID_QUESTION",

@@ -5,6 +5,7 @@ import { BaziKnowledgeService } from "./bazi-knowledge.service";
 import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 const mockService: Record<string, jest.Mock> = {
   stats: jest.fn(),
@@ -36,6 +37,8 @@ describe("BaziKnowledgeController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue(mockGuard)
       .overrideGuard(RolesGuard).useValue(mockGuard)
+      // 本文件验证控制器业务委托；整套准入另由真实守卫与 HTTP 门禁用例覆盖。
+      .overrideGuard(NativePaipanGuard).useValue(mockGuard)
       .compile();
     ctrl = mod.get(BaziKnowledgeController);
   });

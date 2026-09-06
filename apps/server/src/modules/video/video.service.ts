@@ -9,7 +9,10 @@ import { VideoInteractionStore } from "./video-interaction.store";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
-import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { VideoPublicationTransactionService } from "./video-publication-transaction.service";
+import { randomUUID } from "node:crypto";
+import { assertHumanForRedLine, ExecutorType, RedLine } from "../../common/red-lines";
+import { assertPublicationActorInTransaction } from "../../common/publication-actor";
 
 @Injectable()
 export class VideoService {
@@ -19,7 +22,7 @@ export class VideoService {
     private prisma: PrismaService,
     private vod: VodService,
     private auditService: AuditService,
-    private publishGrants: CirclePublishGrantService,
+    private publication: VideoPublicationTransactionService,
   ) {}
 
   /** circleId 缺省时兜底为「官方圈子」(id 存 ConfigSystem.official_circle_id·由后台/脚本一次性写入)。未配置则保持 undefined(游离·兼容旧行为)。 */
@@ -56,14 +59,12 @@ export class VideoService {
   }
 
   @CacheEvict({ key: "video:list:*", pattern: true })
-  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false) {
+  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false, executor: ExecutorType = "HUMAN") {
+    assertHumanForRedLine(executor, [RedLine.EXTERNAL_PUBLISH]);
     // 带货商品去重 + 限 5 件
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
     // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
     const circleId = await this.resolveCircleId(dto.circleId);
-    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
-      await this.publishGrants.assertCanPublish(userId, circleId, "SHORT_VIDEO", isAdmin);
-    }
     // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 下架+通知）
     const { visibility, auditStatus } = await this.auditService.resolveContentVisibility({
       visibility: dto.visibility,
@@ -71,8 +72,12 @@ export class VideoService {
       isAdmin,
       instantPublish: true,
     });
-    const video = await this.prisma.video.create({
+    const videoId = randomUUID(), requestKey = randomUUID();
+    const video = await this.prisma.$transaction(async tx => {
+      const write = async (id: string) => {
+      const created = await tx.video.create({
       data: {
+        id,
         userId,
         circleId,
         title: dto.title,
@@ -89,10 +94,18 @@ export class VideoService {
           ? { create: productIds.map((productId, i) => ({ productId, sortOrder: i })) }
           : undefined,
       },
-    });
-    if (auditStatus === "PENDING") {
-      await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: video.id, circleId, submitterId: userId });
-    }
+      });
+      if (auditStatus === "PENDING") {
+        await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: created.id, circleId, submitterId: userId }, tx);
+      }
+      return created;
+      };
+      if (isAdmin) {
+        await assertPublicationActorInTransaction(tx, userId, true);
+        return write(videoId);
+      }
+      return this.publication.createInTransaction(tx, { circleId: circleId ?? "", userId, videoId, requestKey, executor }, write);
+    }, { maxWait: 5000, timeout: 15000 });
     // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本 / 封面图 / 视频画面+音频（VM·耗时轮询）
     this.auditService.queueContentModeration({
       contentType: "VIDEO",
@@ -109,10 +122,14 @@ export class VideoService {
   @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
   @CacheEvict({ key: "video:list:*", pattern: true })
   async update(userId: string, id: string, dto: { title?: string; coverUrl?: string; status?: string }) {
+    // 服务层也限制状态转换，避免内部调用绕过 DTO 恢复平台驳回/下架内容。
+    if (dto.status !== undefined && dto.status !== "HIDDEN") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "恢复发布请通过审核流程");
+    }
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的视频");
-    const updated = await this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
+    const updated = await this.prisma.video.update({ where: { id }, data: { title: dto.title, coverUrl: dto.coverUrl, status: dto.status } });
     // 改标题/封面同样先生效后异步机审（审核无感化）
     if (dto.title || dto.coverUrl) {
       this.auditService.queueContentModeration({ contentType: "VIDEO", contentId: id, userId, text: dto.title, images: dto.coverUrl });
@@ -134,12 +151,13 @@ export class VideoService {
   @CacheEvict({ key: (args) => `video:detail:${args[0]}`, pattern: true })
   @CacheEvict({ key: "video:list:*", pattern: true })
   async audit(id: string, action: "approve" | "reject", reason?: string) {
+    if (action !== "approve" && action !== "reject") throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的审核动作");
     const video = await this.prisma.video.findUnique({ where: { id }, select: { id: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     const data: Prisma.VideoUpdateInput =
       action === "approve"
-        ? { status: "PUBLISHED", auditReason: null }
-        : { status: "REJECTED", auditReason: reason ?? null };
+        ? { status: "PUBLISHED", auditStatus: "APPROVED", auditReason: null }
+        : { status: "REJECTED", auditStatus: "REJECTED", auditReason: reason ?? null };
     return this.prisma.video.update({ where: { id }, data });
   }
 
@@ -149,14 +167,14 @@ export class VideoService {
     return { ...result, videos: await this.withViewerState(result.videos, viewerId, true) };
   }
 
-  @Cacheable({ key: (args) => `video:list:v2:${JSON.stringify(args[0])}`, ttl: 60 })
+  @Cacheable({ key: (args) => `video:list:v3:${JSON.stringify(args[0])}`, ttl: 60 })
   async listRaw(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
     const { circleId, status, stationId, scope } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.VideoWhereInput = {};
     if (circleId) where.circleId = circleId;
-    if (status) where.status = status;
-    else where.status = "PUBLISHED";
+    // 非管理查询不能用筛选参数读取隐藏、审核中或被驳回的视频。
+    where.status = scope === "all" && status ? status : "PUBLISHED";
     if (stationId) where.stationId = stationId;
     // 平台公共池（未按圈子过滤·非管理端 scope=all）：只出「全平台开放+审核通过+非私密」——绝不展示他圈封闭作品
     if (!circleId && scope !== "all") {
@@ -166,6 +184,8 @@ export class VideoService {
     } else if (circleId && scope !== "all") {
       // 圈内列表：机审降级 SELF_ONLY 的作品仅作者本人可见（走「我的作品」），圈内流不出
       where.visibility = { not: "SELF_ONLY" };
+      where.isPrivate = false;
+      where.auditStatus = { not: "REJECTED" };
     }
     if (scope !== "all") where.id = { notIn: publicQuarantinedIds("video") };
 
@@ -187,15 +207,17 @@ export class VideoService {
   }
 
   /**
-   * 详情（带可见性收口）：SELF_ONLY / 已下架(REJECTED) 内容仅作者本人可访问，他人一律 404。
-   * 校验放在缓存读取之后（getDetailRaw 的缓存 key 只含 id，不能把 viewer 相关判断缓存进去）。
+   * 私密或非发布态内容仅作者本人可访问；实时读取，不能让旧详情缓存绕过下架。
    */
   async getDetail(id: string, viewerId?: string) {
     const video = await this.getDetailRaw(id);
     const isOwner = !!viewerId && video.userId === viewerId;
-    if (!isOwner && (video.visibility === "SELF_ONLY" || video.status === "REJECTED")) {
+    if (!isOwner && (video.visibility === "SELF_ONLY" || video.isPrivate ||
+      video.status !== "PUBLISHED" || video.auditStatus === "REJECTED")) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     }
+    // 拒绝访问不产生播放计数；计数失败不影响已通过权限核验的详情读取。
+    await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
     const [result] = await this.withViewerState([video], viewerId, true);
     return result;
   }
@@ -224,7 +246,6 @@ export class VideoService {
     }));
   }
 
-  @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
   async getDetailRaw(id: string) {
     const video = await this.prisma.video.findUnique({
       where: { id },
@@ -236,7 +257,6 @@ export class VideoService {
     });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
 
-    await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
     return this.normalizeVideoUrls(video);
   }
 
@@ -367,6 +387,8 @@ export class VideoService {
     if (!body || typeof body !== "object") return;
     const event = this.vod.parseEventNotification(body as Record<string, unknown>);
     if (!event) return;
+    // 缺失 ID 不能变成 Prisma 的无条件匹配，空字符串也不能匹配任意视频。
+    if (typeof event.fileId !== "string" || !event.fileId.trim() || event.fileId !== event.fileId.trim()) return;
 
     // 根据fileId反查本地视频记录并更新
     const localVideos = await this.prisma.video.findMany({
@@ -377,6 +399,10 @@ export class VideoService {
     if (localVideos.length > 0) {
       const video = localVideos[0];
       const updateData: Record<string, unknown> = {};
+
+      // 媒体处理回调不是运营发布授权，不得恢复已隐藏、驳回或待审核的视频。
+      if (event.eventType !== "FileDeleteComplete" &&
+        (!["PUBLISHED", "PROCESSING"].includes(video.status) || video.auditStatus !== "APPROVED")) return;
 
       if (event.eventType === "TranscodeComplete") {
         if (event.playUrl) updateData.videoUrl = event.playUrl;
@@ -395,11 +421,12 @@ export class VideoService {
       }
 
       if (Object.keys(updateData).length > 0) {
-        await this.prisma.video.update({
-          where: { id: video.id },
+        const changed = await this.prisma.video.updateMany({
+          // 将查找时的发布状态和媒资绑定带入写条件，管理员并发下架后回调不得覆盖。
+          where: { id: video.id, status: video.status, auditStatus: video.auditStatus, videoUrl: video.videoUrl },
           data: updateData,
         });
-        this.logger.log(`视频 ${video.id} VOD状态更新: ${event.eventType}`);
+        if (changed.count === 1) this.logger.log(`视频 ${video.id} VOD状态更新: ${event.eventType}`);
       }
     }
   }

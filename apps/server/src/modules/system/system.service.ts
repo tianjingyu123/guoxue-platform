@@ -13,6 +13,13 @@ import { serverConfig } from "../../config/server-config";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
+// 私有预览配置只允许专用入口处理，通用配置接口即使超级管理员也不能绕过。
+const PRIVATE_PREVIEW_PREFIX = "paipan.native-preview.";
+function assertGenericConfigKey(key: string) {
+  if (key.startsWith(PRIVATE_PREVIEW_PREFIX)) {
+    throw new BusinessException(ErrorCode.NOT_FOUND, "配置项不存在");
+  }
+}
 const MEMBER_PLAN_LEVELS = new Set(["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO", "LIFETIME"]);
 const MANUAL_CRON_JOBS = [
   { name: "health_check", label: "基础设施健康检查", schedule: "每 5 分钟（外部调度）" },
@@ -65,7 +72,7 @@ export class SystemService {
       cached ?? (await this.prisma.configSystem.findMany({ orderBy: { configKey: "asc" } }));
     if (!cached) await this.redis.setJson(CONFIG_CACHE_PREFIX + "all", configs, CONFIG_CACHE_TTL);
     // 第三方密钥：解密 + 敏感字段掩码后返回（明文不出后端；缓存里存的仍是密文）
-    return configs.map((c: any) =>
+    return configs.filter((c: any) => !c.configKey.startsWith(PRIVATE_PREVIEW_PREFIX)).map((c: any) =>
       this.thirdParty.isThirdPartyKey(c.configKey)
         ? { ...c, configValue: this.thirdParty.buildDisplayValue(c.configKey, c.configValue) }
         : c,
@@ -73,6 +80,7 @@ export class SystemService {
   }
 
   async getConfig(key: string) {
+    assertGenericConfigKey(key);
     const cached = await this.redis.getJson<any>(CONFIG_CACHE_PREFIX + key);
     let config = cached;
     if (cached === null || cached === undefined) {
@@ -138,6 +146,7 @@ export class SystemService {
   }
 
   async setConfig(key: string, value: string, description?: string, updatedBy?: string) {
+    assertGenericConfigKey(key);
     // 第三方密钥：merge（掩码/空字段不覆盖原值）+ 加密存储
     const storedValue = this.thirdParty.isThirdPartyKey(key)
       ? await this.thirdParty.buildStoredValue(key, value)
@@ -198,6 +207,7 @@ export class SystemService {
   }
 
   async deleteConfig(key: string) {
+    assertGenericConfigKey(key);
     const existing = await this.prisma.configSystem.findUnique({ where: { configKey: key } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "配置项不存在");
     const result = await this.prisma.configSystem.delete({ where: { configKey: key } });
@@ -288,11 +298,13 @@ export class SystemService {
 
   /** 获取多个公开配置（供前端/移动端使用） */
   async getPublicConfigs(keys: string[]) {
+    const publicKeys = keys.filter((key) => !key.startsWith(PRIVATE_PREVIEW_PREFIX));
     const configs = await this.prisma.configSystem.findMany({
-      where: { configKey: { in: keys } },
+      where: { configKey: { in: publicKeys } },
     });
     const map: Record<string, string> = {};
-    configs.forEach((c) => (map[c.configKey] = c.configValue));
+    configs.filter((c) => !c.configKey.startsWith(PRIVATE_PREVIEW_PREFIX))
+      .forEach((c) => (map[c.configKey] = c.configValue));
     return map;
   }
 
@@ -740,9 +752,12 @@ export class SystemService {
 
   /** 查询配置历史版本 */
   async getConfigVersions(configKey: string | undefined, rawPage: number, rawPageSize: number) {
+    if (configKey) assertGenericConfigKey(configKey);
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     this.logger.log(`查询配置历史版本: configKey=${configKey}`);
-    const where: Prisma.ConfigVersionWhereInput = {};
+    const where: Prisma.ConfigVersionWhereInput = {
+      NOT: { configKey: { startsWith: PRIVATE_PREVIEW_PREFIX } },
+    };
     if (configKey) where.configKey = configKey;
 
     const [records, total] = await Promise.all([
@@ -768,11 +783,13 @@ export class SystemService {
   async getConfigVersion(id: string) {
     const record = await this.prisma.configVersion.findUnique({ where: { id } });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "配置版本不存在");
+    assertGenericConfigKey(record.configKey);
     return { configValue: record.value, ...record };
   }
 
   /** 回滚配置到指定版本 */
   async rollbackConfig(configKey: string, version: number, operator?: string) {
+    assertGenericConfigKey(configKey);
     this.logger.log(`回滚配置: configKey=${configKey}, version=${version}`);
     const versionRecord = await this.prisma.configVersion.findFirst({
       where: { configKey, version },
@@ -798,6 +815,7 @@ export class SystemService {
 
   /** 获取两个配置版本的差异 */
   async getConfigDiff(configKey: string, version1: number, version2: number) {
+    assertGenericConfigKey(configKey);
     this.logger.log(`获取配置版本差异: configKey=${configKey}, v${version1} vs v${version2}`);
     const [v1, v2] = await Promise.all([
       this.prisma.configVersion.findFirst({ where: { configKey, version: version1 } }),

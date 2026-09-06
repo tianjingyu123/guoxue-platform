@@ -10,18 +10,22 @@
 import { ref, computed } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import type { GroupNameStore, HistoryStore } from '@/lib/paipan/history-core'
 
 const props = defineProps<{
   title?: string
   backHref?: string
-  groupStore: GroupNameStore
-  /** 记录存储（改名/删除分组时同步迁移记录的 group） */
-  recordStore: HistoryStore<any>
+  groups: string[]
+  records: any[]
 }>()
 
-const groups = ref<string[]>(props.groupStore.load())
-const records = ref<any[]>(props.recordStore.load())
+// 仅展示父页面完成在线核验后的快照；组件挂载不接触持久存储。
+const groups = computed(() => props.groups)
+const records = computed(() => props.records)
+const emit = defineEmits<{
+  add: [name: string]
+  rename: [change: { old: string; name: string }]
+  remove: [name: string]
+}>()
 
 const editing = ref<string | null>(null)
 const adding = ref(false)
@@ -36,11 +40,6 @@ const counts = computed(() => {
   return m
 })
 
-function reload() {
-  groups.value = props.groupStore.load()
-  records.value = props.recordStore.load()
-}
-
 function startEdit(g: string) {
   if (g === '全部') return
   editing.value = g
@@ -54,13 +53,9 @@ function saveEdit() {
     uni.showToast({ title: '该分组已存在', icon: 'none' })
     return
   }
-  props.groupStore.save(groups.value.map((g) => (g === old ? name : g)))
-  // 同步迁移记录，否则老名字下的记录会变成谁也筛不到的幽灵记录
-  const ids = records.value.filter((r) => r.group === old).map((r) => r.id)
-  if (ids.length) props.recordStore.setGroup(ids, name)
+  emit('rename', { old, name })
   editing.value = null
   draft.value = ''
-  reload()
 }
 function removeGroup() {
   const old = editing.value
@@ -71,11 +66,8 @@ function removeGroup() {
     confirmColor: '#C41E3A',
     success: (res) => {
       if (!res.confirm) return
-      props.groupStore.save(groups.value.filter((g) => g !== old))
-      const ids = records.value.filter((r) => r.group === old).map((r) => r.id)
-      if (ids.length) props.recordStore.setGroup(ids, '全部')
+      emit('remove', old)
       editing.value = null
-      reload()
     },
   })
 }
@@ -86,10 +78,9 @@ function addGroup() {
     uni.showToast({ title: '该分组已存在', icon: 'none' })
     return
   }
-  props.groupStore.save([...groups.value, name])
+  emit('add', name)
   adding.value = false
   draft.value = ''
-  reload()
 }
 function cancel() {
   editing.value = null
