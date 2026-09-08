@@ -3,6 +3,9 @@ import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress, onHide, onReady, onShow } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
+// #ifdef H5
+import { wechatLegacyToolUrl } from '@/lib/legacy-paipan-browser'
+// #endif
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
@@ -14,6 +17,8 @@ const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 const loginRequired = ref(false)
+const wechatToolOpening = ref(false)
+const legacyAccountEntry = ref(false)
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
 // #ifdef APP-PLUS
@@ -642,6 +647,14 @@ async function loadEntry() {
     }
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('排盘工具地址未正确配置')
     legacyUrl.value = entry.url
+    // #ifdef H5
+    legacyAccountEntry.value = new URL(entry.url).searchParams.get('go') === 'my'
+    const browserTool = wechatLegacyToolUrl(entry.url, window.navigator.userAgent)
+    if (browserTool) {
+      wechatToolOpening.value = true
+      window.location.replace(browserTool)
+    }
+    // #endif
   } catch (cause) {
     const message = (cause as Error)?.message || '排盘工具暂时无法打开'
     loginRequired.value = /未登录|登录已过期/u.test(message)
@@ -661,6 +674,11 @@ async function loadEntry() {
 function openLegacyH5() {
   // #ifdef H5
   if (!legacyUrl.value) return
+  const browserTool = wechatLegacyToolUrl(legacyUrl.value, window.navigator.userAgent)
+  if (browserTool) {
+    window.location.assign(browserTool)
+    return
+  }
   const opened = window.open('', '_blank')
   if (opened) {
     opened.opener = null
@@ -749,10 +767,9 @@ onBackPress(() => {
     <view class="gateway-card">
       <view class="brand">热卜</view>
       <text class="title">排盘工具</text>
-      <text class="desc">排盘工具将在新页面打开；当前热卜页面会保留，完成后关闭新页面即可返回。</text>
-      <button class="action primary" @tap="openLegacyH5">打开排盘工具</button>
+      <text class="desc">{{ legacyAccountEntry ? '账户页面将在新页面打开，当前热卜页面会保留。' : wechatToolOpening ? '正在打开微信排盘工具，请稍候' : '排盘工具支持热卜 App 和微信内网页，请在微信中打开热卜后使用。' }}</text>
+      <button v-if="legacyAccountEntry" class="action primary" @tap="openLegacyH5">打开账户页面</button>
       <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
-      <text class="tip">若浏览器阻止新页面，将改在当前页打开，可使用浏览器返回键回到热卜。</text>
     </view>
   </view>
   <!-- #endif -->
