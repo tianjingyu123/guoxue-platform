@@ -25,6 +25,13 @@
 
   function openNativeLocation() { openRebuAction('location') }
   function openNativeCompass() { openRebuAction('compass-start') }
+  function startReadyLegacyCompass() {
+    // 有些原站页面按旧客户端UA分支启动，嵌入后不再主动调用openCompass。
+    // 只对已定义原版方向接收协议的页面启动，一份文档最多请求一次。
+    if (typeof window.compassChange !== 'function' || window.__rebuNativeCompassRequested) return
+    window.__rebuNativeCompassRequested = true
+    openNativeCompass()
+  }
 
   function safeShareText(value, max) {
     return typeof value === 'string' && !/https?:[/][/]|(?:token|authorization|password|secret|signature|sign|key) *[:=]/i.test(value) ? value.slice(0, max) : ''
@@ -41,11 +48,27 @@
       if (image && (url.search || !/[.](png|jpe?g|webp)$/i.test(url.pathname))) return ''
       var valid = true
       var seen = {}
+      var resultPage = !image && (url.pathname === '/app_p1.php' || url.pathname === '/p1.php')
+      if (resultPage && url.search && url.search.slice(1).split('&').some(function (pair) { return !/^[A-Za-z]+=/.test(pair) || /%(?![0-9a-f]{2})/i.test(pair) })) return ''
       url.searchParams.forEach(function (v, k) {
-        if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || seen[k]) valid = false
+        if (resultPage) {
+          if (seen[k]) valid = false
+          seen[k] = true
+          if (k === 'ruid' && /^[0-9]{0,20}$/.test(v)) return
+          var accepted = ['dateTime', 'realTime'].indexOf(k) >= 0 ? /^[0-9 T:./-]{0,32}$/.test(v) : ['ziXuan', 'ju'].indexOf(k) >= 0 ? /^-?[0-9]{0,10}$/.test(v) && v !== '-' : ['id', 'type', 'mod', 'act'].indexOf(k) >= 0 && /^[A-Za-z0-9_-]{0,100}$/.test(v)
+          if (!accepted) valid = false
+          return
+        }
+        if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'act', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || seen[k]) valid = false
         seen[k] = true
       })
       if (!valid) return ''
+      if (resultPage) {
+        // 仅移除推广标识，保留原始结果参数编码，不重序列化日期。
+        var pairs = url.search.slice(1).split('&').filter(function (pair) { return pair && pair.split('=')[0] !== 'ruid' })
+        if (pairs.some(function (pair) { return !/^[A-Za-z]+=/.test(pair) || /%(?![0-9a-f]{2})/i.test(pair) })) return ''
+        return url.origin + '/p1.php' + (pairs.length ? '?' + pairs.join('&') : '')
+      }
       // 仅转换原版 APK 已取证的工具页路径，不改变查询值、私有入口或图片路径。
       if (!image && url.pathname === '/app_tool.php') url.pathname = '/tool.php'
       return url.href
@@ -54,12 +77,12 @@
 
   function openLegacyShare(kind, value) {
     var data = value && typeof value === 'object' ? value : {}
-    var publicEntry = '' // 未提供安全公开结果时，由原生层按当前构建环境选择入口。
+    var publicEntry = '' // 缺少公开结果时停止，不替换为首页。
     var payload = JSON.stringify({
       kind: kind,
       title: safeShareText(data.title, 80),
       text: safeShareText(data.remark, 300),
-      // 旧页面的“分享”有时调用 sharePicture；原生菜单仍要同时提供 H5 卡片与图片/海报。
+      // 兼容旧接口名称，但只转发可打开的当前链接或对应二维码海报。
       url: safeShareUrl(data.path, false) || (kind !== 'save' ? publicEntry : ''),
       imageUrl: safeShareUrl(data.shareImgUrl, true),
     })
@@ -68,7 +91,7 @@
 
   function shareLegacyPage(_type, _scene, _miniId, title, description) {
     // 旧 APK 的前三个参数是类型/场景/小程序标识，不是链接或图片路径。
-    // 原生菜单明确提供当前页面截图，不伪造未配置的小程序卡片。
+    // 不把截图或首页当成当前结果，不伪造未配置的小程序卡片。
     var publicEntry = ''
     openLegacyShare('page', {
       title: title,
@@ -190,6 +213,7 @@
   }
 
   function normalizeTargets() {
+    startReadyLegacyCompass()
     var links = document.querySelectorAll('a[target="_blank"],a[target="_new"]')
     for (var i = 0; i < links.length; i += 1) links[i].setAttribute('target', '_self')
     var forms = document.querySelectorAll('form[target="_blank"],form[target="_new"]')

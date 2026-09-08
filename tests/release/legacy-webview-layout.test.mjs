@@ -11,20 +11,27 @@ vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.Mo
 const layout = value => JSON.parse(JSON.stringify(exports.legacyWebviewLayout(value)))
 
 test('整屏窗口只扣一次状态栏，底部不再重复缩短', () => {
-  assert.deepEqual(layout({ windowHeight: 800, windowTop: 0, statusBarHeight: 34 }), { top: '34px', height: '766px' })
+  assert.deepEqual(layout({ windowHeight: 800, windowTop: 0, statusBarHeight: 34 }), { top: '34px', bottom: '0px' })
 })
 test('父窗口已避开状态栏时子窗口不二次扣减', () => {
-  assert.deepEqual(layout({ windowHeight: 766, windowTop: 34, statusBarHeight: 34 }), { top: '0px', height: '766px' })
+  assert.deepEqual(layout({ windowHeight: 766, windowTop: 34, statusBarHeight: 34 }), { top: '0px', bottom: '0px' })
 })
 test('刘海安全区采用较大顶部值，不累计状态栏', () => {
-  assert.deepEqual(layout({ windowHeight: 844, statusBarHeight: 20, safeAreaInsets: { top: 47 } }), { top: '47px', height: '797px' })
+  assert.deepEqual(layout({ windowHeight: 844, statusBarHeight: 20, safeAreaInsets: { top: 47 } }), { top: '47px', bottom: '0px' })
 })
 test('部分避让只补剩余顶部，保留分数逻辑像素', () => {
-  assert.deepEqual(layout({ windowHeight: 780.5, windowTop: 20, statusBarHeight: 34.5 }), { top: '14.5px', height: '766px' })
+  assert.deepEqual(layout({ windowHeight: 780.5, windowTop: 20, statusBarHeight: 34.5 }), { top: '14.5px', bottom: '0px' })
 })
 test('横屏与窗口缩放使用当前尺寸而非初次缓存', () => {
-  assert.deepEqual(layout({ windowHeight: 360, statusBarHeight: 0 }), { top: '0px', height: '360px' })
-  assert.deepEqual(layout({ windowHeight: 260, statusBarHeight: 20 }), { top: '20px', height: '240px' })
+  assert.deepEqual(layout({ windowHeight: 360, statusBarHeight: 0 }), { top: '0px', bottom: '0px' })
+  assert.deepEqual(layout({ windowHeight: 260, statusBarHeight: 20 }), { top: '20px', bottom: '0px' })
+})
+
+test('Android由原生statusbar预留顶部，不手算偏移或固定高度', () => {
+  const style = layout({ platform: 'android', windowHeight: 800, windowTop: 0, statusBarHeight: 34 })
+  assert.deepEqual(style, { top: '0px', bottom: '0px', statusbar: { background: '#FAF8F5' } })
+  assert.equal('height' in style, false)
+  assert.deepEqual(layout({ platform: 'android', windowHeight: 360, statusBarHeight: 0 }), style)
 })
 test('缺失、非有限、负值或无剩余高度拒绝产生布局', () => {
   for (const input of [{}, { windowHeight: NaN }, { windowHeight: Infinity }, { windowHeight: '800' },

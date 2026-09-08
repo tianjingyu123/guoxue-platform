@@ -21,7 +21,7 @@
       <!-- Logo和标题 -->
       <view class="logo-section">
         <view class="logo-box">
-          <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
+          <image lazy-load class="logo-img" src="/static/logo.webp" mode="aspectFill" />
         </view>
         <text class="app-title">{{ BRAND.name }}</text>
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
@@ -288,7 +288,6 @@ import { continueAfterLogin } from '@/utils/auth-journey'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
-const logoSrc = ref('/static/logo.webp')
 
 // UI 临时状态
 const loginType = ref<'phone' | 'password'>('phone')

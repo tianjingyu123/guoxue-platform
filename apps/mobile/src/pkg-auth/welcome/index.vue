@@ -7,7 +7,7 @@
       <!-- 热卜 LOGO -->
       <view class="logo-wrap" :class="{ 'logo-in': true }">
         <view class="logo-box">
-          <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
+          <image lazy-load class="logo-img" src="/static/logo.webp" mode="aspectFill" />
         </view>
       </view>
 
@@ -58,7 +58,6 @@ import { BRAND } from '@/lib/brand'
 import { hasCompletedInterestGuide } from '@/utils/interests'
 import { finishAuthJourney } from '@/utils/auth-journey'
 
-const logoSrc = ref('/static/logo.webp')
 const slogan = BRAND.slogan
 const brandName = BRAND.name
 const tagline = BRAND.tagline

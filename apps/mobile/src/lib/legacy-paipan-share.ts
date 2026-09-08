@@ -1,4 +1,4 @@
-/** 旧排盘分享独立适配：网页只能提出请求，最终由用户选择图片或公开链接。 */
+/** 排盘分享独立适配：仅分享当前公开页面，或生成指向同一页面的二维码海报。 */
 export interface LegacyShareRequest {
   kind: 'page' | 'image' | 'save'
   title: string
@@ -8,7 +8,7 @@ export interface LegacyShareRequest {
 }
 
 export class LegacyShareError extends Error {
-  constructor(public code: 'INVALID' | 'BUSY' | 'STALE_PAGE' | 'UNAVAILABLE' | 'IMAGE_FAILED', message: string) {
+  constructor(public code: 'INVALID' | 'BUSY' | 'STALE_PAGE' | 'UNAVAILABLE', message: string) {
     super(message)
     this.name = 'LegacyShareError'
   }
@@ -21,7 +21,7 @@ export const PUBLIC_PAIPAN_SHARE_URL = `${publicH5Base}/pages/paipan/index`
 /** 微信网页卡片需要稳定缩略图；使用随包只读品牌资源，不依赖第三方页面临时图片。 */
 export const LEGACY_SHARE_THUMBNAIL = '/static/logo.webp'
 
-/** 宁可提供明确的截图选项，也不把 App 登录入口、签名、订单或会话链接分享出去。 */
+/** 无公开地址就停止，不能把 App 登录入口、签名、订单或会话链接分享出去。 */
 export function publicLegacyShareUrl(value: unknown, image = false): string {
   if (typeof value !== 'string' || value.length > 2048) return ''
   if (!image && value === PUBLIC_PAIPAN_SHARE_URL) return value
@@ -29,14 +29,35 @@ export function publicLegacyShareUrl(value: unknown, image = false): string {
   if (!match || /(?:^|\/)(?:\.{1,2})(?:\/|$)/u.test(match[2])) return ''
   if (/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|\/my\.php/iu.test(match[2])) return ''
   if (image && (!/\.(?:png|jpe?g|webp)$/iu.test(match[2]) || match[3])) return ''
+  const resultPage = !image && (match[2] === '/app_p1.php' || match[2] === '/p1.php')
+  const publicPairs: string[] = []
   if (match[3]) {
     const seen = new Set<string>()
     for (const pair of match[3].split('&')) {
-      const item = pair.match(/^(id|aid|cid|tid|shareId|type|mod|m|c|a|page)=([A-Za-z0-9_-]{1,100})$/u)
+      if (resultPage) {
+        const entry = pair.match(/^([A-Za-z]+)=(.*)$/u)
+        if (!entry || seen.has(entry[1])) return ''
+        seen.add(entry[1])
+        let decoded: string
+        try { decoded = decodeURIComponent(entry[2].replace(/\+/g, ' ')) } catch { return '' }
+        const key = entry[1]
+        // ruid 是推广用户标识，不参与当前盘面重建；不外发。
+        if (key === 'ruid' && /^\d{0,20}$/.test(decoded)) continue
+        const valid = ['dateTime', 'realTime'].includes(key)
+          ? /^[0-9 T:./-]{0,32}$/.test(decoded)
+          : ['ziXuan', 'ju'].includes(key)
+            ? /^-?\d{0,10}$/.test(decoded) && decoded !== '-'
+            : ['id', 'type', 'mod', 'act'].includes(key) && /^[A-Za-z0-9_-]{0,100}$/.test(decoded)
+        if (!valid) return ''
+        publicPairs.push(pair)
+        continue
+      }
+      const item = pair.match(/^(id|aid|cid|tid|shareId|type|mod|act|m|c|a|page)=([A-Za-z0-9_-]{1,100})$/u)
       if (!item || seen.has(item[1])) return ''
       seen.add(item[1])
     }
   }
+  if (resultPage) return `https://${match[1]}/p1.php${publicPairs.length ? '?' + publicPairs.join('&') : ''}`
   // 原版 APK 分享前会移除 app_；这里只转换已取证的工具页面，不改参数或其他路径。
   if (!image && match[2] === '/app_tool.php') {
     return value.replace('/app_tool.php', '/tool.php')
@@ -70,8 +91,8 @@ export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | n
       title: text(data.title, 80) || '排盘分享',
       text: text(data.text, 300),
       // 旧站存在多套分享桥，部分“分享”按钮实际调用 sharePicture。
-      // page/image 都保留可打开的公开 H5 卡片，同时保留图片/海报选项；save 仍只保存图片。
-      url: publicLegacyShareUrl(data.url) || (kind !== 'save' ? PUBLIC_PAIPAN_SHARE_URL : ''),
+      // 兼容原站图片接口名称，但只保留当前公开链接；缺少链接时由原生层明确阻断。
+      url: publicLegacyShareUrl(data.url),
       imageUrl,
     }
   } catch { return null }
@@ -90,7 +111,7 @@ let pendingPoster: { payload: LegacyPosterPayload; expiresAt: number } | null = 
 export function stageLegacyPoster(request: LegacyShareRequest): boolean {
   pendingPoster = null
   const safe = parseLegacyShareBridgeUrl('rebu://legacy-share?payload=' + encodeURIComponent(JSON.stringify(request)))
-  if (!safe?.url || request.kind === 'save') return false
+  if (!safe?.url || safe.url === PUBLIC_PAIPAN_SHARE_URL || request.kind === 'save') return false
   const isToolEntry = safe.url === PUBLIC_PAIPAN_SHARE_URL
   pendingPoster = {
     expiresAt: Date.now() + 15_000,
@@ -111,9 +132,23 @@ export function consumeLegacyPoster(): LegacyPosterPayload | null {
   return { ...pending.payload }
 }
 
-type ShareOutcome = 'requested' | 'saved' | 'copied' | 'cancelled'
-type ShareOptions = { canProceed: () => boolean; capture: () => Promise<string> }
+type ShareOutcome = 'requested' | 'cancelled'
+type ShareOptions = { canProceed: () => boolean }
 let activeShare = false
+let nativeShareReturn: { hidden: boolean; finish: () => void } | null = null
+
+/** 微信可能不回调分享结果；只将返回视为本次交互结束，不视为发送成功。 */
+export function notifyLegacyShareVisibility(visible: boolean): void {
+  const pending = nativeShareReturn
+  if (!pending) return
+  if (!visible) pending.hidden = true
+  else if (pending.hidden) pending.finish()
+}
+
+/** 原页面销毁时结束等待，避免重新进入页面后仍持有全局分享锁。 */
+export function abandonLegacyShare(): void {
+  nativeShareReturn?.finish()
+}
 
 function assertCurrent(options: ShareOptions) {
   if (!options.canProceed()) throw new LegacyShareError('STALE_PAGE', '页面已切换，请在当前排盘页面重新分享')
@@ -139,44 +174,6 @@ function callback<T>(start: (ok: (value: T) => void, fail: (error?: unknown) => 
   })
 }
 
-/** 仅清理由本次 SDK 创建的临时图片；不读取目录、不触碰用户相册。 */
-function removeTemporaryImage(path: string) {
-  if (!path) return
-  try {
-    plus.io.resolveLocalFileSystemURL(path, (entry) => {
-      if (entry.isFile) entry.remove(() => {}, () => {})
-    }, () => {})
-  } catch { /* 系统会清理缓存，清理失败不重复分享 */ }
-}
-
-async function prepareImage(request: LegacyShareRequest, options: ShareOptions): Promise<string> {
-  assertCurrent(options)
-  let path = ''
-  try {
-    if (request.imageUrl) {
-      const downloaded = await callback<{ statusCode: number; tempFilePath: string }>((ok, fail) => {
-        uni.downloadFile({ url: request.imageUrl, timeout: 10000, header: { Accept: 'image/*' }, success: ok, fail })
-      }, 12000)
-      path = downloaded.tempFilePath
-      if (downloaded.statusCode !== 200 || !path) throw new Error('INVALID_IMAGE')
-    } else {
-      path = await options.capture()
-      if (!path) throw new Error('INVALID_CAPTURE')
-    }
-    assertCurrent(options)
-    const file = await callback<{ size: number }>((ok, fail) => uni.getFileInfo({ filePath: path, success: ok, fail }))
-    if (!Number.isFinite(file.size) || file.size <= 0 || file.size > 8 * 1024 * 1024) throw new Error('INVALID_IMAGE_SIZE')
-    const image = await callback<{ width: number; height: number }>((ok, fail) => uni.getImageInfo({ src: path, success: ok, fail }))
-    if (!(image.width > 0 && image.height > 0) || image.width * image.height > 40_000_000) throw new Error('INVALID_IMAGE_DIMENSIONS')
-    assertCurrent(options)
-    return path
-  } catch (error) {
-    removeTemporaryImage(path)
-    if (error instanceof LegacyShareError && error.code === 'STALE_PAGE') throw error
-    throw new LegacyShareError('IMAGE_FAILED', '分享图片准备失败，请返回排盘页重新生成')
-  }
-}
-
 /** 模块已打包不代表手机已安装微信；只读检测，不触发登录授权或网络分享。 */
 async function hasNativeWeixin(): Promise<boolean> {
   try {
@@ -188,49 +185,37 @@ async function hasNativeWeixin(): Promise<boolean> {
   } catch { return false }
 }
 
-/** 每次必须由原生菜单选择；取消不复制、不保存、不自动换渠道、不伪报发送成功。 */
+/** 四项菜单仅处理当前页面；取消不外发、不自动换渠道、不伪报发送成功。 */
 export async function shareLegacyPaipan(request: LegacyShareRequest, options: ShareOptions): Promise<ShareOutcome> {
   if (activeShare) throw new LegacyShareError('BUSY', '分享正在处理中')
   assertCurrent(options)
   activeShare = true
-  let imagePath = ''
   try {
     if (!['android', 'ios'].includes(uni.getSystemInfoSync().platform)) {
       throw new LegacyShareError('UNAVAILABLE', '请在热卜 App 中使用原生分享')
     }
-    let action: 'copy-page' | 'friend-page' | 'timeline-page' | 'friend-image' | 'timeline-image' | 'save' | 'link' | 'poster'
+    const safeUrl = publicLegacyShareUrl(request.url)
+    if (!safeUrl || safeUrl === PUBLIC_PAIPAN_SHARE_URL) {
+      throw new LegacyShareError('UNAVAILABLE', '当前页面暂未提供可打开的分享链接，无法分享；不会替换为图片或首页')
+    }
+    // 最终外发也必须使用过滤后的地址，不能仅校验后仍发原始 App URL。
+    request = { ...request, url: safeUrl }
+    let action: 'friend-page' | 'timeline-page' | 'poster' | 'more'
     if (request.kind === 'save') {
-      const decision = await callback<{ confirm: boolean }>((ok, fail) => uni.showModal({
-        title: '保存排盘图片', content: request.imageUrl ? '将这张排盘图片保存到手机相册？' : '将当前页面的可见内容保存到手机相册？',
-        confirmText: '保存图片', success: ok, fail,
-      }), 0)
-      if (!decision.confirm) return 'cancelled'
-      action = 'save'
+      throw new LegacyShareError('UNAVAILABLE', '不再提供页面图片分享，请使用当前页面链接分享')
     } else {
-      const source = request.imageUrl ? '图片' : '当前页图片'
-      const nativeWeixin = await hasNativeWeixin()
-      assertCurrent(options)
-      const actions: Array<typeof action> = []
-      const items: string[] = []
-      if (nativeWeixin && request.url) {
-        actions.push('friend-page', 'timeline-page')
-        const destination = request.url === PUBLIC_PAIPAN_SHARE_URL ? '工具入口' : '可打开页面'
-        items.push(`微信好友（${destination}）`, `朋友圈（${destination}）`)
-      }
-      if (nativeWeixin) {
-        actions.push('friend-image', 'timeline-image')
-        items.push(`微信好友（${source}）`, `朋友圈（${source}）`)
-      }
-      actions.push('save')
-      items.push(`保存${source}`)
-      if (request.url) { actions.push('link'); items.push('系统分享公开链接') }
-      if (request.url) { actions.push('copy-page'); items.push(request.url === PUBLIC_PAIPAN_SHARE_URL ? '复制排盘工具入口链接' : '复制可打开的 H5 页面链接') }
-      if (request.url) { actions.push('poster'); items.push(request.url === PUBLIC_PAIPAN_SHARE_URL ? '生成工具入口二维码海报' : '生成页面二维码海报') }
+      const actions: Array<typeof action> = ['friend-page', 'timeline-page', 'poster', 'more']
+      const items = ['发给微信好友', '发朋友圈', '生成二维码海报', '更多平台']
       const decision = await callback<{ tapIndex: number }>((ok, fail) => uni.showActionSheet({ itemList: items, success: ok, fail }), 0)
       if (!Number.isInteger(decision.tapIndex) || decision.tapIndex < 0 || decision.tapIndex >= items.length) return 'cancelled'
       action = actions[decision.tapIndex]
     }
     assertCurrent(options)
+    if (action === 'more') {
+      // 当前包仅配置微信。系统文本分享无法保证生成网页卡片，不能拿它冒充更多卡片渠道。
+      // 新渠道必须完成独立SDK接入与接收方卡片验收后才可加入此分支。
+      throw new LegacyShareError('UNAVAILABLE', '当前版本尚未接入其他网页卡片分享平台，请选择微信好友、朋友圈或二维码海报')
+    }
     if (action === 'poster') {
       if (!stageLegacyPoster(request)) throw new LegacyShareError('INVALID', '缺少可分享的页面链接')
       try {
@@ -243,86 +228,32 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       }
       return 'requested'
     }
-    if (action === 'copy-page') {
-      await callback<void>((ok, fail) => uni.setClipboardData({ data: request.url, success: () => ok(), fail }), 0)
-      return 'copied'
-    }
     if (action === 'friend-page' || action === 'timeline-page') {
-      await callback<void>((ok, fail) => uni.share({
+      const nativeWeixin = await hasNativeWeixin()
+      assertCurrent(options)
+      if (!nativeWeixin) throw new LegacyShareError('UNAVAILABLE', '请先安装微信，或选择生成二维码海报')
+      await callback<void>((ok, fail) => {
+        nativeShareReturn = { hidden: false, finish: () => fail({ errCode: -2 }) }
+        uni.share({
         provider: 'weixin',
         scene: action === 'timeline-page' ? 'WXSceneTimeline' : 'WXSceneSession',
         type: 0,
         href: request.url,
-        title: request.url === PUBLIC_PAIPAN_SHARE_URL ? '热卜排盘工具' : request.title,
-        summary: request.url === PUBLIC_PAIPAN_SHARE_URL ? '打开排盘工具入口；此链接不包含当前排盘结果。' : request.text || '打开热卜排盘',
+        title: request.title,
+        summary: request.text || '打开当前排盘页面',
         imageUrl: LEGACY_SHARE_THUMBNAIL,
         success: () => ok(),
         fail,
-      }), 0)
+        })
+      }, 60_000)
       return 'requested'
     }
-    if (action === 'link') {
-      // 系统分享只支持 text/image；不得沿用旧公共工具里无效的 type:web。
-      const title = request.url === PUBLIC_PAIPAN_SHARE_URL ? '热卜排盘工具' : request.title
-      const description = request.url === PUBLIC_PAIPAN_SHARE_URL ? '此链接为工具入口，不包含当前排盘结果。' : request.text
-      await callback<void>((ok, fail) => plus.share.sendWithSystem({
-        type: 'text', href: request.url, title,
-        content: `${title}\n${description ? description + '\n' : ''}${request.url}`,
-      }, () => ok(), fail), 0)
-      return 'requested'
-    }
-    assertCurrent(options)
-    imagePath = await prepareImage(request, options)
-    assertCurrent(options)
-    if (action === 'save') {
-      await callback<void>((ok, fail) => uni.saveImageToPhotosAlbum({ filePath: imagePath, success: () => ok(), fail }), 0)
-      return 'saved'
-    }
-    await callback<void>((ok, fail) => uni.share({
-      provider: 'weixin', scene: action === 'timeline-image' ? 'WXSceneTimeline' : 'WXSceneSession',
-      type: 2, imageUrl: imagePath, success: () => ok(), fail,
-    }), 0)
-    return 'requested'
+    return 'cancelled'
   } catch (error) {
     if ((error as { cancelled?: boolean })?.cancelled) return 'cancelled'
     throw error instanceof LegacyShareError ? error : new LegacyShareError('UNAVAILABLE', '分享未完成，请稍后重试')
   } finally {
-    removeTemporaryImage(imagePath)
+    nativeShareReturn = null
     activeShare = false
   }
-}
-
-/** 只截取发起请求的受信子窗口；不能用全局当前窗口或跨页后的窗口代替。 */
-export function captureLegacyShareImage(child: { draw: (...args: any[]) => void }, canProceed: () => boolean): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const id = `rebu-legacy-share-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    const path = `_doc/${id}.jpg`
-    let bitmap: PlusNativeObjBitmap | undefined
-    let finished = false
-    const finish = (success: boolean) => {
-      if (finished) return
-      finished = true
-      clearTimeout(timer)
-      try { bitmap?.recycle() } catch { /* 只回收本次图片 */ }
-      if (success && canProceed()) resolve(path)
-      else {
-        removeTemporaryImage(path)
-        reject(new LegacyShareError(canProceed() ? 'IMAGE_FAILED' : 'STALE_PAGE', '当前页面图片未能生成，请返回排盘页重试'))
-      }
-    }
-    const timer = setTimeout(() => finish(false), 10000)
-    try {
-      if (!canProceed()) { finish(false); return }
-      const Bitmap = plus.nativeObj?.Bitmap
-      if (!Bitmap) { finish(false); return }
-      bitmap = new Bitmap(id)
-      child.draw(bitmap, () => {
-        if (finished || !canProceed()) { finish(false); return }
-        bitmap?.save(path, { format: 'jpg', quality: 90, overwrite: false }, () => {
-          if (finished) { removeTemporaryImage(path); return }
-          finish(true)
-        }, () => finish(false))
-      }, () => finish(false), { check: true })
-    } catch { finish(false) }
-  })
 }

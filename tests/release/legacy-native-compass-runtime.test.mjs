@@ -8,7 +8,19 @@ import test from 'node:test'
 const ts = createRequire(resolve('apps/mobile/package.json'))('typescript')
 // 按 App 条件抽取真实适配层；使用合成传感器，不伪造真机验收。
 const source = fs.readFileSync('apps/mobile/src/pkg-common/compass/compass.ts', 'utf8')
-test('第三方桥和旧地址均进入共用罗盘，不依赖自研预览资格', () => {
+test('原站未主动启动时按方向接收协议启动，同一文档不重复请求', () => {
+  const preload = fs.readFileSync('apps/mobile/src/static/legacy-paipan-preload.js', 'utf8')
+  const body = preload.match(/function startReadyLegacyCompass\(\) \{([\s\S]*?)\n  \}/)[1]
+  const window = {}, calls = []
+  const ctx = vm.createContext({ window, openNativeCompass: () => calls.push('start') })
+  vm.runInContext('function probe(){' + body + '}', ctx)
+  ctx.probe(); assert.equal(calls.length, 0)
+  window.compassChange = () => {}
+  ctx.probe(); ctx.probe(); assert.deepEqual(calls, ['start'])
+  const bridge = fs.readFileSync('apps/mobile/src/pkg-common/legacy-paipan/index.vue', 'utf8')
+  assert.ok(bridge.indexOf("typeof window.compassChange==='function'") < bridge.indexOf('if(window.__rebuLegacyNavigationBridgeInstalled)return'))
+})
+test('第三方桥复用方向数据源并回传原网页，独立罗盘不依赖自研预览资格', () => {
   const page = fs.readFileSync('apps/mobile/src/pkg-common/compass/index.vue', 'utf8')
   const alias = fs.readFileSync('apps/mobile/src/pkg-paipan3/luopan/index.vue', 'utf8')
   const bridge = fs.readFileSync('apps/mobile/src/pkg-common/legacy-paipan/index.vue', 'utf8')
@@ -16,7 +28,9 @@ test('第三方桥和旧地址均进入共用罗盘，不依赖自研预览资�
   assert.doesNotMatch(page, /当前设备不支持罗盘感应/)
   assert.match(page, /手动读数不代表手机实际朝向/)
   assert.match(alias, /uni\.redirectTo\(\{ url: '\/pkg-common\/compass\/index'/)
-  assert.match(bridge, /url: '\/pkg-common\/compass\/index\?source=paipan'/)
+  assert.match(bridge, /from '@\/pkg-common\/compass\/compass'/)
+  assert.match(bridge, /window\.compassChange\(/)
+  assert.doesNotMatch(bridge, /url: '\/pkg-common\/compass\/index\?source=paipan'/)
   assert.doesNotMatch(bridge, /url: '\/pkg-paipan3\/luopan/)
 })
 const stack = [true]

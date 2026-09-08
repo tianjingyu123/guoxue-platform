@@ -188,7 +188,17 @@ test('双桥支付不再跳微信内网页，iOS 的 webkit 支付消息也走�
     assert.equal(assigned.some((url) => url.includes('mod=pay')), false)
   }
   assert.match(page, /action === 'legacy-payment'\) void requestLegacyPayment\(url, child\)/u)
-  assert.match(page, /onShow\(\(\) => \{\s*legacyPageVisible = true\s*legacyCompassOpening = false\s*flushLegacyPaymentResult\(\)/u)
+  // 验证返回后仍刷新支付结果，不依赖罗盘实现变量或误执行无关分享逻辑。
+  const onShowBody = page.match(/onShow\(\(\) => \{([\s\S]*?)\n\}\)/u)[1]
+  const events = []
+  const resumed = {
+    legacyPageVisible: false, legacyCompassSession: null,
+    notifyLegacyShareVisibility: visible => events.push(['share-visible', visible]),
+    flushLegacyPaymentResult: () => events.push(['payment-refresh']),
+  }
+  vm.runInNewContext(onShowBody, resumed)
+  assert.equal(resumed.legacyPageVisible, true)
+  assert.deepEqual(events, [['share-visible', true], ['payment-refresh']])
   assert.match(page, /pending\.documentVersion !== legacyDocumentVersion/u)
   assert.match(page, /pending\.child\.getURL\?\.\(\) !== pending\.url/u)
 })
@@ -211,7 +221,7 @@ function paymentPageHarness(pay) {
     },
   }
   vm.createContext(context)
-  vm.runInContext(compile(page.slice(page.indexOf('function hideLegacyPaymentLoading'), page.indexOf('function bindLegacyChildWebview'))), context)
+  vm.runInContext(compile(page.slice(page.indexOf('function hideLegacyPaymentLoading'), page.indexOf('async function requestLegacyShare'))), context)
   return { context, child, actions }
 }
 

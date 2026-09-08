@@ -71,7 +71,9 @@ if (-not $runtimeBundle.Contains($ExpectedRuntimeAssetOrigin)) {
   throw "App 运行时主包未包含目标静态资源域名，拒绝打包"
 }
 if ($ExpectedRuntimeApiOrigin.Contains("pre-api.rebugx.cn")) {
-  if ($runtimeBundle.Contains("https://api.rebugx.cn") -or $runtimeBundle.Contains("https://static.rebugx.cn")) {
+  # 静态资源域可由已验真的公开配置显式指定为共用域；生产业务 API 仍一律拒绝。
+  $unexpectedFormalAssets = $ExpectedRuntimeAssetOrigin.TrimEnd('/') -ne 'https://static.rebugx.cn' -and $runtimeBundle.Contains('https://static.rebugx.cn')
+  if ($runtimeBundle.Contains("https://api.rebugx.cn") -or $unexpectedFormalAssets) {
     throw "预发布 App 运行时主包混入生产域名，拒绝打包"
   }
 }

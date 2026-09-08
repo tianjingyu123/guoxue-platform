@@ -4,11 +4,13 @@ import { onBackPress, onHide, onReady, onResize, onShow } from '@dcloudio/uni-ap
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
 import { legacyWebviewLayout } from '@/lib/legacy-webview-layout'
+import { legacyShareDiagnosticShape } from '@/lib/legacy-share-diagnostics'
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
 // #ifdef APP-PLUS
-import { captureLegacyShareImage, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { abandonLegacyShare, notifyLegacyShareVisibility, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { createCompass, type CompassHandle } from '@/pkg-common/compass/compass'
 // #endif
 
 const loading = ref(true)
@@ -23,7 +25,7 @@ let locationRequestId = 0
 let legacyDocumentVersion = 0
 let legacyPaymentBusy = false
 let legacyShareBusy = false
-let legacyCompassOpening = false
+let legacyCompassSession: { child: any; version: number; url: string; handle: CompassHandle } | null = null
 let legacyPaymentLoading = false
 let pendingLegacyPayment: { child: any; url: string; documentVersion: number; outcome: LegacyPaymentOutcome } | null = null
 // #endif
@@ -65,6 +67,11 @@ function isTrustedLegacyUrl(url: string): boolean {
  */
 function legacyNavigationBridgeScript(): string {
   return `;(function(){
+    // loaded与延迟重注入均检测接收协议；不能被下方“已安装”标记提前跳过。
+    if(typeof window.compassChange==='function'&&!window.__rebuNativeCompassRequested){
+      window.__rebuNativeCompassRequested=true;
+      window.location.assign('rebu://compass-start');
+    }
     if(window.__rebuLegacyNavigationBridgeInstalled)return;
     window.__rebuLegacyNavigationBridgeInstalled=true;
     function trustedLegacyUrl(value){
@@ -98,11 +105,26 @@ function legacyNavigationBridgeScript(): string {
         if(image&&(url.search||!/[.](png|jpe?g|webp)$/i.test(url.pathname)))return '';
         var valid=true;
         var seen={};
+        var resultPage=!image&&(url.pathname==='/app_p1.php'||url.pathname==='/p1.php');
+        if(resultPage&&url.search&&url.search.slice(1).split('&').some(function(pair){return !/^[A-Za-z]+=/.test(pair)||/%(?![0-9a-f]{2})/i.test(pair);}))return '';
         url.searchParams.forEach(function(v,k){
-          if(['id','aid','cid','tid','shareId','type','mod','m','c','a','page'].indexOf(k)<0||!/^[A-Za-z0-9_-]{1,100}$/.test(v)||seen[k])valid=false;
+          if(resultPage){
+            if(seen[k])valid=false;
+            seen[k]=true;
+            if(k==='ruid'&&/^[0-9]{0,20}$/.test(v))return;
+            var accepted=['dateTime','realTime'].indexOf(k)>=0?/^[0-9 T:./-]{0,32}$/.test(v):['ziXuan','ju'].indexOf(k)>=0?/^-?[0-9]{0,10}$/.test(v)&&v!=='-':['id','type','mod','act'].indexOf(k)>=0&&/^[A-Za-z0-9_-]{0,100}$/.test(v);
+            if(!accepted)valid=false;
+            return;
+          }
+          if(['id','aid','cid','tid','shareId','type','mod','act','m','c','a','page'].indexOf(k)<0||!/^[A-Za-z0-9_-]{1,100}$/.test(v)||seen[k])valid=false;
           seen[k]=true;
         });
         if(!valid)return '';
+        if(resultPage){
+          var pairs=url.search.slice(1).split('&').filter(function(pair){return pair&&pair.split('=')[0]!=='ruid';});
+          if(pairs.some(function(pair){return !/^[A-Za-z]+=/.test(pair)||/%(?![0-9a-f]{2})/i.test(pair);}))return '';
+          return url.origin+'/p1.php'+(pairs.length?'?'+pairs.join('&'):'');
+        }
         if(!image&&url.pathname==='/app_tool.php')url.pathname='/tool.php';
         return url.href;
       }catch(_error){return '';}
@@ -409,26 +431,42 @@ function requestLegacyLocation() {
   })
 }
 
+function stopLegacyCompass() {
+  const session = legacyCompassSession
+  legacyCompassSession = null
+  session?.handle.stop()
+}
+
 function openNativeCompass(child: any) {
-  if (child !== legacyChildWebview || !legacyPageVisible || legacyCompassOpening) return
-  legacyCompassOpening = true
-  const documentVersion = legacyDocumentVersion
-  const requestUrl = child.getURL?.()
+  if (child !== legacyChildWebview || !legacyPageVisible) return
+  const url = String(child.getURL?.() || '')
+  if (!isTrustedLegacyUrl(url)) return
+  const existing = legacyCompassSession
+  if (existing && existing.child === child && existing.version === legacyDocumentVersion
+    && existing.url === url) { existing.handle.start(); return }
+  stopLegacyCompass()
+  const version = legacyDocumentVersion
   const sameDocument = () => legacyPageVisible && child === legacyChildWebview
-    && documentVersion === legacyDocumentVersion && child.getURL?.() === requestUrl
-  try {
-    // 第三方网页罗盘无法稳定接收 App 传感器；回退其历史后打开平台自有原生罗盘。
-    child.canBack?.((event: { canBack?: boolean }) => {
-      if (event?.canBack && sameDocument()) child.back?.()
-    })
-  } catch { /* 子页无历史时直接打开原生罗盘 */ }
-  uni.navigateTo({
-    url: '/pkg-common/compass/index?source=paipan',
-    fail: () => {
-      legacyCompassOpening = false
-      if (sameDocument()) uni.showToast({ title: '电子罗盘暂时无法打开，请稍后重试', icon: 'none' })
+    && version === legacyDocumentVersion && child.getURL?.() === url && legacyCompassSession?.handle === handle
+  let warned = false
+  const handle = createCompass({
+    onHeading: heading => {
+      if (!sameDocument() || !Number.isFinite(heading) || heading < 0 || heading >= 360) return
+      // 原版 Android 使用加速度计/磁力计，经 getOrientation 转为 -180..180 度，
+      // 保留一位小数调用当前网页 compassChange，而不是跳到另一张罗盘。
+      const signed = Math.round((heading > 180 ? heading - 360 : heading) * 10) / 10
+      try { child.evalJS(`if(typeof window.compassChange==='function')window.compassChange(${signed});`) }
+      catch { stopLegacyCompass() }
+    },
+    onStatus: status => {
+      if (status === 'unavailable' && sameDocument() && !warned) {
+        warned = true
+        uni.showToast({ title: '暂未收到手机方向读数，请平放手机后重试', icon: 'none' })
+      }
     },
   })
+  legacyCompassSession = { child, version, url, handle }
+  handle.start()
 }
 
 function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
@@ -521,9 +559,22 @@ async function requestLegacyShare(url: string, child: any) {
   }
   legacyShareBusy = true
   try {
-    const outcome = await shareLegacyPaipan(request, { canProceed, capture: () => captureLegacyShareImage(child, canProceed) })
-    if (outcome === 'saved' && canProceed()) uni.showToast({ title: '图片已保存到相册', icon: 'none' })
-    if (outcome === 'copied' && canProceed()) uni.showToast({ title: '完整 H5 链接已复制，可粘贴给好友', icon: 'none' })
+    if (import.meta.env.VITE_LEGACY_BRIDGE_DIAGNOSTICS === 'true' && !request.url) {
+      // 此分支只在显式本地诊断构建启用，不能输出第三方URL原文或参数值。
+      const info = uni.getSystemInfoSync()
+      const style = child.getStyle?.() || {}
+      const size = (v: unknown) => typeof v === 'number' && Number.isFinite(v) ? v :
+        typeof v === 'string' && /^\d+(?:\.\d+)?(?:px|%)?$/.test(v) ? v : null
+      await new Promise<void>(resolve => uni.showModal({
+        title: '本地排盘诊断', showCancel: false,
+        content: legacyShareDiagnosticShape(requestUrl) + '\n' + JSON.stringify({
+          windowHeight: info.windowHeight, windowTop: info.windowTop, screenHeight: info.screenHeight,
+          statusBarHeight: info.statusBarHeight, pixelRatio: info.pixelRatio,
+          childTop: size(style.top), childBottom: size(style.bottom), childHeight: size(style.height),
+        }), complete: () => resolve(),
+      }))
+    }
+    await shareLegacyPaipan(request, { canProceed })
     // 调起分享不代表接收方收到；取消、切页和返回均不写分享奖励或伪造成功。
   } catch (cause) {
     if (canProceed()) uni.showToast({
@@ -550,6 +601,7 @@ function bindLegacyChildWebview(child: any) {
         legacyAppMounted.value = true
       }
       child.addEventListener?.('loading', () => {
+        stopLegacyCompass()
         legacyDocumentVersion += 1
         locationRequestId += 1
         pendingLegacyPayment = null
@@ -557,6 +609,7 @@ function bindLegacyChildWebview(child: any) {
       })
       child.addEventListener?.('loaded', reveal)
       child.addEventListener?.('error', () => {
+        stopLegacyCompass()
         try { child.setContentVisible?.(false) } catch { /* 失败页保持隐藏 */ }
         try { child.close?.('none') } catch { /* 父窗口仍会兜底回收 */ }
         if (legacyChildWebview === child) legacyChildWebview = null
@@ -576,7 +629,7 @@ function bindLegacyChildWebview(child: any) {
             else if (action === 'legacy-share') void requestLegacyShare(url, child)
             else if (action === 'location') requestLegacyLocation()
             else if (action === 'compass-start') openNativeCompass(child)
-            else if (action === 'compass-stop') { /* 原生罗盘自行管理传感器生命周期 */ }
+            else if (action === 'compass-stop') stopLegacyCompass()
             else if (action === 'unsupported') {
               uni.showToast({ title: '该功能暂不支持', icon: 'none' })
             }
@@ -618,7 +671,7 @@ function mountLegacyAppWebview() {
     child.setJsFile?.('_www/static/legacy-paipan-preload.js')
     bindLegacyChildWebview(child)
     parent.append(child)
-    // 挂载后重申显式尺寸，避免首次创建和父窗口挂载采用不同推导基准。
+    // 挂载后重申父窗口边界，不使用已扣安全区的窗口高度再次缩短子窗口。
     child.setStyle(layout)
     child.loadURL(legacyUrl.value)
     return true
@@ -744,12 +797,16 @@ onMounted(() => { void loadEntry() })
 // #ifdef APP-PLUS
 onHide(() => {
   legacyPageVisible = false
+  notifyLegacyShareVisibility(false)
+  legacyCompassSession?.handle.stop()
   hideLegacyPaymentLoading()
   locationRequestId += 1
 })
 onShow(() => {
   legacyPageVisible = true
-  legacyCompassOpening = false
+  notifyLegacyShareVisibility(true)
+  const session = legacyCompassSession
+  if (session) openNativeCompass(session.child)
   flushLegacyPaymentResult()
 })
 // #endif
@@ -762,6 +819,8 @@ onReady(() => {
 })
 onUnmounted(() => {
   // #ifdef APP-PLUS
+  abandonLegacyShare()
+  stopLegacyCompass()
   legacyPageVisible = false
   legacyDocumentVersion += 1
   pendingLegacyPayment = null

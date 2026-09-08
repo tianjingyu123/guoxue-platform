@@ -45,6 +45,31 @@ test('真实二维码编码点阵完整保留，四码元静区位于画布内�
   assert.equal(api.drawQrToCanvas(noDrawing, 'synthetic', 0, 0, NaN, { contained: true }), false)
 })
 
+test('排盘长链接二维码码点起点为整数，四码元静区完整，其他海报默认不变', () => {
+  const UQRCode = createRequire(resolve('apps/mobile/package.json'))('uqrcodejs')
+  const api = load('apps/mobile/src/utils/qrcode.ts', { uqrcodejs: { default: UQRCode } })
+  const link = 'https://www.yrydai.cn/p1.php?mod=qimen&act=result&id=&dateTime=2026-09-07%2003%3A18%3A00&realTime=&ziXuan=0&ju=-7&type=1'
+  const qr = new UQRCode(); qr.data = link; qr.make()
+  for (const size of [80, 100, 140]) {
+    const rectangles = []
+    const ctx = new Proxy({}, { get: (_target, key) => key === 'fillRect' ? (...args) => rectangles.push(args) : () => {} })
+    assert.equal(api.drawQrToCanvas(ctx, link, 0, 0, size, { contained: true, pixelAligned: true }), true)
+    const cell = Math.floor(size / (qr.moduleCount + 8))
+    if (size === 140) assert.ok(cell >= 2, '排盘长结果链接至少两个逻辑像素一个码元')
+    assert.ok(rectangles.length > 0)
+    for (const [x, y, w, h] of rectangles) {
+      assert.ok([x, y, w, h].every(Number.isInteger))
+      assert.ok(x >= cell * 4 && y >= cell * 4)
+      assert.ok(x + w <= size - cell * 4 && y + h <= size - cell * 4)
+    }
+  }
+  const page = fs.readFileSync('apps/mobile/src/pkg-circle/common/share-poster/index.vue', 'utf8')
+  assert.equal((page.match(/pixelAligned: isPaipanPoster.value/g) || []).length, 2)
+  assert.match(page, /const QR = isPaipanPoster.value \? 140 : 100/)
+  assert.match(page, /isPaipanPoster.value \? 140 : 80/)
+  assert.match(page, /v-if="!isPaipanPoster" class="poster-card__seal"/)
+})
+
 test('排盘真实海报页消费本次链接，预览和导出使用同一二维码目标，返回后不可复用', async () => {
   const shareApi = load('apps/mobile/src/lib/legacy-paipan-share.ts')
   const dataApi = load('apps/mobile/src/lib/legacy-poster-data.ts', { './legacy-paipan-share': shareApi })

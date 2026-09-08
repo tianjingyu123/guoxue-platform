@@ -121,13 +121,15 @@ test('App 预载桥在旧站首屏执行前补齐旧 APK 的 webviewJS 导航接
   assert.doesNotMatch(preload, /console\./u)
 })
 
-test('旧排盘保留定位桥，电子罗盘改为平台自有原生页面', () => {
+test('排盘保留定位桥，电子罗盘通过原生数据源回传原网页', () => {
   assert.match(page, /uni\.getLocation\(\{/u)
   assert.match(page, /window\.setLocation/u)
   assert.match(page, /callback\(\$\{latitude\},\$\{longitude\}\)/u)
   assert.match(page, /else if \(action === 'location'\) requestLegacyLocation\(\)/u)
   assert.match(page, /else if \(action === 'compass-start'\) openNativeCompass\(child\)/u)
-  assert.match(page, /url: '\/pkg-common\/compass\/index\?source=paipan'/u)
+  assert.match(page, /window\.compassChange/u)
+  assert.match(page, /createCompass\(\{/u)
+  assert.doesNotMatch(page, /url: '\/pkg-common\/compass\/index\?source=paipan'/u)
   assert.match(nativeCompassPage, /createCompass\(\{/u)
   assert.match(nativeCompass, /uni\.onCompassChange\(mpHandler\)/u)
   assert.match(nativeCompass, /orientation\.watchOrientation/u)

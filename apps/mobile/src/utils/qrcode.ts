@@ -29,6 +29,8 @@ interface UQRCodeInstance {
 }
 
 export interface DrawQrOptions {
+  /** 排盘长链接预览使用整数起点，避免奇数点阵居中到半像素后被插值模糊。 */
+  pixelAligned?: boolean
   /** 在给定方框内部保留至少四个码元静区，并按整数像素绘制；尺寸不足时拒绝导出。 */
   contained?: boolean
   /** 码点颜色（默认 #2d2a26·近黑保证识别率） */
@@ -61,6 +63,7 @@ export function drawQrToCanvas(
 ): boolean {
   if (!text || ![x, y, size].every(Number.isFinite) || size <= 0) return false
   const {
+    pixelAligned = false,
     contained = false,
     foreground = '#2d2a26',
     background = '#ffffff',
@@ -83,7 +86,8 @@ export function drawQrToCanvas(
     const cell = contained ? Math.floor(size / (count + 8)) : 0
     if (contained && cell < 1) return false
     const coreSize = contained ? cell * count : size
-    const inset = contained ? (size - coreSize) / 2 : 0
+    const centeredInset = contained ? (size - coreSize) / 2 : 0
+    const inset = pixelAligned ? Math.floor(centeredInset) : centeredInset
     const drawX = x + inset
     const drawY = y + inset
 

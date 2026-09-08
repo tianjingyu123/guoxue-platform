@@ -27,7 +27,7 @@
       <scroll-view scroll-y class="poster-scroll">
         <view class="poster-preview">
           <!-- 可视海报卡片（与 canvas 同构，用于展示） -->
-          <view class="poster-card" :style="{ background: activeTheme.bg }">
+          <view class="poster-card" :class="{ 'poster-card--paipan': isPaipanPoster }" :style="{ background: activeTheme.bg }">
             <view class="poster-card__border" :style="{ borderColor: activeTheme.accent }">
               <view class="poster-card__tag" :style="{ background: activeTheme.accent, color: activeTheme.headerStyle === 'dark' ? activeTheme.bg : '#ffffff' }">
                 {{ posterData.tag }}
@@ -47,7 +47,7 @@
                 </view>
                 <!-- 品牌朱印 + 二维码（印章与 canvas 导出版同构·drawSealOnCanvas） -->
                 <view class="poster-card__stamp-area">
-                  <view class="poster-card__seal">
+                  <view v-if="!isPaipanPoster" class="poster-card__seal">
                     <brand-seal :chars="sealChars" :size="96" />
                   </view>
                   <!-- 预览区二维码：与导出图同源（都按 data.link 现画），避免"看到的和存下来的不一致" -->
@@ -334,17 +334,21 @@ function drawPoster() {
   // 描述
   ctx.setFillStyle(theme.sub)
   ctx.setFontSize(12)
-  wrapText(ctx, data.desc, 32, 208, W - 64, 20, 3)
+  wrapText(ctx, data.desc, 32, 208, W - 64, 20, isPaipanPoster.value ? 2 : 3)
 
   // 底部作者
   ctx.setFillStyle(theme.sub)
   ctx.setFontSize(11)
-  if (data.author) ctx.fillText(data.author, 32, H - 60)
-  ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
+  if (data.author) {
+    if (isPaipanPoster.value) wrapText(ctx, data.author, 32, H - 60, 84, 14, 1)
+    else ctx.fillText(data.author, 32, H - 60)
+  }
+  if (isPaipanPoster.value) wrapText(ctx, `来自 ${BRAND.name}`, 32, H - 42, 84, 14, 2)
+  else ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
 
   // 二维码失败就终止本次导出，不能向用户交付无法扫码的图片。
-  const QR = 100
-  if (!drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { contained: true })) {
+  const QR = isPaipanPoster.value ? 140 : 100
+  if (!drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { contained: true, pixelAligned: isPaipanPoster.value })) {
     posterExport.fail(revision, '二维码生成失败，请重试')
     return
   }
@@ -352,7 +356,7 @@ function drawPoster() {
   /* 品牌朱印（视觉签名批1）：与预览区 brand-seal 同构，画在二维码左侧、底边对齐——
    * 预览 96rpx=48px、间距 12px，绝不与二维码/作者行重叠 */
   const SEAL = 48
-  drawSealOnCanvas(ctx, sealChars.value, W - 32 - QR - 12 - SEAL, H - 32 - SEAL, SEAL)
+  if (!isPaipanPoster.value) drawSealOnCanvas(ctx, sealChars.value, W - 32 - QR - 12 - SEAL, H - 32 - SEAL, SEAL)
 
   ctx.draw(false, () => {
     setTimeout(() => {
@@ -375,7 +379,7 @@ function drawPoster() {
 
   // 预览区的小二维码（与导出图同一 link，保证所见即所存）
   const pctx = uni.createCanvasContext('previewQr')
-  if (!drawQrToCanvas(pctx, data.link, 0, 0, 80, { contained: true })) {
+  if (!drawQrToCanvas(pctx, data.link, 0, 0, isPaipanPoster.value ? 140 : 80, { contained: true, pixelAligned: isPaipanPoster.value })) {
     posterExport.fail(revision, '二维码预览生成失败，请重试')
     return
   }
@@ -710,6 +714,20 @@ onUnload(() => { loadRevision += 1; posterExport.invalidate(); paipanPayload = n
 }
 .poster-card__qr-label {
   font-size: 18rpx;
+}
+
+/* 排盘长结果链接独立留足扫码空间，避免作者、印章与二维码横向互相挤压。 */
+.poster-card--paipan .poster-card__footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 24rpx;
+}
+.poster-card--paipan .poster-card__stamp-area {
+  justify-content: center;
+}
+.poster-card--paipan .poster-card__qr-img {
+  width: 140px;
+  height: 140px;
 }
 
 /* 离屏 canvas（隐藏在视图外但需可绘制） */
