@@ -112,6 +112,7 @@ const status = ref<Status>('loading')
 const countdown = ref(180)
 const failReason = ref('')
 const submitting = ref(false)
+const oauthCallbackCode = ref('')
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -143,6 +144,7 @@ onLoad((q) => {
   payMethod.value = (q?.method as string) || 'wechat'
   amount.value = (q?.amount as string) || '0'
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
+  oauthCallbackCode.value = String(q?.code || '').trim()
   if (isRecharge.value) {
     if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
       status.value = 'failed'
@@ -300,6 +302,7 @@ async function startPaying() {
 
 // #ifdef H5
 const OA_OPENID_KEY = 'wx_oa_openid'
+const OA_PAYMENT_RETURN_KEY = 'wx_oa_payment_return'
 
 /**
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：

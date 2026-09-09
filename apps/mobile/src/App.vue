@@ -386,6 +386,7 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { query?: Record<string, unknown> }) => {
+  if (restoreWechatPaymentCallback(options)) return
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
   // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。
