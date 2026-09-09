@@ -368,7 +368,13 @@ async function ensureOaOpenid(): Promise<string> {
   const redirectUri = buildWechatOauthReturnUrl()
   sessionStorage.setItem(OA_PAYMENT_RETURN_KEY, redirectUri)
   const state = buildWechatPaymentOauthState()
-  const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}`)
+  // OAuth 地址每次都必须返回完整 JSON；部分微信 WebView 会把同一 GET 的 ETag 命中为 304，
+  // 导致 uni.request 拿到空响应、无法跳到微信授权页。用一次性请求标记并显式禁用缓存。
+  const cacheKey = Date.now().toString(36)
+  const { url } = await apiGet<{ url: string }>(
+    `/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}&_=${cacheKey}`,
+    { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+  )
   if (!url) throw new Error('微信授权发起失败')
   window.location.href = url
   return ''
