@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { RedisService } from "../../redis/redis.service"
 import { createHash, randomUUID } from "node:crypto"
+import { normalizeSpeechText } from "./speech-text"
 import { BusinessException } from "../../common/business.exception"
 import { ErrorCode } from "../../common/error-codes"
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util"
@@ -68,7 +69,8 @@ export class TtsService {
     const voiceKey = req.voice && VOICES[req.voice] ? req.voice : "xiaoxiao"
     const rate = req.rate || "0%"
     const style = this.normalizeStyle(req)
-    const text = req.text.trim().slice(0, 3000) // 上限 3000 字（Edge）；腾讯云单段自动截 150 字
+    // 仅清理送往 TTS 的副本，不会修改古籍原文或数据库内容。
+    const text = normalizeSpeechText(req.text || "").slice(0, 3000) // 上限 3000 字（Edge）；腾讯云单段自动截 150 字
     if (!text) throw new BusinessException(ErrorCode.BAD_REQUEST, "合成文本不能为空")
 
     // 缓存 key：供应商无关（同文本同音色同语速命中同缓存，切供应商不失效）
