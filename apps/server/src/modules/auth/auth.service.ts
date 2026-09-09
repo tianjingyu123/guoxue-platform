@@ -310,8 +310,16 @@ export class AuthService {
       throw new BusinessException(ErrorCode.AUTH_WECHAT_FAILED, "微信授权失败，未获取到 openId");
     }
 
+    // H5 登录和公众号 JSAPI 使用同一公众号 OAuth code。把本次已验证的公众号
+    // openid 随登录结果返回给前端，仅用于当前会话缓存，避免登录后支付再次网页授权。
+    // 小程序和开放平台 App 的 openid 不属于公众号应用，绝不能复用。
+    const buildWechatLoginResult = async (userId: string) => {
+      const result = await this.buildLoginResult(userId);
+      return loginType === "h5" ? { ...result, officialOpenid: openId } : result;
+    };
+
     const existingUserId = await this.resolveWechatUserId(client, openId, unionId);
-    if (existingUserId) return this.buildLoginResult(existingUserId);
+    if (existingUserId) return buildWechatLoginResult(existingUserId);
 
     if (dto.createIfMissing === false) {
       throw new BusinessException(
@@ -343,7 +351,7 @@ export class AuthService {
         // 并发注册：重新查询已创建的记录
         const resolved = await this.resolveWechatUserId(client, openId, unionId);
         if (!resolved) throw e;
-        return this.buildLoginResult(resolved);
+        return buildWechatLoginResult(resolved);
       }
       throw e;
     }
@@ -355,7 +363,7 @@ export class AuthService {
 
     await this.fireUserRegistered(user.id, user.nickname);
     this.importToIm(user.id, user.nickname, user.avatar || undefined);
-    return this.buildLoginResult(user.id);
+    return buildWechatLoginResult(user.id);
   }
 
   async appleLogin(dto: AppleLoginDto) {

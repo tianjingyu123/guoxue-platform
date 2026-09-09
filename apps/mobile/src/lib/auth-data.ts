@@ -21,6 +21,8 @@ export interface UserInfo {
 export interface AuthResponse {
   success: boolean
   message: string
+  /** H5 微信登录时由服务端返回；仅缓存于当前会话，供同一公众号 JSAPI 支付复用。 */
+  officialOpenid?: string
   data?: {
     token: string
     refreshToken?: string
@@ -34,6 +36,7 @@ interface RawAuthData {
   accessToken?: string
   refreshToken?: string
   token?: string
+  officialOpenid?: string
   user?: Partial<UserInfo> & Record<string, unknown>
 }
 
@@ -44,6 +47,7 @@ function adaptAuthResult(data?: RawAuthData | null): AuthResponse {
   return {
     success: true,
     message: 'ok',
+    ...(data.officialOpenid ? { officialOpenid: data.officialOpenid } : {}),
     data: {
       token,
       refreshToken: data.refreshToken || '',

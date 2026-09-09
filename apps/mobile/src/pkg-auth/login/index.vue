@@ -519,6 +519,9 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
       setToken(loginData.token)
       setRefreshToken(loginData.refreshToken || '')
       setUserInfo(loginData.user)
+      // 本次 H5 微信登录已通过同一公众号 OAuth 取得 openid；供本会话内 JSAPI
+      // 支付直接复用，避免用户刚登录又被要求进行一次支付授权。
+      if (res.officialOpenid) window.sessionStorage.setItem('wx_oa_openid', res.officialOpenid)
       await goAfterLogin()
       return
     }
