@@ -105,7 +105,9 @@ export class RecommendationService {
   fallbackIntents(userQuery: string): RecoIntent[] {
     const query = userQuery.trim();
     if (!query || NEGATIVE_SERVICE_RE.test(query)) return [];
-    const toolSignal = /工具|排盘|查询|日历|万年历|怎么排|生成盘面/.test(query);
+    // “帮我看个八字”这类说法虽没有写出“工具/排盘”，语义上仍是立即使用排盘。
+    // 不能退化成一篇文章推荐，否则用户看不到可直接打开的入口。
+    const toolSignal = /工具|排盘|查询|日历|万年历|怎么排|生成盘面|帮我看|给我看|算(?:一下|一|个)?(?:八字|四柱|紫微|六爻|奇门)|看(?:一下|一|个)?(?:八字|四柱|紫微|六爻|奇门)/.test(query);
     const directTool = toolSignal
       ? TOOL_GUIDES.find((item) => item.keys.some((key) => query.includes(key)))
       : undefined;

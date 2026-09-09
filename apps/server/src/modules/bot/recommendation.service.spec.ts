@@ -207,4 +207,20 @@ describe("RecommendationService（场景化向导推荐）", () => {
       data: expect.objectContaining({ title: "万年历", href: "/paipan/wannianli" }),
     });
   });
+
+  it("口语化的“帮我看个八字”也必须给出可点击的排盘卡", async () => {
+    const result = await service.build("请先核对出生信息。", "帮我看个八字");
+    expect(result.recommendation?.items[0]).toEqual({
+      type: "tool",
+      data: expect.objectContaining({ title: "四柱排盘", href: "/paipan/bazi" }),
+    });
+  });
+
+  it("明确询问平台是否有八字工具时直接给出排盘卡", async () => {
+    const result = await service.build("平台提供结构化排盘能力。", "平台有八字工具吗？");
+    expect(result.recommendation?.items[0]).toEqual({
+      type: "tool",
+      data: expect.objectContaining({ title: "四柱排盘", href: "/paipan/bazi" }),
+    });
+  });
 });

@@ -54,7 +54,8 @@ async function fetchUnreadNotify() {
    STATION_OFFLINE_OWNER/INSTITUTE_MEMBER），profile-data _roleTypeMap 已补齐映射，
    已开通者点入对应工作台，未开通者走「申请加入」引导。 ===== */
 interface RoleSpec {
-  applyType: string       // 申请页 role 参数
+  applyType: string       // 申请页 role 参数（线下驿站仍使用通用申请页）
+  applyHref?: string      // 已有独立真流程时直接进入，避免角色参数在中转页丢失
   ownType?: UserRole      // 后端已有身份类型（用于查已加入态/进工作台），无则纯申请引导
   seal: string            // 图章衍生单字
   name: string            // 角色名
@@ -62,12 +63,12 @@ interface RoleSpec {
 }
 // 六角色定位顺序（讲师/商家/分站站长/运营商/线下驿站/研究院）
 const ROLE_SPECS: RoleSpec[] = [
-  { applyType: 'teacher', ownType: 'teacher', seal: '讲', name: '讲师', benefit: '把你的学问变成课程，触达百万学友' },
-  { applyType: 'merchant', ownType: 'merchant', seal: '商', name: '商家', benefit: '开店卖国学好物，平台代运营' },
-  { applyType: 'station_owner', ownType: 'station_owner', seal: '站', name: '分站站长', benefit: '承包一城，独享分站收益' },
-  { applyType: 'operator', ownType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
+  { applyType: 'teacher', applyHref: '/pkg-creator/teacher-certification/index', ownType: 'teacher', seal: '讲', name: '讲师', benefit: '把你的学问变成课程，触达百万学友' },
+  { applyType: 'merchant', applyHref: '/pkg-merchant/join/index', ownType: 'merchant', seal: '商', name: '商家', benefit: '开店卖国学好物，平台代运营' },
+  { applyType: 'station_owner', applyHref: '/pkg-operator/join-station/index', ownType: 'station_owner', seal: '站', name: '分站站长', benefit: '承包一城，独享分站收益' },
+  { applyType: 'operator', applyHref: '/pkg-operator/join-operator/index', ownType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
   { applyType: 'offline_station', ownType: 'offline_station', seal: '驿', name: '线下驿站', benefit: '门店挂牌，线上线下互导' },
-  { applyType: 'institute', ownType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
+  { applyType: 'institute', applyHref: '/pkg-institute/member-apply/index', ownType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
 ]
 // 已加入身份集合（后端 roles → type）
 const ownedRoleMap = computed(() => {
@@ -226,8 +227,10 @@ function openRole(href: string) {
   if (href) navigateTo(href)
 }
 /** 点击「申请加入」→ 角色申请页（六角色共用模板，role 驱动） */
-function applyRole(role: string) {
-  navigateTo(`/pkg-mine/role-apply/index?role=${role}`)
+function applyRole(spec: RoleSpec) {
+  // 商家、运营商等都有独立的真实申请链路，直接进入目标页。
+  // 这也避免 H5 端在通用页的参数读取失败后回退为默认“讲师”。
+  navigateTo(spec.applyHref || `/pkg-mine/role-apply/index?role=${spec.applyType}`)
 }
 </script>
 
@@ -497,8 +500,8 @@ function applyRole(role: string) {
         role="link"
         tabindex="0"
         :aria-label="row.joined ? `进入${row.name}工作台` : `申请加入${row.name}：${row.benefit}`"
-        @tap="row.joined ? openRole(row.href) : applyRole(row.applyType)"
-        @keydown="activateOnKeyboard($event, () => row.joined ? openRole(row.href) : applyRole(row.applyType))"
+        @tap="row.joined ? openRole(row.href) : applyRole(row)"
+        @keydown="activateOnKeyboard($event, () => row.joined ? openRole(row.href) : applyRole(row))"
       >
         <text class="role-seal">{{ row.seal }}</text>
         <view class="role-txt">
