@@ -132,9 +132,15 @@ export class AuthController {
     @Query("redirectUri") redirectUri: string,
     @Query("scope") scope?: string,
     @Query("clientKey") clientKey?: string,
+    @Query("state") state?: string,
   ) {
     if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
-    const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo", clientKey);
+    const url = this.wechat.buildOAuthUrl(
+      redirectUri,
+      (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo",
+      clientKey,
+      state,
+    );
     return { url };
   }
 

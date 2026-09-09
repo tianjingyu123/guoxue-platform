@@ -328,11 +328,67 @@ async function ensureOaOpenid(): Promise<string> {
     }
   }
 
-  const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(window.location.href)}&scope=snsapi_base`)
+  const redirectUri = buildWechatOauthReturnUrl()
+  // 保存固定的支付回跳页，避免 uni-app 初始化阶段把运行时路由地址带给微信。
+  sessionStorage.setItem(OA_PAYMENT_RETURN_KEY, redirectUri)
+  const state = buildWechatPaymentOauthState()
+  const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}`)
   if (!url) throw new Error('微信授权发起失败')
   window.location.href = url
   return ''
 }
+
+/** 微信会把授权 code 放在普通 query、hash query 或 uni-app 页面参数中，统一兼容读取。 */
+function readWechatOauthCode(): string {
+  const candidates = [
+    oauthCallbackCode.value,
+    new URLSearchParams(window.location.search).get('code') || '',
+    (() => {
+      const hash = window.location.hash || ''
+      const queryAt = hash.indexOf('?')
+      return queryAt >= 0 ? new URLSearchParams(hash.slice(queryAt + 1)).get('code') || '' : ''
+    })(),
+  ]
+  try {
+    const pages = getCurrentPages()
+    const current = pages[pages.length - 1] as { options?: Record<string, unknown>; $page?: { options?: Record<string, unknown> } } | undefined
+    candidates.push(String(current?.options?.code || current?.$page?.options?.code || ''))
+  } catch { /* 启动早期页面栈未就绪时使用已有来源 */ }
+  return candidates.map((item) => String(item || '').trim()).find(Boolean) || ''
+}
+
+/** 始终生成标准支付页回跳地址，不能把路由运行时临时地址交给微信。 */
+function buildWechatOauthReturnUrl(): string {
+  const url = new URL(window.location.origin + '/h5/pkg-shop/paying/index')
+  if (isRecharge.value) {
+    url.searchParams.set('scene', 'recharge')
+    url.searchParams.set('amountCoin', String(amountCoin.value))
+    if (rechargeOrderNo.value) url.searchParams.set('rechargeOrderNo', rechargeOrderNo.value)
+  } else {
+    url.searchParams.set('orderId', orderId.value)
+  }
+  url.searchParams.set('method', payMethod.value || 'wechat')
+  url.searchParams.set('amount', amount.value || '0')
+  if (returnLiveRoomId.value) url.searchParams.set('returnLiveRoomId', returnLiveRoomId.value)
+  return url.toString()
+}
+
+/**
+ * sessionStorage 是首选回跳记录；state 是微信 WebView 丢失会话数据时的受限兜底。
+ * 仅携带支付页恢复所需的公开订单定位参数，服务端会限制 state 字符与长度。
+ */
+function buildWechatPaymentOauthState(): string {
+  const payload: Record<string, string> = { method: payMethod.value || 'wechat', amount: amount.value || '0' }
+  if (isRecharge.value) {
+    payload.scene = 'recharge'
+    payload.amountCoin = String(amountCoin.value)
+    if (rechargeOrderNo.value) payload.rechargeOrderNo = rechargeOrderNo.value
+  } else {
+    payload.orderId = orderId.value
+  }
+  return `wxpay.${btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`
+}
+
 // #endif
 
 /** 微信内置浏览器 JSAPI 调起收银台（WeixinJSBridge.getBrandWCPayRequest） */

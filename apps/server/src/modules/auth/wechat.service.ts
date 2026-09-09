@@ -290,10 +290,17 @@ export class WechatService {
 
 
   /** 生成 H5 微信 OAuth 授权 URL（公众号网页授权，appid 必须为公众号的） */
-  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo", clientKey?: string): string {
+  buildOAuthUrl(
+    redirectUri: string,
+    scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo",
+    clientKey?: string,
+    state?: string,
+  ): string {
     const client = this.resolveLoginClient("h5", clientKey);
     const encoded = encodeURIComponent(redirectUri);
-    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${client.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+    // state 只允许安全字符并限长，避免调用方借 OAuth 回跳注入任意参数。
+    const safeState = /^[A-Za-z0-9._~-]{1,128}$/.test(String(state || "")) ? String(state) : "wechat";
+    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${client.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=${safeState}#wechat_redirect`;
   }
 
   /** H5 OAuth: 用 code 换取 access_token 和 openId（公众号网页授权） */
