@@ -14,6 +14,68 @@ import { hydratePaipanRuntime } from '@/lib/paipan-runtime'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
+
+type WechatPaymentState = {
+  orderId?: string
+  scene?: 'recharge'
+  amountCoin?: string
+  rechargeOrderNo?: string
+  method?: string
+  amount?: string
+  returnLiveRoomId?: string
+}
+
+/** OAuth 回跳跨域时部分微信 WebView 会丢失 sessionStorage，state 中只保存固定支付页所需的非敏感参数。 */
+function decodeWechatPaymentState(value: unknown): WechatPaymentState | undefined {
+  const state = String(value || '').trim()
+  if (!state.startsWith('wxpay.')) return undefined
+  try {
+    const json = atob(state.slice('wxpay.'.length).replace(/-/g, '+').replace(/_/g, '/'))
+    const parsed = JSON.parse(json) as WechatPaymentState
+    if (!parsed || typeof parsed !== 'object') return undefined
+    if (parsed.scene === 'recharge') return /^\d+$/.test(String(parsed.amountCoin || '')) ? parsed : undefined
+    return /^[0-9a-f-]{36}$/i.test(String(parsed.orderId || '')) ? parsed : undefined
+  } catch { return undefined }
+}
+
+function buildWechatPaymentReturnUrl(payload: WechatPaymentState, code: string, state: string): string {
+  const target = new URL(window.location.origin + '/h5/pkg-shop/paying/index')
+  if (payload.scene === 'recharge') {
+    target.searchParams.set('scene', 'recharge')
+    target.searchParams.set('amountCoin', String(payload.amountCoin))
+    if (payload.rechargeOrderNo) target.searchParams.set('rechargeOrderNo', payload.rechargeOrderNo)
+  } else target.searchParams.set('orderId', String(payload.orderId))
+  if (payload.method) target.searchParams.set('method', payload.method)
+  if (payload.amount) target.searchParams.set('amount', payload.amount)
+  target.searchParams.set('code', code)
+  if (state) target.searchParams.set('state', state)
+  return target.toString()
+}
+
+/**
+ * 微信网页授权偶发在 H5 history 路由完成初始化前返回，uni-app 会落到默认页。
+ * 优先使用会话中的固定回跳地址；会话丢失时只从受限 state 恢复支付页。
+ */
+function restoreWechatPaymentCallback(options?: { query?: Record<string, unknown> }): boolean {
+  // #ifdef H5
+  try {
+    const search = new URLSearchParams(window.location.search)
+    const callbackCode = String(options?.query?.code || search.get('code') || '').trim()
+    const callbackState = String(options?.query?.state || search.get('state') || '').trim()
+    const pending = sessionStorage.getItem('wx_oa_payment_return')
+    const recovered = decodeWechatPaymentState(callbackState)
+    if (!callbackCode || (!pending && !recovered)) return false
+    const target = pending ? new URL(pending) : new URL(buildWechatPaymentReturnUrl(recovered!, callbackCode, callbackState))
+    if (new URL(window.location.href).pathname === '/h5/pkg-shop/paying/index') return false
+    target.searchParams.set('code', callbackCode)
+    if (callbackState) target.searchParams.set('state', callbackState)
+    window.location.replace(target.toString())
+    return true
+  } catch { /* 存储不可用或地址异常时保持原有启动流程 */ }
+  // #endif
+  return false
+}
+
 /**
  * H5 统一返回体验：
  * 1. 内容详情 iframe 的任何 navigateBack 都先通知父页收起，避免跳到空历史；
@@ -338,6 +400,7 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  if (restoreWechatPaymentCallback(options)) return
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
   // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。
