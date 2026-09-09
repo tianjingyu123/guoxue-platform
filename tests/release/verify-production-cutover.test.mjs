@@ -62,6 +62,16 @@ test("正式切换在汇总 GO 前强制验证直播 rtc-config 路由", async (
   );
 });
 
+test("正式切换在汇总 GO 前强制验证八字排盘核心接口", async () => {
+  const runtimeVerifier = await readFile(
+    path.join(repoRoot, "scripts", "release", "verify-runtime.mjs"),
+    "utf8",
+  );
+  assert.match(runtimeVerifier, /\/api\/v1\/paipan\/bazi\/preview/u);
+  assert.match(runtimeVerifier, /正式 API 缺少八字排盘路由/u);
+  assert.match(runtimeVerifier, /method: "POST"/u);
+});
+
 test(
   "同版 current、最终数据库证据与共享配置齐全时重建证据并给出 GO",
   { skip: process.platform === "win32" ? "Windows NTFS 不提供可靠 POSIX 权限语义" : false },

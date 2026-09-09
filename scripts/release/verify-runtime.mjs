@@ -124,6 +124,8 @@ async function request(url, options = {}) {
   const response = await fetch(url, {
     redirect: options.redirect || "follow",
     headers: options.headers,
+    method: options.method || "GET",
+    body: options.body,
     signal: AbortSignal.timeout(options.timeoutMs || 15_000),
   });
   const body = await response.text();
@@ -327,6 +329,19 @@ await check("数据库与 Redis 就绪探针", async () => {
   assert(data.status === "ready", `状态为 ${String(data.status)}`);
   assert(data.db === "ok" && data.redis === "ok", `db=${data.db} redis=${data.redis}`);
   return `ready，${latencyMs}ms`;
+});
+
+await check("八字排盘核心计算接口", async () => {
+  const { response, body, latencyMs } = await request(`${apiBase}/api/v1/paipan/bazi/preview`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gender: "男", year: 1990, month: 1, day: 1, hour: 12, minute: 0 }),
+  });
+  assert(response.ok, response.status === 404 ? "正式 API 缺少八字排盘路由" : `HTTP ${response.status}`);
+  const data = unwrapPayload(parseJson(body, "八字排盘接口"));
+  assert(data && typeof data === "object", "未返回排盘结果对象");
+  assert(data.fourPillars || data.yearPillar || data.pillars, "排盘结果缺少四柱数据");
+  return `排盘结果有效，${latencyMs}ms`;
 });
 
 await check("脱敏依赖健康摘要", async () => {
