@@ -71,6 +71,21 @@ export function validateProductionClientEnv(mode: string, env: Record<string, st
  * 历史演示数据中仍有旧站绝对资源地址。迁移期间不能逐条依赖旧域名，
  * 构建时统一改写到新对象存储/CDN；未配置时才保留现网地址供本地开发。
  */
+/** 把微信 OAuth 回跳页直接产出到 H5 根目录，避免 uni-app 静态目录过滤 HTML 文件。 */
+export function emitWechatOauthCallback(): Plugin {
+  return {
+    name: "emit-wechat-oauth-callback",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "wechat-oauth-callback.html",
+        source: readFileSync(resolve(__dirname, "static/wechat-oauth-callback.html"), "utf8"),
+      });
+    },
+  };
+}
+
 export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
   const targetOrigin = normalizeOrigin(publicAssetOrigin) || LEGACY_PUBLIC_ORIGIN;
   return {
@@ -238,6 +253,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       rewriteLegacyPublicAssets(publicAssetOrigin),
+      emitWechatOauthCallback(),
       rewriteFlvProbeOrigin(),
       loadKangxiDictionaryForWechat(),
       loadPaipanEnginesIntoWechatSubpackages(),

@@ -393,18 +393,13 @@ function readWechatOauthCode(): string {
   return candidates.map((item) => String(item || '').trim()).find(Boolean) || ''
 }
 
-/** 始终生成标准支付页回跳地址，不能把路由运行时临时地址交给微信。 */
+/**
+ * 微信 OAuth 先落到无框架依赖的静态中转页，再由中转页带着 code/state 回到支付路由。
+ * 某些微信 WebView 直接回跳到 uni-app history 路由时会在框架初始化前白屏；静态页不依赖
+ * 动态分包或路由启动，能稳定完成这一步跳转。
+ */
 function buildWechatOauthReturnUrl(): string {
-  const url = new URL(window.location.origin + '/h5/pkg-shop/paying/index')
-  if (isRecharge.value) {
-    url.searchParams.set('scene', 'recharge')
-    url.searchParams.set('amountCoin', String(amountCoin.value))
-    if (rechargeOrderNo.value) url.searchParams.set('rechargeOrderNo', rechargeOrderNo.value)
-  } else url.searchParams.set('orderId', orderId.value)
-  url.searchParams.set('method', payMethod.value || 'wechat')
-  url.searchParams.set('amount', amount.value || '0')
-  if (returnLiveRoomId.value) url.searchParams.set('returnLiveRoomId', returnLiveRoomId.value)
-  return url.toString()
+  return new URL(window.location.origin + '/h5/wechat-oauth-callback.html').toString()
 }
 
 /** state 仅携带支付页恢复所需的公开订单定位参数。 */
@@ -415,6 +410,7 @@ function buildWechatPaymentOauthState(): string {
     payload.amountCoin = String(amountCoin.value)
     if (rechargeOrderNo.value) payload.rechargeOrderNo = rechargeOrderNo.value
   } else payload.orderId = orderId.value
+  if (returnLiveRoomId.value) payload.returnLiveRoomId = returnLiveRoomId.value
   return `wxpay.${btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`
 }
 
