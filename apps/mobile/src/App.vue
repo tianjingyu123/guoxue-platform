@@ -38,17 +38,32 @@ function decodeWechatPaymentState(value: unknown): WechatPaymentState | undefine
   } catch { return undefined }
 }
 
-function buildWechatPaymentReturnUrl(payload: WechatPaymentState, code: string, state: string): string {
-  const target = new URL(window.location.origin + '/h5/pkg-shop/paying/index')
+function buildWechatPaymentReturnUrl(payload: WechatPaymentState, code?: string, state?: string): string {
+  const target = new URL(window.location.origin + '/h5/')
+  const params = new URLSearchParams()
   if (payload.scene === 'recharge') {
-    target.searchParams.set('scene', 'recharge')
-    target.searchParams.set('amountCoin', String(payload.amountCoin))
-    if (payload.rechargeOrderNo) target.searchParams.set('rechargeOrderNo', payload.rechargeOrderNo)
-  } else target.searchParams.set('orderId', String(payload.orderId))
-  if (payload.method) target.searchParams.set('method', payload.method)
-  if (payload.amount) target.searchParams.set('amount', payload.amount)
-  target.searchParams.set('code', code)
-  if (state) target.searchParams.set('state', state)
+    params.set('scene', 'recharge')
+    params.set('amountCoin', String(payload.amountCoin))
+    if (payload.rechargeOrderNo) params.set('rechargeOrderNo', payload.rechargeOrderNo)
+  } else params.set('orderId', String(payload.orderId))
+  if (payload.method) params.set('method', payload.method)
+  if (payload.amount) params.set('amount', payload.amount)
+  if (code) params.set('code', code)
+  if (state) params.set('state', state)
+  target.hash = `/pkg-shop/paying/index?${params.toString()}`
+  return target.toString()
+}
+
+/** 将微信回调参数加入 H5 hash 路由，避免落到默认商城首页。 */
+function appendWechatCallbackToPaymentUrl(rawTarget: string, code: string, state: string): string {
+  const target = new URL(rawTarget)
+  const hash = target.hash.startsWith('#') ? target.hash.slice(1) : ''
+  const [routePath, rawQuery = ''] = hash.split('?', 2)
+  const params = new URLSearchParams(rawQuery)
+  params.set('code', code)
+  if (state) params.set('state', state)
+  target.search = ''
+  target.hash = `${routePath || '/pkg-shop/paying/index'}?${params.toString()}`
   return target.toString()
 }
 
@@ -65,11 +80,11 @@ function restoreWechatPaymentCallback(options?: { query?: Record<string, unknown
     const pending = sessionStorage.getItem('wx_oa_payment_return')
     const recovered = decodeWechatPaymentState(callbackState)
     if (!callbackCode || (!pending && !recovered)) return false
-    const target = pending ? new URL(pending) : new URL(buildWechatPaymentReturnUrl(recovered!, callbackCode, callbackState))
-    if (new URL(window.location.href).pathname === '/h5/pkg-shop/paying/index') return false
-    target.searchParams.set('code', callbackCode)
-    if (callbackState) target.searchParams.set('state', callbackState)
-    window.location.replace(target.toString())
+    const target = pending || buildWechatPaymentReturnUrl(recovered!)
+    const current = new URL(window.location.href)
+    const currentHashPath = current.hash.split('?', 1)[0]
+    if (currentHashPath === '#/pkg-shop/paying/index') return false
+    window.location.replace(appendWechatCallbackToPaymentUrl(target, callbackCode, callbackState))
     return true
   } catch { /* 存储不可用或地址异常时保持原有启动流程 */ }
   // #endif

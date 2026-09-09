@@ -365,9 +365,10 @@ async function ensureOaOpenid(): Promise<string> {
     }
   }
 
-  const redirectUri = buildWechatOauthReturnUrl()
-  sessionStorage.setItem(OA_PAYMENT_RETURN_KEY, redirectUri)
+  const paymentPageUrl = buildWechatPaymentPageUrl()
+  sessionStorage.setItem(OA_PAYMENT_RETURN_KEY, paymentPageUrl)
   const state = buildWechatPaymentOauthState()
+  const redirectUri = buildWechatOauthCallbackUrl()
   const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}`)
   if (!url) throw new Error('微信授权发起失败')
   window.location.href = url
@@ -394,17 +395,27 @@ function readWechatOauthCode(): string {
 }
 
 /** 始终生成标准支付页回跳地址，不能把路由运行时临时地址交给微信。 */
-function buildWechatOauthReturnUrl(): string {
-  const url = new URL(window.location.origin + '/h5/pkg-shop/paying/index')
+function buildWechatPaymentPageUrl(): string {
+  const target = new URL(window.location.origin + '/h5/')
+  const params = new URLSearchParams()
   if (isRecharge.value) {
-    url.searchParams.set('scene', 'recharge')
-    url.searchParams.set('amountCoin', String(amountCoin.value))
-    if (rechargeOrderNo.value) url.searchParams.set('rechargeOrderNo', rechargeOrderNo.value)
-  } else url.searchParams.set('orderId', orderId.value)
-  url.searchParams.set('method', payMethod.value || 'wechat')
-  url.searchParams.set('amount', amount.value || '0')
-  if (returnLiveRoomId.value) url.searchParams.set('returnLiveRoomId', returnLiveRoomId.value)
-  return url.toString()
+    params.set('scene', 'recharge')
+    params.set('amountCoin', String(amountCoin.value))
+    if (rechargeOrderNo.value) params.set('rechargeOrderNo', rechargeOrderNo.value)
+  } else params.set('orderId', orderId.value)
+  params.set('method', payMethod.value || 'wechat')
+  params.set('amount', amount.value || '0')
+  if (returnLiveRoomId.value) params.set('returnLiveRoomId', returnLiveRoomId.value)
+  target.hash = `/pkg-shop/paying/index?${params.toString()}`
+  return target.toString()
+}
+
+/**
+ * 微信 OAuth 仅回到 H5 根入口。微信会在 URL 普通 query 上追加 code/state，
+ * App.vue 在启动时再按安全 state 恢复至支付 hash 路由。
+ */
+function buildWechatOauthCallbackUrl(): string {
+  return new URL(window.location.origin + '/h5/').toString()
 }
 
 /** state 仅携带支付页恢复所需的公开订单定位参数。 */
