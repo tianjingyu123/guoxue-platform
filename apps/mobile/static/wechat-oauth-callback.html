@@ -4,36 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <title>正在返回支付页</title>
+  <title>正在安全返回</title>
   <style>html,body{height:100%;margin:0;background:#fffaf6;color:#3a2a20;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}.wrap{height:100%;display:grid;place-items:center}.text{font-size:16px}</style>
 </head>
 <body>
-  <main class="wrap"><p class="text">正在返回支付页，请稍候…</p></main>
+  <main class="wrap"><p class="text">正在安全返回，请稍候…</p></main>
   <script>
     (function () {
       var query = new URLSearchParams(window.location.search);
       var code = String(query.get('code') || '').trim();
       var state = String(query.get('state') || '').trim();
-      var target = new URL('/h5/pkg-shop/paying/index', window.location.origin);
+      var target;
       try {
-        if (!code || !state.startsWith('wxpay.')) throw new Error('missing callback data');
-        var raw = state.slice(6).replace(/-/g, '+').replace(/_/g, '/');
-        raw += '='.repeat((4 - raw.length % 4) % 4);
-        var payload = JSON.parse(atob(raw));
-        if (payload.scene === 'recharge') {
-          if (!/^\d+$/.test(String(payload.amountCoin || ''))) throw new Error('invalid recharge');
-          target.searchParams.set('scene', 'recharge');
-          target.searchParams.set('amountCoin', String(payload.amountCoin));
-          if (payload.rechargeOrderNo) target.searchParams.set('rechargeOrderNo', String(payload.rechargeOrderNo));
+        if (!code || !state) throw new Error('missing callback data');
+        if (state.indexOf('wxlogin.') === 0) {
+          target = new URL('/h5/pkg-auth/login/index', window.location.origin);
+          target.searchParams.set('wx_login', '1');
+          target.searchParams.set('code', code);
+          target.searchParams.set('state', state);
         } else {
-          if (!/^[0-9a-f-]{36}$/i.test(String(payload.orderId || ''))) throw new Error('invalid order');
-          target.searchParams.set('orderId', String(payload.orderId));
+          if (state.indexOf('wxpay.') !== 0) throw new Error('unknown callback state');
+          target = new URL('/h5/pkg-shop/paying/index', window.location.origin);
+          var raw = state.slice(6).replace(/-/g, '+').replace(/_/g, '/');
+          raw += '='.repeat((4 - raw.length % 4) % 4);
+          var payload = JSON.parse(atob(raw));
+          if (payload.scene === 'recharge') {
+            if (!/^\d+$/.test(String(payload.amountCoin || ''))) throw new Error('invalid recharge');
+            target.searchParams.set('scene', 'recharge');
+            target.searchParams.set('amountCoin', String(payload.amountCoin));
+            if (payload.rechargeOrderNo) target.searchParams.set('rechargeOrderNo', String(payload.rechargeOrderNo));
+          } else {
+            if (!/^[0-9a-f-]{36}$/i.test(String(payload.orderId || ''))) throw new Error('invalid order');
+            target.searchParams.set('orderId', String(payload.orderId));
+          }
+          target.searchParams.set('method', String(payload.method || 'wechat'));
+          target.searchParams.set('amount', String(payload.amount || '0'));
+          if (payload.returnLiveRoomId) target.searchParams.set('returnLiveRoomId', String(payload.returnLiveRoomId));
+          target.searchParams.set('code', code);
+          target.searchParams.set('state', state);
         }
-        target.searchParams.set('method', String(payload.method || 'wechat'));
-        target.searchParams.set('amount', String(payload.amount || '0'));
-        if (payload.returnLiveRoomId) target.searchParams.set('returnLiveRoomId', String(payload.returnLiveRoomId));
-        target.searchParams.set('code', code);
-        target.searchParams.set('state', state);
       } catch (_) {
         target = new URL('/h5/pkg-mall/home/index', window.location.origin);
         target.searchParams.set('paymentCallback', 'invalid');

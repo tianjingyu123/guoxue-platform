@@ -78,7 +78,13 @@ export const authApi = {
       `state=${encodeURIComponent(state)}`,
       ...(clientKey ? [`clientKey=${encodeURIComponent(clientKey)}`] : []),
     ].join('&')
-    const data = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?${query}`)
+    // 微信 WebView 曾将同一授权地址请求命中为 304，造成前端拿到空响应；每次登录都携带
+    // 一次性标记并禁止缓存，保证获取到完整 OAuth 地址。
+    const cacheKey = Date.now().toString(36)
+    const data = await apiGet<{ url: string }>(
+      `/auth/wechat/oauth-url?${query}&_=${cacheKey}`,
+      { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    )
     if (!data?.url) throw new Error('微信登录配置暂不可用')
     return data.url
   },

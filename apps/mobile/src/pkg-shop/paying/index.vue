@@ -30,6 +30,15 @@
         <text class="cancel-link" @tap="handleCancel">取消支付</text>
       </block>
 
+      <!-- 微信静默授权需要用户手势时的兜底：避免 WebView 自动外跳后白屏 -->
+      <block v-else-if="status === 'authorizing'">
+        <view class="result-icon green"><app-icon name="shield" :size="72" color="#07C160" /></view>
+        <text class="title">继续微信授权</text>
+        <text class="sub">为发起本次支付，请完成一次微信授权</text>
+        <view class="btn primary single" @tap="continueWechatAuthorization"><text>继续微信授权</text></view>
+        <text class="cancel-link" @tap="handleCancel">取消支付</text>
+      </block>
+
       <!-- 确认支付结果中（倒计时归零但仍在查单，不判失败） -->
       <block v-else-if="status === 'confirming'">
         <view class="spinner" />
@@ -98,7 +107,7 @@ import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
 
-type Status = 'loading' | 'paying' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
+type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
 const orderId = ref('')
 const scene = ref<'order' | 'recharge'>('order')
@@ -113,6 +122,7 @@ const countdown = ref(180)
 const failReason = ref('')
 const submitting = ref(false)
 const oauthCallbackCode = ref('')
+const oauthAuthorizeUrl = ref('')
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -176,6 +186,7 @@ async function startPaying() {
   countdown.value = 180
   pollCount = 0
   failReason.value = ''
+  oauthAuthorizeUrl.value = ''
   clearTimers('all') // 清掉上一轮遗留的倒计时/轮询 timer，防泄漏
   startCountdown()
   try {
@@ -342,8 +353,9 @@ const OA_PAYMENT_RETURN_KEY = 'wx_oa_payment_return'
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
  * ① sessionStorage 有缓存 → 直接用（会话内一次授权多次支付）；
  * ② URL 带授权回跳 code → 调后端兑换 openid，成功后缓存并用 replaceState 清掉 code（code 一次性，防刷新复用）；
- * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），整页跳转微信授权，回跳本页后重走 onLoad。
- * 返回 ''=已发起跳转（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
+ * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），展示一次用户确认按钮后再跳转微信授权，
+ *    回跳本页后重走 onLoad。部分微信 WebView 会拦截异步脚本外跳并白屏，而用户点击授权按钮可稳定触发跳转。
+ * 返回 ''=等待用户确认授权（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
  */
 async function ensureOaOpenid(): Promise<string> {
   const cached = sessionStorage.getItem(OA_OPENID_KEY)
@@ -376,8 +388,24 @@ async function ensureOaOpenid(): Promise<string> {
     { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
   )
   if (!url) throw new Error('微信授权发起失败')
-  window.location.href = url
+  oauthAuthorizeUrl.value = url
+  status.value = 'authorizing'
+  clearTimers('all')
   return ''
+}
+
+/** 仅由用户点击触发微信 OAuth 外跳，兼容拦截异步脚本跳转的微信 WebView。 */
+function continueWechatAuthorization() {
+  const target = oauthAuthorizeUrl.value.trim()
+  try {
+    const parsed = new URL(target)
+    if (parsed.origin !== 'https://open.weixin.qq.com') throw new Error('invalid oauth origin')
+    window.location.assign(parsed.toString())
+  } catch {
+    status.value = 'failed'
+    failReason.value = '微信授权链接已失效，请返回订单后重新支付'
+    clearTimers('all')
+  }
 }
 
 /** 微信会把授权 code 放在普通 query、hash query 或 uni-app 页面参数中，统一兼容读取。 */

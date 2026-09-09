@@ -266,6 +266,26 @@
       </view>
     </view>
 
+    <!-- H5 微信 OAuth 必须由可见用户操作触发，避免微信拦截异步脚本外跳后白屏。 -->
+    <view v-if="h5WechatAuthorizationUrl" class="wechat-auth-mask">
+      <view class="wechat-auth-card" @tap.stop>
+        <view class="wechat-auth-icon">
+          <view class="wechat-mark" aria-hidden="true">
+            <view class="wechat-bubble wechat-bubble-primary"><view class="wechat-dot" /><view class="wechat-dot" /></view>
+            <view class="wechat-bubble wechat-bubble-secondary"><view class="wechat-dot wechat-dot-small" /><view class="wechat-dot wechat-dot-small" /></view>
+          </view>
+        </view>
+        <text class="wechat-auth-title">继续微信授权</text>
+        <text class="wechat-auth-desc">为安全登录热卜国学，请完成一次微信授权</text>
+        <view class="wechat-auth-confirm" role="button" tabindex="0" @tap="continueH5WechatAuthorization">
+          <text>继续微信授权</text>
+        </view>
+        <view class="wechat-auth-cancel" role="button" tabindex="0" @tap="cancelH5WechatAuthorization">
+          <text>暂不登录</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 底部安全提示 -->
     <view class="footer">
       <text class="footer-text">我们重视您的隐私与账号安全</text>
@@ -303,6 +323,7 @@ const agreedTerms = ref(false)
 const error = ref('')
 const paipanEntry = ref(false)
 const bindWechatAfterPhone = ref(false)
+const h5WechatAuthorizationUrl = ref('')
 // App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
 const showWechatLogin = ref(false)
 const showAppleLogin = ref(false)
@@ -389,7 +410,8 @@ function createWechatOAuthState(): string {
   if (!window.crypto?.getRandomValues) throw new Error('当前浏览器不支持安全的微信登录')
   const bytes = new Uint8Array(24)
   window.crypto.getRandomValues(bytes)
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+  // 统一静态回跳页依据前缀识别登录场景；随机部分仍是一次性 CSRF state。
+  return `wxlogin.${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`
 }
 
 function clearWechatCallbackParams(): void {
@@ -433,17 +455,40 @@ async function startH5WechatLogin(): Promise<void> {
       WECHAT_OAUTH_ATTEMPT_KEY,
       JSON.stringify({ state, createdAt: Date.now() } satisfies WechatOAuthAttempt),
     )
-    const callbackUrl = new URL(window.location.href)
-    callbackUrl.searchParams.delete('code')
-    callbackUrl.searchParams.delete('state')
-    callbackUrl.searchParams.set('wx_login', '1')
+    // 微信先回到无框架依赖的静态中转页，再由中转页进入登录路由。
+    // 直接回跳 uni-app history 路由在部分 XWeb 版本会在框架初始化前白屏。
+    const callbackUrl = new URL('/h5/wechat-oauth-callback.html', window.location.origin)
     const oauthUrl = await authApi.getWechatOAuthUrl(callbackUrl.toString(), state)
-    window.location.assign(oauthUrl)
+    // 不能在异步请求完成后立即脚本跳转：微信会视为脱离用户手势并留下白屏。
+    // 显示确认卡片，由用户再次点击同步触发授权跳转。
+    h5WechatAuthorizationUrl.value = oauthUrl
+    isLoading.value = false
   } catch (e) {
     window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
     error.value = (e as Error)?.message || '微信登录暂时不可用'
     isLoading.value = false
   }
+}
+
+/** 仅由用户点击触发 OAuth 外跳，兼容微信拦截异步脚本跳转的行为。 */
+function continueH5WechatAuthorization() {
+  const target = h5WechatAuthorizationUrl.value.trim()
+  try {
+    const parsed = new URL(target)
+    if (parsed.origin !== 'https://open.weixin.qq.com') throw new Error('invalid oauth origin')
+    window.location.assign(parsed.toString())
+  } catch {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    h5WechatAuthorizationUrl.value = ''
+    error.value = '微信授权链接已失效，请重新发起微信登录'
+    isLoading.value = false
+  }
+}
+
+function cancelH5WechatAuthorization() {
+  window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+  h5WechatAuthorizationUrl.value = ''
+  isLoading.value = false
 }
 
 async function completeH5WechatLogin(query: Record<string, string | undefined>): Promise<void> {
@@ -1126,6 +1171,64 @@ onUnmounted(() => {
 .third-label {
   font-size: 24rpx;
   color: #999999;
+}
+
+/* 微信授权确认层：让 OAuth 外跳保留在真实用户点击上下文中。 */
+.wechat-auth-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+  background: rgba(34, 28, 24, 0.46);
+}
+.wechat-auth-card {
+  width: 100%;
+  max-width: 600rpx;
+  padding: 64rpx 48rpx 48rpx;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.wechat-auth-icon {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f8ef;
+  margin-bottom: 32rpx;
+}
+.wechat-auth-title { font-size: 38rpx; font-weight: 600; color: #2c2c2c; }
+.wechat-auth-desc { margin-top: 20rpx; text-align: center; font-size: 26rpx; line-height: 1.6; color: #76695f; }
+.wechat-auth-confirm {
+  width: 100%;
+  height: 92rpx;
+  margin-top: 48rpx;
+  border-radius: 46rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+.wechat-auth-cancel {
+  min-height: 80rpx;
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #76695f;
+  font-size: 26rpx;
 }
 
 /* 底部 */
