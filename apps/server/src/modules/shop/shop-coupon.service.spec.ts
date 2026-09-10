@@ -286,7 +286,7 @@ describe("ShopCouponService", () => {
         data: expect.objectContaining({ type: "refund_only", amount: 88, status: "PENDING" }),
       });
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "SELECT pg_advisory_xact_lock(hashtext($1))::text",
         "after-sale:o1",
       );
     });
