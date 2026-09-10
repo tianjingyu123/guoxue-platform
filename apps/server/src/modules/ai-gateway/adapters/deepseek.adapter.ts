@@ -141,6 +141,12 @@ export class DeepSeekAdapter implements AiModelAdapter {
 
     const decoder = new TextDecoder();
     let buffer = "";
+    let finishReason: string | undefined;
+    const checkCompletion = () => {
+      if (options?.requireCompleteStream && finishReason !== "stop") {
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "解读生成中断，未完成本次解读，请重试");
+      }
+    };
 
     try {
       while (true) {
@@ -155,10 +161,14 @@ export class DeepSeekAdapter implements AiModelAdapter {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
           const data = trimmed.slice(6);
-          if (data === "[DONE]") return;
+          if (data === "[DONE]") {
+            checkCompletion();
+            return;
+          }
 
           try {
             const parsed = JSON.parse(data) as DeepSeekResponse;
+            if (parsed.choices?.[0]?.finish_reason) finishReason = parsed.choices[0].finish_reason;
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) yield delta;
           } catch (err) {
@@ -167,6 +177,7 @@ export class DeepSeekAdapter implements AiModelAdapter {
           }
         }
       }
+      checkCompletion();
     } finally {
       reader.releaseLock();
     }

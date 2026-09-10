@@ -411,7 +411,7 @@ export class ClassicService {
         { role: "system", content: "将用户提供的古籍原文译为准确、流畅的白话文，直接输出译文，不重复原文，不输出 JSON。必要注释放在译文后。不确定的出处不要猜测。上下文：" + (dto.context || "未提供") },
         { role: "user", content: dto.text },
       ],
-      options: { temperature: 0.3, maxTokens: 1536 },
+      options: { temperature: 0.3, maxTokens: 1536, requireCompleteStream: true },
     })) {
       content += chunk;
       yield chunk;
