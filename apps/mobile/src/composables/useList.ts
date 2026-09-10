@@ -48,6 +48,8 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
   const loadingMore = ref(false) // 上拉加载更多
   const error = ref('')
   const hasMore = ref(false)
+  let version = 0
+  let revalidating = false
 
   function buildParams(p: number): FetchParams & P {
     const extra = (opts.getParams ? opts.getParams() : {}) as P
@@ -56,32 +58,36 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
 
   /** 重载第一页（首屏、下拉刷新、切换筛选时调用） */
   async function refresh() {
-    if (loading.value) return
+    const requestVersion = ++version
     loading.value = true
     error.value = ''
     page.value = 1
     try {
       const res = await opts.fetcher(buildParams(1))
+      if (requestVersion !== version) return
       list.value = res.items
       total.value = res.total ?? res.items.length
       hasMore.value = res.items.length >= pageSize
     } catch (e: any) {
+      if (requestVersion !== version) return
       error.value = e?.message || '加载失败，请稍后重试'
       list.value = []
       total.value = 0
       hasMore.value = false
     } finally {
-      loading.value = false
+      if (requestVersion === version) loading.value = false
     }
   }
 
   /** 追加下一页（上拉触底调用）。失败静默，保留已加载内容 */
   async function loadMore() {
-    if (loading.value || loadingMore.value || !hasMore.value) return
+    if (loading.value || loadingMore.value || revalidating || !hasMore.value) return
+    const requestVersion = version
     loadingMore.value = true
     try {
       const next = page.value + 1
       const res = await opts.fetcher(buildParams(next))
+      if (requestVersion !== version) return
       list.value.push(...res.items)
       page.value = next
       hasMore.value = res.items.length >= pageSize
@@ -90,6 +96,35 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
     } finally {
       loadingMore.value = false
     }
+  }
+
+  /** 静默同步已加载的所有页；筛选切换后丢弃旧响应，失败不清空已有列表。 */
+  async function revalidate() {
+    if (loading.value || loadingMore.value || revalidating) return
+    revalidating = true
+    const requestVersion = version
+    const loadedPages = page.value
+    const items: T[] = []
+    let latestTotal = 0
+    let lastSize = 0
+    let lastPage = 1
+    try {
+      for (let p = 1; p <= loadedPages; p++) {
+        const res = await opts.fetcher(buildParams(p))
+        if (requestVersion !== version) return
+        items.push(...res.items)
+        latestTotal = res.total ?? items.length
+        lastSize = res.items.length
+        lastPage = p
+        if (lastSize < pageSize) break
+      }
+      list.value = items
+      total.value = latestTotal
+      page.value = lastPage
+      hasMore.value = lastSize >= pageSize && items.length < latestTotal
+      error.value = ''
+    } catch { /* 网络失败保留当前分页与内容 */ }
+    finally { revalidating = false }
   }
 
   /** 空态：非加载中、无错误、列表为空 */
@@ -114,6 +149,7 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
     isEmpty,
     loadStatus,
     refresh,
+    revalidate,
     loadMore,
   }
 }
