@@ -214,7 +214,7 @@ async function loadSession() {
       messages.value = s.messages.map((m, i) => ({
         id: `h-${i}`,
         role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
+        content: m.chapterId === chapterId.value ? m.content : `【其他章节的历史对话】\n${m.content}`,
       }))
       memoryRestored.value = true
       scrollToBottom()
@@ -261,6 +261,10 @@ function goBack() {
 }
 
 function clearChat() {
+  if (isLoading.value) {
+    uni.showToast({ title: '请等待本次回答结束后再清空', icon: 'none' })
+    return
+  }
   if (!messages.value.length) return
   uni.showModal({
     title: '清空对话',
@@ -346,13 +350,14 @@ async function sendCoreStream(text: string, history: { role: string; content: st
     )
     // 成功：收尾流式态 + 免费用户本地额度同步减 1
     const done = live()
-    if (done) done.isStreaming = false
+    if (!done?.content.trim()) throw new Error('伴读未返回内容，请稍后重试。')
+    done.isStreaming = false
     consumeQuotaLocal()
   } catch (e) {
     // 移除刚 push 的空流式气泡（若仍无内容）；已有部分内容则保留并收尾流式态
     const m = live()
     if (m) {
-      if (!m.content) messages.value = messages.value.filter((x) => x !== m)
+      if (!m.content.trim()) messages.value = messages.value.filter((x) => x !== m)
       else m.isStreaming = false
     }
     handleSendError(e)
@@ -366,6 +371,7 @@ async function sendCoreStream(text: string, history: { role: string; content: st
 async function sendCoreFallback(text: string, history: { role: string; content: string }[]) {
   try {
     const r = await classicsApi.companionChat(chapterId.value, text, history)
+    if (!r?.answer?.trim()) throw new Error('伴读未返回内容，请稍后重试。')
     messages.value.push({
       id: (Date.now() + 1).toString(),
       role: 'assistant',

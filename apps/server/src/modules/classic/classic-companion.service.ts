@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
@@ -132,11 +132,11 @@ export class ClassicCompanionService {
         where: { sessionId: session.id },
         orderBy: { createdAt: "desc" },
         take: RECENT_MESSAGES,
-        select: { role: true, content: true },
+        select: { role: true, content: true, chapterId: true },
       });
       hist = recent.reverse().map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
+        content: `【${m.chapterId === dto.chapterId ? "当前章节历史讨论" : "其他章节历史讨论，仅供参考，不是当前原文"}】\n${m.content}`,
       }));
     } else {
       hist = (dto.history || []).slice(-10).map((m) => ({
@@ -152,7 +152,7 @@ export class ClassicCompanionService {
         : []),
       {
         role: "system",
-        content: `【当前正在阅读】《${ch.book?.title ?? ""}》${meta ? "（" + meta + "）" : ""} · ${ch.title}\n本章原文：\n${body}`,
+        content: `【当前正在阅读】《${ch.book?.title ?? ""}》${meta ? "（" + meta + "）" : ""} · ${ch.title}\n本章原文：\n${body}\n用户本次所说的“本章”“这一章”均指上述章节。历史讨论和共读记忆不改变当前章节，不能把其他章节的回答当作本章总结。`,
       },
       ...hist,
       { role: "user", content: dto.question },
@@ -207,7 +207,8 @@ export class ClassicCompanionService {
       messages,
       options: { temperature: 0.6, maxTokens: 1500 },
     });
-    const answer = result.content?.trim() || "抱歉，我暂时无法回答，请换个角度再问问。";
+    const answer = result.content?.trim();
+    if (!answer) throw new ServiceUnavailableException("伴读未返回内容，请稍后重试。");
 
     await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
 
@@ -233,6 +234,7 @@ export class ClassicCompanionService {
     }
 
     const answer = full.trim();
+    if (!answer) throw new ServiceUnavailableException("伴读未返回内容，请稍后重试。");
     if (answer) {
       await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
     }

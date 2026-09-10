@@ -16,6 +16,7 @@
  *   全页零假提交。
  */
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { offlineManageApi } from '@/lib/offline-data'
@@ -162,9 +163,11 @@ onMounted(() => {
     const sys = uni.getSystemInfoSync()
     if (sys?.statusBarHeight) statusBarHeight.value = sys.statusBarHeight
   } catch { /* 降级默认 20 */ }
-  const pages = getCurrentPages()
-  const cur = pages[pages.length - 1] as unknown as { options?: Record<string, string> }
-  const role = cur?.options?.role
+})
+
+// 使用跨端页面加载参数，避免 H5 页面栈 options 缺失而误回落到讲师。
+onLoad((query = {}) => {
+  const role = query.role
   if (role && ROLE_CONFIGS[role]) roleKey.value = role
   // 初始化表单
   const init: Record<string, string> = {}

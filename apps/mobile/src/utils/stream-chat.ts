@@ -101,6 +101,7 @@ export async function streamChat(
   const decoder = new TextDecoder()
   let buffer = ''
   let serverError = ''
+  let completed = false
 
   const handleLine = (line: string) => {
     const trimmed = line.trim()
@@ -127,7 +128,9 @@ export async function streamChat(
       case 'error':
         serverError = ev.message || 'AI 服务异常'
         break
-      // 'done' / 'source' 等其余事件当前无需处理
+      case 'done':
+        completed = true
+        break
     }
   }
 
@@ -140,12 +143,14 @@ export async function streamChat(
       buffer = lines.pop() || ''
       for (const line of lines) handleLine(line)
     }
+    buffer += decoder.decode()
     if (buffer) handleLine(buffer)
   } finally {
     reader.releaseLock()
   }
 
   if (serverError) throw new Error(serverError)
+  if (!completed) throw new Error('回答传输中断，请稍后重试。')
   // #endif
   // #ifndef H5
   throw new Error('当前端不支持流式对话')
