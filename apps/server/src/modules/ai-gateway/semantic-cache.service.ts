@@ -101,6 +101,9 @@ export class SemanticCacheService {
       this.logger.warn(`持久层精确匹配查询失败: ${err.message}`);
     }
 
+    // 解读已按原文及章节隔离，精确未命中后无需再调用向量模型。
+    if (scene.startsWith("classic_translate#")) return null;
+
     // L1: PostgreSQL 向量相似度搜索
     try {
       const [queryVec] = await this.vector.embed([normalized]);
@@ -154,12 +157,12 @@ export class SemanticCacheService {
     model: string,
     tokenUsage?: Record<string, number>,
   ): Promise<void> {
-    const expiryHours = SCENE_EXPIRY_HOURS[scene] ?? DEFAULT_EXPIRY_HOURS;
+    const expiryHours = SCENE_EXPIRY_HOURS[scene.split("#")[0]] ?? DEFAULT_EXPIRY_HOURS;
     const expiresAt = new Date(Date.now() + expiryHours * 3600_000);
 
     let vectorJson: string | null = null;
     try {
-      const [vec] = await this.vector.embed([queryText]);
+      const [vec] = scene.startsWith("classic_translate#") ? [] : await this.vector.embed([queryText]);
       if (vec && vec.length > 0) {
         vectorJson = JSON.stringify(vec);
       }
