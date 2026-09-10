@@ -47,6 +47,8 @@ export class DeepSeekAdapter implements AiModelAdapter {
       max_tokens: options?.maxTokens ?? 2048,
       top_p: options?.topP ?? 0.9,
       stream: false,
+      // 用户对话统一快速响应，不能依赖供应商默认的思考模式。
+      thinking: { type: "disabled" },
     };
 
     let resp: Response;
@@ -109,6 +111,7 @@ export class DeepSeekAdapter implements AiModelAdapter {
       max_tokens: options?.maxTokens ?? 2048,
       top_p: options?.topP ?? 0.9,
       stream: true,
+      thinking: { type: "disabled" },
     };
 
     let resp: Response;

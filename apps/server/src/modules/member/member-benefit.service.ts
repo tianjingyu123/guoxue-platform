@@ -25,6 +25,20 @@ export class MemberBenefitService {
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 10;
   }
 
+  /** 临时测试额度仅作用于指定用户；到期或格式不合法时恢复普通额度。 */
+  async effectiveAiLimit(userId: string): Promise<number> {
+    const raw = await this.redis.get(`aiq:override:${userId}`);
+    if (!raw) return this.dailyFreeLimit;
+    try {
+      const value = JSON.parse(raw);
+      if (Number.isInteger(value.dailyLimit) && value.dailyLimit > 0 && value.dailyLimit <= 1000 &&
+          Number.isFinite(value.expiresAt) && value.expiresAt > Date.now()) {
+        return Math.max(this.dailyFreeLimit, value.dailyLimit);
+      }
+    } catch { /* 非法配置不能绕过普通额度限制。 */ }
+    return this.dailyFreeLimit;
+  }
+
   /** 统一会员有效性判定（收口各模块散装实现） */
   async isActiveMember(userId?: string | null): Promise<boolean> {
     if (!userId) return false;
@@ -50,7 +64,7 @@ export class MemberBenefitService {
     if (await this.isActiveMember(userId)) {
       return { isMember: true, remaining: -1 };
     }
-    const limit = this.dailyFreeLimit;
+    const limit = await this.effectiveAiLimit(userId);
     // TTL 26h：跨零点自然过期即可，key 含日期不会串日
     const { count } = await this.redis.incrWithTtl(this.quotaKey(userId), 26 * 3600);
     if (count > limit) {
@@ -65,11 +79,12 @@ export class MemberBenefitService {
   /** 解读先占额，失败撤回同一天的占额；并发请求仍受额度限制。 */
   async withAiQuota<T>(userId: string, operation: () => Promise<T>): Promise<T> {
     if (await this.isActiveMember(userId)) return operation();
+    const limit = await this.effectiveAiLimit(userId);
     const key = this.quotaKey(userId);
     const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
     try {
-      if (count > this.dailyFreeLimit) {
-        throw new BusinessException(ErrorCode.RATE_LIMITED, `今日 ${this.dailyFreeLimit} 次免费 AI 伴读已用完`);
+      if (count > limit) {
+        throw new BusinessException(ErrorCode.RATE_LIMITED, `今日 ${limit} 次免费 AI 伴读已用完`);
       }
       return await operation();
     } catch (error) {
@@ -82,8 +97,9 @@ export class MemberBenefitService {
     const member = await this.isActiveMember(userId);
     const key = this.quotaKey(userId);
     if (!member) {
+      const limit = await this.effectiveAiLimit(userId);
       const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
-      if (count > this.dailyFreeLimit) {
+      if (count > limit) {
         await this.redis.refundCounter(key);
         throw new BusinessException(ErrorCode.RATE_LIMITED, "今日免费 AI 次数已用完");
       }
@@ -104,7 +120,7 @@ export class MemberBenefitService {
   /** AI 额度查询（前端额度提示） */
   async getAiQuota(userId: string) {
     const isMember = await this.isActiveMember(userId);
-    const limit = this.dailyFreeLimit;
+    const limit = await this.effectiveAiLimit(userId);
     if (isMember) {
       return { isMember: true, dailyLimit: -1, usedToday: 0, remaining: -1 };
     }
