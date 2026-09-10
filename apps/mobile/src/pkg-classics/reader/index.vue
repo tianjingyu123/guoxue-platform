@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
@@ -345,7 +346,7 @@ let aiSeq = 0
 async function explain(seg: string) {
   if (!isLoggedIn()) { needLogin(); return }
   // 同一句已出结果（如等待中关过抽屉）：直接重开呈现，不重复请求
-  if (seg === aiSeg.value && (aiResult.value || aiLoading.value)) { aiOpen.value = true; return }
+  if (seg === aiSeg.value && ((aiResult.value && !aiError.value) || aiLoading.value)) { aiOpen.value = true; return }
   aiOpen.value = true
   aiSeg.value = seg
   aiResult.value = null
@@ -354,6 +355,14 @@ async function explain(seg: string) {
   aiLoading.value = true
   const seq = ++aiSeq // 并发防串台：等待中又点了别句时，旧响应作废不覆盖新句结果
   try {
+    if (streamChatSupported()) {
+      aiResult.value = { translation: '', notes: [] }
+      await streamChat('/classic/translate/stream', { text: seg, context: `${bookTitle.value} · ${curChapter.value?.title || ''}` }, {
+        onChunk: (text) => { if (seq === aiSeq && aiResult.value) aiResult.value.translation += text },
+      })
+      if (seq === aiSeq && !aiResult.value?.translation.trim()) throw new Error('解读未返回内容，请稍后重试。')
+      return
+    }
     const r = await classicsApi.translate(seg, `${bookTitle.value} · ${curChapter.value?.title || ''}`)
     if (seq !== aiSeq) return
     if (!r?.translation?.trim()) throw new Error('解读未返回内容，请稍后重试。')
@@ -727,12 +736,12 @@ onLoad((q) => {
         <scroll-view scroll-y enable-flex class="rd-sheet-body" @touchmove.stop>
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
           <!-- AI 研读中动态卡（阶段文案+墨点晕开+伪进度·关抽屉不中断请求，重开续接进度） -->
-          <view v-if="aiLoading" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
-          <view v-else-if="aiError" class="rd-ai-loading">
+          <view v-if="aiLoading && !aiResult?.translation" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
+          <view v-if="aiError" class="rd-ai-loading">
             <text class="rd-ai-err">{{ aiError }}</text>
             <view class="rd-ai-retry" @tap="retryExplain"><text class="rd-ai-retry-txt">重试</text></view>
           </view>
-          <template v-else-if="aiResult">
+          <template v-if="aiResult?.translation">
             <view class="rd-ai-sec">
               <text class="rd-ai-label">白话译文</text>
               <text class="rd-ai-trans">{{ aiResult.translation }}</text>

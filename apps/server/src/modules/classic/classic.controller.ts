@@ -324,13 +324,20 @@ export class ClassicController {
   // ── 白话翻译 ──
   @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiBearerAuth()
+  @Post("translate/stream")
+  @SkipFormat()
+  async translateStream(@Req() req: Request, @Res() res: Response, @Body() dto: TranslateDto) {
+    await this.sse.writeSseStream(res, this.memberBenefit.withAiStreamQuota(req.user.id, this.svc.translateClassicalStream(dto)));
+  }
+
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
   @Post("translate")
   @ApiOperation({ summary: "文言→白话翻译（AI，需登录）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Req() req: Request, @Body() dto: TranslateDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.svc.translateClassical(dto);
+    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.translateClassical(dto));
   }
 
   // ── 古籍AI问答 ──

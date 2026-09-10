@@ -453,6 +453,19 @@ export class RedisService implements OnModuleDestroy {
     return { count, ttl: remaining > 0 ? remaining : 0 };
   }
 
+  /** 撤回失败请求的计数，保留原 TTL，计数不低于零。 */
+  async refundCounter(key: string): Promise<void> {
+    const conn = await this.getConn();
+    if (conn) {
+      await conn.eval(`local n = tonumber(redis.call('GET', KEYS[1]) or '0')
+        if n > 0 then redis.call('DECR', KEYS[1]) end
+        return 1`, 1, key);
+      return;
+    }
+    const entry = this.memory.get(key);
+    if (entry && entry.expiry > Date.now()) entry.value = String(Math.max(0, Number(entry.value) - 1));
+  }
+
   // ───────── Sorted Set 操作 ─────────
 
   private zsetMemory = new Map<string, Array<{ member: string; score: number }>>();

@@ -62,6 +62,41 @@ export class MemberBenefitService {
     return { isMember: false, remaining: Math.max(0, limit - count) };
   }
 
+  /** 解读先占额，失败撤回同一天的占额；并发请求仍受额度限制。 */
+  async withAiQuota<T>(userId: string, operation: () => Promise<T>): Promise<T> {
+    if (await this.isActiveMember(userId)) return operation();
+    const key = this.quotaKey(userId);
+    const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
+    try {
+      if (count > this.dailyFreeLimit) {
+        throw new BusinessException(ErrorCode.RATE_LIMITED, `今日 ${this.dailyFreeLimit} 次免费 AI 伴读已用完`);
+      }
+      return await operation();
+    } catch (error) {
+      await this.redis.refundCounter(key);
+      throw error;
+    }
+  }
+
+  async *withAiStreamQuota(userId: string, source: AsyncIterable<string>): AsyncIterable<string> {
+    const member = await this.isActiveMember(userId);
+    const key = this.quotaKey(userId);
+    if (!member) {
+      const { count } = await this.redis.incrWithTtl(key, 26 * 3600);
+      if (count > this.dailyFreeLimit) {
+        await this.redis.refundCounter(key);
+        throw new BusinessException(ErrorCode.RATE_LIMITED, "今日免费 AI 次数已用完");
+      }
+    }
+    let completed = false;
+    try {
+      for await (const chunk of source) yield chunk;
+      completed = true;
+    } finally {
+      if (!member && !completed) await this.redis.refundCounter(key);
+    }
+  }
+
   /** AI 额度查询（前端额度提示） */
   async getAiQuota(userId: string) {
     const isMember = await this.isActiveMember(userId);
