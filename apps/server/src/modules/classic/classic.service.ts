@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { createHash } from "crypto";
+import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { safePagination } from "../../common/pagination";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -408,7 +409,6 @@ export class ClassicService {
 保留原文的修辞风格和文化内涵，对关键词语给出注释。${contextHint}
 必须使用以下JSON格式返回（不要包含其他文字，不要用markdown代码块包裹）：
 {
-  "original": "原文",
   "translation": "现代白话文翻译",
   "notes": ["关键词语的注释1", "关键词语的注释2"],
   "source": "推测的出处（不确定则填空字符串）"
@@ -416,6 +416,8 @@ export class ClassicService {
 
     const result = await this.gateway.chat({
       scene: "classic_translate",
+      // 原文和章节共同隔离缓存，防止相似段落命中其他章节的解读。
+      cacheScopeKey: createHash("sha256").update(JSON.stringify(["translate-v2", dto.text, dto.context || ""])).digest("hex"),
       messages: [
         { role: "system", content: prompt },
         { role: "user", content: dto.text },
@@ -424,15 +426,20 @@ export class ClassicService {
     });
 
     try {
-      return JSON.parse(result.content);
-    } catch (err) {
-      this.logger.warn("翻译JSON解析失败", err);
+      const content = result.content?.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
+      const parsed = JSON.parse(content || "");
+      if (!parsed || typeof parsed.translation !== "string" || !parsed.translation.trim()) {
+        throw new Error("missing translation");
+      }
       return {
         original: dto.text,
-        translation: result.content?.slice(0, 2000) || "翻译暂不可用",
-        notes: [],
-        source: "",
+        translation: parsed.translation.trim(),
+        notes: Array.isArray(parsed.notes) ? parsed.notes.filter((note: unknown) => typeof note === "string") : [],
+        source: typeof parsed.source === "string" ? parsed.source : "",
       };
+    } catch {
+      this.logger.warn("古籍解读结果为空或格式不完整");
+      throw new ServiceUnavailableException("解读结果不完整，请稍后重试。");
     }
   }
 

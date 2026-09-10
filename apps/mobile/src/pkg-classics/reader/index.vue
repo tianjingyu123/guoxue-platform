@@ -288,14 +288,25 @@ async function loadTouchpoint() {
   tp.value = await touchpointApi.get('classic_course', { bookId: bookId.value, bookTitle: bookTitle.value })
 }
 
+let chapterLoadSeq = 0
 async function loadChapter(idx: number, scrollTop = true) {
   const ch = chapters.value[idx]
   if (!ch) return
   curIndex.value = idx
+  const loadSeq = ++chapterLoadSeq
+  // 切章立即清除旧正文和解读，使迟到的响应不能混入新章节。
+  paragraphs.value = []
+  ++aiSeq
+  aiLoading.value = false
+  aiOpen.value = false
+  aiSeg.value = ''
+  aiResult.value = null
   try {
     const data = await classicsApi.chapter(ch.id)
+    if (loadSeq !== chapterLoadSeq) return
     paragraphs.value = splitParagraphs(data?.content || '')
   } catch {
+    if (loadSeq !== chapterLoadSeq) return
     paragraphs.value = []
   }
   if (scrollTop) uni.pageScrollTo({ scrollTop: 0, duration: 0 })
@@ -343,9 +354,10 @@ async function explain(seg: string) {
   aiLoading.value = true
   const seq = ++aiSeq // 并发防串台：等待中又点了别句时，旧响应作废不覆盖新句结果
   try {
-    const r = await classicsApi.translate(seg, bookTitle.value)
+    const r = await classicsApi.translate(seg, `${bookTitle.value} · ${curChapter.value?.title || ''}`)
     if (seq !== aiSeq) return
-    aiResult.value = { translation: r?.translation || '暂无翻译', notes: Array.isArray(r?.notes) ? r.notes : [], source: r?.source }
+    if (!r?.translation?.trim()) throw new Error('解读未返回内容，请稍后重试。')
+    aiResult.value = { translation: r.translation, notes: Array.isArray(r?.notes) ? r.notes : [], source: r?.source }
   } catch (e) {
     if (seq !== aiSeq) return
     aiError.value = (e as Error)?.message || 'AI 解读失败，请稍后重试'
