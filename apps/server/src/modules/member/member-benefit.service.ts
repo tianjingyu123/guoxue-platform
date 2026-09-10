@@ -78,7 +78,7 @@ export class MemberBenefitService {
     }
   }
 
-  async *withAiStreamQuota(userId: string, source: AsyncIterable<string>): AsyncIterable<string> {
+  async *withAiStreamQuota(userId: string, source: AsyncIterable<string>, disconnected: () => boolean = () => false): AsyncIterable<string> {
     const member = await this.isActiveMember(userId);
     const key = this.quotaKey(userId);
     if (!member) {
@@ -90,7 +90,11 @@ export class MemberBenefitService {
     }
     let completed = false;
     try {
-      for await (const chunk of source) yield chunk;
+      for await (const chunk of source) {
+        if (disconnected()) throw new Error("解读连接已断开");
+        yield chunk;
+      }
+      if (disconnected()) throw new Error("解读连接已断开");
       completed = true;
     } finally {
       if (!member && !completed) await this.redis.refundCounter(key);

@@ -11,3 +11,4 @@ test('并发占额阻止超额请求且不会累计超限计数',async()=>{const
 test('会员失败不操作免费额度',async()=>{const f=setup(true);await assert.rejects(f.svc.withAiQuota('u',async()=>{throw Error('失败')}));assert.equal(f.keys.length,0)});
 test('流式部分输出后失败退次，正常结束保留扣次',async()=>{const f=setup();await assert.rejects(async()=>{for await(const c of f.svc.withAiStreamQuota('u',(async function*(){yield '部分';throw Error('中断')})())){}});assert.equal(f.count(),0);for await(const c of f.svc.withAiStreamQuota('u',(async function*(){yield '完成'})())){}assert.equal(f.count(),1)});
 test('流式消费者提前结束会退次',async()=>{const f=setup();for await(const c of f.svc.withAiStreamQuota('u',(async function*(){yield '部分';yield '剩余'})())){break}assert.equal(f.count(),0)});
+test('客户端断开后不把完成生成当作成功扣次',async()=>{const f=setup();await assert.rejects(async()=>{for await(const c of f.svc.withAiStreamQuota('u',(async function*(){yield '文字'})(),()=>true)){}});assert.equal(f.count(),0)});

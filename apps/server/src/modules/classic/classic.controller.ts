@@ -327,7 +327,7 @@ export class ClassicController {
   @Post("translate/stream")
   @SkipFormat()
   async translateStream(@Req() req: Request, @Res() res: Response, @Body() dto: TranslateDto) {
-    await this.sse.writeSseStream(res, this.memberBenefit.withAiStreamQuota(req.user.id, this.svc.translateClassicalStream(dto)));
+    await this.sse.writeSseStream(res, this.memberBenefit.withAiStreamQuota(req.user.id, this.svc.translateClassicalStream(dto), () => res.destroyed));
   }
 
   @UseGuards(JwtAuthGuard, ThrottleGuard)
