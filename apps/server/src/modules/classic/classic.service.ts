@@ -435,6 +435,12 @@ export class ClassicService {
     const result = await this.gateway.chat({
       scene: "classic_translate",
       // 原文和章节共同隔离缓存，防止相似段落命中其他章节的解读。
+      validateContent: (raw: string) => {
+        try {
+          const value = JSON.parse(raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1"));
+          return typeof value?.translation === "string" && !!value.translation.trim();
+        } catch { return false; }
+      },
       cacheScopeKey: createHash("sha256").update(JSON.stringify(["translate-v2", dto.text, dto.context || ""])).digest("hex"),
       messages: [
         { role: "system", content: prompt },
