@@ -24,6 +24,7 @@ import {
   recordToolUsage,
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
+import { legacyWechatToolUrl } from "@/lib/legacy-paipan-wechat";
 import { navigateTo } from "@/utils/router";
 import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
 
@@ -241,6 +242,13 @@ async function loadPaipanEntry() {
         throw new Error("排盘服务地址未正确配置");
       }
       // 承接页立即复用本次结果，避免再次请求签名地址造成可见停顿。
+      // #ifdef H5
+      // 微信工具走旧站自己的网页授权；个人中心仍保持原有账号入口。
+      if (entryTarget !== "account" && /micromessenger/i.test(navigator.userAgent)) {
+        window.location.assign(legacyWechatToolUrl(entry.url));
+        return;
+      }
+      // #endif
       stageLegacyPaipanEntry({
         mode: entry.mode,
         url: entry.url,
