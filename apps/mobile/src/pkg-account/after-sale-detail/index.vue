@@ -20,7 +20,7 @@
           <app-icon name="alert-circle" :size="64" color="#D1D5DB" />
         </view>
         <text class="error-text">{{ error }}</text>
-        <view class="error-btn" @tap="fetchData">
+        <view class="error-btn" @tap="fetchData()">
           <text class="error-btn-text">重试</text>
         </view>
       </view>
@@ -193,6 +193,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { goBack, navigateTo } from '@/utils/router'
 import { accountApi, afterSaleTypeLabel, isRefundAfterSaleType } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
@@ -225,20 +226,20 @@ const statusTextMap: Record<string, { icon: string; color: string; bg: string; t
 const sCfg = computed(() => statusTextMap[detail.value.status] || statusTextMap.pending)
 const currentIdx = computed(() => detail.value.timeline?.findIndex((n: { isCurrent?: boolean }) => n.isCurrent) ?? -1)
 
-async function fetchData() {
+async function fetchData(silent = false) {
   if (!currentId) {
     error.value = '缺少售后ID参数'
     return
   }
-  loading.value = true
-  error.value = ''
+  if (!silent) { loading.value = true; error.value = '' }
   try {
     const data = await accountApi.afterSaleDetail(currentId)
     detail.value = data || {}
+    error.value = ''
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -255,8 +256,8 @@ onLoad((q) => {
   if (q && q.id) {
     currentId = q.id
   }
-  fetchData()
 })
+usePageRefresh(() => fetchData(Boolean(detail.value.id)))
 
 function copyId() {
   uni.setClipboardData({

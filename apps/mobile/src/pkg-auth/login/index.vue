@@ -296,6 +296,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { navigateWechatAuthorization } from '@/utils/wechat-top-level'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
@@ -476,7 +477,7 @@ function continueH5WechatAuthorization() {
   try {
     const parsed = new URL(target)
     if (parsed.origin !== 'https://open.weixin.qq.com') throw new Error('invalid oauth origin')
-    window.location.assign(parsed.toString())
+    navigateWechatAuthorization(window, parsed.toString())
   } catch {
     window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
     h5WechatAuthorizationUrl.value = ''

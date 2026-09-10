@@ -163,7 +163,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -199,15 +200,15 @@ function goLearn() {
 }
 
 const retry = () => { error.value = ''; loadData() }
-async function loadData() {
-  loading.value = true; error.value = ''
-  try { order.value = await orderApi.detail(orderId.value) }
-  catch (e) { error.value = (e as Error)?.message || '加载失败' }
-  finally { loading.value = false }
+async function loadData(silent = false) {
+  if (!silent) { loading.value = true; error.value = '' }
+  try { order.value = await orderApi.detail(orderId.value); error.value = '' }
+  catch (e) { if (!silent) error.value = (e as Error)?.message || '加载失败' }
+  finally { if (!silent) loading.value = false }
 }
 
 onLoad((q) => { if (q?.id) { orderId.value = q.id } })
-onMounted(loadData)
+usePageRefresh(() => loadData(Boolean(order.value)))
 
 function copyNo() {
   if (!order.value) return

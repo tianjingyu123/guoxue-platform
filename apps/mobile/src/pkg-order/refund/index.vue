@@ -127,7 +127,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { orderApi } from '@/pkg-order/lib/order-data'
@@ -140,15 +141,15 @@ const error = ref('')
 const data = ref<any>(null)
 const orderId = ref('')
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+async function loadData(silent = false) {
+  if (!silent) { loading.value = true; error.value = '' }
   try {
     data.value = await orderApi.refundProgress(orderId.value)
+    error.value = ''
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 function retry() { loadData() }
@@ -184,7 +185,7 @@ onLoad((q) => {
   orderId.value = (q?.orderId as string) || (q?.id as string) || ''
 })
 
-onMounted(() => { loadData() })
+usePageRefresh(() => loadData(Boolean(data.value)))
 
 function copyId() {
   if (!data.value?.id) return

@@ -195,6 +195,16 @@ function adaptProfile(me: RawMe, checkin: RawCheckin | null, summary: RawProfile
 }
 
 export const profileApi = {
+  /** 仅刷新订单角标，避免轮询时重复加载个人资料与推荐内容。 */
+  async orderCounts(): Promise<ProfileData['orders']> {
+    const summary = await apiGet<RawProfileSummary>('/users/me/summary')
+    return {
+      pending: asMetric(summary?.orders?.pending),
+      shipped: asMetric(summary?.orders?.shipped),
+      received: asMetric(summary?.orders?.received),
+      refund: asMetric(summary?.orders?.refund),
+    }
+  },
   /** 获取用户主页数据 —— 资料、签到与真实统计摘要并行聚合 */
   async getProfile(): Promise<ProfileData> {
     const [me, checkin, summary] = await Promise.all([

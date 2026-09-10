@@ -13,6 +13,7 @@ import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { getToken } from '@/utils/storage'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 
 const loading = ref(true)
 const error = ref('')
@@ -45,6 +46,12 @@ function createEmptyUserData() {
   }
 }
 const userData = ref(createEmptyUserData())
+usePageRefresh(async () => {
+  const token = getToken()
+  if (!token) return
+  const orders = await profileApi.orderCounts()
+  if (getToken() === token) userData.value.orders = orders
+})
 const displayName = computed(() => isGuest.value ? '登录 / 注册' : (userData.value.name || '热卜用户'))
 const displayBio = computed(() => isGuest.value
   ? '暂不登录也可以浏览首页、圈子和发现内容'

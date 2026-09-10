@@ -92,7 +92,6 @@ export function isContentDetailTarget(target: string): boolean {
     "/pkg-circle/articles/detail",
     "/pkg-circle/circles/post",
     "/pkg-course/detail/index",
-    "/pkg-mall/product/detail",
     "/pkg-classics/detail/index",
     "/pkg-live/watch/index",
     "/pkg-live/replay-detail/index",

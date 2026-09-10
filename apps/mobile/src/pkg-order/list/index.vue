@@ -191,6 +191,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo, redirectTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, orderTypeMeta, type OrderListItem } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 
@@ -209,7 +210,7 @@ const pendingCount = computed(() =>
 )
 
 // 状态过滤已下沉后端(orderApi.list 传 tab→后端枚举)，切 tab 重载、上拉加载更多
-const { list: orders, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<OrderListItem>({
+const { list: orders, loading, error, isEmpty, loadStatus, refresh, revalidate, loadMore } = useList<OrderListItem>({
   fetcher: ({ page, pageSize }) => orderApi.list(activeTab.value || undefined, page, pageSize),
 })
 
@@ -231,8 +232,12 @@ onLoad((query?: Record<string, string>) => {
     return
   }
   if (tab && statusTabs.some((t) => t.key === tab)) activeTab.value = tab
-  refresh()
-  loadCounts()
+})
+let firstDisplay = true
+usePageRefresh(async () => {
+  const first = firstDisplay
+  firstDisplay = false
+  await Promise.all([first ? refresh() : revalidate(), loadCounts()])
 })
 onReachBottom(() => loadMore())
 // 下拉刷新（pages.json 已开 enablePullDownRefresh）
@@ -248,6 +253,7 @@ function selectTab(key: string) {
   if (activeTab.value === key) return
   activeTab.value = key
   refresh()
+  loadCounts()
 }
 
 function cfg(status: string) {

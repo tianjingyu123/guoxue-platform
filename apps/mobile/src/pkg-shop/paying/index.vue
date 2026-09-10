@@ -106,6 +106,7 @@ import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
+import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/wechat-top-level'
 
 type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
@@ -147,6 +148,16 @@ const methodColor = computed(() => {
 })
 
 onLoad((q) => {
+  // #ifdef H5
+  // 商品/课程旧详情层可能把购买流程留在 iframe，先恢复顶层再授权或调起 JSAPI。
+  try {
+    if (navigator.userAgent.toLowerCase().includes('micromessenger') && promoteWechatPaymentPage(window)) return
+  } catch (e) {
+    status.value = 'failed'
+    failReason.value = (e as Error)?.message || '请直接在微信中打开支付页面'
+    return
+  }
+  // #endif
   scene.value = q?.scene === 'recharge' ? 'recharge' : 'order'
   orderId.value = (q?.orderId as string) || ''
   amountCoin.value = Number(q?.amountCoin || 0)
@@ -400,7 +411,7 @@ function continueWechatAuthorization() {
   try {
     const parsed = new URL(target)
     if (parsed.origin !== 'https://open.weixin.qq.com') throw new Error('invalid oauth origin')
-    window.location.assign(parsed.toString())
+    navigateWechatAuthorization(window, parsed.toString())
   } catch {
     status.value = 'failed'
     failReason.value = '微信授权链接已失效，请返回订单后重新支付'

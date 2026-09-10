@@ -116,6 +116,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { usePageRefresh } from '@/composables/usePageRefresh'
 import { goBack, navigateTo } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { accountApi, afterSaleTabs, afterSaleStatusConfig, afterSaleTypeLabel, isRefundAfterSaleType, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
@@ -143,16 +144,19 @@ function sCfg(status: string) {
   return afterSaleStatusConfig[status] || { label: status, color: '#999', bg: '#F5F5F5', icon: 'clock' }
 }
 
-async function fetchData() {
-  loading.value = true
-  error.value = ''
+let loaded = false
+async function fetchData(silent = false) {
+  silent = silent === true
+  if (!silent) { loading.value = true; error.value = '' }
   try {
     const data = await accountApi.afterSales()
     list.value = data || []
+    loaded = true
+    error.value = ''
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -165,8 +169,8 @@ onLoad(() => {
     statusBarHeight.value = 20
     navHeight.value = 108
   }
-  fetchData()
 })
+usePageRefresh(() => fetchData(loaded))
 
 function confirmCancel(id: string) {
   cancelId.value = id
