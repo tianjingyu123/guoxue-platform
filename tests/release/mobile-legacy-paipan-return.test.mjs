@@ -39,7 +39,7 @@ test('旧排盘签名地址只在内存中一次性交接，承接页不会重�
   assert.match(legacyData, /pendingLegacyEntry/u)
   assert.match(legacyData, /pendingLegacyEntry = null/u)
   assert.match(paipanPage, /stageLegacyPaipanEntry\(/u)
-  assert.match(page, /consumeLegacyPaipanEntry\(\) \|\| await legacyPaipanApi\.entry\(\)/u)
+  assert.match(page, /consumeLegacyPaipanEntry\(entryContext\) \|\| await requestLegacyPaipanEntry\(entryContext\)/u)
   assert.doesNotMatch(page, />旧版排盘</u)
 })
 

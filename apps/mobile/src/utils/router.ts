@@ -11,6 +11,7 @@
  */
 
 import { requestParentContentLayerClose, tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
+import { REGISTERED_PAGE_PATHS } from '@/utils/registered-page-paths'
 
 const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
 
@@ -577,7 +578,7 @@ export function resolveRoute(url: string): string {
 
 /** 登录回跳仅接收已登记的站内页面；不依赖原生路由失败来阻止任意地址。 */
 export function isRegisteredAppRoute(path: string): boolean {
-  return MAIN_TABS.includes(path) || Object.values(ROUTE_MAP).some((target) => target.split('?')[0] === path)
+  return REGISTERED_PAGE_PATHS.has(path) || MAIN_TABS.includes(path) || Object.values(ROUTE_MAP).some((target) => target.split('?')[0] === path)
     || DYNAMIC_ROUTES.some(([, target]) => target.split('?')[0] === path)
 }
 

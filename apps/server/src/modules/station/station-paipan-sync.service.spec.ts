@@ -56,13 +56,15 @@ describe("StationPaipanSyncService", () => {
     expect(url.searchParams.has("v")).toBe(false);
   });
 
-  it("未绑定手机号时只返回中文业务错误", async () => {
+  it("普通用户未绑定手机号时交由旧站授权，个人中心仍保留校验", async () => {
     prisma.user.findUnique.mockResolvedValue({
       phone: null,
       phoneEnc: null,
       attributionStationId: null,
     });
-    await expect(service.getUserEntry("user-1")).rejects.toBeInstanceOf(BusinessException);
+    await expect(service.getUserEntry("user-1")).resolves.toEqual({mode: "legacy", url: "https://www.yrydai.com/p1.php", attributionReady: false});
+    await expect(service.getUserAccountEntry("user-1")).rejects.toBeInstanceOf(BusinessException);
+    expect(prisma.station.update).not.toHaveBeenCalled();
   });
 
   it("native 模式保留自研排盘且不查询用户", async () => {

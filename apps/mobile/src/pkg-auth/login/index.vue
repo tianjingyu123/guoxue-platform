@@ -513,7 +513,7 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
   isLoading.value = true
   error.value = ''
   try {
-    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: !paipanEntry.value })
+    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: true })
     const loginData = res.data
     if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
@@ -684,7 +684,7 @@ async function handleThirdParty(_type: 'wechat') {
     // #ifdef APP-PLUS
     channel = 'app'
     // #endif
-    const res = await authApi.wechatLogin(code, channel, { createIfMissing: !paipanEntry.value })
+    const res = await authApi.wechatLogin(code, channel, { createIfMissing: true })
     const loginData = res.data
     if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })

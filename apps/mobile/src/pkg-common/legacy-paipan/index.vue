@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { onBackPress, onHide, onReady, onShow } from '@dcloudio/uni-app'
-import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
+import { onBackPress, onHide, onLoad, onReady, onShow } from '@dcloudio/uni-app'
+import { consumeLegacyPaipanEntry, legacyPaipanContextPath, readLegacyPaipanContext, requestLegacyPaipanEntry } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
@@ -9,6 +9,9 @@ import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBr
 // #ifdef APP-PLUS
 import { captureLegacyShareImage, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
 // #endif
+
+let entryContext = readLegacyPaipanContext()
+onLoad((query) => { entryContext = readLegacyPaipanContext(query || {}) })
 
 const loading = ref(true)
 const error = ref('')
@@ -624,7 +627,7 @@ function returnToNewSystem() {
 }
 
 function openLogin() {
-  try { uni.setStorageSync('login:redirect', '/pkg-common/legacy-paipan/index') } catch { /* 登录仍可继续 */ }
+  try { uni.setStorageSync('login:redirect', legacyPaipanContextPath(entryContext)) } catch { /* 登录仍可继续 */ }
   navigateTo('/login?paipan=1')
 }
 
@@ -635,7 +638,7 @@ async function loadEntry() {
   loginRequired.value = false
   try {
     // 正常入口由上一页一次性交接已生成的地址；直接深链进入时才回源请求。
-    const entry = consumeLegacyPaipanEntry() || await legacyPaipanApi.entry()
+    const entry = consumeLegacyPaipanEntry(entryContext) || await requestLegacyPaipanEntry(entryContext)
     if (entry.mode !== 'legacy') {
       uni.reLaunch({ url: '/pages/paipan/index' })
       return

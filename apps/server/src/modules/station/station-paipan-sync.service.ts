@@ -182,6 +182,17 @@ export class StationPaipanSyncService {
       select: { phone: true, phoneEnc: true, attributionStationId: true },
     });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+    // 普通工具允许仅微信登录的用户交由旧站授权；不能伪造手机号签名。
+    // 个人中心及推荐人开通仍保留原手机号要求。
+    if (target === "tool" && !user.phoneEnc && !user.phone) {
+      const url = this.parseHttpsUrl(
+        process.env.PAIPAN_REFERRAL_BASE || "https://www.yrydai.com/p1.php",
+        "PAIPAN_REFERRAL_BASE",
+      );
+      url.search = "";
+      url.hash = "";
+      return { mode: "legacy", url: url.toString(), attributionReady: false };
+    }
     const phone = this.readPhone(user);
     const url = this.buildSignedEntryUrl(phone, target);
     const attributionReady = await this.isAttributionReady(user.attributionStationId);

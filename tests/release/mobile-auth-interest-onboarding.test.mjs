@@ -37,7 +37,7 @@ function runtime() {
       return copy(saveResponseOverride === undefined ? remote.get(id) : saveResponseOverride)
     },
   })
-  for (const file of ['utils/storage.ts', 'utils/interests.ts', 'utils/router.ts', 'lib/interest-data.ts', 'utils/auth-journey.ts']) {
+  for (const file of ['utils/storage.ts', 'utils/interests.ts', 'utils/registered-page-paths.ts', 'utils/router.ts', 'lib/interest-data.ts', 'utils/auth-journey.ts']) {
     const source = read(`apps/mobile/src/${file}`).replace(/^import[^\r\n]*$/gm, '').replace(/\bexport\s+/g, '')
     vm.runInContext(stripTypeScriptTypes(source), context, { filename: file })
   }

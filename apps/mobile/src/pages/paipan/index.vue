@@ -24,7 +24,6 @@ import {
   recordToolUsage,
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
-import { legacyWechatToolUrl } from "@/lib/legacy-paipan-wechat";
 import { navigateTo } from "@/utils/router";
 import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
 
@@ -231,14 +230,7 @@ async function loadPaipanEntry() {
       throw new Error("排盘服务状态暂时无法确认，请稍后重试");
     }
 
-    // #ifdef H5
-    // 普通微信工具使用旧站网页授权，不依赖 App 签名接口的绑手机条件。
-    // 必须先确认运行模式；个人中心与分站推荐仍走各自服务端入口。
-    if (entryTarget === "tool" && /micromessenger/i.test(navigator.userAgent)) {
-      window.location.assign(legacyWechatToolUrl("https://www.yrydai.com/p1.php"));
-      return;
-    }
-    // #endif
+
     const entry =
       entryTarget === "account"
         ? await legacyPaipanApi.account()
@@ -250,21 +242,16 @@ async function loadPaipanEntry() {
         throw new Error("排盘服务地址未正确配置");
       }
       // 承接页立即复用本次结果，避免再次请求签名地址造成可见停顿。
-      // #ifdef H5
-      // 微信工具走旧站自己的网页授权；个人中心仍保持原有账号入口。
-      if (entryTarget !== "account" && /micromessenger/i.test(navigator.userAgent)) {
-        window.location.assign(legacyWechatToolUrl(entry.url));
-        return;
-      }
-      // #endif
+
+      const context = { target: entryTarget, stationId: entryStationId };
       stageLegacyPaipanEntry({
         mode: entry.mode,
         url: entry.url,
         attributionReady: "attributionReady" in entry ? Boolean(entry.attributionReady) : false,
-      });
+      }, context);
       legacyRouting.value = true;
       uni.navigateTo({
-        url: "/pkg-common/legacy-paipan/index",
+        url: paipanReturnPath().replace("/pages/paipan/index", "/pkg-common/legacy-paipan/index"),
         fail: () => {
           legacyRouting.value = false;
           entryError.value = "排盘工具暂时无法打开";

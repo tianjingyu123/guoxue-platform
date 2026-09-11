@@ -3,7 +3,6 @@ import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
 import { Request } from "express";
@@ -24,15 +23,16 @@ export class LegacyPaipanController {
   }
 
   @Get("entry")
+  @Header("Cache-Control", "no-store")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "获取普通排盘服务端签名入口" })
-  @ApiResponse({ status: 400, description: "用户尚未绑定手机号" })
+  @ApiOperation({ summary: "获取已登录用户排盘入口：手机号签名或旧站网页授权" })
   getEntry(@Req() req: Request) {
     return this.service.getUserEntry(req.user.id);
   }
 
   @Get("account")
+  @Header("Cache-Control", "no-store")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取旧排盘个人中心服务端签名入口" })
@@ -41,6 +41,9 @@ export class LegacyPaipanController {
   }
 
   @Get("station/:stationId/entry")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Header("Cache-Control", "no-store")
   @ApiOperation({ summary: "获取分站站长旧 userid 对应的推荐入口" })
   getStationEntry(@Param("stationId") stationId: string) {
     return this.service.getStationEntry(stationId);
