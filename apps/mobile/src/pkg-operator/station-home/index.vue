@@ -27,6 +27,8 @@ import { useShare } from '@/composables/useShare'
 
 const loading = ref(true)
 const error = ref('')
+const feedError = ref(false)
+const feedLoading = ref(false)
 const notFound = ref(false)
 
 const stationCode = ref('')
@@ -69,7 +71,7 @@ async function loadData() {
 
     const [b, feeds, mp, pinned] = await Promise.all([
       stationHomeApi.getBrand(code),
-      stationHomeApi.getFeed(),
+      loadFeed(),
       stationHomeApi.getMicroPage(code),
       stationHomeApi.getPinnedBoards(code),
     ])
@@ -87,6 +89,21 @@ async function loadData() {
   }
 }
 async function retry() { await loadData() }
+
+// 推荐加载失败只影响推荐区，保留分站品牌和功能入口。
+async function loadFeed(): Promise<StationFeedCard[]> {
+  if (feedLoading.value) return feedList.value
+  feedLoading.value = true
+  feedError.value = false
+  try {
+    feedList.value = await stationHomeApi.getFeed()
+  } catch {
+    feedError.value = true
+  } finally {
+    feedLoading.value = false
+  }
+  return feedList.value
+}
 
 function openStationPaipan() {
   navigateTo(`/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}`)
@@ -221,6 +238,11 @@ function goBack() {
             <!-- 内容推荐 → 平台精选 feed（紧凑网格） -->
             <view v-else-if="isFeedFloor(comp.type)" class="sh-mp-rec">
               <text class="sh-mp-rec-title">{{ comp.title || '精选推荐' }}</text>
+              <view v-if="!recFeed.length" class="sh-feed-empty">
+                <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
+                <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed">推荐内容加载失败，点击重试</text>
+                <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览其他栏目</text>
+              </view>
               <view class="sh-mp-grid">
                 <view v-for="item in recFeed.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
                   <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
@@ -313,7 +335,11 @@ function goBack() {
               </view>
             </view>
           </view>
-          <view v-else class="sh-feed-empty"><text class="sh-feed-empty-txt">暂无内容</text></view>
+          <view v-else class="sh-feed-empty">
+            <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
+            <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed">推荐内容加载失败，点击重试</text>
+            <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览上方栏目</text>
+          </view>
         </view>
         </template>
 
