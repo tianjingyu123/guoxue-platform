@@ -13,6 +13,17 @@ function load(apiGet) {
   return exports.discoverApi;
 }
 
+test('真实聚合内容保留课程古籍，空响应及失败不生成演示内容', async () => {
+  const api = load(async () => ({ sections: [
+    { type: 'course', items: [{ id: 'course-1', type: 'course', title: '真实课程' }] },
+    { type: 'classic', items: [{ id: 'book-1', type: 'classic', title: '真实古籍' }] },
+  ] }));
+  const items = await api.getPublicFeed();
+  assert.deepEqual(Array.from(items, item => item.data.id), ['course-1', 'book-1']);
+  assert.equal((await load(async () => ({ sections: [] })).getPublicFeed()).length, 0);
+  await assert.rejects(load(async () => { throw new Error('网络失败'); }).getPublicFeed());
+});
+
 test('分站能区分请求失败和成功空列表', async () => {
   const failure = new Error('网络不可用');
   const api = load(async () => { throw failure; });

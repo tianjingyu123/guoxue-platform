@@ -148,6 +148,10 @@ function adaptDiscoverFeed(res: RawDiscoverData | null): FeedItem[] {
 }
 
 export const discoverApi = {
+  /** 分站冷启动使用真实多类型内容；失败向调用方传递，不回落演示数据。 */
+  async getPublicFeed(): Promise<FeedItem[]> {
+    return adaptDiscoverFeed(await apiGet<RawDiscoverData>('/discover?pageSize=12'))
+  },
   /**
    * 发现页推荐流 — GET /discover（后端 sections 多类型聚合 → 前端混排 FeedItem）
    * @param category 标准一级品类（中文键，如「诗词歌赋」）；传入或 'all' 即「推荐」
