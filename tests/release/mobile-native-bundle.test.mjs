@@ -194,3 +194,11 @@ test("production 通道必须使用正式域名基线", () => {
     /正式客户端构建域名不符合发布基线/,
   );
 });
+
+test("API 地址含路径时阻断生产构建，避免重复接口前缀", () => {
+  const env = { VITE_API_URL: "https://api.rebugx.cn", VITE_PUBLIC_H5_URL: "https://api.rebugx.cn/h5/", VITE_PUBLIC_ASSET_ORIGIN: "https://api.rebugx.cn" };
+  assert.doesNotThrow(() => validateProductionClientEnv("production", env));
+  for (const path of ["/api/v1", "/api/v1/", "/other"]) {
+    assert.throws(() => validateProductionClientEnv("production", {...env, VITE_API_URL: env.VITE_API_URL + path}), /只能填写域名/);
+  }
+});
