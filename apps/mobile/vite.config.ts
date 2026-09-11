@@ -52,6 +52,9 @@ export function validateProductionClientEnv(mode: string, env: Record<string, st
     } catch {
       throw new Error(`生产客户端构建配置 ${key} 不是有效 URL`);
     }
+    if (key === "VITE_API_URL" && parsed.pathname !== "/") {
+      throw new Error("VITE_API_URL 只能填写域名，不能包含 /api/v1 或其他路径");
+    }
     if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
       throw new Error(`生产客户端构建配置 ${key} 必须是无凭据、查询参数和片段的 HTTPS URL`);
     }
