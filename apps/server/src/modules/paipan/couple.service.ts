@@ -6,7 +6,7 @@ import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 /**
  * 存库 resultData 经脱敏后可能不含 input（生辰单独加密于 clientBirth），
@@ -73,7 +73,7 @@ export class CoupleService {
       select: { id: true, inviteToken: true },
     });
 
-    const base = serverConfig.publicH5BaseUrl;
+    const base = (await getH5Base(this.prisma));
     const shareUrl = `${base}/#/pkg-paipan/couple/accept?token=${chart.inviteToken}`;
 
     return { id: chart.id, inviteToken: chart.inviteToken, shareUrl };

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 @Injectable()
 export class ShareService {
@@ -9,7 +9,7 @@ export class ShareService {
   async getShareConfig(type: string, id: string) {
     const miniApps = await this.prisma.miniAppConfig.findMany({ where: { isActive: true } });
     const mainApp = miniApps.find(m => m.type === "MAIN") || miniApps[0];
-    const h5BaseUrl = serverConfig.publicH5BaseUrl;
+    const h5BaseUrl = (await getH5Base(this.prisma));
 
     switch (type) {
       case "course": {

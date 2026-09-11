@@ -355,7 +355,7 @@ export class SystemController {
       /** 审核期间展示的公告文案 */
       notice: '更多精彩功能，请在浏览器中打开热卜国学 H5 版本体验',
       /** 跳转到 H5 完整版的链接 */
-      h5Url: serverConfig.publicH5Url,
+      h5Url: (await this.systemService.getBrandConfig()).h5Url,
     };
   }
 

@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { getCurrentShareUrl } from "@/utils/share"
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -141,7 +142,7 @@ function handleShare() {
   if (!notice.value) return
   let shareText = `${notice.value.title}\n${BRAND.nameShort}平台公告`
   // #ifdef H5
-  shareText = window.location.href
+  shareText = getCurrentShareUrl()
   // #endif
   uni.setClipboardData({
     data: shareText,

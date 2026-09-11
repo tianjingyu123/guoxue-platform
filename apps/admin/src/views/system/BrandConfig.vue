@@ -151,8 +151,9 @@
               <el-input
                 v-model="form.h5Url"
                 maxlength="500"
-                placeholder="https://api.your-domain.invalid/h5/"
+                placeholder="https://你的域名/h5/"
               />
+              <small>用于新生成的H5分享链接。请先完成域名、证书及微信配置；保存不会迁移现有页面。</small>
             </el-form-item>
           </el-col>
           <el-col :span="12">

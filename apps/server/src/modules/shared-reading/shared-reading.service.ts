@@ -8,7 +8,7 @@ import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CreateGroupDto } from "./shared-reading.dto";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 /** 单章视为"读完"的进度阈值（ReadingProgress.progress 为 0-100） */
 export const PROGRESS_THRESHOLD = 80;
@@ -135,7 +135,7 @@ export class SharedReadingService {
     return {
       groupId: group.id,
       inviteToken,
-      shareUrl: `${serverConfig.publicH5BaseUrl}/#/pkg-classics/shared-reading/invite?token=${inviteToken}`,
+      shareUrl: `${(await getH5Base(this.prisma))}/#/pkg-classics/shared-reading/invite?token=${inviteToken}`,
     };
   }
 
@@ -216,7 +216,7 @@ export class SharedReadingService {
       inviteToken: iAmMember && status === "RECRUITING" ? group.inviteToken : null,
       shareUrl:
         iAmMember && status === "RECRUITING"
-          ? `${serverConfig.publicH5BaseUrl}/#/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
+          ? `${(await getH5Base(this.prisma))}/#/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
           : null,
     };
   }

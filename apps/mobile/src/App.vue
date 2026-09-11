@@ -452,6 +452,7 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  void hydrateBrandConfig()
   // DCloud 官方约定：冷启动/恢复前台在 onShow 读取 runtime.arguments；热启动同时由
   // newintent 全局事件接管。去重逻辑会阻止持久化的旧参数造成循环跳转。
   openCurrentAppEntryArgument('lifecycle', options)

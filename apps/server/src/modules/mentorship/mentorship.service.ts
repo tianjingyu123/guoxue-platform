@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { GROWTH_LEVELS } from "../user-growth/user-growth.service";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 /** 拜师邀请 token 有效期（7 天） */
 const INVITE_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -44,7 +44,7 @@ export class MentorshipService {
   async invite(mentorId: string): Promise<{ inviteToken: string; shareUrl: string }> {
     const inviteToken = randomBytes(16).toString("hex"); // 32 位十六进制
     await this.redis.set(inviteKey(inviteToken), mentorId, INVITE_TTL_SECONDS);
-    const base = serverConfig.publicH5BaseUrl;
+    const base = (await getH5Base(this.prisma));
     const shareUrl = `${base}/#/pkg-mine/mentorship/accept?token=${inviteToken}`;
     return { inviteToken, shareUrl };
   }

@@ -187,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 
@@ -203,11 +203,11 @@ const selectedBg = ref(0)
 // 域名取品牌配置真源 BRAND.h5Url（生产 https://api.rebugx.cn/h5/），
 // 拼装为 H5 落地页带邀请码，杜绝 example.com 占位域名
 const INVITE_CODE = 'GUOXUE2026'
-const linkInfo = ref({
+const linkInfo = computed(() => ({
   inviteCode: INVITE_CODE,
   inviteLink: `${BRAND.h5Url.replace(/\/$/, '')}/pages/index/index?invite=${INVITE_CODE}`,
   qrCodeUrl: '',
-})
+}))
 
 // 海报配置（对应 getInvitePosterConfig mock）
 const posterConfig = ref({

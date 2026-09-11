@@ -63,7 +63,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
-import { buildH5Url } from '@/utils/share'
+import { buildH5Url, getCurrentShareUrl } from '@/utils/share'
 
 interface ContentBlock {
   type: 'heading' | 'paragraph' | 'image' | 'list' | 'quote' | 'divider'
@@ -259,7 +259,7 @@ async function onShare() {
   }
   const canonical = buildH5Url('pkg-common/content/index', { slug: contentSlug.value })
   // #ifdef H5
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : canonical
+  const shareUrl = typeof window !== 'undefined' ? getCurrentShareUrl() : canonical
   const nav = navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
   if (nav.share) {
     try {

@@ -8,7 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { getTermByName } from "../solar-term/solar-term.constants";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 /**
  * 课-P1 AI 获客内容套件（获客环）
@@ -26,8 +26,8 @@ import { serverConfig } from "../../config/server-config";
 export const MARKETING_MONTHLY_LIMIT = 100;
 
 /** ref 归因短链模板（生产 H5 落地页） */
-const referralLink = (userId: string): string => {
-  return `${serverConfig.publicH5BaseUrl}/?ref=${encodeURIComponent(userId)}`;
+const referralLink = async (userId: string, prisma: PrismaService): Promise<string> => {
+  return `${(await getH5Base(prisma))}/?ref=${encodeURIComponent(userId)}`;
 };
 
 /** 合规定性系统约束（三类生成共用·A级禁词负面约束+B级替换引导） */
@@ -218,7 +218,7 @@ export class MarketingContentService {
     await this.audit.moderateTextOrThrow(body, { scene: "MARKETING_CONTENT", userId });
 
     // 4. 尾部自动拼从业者 ref 归因短链（获客内容把客户资产沉淀回平台）
-    const content = `${body}\n\n—— 更多传统文化内容：${referralLink(userId)}`;
+    const content = `${body}\n\n—— 更多传统文化内容：${await referralLink(userId, this.prisma)}`;
 
     // 5. 落库留痕（passedAudit=true）
     const record = await this.prisma.marketingContent.create({

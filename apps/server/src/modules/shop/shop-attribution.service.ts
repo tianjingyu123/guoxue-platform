@@ -3,7 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
-import { serverConfig } from "../../config/server-config";
+import { getH5Base } from "../../config/h5-entry";
 
 /**
  * 商城分销归因域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -30,8 +30,8 @@ export class ShopAttributionService {
   /** 白标贺卡默认祝语（从业者未自定义时使用·R4 合规：寓意表述，无功效承诺） */
   private static readonly GIFT_CARD_DEFAULT_BLESSING = "山川异域，风月同天。愿此雅物承美意，伴君岁岁皆安澜。";
   /** 名片页 H5 链接模板（课题一 P2 从业者名片·扫码归因回流平台） */
-  private static get giftCardQrBase(): string {
-    return `${serverConfig.publicH5BaseUrl}/pkg-creator/teacher-profile/index`;
+  private async giftCardQrBase(): Promise<string> {
+    return `${(await getH5Base(this.prisma))}/pkg-creator/teacher-profile/index`;
   }
 
   /**
@@ -63,7 +63,7 @@ export class ShopAttributionService {
       return {
         fromName,
         blessing: ShopAttributionService.GIFT_CARD_DEFAULT_BLESSING,
-        qrRef: `${ShopAttributionService.giftCardQrBase}?userId=${referrer.id}&ref=${referrer.id}`,
+        qrRef: `${await this.giftCardQrBase()}?userId=${referrer.id}&ref=${referrer.id}`,
       };
     } catch (e) {
       this.logger.warn("白标贺卡信息组装失败，本单不附贺卡", e);

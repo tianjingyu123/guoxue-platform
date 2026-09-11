@@ -9,6 +9,7 @@ import { AuditService } from "../audit/audit.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { getH5Entry, validateH5EntrySwitch } from "../../config/h5-entry";
 import { serverConfig } from "../../config/server-config";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
@@ -234,12 +235,12 @@ export class SystemService {
     contactEmail: "",
   };
 
-  /** 公网地址由部署环境最终裁决，避免数据库缓存中的旧域名在切换后继续外发。 */
-  private applyPublicUrlOverrides<T extends { domain: string; h5Url: string }>(config: T): T {
+  /** API域名由部署环境控制，H5分享入口每次读取后台配置。 */
+  private async applyPublicUrlOverrides<T extends { domain: string; h5Url: string }>(config: T): Promise<T> {
     return {
       ...config,
       domain: serverConfig.publicDomain,
-      h5Url: serverConfig.publicH5Url,
+      h5Url: await getH5Entry(this.prisma),
     };
   }
 
@@ -256,7 +257,7 @@ export class SystemService {
     );
     if (cached) {
       return {
-        ...this.applyPublicUrlOverrides(cached),
+        ...await this.applyPublicUrlOverrides(cached),
         payH5Provider,
       };
     }
@@ -265,7 +266,7 @@ export class SystemService {
     const result = { ...SystemService.DEFAULT_BRAND_CONFIG, ...(row ?? {}) };
     await this.redis.setJson(CONFIG_CACHE_PREFIX + "brand", result, CONFIG_CACHE_TTL);
     return {
-      ...this.applyPublicUrlOverrides(result),
+      ...await this.applyPublicUrlOverrides(result),
       payH5Provider,
     };
   }
@@ -277,6 +278,7 @@ export class SystemService {
     for (const [k, v] of Object.entries(dto)) {
       if (typeof v === "string") data[k] = v.trim();
     }
+    if (data.h5Url) data.h5Url = validateH5EntrySwitch(data.h5Url);
     const result = await this.prisma.brandConfig.upsert({
       where: { id: "default" },
       create: { id: "default", ...data, updatedBy },

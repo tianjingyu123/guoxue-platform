@@ -13,14 +13,6 @@ export function buildH5Url(route: string, params: ShareQuery = {}): string {
   const envH5Url = String((import.meta as any).env?.VITE_PUBLIC_H5_URL || "");
   let base = (BRAND.h5Url || envH5Url).replace(/\/+$/, "");
   if (!base) throw new Error("未配置 H5 公网地址，无法生成分享链接");
-  // #ifdef H5
-  if (typeof window !== "undefined" && window.location?.origin) {
-    const rawBase = String((import.meta as any).env?.BASE_URL || "/h5/");
-    const basePath = `/${rawBase}`.replace(/\/+/g, "/").replace(/\/+$/, "");
-    base = `${window.location.origin}${basePath}`;
-  }
-  // #endif
-
   const cleanRoute = String(route || "").replace(/^\/+/, "");
   const query = Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null && String(value) !== "")
@@ -32,7 +24,15 @@ export function buildH5Url(route: string, params: ShareQuery = {}): string {
 
 /** 生成当前页面的正式 H5 链接；H5 保留浏览器完整 query，App/小程序从页面栈重建。 */
 export function getCurrentShareUrl(): string {
-  if (typeof window !== "undefined" && window.location?.href) return window.location.href;
+  if (typeof window !== "undefined" && window.location?.href) {
+    const current = new URL(window.location.href);
+    const basePath = String((import.meta as any).env?.BASE_URL || "/h5/");
+    const prefix = `/${basePath}`.replace(/\/+/g, "/").replace(/\/+$/, "");
+    if (current.pathname === prefix || current.pathname.startsWith(`${prefix}/`)) {
+      return `${buildH5Url(current.pathname.slice(prefix.length))}${current.search}${current.hash}`;
+    }
+    return buildH5Url("pages/index/index");
+  }
   const pages = getCurrentPages();
   const current = pages[pages.length - 1] as unknown as {
     route?: string;

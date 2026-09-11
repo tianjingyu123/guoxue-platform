@@ -100,14 +100,17 @@ const CLEARABLE_BRAND_FIELDS = new Set<keyof BrandConfig>([
 ]);
 
 let hydrating: Promise<void> | null = null;
+let lastHydratedAt = 0;
 
 /** 启动时从后端水合品牌配置（App.vue onLaunch 调用·幂等·失败静默用内置默认值） */
 export function hydrateBrandConfig(): Promise<void> {
   if (hydrating) return hydrating;
+  if (lastHydratedAt && Date.now() - lastHydratedAt < 30_000) return Promise.resolve();
   hydrating = (async () => {
     try {
       const cfg = await apiGet<Record<string, string>>("/system/public/brand-config");
       if (!cfg) return;
+      lastHydratedAt = Date.now();
       for (const [remoteKey, localKey] of Object.entries(FIELD_MAP)) {
         const v = cfg[remoteKey];
         if (typeof v !== "string") continue;
@@ -117,6 +120,6 @@ export function hydrateBrandConfig(): Promise<void> {
       // 静默降级：品牌配置拉取失败时保留内置默认值，不影响启动
       hydrating = null; // 允许下次重试
     }
-  })();
+  })().finally(() => { hydrating = null; });
   return hydrating;
 }
