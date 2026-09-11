@@ -7,6 +7,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
 const mockPrisma = {
+  brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   marketingContent: {
     count: jest.fn(),
     create: jest.fn(),

@@ -23,7 +23,7 @@ export class ShareService {
           desc: course.intro || course.title,
           image: course.cover,
           miniPath: `/pages/course/detail?id=${id}`,
-          h5Url: `${h5BaseUrl}/course/${encodeURIComponent(id)}`,
+          h5Url: `${h5BaseUrl}/pkg-course/detail/index?id=${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -38,7 +38,7 @@ export class ShareService {
           desc: article.content?.substring(0, 100) || article.title,
           image: article.cover,
           miniPath: `/pages/article/detail?id=${id}`,
-          h5Url: `${h5BaseUrl}/article/${encodeURIComponent(id)}`,
+          h5Url: `${h5BaseUrl}/pkg-circle/articles/detail?id=${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -47,7 +47,7 @@ export class ShareService {
           title: "直播分享",
           desc: "精彩直播正在进行",
           miniPath: `/pages/live/room?id=${id}`,
-          h5Url: `${h5BaseUrl}/live/${encodeURIComponent(id)}`,
+          h5Url: `${h5BaseUrl}/pkg-live/watch/index?id=${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -61,7 +61,7 @@ export class ShareService {
           title: bounty.title,
           desc: bounty.description || bounty.title,
           miniPath: `/pages/bounty/detail?id=${id}`,
-          h5Url: `${h5BaseUrl}/bounty/${encodeURIComponent(id)}`,
+          h5Url: `${h5BaseUrl}/pkg-bounty/detail/index?id=${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }

@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
+  brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   mentorship: {
     findFirst: jest.fn(),
     findMany: jest.fn(),

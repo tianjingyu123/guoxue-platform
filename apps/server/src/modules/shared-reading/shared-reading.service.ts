@@ -135,7 +135,7 @@ export class SharedReadingService {
     return {
       groupId: group.id,
       inviteToken,
-      shareUrl: `${(await getH5Base(this.prisma))}/#/pkg-classics/shared-reading/invite?token=${inviteToken}`,
+      shareUrl: `${(await getH5Base(this.prisma))}/pkg-classics/shared-reading/invite?token=${inviteToken}`,
     };
   }
 
@@ -216,7 +216,7 @@ export class SharedReadingService {
       inviteToken: iAmMember && status === "RECRUITING" ? group.inviteToken : null,
       shareUrl:
         iAmMember && status === "RECRUITING"
-          ? `${(await getH5Base(this.prisma))}/#/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
+          ? `${(await getH5Base(this.prisma))}/pkg-classics/shared-reading/invite?token=${group.inviteToken}`
           : null,
     };
   }

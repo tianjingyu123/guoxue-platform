@@ -45,7 +45,7 @@ export class MentorshipService {
     const inviteToken = randomBytes(16).toString("hex"); // 32 位十六进制
     await this.redis.set(inviteKey(inviteToken), mentorId, INVITE_TTL_SECONDS);
     const base = (await getH5Base(this.prisma));
-    const shareUrl = `${base}/#/pkg-mine/mentorship/accept?token=${inviteToken}`;
+    const shareUrl = `${base}/pkg-mine/mentorship/accept?token=${inviteToken}`;
     return { inviteToken, shareUrl };
   }
 

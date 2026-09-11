@@ -13,7 +13,8 @@ function load(path, deps, globals = {}) {
   return module.exports;
 }
 const env = { PUBLIC_H5_URL: 'https://old.example/h5/', CORS_ORIGIN: 'https://new.example', WECHAT_OAUTH_ALLOWED_ORIGINS: 'https://new.example' };
-const resolver = load('apps/server/src/config/h5-entry.ts', { '@nestjs/common': { BadRequestException: Error }, './server-config': { serverConfig: { publicH5Url: env.PUBLIC_H5_URL } } }, { process: { env } });
+const runtime = { publicH5Url: env.PUBLIC_H5_URL, corsOrigin: ['https://new.example'], wsCorsOrigin: ['https://new.example'] };
+const resolver = load('apps/server/src/config/h5-entry.ts', { '@nestjs/common': { BadRequestException: Error }, './server-config': { serverConfig: runtime } }, { process: { env } });
 test('入口规范化，拒绝非HTTPS、外加参数、账号、端口和不匹配路径', () => {
   assert.equal(resolver.normalizeH5Entry(' https://NEW.example/h5 '), 'https://new.example/h5/');
   for (const value of ['http://new.example/h5/', 'https://user@new.example/h5/', 'https://new.example/h5/?token=x', 'https://new.example/h5/#x', 'https://new.example:444/h5/', 'https://new.example/other/']) assert.throws(() => resolver.normalizeH5Entry(value));
@@ -21,6 +22,37 @@ test('入口规范化，拒绝非HTTPS、外加参数、账号、端口和不匹
 test('后台只允许选择已登记域名，不能自动扩展权限', () => {
   assert.equal(resolver.validateH5EntrySwitch('https://new.example/h5/'), 'https://new.example/h5/');
   assert.throws(() => resolver.validateH5EntrySwitch('https://unprepared.example/h5/'));
+});
+
+test('环境默认入口不能代替实际跨域和WebSocket白名单', () => {
+  runtime.wsCorsOrigin = [];
+  assert.throws(() => resolver.validateH5EntrySwitch('https://new.example/h5/'));
+  runtime.wsCorsOrigin = ['https://new.example'];
+  runtime.corsOrigin = [];
+  assert.throws(() => resolver.validateH5EntrySwitch('https://new.example/h5/'));
+  runtime.corsOrigin = ['https://new.example'];
+});
+
+test('服务端四类分享在切换和回退后使用真实页面路由并保留ID', async () => {
+  const { ShareService } = load('apps/server/src/modules/share/share.service.ts', {
+    '@nestjs/common': { Injectable: () => x => x }, '../../config/h5-entry': resolver,
+  });
+  let h5Url = 'https://new.example/h5/';
+  const prisma = { brandConfig: { findUnique: async () => ({ h5Url }) }, miniAppConfig: { findMany: async () => [] } };
+  for (const name of ['course', 'article', 'bountyQuestion']) prisma[name] = { findUnique: async () => ({ title: '测试' }) };
+  const service = new ShareService(prisma);
+  const routes = { course: 'pkg-course/detail/index', article: 'pkg-circle/articles/detail', live: 'pkg-live/watch/index', bounty: 'pkg-bounty/detail/index' };
+  for (const base of ['https://new.example/h5/', 'https://old.example/h5/']) {
+    h5Url = base;
+    for (const [type, route] of Object.entries(routes)) {
+      const result = await service.getShareConfig(type, 'a/b 中文');
+      const url = new URL(result.h5Url);
+      assert.equal(url.pathname, '/h5/' + route);
+      assert.equal(url.origin, new URL(base).origin);
+      assert.equal(url.searchParams.get('id'), 'a/b 中文');
+      assert.equal(url.hash, '');
+    }
+  }
 });
 test('数据库切换后两次读取立即更新；空值和旧非法配置回退环境值', async () => {
   let value = 'https://new.example/h5/';

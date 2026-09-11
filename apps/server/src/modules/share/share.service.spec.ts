@@ -8,6 +8,7 @@ describe("ShareService", () => {
 
   beforeEach(async () => {
     prisma = {
+      brandConfig: { findUnique: jest.fn().mockResolvedValue({ h5Url: 'https://new.example/h5/' }) },
       miniAppConfig: { findMany: jest.fn() },
       course: { findUnique: jest.fn() },
       article: { findUnique: jest.fn() },

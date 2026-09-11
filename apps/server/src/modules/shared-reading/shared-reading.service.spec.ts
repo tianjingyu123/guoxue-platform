@@ -6,6 +6,7 @@ import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
+  brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   classicBook: { findFirst: jest.fn() },
   classicChapter: { count: jest.fn() },
   readingProgress: { findUnique: jest.fn() },

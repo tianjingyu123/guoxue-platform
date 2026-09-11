@@ -19,6 +19,7 @@ describe("CoupleService（V4 双人合盘）", () => {
   let svc: CoupleService;
 
   const prisma = {
+    brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
     paipanRecord: { findFirst: jest.fn() },
     coupleChart: {
       create: jest.fn(),

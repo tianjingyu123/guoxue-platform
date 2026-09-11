@@ -5,6 +5,7 @@ import { CommissionService } from "../commission/commission.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 
 const mockPrisma = {
+  brandConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   order: { findMany: jest.fn() },
   station: { findMany: jest.fn() },
 };

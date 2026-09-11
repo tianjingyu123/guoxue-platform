@@ -23,8 +23,8 @@ export function validateH5EntrySwitch(value: string): string {
     try { return value?.trim() ? [new URL(value.trim()).origin] : []; } catch { return []; }
   });
   const defaults = [process.env.PUBLIC_H5_URL, process.env.PUBLIC_API_URL];
-  const cors = origins([...defaults, ...(process.env.CORS_ORIGIN || "").split(",")]);
-  const websocket = origins([...defaults, ...(process.env.WS_CORS_ORIGIN || process.env.CORS_ORIGIN || "").split(",")]);
+  const cors = serverConfig.corsOrigin;
+  const websocket = serverConfig.wsCorsOrigin;
   const oauth = origins([...defaults, ...(process.env.WECHAT_OAUTH_ALLOWED_ORIGINS || "").split(",")]);
   if (!cors.includes(origin) || !websocket.includes(origin) || !oauth.includes(origin)) {
     throw new BadRequestException("此H5域名尚未接入，请先配置跨域访问及微信授权允许域名");

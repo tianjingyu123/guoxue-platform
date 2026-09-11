@@ -74,7 +74,7 @@ export class CoupleService {
     });
 
     const base = (await getH5Base(this.prisma));
-    const shareUrl = `${base}/#/pkg-paipan/couple/accept?token=${chart.inviteToken}`;
+    const shareUrl = `${base}/pkg-paipan/couple/accept?token=${chart.inviteToken}`;
 
     return { id: chart.id, inviteToken: chart.inviteToken, shareUrl };
   }
