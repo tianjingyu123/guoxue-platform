@@ -3,6 +3,7 @@
 
 import { apiGet } from '@/utils/request'
 import { discoverApi, type FeedItem } from '@/lib/discover-data'
+import { getSmartFeed, type FeedEnvelope } from '@/lib/feed-data'
 import { stationPinnedTargetUrl } from '@/lib/station-pinned-public-data'
 
 // 分站模板（对齐后端 STATION_TEMPLATES + 站长个性化 templateConfig 合并结果）
@@ -38,6 +39,7 @@ export interface StationFeature {
 
 // 分站精选内容卡片（把平台 discover 的多态 FeedItem 拍平为统一卡片）
 export interface StationFeedCard {
+  platformItem?: FeedEnvelope
   id: string | number
   type: string // course/product/live/agent/classic/video
   title: string
@@ -217,11 +219,11 @@ export const stationHomeApi = {
     return s?.code || ''
   },
   /** 分站精选内容流 — 复用平台真实推荐流（分站是平台内容的品牌化入口），拍平为统一卡片 */
-  async getFeed(): Promise<StationFeedCard[]> {
-    const recommended = await discoverApi.getRecommendations({ throwOnError: true })
-    // 推荐池仅覆盖图文，空池时读取平台已发布的多类型内容。
-    const items = recommended.length ? recommended : await discoverApi.getPublicFeed()
-    return adaptFeed(items)
+  async getFeed(page = 1): Promise<StationFeedCard[]> {
+    // 与总站首页共用推荐策略、鉴权和公开内容过滤，不单独维护推荐池。
+    const items = await getSmartFeed(page, 20, 'recommend')
+    return items.map(item => ({ id: item.id, type: item.type, title: item.title,
+      cover: item.cover || '', author: item.author?.name || '', platformItem: item }))
   },
   /** 分站已发布微页面 — GET /station/brand/:code/micro-page（无已发布页返回 null → 回退模板默认楼层） */
   async getMicroPage(code: string): Promise<MicroPageView | null> {

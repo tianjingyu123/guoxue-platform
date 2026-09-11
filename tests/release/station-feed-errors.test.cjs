@@ -4,6 +4,36 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('node:module').createRequire(require('node:path').resolve('apps/mobile/package.json'))('typescript');
 
+test('分站每页直接使用总站推荐策略并保留完整卡片，失败可感知', async () => {
+  const exports = {};
+  const calls = [];
+  const item = { id: 'post-1', type: 'post', title: '平台推荐', payload: { circleName: '圈子' } };
+  let fail = false;
+  const js = ts.transpileModule(fs.readFileSync('apps/mobile/src/pkg-operator/lib/station-home-data.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  vm.runInNewContext(js, { exports, require: () => ({ getSmartFeed: async (...args) => {
+    calls.push(args); if (fail) throw Error('请求失败'); return [item];
+  } }) });
+  const cards = await exports.stationHomeApi.getFeed(2);
+  assert.deepEqual(calls, [[2, 20, 'recommend']]);
+  assert.equal(cards[0].platformItem, item);
+  fail = true;
+  await assert.rejects(exports.stationHomeApi.getFeed(3), /请求失败/);
+});
+
+test('主推前置且同类型同ID去重，保留平台顺序与不同类型同ID', () => {
+  const source = fs.readFileSync('apps/mobile/src/pkg-operator/station-home/index.vue', 'utf8');
+  const declarations = source.match(/const platformFeed = computed[^\n]+\nconst recFeed = computed[^\n]+/)[0];
+  const pin = {id:'1',type:'course'};
+  const tail = [{id:'1',type:'course'}, {id:'1',type:'classic'}, {id:'2',type:'course'}];
+  const ctx = { pinnedList:{value:[pin]}, feedList:{value:tail}, computed: f => ({get value(){return f();}}) };
+  vm.createContext(ctx); vm.runInContext(declarations + '\nthis.result=recFeed;',ctx);
+  assert.deepEqual(Array.from(ctx.result.value), [pin,tail[1],tail[2]]);
+  ctx.pinnedList.value = [];
+  assert.deepEqual(Array.from(ctx.result.value), tail);
+});
+
 function load(apiGet) {
   const exports = {};
   const js = ts.transpileModule(fs.readFileSync('apps/mobile/src/lib/discover-data.ts', 'utf8'), {

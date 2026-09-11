@@ -4,6 +4,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import FeedCard from '@/components/feed/feed-card.vue'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { captureRefFromQuery } from '@/utils/referral'
@@ -46,7 +47,10 @@ const showFeed = computed(() => sectionVisible(template.value, 'recommend') || s
 const useMicroPage = computed(() => !!microPage.value && microPage.value.components.length > 0)
 // 微页面里的「内容推荐」类楼层复用精选 feed 渲染：站长有锁定主推位则优先展示，否则回退平台推荐流
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
-const recFeed = computed(() => (pinnedList.value.length ? pinnedList.value : feedList.value))
+const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
+const recFeed = computed(() => [...pinnedList.value, ...platformFeed.value])
+const feedPage = ref(0)
+const feedEnd = ref(false)
 
 onLoad((q: Record<string, string> = {}) => {
   // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
@@ -91,18 +95,26 @@ async function loadData() {
 async function retry() { await loadData() }
 
 // 推荐加载失败只影响推荐区，保留分站品牌和功能入口。
-async function loadFeed(): Promise<StationFeedCard[]> {
+async function loadFeed(more = false): Promise<StationFeedCard[]> {
   if (feedLoading.value) return feedList.value
   feedLoading.value = true
   feedError.value = false
   try {
-    feedList.value = await stationHomeApi.getFeed()
+    const page = more ? feedPage.value + 1 : 1
+    const items = await stationHomeApi.getFeed(page)
+    feedList.value = more ? [...feedList.value, ...items.filter(item => !feedList.value.some(old => old.type === item.type && String(old.id) === String(item.id)))] : items
+    feedPage.value = page
+    feedEnd.value = items.length < 20
   } catch {
     feedError.value = true
   } finally {
     feedLoading.value = false
   }
   return feedList.value
+}
+
+function loadMoreFeed() {
+  if (!loading.value && !feedLoading.value && !feedEnd.value && !feedError.value) void loadFeed(true)
 }
 
 function openStationPaipan() {
@@ -181,7 +193,7 @@ function goBack() {
       </view>
     </view>
 
-    <scroll-view scroll-y class="sh-scroll">
+    <scroll-view scroll-y class="sh-scroll" @scrolltolower="loadMoreFeed">
       <!-- 三态 -->
       <view v-if="loading" class="state-box">
         <view class="sh-sk-hero" />
@@ -240,14 +252,17 @@ function goBack() {
               <text class="sh-mp-rec-title">{{ comp.title || '精选推荐' }}</text>
               <view v-if="!recFeed.length" class="sh-feed-empty">
                 <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
-                <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed">推荐内容加载失败，点击重试</text>
+                <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
                 <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览其他栏目</text>
               </view>
               <view class="sh-mp-grid">
-                <view v-for="item in recFeed.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
+                <view v-for="item in recFeed" :key="item.type + item.id" class="sh-mp-gcard" @tap="!item.platformItem && openFeed(item)">
+                  <feed-card v-if="item.platformItem" :item="item.platformItem" />
+                  <template v-else>
                   <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
                   <text class="sh-mp-gname">{{ item.title }}</text>
                   <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
+                  </template>
                 </view>
               </view>
             </view>
@@ -307,42 +322,22 @@ function goBack() {
             <text class="sh-feed-title">{{ pinnedList.length ? '更多推荐' : '精选内容' }}</text>
             <text class="sh-feed-sub">为你优选的国学好课好物</text>
           </view>
-          <view v-if="feedList.length" class="sh-feed-list">
-            <view v-for="item in feedList" :key="item.id" class="sh-feed-card" @tap="openFeed(item)">
-              <view class="sh-feed-cover-wrap">
-                <image lazy-load class="sh-feed-cover" :src="item.cover || ''" mode="aspectFill" />
-                <view v-if="item.isLive" class="sh-feed-live">
-                  <view class="sh-feed-live-dot" /><text class="sh-feed-live-txt">直播中</text>
-                </view>
-                <view v-else-if="item.type === 'video'" class="sh-feed-play"><app-icon name="play" :size="56" color="#ffffff" /></view>
-              </view>
-              <view class="sh-feed-info">
-                <view class="sh-feed-type">
-                  <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
-                  <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
-                </view>
-                <text class="sh-feed-name">{{ item.title }}</text>
-                <view class="sh-feed-bottom">
-                  <view class="sh-feed-author">
-                    <text class="sh-feed-author-name">{{ item.author || '热卜国学' }}</text>
-                  </view>
-                  <view class="sh-feed-stats">
-                    <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>
-                    <view v-if="item.likes" class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.likes) }}</text></view>
-                  </view>
-                </view>
-                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
-              </view>
-            </view>
+          <view v-if="platformFeed.length" class="sh-feed-list">
+            <feed-card v-for="item in platformFeed" :key="item.type + item.id" :item="item.platformItem!" />
           </view>
           <view v-else class="sh-feed-empty">
             <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
-            <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed">推荐内容加载失败，点击重试</text>
+            <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
             <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览上方栏目</text>
           </view>
         </view>
         </template>
 
+        <view v-if="feedList.length" class="sh-feed-empty">
+          <text v-if="feedLoading">正在加载…</text>
+          <text v-else-if="feedError" @tap="loadFeed(true)">加载失败，点击重试</text>
+          <text v-else-if="!feedEnd" @tap="loadMoreFeed">加载更多</text>
+        </view>
         <view class="sh-bottom-pad" />
       </template>
     </scroll-view>
