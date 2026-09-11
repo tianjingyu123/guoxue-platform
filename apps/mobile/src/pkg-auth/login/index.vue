@@ -300,13 +300,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateWechatAuthorization } from '@/utils/wechat-top-level'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
+import { getToken, setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
 // #ifdef APP-PLUS
 import { hydrateRemoteConfig, isClientFeatureEnabled } from '@/lib/remote-config'
 // #endif
@@ -788,8 +788,24 @@ function browseAsGuest() {
   uni.reLaunch({ url: '/pages/index/index' })
 }
 
+// #ifdef H5
+// 历史缓存会保留旧授权弹层；仅恢复旧页时处理，不干扰首次 OAuth 回调。
+function restoreLoginPage(event: PageTransitionEvent) {
+  if (!event.persisted) return
+  h5WechatAuthorizationUrl.value = ''
+  isLoading.value = false
+  if (getToken()) {
+    // 返回动作不重新执行排盘目标，避免再次外跳形成循环。
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
+}
+onMounted(() => window.addEventListener('pageshow', restoreLoginPage))
+// #endif
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  // #ifdef H5
+  window.removeEventListener('pageshow', restoreLoginPage)
+  // #endif
 })
 </script>
 
