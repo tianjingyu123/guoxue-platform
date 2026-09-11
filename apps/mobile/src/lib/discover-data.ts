@@ -189,12 +189,13 @@ export const discoverApi = {
   },
 
   /** 个性化推荐 — GET /discover/recommendations（同 sections 适配） */
-  async getRecommendations(): Promise<FeedItem[]> {
+  async getRecommendations(options: { throwOnError?: boolean } = {}): Promise<FeedItem[]> {
     try {
       const items = adaptDiscoverFeed(await apiGet<RawDiscoverData>('/discover/recommendations?pageSize=12'))
       // 推荐内容必须来自真实接口；无数据时由页面展示诚实空态，不回落演示销量/阅读量。
       return items
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return []
     }
   },

@@ -218,7 +218,7 @@ export const stationHomeApi = {
   },
   /** 分站精选内容流 — 复用平台真实推荐流（分站是平台内容的品牌化入口），拍平为统一卡片 */
   async getFeed(): Promise<StationFeedCard[]> {
-    const items = await discoverApi.getRecommendations()
+    const items = await discoverApi.getRecommendations({ throwOnError: true })
     return adaptFeed(items)
   },
   /** 分站已发布微页面 — GET /station/brand/:code/micro-page（无已发布页返回 null → 回退模板默认楼层） */
