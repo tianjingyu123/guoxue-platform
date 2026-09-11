@@ -27,8 +27,8 @@ export class StationPaipanSyncService {
     return { mode: this.runtime.getMode() };
   }
 
-  async getUserEntry(userId: string): Promise<LegacyPaipanEntry> {
-    return this.getSignedUserEntry(userId, "tool");
+  async getUserEntry(userId: string, client: "app" | "h5" = "app"): Promise<LegacyPaipanEntry> {
+    return this.getSignedUserEntry(userId, "tool", client);
   }
 
   async getUserAccountEntry(userId: string): Promise<LegacyPaipanEntry> {
@@ -175,6 +175,7 @@ export class StationPaipanSyncService {
   private async getSignedUserEntry(
     userId: string,
     target: "tool" | "my",
+    client: "app" | "h5" = "app",
   ): Promise<LegacyPaipanEntry> {
     if (this.runtime.isNative()) return { mode: "native", url: null, attributionReady: true };
     const user = await this.prisma.user.findUnique({
@@ -182,9 +183,10 @@ export class StationPaipanSyncService {
       select: { phone: true, phoneEnc: true, attributionStationId: true },
     });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
-    // 普通工具允许仅微信登录的用户交由旧站授权；不能伪造手机号签名。
+    // 微信 H5 使用第三方网页入口，不能按是否绑定手机错误选择 App 接口。
+    // 无手机号的普通工具交由旧站授权，不伪造手机号签名。
     // 个人中心及推荐人开通仍保留原手机号要求。
-    if (target === "tool" && !user.phoneEnc && !user.phone) {
+    if (target === "tool" && (client === "h5" || (!user.phoneEnc && !user.phone))) {
       const url = this.parseHttpsUrl(
         process.env.PAIPAN_REFERRAL_BASE || "https://www.yrydai.com/p1.php",
         "PAIPAN_REFERRAL_BASE",

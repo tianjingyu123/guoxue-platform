@@ -45,6 +45,14 @@ describe("StationPaipanSyncService", () => {
     expect(url.searchParams.get("key")).toMatch(/^[a-f0-9]{32}$/);
   });
 
+  it("H5 已绑定手机也使用网页入口，不泄露 App 签名", async () => {
+    prisma.user.findUnique.mockResolvedValue({ phone: "13000000000", phoneEnc: null, attributionStationId: null });
+    const result = await service.getUserEntry("user-1", "h5");
+    expect(result.url).toBe("https://www.yrydai.com/p1.php");
+    expect(result.url).not.toMatch(/mobile|key|guoxueApp/);
+    expect(prisma.station.update).not.toHaveBeenCalled();
+  });
+
   it("个人中心使用 go=my 且不擅自追加 v", async () => {
     prisma.user.findUnique.mockResolvedValue({
       phone: "13000000000",

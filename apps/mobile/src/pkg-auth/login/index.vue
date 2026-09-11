@@ -27,8 +27,14 @@
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
+      <!-- 排盘受阻后优先展示微信登录，保留账号方式，不自动代勾协议。 -->
+      <view v-if="paipanWechatAvailable" class="guest-entry" role="button" tabindex="0"
+        @tap="useAccountLogin = !useAccountLogin"
+        @keydown="activateOnKeyboard($event, () => useAccountLogin = !useAccountLogin)">
+        <text>{{ preferWechatLogin ? '使用验证码或密码登录' : '使用微信快捷登录' }}</text>
+      </view>
       <!-- 登录方式：手机验证码 + 密码 -->
-      <view class="tabs" role="tablist" aria-label="选择登录方式">
+      <view v-show="!preferWechatLogin" class="tabs" role="tablist" aria-label="选择登录方式">
         <view
           class="tab"
           :class="{ active: loginType === 'phone' }"
@@ -56,7 +62,7 @@
       <!-- 登录表单 -->
       <view class="form">
         <!-- 手机号 -->
-        <view class="input-wrap">
+        <view v-show="!preferWechatLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="phone" :size="20" color="#999999" />
           </view>
@@ -74,7 +80,7 @@
         </view>
 
         <!-- 验证码 -->
-        <view v-if="loginType === 'phone'" class="input-wrap">
+        <view v-if="!preferWechatLogin && loginType === 'phone'" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="message-circle" :size="20" color="#999999" />
           </view>
@@ -107,7 +113,7 @@
         </view>
 
         <!-- 密码 -->
-        <view v-else class="input-wrap">
+        <view v-else-if="!preferWechatLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="lock" :size="20" color="#999999" />
           </view>
@@ -136,7 +142,7 @@
         <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
 
         <!-- 忘记密码 -->
-        <view v-if="loginType === 'password'" class="forgot-row">
+        <view v-if="!preferWechatLogin && loginType === 'password'" class="forgot-row">
           <text
             class="forgot-link"
             role="link"
@@ -182,20 +188,20 @@
         <!-- 登录按钮 -->
         <view
           class="submit-btn"
-          :class="{ 'submit-btn-disabled': !canSubmit || isLoading }"
+          :class="{ 'submit-btn-disabled': (!preferWechatLogin && !canSubmit) || isLoading }"
           role="button"
           :aria-busy="isLoading ? 'true' : 'false'"
           :aria-disabled="isLoading ? 'true' : 'false'"
           tabindex="0"
-          @tap="handleLogin"
-          @keydown="activateOnKeyboard($event, handleLogin)"
+          @tap="preferWechatLogin ? handleThirdParty('wechat') : handleLogin()"
+          @keydown="activateOnKeyboard($event, () => preferWechatLogin ? handleThirdParty('wechat') : handleLogin())"
         >
           <AppIcon v-if="isLoading" name="loader-2" :size="16" color="#ffffff" class="spin" />
-          <text class="submit-text">{{ isLoading ? '登录中...' : '登录' }}</text>
+          <text class="submit-text">{{ isLoading ? '登录中...' : preferWechatLogin ? '微信快捷登录' : '登录' }}</text>
         </view>
 
         <!-- 注册入口 -->
-        <view class="register-row">
+        <view v-if="!preferWechatLogin" class="register-row">
           <text class="register-normal">还没有账号？</text>
           <text
             class="register-link"
@@ -323,6 +329,14 @@ const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
 const paipanEntry = ref(false)
+const useAccountLogin = ref(false)
+const paipanWechatAvailable = computed(() => {
+  // #ifdef H5
+  return paipanEntry.value && showWechatLogin.value && isWechatBrowser()
+  // #endif
+  return false
+})
+const preferWechatLogin = computed(() => paipanWechatAvailable.value && !useAccountLogin.value)
 const bindWechatAfterPhone = ref(false)
 const h5WechatAuthorizationUrl = ref('')
 // App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
