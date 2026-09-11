@@ -22,7 +22,7 @@ import {
   type MicroPageView,
 } from '@/pkg-operator/lib/station-home-data'
 import { formatPrice } from '@/utils/format'
-import { legacyStationPaipanApi, type LegacyStationSyncState } from '@/pkg-operator/lib/legacy-paipan-station'
+import { resolveOwnerPaipanState, type LegacyStationSyncState } from '@/pkg-operator/lib/legacy-paipan-station'
 import { useShare } from '@/composables/useShare'
 
 const loading = ref(true)
@@ -105,10 +105,7 @@ async function openFeature(f: StationFeature) {
   if (f.key === 'paipan') {
     if (!ownPreview.value) return openStationPaipan()
     try {
-      let state = await legacyStationPaipanApi.getState()
-      if (state.state === 'FAILED' || state.state === 'PENDING') {
-        state = await legacyStationPaipanApi.retry()
-      }
+      const state = await resolveOwnerPaipanState()
       handleStationSyncState(state)
     } catch {
       uni.showToast({ title: '分站排盘暂时不可用，请稍后重试', icon: 'none' })
