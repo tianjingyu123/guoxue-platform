@@ -3,6 +3,9 @@ import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress, onHide, onLoad, onReady, onShow } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanContextPath, readLegacyPaipanContext, requestLegacyPaipanEntry } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
+// #ifdef H5
+import { consumeLegacyReturn, markLegacyDeparture, validateLegacyNavigation } from '@/lib/legacy-h5-navigation'
+// #endif
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
@@ -17,6 +20,8 @@ const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 const loginRequired = ref(false)
+const h5Fallback = ref(false)
+let h5FallbackTimer: ReturnType<typeof setTimeout> | undefined
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
 // #ifdef APP-PLUS
@@ -636,6 +641,7 @@ async function loadEntry() {
   error.value = ''
   legacyUrl.value = ''
   loginRequired.value = false
+  h5Fallback.value = false
   try {
     // 正常入口由上一页一次性交接已生成的地址；直接深链进入时才回源请求。
     const entry = consumeLegacyPaipanEntry(entryContext) || await requestLegacyPaipanEntry(entryContext)
@@ -645,6 +651,9 @@ async function loadEntry() {
     }
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('排盘工具地址未正确配置')
     legacyUrl.value = entry.url
+    // #ifdef H5
+    openLegacyH5()
+    // #endif
   } catch (cause) {
     const message = (cause as Error)?.message || '排盘工具暂时无法打开'
     loginRequired.value = /未登录|登录已过期/u.test(message)
@@ -660,17 +669,17 @@ async function loadEntry() {
   }
 }
 
-/** H5 不 iframe 第三方站点：新标签保留热卜，弹窗被拦截时才同页打开并保留历史返回。 */
+/** 同页直接进入，保留热卜历史项；返回时消费标记，避免再次自动外跳。 */
 function openLegacyH5() {
   // #ifdef H5
   if (!legacyUrl.value) return
-  const opened = window.open('', '_blank')
-  if (opened) {
-    opened.opener = null
-    opened.location.replace(legacyUrl.value)
-    return
-  }
-  window.location.assign(legacyUrl.value)
+  const url = validateLegacyNavigation(legacyUrl.value)
+  markLegacyDeparture(window.history)
+  if (h5FallbackTimer) clearTimeout(h5FallbackTimer)
+  h5FallbackTimer = setTimeout(() => {
+    if (document.visibilityState === 'visible') h5Fallback.value = true
+  }, 4000)
+  window.location.assign(url)
   // #endif
 }
 
@@ -690,7 +699,18 @@ function handleLegacyLoadError() {
 
 function handleLegacyLoaded() { scheduleLegacyNavigationBridge() }
 
-onMounted(() => { void loadEntry() })
+// #ifdef H5
+function handleLegacyPageShow(event: PageTransitionEvent) {
+  if (event.persisted && consumeLegacyReturn(window.history)) returnToNewSystem()
+}
+// #endif
+onMounted(() => {
+  // #ifdef H5
+  window.addEventListener('pageshow', handleLegacyPageShow)
+  if (consumeLegacyReturn(window.history)) { returnToNewSystem(); return }
+  // #endif
+  void loadEntry()
+})
 // #ifdef APP-PLUS
 onHide(() => {
   legacyPageVisible = false
@@ -712,6 +732,10 @@ onReady(() => {
   scheduleLegacyNavigationBridge()
 })
 onUnmounted(() => {
+  if (h5FallbackTimer) clearTimeout(h5FallbackTimer)
+  // #ifdef H5
+  window.removeEventListener('pageshow', handleLegacyPageShow)
+  // #endif
   // #ifdef APP-PLUS
   legacyPageVisible = false
   legacyDocumentVersion += 1
@@ -748,14 +772,18 @@ onBackPress(() => {
   </view>
 
   <!-- #ifdef H5 -->
-  <view v-if="!loading && !error" class="state legacy-gateway" role="main" aria-label="排盘工具入口">
+  <view v-if="!loading && !error && !h5Fallback" class="state" role="status" aria-live="polite">
+    <view class="spinner" />
+    <text class="desc">正在进入排盘工具</text>
+  </view>
+  <view v-if="!loading && !error && h5Fallback" class="state legacy-gateway" role="main" aria-label="排盘工具入口">
     <view class="gateway-card">
       <view class="brand">热卜</view>
       <text class="title">排盘工具</text>
-      <text class="desc">排盘工具将在新页面打开；当前热卜页面会保留，完成后关闭新页面即可返回。</text>
-      <button class="action primary" @tap="openLegacyH5">打开排盘工具</button>
+      <text class="desc">正在进入排盘工具，请稍候</text>
+      <button class="action primary" @tap="openLegacyH5">未能进入？点击重试</button>
       <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
-      <text class="tip">若浏览器阻止新页面，将改在当前页打开，可使用浏览器返回键回到热卜。</text>
+      <text class="tip">可使用微信返回操作回到热卜。</text>
     </view>
   </view>
   <!-- #endif -->
