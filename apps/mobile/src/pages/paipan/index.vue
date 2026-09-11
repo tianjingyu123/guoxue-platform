@@ -231,6 +231,14 @@ async function loadPaipanEntry() {
       throw new Error("排盘服务状态暂时无法确认，请稍后重试");
     }
 
+    // #ifdef H5
+    // 普通微信工具使用旧站网页授权，不依赖 App 签名接口的绑手机条件。
+    // 必须先确认运行模式；个人中心与分站推荐仍走各自服务端入口。
+    if (entryTarget === "tool" && /micromessenger/i.test(navigator.userAgent)) {
+      window.location.assign(legacyWechatToolUrl("https://www.yrydai.com/p1.php"));
+      return;
+    }
+    // #endif
     const entry =
       entryTarget === "account"
         ? await legacyPaipanApi.account()
