@@ -3,7 +3,7 @@
 
 import { apiGet } from '@/utils/request'
 import { discoverApi, type FeedItem } from '@/lib/discover-data'
-import { getSmartFeed, type FeedEnvelope } from '@/lib/feed-data'
+import { getSmartFeed, type FeedEnvelope, type SmartFeedChannel } from '@/lib/feed-data'
 import { stationPinnedTargetUrl } from '@/lib/station-pinned-public-data'
 
 // 分站模板（对齐后端 STATION_TEMPLATES + 站长个性化 templateConfig 合并结果）
@@ -219,9 +219,9 @@ export const stationHomeApi = {
     return s?.code || ''
   },
   /** 分站精选内容流 — 复用平台真实推荐流（分站是平台内容的品牌化入口），拍平为统一卡片 */
-  async getFeed(page = 1): Promise<StationFeedCard[]> {
+  async getFeed(page = 1, channel: SmartFeedChannel = 'recommend'): Promise<StationFeedCard[]> {
     // 与总站首页共用推荐策略、鉴权和公开内容过滤，不单独维护推荐池。
-    const items = await getSmartFeed(page, 20, 'recommend')
+    const items = await getSmartFeed(page, 20, channel)
     return items.map(item => ({ id: item.id, type: item.type, title: item.title,
       cover: item.cover || '', author: item.author?.name || '', platformItem: item }))
   },

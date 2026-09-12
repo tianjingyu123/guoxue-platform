@@ -18,6 +18,8 @@ test('分站每页直接使用总站推荐策略并保留完整卡片，失败�
   const cards = await exports.stationHomeApi.getFeed(2);
   assert.deepEqual(calls, [[2, 20, 'recommend']]);
   assert.equal(cards[0].platformItem, item);
+  await exports.stationHomeApi.getFeed(1, 'following');
+  assert.deepEqual(calls[1], [1, 20, 'following']);
   fail = true;
   await assert.rejects(exports.stationHomeApi.getFeed(3), /请求失败/);
 });
@@ -27,9 +29,12 @@ test('主推前置且同类型同ID去重，保留平台顺序与不同类型同
   const declarations = source.match(/const platformFeed = computed[^\n]+\nconst recFeed = computed[^\n]+/)[0];
   const pin = {id:'1',type:'course'};
   const tail = [{id:'1',type:'course'}, {id:'1',type:'classic'}, {id:'2',type:'course'}];
-  const ctx = { pinnedList:{value:[pin]}, feedList:{value:tail}, computed: f => ({get value(){return f();}}) };
+  const ctx = { activeChannel:{value:'recommend'}, pinnedList:{value:[pin]}, feedList:{value:tail}, computed: f => ({get value(){return f();}}) };
   vm.createContext(ctx); vm.runInContext(declarations + '\nthis.result=recFeed;',ctx);
   assert.deepEqual(Array.from(ctx.result.value), [pin,tail[1],tail[2]]);
+  ctx.activeChannel.value = 'following';
+  assert.deepEqual(Array.from(ctx.result.value), tail);
+  ctx.activeChannel.value = 'recommend';
   ctx.pinnedList.value = [];
   assert.deepEqual(Array.from(ctx.result.value), tail);
 });
