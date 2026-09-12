@@ -8,7 +8,7 @@ import AppRootBackGesture from '@/components/common/app-root-back-gesture.vue'
 import { redirectTo } from '@/utils/router'
 
 /** active: home | circle | paipan | discover | profile */
-const props = defineProps<{ active: string }>()
+const props = defineProps<{ active: string; paipanUrl?: string }>()
 
 const BRAND_RED = '#c41e3a'
 const MUTED = '#999999'
@@ -48,7 +48,7 @@ const tabs = [
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {
   if (isActive(id)) return
-  redirectTo(url)
+  redirectTo(id === 'paipan' && props.paipanUrl ? props.paipanUrl : url)
 }
 
 function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
