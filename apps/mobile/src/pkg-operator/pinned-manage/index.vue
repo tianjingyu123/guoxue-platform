@@ -24,7 +24,7 @@
       <view class="empty-ill"><text class="empty-ill-ic">✦</text></view>
       <text class="empty-title">开始配置你的主推位</text>
       <text class="empty-desc">从平台内容库挑选优质内容锁定到各板块主推位，你的客户浏览平台时会优先看到它们。</text>
-      <view class="empty-btn" @tap="openPicker(boards[0])"><text>选择首页主推内容</text></view>
+      <view v-for="b in boards" :key="b.board" class="empty-btn" @tap="openPicker(b)"><text>选择{{ b.label }}主推内容</text></view>
       <view class="empty-steps">
         <view class="empty-step"><text class="n">1</text><text class="t">选板块</text></view>
         <view class="empty-step"><text class="n">2</text><text class="t">挑内容</text></view>
@@ -108,6 +108,7 @@ const COVER_GRADIENTS = [
 
 const statusBarH = ref(0)
 const loading = ref(true)
+const saving = ref(false)
 const error = ref('')
 const stationId = ref('')
 const boards = ref<PinnedBoardData[]>([])
@@ -213,7 +214,8 @@ function removeContent(b: PinnedBoardData, slot: { slotIndex: number; content: P
 }
 
 async function onSave() {
-  if (!dirty.value) return
+  if (!dirty.value || saving.value) return
+  saving.value = true
   uni.showLoading({ title: '保存中', mask: true })
   try {
     for (const board of dirtyBoards.value) {
@@ -233,6 +235,8 @@ async function onSave() {
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
   }
 }
 
