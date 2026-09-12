@@ -317,8 +317,7 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async dictionaryLookup(@Req() req: Request, @Body() dto: DictionaryLookupDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id); // 权益①：会员不限量，免费用户每日限次
-    return this.svc.dictionaryLookup(dto.word);
+    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.dictionaryLookup(dto.word));
   }
 
   // ── 白话翻译 ──
@@ -348,8 +347,7 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async ask(@Req() req: Request, @Body() dto: AskClassicDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.svc.askClassic(dto.question);
+    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.askClassic(dto.question));
   }
 
   // ── 古籍伴读智能体（识典伴读·注入当前章节正文的开放多轮对话） ──
@@ -370,11 +368,10 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.companion.chat(
+    return this.memberBenefit.withAiQuota(req.user.id, () => this.companion.chat(
       { chapterId: dto.chapterId, question: dto.question, history: dto.history },
       req.user?.id,
-    );
+    ));
   }
 
   @UseGuards(JwtAuthGuard, ThrottleGuard)
@@ -386,15 +383,13 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChatStream(@Req() req: Request, @Res() res: Response, @Body() dto: CompanionChatDto) {
-    // 门控与非流式一致：先于 SSE 头执行，超限以普通错误响应返回
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    // 统一 SSE 写入器（含 X-Accel-Buffering: no 防 nginx 缓冲）
+    // 与解读共用占额保护：生成失败或连接断开时退回次数。
     await this.sse.writeSseStream(
       res,
-      this.companion.chatStream(
+      this.memberBenefit.withAiStreamQuota(req.user.id, this.companion.chatStream(
         { chapterId: dto.chapterId, question: dto.question, history: dto.history },
         req.user?.id,
-      ),
+      ), () => res.destroyed),
     );
   }
 
