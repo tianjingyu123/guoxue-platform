@@ -111,7 +111,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import { buildH5Url } from '@/utils/share'
 import { operatorApi, type StationPanelInfo, type StationOverviewItem } from '@/pkg-operator/lib/operator-data'
@@ -215,8 +215,9 @@ onLoad(() => {
   } catch (e) {
     statusBarH.value = 0
   }
-  load()
 })
+// 每次返回工作台重新读取主推汇总，避免保存后仍显示旧数量。
+onShow(() => { void load() })
 </script>
 
 <style scoped>
