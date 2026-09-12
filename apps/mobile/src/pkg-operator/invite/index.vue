@@ -26,7 +26,7 @@
         <!-- 名额提示 -->
         <view class="inv-quota">
           <app-icon name="info" :size="30" color="#97794a" />
-          <text class="inv-quota-txt">每成功邀请一位站长占用 1 个可售名额</text>
+          <text class="inv-quota-txt">每成功邀请一位站长占用 1 个可用名额</text>
         </view>
 
         <!-- 二维码卡 -->
@@ -98,7 +98,7 @@
               <view class="inv-link-card">
                 <view class="inv-lc-ic"><text>卜</text></view>
                 <view class="inv-lc-body">
-                  <text class="inv-lc-t">加入{{ opName }}分站团队</text>
+                  <text class="inv-lc-t">加入「{{ opName }}」团队</text>
                   <text class="inv-lc-d">{{ brandName }} · 点击了解详情</text>
                 </view>
               </view>
