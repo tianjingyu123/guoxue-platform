@@ -70,10 +70,10 @@
           <view class="kpi-cell">
             <view class="kpi-lbl">
               <view class="kpi-di blue" />
-              <text class="kpi-lbl-txt">活跃站长</text>
+              <text class="kpi-lbl-txt">有收益站长</text>
             </view>
             <text class="kpi-num">{{ kpi.activeCount }}</text>
-            <text class="kpi-foot">/ 共 {{ kpi.memberCount }} 人</text>
+            <text class="kpi-foot">累计收益大于零 / 共 {{ kpi.memberCount }} 人</text>
           </view>
           <view class="kpi-cell">
             <view class="kpi-lbl">
