@@ -7,7 +7,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
-import type { FeedEnvelope } from '@/lib/feed-data'
+import type { SmartFeedChannel } from '@/lib/feed-data'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import { rememberStationNavigation, clearStationNavigation } from '@/lib/station-navigation'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
@@ -51,8 +52,10 @@ const showFeed = computed(() => sectionVisible(template.value, 'recommend') || s
 const useMicroPage = computed(() => !!microPage.value && microPage.value.components.length > 0)
 // 微页面里的「内容推荐」类楼层复用精选 feed 渲染：站长有锁定主推位则优先展示，否则回退平台推荐流
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
+const activeChannel = ref<SmartFeedChannel>('recommend')
+const tabs = [{ id: 'recommend', label: '推荐' }, { id: 'following', label: '关注' }, { id: 'hot', label: '热门' }, { id: 'local', label: '同城' }] as const
 const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
-const recFeed = computed(() => [...pinnedList.value, ...platformFeed.value])
+const recFeed = computed(() => activeChannel.value === 'recommend' ? [...pinnedList.value, ...platformFeed.value] : feedList.value)
 const paipanUrl = computed(() => brand.value.id ? `/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}` : '/pages/paipan/index')
 const unifiedFeed = recFeed
 const feedColumns = computed(() => [recFeed.value.filter((_, i) => i % 2 === 0), recFeed.value.filter((_, i) => i % 2 === 1)])
@@ -110,7 +113,7 @@ async function loadFeed(more = false): Promise<StationFeedCard[]> {
   feedError.value = false
   try {
     const page = more ? feedPage.value + 1 : 1
-    const items = await stationHomeApi.getFeed(page)
+    const items = await stationHomeApi.getFeed(page, activeChannel.value)
     feedList.value = more ? [...feedList.value, ...items.filter(item => !feedList.value.some(old => old.type === item.type && String(old.id) === String(item.id)))] : items
     feedPage.value = page
     feedEnd.value = items.length < 20
@@ -120,6 +123,17 @@ async function loadFeed(more = false): Promise<StationFeedCard[]> {
     feedLoading.value = false
   }
   return feedList.value
+}
+
+function switchTab(id: SmartFeedChannel | 'local') {
+  if (id === 'local') { uni.showToast({ title: '同城频道即将开放', icon: 'none' }); return }
+  // 请求完成前保持当前频道，避免旧响应覆盖新频道。
+  if (feedLoading.value || id === activeChannel.value) return
+  activeChannel.value = id
+  feedList.value = []
+  feedPage.value = 0
+  feedEnd.value = false
+  void loadFeed()
 }
 
 function loadMoreFeed() {
@@ -221,6 +235,15 @@ function goBack() {
       </view>
 
       <template v-else>
+        <view class="brand-row">
+          <view class="home-search"><search-bar default-tab="all" placeholder="搜古籍 · 课程 · 排盘 · 智能体" /></view>
+          <platform-support-actions />
+        </view>
+        <view class="tabs-inner" role="tablist" aria-label="首页内容频道">
+          <view v-for="tab in tabs" :key="tab.id" class="tab" :class="{ on: activeChannel === tab.id, disabled: tab.id === 'local' }" role="tab" :aria-selected="activeChannel === tab.id" @tap="switchTab(tab.id)">
+            <text class="tab-label">{{ tab.label }}</text><text v-if="tab.id === 'local'" class="tab-soon">即将开放</text>
+          </view>
+        </view>
         <core-entry-grid :paipan-url="paipanUrl" />
         <view v-if="unifiedFeed.length" class="flow">
           <view v-for="(column, index) in feedColumns" :key="index" class="col">
@@ -375,4 +398,69 @@ function goBack() {
 .sh-poster-btn-txt { font-size: 28rpx; }
 .sh-poster-btn-txt.primary { color: #ffffff; }
 .sh-poster-hint { margin-top: 24rpx; font-size: 22rpx; color: var(--text-soft, #999); text-align: center; }
+.brand-row {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 24rpx 8rpx;
+  background-color: #faf8f5;
+}
+.home-search {
+  flex: 1;
+  min-width: 0;
+}
+.tabs-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 750rpx;
+  padding: 8rpx 18rpx 16rpx;
+}
+.tab {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 0;
+  padding-bottom: 8rpx;
+}
+.tab-label {
+  font-size: 30rpx;
+  color: #8a8578;
+}
+.tab.on .tab-label {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+}
+.tab.disabled .tab-label {
+  color: #a9a397;
+}
+.tab-soon {
+  padding: 3rpx 7rpx;
+  border: 1rpx solid #ddd4c8;
+  border-radius: 999rpx;
+  font-size: 16rpx;
+  line-height: 1.15;
+  color: #9a9184;
+  background-color: #f4f0ea;
+}
+.tab.on::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 40rpx;
+  height: 6rpx;
+  border-radius: 4rpx;
+  background-color: #c41e3a;
+}
+
 </style>
