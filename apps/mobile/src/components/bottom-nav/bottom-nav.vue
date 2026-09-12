@@ -6,6 +6,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppRootBackGesture from '@/components/common/app-root-back-gesture.vue'
 // #endif
 import { redirectTo } from '@/utils/router'
+import { stationNavigationTarget } from '@/lib/station-navigation'
 
 /** active: home | circle | paipan | discover | profile */
 const props = defineProps<{ active: string; paipanUrl?: string }>()
@@ -48,7 +49,7 @@ const tabs = [
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {
   if (isActive(id)) return
-  redirectTo(id === 'paipan' && props.paipanUrl ? props.paipanUrl : url)
+  redirectTo(id === 'paipan' && props.paipanUrl ? props.paipanUrl : stationNavigationTarget(id, url))
 }
 
 function onNavKeydown(event: KeyboardEvent, url: string, id: string) {

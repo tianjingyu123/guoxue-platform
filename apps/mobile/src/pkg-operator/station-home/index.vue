@@ -8,6 +8,7 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
 import type { FeedEnvelope } from '@/lib/feed-data'
+import { rememberStationNavigation } from '@/lib/station-navigation'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { captureRefFromQuery } from '@/utils/referral'
@@ -90,6 +91,7 @@ async function loadData() {
       stationHomeApi.getPinnedBoards(code),
     ])
     brand.value = b
+    rememberStationNavigation(code, b.id)
     features.value = deriveFeatures(b.template?.modules || [])
     feedList.value = Array.isArray(feeds) ? feeds : []
     pinnedList.value = Array.isArray(pinned) ? pinned : []
