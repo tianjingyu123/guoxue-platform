@@ -53,6 +53,7 @@ const useMicroPage = computed(() => !!microPage.value && microPage.value.compone
 // 微页面里的「内容推荐」类楼层复用精选 feed 渲染：站长有锁定主推位则优先展示，否则回退平台推荐流
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
 const activeChannel = ref<SmartFeedChannel>('recommend')
+const emptyMessage = computed(() => activeChannel.value === 'following' ? '关注的圈子、老师和商铺有新动态时会出现在这里' : activeChannel.value === 'hot' ? '热门榜单正在更新，请稍后再来看看' : '这里还没有内容，可先浏览上方栏目')
 const tabs = [{ id: 'recommend', label: '推荐' }, { id: 'following', label: '关注' }, { id: 'hot', label: '热门' }, { id: 'local', label: '同城' }] as const
 const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
 const recFeed = computed(() => activeChannel.value === 'recommend' ? [...pinnedList.value, ...platformFeed.value] : feedList.value)
@@ -260,7 +261,7 @@ function goBack() {
         <view v-else class="sh-feed-empty">
           <text v-if="feedLoading">正在加载推荐内容…</text>
           <text v-else-if="feedError" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
-          <text v-else>暂未上架推荐内容，可先浏览上方栏目</text>
+          <text v-else>{{ emptyMessage }}</text>
         </view>
         <view v-if="feedList.length" class="sh-feed-empty">
           <text v-if="feedLoading">正在加载…</text>
