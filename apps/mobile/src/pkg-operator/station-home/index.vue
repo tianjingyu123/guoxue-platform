@@ -8,7 +8,7 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
 import type { FeedEnvelope } from '@/lib/feed-data'
-import { rememberStationNavigation } from '@/lib/station-navigation'
+import { rememberStationNavigation, clearStationNavigation } from '@/lib/station-navigation'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { captureRefFromQuery } from '@/utils/referral'
@@ -53,17 +53,14 @@ const useMicroPage = computed(() => !!microPage.value && microPage.value.compone
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
 const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
 const recFeed = computed(() => [...pinnedList.value, ...platformFeed.value])
-const paipanUrl = computed(() => `/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id || '')}`)
-const unifiedFeed = computed<FeedEnvelope[]>(() => recFeed.value.map(item => item.platformItem || ({
-  id: String(item.id), type: (item.type === 'ebook' ? 'classic' : item.type) as FeedEnvelope['type'],
-  title: item.title, cover: item.cover, author: { name: item.author || '热卜国学' },
-  payload: { price: item.price, isLive: item.isLive, viewers: item.viewers },
-})))
-const feedColumns = computed(() => [unifiedFeed.value.filter((_, i) => i % 2 === 0), unifiedFeed.value.filter((_, i) => i % 2 === 1)])
+const paipanUrl = computed(() => brand.value.id ? `/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}` : '/pages/paipan/index')
+const unifiedFeed = recFeed
+const feedColumns = computed(() => [recFeed.value.filter((_, i) => i % 2 === 0), recFeed.value.filter((_, i) => i % 2 === 1)])
 const feedPage = ref(0)
 const feedEnd = ref(false)
 
 onLoad((q: Record<string, string> = {}) => {
+  clearStationNavigation()
   // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
   captureRefFromQuery(q)
   stationCode.value = q.ref || q.s || q.code || q.station || ''
@@ -227,7 +224,14 @@ function goBack() {
         <core-entry-grid :paipan-url="paipanUrl" />
         <view v-if="unifiedFeed.length" class="flow">
           <view v-for="(column, index) in feedColumns" :key="index" class="col">
-            <feed-card v-for="item in column" :key="item.type + ':' + item.id" :item="item" />
+            <view v-for="item in column" :key="item.type + ':' + item.id">
+              <feed-card v-if="item.platformItem" :item="item.platformItem" />
+              <view v-else class="station-pinned-card" @tap="openFeed(item)">
+                <image v-if="item.cover" :src="item.cover" mode="widthFix" style="width:100%" />
+                <text class="sh-feed-name">{{ item.title }}</text>
+                <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
+              </view>
+            </view>
           </view>
         </view>
         <view v-else class="sh-feed-empty">
@@ -336,6 +340,7 @@ function goBack() {
 .sh-feed-empty { padding: 80rpx 0; text-align: center; }
 .sh-feed-empty-txt { font-size: 26rpx; color: var(--text-soft, #999); }
 .sh-bottom-pad { height: calc(160rpx + env(safe-area-inset-bottom)); }
+.station-pinned-card { background: var(--bg-card, #fff); border-radius: 16rpx; overflow: hidden; padding-bottom: 20rpx; }
 .flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
 .col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
 
