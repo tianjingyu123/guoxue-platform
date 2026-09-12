@@ -257,6 +257,7 @@ export const stationActionIconMap: Record<string, string> = {
 }
 
 export const stationPanelQuickActions: StationPanelQuickAction[] = [
+  { id: 'pinned', label: '主推管理', icon: 'list', path: '/pkg-operator/station-workbench/index', description: '查看各板块主推数量，选品和管理推荐内容' },
   { id: 'promote', label: '推广中心', icon: 'share', path: '/pkg-operator/station-materials/index?tab=qrcode', description: '复制专属链接，保存推广码' },
   { id: 'customers', label: '客户洞察', icon: 'users', path: '/pkg-operator/customers/index', description: '了解客户兴趣，精准跟进' },
   { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', description: '查看和管理团队成员' },
