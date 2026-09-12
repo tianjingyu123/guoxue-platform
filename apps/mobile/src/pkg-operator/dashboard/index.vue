@@ -87,9 +87,9 @@ async function loadData() {
     plan.value = await operatorApi.getOperatorPricing()
     const [d, ov, th, ms] = await Promise.all([
       operatorApi.getDashboardData(),
-      operatorApi.getTeamOverview().catch(() => null),
+      operatorApi.getTeamOverview(),
       operatorApi.getTeamHealth(),
-      operatorApi.getTeamMembers().catch(() => []),
+      operatorApi.getTeamMembers(),
     ])
     data.value = d
     overview.value = ov
@@ -98,7 +98,7 @@ async function loadData() {
   } catch (e) {
     const msg = (e as Error)?.message || ''
     // 用户尚未开通运营商：后端抛错（含「不是运营商」等）→ 进入引导态而非错误态
-    if (/运营商|不是|未找到/.test(msg)) {
+    if (/^(当前用户不是运营商|您还不是运营商|运营商不存在)$/.test(msg)) {
       notOpened.value = true
     } else {
       error.value = msg || '加载失败'
