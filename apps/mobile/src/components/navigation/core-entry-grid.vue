@@ -2,9 +2,10 @@
 import AppIcon from '@/components/common/app-icon.vue'
 import { coreEntries } from '@/lib/discover-data'
 import { navigateTo } from '@/utils/router'
+const props = defineProps<{ paipanUrl?: string }>()
 
 function openEntry(href: string) {
-  navigateTo(href)
+  navigateTo(href === '/pages/paipan/index' && props.paipanUrl ? props.paipanUrl : href)
 }
 </script>
 

@@ -5,6 +5,9 @@ import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
+import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
+import type { FeedEnvelope } from '@/lib/feed-data'
 import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { captureRefFromQuery } from '@/utils/referral'
@@ -49,6 +52,13 @@ const useMicroPage = computed(() => !!microPage.value && microPage.value.compone
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
 const platformFeed = computed(() => feedList.value.filter(item => !pinnedList.value.some(pin => pin.type === item.type && String(pin.id) === String(item.id))))
 const recFeed = computed(() => [...pinnedList.value, ...platformFeed.value])
+const paipanUrl = computed(() => `/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id || '')}`)
+const unifiedFeed = computed<FeedEnvelope[]>(() => recFeed.value.map(item => item.platformItem || ({
+  id: String(item.id), type: (item.type === 'ebook' ? 'classic' : item.type) as FeedEnvelope['type'],
+  title: item.title, cover: item.cover, author: { name: item.author || '热卜国学' },
+  payload: { price: item.price, isLive: item.isLive, viewers: item.viewers },
+})))
+const feedColumns = computed(() => [unifiedFeed.value.filter((_, i) => i % 2 === 0), unifiedFeed.value.filter((_, i) => i % 2 === 1)])
 const feedPage = ref(0)
 const feedEnd = ref(false)
 
@@ -212,127 +222,17 @@ function goBack() {
       </view>
 
       <template v-else>
-        <!-- 模板 hero 横幅（品牌简介 + 模板定位） -->
-        <view class="sh-hero" :style="{ background: `linear-gradient(135deg, ${primary}, ${primary}cc)` }">
-          <text class="sh-hero-name">{{ brand.name }}</text>
-          <text v-if="brand.intro" class="sh-hero-intro">{{ brand.intro }}</text>
-          <view v-if="template?.name" class="sh-hero-badge">
-            <app-icon name="layout" :size="22" color="#ffffff" />
-            <text class="sh-hero-badge-txt">{{ template.name }}</text>
+        <core-entry-grid :paipan-url="paipanUrl" />
+        <view v-if="unifiedFeed.length" class="flow">
+          <view v-for="(column, index) in feedColumns" :key="index" class="col">
+            <feed-card v-for="item in column" :key="item.type + ':' + item.id" :item="item" />
           </view>
         </view>
-
-        <!-- 微页面楼层（站长发布的微页面优先渲染） -->
-        <view v-if="useMicroPage && microPage" class="sh-mp">
-          <view v-for="comp in microPage.components" :key="comp.id" class="sh-mp-floor">
-            <!-- 公告 -->
-            <view v-if="comp.type === 'richtext' && comp.config.content" class="sh-mp-notice">
-              <view class="sh-mp-notice-bar" :style="{ background: primary }" />
-              <view class="sh-mp-notice-body">
-                <text v-if="comp.title" class="sh-mp-notice-title">{{ comp.title }}</text>
-                <text class="sh-mp-notice-text">{{ comp.config.content }}</text>
-              </view>
-            </view>
-            <!-- 站长名片 -->
-            <view v-else-if="comp.type === 'master-card'" class="sh-mp-card">
-              <image lazy-load v-if="brand.logo" class="sh-mp-card-logo" :src="brand.logo" mode="aspectFill" />
-              <view class="sh-mp-card-info">
-                <text class="sh-mp-card-name">{{ brand.name }}</text>
-                <text v-if="comp.config.intro" class="sh-mp-card-intro">{{ comp.config.intro }}</text>
-              </view>
-            </view>
-            <!-- 轮播图 -->
-            <swiper v-else-if="comp.type === 'banner' && (comp.config.images || []).length" class="sh-mp-banner" circular autoplay :interval="4000" :duration="500">
-              <swiper-item v-for="(img, ii) in comp.config.images" :key="ii">
-                <image lazy-load class="sh-mp-banner-img" :src="img.url" mode="aspectFill" />
-              </swiper-item>
-            </swiper>
-            <!-- 内容推荐 → 平台精选 feed（紧凑网格） -->
-            <view v-else-if="isFeedFloor(comp.type)" class="sh-mp-rec">
-              <text class="sh-mp-rec-title">{{ comp.title || '精选推荐' }}</text>
-              <view v-if="!recFeed.length" class="sh-feed-empty">
-                <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
-                <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
-                <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览其他栏目</text>
-              </view>
-              <view class="sh-mp-grid">
-                <view v-for="item in recFeed" :key="item.type + item.id" class="sh-mp-gcard" @tap="!item.platformItem && openFeed(item)">
-                  <feed-card v-if="item.platformItem" :item="item.platformItem" />
-                  <template v-else>
-                  <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
-                  <text class="sh-mp-gname">{{ item.title }}</text>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
-                  </template>
-                </view>
-              </view>
-            </view>
-          </view>
+        <view v-else class="sh-feed-empty">
+          <text v-if="feedLoading">正在加载推荐内容…</text>
+          <text v-else-if="feedError" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
+          <text v-else>暂未上架推荐内容，可先浏览上方栏目</text>
         </view>
-
-        <!-- 默认模板楼层（无已发布微页面时回退） -->
-        <template v-else>
-        <!-- 特色入口（按模板 modules 真实驱动） -->
-        <view v-if="features.length" class="sh-features">
-          <view v-for="f in features" :key="f.key" class="sh-feature" @tap="openFeature(f)">
-            <view class="sh-feature-icon" :style="{ background: f.color + '26' }">
-              <app-icon :name="f.icon" :size="48" :color="f.color" />
-            </view>
-            <text class="sh-feature-name">{{ f.name }}</text>
-          </view>
-        </view>
-
-        <!-- 站长严选（站长后台锁定的主推位·真实露出选品价值） -->
-        <view v-if="pinnedList.length" class="sh-feed">
-          <view class="sh-feed-head">
-            <text class="sh-feed-title">站长严选</text>
-            <text class="sh-feed-sub">{{ brand.name || '本站' }}为你甄选的国学好课好物</text>
-          </view>
-          <view class="sh-feed-list">
-            <view v-for="item in pinnedList" :key="'pin-' + item.type + '-' + item.id" class="sh-feed-card" @tap="openFeed(item)">
-              <view class="sh-feed-cover-wrap">
-                <image lazy-load class="sh-feed-cover" :src="item.cover || ''" mode="aspectFill" />
-                <view v-if="item.isLive" class="sh-feed-live">
-                  <view class="sh-feed-live-dot" /><text class="sh-feed-live-txt">直播中</text>
-                </view>
-                <view v-else-if="item.type === 'video'" class="sh-feed-play"><app-icon name="play" :size="56" color="#ffffff" /></view>
-              </view>
-              <view class="sh-feed-info">
-                <view class="sh-feed-type">
-                  <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
-                  <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
-                </view>
-                <text class="sh-feed-name">{{ item.title }}</text>
-                <view class="sh-feed-bottom">
-                  <view class="sh-feed-author">
-                    <text class="sh-feed-author-name">{{ item.author || '热卜国学' }}</text>
-                  </view>
-                  <view class="sh-feed-stats">
-                    <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>
-                  </view>
-                </view>
-                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 更多推荐 Feed（平台真实推荐流·站长严选之外的补充） -->
-        <view v-if="showFeed" class="sh-feed">
-          <view class="sh-feed-head">
-            <text class="sh-feed-title">{{ pinnedList.length ? '更多推荐' : '精选内容' }}</text>
-            <text class="sh-feed-sub">为你优选的国学好课好物</text>
-          </view>
-          <view v-if="platformFeed.length" class="sh-feed-list">
-            <feed-card v-for="item in platformFeed" :key="item.type + item.id" :item="item.platformItem!" />
-          </view>
-          <view v-else class="sh-feed-empty">
-            <text v-if="feedLoading" class="sh-feed-empty-txt">正在加载推荐内容…</text>
-            <text v-else-if="feedError" class="sh-feed-empty-txt" @tap="loadFeed()">推荐内容加载失败，点击重试</text>
-            <text v-else class="sh-feed-empty-txt">暂未上架推荐内容，可先浏览上方栏目</text>
-          </view>
-        </view>
-        </template>
-
         <view v-if="feedList.length" class="sh-feed-empty">
           <text v-if="feedLoading">正在加载…</text>
           <text v-else-if="feedError" @tap="loadFeed(true)">加载失败，点击重试</text>
@@ -341,6 +241,8 @@ function goBack() {
         <view class="sh-bottom-pad" />
       </template>
     </scroll-view>
+
+    <bottom-nav active="home" :paipan-url="paipanUrl" />
 
     <content-share-sheet
       :visible="showShare"
@@ -431,7 +333,9 @@ function goBack() {
 .sh-feed-price { display: inline-block; margin-top: 8rpx; font-size: 24rpx; font-weight: 600; }
 .sh-feed-empty { padding: 80rpx 0; text-align: center; }
 .sh-feed-empty-txt { font-size: 26rpx; color: var(--text-soft, #999); }
-.sh-bottom-pad { height: 64rpx; }
+.sh-bottom-pad { height: calc(160rpx + env(safe-area-inset-bottom)); }
+.flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
 
 /* 骨架 */
 .state-box { padding: 32rpx; }
