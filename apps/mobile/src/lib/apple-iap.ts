@@ -228,7 +228,7 @@ export async function recoverPendingAppleIapTransactions(): Promise<number> {
   let recovered = 0
   for (const transaction of transactions) {
     const state = String(transaction.transactionState ?? '')
-    if (state === '1' || !state) {
+    if (state === '1' || state === '3' || !state) {
       await verifyAndFinish(channel, transaction)
       recovered += 1
     } else if (state === '2') {
