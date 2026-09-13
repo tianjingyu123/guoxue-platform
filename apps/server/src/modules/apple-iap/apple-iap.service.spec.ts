@@ -81,6 +81,34 @@ describe("AppleIapService", () => {
     expect(tx.virtualCoinTransaction.create).not.toHaveBeenCalled();
   });
 
+  it("两条不同退款通知同时读取旧状态后只扣币一次", async () => {
+    const { prisma, tx } = createPrismaMock();
+    let storedStatus = "VERIFIED";
+    let readers = 0;
+    let release!: () => void;
+    const bothRead = new Promise<void>((resolve) => { release = resolve; });
+    tx.appleIapPurchase.findUnique.mockImplementation(async () => {
+      const snapshot = { userId: "user-1", status: storedStatus, amountCoin: 1000 };
+      if (++readers === 2) release();
+      await bothRead;
+      return snapshot;
+    });
+    tx.appleIapPurchase.updateMany.mockImplementation(async ({ where, data }) => {
+      if (storedStatus !== where.status) return { count: 0 };
+      storedStatus = data.status;
+      return { count: 1 };
+    });
+    tx.virtualCoinAccount.update.mockResolvedValue({ balance: 0 });
+    const service = new AppleIapService(prisma as never) as any;
+    const results = await Promise.all([
+      service.applyChargeback(tx, transactionId, "REFUNDED"),
+      service.applyChargeback(tx, transactionId, "REFUNDED"),
+    ]);
+    expect(results.sort()).toEqual(["ALREADY_CHARGED_BACK", "REFUNDED"]);
+    expect(tx.virtualCoinAccount.update).toHaveBeenCalledTimes(1);
+    expect(tx.virtualCoinTransaction.create).toHaveBeenCalledTimes(1);
+  });
+
   it("退款撤销抢占失败不能重复发币", async () => {
     const { prisma, tx } = createPrismaMock();
     tx.appleIapPurchase.findUnique.mockResolvedValue({ userId: "user-1", status: "REFUNDED", amountCoin: 1000 });
