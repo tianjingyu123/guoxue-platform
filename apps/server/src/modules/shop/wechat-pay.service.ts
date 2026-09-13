@@ -181,7 +181,7 @@ export class WechatPayService {
       });
 
       const duration = Date.now() - start;
-      const respBody = (await resp.json()) as any;
+      const respBody = resp.status === 204 ? {} : (await resp.json()) as any;
 
       if (resp.status >= 400) {
         const reason = (respBody.code || respBody.message || "unknown") as string;
@@ -590,6 +590,52 @@ export class WechatPayService {
       "GET",
       `/v3/pay/transactions/out-trade-no/${outTradeNo}?mchid=${this.mchId}`,
     );
+  }
+
+  /**
+   * 资金补账/未知初始化恢复专用查单。验签原始响应字节，禁止复用未验签的普通queryOrder。
+   * 签名串：timestamp + 换行 + nonce + 换行 + 原始body + 换行（微信V3官方契约）。
+   */
+  async queryOrderVerified(outTradeNo: string, expectedTotalFen: number): Promise<Record<string, unknown>> {
+    this.assertRuntimeConfigSource();
+    if (!outTradeNo || !Number.isSafeInteger(expectedTotalFen) || expectedTotalFen <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "支付查单参数无效");
+    }
+    const mchid = this.mchId;
+    const path = `/v3/pay/transactions/out-trade-no/${encodeURIComponent(outTradeNo)}?mchid=${encodeURIComponent(mchid)}`;
+    const { authorization } = this.sign("GET", path);
+    const response = await fetch(`${this.baseUrl}${path}`, {
+      method: "GET", headers: { Authorization: authorization, Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await response.text();
+    const timestamp = response.headers.get("Wechatpay-Timestamp") || "";
+    const nonce = response.headers.get("Wechatpay-Nonce") || "";
+    const serial = response.headers.get("Wechatpay-Serial") || "";
+    const signature = response.headers.get("Wechatpay-Signature") || "";
+    if (!/^\d{10}$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300 ||
+        !/^[A-Za-z0-9_-]{1,128}$/.test(nonce) || !/^[A-Za-z0-9_-]{1,128}$/.test(serial) ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(signature) ||
+        (serial.startsWith("PUB_KEY_ID_") && serial !== process.env.WECHAT_PAY_PUBLIC_KEY_ID?.trim())) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信查单响应签名信息无效，请保留原单稍后查询");
+    }
+    const signHeader = `timestamp="${timestamp}",nonce_str="${nonce}",signature="${signature}",serial_no="${serial}"`;
+    if (!await this.verifyNotifySign(signHeader, body)) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信查单响应验签失败，请保留原单稍后查询");
+    }
+    let result: Record<string, unknown>;
+    try { result = JSON.parse(body); }
+    catch { throw new BusinessException(ErrorCode.PAY_FAILED, "微信查单响应格式错误"); }
+    if (response.status !== 200) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信尚未确认原支付单，请稍后查询");
+    }
+    const amount = result?.amount as Record<string, unknown> | undefined;
+    if (this.mchId !== mchid || result?.mchid !== mchid || result?.out_trade_no !== outTradeNo ||
+        amount?.total !== expectedTotalFen || amount?.currency !== "CNY" ||
+        !["SUCCESS", "REFUND", "NOTPAY", "CLOSED", "REVOKED", "USERPAYING", "PAYERROR"].includes(String(result?.trade_state))) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信查单商户、单号、金额或状态不匹配");
+    }
+    return result;
   }
 
   /** 关闭尚未支付的商户订单；微信确认关单成功后才允许生成新的付款码。 */
