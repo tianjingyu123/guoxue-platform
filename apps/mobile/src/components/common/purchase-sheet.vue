@@ -392,6 +392,13 @@ async function onPay() {
   paying.value = true
   try {
     const channel = payMethod.value as PayChannel
+    // #ifdef APP-PLUS
+    if (channel === 'alipay' && uni.getSystemInfoSync().platform !== 'android') {
+      uni.showToast({ title: '当前设备暂不支持此支付宝付款方式', icon: 'none' })
+      paying.value = false
+      return
+    }
+    // #endif
     const order = await purchaseApi.createOrder({
       type: props.bizType,
       targetId: String(props.product.id),
@@ -406,6 +413,15 @@ async function onPay() {
       navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
       return
     }
+    // #ifdef APP-PLUS
+    if (channel === 'alipay') {
+      // 原生支付宝单独管理待支付/返回查单，避免关闭弹窗后遗失支付状态。
+      const payAmount = Number(order.amount ?? total.value) || total.value
+      onClose()
+      navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=alipay&amount=${payAmount}`)
+      return
+    }
+    // #endif
     // 支付宝/云闪付：汇付聚合通道
     try {
       const pay = await purchaseApi.payByChannel(order.id, channel)
