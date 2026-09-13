@@ -7,7 +7,7 @@ import { MemberLevel, Order } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
-import { WechatPayApiError, WechatPayService } from "./wechat-pay.service";
+import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
 import { HuifuService } from "../huifu/huifu.service";
@@ -74,14 +74,13 @@ export class ShopPaymentService {
   }
 
   /** 旧渠道单无法明确关停时绝不创建第二笔；若已支付则主动补入账并阻止重复付款。 */
-  private async closePreviousWechatPayment(orderId: string, outTradeNo: string): Promise<void> {
+  private async closePreviousWechatPayment(order: Order, outTradeNo: string): Promise<void> {
+    const orderId = order.id;
     try {
       await this.wechatPay.closeOrder(outTradeNo);
     } catch (closeError) {
-      const missingFromCurrentMerchantOnClose =
-        closeError instanceof WechatPayApiError && closeError.wechatCode === "ORDER_NOT_EXIST";
       try {
-        const queried = await this.wechatPay.queryOrder(outTradeNo);
+        const queried = await this.wechatPay.queryOrderVerified(outTradeNo, Math.round(Number(order.amount) * RMB_TO_FEN));
         if (queried.trade_state === "SUCCESS") {
           const handled = await this.handlePaymentNotify({
             ...queried,
@@ -93,16 +92,6 @@ export class ShopPaymentService {
         }
       } catch (queryError) {
         if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
-        if (
-          missingFromCurrentMerchantOnClose &&
-          queryError instanceof WechatPayApiError &&
-          queryError.wechatCode === "ORDER_NOT_EXIST"
-        ) {
-          this.logger.warn(
-            "旧付款单在当前微信商户下不存在，按商户切换遗留流水恢复 order=" + orderId,
-          );
-          return;
-        }
         this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
       }
       this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);
@@ -117,31 +106,68 @@ export class ShopPaymentService {
       : "GX" + normalizedOrderId.slice(0, 30);
   }
 
-  /**
-   * 渠道下单后用旧交易号 + PENDING 做 CAS 落库。若订单状态已变，立即关闭刚创建的渠道单，
-   * 避免“本地没记录、微信仍可付款”的孤儿支付单。
-   */
-  private async persistWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
-    try {
-      const updated = await this.prisma.order.updateMany({
-        where: { id: order.id, status: "PENDING", payTransactionId: order.payTransactionId || null },
-        data: { payTransactionId: outTradeNo },
+  private assertWechatPaymentOwner(order: Order): void {
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    if (!Number.isSafeInteger(totalFen) || totalFen <= 0 || Number(order.amount) !== totalFen / RMB_TO_FEN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
+    }
+    if (order.payMethod === "HUIFU" || order.payTransactionId?.startsWith("HF")) {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有汇付支付单，请查询原支付单");
+    }
+    if (order.payMethod === "WECHAT_INIT") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "原微信支付结果待确认，请查询原单");
+    }
+    if (order.payTransactionId && order.payMethod && order.payMethod !== "WECHAT") {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有其他渠道支付单，请查询原单");
+    }
+  }
+
+  /** 瞬断后只以严格验签NOTPAY恢复；未找到/验签失败/处理中均不释放原意图。 */
+  private async ensureWechatPaymentOwner(order: Order): Promise<void> {
+    if (order.payMethod === "WECHAT_INIT") {
+      const queried = await this.queryPaymentStatus(order.id, order.userId);
+      if (queried.tradeState !== "NOTPAY") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "原微信支付结果待确认，请查询原单");
+      }
+      const fresh = await this.prisma.$transaction((tx) => tx.order.findUnique({ where: { id: order.id } }));
+      if (!fresh || fresh.status !== "PENDING" || fresh.payMethod !== "WECHAT" ||
+          fresh.payTransactionId !== order.payTransactionId || Number(fresh.amount) !== Number(order.amount)) {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单支付状态已变化，请查询原单");
+      }
+      order.payMethod = fresh.payMethod;
+    }
+    this.assertWechatPaymentOwner(order);
+  }
+
+  /** 与汇付共用Order行的持久化CAS；资金请求前占用，未知结果永不靠锁超时释放。 */
+  private async reserveWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.order.findUnique({ where: { id: order.id } });
+      if (!current || current.userId !== order.userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      this.assertWechatPaymentOwner(current);
+      const huifu = await tx.huifuSplitRecord.findUnique({ where: { orderId: order.id } });
+      if (huifu) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有汇付支付记录，请查询原单");
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount,
+          payTransactionId: order.payTransactionId || null, payMethod: order.payMethod || null },
+        data: { payTransactionId: outTradeNo, payMethod: "WECHAT_INIT" },
       });
-      if (updated.count !== 1) {
-        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，请刷新后重试");
-      }
-    } catch (error) {
-      try {
-        await this.wechatPay.closeOrder(outTradeNo);
-      } catch (closeError) {
-        this.logger.error(
-          "【资金对账·孤儿支付单】本地支付意图落库失败且新微信单关单失败: order=" +
-            order.id + ", outTradeNo=" + outTradeNo + ", error=" + (closeError as Error).message,
-        );
-      }
-      if (error instanceof BusinessException) throw error;
-      this.logger.error("支付意图落库失败 order=" + order.id + ": " + (error as Error).message);
-      throw new BusinessException(ErrorCode.PAY_FAILED, "支付初始化未完成，请稍后重试");
+      if (updated.count !== 1) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，请查询原单");
+    }, { isolationLevel: "Serializable" });
+    await this.redis.del("shop:order:" + order.id);
+  }
+
+  /** 已收到渠道初始化响应才标记可安全关单；不清除流水，不覆盖提前到达的支付通知。 */
+  private async confirmWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
+    const updated = await this.prisma.order.updateMany({
+      where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount,
+        payTransactionId: outTradeNo, payMethod: "WECHAT_INIT" },
+      data: { payMethod: "WECHAT" },
+    });
+    if (updated.count !== 1) {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单支付状态已变化，请查询原单");
     }
     await this.redis.del("shop:order:" + order.id);
   }
@@ -176,6 +202,7 @@ export class ShopPaymentService {
       if (!Number.isSafeInteger(totalFen) || totalFen <= 0) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
       }
+      await this.ensureWechatPaymentOwner(order);
       const cacheKey = "shop:pay:app:" + orderId;
       const cached = await this.redis.getJson<{
         outTradeNo: string;
@@ -185,16 +212,17 @@ export class ShopPaymentService {
           cached.orderInfo.appid === process.env.WECHAT_OPEN_APP_ID?.trim()) return cached.orderInfo;
 
       const previousOutTradeNo = order.payTransactionId || "";
-      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(order, previousOutTradeNo);
       await this.clearWechatPaymentResultCaches(orderId);
       const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      await this.reserveWechatPaymentIntent(order, outTradeNo);
       const result = await this.wechatPay.createAppOrder({
         outTradeNo,
         description: "国学平台订单-" + orderId.slice(0, 8),
         amount: { total: totalFen },
         attach: orderId,
       });
-      await this.persistWechatPaymentIntent(order, outTradeNo);
+      await this.confirmWechatPaymentIntent(order, outTradeNo);
       // 调起签名采用短缓存；过期后按既有安全关单流程重建，不重放陈旧 SDK 参数。
       await this.redis.setJson(cacheKey, { outTradeNo, orderInfo: result.orderInfo }, 5 * 60);
       return result.orderInfo;
@@ -252,6 +280,7 @@ export class ShopPaymentService {
         throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
       }
 
+      await this.ensureWechatPaymentOwner(freshOrder);
       const cached = await this.redis.getJson<{
         outTradeNo: string;
         paySign: Awaited<ReturnType<WechatPayService["createJsapiOrder"]>>["paySign"];
@@ -259,11 +288,12 @@ export class ShopPaymentService {
       if (cached?.paySign && cached.outTradeNo === freshOrder.payTransactionId) return cached.paySign;
 
       const previousOutTradeNo = freshOrder.payTransactionId || "";
-      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
       await this.clearWechatPaymentResultCaches(orderId);
 
       const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
       const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
       const result = await this.wechatPay.createJsapiOrder({
         outTradeNo,
         description: "国学平台订单-" + orderId.slice(0, 8),
@@ -273,7 +303,7 @@ export class ShopPaymentService {
         appId: officialAppId,
       });
 
-      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
       await this.redis.setJson(cacheKey, { outTradeNo, paySign: result.paySign }, 110 * 60);
       return result.paySign;
     });
@@ -302,6 +332,7 @@ export class ShopPaymentService {
         throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
       }
 
+      await this.ensureWechatPaymentOwner(freshOrder);
       const cached = await this.redis.getJson<{
         outTradeNo: string;
         result: Awaited<ReturnType<WechatPayService["createNativeOrder"]>>;
@@ -309,11 +340,12 @@ export class ShopPaymentService {
       if (cached?.result?.codeUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached.result;
 
       const previousOutTradeNo = freshOrder.payTransactionId || "";
-      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
       await this.clearWechatPaymentResultCaches(orderId);
 
       const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
       const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
       const result = await this.wechatPay.createNativeOrder({
         outTradeNo,
         description: "国学平台订单-" + orderId.slice(0, 8),
@@ -321,7 +353,7 @@ export class ShopPaymentService {
         attach: orderId,
       });
 
-      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
       await this.redis.setJson(cacheKey, { outTradeNo, result }, 110 * 60);
       return result;
     });
@@ -353,15 +385,17 @@ export class ShopPaymentService {
         throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
       }
 
+      await this.ensureWechatPaymentOwner(freshOrder);
       const cached = await this.redis.getJson<{ outTradeNo: string; mwebUrl: string }>(cacheKey);
       if (cached?.mwebUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached;
 
       const previousOutTradeNo = freshOrder.payTransactionId || "";
-      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(freshOrder, previousOutTradeNo);
       await this.clearWechatPaymentResultCaches(orderId);
 
       const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
       const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      await this.reserveWechatPaymentIntent(freshOrder, outTradeNo);
       const result = await this.wechatPay.createH5Order({
         outTradeNo,
         description: "国学平台订单-" + orderId.slice(0, 8),
@@ -377,7 +411,7 @@ export class ShopPaymentService {
         attach: orderId,
       });
 
-      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.confirmWechatPaymentIntent(freshOrder, outTradeNo);
       const response = { mwebUrl: result.h5Url, outTradeNo };
       await this.redis.setJson(cacheKey, response, 110 * 60);
       return response;
@@ -1152,12 +1186,39 @@ export class ShopPaymentService {
       data: { huifuOrderId: transactionId || undefined, rawResponse: body as any },
     });
   }
-  /** 查询订单支付状态 */
+  /** 查询订单支付状态：主库判定渠道，禁止把汇付原流水发送给微信。 */
   async queryPaymentStatus(orderId: string, userId?: string) {
-    const order = await this.orderSvc.getOrder(orderId, userId);
-    if (!order?.payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单无支付记录");
-
-    const result = await this.wechatPay.queryOrder(order.payTransactionId);
+    const order = await this.prisma.$transaction((tx) => tx.order.findUnique({ where: { id: orderId } }));
+    if (!order || !userId || order.userId !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    }
+    if (["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return { tradeState: "SUCCESS", raw: null };
+    if (order.status === "REFUNDED") return { tradeState: "REFUND", raw: null };
+    if (order.status === "CANCELLED") return { tradeState: "CLOSED", raw: null };
+    if (!order.payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单无支付记录");
+    if (order.payMethod === "HUIFU" || order.payTransactionId.startsWith("HF")) {
+      if (!this.huifu) throw new BusinessException(ErrorCode.PAY_FAILED, "汇付查询暂不可用");
+      const result = await this.huifu.queryPayment(order.payTransactionId, userId);
+      return { tradeState: result.trans_stat === "S" ? "SUCCESS" : result.trans_stat === "F" ? "PAYERROR" : "USERPAYING", raw: result };
+    }
+    if (order.payMethod && !["WECHAT", "WECHAT_INIT"].includes(order.payMethod)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请通过原支付渠道查询订单");
+    }
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    if (Number(order.amount) !== totalFen / RMB_TO_FEN) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效");
+    const result = await this.wechatPay.queryOrderVerified(order.payTransactionId, totalFen);
+    if (result.trade_state === "SUCCESS") {
+      const handled = await this.handlePaymentNotify({ ...result, attach: order.id });
+      if (!handled) throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付尚未完成本地入账，请稍后查询");
+    } else if (result.trade_state === "NOTPAY" && order.payMethod === "WECHAT_INIT") {
+      // 渠道已证明接收原单，可由既有明确关单流程继续；绝不清空或更换此处流水。
+      await this.prisma.order.updateMany({
+        where: { id: order.id, userId, status: "PENDING", amount: order.amount,
+          payMethod: "WECHAT_INIT", payTransactionId: order.payTransactionId },
+        data: { payMethod: "WECHAT" },
+      });
+      await this.redis.del("shop:order:" + order.id);
+    }
     return { tradeState: result.trade_state, raw: result };
   }
 
