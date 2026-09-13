@@ -143,6 +143,11 @@ export class AppleIapService {
     const verified = await this.fetchVerifiedTransaction(transactionId);
     const product = this.validateTransaction(verified, transactionId, productId);
     const { payload } = verified;
+    // 只接受 Apple 签名载荷里的账号绑定；客户端传来的交易号不证明归属。
+    // 已入账历史交易由 duplicateResult 处理；未绑定的旧交易必须人工核对。
+    if (!payload.appAccountToken || payload.appAccountToken.toLowerCase() !== userId.toLowerCase()) {
+      throw new ConflictException("Apple 交易账号无法匹配，请使用购买时的账号恢复购买或联系客服");
+    }
     const receiptHash = dto.transactionReceipt
       ? createHash("sha256").update(dto.transactionReceipt, "utf8").digest("hex")
       : undefined;
@@ -250,19 +255,21 @@ export class AppleIapService {
     if (!purchase) return "PURCHASE_NOT_FOUND";
     if (purchase.status !== "VERIFIED") return "ALREADY_CHARGED_BACK";
 
+    // 状态条件更新先抢占本次冲正；与余额、流水同事务提交。
+    const claimed = await tx.appleIapPurchase.updateMany({
+      where: { transactionId, status: "VERIFIED" },
+      data: {
+        status,
+        refundedAt: revokedAt ? new Date(revokedAt) : new Date(),
+        revocationReason: reason,
+      },
+    });
+    if (claimed.count !== 1) return "ALREADY_CHARGED_BACK";
     const account = await tx.virtualCoinAccount.update({
       where: { userId: purchase.userId },
       data: {
         balance: { decrement: purchase.amountCoin },
         totalRecharged: { decrement: purchase.amountCoin },
-      },
-    });
-    await tx.appleIapPurchase.update({
-      where: { transactionId },
-      data: {
-        status,
-        refundedAt: revokedAt ? new Date(revokedAt) : new Date(),
-        revocationReason: reason,
       },
     });
     await tx.virtualCoinRecharge.updateMany({
@@ -287,17 +294,19 @@ export class AppleIapService {
     const purchase = await tx.appleIapPurchase.findUnique({ where: { transactionId } });
     if (!purchase) return "PURCHASE_NOT_FOUND";
     if (purchase.status === "VERIFIED") return "ALREADY_VERIFIED";
+    if (purchase.status !== "REFUNDED") return "NOT_REFUNDED";
 
+    const claimed = await tx.appleIapPurchase.updateMany({
+      where: { transactionId, status: purchase.status },
+      data: { status: "VERIFIED", refundedAt: null, revocationReason: null },
+    });
+    if (claimed.count !== 1) return "STATE_CHANGED";
     const account = await tx.virtualCoinAccount.update({
       where: { userId: purchase.userId },
       data: {
         balance: { increment: purchase.amountCoin },
         totalRecharged: { increment: purchase.amountCoin },
       },
-    });
-    await tx.appleIapPurchase.update({
-      where: { transactionId },
-      data: { status: "VERIFIED", refundedAt: null, revocationReason: null },
     });
     await tx.virtualCoinRecharge.updateMany({
       where: { orderNo: `APPLE_IAP_${transactionId}` },

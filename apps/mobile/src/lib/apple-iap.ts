@@ -145,6 +145,9 @@ function currentIapUsername(): string {
   const user = getUserInfo<{ id?: string | number }>()
   const username = String(user?.id ?? '').trim()
   if (!username) throw new Error('登录状态已失效，请重新登录后再进行 Apple 支付')
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(username)) {
+    throw new Error('当前账号暂不支持 Apple 购买，请联系客服处理')
+  }
   return username
 }
 
@@ -156,7 +159,8 @@ function requestPayment(productId: string, username: string): Promise<AppleIapTr
         productid: productId,
         quantity: 1,
         manualFinishTransaction: true,
-        // DCloud 会将该值透传到 Apple 交易，用于服务端验票关联用户与恢复未完成交易筛选。
+        // 使用账号 UUID；上线前须真机确认原生通道将它保留为签名 appAccountToken。
+        // 服务端不会用客户端自行声明的 username 代替 Apple 签名账号绑定。
         username,
       },
       success: (transaction: any) => resolve(transaction as AppleIapTransaction),
