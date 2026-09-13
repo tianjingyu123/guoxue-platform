@@ -47,6 +47,9 @@ export class AppleIapService {
 
   private configuredEnvironments(): Environment[] {
     const configured = getAppleIapSettings().environment;
+    // 正式账本不能把沙盒免费交易兑换成真实可消费余额。
+    // TestFlight 的沙盒验收须使用隔离的测试服务与账本。
+    if (process.env.NODE_ENV === "production") return [Environment.PRODUCTION];
     if (configured === "SANDBOX") return [Environment.SANDBOX];
     if (configured === "PRODUCTION") return [Environment.PRODUCTION];
     // TestFlight/开发包产生 Sandbox 交易，正式商店产生 Production 交易。
