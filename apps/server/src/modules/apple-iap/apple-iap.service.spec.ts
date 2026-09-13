@@ -44,6 +44,19 @@ describe("AppleIapService", () => {
   const transactionId = "2000000123456789";
   const productId = "com.rebu.iosapprebu.coins1000";
 
+  it("正式服务不回退沙盒免费交易", () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const { prisma } = createPrismaMock();
+      expect((new AppleIapService(prisma as never) as any).configuredEnvironments())
+        .toEqual([Environment.PRODUCTION]);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+  });
+
   it.each([undefined, "other-user"])("首次交易账号标记缺失或不匹配时拒绝发币：%s", async (token) => {
     const { prisma, tx } = createPrismaMock();
     const service = new AppleIapService(prisma as never);
