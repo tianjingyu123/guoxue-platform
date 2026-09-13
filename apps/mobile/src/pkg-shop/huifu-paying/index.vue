@@ -5,6 +5,8 @@
       <text class="title">{{ methodName }}</text>
       <text v-if="view.amount" class="amount">¥{{ view.amount }}</text>
       <text class="message">{{ view.message }}</text>
+      <button v-if="canOpenAlipay()" class="primary" :disabled="view.busy" @tap="openAlipay">打开支付宝付款</button>
+      <text v-if="openMessage" class="hint">{{ openMessage }}</text>
       <view v-if="view.qrCode" class="qr-wrap">
         <canvas canvas-id="existingOrderPayQr" id="existingOrderPayQr" class="qr" />
         <text v-if="qrError" class="message">二维码绘制失败，请重新显示</text>
@@ -27,11 +29,18 @@ import { getUserInfo } from '@/utils/storage'
 import { purchaseApi } from '@/lib/purchase-data'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { createExistingOrderHuifu, isHuifuChannel, type ExistingPayOrder, type HuifuAttempt, type HuifuCashierView } from '@/utils/existing-order-huifu'
+import { isAlipayMobileBrowser, alipaySchemeForQr, existingAlipayLaunchUrl } from '@/utils/huifu-alipay-h5'
 
 const instance = getCurrentInstance()
 const view = ref<HuifuCashierView>({ phase: 'loading', amount: '', channel: 'alipay', qrCode: '', busy: false, message: '正在读取订单', canStart: false })
 const methodName = ref('支付宝')
 const qrError = ref(false)
+const openMessage = ref('')
+const browserUserAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+let paymentAccountId = ''
+let paymentKey = ''
+let lastOpenedAt = -Infinity
+let pageActive = true
 let orderId = ''
 let flow: ReturnType<typeof createExistingOrderHuifu> | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -56,7 +65,37 @@ async function renderQr() {
 }
 async function startPayment() { checks = 0; await flow?.start(); schedule() }
 async function checkPayment() { checks = 0; await flow?.check(); schedule() }
+function canOpenAlipay() {
+  if (typeof window === 'undefined' || window.self !== window.top) return false
+  if (!isAlipayMobileBrowser(browserUserAgent) || view.value.channel !== 'alipay' || view.value.phase !== 'pending') return false
+  try { alipaySchemeForQr(view.value.qrCode); return true } catch { return false }
+}
+function openAlipay() {
+  if (!visible || !pageActive || !flow || Date.now() - lastOpenedAt < 1000) return
+  try {
+    if (!paymentAccountId || String(getUserInfo<{ id?: string }>()?.id || '') !== paymentAccountId) throw new Error('登录账号已变化，请返回原订单')
+    const url = existingAlipayLaunchUrl({ orderId, view: flow.state, attempt: uni.getStorageSync(paymentKey) || null,
+      userAgent: browserUserAgent, topLevel: window.self === window.top, now: Date.now() })
+    // 必须在显式点击的同步调用栈中打开；只复用原付款码，不初始化新交易。
+    lastOpenedAt = Date.now()
+    openMessage.value = '请在支付宝确认付款，完成后返回本页核对。如未打开，可使用下方二维码。'
+    window.location.assign(url)
+  } catch (e) { openMessage.value = (e as Error)?.message || '未能打开支付宝，请使用下方二维码或查询原单' }
+}
+function browserVisible() { return typeof document === 'undefined' || document.visibilityState !== 'hidden' }
+function resumeFromBrowser() {
+  if (!pageActive) return
+  visible = browserVisible()
+  if (!visible) { stopPolling(); return }
+  if (loaded) { void checkPayment(); if (view.value.qrCode) void renderQr() }
+}
+function removeBrowserListeners() {
+  if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', resumeFromBrowser)
+  if (typeof window !== 'undefined') window.removeEventListener('pageshow', resumeFromBrowser)
+}
 function backToOrder() {
+  pageActive = false
+  removeBrowserListeners()
   visible = false
   stopPolling()
   flow?.dispose()
@@ -71,7 +110,10 @@ onLoad(async (q) => {
     return
   }
   methodName.value = channel === 'alipay' ? '支付宝' : '云闪付'
+  visible = browserVisible()
   const key = `huifu:h5:existing:${accountId}:${orderId}`
+  paymentAccountId = accountId
+  paymentKey = key
   const assertAccount = () => { if (String(getUserInfo<{ id?: string }>()?.id || '') !== accountId) throw new Error('登录账号已变化，请返回原订单') }
   flow = createExistingOrderHuifu({
     orderId, channel, now: Date.now,
@@ -90,16 +132,18 @@ onLoad(async (q) => {
       if (['success', 'closed'].includes(value.phase)) stopPolling()
     },
   })
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', resumeFromBrowser)
+  if (typeof window !== 'undefined') window.addEventListener('pageshow', resumeFromBrowser)
   await flow.load()
   loaded = true
   schedule()
 })
 onShow(() => {
-  visible = true
-  if (loaded) { void checkPayment(); if (view.value.qrCode) void renderQr() }
+  pageActive = true
+  resumeFromBrowser()
 })
-onHide(() => { visible = false; stopPolling() })
-onUnload(() => { visible = false; stopPolling(); flow?.dispose() })
+onHide(() => { pageActive = false; visible = false; stopPolling() })
+onUnload(() => { pageActive = false; visible = false; stopPolling(); removeBrowserListeners(); flow?.dispose() })
 </script>
 
 <style scoped>

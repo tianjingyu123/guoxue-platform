@@ -11,6 +11,24 @@ function compile(code, globals = {}) {
   return mod.exports
 }
 const api = compile(file('utils/existing-order-huifu.ts'))
+const alipayH5 = compile(file('utils/huifu-alipay-h5.ts'))
+const mobileUa = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128.0 Mobile Safari/537.36'
+
+test('支付宝scheme仅接受确切HTTPS二维码域，参数编码后复用原码', () => {
+  const qr = 'https://qr.alipay.com/test?x=1&y=2'
+  assert.equal(alipayH5.alipaySchemeForQr(qr), `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(qr)}`)
+  for (const invalid of ['javascript:alert(1)', 'alipays://anything', 'http://qr.alipay.com/x', 'https://qr.alipay.com.evil/x', 'https://user@qr.alipay.com/x', 'https://qr.alipay.com:443/x', 'https://QR.ALIPAY.COM/x', 'https://qr.alipay.com\\@evil/x', 'https://qr.alipay.com/x\n']) assert.throws(() => alipayH5.alipaySchemeForQr(invalid))
+})
+test('普通手机浏览器可显示拉起入口；桌面微信和常见内嵌环境不开放', () => {
+  assert.equal(alipayH5.isAlipayMobileBrowser(mobileUa), true)
+  assert.equal(alipayH5.isAlipayMobileBrowser('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Version/17.0 Mobile Safari'), true)
+  for (const ua of ['Mozilla/5.0 Windows NT Chrome', mobileUa+' MicroMessenger/8', mobileUa+' AlipayClient/10', mobileUa+'; wv', mobileUa+' QQ/9']) assert.equal(alipayH5.isAlipayMobileBrowser(ua), false)
+})
+test('拉起校验原订单凭据、渠道、时效、状态及顶层环境，不接受未知或已付订单', () => {
+  const input = { orderId: 'one', userAgent: mobileUa, topLevel: true, now: 1000, view: { phase: 'pending', channel: 'alipay', qrCode: 'https://qr.alipay.com/test', busy: false }, attempt: { orderId: 'one', channel: 'alipay', outTradeNo: 'HF-one', requestedAt: 500, qrCode: 'https://qr.alipay.com/test' } }
+  assert.ok(alipayH5.existingAlipayLaunchUrl(input).startsWith('alipays:'))
+  for (const override of [{ topLevel: false }, { orderId: 'other' }, { now: 500+7200000 }, { now: 400 }, { attempt: null }, { view: { ...input.view, channel: 'unionpay' } }, { view: { ...input.view, phase: 'success' } }, { view: { ...input.view, phase: 'unknown' } }, { view: { ...input.view, busy: true } }, { attempt: { ...input.attempt, qrCode: 'https://qr.alipay.com/other' } }]) assert.throws(() => alipayH5.existingAlipayLaunchUrl({ ...input, ...override }))
+})
 function fixture(overrides = {}) {
   let order = { id: 'original-one', status: 'PENDING', amount: '0.01', type: 'PRODUCT' }, saved = null, current = {}, creates = [], queries = [], reads = 0
   const deps = {
@@ -165,8 +183,10 @@ test('H5新收银页面只接收既有订单，未调用任何创建业务订单
   assert.ok(s.includes('purchaseApi.payByChannel(id, method)'))
   assert.ok(s.includes('huifu:h5:existing:${accountId}:${orderId}'))
 })
-test('真实H5收银页账号隔离标记、画码和隐藏/返回生命周期', async () => {
-  const hooks = {}, timers = new Map(), storage = new Map(); let timerId = 0, paints = 0, initialized = 0, account = 'qa-one'
+test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢复只查原单且清理监听', async () => {
+  const hooks = {}, timers = new Map(), storage = new Map(), listeners = new Map(), opened = []; let timerId = 0, paints = 0, initialized = 0, queried = 0, account = 'qa-one', now = 10000
+  const browserDocument = { visibilityState: 'visible', addEventListener: (n, fn) => listeners.set(n, fn), removeEventListener: n => listeners.delete(n) }
+  const browserWindow = { location: { assign: url => opened.push(url) }, addEventListener: (n, fn) => listeners.set(n, fn), removeEventListener: n => listeners.delete(n) }; browserWindow.self = browserWindow; browserWindow.top = browserWindow
   const order = { id: 'original-one', amount: '0.01', status: 'PENDING', type: 'PRODUCT' }
   const modules = {
     vue: { ref: value => ({ value }), nextTick: async () => {}, getCurrentInstance: () => ({}) },
@@ -175,24 +195,32 @@ test('真实H5收银页账号隔离标记、画码和隐藏/返回生命周期',
     '@/utils/request': { apiGet: async () => ({ ...order }) },
     '@/utils/storage': { getUserInfo: () => ({ id: account }) },
     '@/lib/purchase-data': { purchaseApi: {
-      payByChannel: async (id, method) => { initialized++; assert.equal(id, 'original-one'); assert.equal(method, 'alipay'); order.payMethod = 'HUIFU'; order.payTransactionId = 'HF-one'; return { outTradeNo: 'HF-one', qrCode: 'qr-test' } },
-      queryHuifuPayment: async () => ({ trans_stat: 'P' }),
+      payByChannel: async (id, method) => { initialized++; assert.equal(id, 'original-one'); assert.equal(method, 'alipay'); order.payMethod = 'HUIFU'; order.payTransactionId = 'HF-one'; return { outTradeNo: 'HF-one', qrCode: 'https://qr.alipay.com/test' } },
+      queryHuifuPayment: async ref => { assert.equal(ref, 'HF-one'); queried++; return { trans_stat: 'P' } },
     } },
     '@/utils/qrcode': { drawQrToCanvas: () => { paints++; return true } },
     '@/utils/existing-order-huifu': api,
+    '@/utils/huifu-alipay-h5': alipayH5,
   }
-  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.getView=()=>view.value;', {
+  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.open=openAlipay;exports.getView=()=>view.value;', {
     require: name => { assert.ok(modules[name], name); return modules[name] },
     setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id }, clearTimeout: id => timers.delete(id),
     uni: { getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, JSON.parse(JSON.stringify(value))), createCanvasContext: () => ({ draw: (_, callback) => callback() }) },
+    navigator: { userAgent: mobileUa }, window: browserWindow, document: browserDocument, Date: class extends Date { static now() { return now } },
   })
   await hooks.onLoad({ orderId: 'original-one', method: 'alipay' })
   assert.equal(initialized, 0); assert.equal(timers.size, 0)
   await page.start(); await new Promise(r => setImmediate(r))
   assert.equal(initialized, 1); assert.ok(paints > 0); assert.equal(timers.size, 1)
   assert.ok(storage.has('huifu:h5:existing:qa-one:original-one'))
+  assert.equal(opened.length, 0)
+  page.open(); page.open(); assert.equal(opened.length, 1); assert.equal(initialized, 1); assert.equal(page.getView().phase, 'pending')
+  browserDocument.visibilityState = 'hidden'; listeners.get('visibilitychange')(); assert.equal(timers.size, 0)
+  const before = queried; browserDocument.visibilityState = 'visible'; listeners.get('visibilitychange')(); listeners.get('pageshow')(); await new Promise(r => setImmediate(r))
+  assert.equal(queried, before+1); assert.equal(timers.size, 1); assert.equal(initialized, 1); assert.equal(opened.length, 1)
   hooks.onHide(); assert.equal(timers.size, 0)
+  listeners.get('pageshow')(); await new Promise(r => setImmediate(r)); assert.equal(timers.size, 0)
   hooks.onShow(); await new Promise(r => setImmediate(r)); assert.equal(timers.size, 1)
-  account = 'other'; await page.start(); assert.equal(initialized, 1)
-  hooks.onUnload(); assert.equal(timers.size, 0)
+  account = 'other'; now += 2000; page.open(); assert.equal(opened.length, 1); await page.start(); assert.equal(initialized, 1)
+  hooks.onUnload(); assert.equal(timers.size, 0); assert.equal(listeners.size, 0)
 })
