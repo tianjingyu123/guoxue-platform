@@ -792,13 +792,13 @@ export const payMethods: PayMethodOption[] = [
   { id: 'huifu', name: '汇付天下', badge: '汇', badgeColor: '#FF8800' },
 ]
 
-/**
- * 结算页真实可用支付方式：后端订单仅提供微信支付创建端点（pay/jsapi 小程序、pay/native PC扫码），
- * 支付宝/银联仅有回调与管理端点、无「创建支付」端点 → 诚实只展示微信，避免点了报错。
- * 后续后端补支付宝/银联创建支付后再扩充。
- */
+/** H5支付宝/云闪付复用汇付原订单收银；其他端保持现有微信入口。 */
 export const checkoutPayMethods: PayMethodOption[] = [
   { id: 'wechat', name: '微信支付', badge: '微', badgeColor: '#07C160' },
+  // #ifdef H5
+  { id: 'alipay', name: '支付宝扫码', badge: '支', badgeColor: '#1677FF' },
+  { id: 'unionpay', name: '云闪付扫码', badge: '云', badgeColor: '#C41E3A' },
+  // #endif
 ]
 
 export interface CheckoutItem { id: string; productId: string; skuId?: string; productName: string; productCover: string; skuName: string; price: number; originalPrice: number; quantity: number }

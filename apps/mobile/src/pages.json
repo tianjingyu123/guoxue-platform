@@ -771,6 +771,14 @@
             "navigationStyle": "custom"
           }
         },
+        // #ifdef H5
+        {
+          "path": "huifu-paying/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        // #endif
         {
           "path": "pay-success/index",
           "style": {

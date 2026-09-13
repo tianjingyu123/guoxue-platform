@@ -107,6 +107,9 @@ import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
 import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/wechat-top-level'
+// #ifdef H5
+import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
+// #endif
 
 type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
@@ -149,6 +152,11 @@ const methodColor = computed(() => {
 
 onLoad((q) => {
   // #ifdef H5
+  // 旧链接显式选择非微信时转入唯一汇付收银页，不能继续落入微信UA分支。
+  if (q?.scene !== 'recharge' && q?.orderId && isHuifuChannel(q?.method)) {
+    redirectTo(existingOrderCashierRoute(String(q.orderId), q.method))
+    return
+  }
   // 商品/课程旧详情层可能把购买流程留在 iframe，先恢复顶层再授权或调起 JSAPI。
   try {
     if (navigator.userAgent.toLowerCase().includes('micromessenger') && promoteWechatPaymentPage(window)) return

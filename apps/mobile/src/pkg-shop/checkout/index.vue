@@ -167,6 +167,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
+// #ifdef H5
+import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
+// #endif
 
 const loading = ref(true)
 const error = ref('')
@@ -353,6 +356,12 @@ async function submitOrder() {
     const liveReturn = contentSource.value.type === 'LIVE' && contentSource.value.id
       ? `&returnLiveRoomId=${encodeURIComponent(contentSource.value.id)}`
       : ''
+    // #ifdef H5
+    if (isHuifuChannel(payMethod.value)) {
+      redirectTo(existingOrderCashierRoute(first.id, payMethod.value))
+      return
+    }
+    // #endif
     redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}${liveReturn}`)
     // 成功跳转后不重置 submitting（页面已离开）
   } catch (e) {

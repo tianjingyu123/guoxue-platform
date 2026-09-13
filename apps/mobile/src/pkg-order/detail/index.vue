@@ -172,6 +172,9 @@ import { navigateTo } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
+// #ifdef H5
+import { existingOrderCashierRoute, type HuifuChannel } from '@/utils/existing-order-huifu'
+// #endif
 
 const loading = ref(false)
 const error = ref('')
@@ -219,7 +222,33 @@ function goReview() { if (!order.value) return; navigateTo(`/orders/${order.valu
 function goAfterSale() { if (!order.value) return; navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
 // 换货入口：挂订单售后（换货页读该订单商品/SKU/地址，提交走 after-sale type=exchange）
 function goExchange() { if (!order.value) return; navigateTo(`/shop/exchange?orderId=${order.value.id}`) }
+// #ifdef H5
+let choosingPayment = false
+// #endif
 function goPay() {
+  if (!order.value) return
+  // #ifdef H5
+  if (choosingPayment) return
+  choosingPayment = true
+  const currentId = order.value.id
+  const channels: Array<'wechat' | HuifuChannel> = ['wechat', 'alipay']
+  const itemList = ['微信支付（请在微信中打开）', '支付宝扫码']
+  if (['PRODUCT', 'COURSE'].includes(order.value.orderType)) { channels.push('unionpay'); itemList.push('云闪付扫码') }
+  uni.showActionSheet({
+    itemList,
+    success: ({ tapIndex }) => {
+      const selected = channels[tapIndex]
+      if (!selected || order.value?.id !== currentId) return
+      if (selected === 'wechat') { navigateTo(`/shop/paying?orderId=${encodeURIComponent(currentId)}&method=wechat&amount=${order.value.payAmount}`); return }
+      navigateTo(existingOrderCashierRoute(currentId, selected))
+    },
+    complete: () => { choosingPayment = false },
+  })
+  return
+  // #endif
+  goLegacyPay()
+}
+function goLegacyPay() {
   if (!order.value) return
   // 带上真实实付金额，避免收银页显示 ¥0.00；payMethod 为展示串，反映射为收银页可识别的 key（未支付订单通常无，缺省微信）
   const m = order.value.payMethod === '微信支付' ? 'wechat' : order.value.payMethod === '支付宝' ? 'alipay' : ''
