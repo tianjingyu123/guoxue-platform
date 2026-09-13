@@ -14,6 +14,7 @@ export interface HuifuAttempt {
   requestedAt: number
   outTradeNo?: string
   qrCode?: string
+  lastFailureMessage?: string
 }
 export interface HuifuCashierView {
   phase: 'loading' | 'ready' | 'pending' | 'unknown' | 'success' | 'closed' | 'error'
@@ -91,15 +92,19 @@ export function createExistingOrderHuifu(d: Dependencies) {
     const qr = saved?.outTradeNo && saved.qrCode && saved.channel === d.channel && referenceMatches
       && d.now() >= saved.requestedAt && d.now() - saved.requestedAt < 2 * 60 * 60 * 1000 ? saved.qrCode : ''
     if (qr) show('pending', '请使用对应支付应用扫码；完成后点击查询结果', false, qr)
-    else if (hasReference || attempted) show('unknown', '该订单已有付款记录或提交结果待确认，请查询原单结果，不要重复付款')
+    else if (hasReference || attempted) show('unknown', pendingMessage('该订单已有付款记录或提交结果待确认，请查询原单结果，不要重复付款'))
     else show('ready', '点击生成本订单的付款二维码', true)
+  }
+  function pendingMessage(fallback: string) {
+    return typeof saved?.lastFailureMessage === 'string' && saved.lastFailureMessage.trim()
+      ? `${saved.lastFailureMessage}\n支付结果待核对，请查询原订单，不要重复付款` : fallback
   }
   async function run(action: () => Promise<void>) {
     if (disposed || busy || terminal) return
     busy = true
     if (!disposed) d.update({ ...view, busy: true })
     try { await action() }
-    catch (e) { show(attempted ? 'unknown' : 'error', (e as Error)?.message || '支付信息暂不可用，请查询订单结果') }
+    catch (e) { show(attempted ? 'unknown' : 'error', pendingMessage((e as Error)?.message || '支付信息暂不可用，请查询订单结果')) }
     finally { busy = false; if (!disposed) d.update({ ...view, busy: false }) }
   }
   async function load() {
@@ -117,7 +122,7 @@ export function createExistingOrderHuifu(d: Dependencies) {
         try { await d.queryPayment(reference) } catch { failed = true }
         if (!await read()) return
         pendingView()
-        if (failed) show('unknown', '通道查询暂不可用，请稍后继续查询原单')
+        if (failed) show('unknown', pendingMessage('通道查询暂不可用，请稍后继续查询原单'))
       } else pendingView()
     })
   }
@@ -131,9 +136,19 @@ export function createExistingOrderHuifu(d: Dependencies) {
       const record: HuifuAttempt = { orderId: d.orderId, channel: d.channel, requestedAt: d.now() }
       d.saveAttempt(record)
       saved = record
-      const result = await d.createPayment(d.orderId, d.channel)
-      const qr = result.qrCode || result.codeUrl
-      if (!result.outTradeNo || typeof qr !== 'string' || !qr.trim()) throw new Error('未取得付款二维码，请查询原订单，不要重复提交')
+      let result: Awaited<ReturnType<Dependencies['createPayment']>>
+      let qr: string
+      try {
+        result = await d.createPayment(d.orderId, d.channel)
+        const credential = result.qrCode || result.codeUrl
+        if (!result.outTradeNo || typeof credential !== 'string' || !credential.trim()) throw new Error('未取得付款二维码，请查询原订单，不要重复提交')
+        qr = credential
+      } catch (e) {
+        // 保留本次初始化的原始失败说明；轮询/重开仍只能核对，不能解锁重发。
+        saved = { ...record, lastFailureMessage: (e as Error)?.message || '支付提交结果无法确认' }
+        try { d.saveAttempt(saved) } catch { /* 保存失败仍保留已有提交标记和当前页面原始提示。 */ }
+        throw e
+      }
       saved = { ...record, outTradeNo: result.outTradeNo, qrCode: qr }
       d.saveAttempt(saved)
       if (!await read()) return

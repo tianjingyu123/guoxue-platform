@@ -57,6 +57,21 @@ test('提交前持久标记；网络未知、重开、改渠道均不自动重�
   await f.flow.start(); await f.flow.start(); await api.createExistingOrderHuifu({ ...f.deps, channel: 'unionpay' }).start()
   assert.equal(attempts, 1); assert.equal(f.view.phase, 'unknown')
 })
+
+test('首次拒绝后轮询、刷新和再次点击仍保留原始失败说明且不重新初始化', async () => {
+  let attempts = 0
+  const message = '商户银联入驻信息配置有误'
+  const f = fixture({ channel: 'unionpay', createPayment: async () => { attempts++; throw new Error(message) } })
+  await f.flow.start()
+  assert.equal(f.saved.lastFailureMessage, message)
+  for (let i = 0; i < 3; i++) { await f.flow.check(); assert.ok(f.view.message.includes(message)); assert.equal(f.view.canStart, false) }
+  const reopened = api.createExistingOrderHuifu(f.deps)
+  await reopened.load(); assert.ok(f.view.message.includes(message))
+  await reopened.check(); await reopened.start()
+  assert.ok(f.view.message.includes(message)); assert.ok(f.view.message.includes('支付结果待核对')); assert.equal(attempts, 1)
+  f.setOrder({ id: 'original-one', status: 'PAID', amount: 0.01 }); await reopened.check()
+  assert.equal(f.view.phase, 'success'); assert.equal(f.view.message.includes(message), false)
+})
 test('本地初始标记保存失败时不发送；响应保存失败后保留未知标记', async () => {
   const f = fixture({ saveAttempt: () => { throw new Error('storage') } }); await f.flow.start(); assert.equal(f.counts.creates.length, 0)
   const g = fixture(); const save = g.deps.saveAttempt; let writes = 0
