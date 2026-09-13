@@ -61,7 +61,7 @@
         <text class="sub">{{ failReason || '请重新尝试' }}</text>
         <view class="btn-row">
           <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : returnLiveRoomId ? '返回直播间' : '返回订单' }}</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
+          <view class="btn primary" v-if="!initializationBlocked" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -72,7 +72,7 @@
         <text class="sub">未收到支付结果，请确认支付状态</text>
         <view class="btn-row">
           <view class="btn ghost" @tap="goOrder"><text>{{ isRecharge ? '返回钱包' : '查看订单' }}</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
+          <view class="btn primary" v-if="!initializationBlocked" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { isPaymentInitializationBlocked } from "@/utils/payment-initialization-error"
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
@@ -121,6 +122,7 @@ const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
 const failReason = ref('')
+const initializationBlocked = ref(false)
 const submitting = ref(false)
 const oauthCallbackCode = ref('')
 const oauthAuthorizeUrl = ref('')
@@ -226,6 +228,13 @@ async function startPaying() {
       })
     })
   } catch (e) {
+    if (isPaymentInitializationBlocked(e)) {
+      initializationBlocked.value = true
+      status.value = 'failed'
+      failReason.value = (e as Error).message
+      clearTimers('all')
+      return
+    }
     const msg = (e as Error)?.message || ''
     if (msg.includes('取消') || msg.includes('cancel')) {
       status.value = 'cancelled'
@@ -270,6 +279,7 @@ async function startPaying() {
         }
         await invokeWechatJsapiPay(p)
       } catch (e) {
+        if (isPaymentInitializationBlocked(e)) throw e
         const msg = (e as Error)?.message || ''
         if (msg.includes('取消')) {
           status.value = 'cancelled'
@@ -302,7 +312,8 @@ async function startPaying() {
       }
     }
   } catch (e) {
-    // 结构化错误（如未配置商户证书 400）直接进入失败态，文案透出
+    initializationBlocked.value = isPaymentInitializationBlocked(e)
+    // 结构化错误直接进入失败态，核对错误不提供重新付款按钮
     status.value = 'failed'
     failReason.value = (e as Error)?.message || '支付发起失败，请稍后重试'
     clearTimers('all')
@@ -334,6 +345,7 @@ async function startPaying() {
       })
     })
   } catch (error) {
+    initializationBlocked.value = isPaymentInitializationBlocked(error)
     const message = (error as Error)?.message || '微信支付暂时不可用，请稍后重试'
     status.value = message.includes('取消') ? 'cancelled' : 'failed'
     failReason.value = message
@@ -605,6 +617,7 @@ function handleCancel() {
   setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
+  if (initializationBlocked.value) return
   if (submitting.value) return
   failReason.value = ''
   if (isRecharge.value && rechargeOrderNo.value) {

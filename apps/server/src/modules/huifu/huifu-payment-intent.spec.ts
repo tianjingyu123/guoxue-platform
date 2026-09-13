@@ -17,7 +17,7 @@ const deferred = <T = any>() => {
  * 两个服务实例共享数据库但不共享服务状态；此测试不冒充真实PostgreSQL并发测试。
  */
 function database() {
-  let order: any = { id: "order-1", userId: "user-1", amount: 1, status: "PENDING", type: "PRODUCT", payTransactionId: null, payMethod: null };
+  let order: any = { createdAt: new Date("2026-09-13T00:00:00.001Z"), id: "order-1", userId: "user-1", amount: 1, status: "PENDING", type: "PRODUCT", payTransactionId: null, payMethod: null };
   let record: any = null;
   let queue = Promise.resolve();
   let commits = 0;
@@ -26,7 +26,7 @@ function database() {
       findUnique: jest.fn(async () => structuredClone(order)),
       findFirst: jest.fn(async ({ where }: any) => order?.payTransactionId === where.payTransactionId ? structuredClone(order) : null),
       updateMany: jest.fn(async ({ where, data }: any) => {
-        if (Object.entries(where).some(([k, v]) => order?.[k] !== v)) return { count: 0 };
+        if (Object.entries(where).some(([k, v]) => k === "createdAt" ? !(order.createdAt > (v as any).gt) : order?.[k] !== v)) return { count: 0 };
         order = { ...order, ...data };
         return { count: 1 };
       }),

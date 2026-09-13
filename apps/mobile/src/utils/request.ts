@@ -276,7 +276,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
           resolve(body.data)
         } else {
           reportApiError(path, res.statusCode, body?.code) // 旁路：上报 4xx/5xx 等非成功响应
-          reject(new Error(body?.message || `请求失败(${res.statusCode})`))
+          reject(Object.assign(new Error(body?.message || `请求失败(${res.statusCode})`), { status: res.statusCode, errorCode: (body as { errorCode?: number })?.errorCode }))
         }
       },
       fail: (err) => {

@@ -193,6 +193,7 @@
 </template>
 
 <script setup lang="ts">
+import { isPaymentInitializationBlocked } from "@/utils/payment-initialization-error"
 import { ref, computed } from 'vue'
 // #ifdef H5
 import { getCurrentInstance, nextTick, onUnmounted } from 'vue'
@@ -443,7 +444,10 @@ async function onPay() {
         return
         // #endif
       }
-    } catch { /* 聚合支付未接通 → 走下方诚实降级 */ }
+    } catch (error) {
+      if (isPaymentInitializationBlocked(error)) { onClose(); throw error }
+      /* 其他聚合支付错误仍使用原降级流程。 */
+    }
     // 诚实降级：订单已创建但支付未发起，引导订单中心继续支付（不显示成功态）
     uni.showToast({ title: '订单已创建，请到「我的-我的订单」完成支付', icon: 'none', duration: 3000 })
     onClose()

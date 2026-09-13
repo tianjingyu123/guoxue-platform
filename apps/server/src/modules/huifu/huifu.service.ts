@@ -1,3 +1,4 @@
+import { PaymentInitializationPolicy } from "../../common/payment-initialization-policy";
 import { Injectable, Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { createPrivateKey, createPublicKey, createSign, createVerify, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -21,6 +22,7 @@ import { decrypt, encrypt } from "../../common/crypto.util";
  */
 @Injectable()
 export class HuifuService implements OnModuleInit {
+  private readonly initializationPolicy = new PaymentInitializationPolicy();
   private paymentNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
   private refundNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
   private readonly logger = new Logger(HuifuService.name);
@@ -542,6 +544,7 @@ export class HuifuService implements OnModuleInit {
       if (!Number.isSafeInteger(totalFen) || totalFen <= 0 || Number(order.amount) !== totalFen / 100) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
       }
+      const cutoff = this.initializationPolicy.assertOrder(order);
       const existing = await tx.huifuSplitRecord.findUnique({ where: { orderId: order.id } });
       if (existing) {
         const request = existing.rawRequest as Record<string, unknown> | null;
@@ -569,7 +572,7 @@ export class HuifuService implements OnModuleInit {
       };
       if (dto.openid && tradeType.startsWith("T_")) data.wx_data = { sub_openid: dto.openid };
       const claimed = await tx.order.updateMany({
-        where: { id: order.id, userId, status: "PENDING", payTransactionId: null, amount: order.amount },
+        where: { id: order.id, userId, status: "PENDING", payTransactionId: null, amount: order.amount, createdAt: { gt: cutoff } },
         data: { payTransactionId: outTradeNo, payMethod: "HUIFU" },
       });
       if (claimed.count !== 1) {

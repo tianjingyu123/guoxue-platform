@@ -429,7 +429,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     beforeEach(() => {
       mockPrisma.order.updateMany.mockImplementation(async ({ data }: any) => {
         const original = await mockPrisma.order.findUnique();
-        mockPrisma.order.findUnique.mockResolvedValue({ ...original, ...data });
+        mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"), ...original, ...data });
         return { count: 1 };
       });
     });
@@ -441,7 +441,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("订单不属于当前用户应抛出异常", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-1", userId: "other-user", amount: 100, status: "PENDING", type: "course",
       });
       await expect(
@@ -450,7 +450,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("已支付订单不能重复支付", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-1", userId: "user-1", amount: 100, status: "PAID", type: "course",
       });
       await expect(
@@ -459,7 +459,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("jspay 报文映射：T_JSAPI/trans_amt两位小数字符串/wx_data.sub_openid，并回存 hf_seq_id 与 payInfo", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-1", userId: "user-1", amount: 100, status: "PENDING", type: "course",
       });
       mockPrisma.order.update.mockResolvedValue({});
@@ -494,13 +494,13 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(res.h5Url).toBeNull();
       expect(res.qrCode).toBeNull();
       expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
-        where: { id: "order-1", userId: "user-1", status: "PENDING", payTransactionId: null, amount: 100 },
+        where: { id: "order-1", userId: "user-1", status: "PENDING", payTransactionId: null, amount: 100, createdAt: { gt: new Date("2000-01-01T00:00:00.000Z") } },
         data: { payTransactionId: res.outTradeNo, payMethod: "HUIFU" },
       });
     });
 
     it("支付宝应走 A_NATIVE 正扫、接受 00000100 并返回二维码", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-2", userId: "user-1", amount: 8.5, status: "PENDING", type: "course",
       });
       mockPrisma.order.update.mockResolvedValue({});
@@ -523,7 +523,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("汇付业务失败保留预建原支付意图，不删除或重建", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-failed", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
       });
       mockFetchResponse({
@@ -540,7 +540,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("汇付成功码但无支付凭证时保留原单并返回UNKNOWN", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-no-credential", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
       });
       mockFetchResponse({
@@ -557,7 +557,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("支付响应验签失败不保存不可信凭证，但保留原支付意图", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({
+      mockPrisma.order.findUnique.mockResolvedValue({ createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "order-bad-sign", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
       });
       const dataJson = JSON.stringify({

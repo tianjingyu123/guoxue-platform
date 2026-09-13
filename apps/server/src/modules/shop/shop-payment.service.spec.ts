@@ -67,7 +67,7 @@ describe("ShopPaymentService", () => {
 
   describe("汇付验签回调接入统一履约", () => {
     it("成功回调应翻转订单、清缓存、记佣金并保存渠道流水", async () => {
-      const order = { id: "o-hf-1", userId: "u1", type: "PRODUCT", amount: "88", status: "PENDING", payTransactionId: "HF-OUT-1" };
+      const order = { createdAt: new Date("1999-01-01T00:00:00.000Z"), id: "o-hf-1", userId: "u1", type: "PRODUCT", amount: "88", status: "PENDING", payTransactionId: "HF-OUT-1" };
       mockPrisma.order.findFirst.mockResolvedValue(order);
       mockPrisma.order.findUnique.mockResolvedValue(order);
       mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
@@ -170,7 +170,7 @@ describe("ShopPaymentService", () => {
       expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
     });
     it("支付宝 TRADE_FINISHED 终态同样必须完成本地入账", async () => {
-      const order = {
+      const order = { createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "o-ali-finished", userId: "u1", type: "PRODUCT", amount: "88", status: "PENDING",
         payTransactionId: "ALI-MERCHANT-FINISHED",
       };
@@ -237,7 +237,7 @@ describe("ShopPaymentService", () => {
     });
 
     it.each([null, "WECHAT_INIT"])("微信成功回调仅在商户单号和金额均匹配时完成统一入账（%s）", async (payMethod) => {
-      const order = {
+      const order = { createdAt: new Date("2026-09-13T00:00:00.001Z"),
         id: "o-wx-ok", userId: "u1", type: "PRODUCT", amount: "88", status: "PENDING",
         payTransactionId: "WX-MERCHANT-OK", payMethod,
       }
@@ -354,7 +354,7 @@ describe("ShopPaymentService", () => {
   });
 
   describe("createAppPayment", () => {
-    const order = { id: "app-order", userId: "u1", type: "PRODUCT", amount: "12.34", status: "PENDING", payTransactionId: null, shippingInfo: { province: "测试省" } }
+    const order = { createdAt: new Date("2026-09-13T00:00:00.001Z"), id: "app-order", userId: "u1", type: "PRODUCT", amount: "12.34", status: "PENDING", payTransactionId: null, shippingInfo: { province: "测试省" } }
     const orderInfo = { appid: "wx-mobile", partnerid: "test-mch", prepayid: "test-prepay", package: "Sign=WXPay", noncestr: "test-nonce", timestamp: "123", sign: "test-sign" }
 
     beforeEach(() => {
@@ -423,7 +423,7 @@ describe("ShopPaymentService", () => {
   })
 
   describe("createJsapiPayment", () => {
-    const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING", payTransactionId: null }
+    const mockOrder = { createdAt: new Date("2026-09-13T00:00:00.001Z"), id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING", payTransactionId: null }
 
     beforeEach(() => {
       mockRedis.getJson.mockReset().mockResolvedValue(null)
@@ -452,7 +452,7 @@ describe("ShopPaymentService", () => {
         attach: "o1",
       }))
       expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
-        where: { id: "o1", userId: "u1", status: "PENDING", payTransactionId: null, payMethod: null, amount: "99" },
+        where: { id: "o1", userId: "u1", status: "PENDING", payTransactionId: null, payMethod: null, amount: "99", createdAt: { gt: new Date("2000-01-01T00:00:00.000Z") } },
         data: { payTransactionId: "GXo1", payMethod: "WECHAT_INIT" },
       })
       expect(mockRedis.setNX).toHaveBeenCalledWith("pay:init:wechat:o1", "1", 60)
@@ -503,7 +503,7 @@ describe("ShopPaymentService", () => {
   })
 
   describe("createNativePayment", () => {
-    const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING" }
+    const mockOrder = { createdAt: new Date("2026-09-13T00:00:00.001Z"), id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING" }
 
     beforeEach(() => {
       mockRedis.getJson.mockReset().mockResolvedValue(null)
@@ -607,7 +607,7 @@ describe("ShopPaymentService", () => {
   })
 
   describe("createH5Payment", () => {
-    const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING", payTransactionId: null }
+    const mockOrder = { createdAt: new Date("2026-09-13T00:00:00.001Z"), id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING", payTransactionId: null }
 
     beforeEach(() => {
       mockRedis.getJson.mockReset().mockResolvedValue(null)
@@ -708,7 +708,9 @@ describe("ShopPaymentService", () => {
     })
   })
 
-  describe("国学币充值支付", () => {
+  describe("国学币充值支付（旧计价与授权回归，候选入口另测拒绝）", () => {
+    beforeEach(() => { jest.spyOn(svc as any, "assertCoinRechargeInitialization").mockImplementation(() => undefined) })
+    afterEach(() => { (svc as any).assertCoinRechargeInitialization.mockRestore() })
     beforeEach(() => {
       mockWechatPay.isConfigured = true
       mockCoin.getCoinRate.mockReset().mockResolvedValue(10)

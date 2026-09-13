@@ -1,3 +1,4 @@
+import { PaymentInitializationPolicy } from "../../common/payment-initialization-policy";
 import { Injectable, Inject, Logger, Optional, HttpStatus } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { BusinessException } from "../../common/business.exception";
@@ -40,6 +41,7 @@ const COIN_RECHARGE_INTENT_TTL = 2 * 60 * 60;
  */
 @Injectable()
 export class ShopPaymentService {
+  private readonly initializationPolicy = new PaymentInitializationPolicy();
   private readonly logger = new Logger(ShopPaymentService.name);
 
   constructor(
@@ -69,7 +71,8 @@ export class ShopPaymentService {
     try {
       return await task();
     } finally {
-      await this.redis.del(lockKey);
+      try { await this.redis.del(lockKey); }
+      catch { this.logger.warn("支付初始化锁清理失败，将等待原锁到期"); }
     }
   }
 
@@ -124,6 +127,7 @@ export class ShopPaymentService {
 
   /** 瞬断后只以严格验签NOTPAY恢复；未找到/验签失败/处理中均不释放原意图。 */
   private async ensureWechatPaymentOwner(order: Order): Promise<void> {
+    this.initializationPolicy.assertOrder(order);
     if (order.payMethod === "WECHAT_INIT") {
       const queried = await this.queryPaymentStatus(order.id, order.userId);
       if (queried.tradeState !== "NOTPAY") {
@@ -146,11 +150,12 @@ export class ShopPaymentService {
       if (!current || current.userId !== order.userId) {
         throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
       }
+      const cutoff = this.initializationPolicy.assertOrder(current);
       this.assertWechatPaymentOwner(current);
       const huifu = await tx.huifuSplitRecord.findUnique({ where: { orderId: order.id } });
       if (huifu) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已有汇付支付记录，请查询原单");
       const updated = await tx.order.updateMany({
-        where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount,
+        where: { id: order.id, userId: order.userId, status: "PENDING", amount: order.amount, createdAt: { gt: cutoff },
           payTransactionId: order.payTransactionId || null, payMethod: order.payMethod || null },
         data: { payTransactionId: outTradeNo, payMethod: "WECHAT_INIT" },
       });
@@ -417,7 +422,12 @@ export class ShopPaymentService {
       return response;
     });
   }
+  private assertCoinRechargeInitialization(): void {
+    this.initializationPolicy.assertRecharge();
+  }
+
   private validateCoinRechargeAmount(amountCoin: number) {
+    this.assertCoinRechargeInitialization();
     if (!Number.isInteger(amountCoin) || amountCoin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须为正整数");
     }
