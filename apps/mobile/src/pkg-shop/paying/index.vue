@@ -1,5 +1,8 @@
 <template>
-  <view class="paying">
+  <!-- #ifdef APP-PLUS -->
+  <huifu-alipay-payment v-if="useHuifuAlipay" ref="huifuAlipay" :order-id="orderId" :amount="amount" @back="handleCancel" @paid="onHuifuAlipayPaid" />
+  <!-- #endif -->
+  <view v-if="!useHuifuAlipay" class="paying">
     <!-- 顶部导航 -->
     <app-nav-bar :title="isRecharge ? '充值中' : '支付中'" back-icon="x" :back-size="44" :title-weight="500" :bar-height="106" custom-back @back="handleCancel" />
 
@@ -114,6 +117,11 @@ import { getUserInfo } from '@/utils/storage'
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
+// #ifdef APP-PLUS
+import { onShow, onHide } from '@dcloudio/uni-app'
+import HuifuAlipayPayment from '@/components/common/huifu-alipay-payment.vue'
+import type { AlipayOrderState } from '@/utils/huifu-alipay-native'
+// #endif
 
 type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
@@ -131,6 +139,17 @@ const failReason = ref('')
 const submitting = ref(false)
 const oauthCallbackCode = ref('')
 const oauthAuthorizeUrl = ref('')
+const useHuifuAlipay = ref(false)
+// #ifdef APP-PLUS
+const huifuAlipay = ref<{ resume(): Promise<void>; pause(): void } | null>(null)
+onShow(() => { void huifuAlipay.value?.resume() })
+onHide(() => { huifuAlipay.value?.pause() })
+async function onHuifuAlipayPaid(order: AlipayOrderState) {
+  await settleCircleIfNeeded(order)
+  const liveReturn = returnLiveRoomId.value ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}` : ''
+  redirectTo(`/shop/pay-success?orderId=${encodeURIComponent(orderId.value)}${liveReturn}`)
+}
+// #endif
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -198,6 +217,12 @@ onLoad((q) => {
     failReason.value = '缺少订单信息'
     return
   }
+  // #ifdef APP-PLUS
+  if (payMethod.value === 'alipay') {
+    useHuifuAlipay.value = true
+    return
+  }
+  // #endif
   startPaying()
 })
 

@@ -10,7 +10,8 @@ test('App 微信 SDK 配置与登录使用同一移动应用标识和通用链�
 
 test('App 收银台先检查 SDK，再请求服务端参数，不把 SDK success 当到账', () => {
   const page = fs.readFileSync('apps/mobile/src/pkg-shop/paying/index.vue', 'utf8')
-  const app = page.slice(page.indexOf('// #ifdef APP-PLUS'), page.indexOf('// #ifndef MP-WEIXIN || H5 || APP-PLUS'))
+  const paymentBlock = page.indexOf("if (payMethod.value !== 'wechat')")
+  const app = page.slice(page.lastIndexOf('// #ifdef APP-PLUS', paymentBlock), page.indexOf('// #ifndef MP-WEIXIN || H5 || APP-PLUS'))
   assert.match(app, /uni\.getProvider\(/)
   assert.match(app, /shopApi\.payOrderApp\(orderId\.value, platform\)/)
   assert.ok(app.indexOf('uni.getProvider') < app.indexOf('shopApi.payOrderApp'))
