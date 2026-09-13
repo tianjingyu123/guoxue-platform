@@ -85,44 +85,6 @@
           </view>
         </view>
 
-        <!-- 收益走势折线（团队级每日趋势后端未埋点 → 诚实降级空态） -->
-        <view class="card">
-          <text class="card-title">团队收益走势</text>
-          <text class="card-sub">近 30 天 · 单位：元</text>
-          <view class="chart-empty">
-            <view class="chart-empty-grid">
-              <view v-for="i in 4" :key="i" class="chart-grid-line" />
-            </view>
-            <text class="chart-empty-txt">每日收益趋势数据待埋点接入</text>
-          </view>
-          <view class="cl-x">
-            <text class="cl-x-txt">近30天</text>
-            <text class="cl-x-txt">—</text>
-            <text class="cl-x-txt">今日</text>
-          </view>
-        </view>
-
-        <!-- 转化漏斗（访问/点击/成交埋点后端未接 → 诚实降级空态） -->
-        <view class="card">
-          <text class="card-title">转化漏斗</text>
-          <text class="card-sub">从访问到付费的转化路径</text>
-          <view class="funnel">
-            <view
-              v-for="f in funnelStages"
-              :key="f.key"
-              class="fn-row"
-            >
-              <view class="fn-bar" :style="{ width: f.width, background: f.bg }">
-                <text class="fn-bar-txt">{{ f.name }}</text>
-              </view>
-              <view class="fn-meta">
-                <text class="fn-rate">{{ f.rate }}</text>
-              </view>
-            </view>
-          </view>
-          <text class="funnel-note">漏斗需推广埋点数据支持，当前展示为口径示意</text>
-        </view>
-
         <!-- 成员业绩分解（真实 commission，按收益降序） -->
         <view class="card">
           <text class="card-title mb10">成员业绩分解</text>
@@ -226,13 +188,6 @@ function avatarBg(i: number) {
   return AVATAR_BGS[i % AVATAR_BGS.length]
 }
 
-// —— 转化漏斗：后端埋点未接，四段口径示意（宽度固定示意，比率显示待接入） ——
-const funnelStages = [
-  { key: 'visit', name: '访问', width: '100%', bg: 'linear-gradient(90deg, #5AA0E0, #4A90D9)', rate: '待埋点' },
-  { key: 'click', name: '点击', width: '74%', bg: 'linear-gradient(90deg, #6AB98C, #4FA876)', rate: 'CTR —' },
-  { key: 'order', name: '下单', width: '42%', bg: 'linear-gradient(90deg, #E0A94A, #C9A96E)', rate: '— %' },
-  { key: 'paid', name: '付费', width: '30%', bg: 'linear-gradient(90deg, #C41E3A, #A01828)', rate: 'CVR —' },
-]
 </script>
 
 <style lang="scss" scoped>
@@ -352,84 +307,6 @@ const funnelStages = [
   font-size: 21rpx;
   color: #999999;
   margin-top: 6rpx;
-}
-
-/* —— 收益走势折线空态 —— */
-.chart-empty {
-  height: 280rpx;
-  margin-top: 26rpx;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.chart-empty-grid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.chart-grid-line {
-  height: 2rpx;
-  background: #f1ede6;
-}
-.chart-empty-txt {
-  position: relative;
-  font-size: 22rpx;
-  color: #999999;
-}
-.cl-x {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14rpx;
-}
-.cl-x-txt {
-  font-size: 19rpx;
-  color: #999999;
-}
-
-/* —— 转化漏斗 —— */
-.funnel {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  margin-top: 26rpx;
-}
-.fn-row {
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-}
-.fn-bar {
-  height: 72rpx;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 26rpx;
-  min-width: 120rpx;
-}
-.fn-bar-txt {
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-.fn-meta {
-  flex: 1;
-}
-.fn-rate {
-  font-size: 20rpx;
-  color: #999999;
-}
-.funnel-note {
-  display: block;
-  font-size: 20rpx;
-  color: #999999;
-  margin-top: 20rpx;
-  line-height: 1.5;
 }
 
 /* —— 成员业绩分解 —— */
