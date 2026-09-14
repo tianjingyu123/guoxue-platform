@@ -277,6 +277,19 @@ export class AuthService {
     return this.buildLoginResult(user!.id);
   }
 
+  /** 只复用本人、当前支付公众号的H5身份；不读取小程序、APP或旧无命名空间记录。 */
+  async getWechatPaymentIdentity(userId: string) {
+    const appId = process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || "";
+    if (!appId) return { appId: "", openid: null, allowSessionCache: false };
+    const identities = await this.prisma.auth.findMany({
+      where: { userId, provider: "WECHAT", namespace: `wechat:h5:${appId}`, appId },
+      select: { openId: true },
+      take: 2,
+    });
+    // 一个账号有多个公众号身份时不猜测本次微信用户，继续原授权流程。
+    return { appId, openid: identities.length === 1 ? identities[0].openId || null : null, allowSessionCache: identities.length === 0 };
+  }
+
   async sendSmsCode(dto: SendCodeDto) {
     return this.sms.sendVerifyCode(dto.phone, dto.scene || "LOGIN");
   }

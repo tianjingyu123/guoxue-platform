@@ -174,6 +174,7 @@ import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
 // #ifdef H5
 import { existingOrderCashierRoute, type HuifuChannel } from '@/utils/existing-order-huifu'
+import { paymentMethodName } from '@/utils/payment-device'
 // #endif
 
 const loading = ref(false)
@@ -232,8 +233,9 @@ function goPay() {
   choosingPayment = true
   const currentId = order.value.id
   const channels: Array<'wechat' | HuifuChannel> = ['wechat', 'alipay']
-  const itemList = ['微信支付（请在微信中打开）', '支付宝扫码']
-  if (['PRODUCT', 'COURSE'].includes(order.value.orderType)) { channels.push('unionpay'); itemList.push('云闪付扫码') }
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
+  const itemList = [paymentMethodName('wechat', ua), paymentMethodName('alipay', ua)]
+  if (['PRODUCT', 'COURSE'].includes(order.value.orderType)) { channels.push('unionpay'); itemList.push(paymentMethodName('unionpay', ua)) }
   uni.showActionSheet({
     itemList,
     success: ({ tapIndex }) => {

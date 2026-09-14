@@ -7,13 +7,15 @@
       <text class="message">{{ view.message }}</text>
       <button v-if="canOpenAlipay()" class="primary" :disabled="view.busy" @tap="openAlipay">打开支付宝付款</button>
       <text v-if="openMessage" class="hint">{{ openMessage }}</text>
-      <view v-if="view.qrCode" class="qr-wrap">
+      <text v-if="mobilePayment && view.channel === 'alipay' && !canOpenAlipay() && view.qrCode" class="hint">请在手机浏览器打开本页后使用支付宝付款，也可显示付款码。</text>
+      <button v-if="mobilePayment && view.qrCode" class="secondary" @tap="togglePaymentCode">{{ showPaymentCode ? '收起付款码' : '显示付款码' }}</button>
+      <view v-if="view.qrCode && (!mobilePayment || showPaymentCode)" class="qr-wrap">
         <canvas canvas-id="existingOrderPayQr" id="existingOrderPayQr" class="qr" />
         <text v-if="qrError" class="message">二维码绘制失败，请重新显示</text>
         <text class="hint">请使用{{ methodName }}扫描二维码。手机上可在对应应用中识别图片，或使用另一台设备扫码。</text>
         <button v-if="qrError" class="secondary" @tap="renderQr">重新显示二维码</button>
       </view>
-      <button v-if="view.canStart" class="primary" :disabled="view.busy" :loading="view.busy" @tap="startPayment">生成{{ methodName }}付款码</button>
+      <button v-if="view.canStart" class="primary" :disabled="view.busy" :loading="view.busy" @tap="startPayment">{{ mobilePayment ? `准备${methodName}付款` : `生成${methodName}付款码` }}</button>
       <button v-if="!['loading', 'success', 'closed'].includes(view.phase)" class="secondary" :disabled="view.busy" @tap="checkPayment">{{ view.busy ? '正在核对…' : '查询支付结果' }}</button>
       <button class="secondary" @tap="backToOrder">返回原订单</button>
     </view>
@@ -30,6 +32,7 @@ import { purchaseApi } from '@/lib/purchase-data'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { createExistingOrderHuifu, isHuifuChannel, type ExistingPayOrder, type HuifuAttempt, type HuifuCashierView } from '@/utils/existing-order-huifu'
 import { isAlipayMobileBrowser, alipaySchemeForQr, existingAlipayLaunchUrl } from '@/utils/huifu-alipay-h5'
+import { isPaymentMobile } from '@/utils/payment-device'
 
 const instance = getCurrentInstance()
 const view = ref<HuifuCashierView>({ phase: 'loading', amount: '', channel: 'alipay', qrCode: '', busy: false, message: '正在读取订单', canStart: false })
@@ -37,6 +40,8 @@ const methodName = ref('支付宝')
 const qrError = ref(false)
 const openMessage = ref('')
 const browserUserAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent
+const mobilePayment = isPaymentMobile(browserUserAgent)
+const showPaymentCode = ref(false)
 let paymentAccountId = ''
 let paymentKey = ''
 let lastOpenedAt = -Infinity
@@ -56,7 +61,7 @@ function schedule() {
 }
 async function renderQr() {
   await nextTick()
-  if (!visible || !view.value.qrCode) return
+  if (!visible || !view.value.qrCode || (mobilePayment && !showPaymentCode.value)) return
   try {
     const ctx = uni.createCanvasContext('existingOrderPayQr', instance)
     const ok = drawQrToCanvas(ctx, view.value.qrCode, 8, 8, 208, {})
@@ -64,6 +69,7 @@ async function renderQr() {
   } catch { qrError.value = true }
 }
 async function startPayment() { checks = 0; await flow?.start(); schedule() }
+function togglePaymentCode() { showPaymentCode.value = !showPaymentCode.value; if (showPaymentCode.value) void renderQr() }
 async function checkPayment() { checks = 0; await flow?.check(); schedule() }
 function canOpenAlipay() {
   if (typeof window === 'undefined' || window.self !== window.top) return false

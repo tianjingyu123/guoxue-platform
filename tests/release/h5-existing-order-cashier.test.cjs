@@ -12,7 +12,50 @@ function compile(code, globals = {}) {
 }
 const api = compile(file('utils/existing-order-huifu.ts'))
 const alipayH5 = compile(file('utils/huifu-alipay-h5.ts'))
+const device = compile(file('utils/payment-device.ts'))
 const mobileUa = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128.0 Mobile Safari/537.36'
+const wechatIdentity = compile(file('utils/wechat-payment-identity.ts'))
+
+test('手机渠道用支付名称，桌面用扫码名称；真实checkout按设备显示', () => {
+  const tree = ts.createSourceFile('shop.ts', platform(file('lib/shop-data.ts'), 'H5'), ts.ScriptTarget.Latest, true)
+  const declaration = tree.statements.filter(ts.isVariableStatement).flatMap(s => [...s.declarationList.declarations]).find(n => n.name.getText(tree) === 'checkoutPayMethods')
+  for (const ua of [mobileUa, mobileUa+' MicroMessenger/8', 'Windows NT Chrome']) {
+    const result = compile(`const ${declaration.getText(tree)};exports.methods=checkoutPayMethods;`, { ...device, navigator: { userAgent: ua } }).methods
+    assert.deepEqual(Array.from(result,x=>x.name), device.isPaymentMobile(ua) ? ['微信支付','支付宝支付','云闪付支付'] : ['微信扫码','支付宝扫码','云闪付扫码'])
+  }
+})
+test('服务端只读本人当前付款公众号H5身份，拒绝不确定或缺失身份', async () => {
+  const source = ts.createSourceFile('auth.ts', fs.readFileSync('apps/server/src/modules/auth/auth.service.ts','utf8'), ts.ScriptTarget.Latest, true)
+  const cls = source.statements.find(ts.isClassDeclaration)
+  const method = cls.members.find(n=>n.name?.getText(source)==='getWechatPaymentIdentity').getText(source)
+  let queried
+  const C = compile(`class Auth { ${method} };exports.C=Auth;`, { process:{env:{WECHAT_OFFICIAL_APPID:'wx-payment',WECHAT_APP_ID:'wx-other'}} }).C
+  const svc = new C(); let rows=[{openId:'oa-user-one'}]
+  svc.prisma={auth:{findMany:async q=>{queried=q;return rows}}}
+  assert.equal((await svc.getWechatPaymentIdentity('one')).openid,'oa-user-one')
+  assert.deepEqual(JSON.parse(JSON.stringify(queried.where)),{userId:'one',provider:'WECHAT',namespace:'wechat:h5:wx-payment',appId:'wx-payment'})
+  assert.equal(queried.take,2)
+  rows=[{openId:'a'},{openId:'b'}];const ambiguous=await svc.getWechatPaymentIdentity('one');assert.equal(ambiguous.openid,null);assert.equal(ambiguous.allowSessionCache,false)
+  rows=[];assert.equal((await svc.getWechatPaymentIdentity('one')).allowSessionCache,true)
+})
+test('前端优先登录公众号身份，缓存按账号/AppID隔离，旧缓存和不确定身份不复用', async () => {
+  const calls=[];const cache={'wx_oa_openid':'old-unscoped','wx_oa_openid:one:wxA':'cached-A'}
+  const read=k=>{calls.push(k);return cache[k]||null}
+  assert.equal((await wechatIdentity.reusableWechatPaymentIdentity('one',async()=>({appId:'wxA',openid:'login-A'}),read)).openid,'login-A')
+  assert.equal((await wechatIdentity.reusableWechatPaymentIdentity('one',async()=>({appId:'wxA',allowSessionCache:true}),read)).openid,'cached-A')
+  for (const [user,app] of [['two','wxA'],['one','wxB']]) assert.equal((await wechatIdentity.reusableWechatPaymentIdentity(user,async()=>({appId:app,allowSessionCache:true}),read)).openid,'')
+  assert.equal((await wechatIdentity.reusableWechatPaymentIdentity('one',async()=>({appId:'wxA',allowSessionCache:false}),read)).openid,'')
+  assert.equal((await wechatIdentity.reusableWechatPaymentIdentity('one',async()=>{throw Error('old server')},read)).openid,'')
+  assert.equal(calls.includes('wx_oa_openid'),false)
+})
+test('真实微信支付页已有同公众号登录身份时不请求第二次OAuth', async () => {
+  const urls=[]
+  const ensure = realFunction('pkg-shop/paying/index.vue','ensureOaOpenid','H5', {
+    ...wechatIdentity,getUserInfo:()=>({id:'one'}),window:{location:{search:''}},URLSearchParams,readWechatOauthCode:()=>'',
+    sessionStorage:{getItem:()=>null},apiGet:async url=>{urls.push(url);return {appId:'wx-payment',openid:'logged-in-oa'}},
+  })
+  assert.equal(await ensure(),'logged-in-oa');assert.equal(urls.length,1);assert.ok(urls[0].startsWith('/auth/wechat/payment-identity?'))
+})
 
 test('支付宝scheme仅接受确切HTTPS二维码域，参数编码后复用原码', () => {
   const qr = 'https://qr.alipay.com/test?x=1&y=2'
@@ -156,7 +199,7 @@ test('checkout真实提交仅建一次原订单，再进入同一汇付收银路
 })
 test('详情真实去支付选择渠道；原订单ID不变，取消不发请求', () => {
   let options; const paths = []
-  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', payAmount: 0.01 } }, choosingPayment: false, uni: { showActionSheet(v) { options = v } }, navigateTo: p => paths.push(p), ...api })
+  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', payAmount: 0.01 } }, choosingPayment: false, uni: { showActionSheet(v) { options = v } }, navigateTo: p => paths.push(p), ...api, ...device })
   fn(); assert.equal(paths.length, 0); assert.equal(options.itemList.length, 3)
   options.success({ tapIndex: 2 }); assert.equal(paths[0], api.existingOrderCashierRoute('old-one', 'unionpay'))
 })
@@ -201,8 +244,9 @@ test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢�
     '@/utils/qrcode': { drawQrToCanvas: () => { paints++; return true } },
     '@/utils/existing-order-huifu': api,
     '@/utils/huifu-alipay-h5': alipayH5,
+    '@/utils/payment-device': device,
   }
-  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.open=openAlipay;exports.getView=()=>view.value;', {
+  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.open=openAlipay;exports.toggle=togglePaymentCode;exports.getView=()=>view.value;', {
     require: name => { assert.ok(modules[name], name); return modules[name] },
     setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id }, clearTimeout: id => timers.delete(id),
     uni: { getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, JSON.parse(JSON.stringify(value))), createCanvasContext: () => ({ draw: (_, callback) => callback() }) },
@@ -211,7 +255,8 @@ test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢�
   await hooks.onLoad({ orderId: 'original-one', method: 'alipay' })
   assert.equal(initialized, 0); assert.equal(timers.size, 0)
   await page.start(); await new Promise(r => setImmediate(r))
-  assert.equal(initialized, 1); assert.ok(paints > 0); assert.equal(timers.size, 1)
+  assert.equal(initialized, 1); assert.equal(paints, 0); assert.equal(timers.size, 1)
+  page.toggle(); await new Promise(r => setImmediate(r)); assert.ok(paints > 0)
   assert.ok(storage.has('huifu:h5:existing:qa-one:original-one'))
   assert.equal(opened.length, 0)
   page.open(); page.open(); assert.equal(opened.length, 1); assert.equal(initialized, 1); assert.equal(page.getView().phase, 'pending')

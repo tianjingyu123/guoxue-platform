@@ -109,6 +109,8 @@ import { formatPrice } from '@/utils/format'
 import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/wechat-top-level'
 // #ifdef H5
 import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
+import { reusableWechatPaymentIdentity } from '@/utils/wechat-payment-identity'
+import { getUserInfo } from '@/utils/storage'
 // #endif
 
 type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
@@ -253,7 +255,7 @@ async function startPaying() {
    *    再调 /shop/orders/:id/pay/jsapi（channel=OFFICIAL·公众号 appid 下单），
    *    WeixinJSBridge 调起收银台；授权失败/调起失败 → 提示「请在外部浏览器打开支付」，
    *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
-   *    ⚠️不再依赖 Auth 表的微信记录——那是小程序 openid，与公众号 appid 不同应用，微信必拒。
+   *    只复用本人当前支付公众号的 H5 身份，不能混用小程序或APP的 openid。
    * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
    *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
    *    轮询订单状态恢复（已支付则进成功态）。
@@ -365,28 +367,32 @@ async function startPaying() {
 }
 
 // #ifdef H5
-const OA_OPENID_KEY = 'wx_oa_openid'
 const OA_PAYMENT_RETURN_KEY = 'wx_oa_payment_return'
 
 /**
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
- * ① sessionStorage 有缓存 → 直接用（会话内一次授权多次支付）；
+ * ① 优先读取本人当前支付公众号的登录身份，再读按账号/公众号隔离的会话缓存；
  * ② URL 带授权回跳 code → 调后端兑换 openid，成功后缓存并用 replaceState 清掉 code（code 一次性，防刷新复用）；
  * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），展示一次用户确认按钮后再跳转微信授权，
  *    回跳本页后重走 onLoad。部分微信 WebView 会拦截异步脚本外跳并白屏，而用户点击授权按钮可稳定触发跳转。
  * 返回 ''=等待用户确认授权（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
  */
 async function ensureOaOpenid(): Promise<string> {
-  const cached = sessionStorage.getItem(OA_OPENID_KEY)
-  if (cached) return cached
-
   const sp = new URLSearchParams(window.location.search)
   const code = readWechatOauthCode()
+  const identityUserId = String(getUserInfo<{ id?: string }>()?.id || '')
+  const identity = await reusableWechatPaymentIdentity(
+    identityUserId,
+    () => apiGet<{ appId: string; openid?: string | null; allowSessionCache?: boolean }>(`/auth/wechat/payment-identity?_=${Date.now().toString(36)}`, { 'Cache-Control': 'no-cache' }),
+    key => sessionStorage.getItem(key),
+  )
+  if (String(getUserInfo<{ id?: string }>()?.id || '') !== identityUserId) throw new Error('登录账号已变化，请重新进入订单付款')
+  if (!code && identity.openid) return identity.openid
   if (code) {
     try {
-      const res = await apiPost<{ openid: string }>('/auth/wechat/oa-openid', { code })
+      const res = await apiPost<{ openid: string }>('/auth/wechat/oa-openid', { code, ...(identity.appId ? { clientKey: identity.appId } : {}) })
       if (!res?.openid) throw new Error('微信授权失败，请重试')
-      sessionStorage.setItem(OA_OPENID_KEY, res.openid)
+      if (identity.cacheKey) { try { sessionStorage.setItem(identity.cacheKey, res.openid) } catch { /* 不阻断本次有效授权。 */ } }
       return res.openid
     } finally {
       // 无论成败都清掉 code：code 一次性，留在 URL 里刷新必报 40163(code been used)
@@ -403,7 +409,7 @@ async function ensureOaOpenid(): Promise<string> {
   // 导致 uni.request 拿到空响应、无法跳到微信授权页。用一次性请求标记并显式禁用缓存。
   const cacheKey = Date.now().toString(36)
   const { url } = await apiGet<{ url: string }>(
-    `/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}&_=${cacheKey}`,
+    `/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(redirectUri)}&scope=snsapi_base&state=${encodeURIComponent(state)}${identity.appId ? `&clientKey=${encodeURIComponent(identity.appId)}` : ''}&_=${cacheKey}`,
     { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
   )
   if (!url) throw new Error('微信授权发起失败')

@@ -8,6 +8,9 @@ import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
 import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
 import { isClientFeatureEnabled } from '@/lib/remote-config'
+// #ifdef H5
+import { paymentMethodName } from '@/utils/payment-device'
+// #endif
 
 /* ============================================================
    内容来源暂存（佣-V2-P3）：文章/内容页 → 商品详情 → 结算的间接购买链路
@@ -794,10 +797,13 @@ export const payMethods: PayMethodOption[] = [
 
 /** H5支付宝/云闪付复用汇付原订单收银；其他端保持现有微信入口。 */
 export const checkoutPayMethods: PayMethodOption[] = [
+  // #ifndef H5
   { id: 'wechat', name: '微信支付', badge: '微', badgeColor: '#07C160' },
+  // #endif
   // #ifdef H5
-  { id: 'alipay', name: '支付宝扫码', badge: '支', badgeColor: '#1677FF' },
-  { id: 'unionpay', name: '云闪付扫码', badge: '云', badgeColor: '#C41E3A' },
+  { id: 'wechat', name: paymentMethodName('wechat', typeof navigator === 'undefined' ? '' : navigator.userAgent), badge: '微', badgeColor: '#07C160' },
+  { id: 'alipay', name: paymentMethodName('alipay', typeof navigator === 'undefined' ? '' : navigator.userAgent), badge: '支', badgeColor: '#1677FF' },
+  { id: 'unionpay', name: paymentMethodName('unionpay', typeof navigator === 'undefined' ? '' : navigator.userAgent), badge: '云', badgeColor: '#C41E3A' },
   // #endif
 ]
 

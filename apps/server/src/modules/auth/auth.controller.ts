@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
+import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger, Header } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { WechatService } from "./wechat.service";
@@ -144,6 +144,15 @@ export class AuthController {
       state,
     );
     return { url };
+  }
+
+  @Get("wechat/payment-identity")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "读取本人当前支付公众号的已登录身份，缺失时仍须网页授权" })
+  paymentIdentity(@Req() req: Request) {
+    return this.auth.getWechatPaymentIdentity(req.user.id);
   }
 
   @Post("wechat/oa-openid")
