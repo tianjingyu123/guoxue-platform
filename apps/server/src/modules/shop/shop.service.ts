@@ -118,6 +118,10 @@ export class ShopService {
     return this.refundSvc.refundExpiredGroupBuys();
   }
 
+  getCurrentOrder(orderId: string, userId: string) {
+    return this.orderSvc.getCurrentOrder(orderId, userId);
+  }
+
   getOrder(orderId: string, userId?: string, isAdmin = false) {
     return this.orderSvc.getOrder(orderId, userId, isAdmin);
   }

@@ -111,6 +111,8 @@ import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/w
 import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
 import { reusableWechatPaymentIdentity } from '@/utils/wechat-payment-identity'
 import { getUserInfo } from '@/utils/storage'
+import { h5PaymentOptions } from '@/utils/h5-payment-options'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
 
 type Status = 'loading' | 'paying' | 'authorizing' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
@@ -156,7 +158,7 @@ onLoad((q) => {
   // #ifdef H5
   // 旧链接显式选择非微信时转入唯一汇付收银页，不能继续落入微信UA分支。
   if (q?.scene !== 'recharge' && q?.orderId && isHuifuChannel(q?.method)) {
-    redirectTo(existingOrderCashierRoute(String(q.orderId), q.method))
+    redirectTo(existingOrderCashierRoute(String(q.orderId), q.method, q?.confirmed === '1'))
     return
   }
   // 商品/课程旧详情层可能把购买流程留在 iframe，先恢复顶层再授权或调起 JSAPI。
@@ -211,6 +213,18 @@ async function startPaying() {
   clearTimers('all') // 清掉上一轮遗留的倒计时/轮询 timer，防泄漏
   startCountdown()
   try {
+  // #ifdef H5
+  if (!isRecharge.value) {
+    await hydrateRemoteConfig(true)
+    const option = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === payMethod.value)
+    if (!option?.enabled) {
+      status.value = 'failed'
+      failReason.value = option?.reason || '当前支付方式暂不可用'
+      clearTimers('all')
+      return
+    }
+  }
+  // #endif
   // #ifdef MP-WEIXIN
   // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
   try {
@@ -279,6 +293,7 @@ async function startPaying() {
           p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
         }
         await invokeWechatJsapiPay(p)
+        if (!isRecharge.value) h5PaymentConfirmed = true
       } catch (e) {
         const msg = (e as Error)?.message || ''
         if (msg.includes('取消')) {
@@ -286,8 +301,8 @@ async function startPaying() {
           clearTimers('all')
           return
         }
-        // 授权失败/未配置/调起失败：引导外部浏览器，继续轮询兜底
-        uni.showToast({ title: msg.includes('未配置') || msg.includes('授权') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
+        // 当前外部微信支付未开通，不把用户引向不可用入口；继续核对原单。
+        uni.showToast({ title: msg || '微信支付暂未完成，请返回原订单核对结果', icon: 'none', duration: 3500 })
       }
     } else {
       // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
@@ -368,6 +383,8 @@ async function startPaying() {
 
 // #ifdef H5
 const OA_PAYMENT_RETURN_KEY = 'wx_oa_payment_return'
+let h5PaymentConfirmed = false
+let lastH5CurrentRead = -Infinity
 
 /**
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
@@ -567,12 +584,22 @@ function startPolling(delayMs?: number) {
           return
         }
       } else {
-        const st = await shopApi.getOrderPayState(orderId.value)
+        let fresh = false
+        // #ifdef H5
+        // 微信收银台返回成功仅触发查单；到账仍以服务端订单为准，直读最多30秒一次。
+        fresh = h5PaymentConfirmed && Date.now() - lastH5CurrentRead >= 30000
+        if (fresh) lastH5CurrentRead = Date.now()
+        // #endif
+        const st = await shopApi.getOrderPayState(orderId.value, fresh)
         if (st.paid) {
           await settleCircleIfNeeded(st)
           status.value = 'success'
           track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
           clearTimers('all')
+          // #ifdef H5
+          redirectTo(`/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`)
+          return
+          // #endif
           const liveReturn = returnLiveRoomId.value
             ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}`
             : ''

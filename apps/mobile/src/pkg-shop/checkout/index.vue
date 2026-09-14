@@ -75,9 +75,9 @@
       <!-- 支付方式 -->
       <view class="pay-card">
         <text class="pay-title">支付方式</text>
-        <view v-for="m in payMethods" :key="m.id" class="pay-item" @tap="payMethod = m.id">
+        <view v-for="m in payMethods" :key="m.id" class="pay-item" :class="{ disabled: m.enabled === false }" @tap="m.enabled !== false && (payMethod = m.id)">
           <view class="pay-badge" :style="{ background: m.badgeColor }"><text>{{ m.badge }}</text></view>
-          <text class="pay-name">{{ m.name }}</text>
+          <view class="pay-description"><text class="pay-name">{{ m.name }}</text><text v-if="m.reason" class="pay-reason">{{ m.reason }}</text></view>
           <view class="radio" :class="{ checked: payMethod === m.id }">
             <view v-if="payMethod === m.id" class="radio-dot" />
           </view>
@@ -169,6 +169,8 @@ import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
 // #ifdef H5
 import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
+import { h5PaymentOptions } from '@/utils/h5-payment-options'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
 
 const loading = ref(true)
@@ -249,6 +251,12 @@ async function fetchCheckoutData() {
     addresses.value = result.addresses || []
     coupons.value = result.coupons || []
     payMethods.value = result.payMethods || []
+    // #ifdef H5
+    await hydrateRemoteConfig(true)
+    const options = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top)
+    payMethods.value = payMethods.value.map(item => ({ ...item, ...options.find(option => option.id === item.id) }))
+    if (!payMethods.value.some(item => item.id === payMethod.value && item.enabled)) payMethod.value = payMethods.value.find(item => item.enabled)?.id || ''
+    // #endif
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
     if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
   } catch (e) {
@@ -325,6 +333,11 @@ async function submitOrder() {
   }
   submitting.value = true
   try {
+    // #ifdef H5
+    await hydrateRemoteConfig(true)
+    const option = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === payMethod.value)
+    if (!option?.enabled) throw new Error(option?.reason || '请选择当前可用的支付方式')
+    // #endif
     const couponId = selectedCoupon.value?.id
     // 后端为单商品下单（无合并支付）：多商品逐个创建订单，券仅用于第一单；先支付第一笔，其余在「我的订单」继续支付
     const orders: { id: string; amount: number }[] = []
@@ -358,7 +371,7 @@ async function submitOrder() {
       : ''
     // #ifdef H5
     if (isHuifuChannel(payMethod.value)) {
-      redirectTo(existingOrderCashierRoute(first.id, payMethod.value))
+      redirectTo(existingOrderCashierRoute(first.id, payMethod.value, true))
       return
     }
     // #endif
@@ -412,6 +425,9 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .pay-badge { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
 .pay-badge text { color: #FFFFFF; font-size: 28rpx; }
 .pay-name { font-size: 28rpx; color: #1A1A1A; }
+.pay-description { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.pay-reason { font-size: 22rpx; color: #888; }
+.pay-item.disabled { opacity: .6; }
 .radio { width: 40rpx; height: 40rpx; border-radius: 50%; border: 2rpx solid #CCCCCC; margin-left: auto; display: flex; align-items: center; justify-content: center; &.checked { border-color: var(--brand); } }
 .radio-dot { width: 22rpx; height: 22rpx; border-radius: 50%; background: var(--brand); }
 .amount-card { background: #FFFFFF; margin: 0 20rpx; padding: 24rpx; border-radius: 20rpx; }

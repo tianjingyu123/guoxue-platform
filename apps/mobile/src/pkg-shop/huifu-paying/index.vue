@@ -4,19 +4,18 @@
     <view class="card">
       <text class="title">{{ methodName }}</text>
       <text v-if="view.amount" class="amount">¥{{ view.amount }}</text>
-      <text class="message">{{ view.message }}</text>
+      <text class="message">{{ unavailableReason() || view.message }}</text>
       <button v-if="canOpenAlipay()" class="primary" :disabled="view.busy" @tap="openAlipay">打开支付宝付款</button>
       <text v-if="openMessage" class="hint">{{ openMessage }}</text>
-      <text v-if="mobilePayment && view.channel === 'alipay' && !canOpenAlipay() && view.qrCode" class="hint">请在手机浏览器打开本页后使用支付宝付款，也可显示付款码。</text>
-      <button v-if="mobilePayment && view.qrCode" class="secondary" @tap="togglePaymentCode">{{ showPaymentCode ? '收起付款码' : '显示付款码' }}</button>
-      <view v-if="view.qrCode && (!mobilePayment || showPaymentCode)" class="qr-wrap">
+      <text v-if="!unavailableReason() && mobilePayment && view.channel === 'alipay' && !canOpenAlipay() && view.qrCode" class="hint">暂时无法打开支付宝，请返回原订单核对付款结果。</text>
+      <view v-if="!unavailableReason() && view.qrCode && !mobilePayment" class="qr-wrap">
         <canvas canvas-id="existingOrderPayQr" id="existingOrderPayQr" class="qr" />
         <text v-if="qrError" class="message">二维码绘制失败，请重新显示</text>
-        <text class="hint">请使用{{ methodName }}扫描二维码。手机上可在对应应用中识别图片，或使用另一台设备扫码。</text>
+        <text class="hint">请使用{{ methodName }}扫描二维码。</text>
         <button v-if="qrError" class="secondary" @tap="renderQr">重新显示二维码</button>
       </view>
-      <button v-if="view.canStart" class="primary" :disabled="view.busy" :loading="view.busy" @tap="startPayment">{{ mobilePayment ? `准备${methodName}付款` : `生成${methodName}付款码` }}</button>
-      <button v-if="!['loading', 'success', 'closed'].includes(view.phase)" class="secondary" :disabled="view.busy" @tap="checkPayment">{{ view.busy ? '正在核对…' : '查询支付结果' }}</button>
+      <button v-if="view.canStart && !unavailableReason()" class="primary" :disabled="view.busy" :loading="view.busy" @tap="startPayment">确认付款</button>
+      <button v-if="['unknown', 'error'].includes(view.phase) || checks >= 70" class="secondary" :disabled="view.busy" @tap="checkPayment">{{ view.busy ? '正在核对…' : '查询支付结果' }}</button>
       <button class="secondary" @tap="backToOrder">返回原订单</button>
     </view>
   </view>
@@ -33,6 +32,8 @@ import { drawQrToCanvas } from '@/utils/qrcode'
 import { createExistingOrderHuifu, isHuifuChannel, type ExistingPayOrder, type HuifuAttempt, type HuifuCashierView } from '@/utils/existing-order-huifu'
 import { isAlipayMobileBrowser, alipaySchemeForQr, existingAlipayLaunchUrl } from '@/utils/huifu-alipay-h5'
 import { isPaymentMobile } from '@/utils/payment-device'
+import { h5PaymentOptions } from '@/utils/h5-payment-options'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 
 const instance = getCurrentInstance()
 const view = ref<HuifuCashierView>({ phase: 'loading', amount: '', channel: 'alipay', qrCode: '', busy: false, message: '正在读取订单', canStart: false })
@@ -41,11 +42,11 @@ const qrError = ref(false)
 const openMessage = ref('')
 const browserUserAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent
 const mobilePayment = isPaymentMobile(browserUserAgent)
-const showPaymentCode = ref(false)
 let paymentAccountId = ''
 let paymentKey = ''
 let lastOpenedAt = -Infinity
 let pageActive = true
+let unloaded = false
 let orderId = ''
 let flow: ReturnType<typeof createExistingOrderHuifu> | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -53,6 +54,18 @@ let visible = true
 let checks = 0
 let loaded = false
 let lastQr = ''
+let returnedAfterPayment = false
+function unavailableReason() {
+  if (view.value.phase === 'success') return ''
+  const option = h5PaymentOptions(browserUserAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === view.value.channel)
+  return option?.enabled ? '' : option?.reason || '当前支付方式暂不可用'
+}
+function returnAfterConfirmedPayment() {
+  if (returnedAfterPayment || !pageActive || !visible || view.value.phase !== 'success') return
+  if (String(getUserInfo<{ id?: string }>()?.id || '') !== paymentAccountId) return
+  returnedAfterPayment = true
+  backToOrder()
+}
 function stopPolling() { if (timer) clearTimeout(timer); timer = null }
 function schedule() {
   stopPolling()
@@ -61,7 +74,7 @@ function schedule() {
 }
 async function renderQr() {
   await nextTick()
-  if (!visible || !view.value.qrCode || (mobilePayment && !showPaymentCode.value)) return
+  if (!visible || unavailableReason() || !view.value.qrCode || mobilePayment) return
   try {
     const ctx = uni.createCanvasContext('existingOrderPayQr', instance)
     const ok = drawQrToCanvas(ctx, view.value.qrCode, 8, 8, 208, {})
@@ -69,9 +82,9 @@ async function renderQr() {
   } catch { qrError.value = true }
 }
 async function startPayment() { checks = 0; await flow?.start(); schedule() }
-function togglePaymentCode() { showPaymentCode.value = !showPaymentCode.value; if (showPaymentCode.value) void renderQr() }
-async function checkPayment() { checks = 0; await flow?.check(); schedule() }
+async function checkPayment() { checks = 0; await flow?.check(true); schedule() }
 function canOpenAlipay() {
+  if (unavailableReason()) return false
   if (typeof window === 'undefined' || window.self !== window.top) return false
   if (!isAlipayMobileBrowser(browserUserAgent) || view.value.channel !== 'alipay' || view.value.phase !== 'pending') return false
   try { alipaySchemeForQr(view.value.qrCode); return true } catch { return false }
@@ -84,15 +97,17 @@ function openAlipay() {
       userAgent: browserUserAgent, topLevel: window.self === window.top, now: Date.now() })
     // 必须在显式点击的同步调用栈中打开；只复用原付款码，不初始化新交易。
     lastOpenedAt = Date.now()
-    openMessage.value = '请在支付宝确认付款，完成后返回本页核对。如未打开，可使用下方二维码。'
+    openMessage.value = '请在支付宝确认付款，完成后返回本页，将自动核对结果。'
     window.location.assign(url)
-  } catch (e) { openMessage.value = (e as Error)?.message || '未能打开支付宝，请使用下方二维码或查询原单' }
+  } catch (e) { openMessage.value = (e as Error)?.message || '未能打开支付宝，请查询原订单付款结果' }
 }
 function browserVisible() { return typeof document === 'undefined' || document.visibilityState !== 'hidden' }
 function resumeFromBrowser() {
-  if (!pageActive) return
+  if (!pageActive || returnedAfterPayment) return
   visible = browserVisible()
   if (!visible) { stopPolling(); return }
+  returnAfterConfirmedPayment()
+  if (returnedAfterPayment) return
   if (loaded) { void checkPayment(); if (view.value.qrCode) void renderQr() }
 }
 function removeBrowserListeners() {
@@ -105,7 +120,7 @@ function backToOrder() {
   visible = false
   stopPolling()
   flow?.dispose()
-  redirectTo(orderId ? `/orders/${encodeURIComponent(orderId)}` : '/orders')
+  redirectTo(orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders')
 }
 onLoad(async (q) => {
   orderId = String(q?.orderId || '')
@@ -120,10 +135,13 @@ onLoad(async (q) => {
   const key = `huifu:h5:existing:${accountId}:${orderId}`
   paymentAccountId = accountId
   paymentKey = key
+  await hydrateRemoteConfig(true)
+  if (unloaded) return
   const assertAccount = () => { if (String(getUserInfo<{ id?: string }>()?.id || '') !== accountId) throw new Error('登录账号已变化，请返回原订单') }
   flow = createExistingOrderHuifu({
-    orderId, channel, now: Date.now,
-    readOrder: () => { assertAccount(); return apiGet<ExistingPayOrder>(`/shop/orders/${encodeURIComponent(orderId)}`) },
+    orderId, channel, now: Date.now, mobile: mobilePayment,
+    initializationBlockedReason: unavailableReason,
+    readOrder: async (fresh = false) => { assertAccount(); const order = await apiGet<ExistingPayOrder>(`/shop/orders/${encodeURIComponent(orderId)}${fresh ? '/current' : ''}`); assertAccount(); return order },
     createPayment: (id, method) => { assertAccount(); return purchaseApi.payByChannel(id, method) },
     queryPayment: (reference) => { assertAccount(); return purchaseApi.queryHuifuPayment(reference) },
     loadAttempt: () => { assertAccount(); return (uni.getStorageSync(key) || null) as HuifuAttempt | null },
@@ -136,20 +154,24 @@ onLoad(async (q) => {
       view.value = value
       if (value.qrCode !== lastQr) { lastQr = value.qrCode; void renderQr() }
       if (['success', 'closed'].includes(value.phase)) stopPolling()
+      returnAfterConfirmedPayment()
     },
   })
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', resumeFromBrowser)
   if (typeof window !== 'undefined') window.addEventListener('pageshow', resumeFromBrowser)
   await flow.load()
   loaded = true
+  // confirmed只表达导航意图：本人待付订单、金额及持久提交记录仍由流程逐一校验。
+  if (q?.confirmed === '1' && visible && pageActive && flow.state.canStart) await startPayment()
   schedule()
 })
 onShow(() => {
+  if (returnedAfterPayment) return
   pageActive = true
   resumeFromBrowser()
 })
 onHide(() => { pageActive = false; visible = false; stopPolling() })
-onUnload(() => { pageActive = false; visible = false; stopPolling(); removeBrowserListeners(); flow?.dispose() })
+onUnload(() => { unloaded = true; pageActive = false; visible = false; stopPolling(); removeBrowserListeners(); flow?.dispose() })
 </script>
 
 <style scoped>

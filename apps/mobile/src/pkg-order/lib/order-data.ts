@@ -627,8 +627,8 @@ export const orderApi = {
   },
 
   /** 订单详情 */
-  async detail(orderId: string): Promise<OrderDetail> {
-    const o = await apiGet<RawOrder>(`/shop/orders/${orderId}`)
+  async detail(orderId: string, fresh = false): Promise<OrderDetail> {
+    const o = await apiGet<RawOrder>(`/shop/orders/${encodeURIComponent(orderId)}${fresh ? '/current' : ''}`)
     return adaptOrderDetail(o)
   },
 

@@ -28,21 +28,23 @@ export interface HuifuCashierView {
 interface Dependencies {
   orderId: string
   channel: HuifuChannel
-  readOrder(): Promise<ExistingPayOrder>
+  readOrder(fresh?: boolean): Promise<ExistingPayOrder>
   createPayment(orderId: string, channel: HuifuChannel): Promise<{ outTradeNo?: string; qrCode?: string; codeUrl?: string }>
   queryPayment(outTradeNo: string): Promise<unknown>
   loadAttempt(): HuifuAttempt | null
   saveAttempt(attempt: HuifuAttempt): void
   now(): number
   update(view: HuifuCashierView): void
+  initializationBlockedReason?(): string
+  mobile?: boolean
 }
 export function isHuifuChannel(value: unknown): value is HuifuChannel {
   return value === 'alipay' || value === 'unionpay'
 }
 /** 两个入口共用同一路由；付款金额最终从本人订单读取，不信任URL显示值。 */
-export function existingOrderCashierRoute(orderId: string, channel: HuifuChannel): string {
+export function existingOrderCashierRoute(orderId: string, channel: HuifuChannel, confirmed = false): string {
   if (!orderId || !isHuifuChannel(channel)) throw new Error('支付入口参数无效')
-  return `/pkg-shop/huifu-paying/index?orderId=${encodeURIComponent(orderId)}&method=${channel}`
+  return `/pkg-shop/huifu-paying/index?orderId=${encodeURIComponent(orderId)}&method=${channel}${confirmed ? '&confirmed=1' : ''}`
 }
 export function createExistingOrderHuifu(d: Dependencies) {
   let disposed = false
@@ -51,6 +53,7 @@ export function createExistingOrderHuifu(d: Dependencies) {
   let order: ExistingPayOrder | null = null
   let saved: HuifuAttempt | null = null
   let terminal = false
+  let lastFreshAt = -Infinity
   let view: HuifuCashierView = { phase: 'loading', amount: '', channel: d.channel, qrCode: '', busy: false, message: '正在读取订单', canStart: false }
   function show(phase: HuifuCashierView['phase'], message: string, canStart = false, qrCode = '') {
     view = { ...view, phase, message, canStart, qrCode, busy }
@@ -62,9 +65,12 @@ export function createExistingOrderHuifu(d: Dependencies) {
     saved = record
     if (record) attempted = true
   }
-  async function read() {
+  async function read(fresh = false) {
     if (disposed) return false
-    const value = await d.readOrder()
+    // 仅通道已付/付款返回确认使用直读；同页最多15秒一次，普通轮询仍读缓存。
+    const current = fresh && d.now() - lastFreshAt >= 15000
+    if (current) lastFreshAt = d.now()
+    const value = await d.readOrder(current)
     if (disposed) return false
     if (value.id !== d.orderId || !Number.isFinite(Number(value.amount)) || Number(value.amount) <= 0) throw new Error('订单信息无效，请返回订单核对')
     order = value
@@ -91,9 +97,12 @@ export function createExistingOrderHuifu(d: Dependencies) {
     const referenceMatches = !order?.payTransactionId || (order.payMethod === 'HUIFU' && saved?.outTradeNo === order.payTransactionId)
     const qr = saved?.outTradeNo && saved.qrCode && saved.channel === d.channel && referenceMatches
       && d.now() >= saved.requestedAt && d.now() - saved.requestedAt < 2 * 60 * 60 * 1000 ? saved.qrCode : ''
-    if (qr) show('pending', '请使用对应支付应用扫码；完成后点击查询结果', false, qr)
+    if (qr) show('pending', d.mobile ? '请点击打开支付宝付款，返回后自动核对结果' : '请扫码付款，完成后将自动返回订单', false, qr)
     else if (hasReference || attempted) show('unknown', pendingMessage('该订单已有付款记录或提交结果待确认，请查询原单结果，不要重复付款'))
-    else show('ready', '点击生成本订单的付款二维码', true)
+    else {
+      const blocked = d.initializationBlockedReason?.() || ''
+      show('ready', blocked || '请确认支付本订单', !blocked)
+    }
   }
   function pendingMessage(fallback: string) {
     return typeof saved?.lastFailureMessage === 'string' && saved.lastFailureMessage.trim()
@@ -110,17 +119,22 @@ export function createExistingOrderHuifu(d: Dependencies) {
   async function load() {
     await run(async () => { loadAttempt(); if (await read()) pendingView() })
   }
-  async function check() {
+  async function check(paymentReturn = false) {
     await run(async () => {
       loadAttempt()
-      if (!await read()) return
+      if (!await read(paymentReturn)) return
       // 详情可能有缓存；使用订单汇付流水或本账号此次初始化返回的流水，查询接口仍校验归属。
       const reference = order?.payTransactionId
         ? (order.payMethod === 'HUIFU' ? order.payTransactionId : '') : saved?.outTradeNo
       if (reference) {
         let failed = false
-        try { await d.queryPayment(reference) } catch { failed = true }
-        if (!await read()) return
+        let channelPaid = false
+        try {
+          const result = await d.queryPayment(reference)
+          channelPaid = !!result && typeof result === 'object' && (result as { trans_stat?: string }).trans_stat === 'S'
+        } catch { failed = true }
+        // 通道S只触发服务端最新订单核对，不能直接决定成功。
+        if (!await read(channelPaid)) return
         pendingView()
         if (failed) show('unknown', pendingMessage('通道查询暂不可用，请稍后继续查询原单'))
       } else pendingView()
@@ -131,6 +145,8 @@ export function createExistingOrderHuifu(d: Dependencies) {
       loadAttempt()
       if (!await read()) return
       if (order?.payTransactionId || attempted) { pendingView(); return }
+      const blocked = d.initializationBlockedReason?.() || ''
+      if (blocked) { show('ready', blocked, false); return }
       // 先保存提交标记。保存失败不发请求；请求结果未知时不提供自动再次初始化。
       attempted = true
       const record: HuifuAttempt = { orderId: d.orderId, channel: d.channel, requestedAt: d.now() }

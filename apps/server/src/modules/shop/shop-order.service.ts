@@ -735,6 +735,20 @@ export class ShopOrderService {
     }
   }
 
+  /** 付款确认专用只读入口：绕过详情缓存，仍只允许订单本人读取。 */
+  async getCurrentOrder(orderId: string, userId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { user: { select: { id: true, nickname: true } } },
+    });
+    if (!order) throw new BusinessException(ErrorCode.NOT_FOUND, "订单不存在");
+    if (!userId || order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的订单");
+    // 清除旧详情而非写回快照，避免与到账回调并发时覆盖较新状态；缓存故障不阻断查单。
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`).catch(() => undefined);
+    const [enriched] = await this.enrichOrders([order]);
+    return enriched;
+  }
+
   async getOrder(orderId: string, userId?: string, isAdmin = false) {
     const cacheKey = `${CACHE_PREFIX}order:${orderId}`;
     let order = await this.redis.getJson<any>(cacheKey);

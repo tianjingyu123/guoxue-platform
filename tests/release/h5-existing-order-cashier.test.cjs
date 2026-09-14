@@ -13,8 +13,59 @@ function compile(code, globals = {}) {
 const api = compile(file('utils/existing-order-huifu.ts'))
 const alipayH5 = compile(file('utils/huifu-alipay-h5.ts'))
 const device = compile(file('utils/payment-device.ts'))
+const policy = compile(file('utils/h5-payment-options.ts'), { require: name => name === './payment-device' ? device : alipayH5 })
+const config = { getRemoteConfig: () => ({ features: { client_pay_h5_unionpay_desktop: true } }), hydrateRemoteConfig: async () => {} }
 const mobileUa = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/128.0 Mobile Safari/537.36'
 const wechatIdentity = compile(file('utils/wechat-payment-identity.ts'))
+
+test('渠道默认按环境收敛，独立布尔开关不开放错误环境', () => {
+  const enabled = (ua, flags, top = true) => Array.from(policy.h5PaymentOptions(ua, flags, top).filter(x => x.enabled), x => x.id)
+  assert.deepEqual(enabled(mobileUa), ['alipay'])
+  assert.deepEqual(enabled('Windows Chrome'), ['alipay'])
+  assert.deepEqual(enabled(mobileUa + ' MicroMessenger/8'), ['wechat'])
+  assert.deepEqual(enabled('Windows Chrome MicroMessenger/8'), [])
+  assert.deepEqual(enabled(mobileUa, {}, false), [])
+  assert.deepEqual(enabled(mobileUa, { client_pay_h5_alipay_mobile: false }), [])
+  assert.deepEqual(enabled(mobileUa, { client_pay_h5_unionpay_desktop: true }), ['alipay'])
+  assert.deepEqual(enabled('Windows Chrome', { client_pay_h5_unionpay_desktop: true }), ['alipay', 'unionpay'])
+  assert.deepEqual(enabled('Windows Chrome', { client_pay_h5_wechat_mweb: true }), ['alipay'])
+  assert.deepEqual(enabled(mobileUa, { client_pay_h5_wechat_mweb: 'true' }), ['alipay'])
+  assert.deepEqual(enabled(mobileUa + ' MicroMessenger/8', { client_pay_h5_alipay_mobile: true, client_pay_h5_wechat_jsapi: false }), [])
+})
+
+test('最新订单直读校验归属并只清缓存，不覆盖并发退款或调用付款', async () => {
+  const source = ts.createSourceFile('shop.ts', fs.readFileSync('apps/server/src/modules/shop/shop-order.service.ts','utf8'), ts.ScriptTarget.Latest, true)
+  const cls = source.statements.find(ts.isClassDeclaration)
+  const methods = ['getCurrentOrder', 'getOrder', 'enrichOrders'].map(name => cls.members.find(n=>n.name?.getText(source)===name).getText(source)).join('\n')
+  const C = compile(`class Service { ${methods} }; exports.C=Service;`, { CACHE_PREFIX:'shop:', ORDER_CACHE_TTL:300, BusinessException:class extends Error {constructor(code,msg){super(msg);this.code=code}}, ErrorCode:{FORBIDDEN:'403',NOT_FOUND:'404'} }).C
+  const service = new C(); let row={id:'one',userId:'owner',status:'PAID'}, cached={...row,status:'PENDING'}, deletes=0, writes=0
+  service.prisma = { order:{findUnique:async()=>({...row})} }
+  service.redis = { getJson:async()=>cached, setJson:async()=>{writes++}, del:async()=>{ deletes++; row.status='REFUNDED'; cached=null } }
+  assert.equal((await service.getOrder('one','owner')).status,'PENDING')
+  assert.equal((await service.getCurrentOrder('one','owner')).status,'PAID')
+  assert.equal((await service.getCurrentOrder('one','owner')).status,'REFUNDED')
+  assert.equal(writes,0); assert.equal(deletes,2); assert.equal(cached,null)
+  await assert.rejects(service.getCurrentOrder('one','other'),e=>e.code==='403')
+  await assert.rejects(service.getCurrentOrder('one',''),e=>e.code==='403')
+  assert.equal(deletes,2)
+  service.redis.del=async()=>{throw Error('redis unavailable')}
+  assert.equal((await service.getCurrentOrder('one','owner')).status,'REFUNDED')
+  const controller=fs.readFileSync('apps/server/src/modules/shop/shop.controller.ts','utf8')
+  const route=controller.slice(controller.indexOf('@Get("orders/:id/current")'),controller.indexOf('@Get("orders/:id")'))
+  assert.match(route,/UseGuards\(JwtAuthGuard, StrictRedisThrottleGuard\)/)
+  assert.match(route,/Header\("Cache-Control", "no-store"\)/)
+  assert.match(route,/getCurrentOrder\(id, req.user.id\)/)
+})
+
+test('通道已付才触发有限直读，普通轮询不直查；缓存PENDING不妨碍DB已付确认', async () => {
+  let now=100000, paid=false, dbPaid=false; const reads=[]
+  const f=fixture({now:()=>now,readOrder:async fresh=>{reads.push(fresh);return {id:'original-one',amount:0.01,status:fresh&&dbPaid?'PAID':'PENDING',type:'PRODUCT'}},queryPayment:async()=>({trans_stat:paid?'S':'P'})})
+  await f.flow.start(); await f.flow.check(); assert.equal(reads.filter(Boolean).length,0)
+  paid=true; await f.flow.check(); assert.equal(f.view.phase,'pending'); assert.equal(reads.filter(Boolean).length,1)
+  await f.flow.check(); assert.equal(reads.filter(Boolean).length,1)
+  now+=15000; dbPaid=true; await f.flow.check(); assert.equal(f.view.phase,'success'); assert.equal(reads.filter(Boolean).length,2)
+  assert.equal(f.counts.creates.length,1)
+})
 
 test('手机渠道用支付名称，桌面用扫码名称；真实checkout按设备显示', () => {
   const tree = ts.createSourceFile('shop.ts', platform(file('lib/shop-data.ts'), 'H5'), ts.ScriptTarget.Latest, true)
@@ -191,17 +242,17 @@ test('checkout真实提交仅建一次原订单，再进入同一汇付收银路
     let count = 0; const paths = []; const submitting = { value: false }
     const fn = realFunction('pkg-shop/checkout/index.vue', 'submitOrder', 'H5', {
       submitting, items: { value: [{ productId: 'test-only', quantity: 1 }] }, currentAddress: { value: { id: 'address' } }, estimate: { value: {} }, selectedCoupon: { value: null }, createdOrders: new Map(), contentSource: { value: {} }, payMethod: { value: method },
-      shopApi: { createOrder: async () => { count++; return { id: 'original-one', amount: 0.01 } } }, uni: { showToast() {} }, redirectTo: p => paths.push(p), ...api,
+      ...config, ...policy, shopApi: { createOrder: async () => { count++; return { id: 'original-one', amount: 0.01 } } }, uni: { showToast() {} }, redirectTo: p => paths.push(p), ...api,
     })
     await fn(); submitting.value = false; await fn()
-    assert.equal(count, 1); assert.equal(paths.length, 2); assert.ok(paths.every(p => p === api.existingOrderCashierRoute('original-one', method)))
+    assert.equal(count, 1); assert.equal(paths.length, 2); assert.ok(paths.every(p => p === api.existingOrderCashierRoute('original-one', method, true)))
   }
 })
-test('详情真实去支付选择渠道；原订单ID不变，取消不发请求', () => {
+test('详情真实去支付选择渠道；原订单ID不变，取消不发请求', async () => {
   let options; const paths = []
-  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', payAmount: 0.01 } }, choosingPayment: false, uni: { showActionSheet(v) { options = v } }, navigateTo: p => paths.push(p), ...api, ...device })
-  fn(); assert.equal(paths.length, 0); assert.equal(options.itemList.length, 3)
-  options.success({ tapIndex: 2 }); assert.equal(paths[0], api.existingOrderCashierRoute('old-one', 'unionpay'))
+  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', status: 'pending_pay', payAmount: 0.01 } }, choosingPayment: false, uni: { showActionSheet(v) { options = v } }, navigateTo: p => paths.push(p), ...api, ...device, ...policy, ...config })
+  await fn(); assert.equal(paths.length, 0); assert.equal(options.itemList.length, 2)
+  options.success({ tapIndex: 1 }); assert.equal(paths[0], api.existingOrderCashierRoute('old-one', 'unionpay', true))
 })
 test('非H5 checkout和详情不新增支付宝/云闪付支持', () => {
   for (const target of ['APP-PLUS', 'MP-WEIXIN']) {
@@ -245,8 +296,10 @@ test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢�
     '@/utils/existing-order-huifu': api,
     '@/utils/huifu-alipay-h5': alipayH5,
     '@/utils/payment-device': device,
+    '@/utils/h5-payment-options': policy,
+    '@/lib/remote-config': config,
   }
-  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.open=openAlipay;exports.toggle=togglePaymentCode;exports.getView=()=>view.value;', {
+  const page = compile(script('pkg-shop/huifu-paying/index.vue') + '\nexports.start=startPayment;exports.open=openAlipay;exports.getView=()=>view.value;', {
     require: name => { assert.ok(modules[name], name); return modules[name] },
     setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id }, clearTimeout: id => timers.delete(id),
     uni: { getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, JSON.parse(JSON.stringify(value))), createCanvasContext: () => ({ draw: (_, callback) => callback() }) },
@@ -256,7 +309,7 @@ test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢�
   assert.equal(initialized, 0); assert.equal(timers.size, 0)
   await page.start(); await new Promise(r => setImmediate(r))
   assert.equal(initialized, 1); assert.equal(paints, 0); assert.equal(timers.size, 1)
-  page.toggle(); await new Promise(r => setImmediate(r)); assert.ok(paints > 0)
+  assert.equal(paints, 0) // 手机不显示扫码入口
   assert.ok(storage.has('huifu:h5:existing:qa-one:original-one'))
   assert.equal(opened.length, 0)
   page.open(); page.open(); assert.equal(opened.length, 1); assert.equal(initialized, 1); assert.equal(page.getView().phase, 'pending')
@@ -268,4 +321,113 @@ test('真实H5显式拉起原码、账号隔离、浏览器可见及pageshow恢�
   hooks.onShow(); await new Promise(r => setImmediate(r)); assert.equal(timers.size, 1)
   account = 'other'; now += 2000; page.open(); assert.equal(opened.length, 1); await page.start(); assert.equal(initialized, 1)
   hooks.onUnload(); assert.equal(timers.size, 0); assert.equal(listeners.size, 0)
+})
+
+function cashierPage(state, ua = mobileUa) {
+  const hooks={}, timers=new Map(), listeners=new Map(), paths=[], opened=[]; let timer=0, paints=0
+  const browser={ location:{assign:url=>opened.push(url)}, addEventListener:(n,f)=>listeners.set(n,f), removeEventListener:n=>listeners.delete(n) }; browser.self=browser;browser.top=browser
+  const doc={visibilityState:'visible',addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)}
+  const modules={
+    vue:{ref:value=>({value}),nextTick:async()=>{},getCurrentInstance:()=>({})},
+    '@dcloudio/uni-app':Object.fromEntries(['onLoad','onShow','onHide','onUnload'].map(n=>[n,f=>hooks[n]=f])),
+    '@/utils/router':{redirectTo:p=>paths.push(p)},
+    '@/utils/request':{apiGet:async url=>{state.reads.push(url);if(state.denied)throw Error('只能查看自己的订单');return {...state.order,status:url.endsWith('/current')?state.dbStatus:state.order.status}}},
+    '@/utils/storage':{getUserInfo:()=>({id:state.account})},
+    '@/lib/purchase-data':{purchaseApi:{payByChannel:async()=>{state.creates++; if(state.fail)throw Error('结果未知');return {outTradeNo:'HF-one',qrCode:'https://qr.alipay.com/test'}},queryHuifuPayment:async()=>({trans_stat:state.channelStatus})}},
+    '@/utils/qrcode':{drawQrToCanvas:()=>{paints++;return true}},
+    '@/utils/existing-order-huifu':api,'@/utils/huifu-alipay-h5':alipayH5,'@/utils/payment-device':device,'@/utils/h5-payment-options':policy,
+    '@/lib/remote-config':{getRemoteConfig:()=>({features:state.flags||{}}),hydrateRemoteConfig:()=>state.hydrate||Promise.resolve()},
+  }
+  const page=compile(script('pkg-shop/huifu-paying/index.vue')+'\nexports.check=checkPayment;exports.open=openAlipay;exports.getView=()=>view.value;',{
+    require:n=>{assert.ok(modules[n],n);return modules[n]},navigator:{userAgent:ua},window:browser,document:doc,
+    setTimeout:f=>{timers.set(++timer,f);return timer},clearTimeout:n=>timers.delete(n),
+    Date:class extends Date{static now(){return state.now}},
+    uni:{getStorageSync:k=>state.storage.get(k),setStorageSync:(k,v)=>state.storage.set(k,JSON.parse(JSON.stringify(v))),createCanvasContext:()=>({draw:(_,cb)=>cb()})},
+  })
+  return {page,hooks,timers,listeners,paths,opened,doc,get paints(){return paints}}
+}
+function cashierState(){return {account:'owner',order:{id:'one',status:'PENDING',amount:0.01,type:'PRODUCT'},dbStatus:'PENDING',channelStatus:'P',storage:new Map(),creates:0,reads:[],now:100000}}
+
+test('真实收银confirmed首次自动准备一次，手机不自动scheme，刷新仅恢复，服务端到账自动回原单一次',async()=>{
+  const state=cashierState(), first=cashierPage(state)
+  await first.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'});await new Promise(r=>setImmediate(r))
+  assert.equal(state.creates,1);assert.equal(first.paints,0);assert.equal(first.opened.length,0)
+  first.page.open();assert.equal(first.opened.length,1)
+  first.hooks.onUnload()
+  const second=cashierPage(state)
+  await second.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'})
+  assert.equal(state.creates,1);assert.equal(second.page.getView().phase,'pending')
+  state.channelStatus='S';await second.page.check();assert.equal(second.paths.length,0)
+  state.now+=15000;state.dbStatus='PAID';await second.page.check()
+  assert.deepEqual(second.paths,['/orders/one?paymentReturn=1']);assert.equal(second.timers.size,0);assert.equal(second.listeners.size,0)
+  second.hooks.onShow();await second.page.check();assert.equal(second.paths.length,1);assert.equal(state.creates,1)
+})
+
+test('真实桌面确认后直接绘制二维码；隐藏期间确认到账等页面可见才回单',async()=>{
+  const state=cashierState(), p=cashierPage(state,'Windows NT Chrome')
+  await p.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'});await new Promise(r=>setImmediate(r));assert.ok(p.paints>0)
+  p.hooks.onHide();state.dbStatus='PAID';await p.page.check();assert.equal(p.paths.length,0)
+  p.hooks.onShow();assert.deepEqual(p.paths,['/orders/one?paymentReturn=1'])
+})
+
+test('confirmed不能绕过归属、有效金额、终态、渠道禁用或未知持久标记，加载离开也不初始化',async()=>{
+  for(const mode of ['denied','invalid','paid','disabled','unknown','wechat']){
+    const state=cashierState();if(mode==='denied')state.denied=true
+    if(mode==='invalid')state.order.amount=-1
+    if(mode==='paid')state.order.status='PAID'
+    if(mode==='disabled')state.flags={client_pay_h5_alipay_mobile:false}
+    if(mode==='unknown')state.storage.set('huifu:h5:existing:owner:one',{orderId:'one',channel:'alipay',requestedAt:100000})
+    const p=cashierPage(state,mode==='wechat'?mobileUa+' MicroMessenger/8':mobileUa)
+    await p.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'});assert.equal(state.creates,0,mode);p.hooks.onUnload()
+  }
+  const state=cashierState();let resolve;state.hydrate=new Promise(r=>resolve=r)
+  const p=cashierPage(state),pending=p.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'})
+  p.hooks.onUnload();resolve();await pending;assert.equal(state.creates,0);assert.equal(p.listeners.size,0)
+  const unknown=cashierState();unknown.fail=true
+  const first=cashierPage(unknown);await first.hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'});first.hooks.onUnload()
+  await cashierPage(unknown).hooks.onLoad({orderId:'one',method:'alipay',confirmed:'1'});assert.equal(unknown.creates,1)
+})
+
+test('订单返回首次直读，后续缓存不回退同账号原单；退款和不同账号状态不冻结',async()=>{
+  const order={value:null},calls=[];let account='owner',next={id:'one',status:'pending_ship'}
+  const load=realFunction('pkg-order/detail/index.vue','loadData','H5',{
+    loading:{value:false},error:{value:''},freshAfterPayment:true,lastOrderAccount:'',order,orderId:{value:'one'},getUserInfo:()=>({id:account}),
+    orderApi:{detail:async(id,fresh)=>{calls.push(fresh);return {...next}}},
+  })
+  await load();next.status='pending_pay';await load();assert.equal(order.value.status,'pending_ship');assert.deepEqual(calls,[true,false])
+  next.status='refunded';await load();assert.equal(order.value.status,'refunded')
+  account='other';next.status='pending_pay';await load();assert.equal(order.value.status,'pending_pay')
+})
+
+test('真实checkout禁用渠道在业务建单前拦截；原单仅一个可用渠道时直接进入',async()=>{
+  let created=0;const toast=[],paths=[]
+  const submit=realFunction('pkg-shop/checkout/index.vue','submitOrder','H5',{
+    submitting:{value:false},items:{value:[{}]},currentAddress:{value:{}},estimate:{value:{}},payMethod:{value:'wechat'},
+    ...policy,...config,navigator:{userAgent:mobileUa},uni:{showToast:x=>toast.push(x.title)},shopApi:{createOrder:()=>created++},
+  })
+  await submit();assert.equal(created,0);assert.ok(toast[0].includes('微信'))
+  const browser={};browser.self=browser;browser.top=browser
+  const pay=realFunction('pkg-order/detail/index.vue','goPay','H5',{
+    order:{value:{id:'one',status:'pending_pay',orderType:'PRODUCT',payAmount:0.01}},choosingPayment:false,...api,...policy,...config,
+    navigator:{userAgent:mobileUa},window:browser,uni:{showActionSheet:()=>assert.fail('仅一个可用渠道不再多弹一次')},navigateTo:x=>paths.push(x),
+  })
+  await pay();assert.deepEqual(paths,[api.existingOrderCashierRoute('one','alipay',true)])
+})
+
+test('真实微信轮询：收银返回只是有限直读提示，订单PAID才回单；APP保持原成功页',async()=>{
+  for(const target of ['H5','APP-PLUS']){
+    let scheduled,now=100000,paid=false;const paths=[],reads=[],status={value:'paying'}
+    const globals={
+      pollCount:0,pollTimer:null,maxPolls:70,isRecharge:{value:false},status,orderId:{value:'one'},amount:{value:0.01},payMethod:{value:'wechat'},returnLiveRoomId:{value:''},
+      h5PaymentConfirmed:true,lastH5CurrentRead:-Infinity,Date:class extends Date{static now(){return now}},
+      setTimeout:fn=>{scheduled=fn;return 1},clearTimers:()=>{},track:{purchase:()=>{}},settleCircleIfNeeded:async()=>{},redirectTo:x=>paths.push(x),
+      shopApi:{getOrderPayState:async(id,fresh)=>{reads.push(fresh);return {paid}}},console,
+    }
+    const poll=realFunction('pkg-shop/paying/index.vue','startPolling',target,globals)
+    poll();await scheduled();assert.equal(paths.length,0);assert.equal(reads[0],target==='H5')
+    await scheduled();assert.equal(reads[1],false)
+    now+=30000;paid=true;await scheduled();assert.equal(status.value,'success')
+    if(target==='APP-PLUS')await scheduled()
+    assert.deepEqual(paths,[target==='H5'?'/orders/one?paymentReturn=1':'/shop/pay-success?orderId=one'])
+  }
 })

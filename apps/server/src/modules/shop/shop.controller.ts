@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete,
+  Controller, Get, Post, Put, Delete, Header,
   Body, Param, Query, Req, UseGuards, Logger, ForbiddenException, BadRequestException, ServiceUnavailableException, HttpCode,
 } from "@nestjs/common";
 import { Request } from "express";
@@ -278,6 +278,15 @@ export class ShopController {
   @ApiQuery({ name: "status", required: false, type: String, description: "订单状态过滤(PENDING/PAID/SHIPPED/COMPLETED/REFUNDED/CANCELLED)" })
   myOrders(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
     return this.shop.getUserOrders(req.user.id, +page, +pageSize, status);
+  }
+
+  @Get("orders/:id/current")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "付款确认时读取本人订单最新状态" })
+  @ApiBearerAuth()
+  getCurrentOrder(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shop.getCurrentOrder(id, req.user.id);
   }
 
   @Get("orders/:id")

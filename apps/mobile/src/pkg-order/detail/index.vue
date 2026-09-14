@@ -174,7 +174,9 @@ import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
 // #ifdef H5
 import { existingOrderCashierRoute, type HuifuChannel } from '@/utils/existing-order-huifu'
-import { paymentMethodName } from '@/utils/payment-device'
+import { h5PaymentOptions } from '@/utils/h5-payment-options'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
+import { getUserInfo } from '@/utils/storage'
 // #endif
 
 const loading = ref(false)
@@ -183,6 +185,10 @@ const order = ref<OrderDetail | null>(null)
 const copied = ref(false)
 const orderId = ref('1')
 const submitting = ref(false)
+let freshAfterPayment = false
+// #ifdef H5
+let lastOrderAccount = ''
+// #endif
 
 // 虚拟商品订单（课程/会员等）：三段步骤，付款即交付；实物走四段物流步骤
 const steps = computed(() => (order.value?.isVirtual ? virtualDetailSteps : detailSteps))
@@ -206,12 +212,34 @@ function goLearn() {
 const retry = () => { error.value = ''; loadData() }
 async function loadData(silent = false) {
   if (!silent) { loading.value = true; error.value = '' }
-  try { order.value = await orderApi.detail(orderId.value); error.value = '' }
+  const fresh = freshAfterPayment
+  freshAfterPayment = false
+  try {
+    // #ifdef H5
+    const account = String(getUserInfo<{ id?: string }>()?.id || '')
+    // #endif
+    const latest = await orderApi.detail(orderId.value, fresh)
+    let accept = true
+    // #ifdef H5
+    if (!account || account !== String(getUserInfo<{ id?: string }>()?.id || '')) throw new Error('登录账号已变化，请重新进入订单')
+    // 缓存清理失败时，不用旧待付快照覆盖已由服务端确认的状态。
+    accept = fresh || lastOrderAccount !== account || !order.value || order.value.id !== latest.id || order.value.status === 'pending_pay' || latest.status !== 'pending_pay'
+    lastOrderAccount = account
+    // #endif
+    if (accept) order.value = latest
+    error.value = ''
+  }
   catch (e) { if (!silent) error.value = (e as Error)?.message || '加载失败' }
   finally { if (!silent) loading.value = false }
 }
 
-onLoad((q) => { if (q?.id) { orderId.value = q.id } })
+onLoad((q) => {
+  if (q?.id) orderId.value = q.id
+  // 返回标记只触发本人订单直读，不能代表已支付。
+  // #ifdef H5
+  freshAfterPayment = q?.paymentReturn === '1'
+  // #endif
+})
 usePageRefresh(() => loadData(Boolean(order.value)))
 
 function copyNo() {
@@ -226,26 +254,31 @@ function goExchange() { if (!order.value) return; navigateTo(`/shop/exchange?ord
 // #ifdef H5
 let choosingPayment = false
 // #endif
-function goPay() {
+async function goPay() {
   if (!order.value) return
   // #ifdef H5
   if (choosingPayment) return
   choosingPayment = true
   const currentId = order.value.id
-  const channels: Array<'wechat' | HuifuChannel> = ['wechat', 'alipay']
-  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
-  const itemList = [paymentMethodName('wechat', ua), paymentMethodName('alipay', ua)]
-  if (['PRODUCT', 'COURSE'].includes(order.value.orderType)) { channels.push('unionpay'); itemList.push(paymentMethodName('unionpay', ua)) }
-  uni.showActionSheet({
-    itemList,
-    success: ({ tapIndex }) => {
-      const selected = channels[tapIndex]
-      if (!selected || order.value?.id !== currentId) return
+  try {
+    await hydrateRemoteConfig(true)
+    if (order.value?.id !== currentId || order.value.status !== 'pending_pay') { choosingPayment = false; return }
+    const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent
+    const options = h5PaymentOptions(ua, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top)
+      .filter(item => item.enabled && (item.id !== 'unionpay' || ['PRODUCT', 'COURSE'].includes(order.value!.orderType)))
+    const choose = (selected: 'wechat' | HuifuChannel) => {
+      if (order.value?.id !== currentId || order.value.status !== 'pending_pay') return
       if (selected === 'wechat') { navigateTo(`/shop/paying?orderId=${encodeURIComponent(currentId)}&method=wechat&amount=${order.value.payAmount}`); return }
-      navigateTo(existingOrderCashierRoute(currentId, selected))
-    },
-    complete: () => { choosingPayment = false },
-  })
+      navigateTo(existingOrderCashierRoute(currentId, selected, true))
+    }
+    if (!options.length) { choosingPayment = false; uni.showToast({ title: '当前环境暂无可用支付方式，请在微信中打开', icon: 'none' }); return }
+    if (options.length === 1) { choose(options[0].id); choosingPayment = false; return }
+    uni.showActionSheet({
+      itemList: options.map(item => item.name),
+      success: ({ tapIndex }) => { if (options[tapIndex]) choose(options[tapIndex].id) },
+      complete: () => { choosingPayment = false },
+    })
+  } catch (e) { choosingPayment = false; uni.showToast({ title: (e as Error)?.message || '支付方式暂不可用', icon: 'none' }) }
   return
   // #endif
   goLegacyPay()
