@@ -183,6 +183,7 @@ CREATE TABLE "User" (
     "timezone" TEXT DEFAULT 'Asia/Shanghai',
     "preferredCurrency" TEXT DEFAULT 'CNY',
     "notifySettings" JSONB,
+    "privacySettings" JSONB,
     "creatorSettings" JSONB,
     "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

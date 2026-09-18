@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PrivacySettingsService } from "../user/privacy-settings.service";
 import { RedisService } from "../../redis/redis.service";
 import { SemanticSearchService } from "./semantic-search.service";
 import { isPublicContentQuarantined, type PublicQuarantineType } from "../../common/public-content-quarantine";
@@ -30,6 +31,7 @@ export class SearchService {
     private prisma: PrismaService,
     private redis: RedisService,
     @Optional() private semantic?: SemanticSearchService,
+    @Optional() private privacy?: PrivacySettingsService,
   ) {}
 
   /** 语义搜索 — 基于向量相似度的内容发现 */
@@ -311,9 +313,18 @@ export class SearchService {
     return rows.map((r) => ({ keyword: r.keyword, count: r._count.keyword }));
   }
 
-  /** 保存搜索历史 */
+  /**
+   * 保存搜索历史。
+   *
+   * 受隐私偏好 P2（browseHistory）门控：用户关掉「记录浏览历史」后不再写入新记录。
+   * 已有记录保留，用户可用 `DELETE /search/history` 一键清空——「停止记录」与
+   * 「删除已记录的」是两件事，不能替用户做后一件。
+   *
+   * 读取失败按已关闭处理（PrivacySettingsService 的 fail-closed 语义）。
+   */
   async saveHistory(userId: string, keyword: string) {
     if (!keyword.trim()) return;
+    if (this.privacy && !(await this.privacy.allows(userId, "browseHistory"))) return;
     await this.prisma.searchHistory.create({ data: { userId, keyword } });
   }
 

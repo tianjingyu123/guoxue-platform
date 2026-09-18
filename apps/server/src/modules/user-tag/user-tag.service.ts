@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PrivacySettingsService } from "../user/privacy-settings.service";
 
 /**
  * 用户标签体系（D-T2·设计真源 docs/design/数据运营引擎-看板漏斗标签周报-20260705.md §三）
@@ -30,6 +31,7 @@ export class UserTagService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly privacy: PrivacySettingsService,
   ) {}
 
   @Cron("10 1 * * *")
@@ -142,6 +144,12 @@ export class UserTagService {
     const prefMap = new Map<string, string>();
     for (const i of interests) if (!prefMap.has(i.userId)) prefMap.set(i.userId, i.tag); // 已按 score desc，首见即 top1
 
+    // 隐私偏好 P1：批量取一次，关闭个性化推荐的用户不产出 pref_* 兴趣标签。
+    // 读取失败按已关闭处理（PrivacySettingsService 的 fail-closed 语义）。
+    const privacyMap = await this.privacy.getMany(userIds);
+    const privacyAllows = (uid: string) =>
+      privacyMap.get(uid)?.personalizedRecommend === true;
+
     const rows: Array<{ userId: string; tag: string; type: string }> = [];
     for (const uid of userIds) {
       const push = (tag: string, type: "FACT" | "DERIVED") => rows.push({ userId: uid, tag, type });
@@ -168,7 +176,12 @@ export class UserTagService {
 
       // 偏好 top1
       const pref = prefMap.get(uid);
-      if (pref) push(`pref_${pref}`, "FACT");
+      // 隐私偏好 P1：关闭「个性化推荐」的用户不再产出兴趣偏好标签。
+      // 只停 pref_*（行为兴趣），不影响 whale / churn_risk 这类经营标签——
+      // 它们不是兴趣画像，属经营必需，且 R2 红线本就禁止用标签做差异化定价。
+      // 本任务按日全量重算并先 deleteMany，因此「停止产出」即等于「已有标签在次日消失」，
+      // 不需要额外的清理逻辑。
+      if (pref && privacyAllows(uid)) push(`pref_${pref}`, "FACT");
 
       // DERIVED
       if ((memberViewMap.get(uid) ?? 0) >= 3 && !memberSet.has(uid)) push("price_sensitive", "DERIVED");

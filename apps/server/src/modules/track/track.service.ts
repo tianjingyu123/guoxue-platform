@@ -5,6 +5,7 @@ import { TrackEventDto } from "./track.dto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { PrivacySettingsService } from "../user/privacy-settings.service";
 
 const MAX_BATCH = 50;
 const ACTION_MAX = 64;
@@ -14,13 +15,51 @@ const PATH_MAX = 256;
 export class TrackService {
   private readonly logger = new Logger(TrackService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private privacy: PrivacySettingsService,
+  ) {}
+
+  /**
+   * 「必要诊断」类事件：即使用户关闭了可选分析也继续接收。
+   *
+   * 口径来自《最小指标字典》对 P3/P4 的划分：同一路径的**成功**事件属可选分析，
+   * **失败**事件属必要诊断。这里只按 action 粗分——细到 payload 的成功/失败区分要等
+   * 事件字典落地，本次先保证「关掉就不再收偏好类事件」这件事成立。
+   *
+   * ⚠️ 这不是在固化「P4 不可关」的政策。该政策仍待产品与法务论证（见专项文档 §四）。
+   * 这里只是维持改动前就已存在的错误上报，不新增任何不可关的采集项。
+   */
+  private static readonly DIAGNOSTIC_ACTIONS = new Set([
+    "error",
+    "api_error",
+    "page_not_found",
+  ]);
 
   /** 批量落库行为埋点（匿名 userId=null；超量截断；落库失败静默吞掉——埋点永不影响主流程） */
   async recordBatch(userId: string | undefined, events: TrackEventDto[]) {
     if (!Array.isArray(events) || events.length === 0) return { ok: true, count: 0 };
 
-    const rows = events.slice(0, MAX_BATCH).map((e) => ({
+    // 服务端门控（P3 可选分析）。
+    // 放在入库处而不是只靠客户端：客户端版本参差，旧包不会因为用户关了开关就停发；
+    // 只有服务端拦一道，「关掉就真的不再记录」才成立。客户端将来加门控是省流量的优化，
+    // 不是合规保证。
+    let accepted = events.slice(0, MAX_BATCH);
+    let dropped = 0;
+    if (userId) {
+      const allowOptional = await this.privacy.allows(userId, "optionalAnalytics");
+      if (!allowOptional) {
+        const before = accepted.length;
+        accepted = accepted.filter((e) =>
+          TrackService.DIAGNOSTIC_ACTIONS.has(String(e.action ?? "")),
+        );
+        dropped = before - accepted.length;
+      }
+    }
+    // dropped 只在真的丢了东西时出现：调用方做深比较时不会因为多一个恒为 0 的字段而挂。
+    if (accepted.length === 0) return { ok: true, count: 0, dropped };
+
+    const rows = accepted.map((e) => ({
       userId: userId ?? null,
       action: String(e.action ?? "unknown").slice(0, ACTION_MAX),
       path: e.path ? String(e.path).slice(0, PATH_MAX) : null,
@@ -30,10 +69,10 @@ export class TrackService {
 
     try {
       await this.prisma.trackEvent.createMany({ data: rows });
-      return { ok: true, count: rows.length };
+      return { ok: true, count: rows.length, ...(dropped > 0 ? { dropped } : {}) };
     } catch (err) {
       this.logger.warn(`埋点落库失败（已忽略）: ${(err as Error).message}`);
-      return { ok: true, count: 0 };
+      return { ok: true, count: 0, ...(dropped > 0 ? { dropped } : {}) };
     }
   }
 

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PrivacySettingsService } from "../user/privacy-settings.service";
 
 /** 画像输入：归属成员（归属判定/分页由各业务模块自己做，本服务只负责聚合） */
 export interface InsightMember {
@@ -29,7 +30,10 @@ export interface CustomerProfile {
  */
 @Injectable()
 export class InsightService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private privacy: PrivacySettingsService,
+  ) {}
 
   /** 浏览路径 → 兴趣模块标签（page_view 只有模块级路径；内容级兴趣由 view_content 事件提供） */
   private static readonly MODULE_LABELS: Array<[string, string]> = [
@@ -51,8 +55,17 @@ export class InsightService {
    * （搜索词权重3 > 内容标题2 > 浏览模块1），按最近活跃降序返回，便于优先跟进「热」客户。
    */
   async buildCustomerProfiles(members: InsightMember[]): Promise<CustomerProfile[]> {
-    const userIds = members.map((m) => m.userId);
-    if (userIds.length === 0) return [];
+    const allIds = members.map((m) => m.userId);
+    if (allIds.length === 0) return [];
+
+    // 隐私偏好 P1：关闭「个性化推荐」的用户不进入兴趣画像。
+    // 经营主体仍能看到这个人的基础资料与消费力（那是经营必需），
+    // 但不再为他生成行为兴趣标签；读取失败按已关闭处理。
+    const prefs = await this.privacy.getMany(allIds);
+    const profiled = new Set(
+      allIds.filter((id) => prefs.get(id)?.personalizedRecommend === true),
+    );
+    const userIds = allIds;
 
     const since30 = new Date(Date.now() - 30 * 86_400_000);
     const [users, activity, purchases, interestEvents] = await Promise.all([
@@ -108,10 +121,13 @@ export class InsightService {
     const profiles = members.map((m) => {
       const act = actMap.get(m.userId);
       const buy = buyMap.get(m.userId);
-      const tags = [...(interestMap.get(m.userId) ?? new Map())]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([tag]) => tag);
+      // 关闭 P1 的用户不出兴趣标签（其余经营必需字段照常给）
+      const tags = profiled.has(m.userId)
+        ? [...(interestMap.get(m.userId) ?? new Map())]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([tag]) => tag)
+        : [];
       return {
         userId: m.userId,
         nickname: userMap.get(m.userId)?.nickname || "用户",

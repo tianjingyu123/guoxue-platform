@@ -6,9 +6,10 @@ import { SearchWeightController } from "./search-weight.controller";
 import { AiSearchController } from "./ai-search.controller";
 import { SemanticSearchService } from "./semantic-search.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
+import { UserModule } from "../user/user.module";
 
 @Module({
-  imports: [AiGatewayModule],
+  imports: [AiGatewayModule, UserModule],
   controllers: [SearchController, SearchWeightController, AiSearchController],
   providers: [SearchService, SearchWeightService, SemanticSearchService],
   exports: [SearchService, SearchWeightService, SemanticSearchService],

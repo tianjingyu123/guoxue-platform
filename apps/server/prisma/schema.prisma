@@ -57,6 +57,11 @@ model User {
   timezone             String?       @default("Asia/Shanghai") // 时区（国际化预留）
   preferredCurrency    String?       @default("CNY") // 偏好货币（国际化预留）
   notifySettings       Json? // 通知开关（JSON: {message/course/live/interact/system: bool}）
+  /// 隐私偏好（JSON: {personalizedRecommend, browseHistory, optionalAnalytics, experienceSurvey: bool}）
+  /// 只由用户本人修改。NULL = 用户从未设置过，读取方按各自默认值处理；
+  /// 读取失败一律按「已关闭」处理（fail-closed），不得按默认开启。
+  /// ⚠️ 任何版本回滚、配置重置都不得覆盖本字段 —— 它是用户的意思表示。
+  privacySettings      Json?
   creatorSettings      Json? // 创作者中心设置（JSON: {specialty/website/notify/privacy 等创作者偏好，与认证体系解耦）
   deletedAt            DateTime? // 软删除时间（NULL=正常），删除用户时不物理删除，仅标记此字段
   createdAt            DateTime      @default(now())

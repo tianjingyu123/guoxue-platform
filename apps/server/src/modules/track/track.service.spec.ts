@@ -1,6 +1,23 @@
 import { Test } from "@nestjs/testing";
 import { TrackService } from "./track.service";
+import { PrivacySettingsService } from "../user/privacy-settings.service";
 import { PrismaService } from "../../prisma/prisma.service";
+
+/**
+ * 隐私偏好桩：默认全部允许，等价于「用户没关任何开关」——
+ * 保持这些既有用例原本的语义（它们验证的是采集逻辑，不是门控逻辑）。
+ * 门控本身的验证在 scripts/ops/privacy-preferences-verify/verify.mjs。
+ */
+const privacyAllowAll = {
+  get: async () => ({
+    personalizedRecommend: true, browseHistory: true, optionalAnalytics: true, experienceSurvey: true,
+  }),
+  getMany: async (ids: string[]) =>
+    new Map(ids.map((id) => [id, {
+      personalizedRecommend: true, browseHistory: true, optionalAnalytics: true, experienceSurvey: true,
+    }])),
+  allows: async () => true,
+};
 
 describe("TrackService", () => {
   let service: TrackService;
@@ -15,7 +32,7 @@ describe("TrackService", () => {
       },
     };
     const moduleRef = await Test.createTestingModule({
-      providers: [TrackService, { provide: PrismaService, useValue: prisma }],
+      providers: [TrackService, { provide: PrivacySettingsService, useValue: privacyAllowAll }, { provide: PrismaService, useValue: prisma }],
     }).compile();
     service = moduleRef.get(TrackService);
   });
