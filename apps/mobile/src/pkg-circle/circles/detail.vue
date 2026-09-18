@@ -47,6 +47,7 @@ const circleProducts = ref<CircleProduct[]>([])
 const postedArticles = ref<CircleArticle[]>([])
 const isLoading = ref(true)
 const error = ref('')
+const feedLoadFailed = ref(false)
 const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
@@ -119,6 +120,16 @@ function onTabTap(id: typeof activeTab.value) {
   activeTab.value = id
   if (id === 'qa') loadQaExperts()
 }
+/** 空态/失败态按钮的键盘可达（与圈子广场、直播广场同一约定：Enter/空格等同点击）。 */
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
+/** 失败重试（无参包装，避免 @tap 把事件对象传进 loadData）。 */
+function reloadData() {
+  void loadData()
+}
 /** 图文提问：跳付费提问页（与达人咨询页同参数契约） */
 function goAskExpert(e: ConsultExpert) {
   if (!e.questionPrice) return
@@ -182,17 +193,18 @@ async function loadData() {
     isJoined.value = c.isJoined
 
     const [p, m, arts, crs, lvs, prds, pas, st, jr] = await Promise.allSettled([
-      circleDetailApi.posts(circleId.value),
+      circleDetailApi.posts(circleId.value, { throwOnError: true }),
       circleDetailApi.listMembers(circleId.value),
       circleDetailApi.articles(circleId.value),
-      circleDetailApi.courses(circleId.value),
+      circleDetailApi.courses(circleId.value, { throwOnError: true }),
       circleDetailApi.lives(circleId.value),
       circleDetailApi.products(circleId.value),
-      circleDetailApi.postedArticles(circleId.value),
+      circleDetailApi.postedArticles(circleId.value, { throwOnError: true }),
       isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true) : Promise.reject(new Error('未登录')),
       // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
       isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
     ])
+    feedLoadFailed.value = [p, crs, pas].some((result) => result.status === 'rejected')
     posts.value = p.status === 'fulfilled' ? p.value.data : []
     members.value = m.status === 'fulfilled' ? m.value.data : []
     circleArticles.value = arts.status === 'fulfilled' ? arts.value : []
@@ -511,7 +523,27 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
         <!-- 卷尾（品牌签名·墨线由全局 .scroll-end 画）。诚实前提不变：posts 接口无分页、
              页面也无 scrolltolower 处理，此处即真实结尾，"上拉加载更多"是假承诺（分页留后端配合项） -->
-        <view class="scroll-end"><text>{{ VOICE.END }}</text></view>
+        <!-- 失败必须说成失败：走 alert 且给重试按钮，不能混进下面的「还没有内容」空态。
+             按钮用 empty-action 胶囊而非原生 button 元素——原生 button 会继承默认字色与 ::after 边框，
+             真机上表现为灰字细框（2026-09-08 真机样式复验已记录过同类回归）。 -->
+        <view v-if="feedLoadFailed" class="empty" role="alert" aria-live="assertive">
+          <app-icon name="wifi-off" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">部分内容加载失败，请重试</text>
+          <view
+            class="empty-action"
+            role="button"
+            tabindex="0"
+            aria-label="重新加载圈子内容"
+            @tap="reloadData"
+            @keydown="activateOnKeyboard($event, reloadData)"
+          ><text class="empty-action-txt">重新加载</text></view>
+        </view>
+        <view v-else-if="posts.length || courses.length || postedArticles.length" class="scroll-end"><text>{{ VOICE.END }}</text></view>
+        <view v-else class="empty" role="status">
+          <app-icon name="users" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">圈子还没有内容</text>
+          <text class="empty-txt">{{ isJoined ? '点击右下角发布按钮，分享第一条动态吧' : '可以先了解圈子介绍，加入后参与交流' }}</text>
+        </view>
       </view>
 
       <!-- 精华 Tab -->
@@ -523,9 +555,17 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
             @like="handleLikePost" @report="handleReportPost"
           />
         </template>
-        <view v-else class="empty">
+        <view v-else class="empty" role="status">
           <app-icon name="star" :size="88" color="#E8E3DB" />
-          <text class="empty-txt">暂无精华内容</text>
+          <text class="empty-txt">本圈还没有精华内容</text>
+          <view
+            class="empty-action"
+            role="button"
+            tabindex="0"
+            aria-label="返回推荐栏目"
+            @tap="onTabTap('home')"
+            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+          ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
 
@@ -555,9 +595,17 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
             <text class="qa-link" @tap="navigateTo(`/pkg-circle/circles/my-questions?circleId=${circleId}`)">我的提问</text>
           </view>
         </template>
-        <view v-else class="empty">
+        <view v-else class="empty" role="status">
           <app-icon name="message-circle" :size="88" color="#E8E3DB" />
           <text class="empty-txt">本圈暂无开通问答的达人</text>
+          <view
+            class="empty-action"
+            role="button"
+            tabindex="0"
+            aria-label="返回推荐栏目"
+            @tap="onTabTap('home')"
+            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+          ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
 
@@ -576,9 +624,17 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
             <image v-if="a.cover" lazy-load :src="a.cover" class="article-cover" mode="aspectFill" />
           </view>
         </template>
-        <view v-else class="empty">
+        <view v-else class="empty" role="status">
           <app-icon name="file-text" :size="88" color="#E8E3DB" />
-          <text class="empty-txt">暂无文章</text>
+          <text class="empty-txt">本圈还没有文章</text>
+          <view
+            class="empty-action"
+            role="button"
+            tabindex="0"
+            aria-label="返回推荐栏目"
+            @tap="onTabTap('home')"
+            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+          ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
 
@@ -842,7 +898,19 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 120rpx 0; }
-.empty-txt { font-size: 27rpx; color: var(--text-tertiary, #999); }
+/* 空态正文：原 --text-tertiary(#999) 仅 2.68:1（axe-core color-contrast serious），
+   改用 --text-secondary(#6e6e73) ≈4.7:1。 */
+.empty-txt { font-size: 27rpx; color: var(--text-secondary, #6e6e73); }
+/* 栏目空态出口：沿用平台 empty-action 胶囊（朱红实底），锁 44px 触达区
+   （用物理 px：88rpx 在 320 宽机型上只有 37.5px）。
+   不用原生 button 元素——其默认字色/字号与 ::after 边框会在真机上盖掉本页样式。 */
+.empty-action {
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 8rpx; min-height: 44px; padding: 0 40rpx;
+  border-radius: 999rpx; background: var(--brand, #c41e3a);
+}
+.empty-action:active { opacity: 0.85; }
+.empty-action-txt { font-size: 27rpx; line-height: 1.4; color: #ffffff; font-weight: 500; }
 
 .bottom-spacer { height: 180rpx; }
 

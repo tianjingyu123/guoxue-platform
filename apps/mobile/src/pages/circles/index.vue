@@ -46,6 +46,30 @@ const visibleDiscoverCircles = computed(() => {
   const start = safeBatch * DISCOVER_BATCH_SIZE
   return discoverCircles.value.slice(start, start + DISCOVER_BATCH_SIZE)
 })
+// 空态归因（发现列表为空时要分清是「筛选筛没了」「已全部加入」还是「本来就没有」）：
+// 三种原因给三套文案与操作，不能都落到「换个分类看看吧」这一句没有出口的提示上。
+const currentCategoryName = computed(
+  () => circleCategories.find((item) => item.id === category.value)?.name || '',
+)
+const emptyReason = computed<'category' | 'all-joined' | 'none'>(() => {
+  // 接口有返回、只是都被 joinedIds 过滤掉 → 已全部加入（不是「没找到」）
+  if (circles.value.length > 0) return 'all-joined'
+  if (category.value !== '') return 'category'
+  return 'none'
+})
+
+/** 返回「推荐/全部」分类：分类筛空时的出口，已在全部分类则只做一次重新加载。 */
+function resetCategory() {
+  if (category.value === '') {
+    loadCircles()
+    return
+  }
+  selectCategory('')
+}
+/** 空态/失败态的重新加载（包成无参函数，避免 @tap 把事件对象当 silent 传进去静默失败）。 */
+function reloadCircles() {
+  loadCircles()
+}
 
 // SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存默认「推荐」分类的首屏列表——
 // 再次进入 tab 先渲染缓存跳过骨架屏，后台静默刷新整批替换
@@ -347,7 +371,7 @@ onShow(() => {
         </view>
         <!-- 错误态 -->
         <view v-else-if="error" role="alert" aria-live="assertive">
-          <app-error title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
+          <app-error title="圈子加载失败" desc="网络异常，请稍后重试" @retry="reloadCircles" />
         </view>
         <!-- 列表 -->
         <!-- animate-fade-in 挂列表容器：进入渐入；不挂卡片（forwards 动画会压掉卡片 :active 缩放） -->
@@ -420,10 +444,40 @@ onShow(() => {
             </view>
           </view>
         </view>
-        <!-- 空态 -->
+        <!-- 空态：按归因分三种，每种都给出可直接点的出口（不再只留一句「换个分类看看吧」） -->
         <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
-          <text class="empty-text">没找到相关圈子，换个分类看看吧</text>
+          <text v-if="emptyReason === 'category'" class="empty-text">「{{ currentCategoryName }}」分类下暂时没有圈子</text>
+          <text v-else-if="emptyReason === 'all-joined'" class="empty-text">这里的圈子你都已经加入了</text>
+          <text v-else class="empty-text">圈子还在筹备中，稍后再来看看</text>
+          <view class="empty-actions">
+            <view
+              v-if="emptyReason === 'category'"
+              class="empty-action"
+              role="button"
+              tabindex="0"
+              aria-label="查看全部圈子"
+              @tap="resetCategory"
+              @keydown="activateOnKeyboard($event, resetCategory)"
+            ><text class="empty-action-txt">查看全部圈子</text></view>
+            <view
+              v-else-if="emptyReason === 'all-joined'"
+              class="empty-action"
+              role="link"
+              tabindex="0"
+              aria-label="打开我的圈子"
+              @tap="go('/pkg-circle/circles/me')"
+              @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))"
+            ><text class="empty-action-txt">去我的圈子</text></view>
+            <view
+              class="empty-action ghost"
+              role="button"
+              tabindex="0"
+              aria-label="刷新圈子列表"
+              @tap="reloadCircles"
+              @keydown="activateOnKeyboard($event, reloadCircles)"
+            ><text class="empty-action-txt ghost">刷新</text></view>
+          </view>
         </view>
       </view>
 
@@ -824,7 +878,22 @@ onShow(() => {
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; }
 .empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: var(--separator, #f5f0e8); display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }
-.empty-text { font-size: 28rpx; color: var(--text-tertiary, #999); }
+/* 空态正文：原 --text-tertiary(#999) 在 #faf8f5 底上仅 2.68:1（axe-core color-contrast serious），
+   空态只剩这一句话，改用 --text-secondary(#6e6e73) ≈4.7:1。 */
+.empty-text { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
+/* 空态出口按钮：沿用平台既有 empty-action 胶囊（朱红实底 / 描边次按钮），
+   高度锁 44px（触达区下限用物理 px，rpx 在 320 宽机型上会缩到 37.5px），
+   不用原生 button 元素以免继承默认字色与 ::after 边框。 */
+.empty-actions { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; }
+.empty-action {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 40rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a);
+}
+.empty-action.ghost { background: transparent; border: 2rpx solid var(--brand, #c41e3a); }
+.empty-action:active { opacity: 0.85; }
+.empty-action-txt { font-size: 28rpx; line-height: 1.4; color: #ffffff; font-weight: 500; }
+.empty-action-txt.ghost { color: var(--brand, #c41e3a); }
 
 /* 区③ 圈内新鲜事：用“动态手账”卡片承接内容，和上方获客卡形成明显层级。 */
 .activity-section { margin-top: 44rpx; }
