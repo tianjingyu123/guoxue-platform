@@ -130,6 +130,26 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
+    // 已付款但尚未履约的同圈订单必须复用，不能再建一张待支付单让用户二次付款。
+    // 履约本身由支付后处理器与补偿重试负责（shop-payment.service.ts），这里只拦下单。
+    const unfulfilled = await this.prisma.order.findFirst({
+      where: {
+        userId,
+        targetId: circleId,
+        type: { in: ["CIRCLE_JOIN", "CIRCLE_RENEW"] },
+        status: { in: ["PAID", "SHIPPED"] },
+        refundedAt: null,
+      },
+      orderBy: { paidAt: "desc" },
+      select: { id: true },
+    });
+    if (unfulfilled) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "你已有一笔已支付的入圈订单正在处理，请稍后刷新；如长时间未生效请联系客服，不要重复支付",
+      );
+    }
+
     const priceYuan = Number(circle.price);
     if (priceYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
 

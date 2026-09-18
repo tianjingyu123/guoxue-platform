@@ -16,6 +16,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
+import { fulfillCircleOrderTx, buildRetryCandidateWhere } from "./circle-fulfillment";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
@@ -834,7 +835,67 @@ export class ShopPaymentService {
     BOT_SERVICE: (order, tx) => this.processAccessPaid(order, tx),
     PAIPAN: (order, tx) => this.processAccessPaid(order, tx),
     LIVESTREAM: (order, tx) => this.processAccessPaid(order, tx),
+    // 圈子履约此前不在本表内，只能靠客户端支付成功后补调 /circles/:id/join|renew/confirm，
+    // 用户关页/断网/接口报错即「订单 PAID 但没进圈」。改为在支付事务内直接履约。
+    // 实现是幂等的：客户端原有的 confirm 入口继续可用，不会双重履约。
+    CIRCLE_JOIN: (order, tx) => this.processCirclePaid(order, tx),
+    CIRCLE_RENEW: (order, tx) => this.processCirclePaid(order, tx),
   };
+
+  /** 圈子订单支付后处理（幂等·见 circle-fulfillment.ts） */
+  private async processCirclePaid(order: Order, tx: any) {
+    const r = await fulfillCircleOrderTx(tx, order as never);
+    if (r.outcome === "skipped") {
+      this.logger.warn(`圈子履约跳过 order=${order.id}：${r.reason}`);
+    } else {
+      this.logger.log(`圈子履约 ${r.outcome} order=${order.id} 到期=${r.expireAt?.toISOString() ?? "永久"}`);
+    }
+  }
+
+  /**
+   * 已支付圈子订单的补偿重试（只处理履约，不碰支付状态、不退款、不发通知）。
+   *
+   * 为什么需要：支付后处理器只覆盖「首次回调」。历史遗留的已 PAID 未履约订单，
+   * 以及回调时因瞬时故障整体回滚、渠道又不再重试的订单，都需要独立入口补上。
+   *
+   * 约束：
+   *  - 必须显式传时间窗与条数上限，本方法不做默认全量扫描；
+   *  - 已退款订单由 fulfillCircleOrderTx 内部直接跳过，不会复活权益；
+   *  - 逐单独立事务，一单失败不影响其余；
+   *  - **不自动执行**：由运维或定时任务显式调用，接入前须有明确启停开关。
+   */
+  async retryCircleFulfillment(
+    since: Date,
+    until: Date,
+    limit: number,
+  ): Promise<{ scanned: number; fulfilled: number; skipped: number; failed: number }> {
+    const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 200);
+    const candidates = await this.prisma.order.findMany({
+      where: buildRetryCandidateWhere(since, until),
+      select: { id: true },
+      orderBy: { paidAt: "asc" },
+      take: safeLimit,
+    });
+    let fulfilled = 0;
+    let skipped = 0;
+    let failed = 0;
+    for (const { id } of candidates) {
+      try {
+        const outcome = await this.prisma.$transaction(async (tx) => {
+          const order = await tx.order.findUnique({ where: { id } });
+          if (!order) return "skipped";
+          const r = await fulfillCircleOrderTx(tx, order as never);
+          return r.outcome;
+        });
+        if (outcome === "skipped") skipped += 1;
+        else fulfilled += 1;
+      } catch (e) {
+        failed += 1;
+        this.logger.error(`圈子履约补偿失败 order=${id}`, e instanceof Error ? e.stack : String(e));
+      }
+    }
+    return { scanned: candidates.length, fulfilled, skipped, failed };
+  }
 
   /**
    * 按订单类型跑支付后处理器（会员开通 / 分站激活 / 运营商建号）。
@@ -876,6 +937,14 @@ export class ShopPaymentService {
     // 入账成功后立即清订单缓存：否则 getOrder 命中旧 PENDING 缓存(TTL 300s)，
     // 导致支付页轮询 getOrderPayState 永远读到未支付(不跳转)、订单详情显示「待付款」。
     await this.orderSvc.invalidateOrderCache(order.id, order.userId).catch((e) => this.logger.warn(`订单缓存清除失败 order=${order.id}`, e));
+    // 圈子履约在事务内完成后，成员态缓存必须失效，否则用户仍被判为「未加入」。
+    // 键名与 circle-membership.service.ts / circle-core.service.ts 保持一致。
+    if (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW") {
+      await Promise.all([
+        this.redis.del(`circles:member:${order.targetId}:${order.userId}`),
+        this.redis.del(`circles:detail:${order.targetId}`),
+      ]).catch((e) => this.logger.warn(`圈子缓存清除失败 order=${order.id}`, e));
+    }
     // 拼团订单：支付成功后结算成团（事务外独立处理，失败不影响支付主流程）
     await this.orderSvc.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }
