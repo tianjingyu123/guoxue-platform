@@ -6370,7 +6370,13 @@ model CircleRevenueRecord {
   id          String    @id @default(uuid())
   circleId    String
   type        String // gift / circle_join / course / product / knowledge_revenue
-  sourceId    String // 来源记录ID
+  sourceId    String // 来源记录ID（circle_join 为 CircleMember.id —— 退款追回按它反查圈主分成）
+  /// 订单级幂等键。与 sourceId 是两把不同的钥匙，不能互相代替：
+  /// - sourceId = 成员 id，用于「退款时按成员追回圈主分成」（circle-refund.service.ts:229-231）；
+  /// - orderId  = 订单 id，用于「同一笔订单只记一次账」。
+  /// 一个成员会有多笔订单（入圈 + 多次续费），成员唯一性挡不住订单级重复记账。
+  /// 可空：历史行与非订单来源（如 gift）保持 NULL；Postgres 唯一约束不约束 NULL，故互不影响。
+  orderId     String?
   amount      Decimal   @db.Decimal(10, 2) // 原始金额
   platformFee Decimal   @db.Decimal(10, 2) // 平台抽成
   ownerShare  Decimal   @db.Decimal(10, 2) // 圈主实得
@@ -6381,9 +6387,11 @@ model CircleRevenueRecord {
 
   circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
 
+  @@unique([type, orderId])
   @@index([circleId, createdAt])
   @@index([settled])
   @@index([type])
+  @@index([orderId])
 }
 
 // 圈主——嘉宾分账配置（圈主在圈子内自助设计分配方案）

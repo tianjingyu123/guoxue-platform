@@ -4901,6 +4901,7 @@ CREATE TABLE "CircleRevenueRecord" (
     "circleId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "sourceId" TEXT NOT NULL,
+    "orderId" TEXT,
     "amount" DECIMAL(10,2) NOT NULL,
     "platformFee" DECIMAL(10,2) NOT NULL,
     "ownerShare" DECIMAL(10,2) NOT NULL,
@@ -8267,6 +8268,12 @@ CREATE INDEX "CircleRevenueRecord_settled_idx" ON "CircleRevenueRecord"("settled
 
 -- CreateIndex
 CREATE INDEX "CircleRevenueRecord_type_idx" ON "CircleRevenueRecord"("type");
+
+-- CreateIndex
+CREATE INDEX "CircleRevenueRecord_orderId_idx" ON "CircleRevenueRecord"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleRevenueRecord_type_orderId_key" ON "CircleRevenueRecord"("type", "orderId");
 
 -- CreateIndex
 CREATE INDEX "CircleRevenueSplit_circleId_idx" ON "CircleRevenueSplit"("circleId");
