@@ -920,6 +920,14 @@ const routes = [
         meta: { title: "运营反馈", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        // 与上面的「运营反馈」是两套数据：这里是 C 端用户提交的意见反馈与投诉。
+        // 客服角色也要能处理，故 roles 比运营反馈多一个 CUSTOMER_SERVICE。
+        path: "system/user-feedback",
+        name: "UserFeedback",
+        component: () => import("@/views/system/UserFeedback.vue"),
+        meta: { title: "用户反馈", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      },
+      {
         path: "system/sensitive-words",
         name: "SensitiveWordList",
         component: () => import("@/views/system/SensitiveWordList.vue"),
