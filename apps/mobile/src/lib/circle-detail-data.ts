@@ -293,12 +293,15 @@ export const circleDetailApi = {
   detail: async (id: string): Promise<CircleDetail> => {
     return adaptDetail(await apiGet<RawCircleDetail>(`/circles/${id}`))
   },
-  posts: async (id: string): Promise<{ data: CirclePost[]; total: number }> => {
+  posts: async (id: string, options: { throwOnError?: boolean } = {}): Promise<{ data: CirclePost[]; total: number }> => {
     try {
       const r = await apiGet<RawPostsResp>(`/circles/${id}/posts`)
       const arr: RawCirclePost[] = Array.isArray(r) ? r : (r?.posts ?? r?.data ?? [])
       return { data: arr.map(adaptPost), total: r?.total ?? arr.length }
-    } catch { return { data: [], total: 0 } }
+    } catch (error) {
+      if (options.throwOnError) throw error
+      return { data: [], total: 0 }
+    }
   },
   listMembers: async (id: string): Promise<{ data: CircleMember[]; total: number }> => {
     try {
@@ -312,7 +315,7 @@ export const circleDetailApi = {
   articles: async (_id: string): Promise<CircleArticle[]> => [],
   activities: async (_id: string): Promise<CircleActivity[]> => [],
   /** 圈内课程（真连 GET /courses?circleId=·课程模型已有 circleId·圈子内变现展示）。失败降级空。 */
-  courses: async (id: string): Promise<CircleCourse[]> => {
+  courses: async (id: string, options: { throwOnError?: boolean } = {}): Promise<CircleCourse[]> => {
     try {
       const r = await apiGet<unknown>(`/courses?circleId=${id}&pageSize=6`)
       const arr: RawCircleCourse[] = Array.isArray(r) ? r : ((r as { items?: RawCircleCourse[]; courses?: RawCircleCourse[]; data?: RawCircleCourse[] })?.items ?? (r as { courses?: RawCircleCourse[] })?.courses ?? (r as { data?: RawCircleCourse[] })?.data ?? [])
@@ -323,10 +326,13 @@ export const circleDetailApi = {
         price: Number(c.price) || 0,
         teacher: c.user?.nickname ?? '',
       }))
-    } catch { return [] }
+    } catch (error) {
+      if (options.throwOnError) throw error
+      return []
+    }
   },
   /** 圈内已发布文章（真连 GET /articles?circleId=·成员/圈主发布的文章·修"文章板块看不到"）。失败降级空。 */
-  postedArticles: async (id: string): Promise<CircleArticle[]> => {
+  postedArticles: async (id: string, options: { throwOnError?: boolean } = {}): Promise<CircleArticle[]> => {
     try {
       const r = await apiGet<unknown>(`/articles?circleId=${id}&pageSize=6`)
       const arr: RawCircleArticle[] = Array.isArray(r) ? r : ((r as { items?: RawCircleArticle[]; data?: RawCircleArticle[] })?.items ?? (r as { data?: RawCircleArticle[] })?.data ?? [])
@@ -340,7 +346,10 @@ export const circleDetailApi = {
         likes: Number(a.likeCount) || 0,
         isFeatured: !!a.isPushHome,
       }))
-    } catch { return [] }
+    } catch (error) {
+      if (options.throwOnError) throw error
+      return []
+    }
   },
   /** 圈内直播（真连 GET /live/rooms?circleId=·含往期/进行/预告·LiveRoom 已有 circleId）。失败降级空。 */
   lives: async (id: string): Promise<CircleLive[]> => {

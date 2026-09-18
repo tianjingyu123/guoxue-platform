@@ -13,6 +13,7 @@ import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { goBack, navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import {
   liveApi,
   type LiveItem,
@@ -79,14 +80,32 @@ function isTomorrow(t?: string): boolean {
   return !!t && (t.includes('明天') || t.includes('明日'))
 }
 
+// 「关注的」由服务端按当前用户关注关系过滤：游客(followedByUserId=null)后端直接返回空列表，
+// 前端若照普通空态渲染就等于把「未登录」说成「没有直播」——此处单独判定，给登录出口。
+const isLoggedIn = () => !!getToken()
+const needLoginForFollowed = computed(() => activeTab.value === '关注的' && !isLoggedIn())
+
+// 请求序号守卫：快速连点/来回切分类会并发多次 fetchData，
+// 慢的旧响应晚到会盖掉新分类结果（也会把已结束的 loading 再置回）——序号不是最新则整体丢弃。
+let fetchSeq = 0
+
 async function fetchData() {
+  const seq = ++fetchSeq
   loading.value = true
   error.value = ''
+  // 未登录的「关注的」不发请求：后端必然返回空，发了只会让用户误以为真没内容
+  if (needLoginForFollowed.value) {
+    list.value = []
+    replays.value = []
+    loading.value = false
+    return
+  }
   try {
     const [plaza, rp] = await Promise.all([
       liveApi.getPlaza(activeTab.value),
       liveApi.getReplays(),
     ])
+    if (seq !== fetchSeq) return // 过期响应：丢弃，由更新的请求负责上屏
     list.value = plaza
     replays.value = rp
     const upcoming = plaza.filter((item) => item.status === 'upcoming').slice(0, 20)
@@ -94,6 +113,7 @@ async function fetchData() {
       id: item.id,
       state: await getBookingStatus(item.id).catch(() => null),
     })))
+    if (seq !== fetchSeq) return
     for (const item of bookingStates) {
       if (!item.state) continue
       bookedMap.value[item.id] = item.state.isBooked
@@ -101,15 +121,33 @@ async function fetchData() {
       if (target) target.viewerCount = item.state.bookingCount
     }
   } catch (e) {
+    if (seq !== fetchSeq) return
+    // 失败必须留在错误态：列表清空后若走空态，会把「请求失败」说成「暂无内容」
+    list.value = []
+    replays.value = []
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (seq === fetchSeq) loading.value = false
   }
 }
 
 function onTabChange(tab: LiveTab) {
+  // 同一分类重复点击不再重复发请求；上一次失败或仍在加载时允许再次触发（等同重试）
+  if (activeTab.value === tab && !error.value && !loading.value) return
   activeTab.value = tab
   void fetchData()
+}
+
+/** 回到「全部」分类：分类筛空时的出口。 */
+function backToAllTab() {
+  onTabChange('全部')
+}
+/** 空态/失败态的重新加载（无参包装，避免把事件对象传进 fetchData）。 */
+function reloadPlaza() {
+  void fetchData()
+}
+function goLogin() {
+  navigateTo('/login')
 }
 
 function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
@@ -276,8 +314,8 @@ async function toggleBook(item: LiveItem) {
           aria-label="重新加载直播广场"
           tabindex="0"
           hover-class="tap"
-          @tap="fetchData"
-          @keydown="activateOnKeyboard($event, fetchData)"
+          @tap="reloadPlaza"
+          @keydown="activateOnKeyboard($event, reloadPlaza)"
         >
           <text class="retry-txt">重新加载</text>
         </view>
@@ -565,15 +603,62 @@ async function toggleBook(item: LiveItem) {
           <view class="foot-tip"><text class="foot-tip-txt">上滑加载更多回放</text></view>
         </block>
 
-        <!-- 全空态 -->
+        <!-- 空态：未登录的「关注的」= 权限态（给登录出口）；分类筛空 = 给「查看全部直播」；
+             全部为空 = 平台确实没有内容，只给刷新。三种情况不共用一句文案。 -->
         <view
           v-if="livesNow.length === 0 && livesUpcoming.length === 0 && replays.length === 0"
           class="empty"
           role="status"
           aria-live="polite"
         >
-          <view class="empty-icon"><AppIcon name="calendar" :size="56" color="#B0A99A" /></view>
-          <text class="empty-txt">这个分类还没有直播，去看看全部直播或精彩回放</text>
+          <view class="empty-icon">
+            <AppIcon :name="needLoginForFollowed ? 'user' : 'calendar'" :size="56" color="#B0A99A" />
+          </view>
+          <text v-if="needLoginForFollowed" class="empty-txt">登录后才能看到你关注主播的直播</text>
+          <text v-else-if="activeTab !== '全部'" class="empty-txt">「{{ activeTab }}」暂时没有直播</text>
+          <text v-else class="empty-txt">暂时没有正在直播、预告或回放</text>
+          <view class="empty-actions">
+            <view
+              v-if="needLoginForFollowed"
+              class="empty-action"
+              role="link"
+              aria-label="去登录"
+              tabindex="0"
+              hover-class="tap"
+              @tap="goLogin"
+              @keydown="activateOnKeyboard($event, goLogin)"
+            ><text class="empty-action-txt">去登录</text></view>
+            <view
+              v-else-if="activeTab !== '全部'"
+              class="empty-action"
+              role="button"
+              aria-label="查看全部直播"
+              tabindex="0"
+              hover-class="tap"
+              @tap="backToAllTab"
+              @keydown="activateOnKeyboard($event, backToAllTab)"
+            ><text class="empty-action-txt">查看全部直播</text></view>
+            <view
+              v-if="!needLoginForFollowed"
+              class="empty-action ghost"
+              role="button"
+              aria-label="刷新直播广场"
+              tabindex="0"
+              hover-class="tap"
+              @tap="reloadPlaza"
+              @keydown="activateOnKeyboard($event, reloadPlaza)"
+            ><text class="empty-action-txt ghost">刷新</text></view>
+            <view
+              v-else
+              class="empty-action ghost"
+              role="button"
+              aria-label="查看全部直播"
+              tabindex="0"
+              hover-class="tap"
+              @tap="backToAllTab"
+              @keydown="activateOnKeyboard($event, backToAllTab)"
+            ><text class="empty-action-txt ghost">看全部直播</text></view>
+          </view>
         </view>
       </template>
     </scroll-view>
@@ -650,9 +735,11 @@ async function toggleBook(item: LiveItem) {
   align-items: center;
   height: 100%;
 }
+/* 未选中分类标签：原 #8a8578 在 #faf8f5 底上仅 3.47:1（axe-core color-contrast serious），
+   压到 #6f6a5c ≈5.0:1；选中态仍为朱红加粗，主次层级不变。 */
 .tab-txt {
   font-size: 28rpx;
-  color: #8a8578;
+  color: #6f6a5c;
   white-space: nowrap;
 }
 .tab-on .tab-txt {
@@ -1077,9 +1164,42 @@ async function toggleBook(item: LiveItem) {
   box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
   margin-bottom: 32rpx;
 }
+/* 空态正文：原 #b0a99a 仅 2.2:1，空态本就只剩这一句话，看不清等于没提示 */
 .empty-txt {
   font-size: 28rpx;
-  color: #b0a99a;
+  color: #6f6a5c;
+  text-align: center;
+  padding: 0 48rpx;
+}
+/* 空态出口按钮：与错误态 retry-btn 同一套胶囊样式，高度锁 44px 保证触达区
+   （触达区下限用物理 px：88rpx 在 320 宽机型上只有 37.5px） */
+.empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+.empty-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 40rpx;
+  border-radius: 999rpx;
+  background: #c41e3a;
+}
+.empty-action.ghost {
+  background: transparent;
+  border: 2rpx solid #c41e3a;
+}
+.empty-action-txt {
+  font-size: 28rpx;
+  line-height: 1.4;
+  color: #ffffff;
+  font-weight: 500;
+}
+.empty-action-txt.ghost {
+  color: #c41e3a;
 }
 
 /* 骨架 */
@@ -1119,16 +1239,22 @@ async function toggleBook(item: LiveItem) {
 }
 .state-txt {
   font-size: 28rpx;
-  color: #8a8578;
+  color: #6f6a5c;
   margin-bottom: 32rpx;
 }
+/* 重试按钮：原 padding 撑出的高度约 72rpx(320 宽机型上约 30px) 低于 44px 触达区下限，改为显式锁高 */
 .retry-btn {
-  padding: 16rpx 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 48rpx;
   background: #c41e3a;
   border-radius: 999rpx;
 }
 .retry-txt {
   font-size: 28rpx;
+  line-height: 1.4;
   color: #ffffff;
   font-weight: 500;
 }
