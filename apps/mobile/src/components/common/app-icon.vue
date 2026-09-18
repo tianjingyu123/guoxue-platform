@@ -11,6 +11,16 @@ const props = withDefaults(defineProps<{
   unit?: 'rpx' | 'px' // 宽屏固定布局页（如横屏直播）传 'px'，避免 rpx 在宽屏被放大
   /** arrow-left / chevron-left 默认按页面返回图标规范保底；非返回用途可开启紧凑模式。 */
   compact?: boolean
+  /**
+   * 明确声明该图标是纯装饰（含义已由相邻文字或宿主 aria-label 给出），渲染时对辅助技术隐藏。
+   *
+   * 默认 false：不默认隐藏。全仓 3698 处调用中有约 1086 处，图标位于无 aria-label、
+   * 也无同级文字的可点元素内（返回、分享、发帖 FAB 等），图标是该控件唯一可能承载语义的东西。
+   * 对这些位置，正确做法是给宿主补可读名称，而不是把图标一律标成装饰——
+   * 一律隐藏只会让 axe 不再报 image-alt，并不等于语义正确，还会挡住后续补名。
+   * 因此本属性按调用点逐处开启，只用于已核验含义不依赖图标的位置。
+   */
+  decorative?: boolean
 }>(), {
   size: 44,
   color: '#666666',
@@ -18,6 +28,7 @@ const props = withDefaults(defineProps<{
   fill: false,
   unit: 'rpx',
   compact: false,
+  decorative: false,
 })
 
 const isBackGlyph = computed(() => props.name === 'arrow-left' || props.name === 'chevron-left')
@@ -49,12 +60,10 @@ const iconStyle = computed(() => ({
 </script>
 
 <template>
-  <!-- aria-hidden：图标是纯装饰，语义一律由外层可点元素的 aria-label 提供。
-       不加时 H5 会渲染出无 alt 的 <img>，axe-core image-alt(critical) 逐页报错，
-       读屏也会念出一串无意义的图片节点。 -->
+  <!-- decorative 由调用点显式声明，不在此处对全站图标一刀切（见 props 注释）。 -->
   <image
     lazy-load
-    aria-hidden="true"
+    :aria-hidden="decorative ? 'true' : undefined"
     :src="src"
     :style="iconStyle"
     class="app-icon"
