@@ -2478,4 +2478,31 @@ export const adminAssistantApi = {
     api.put(`/admin-assistant/feedback/${id}`, data),
 };
 
+/**
+ * 用户反馈处理（任务包 A）。注意与 adminAssistantApi 的 feedback 系列区分：
+ * 那是员工侧的「运营反馈」，这里是 C 端用户提交的反馈。
+ *
+ * 明文与截图各有独立接口：服务端会写审计日志并单独限流，前端不要缓存返回值、
+ * 也不要在列表里预取。
+ */
+export const userFeedbackApi = {
+  list: (params: {
+    type?: string;
+    status?: string;
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    signalsOnly?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/users/admin/feedback", { params }),
+  stats: () => api.get("/users/admin/feedback/stats"),
+  detail: (id: string) => api.get(`/users/admin/feedback/${id}`),
+  revealContact: (id: string) => api.post(`/users/admin/feedback/${id}/reveal-contact`),
+  revealContent: (id: string) => api.post(`/users/admin/feedback/${id}/reveal-content`),
+  revealImages: (id: string) => api.post(`/users/admin/feedback/${id}/reveal-images`),
+  updateStatus: (id: string, data: { status: string; result?: string }) =>
+    api.put(`/users/admin/feedback/${id}/status`, data),
+};
+
 export default api;
