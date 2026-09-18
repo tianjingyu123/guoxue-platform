@@ -17,7 +17,14 @@ export const NOW = Date.parse("2026-09-18T12:00:00+08:00");
 
 const at = (offsetMs) => new Date(NOW + offsetMs).toISOString();
 
-export function buildSnapshot() {
+/**
+ * @param {{includeSchemaImpossible?: boolean}} opts
+ *   includeSchemaImpossible=true（默认）时，额外注入一条**真实表结构不允许**的数据
+ *   （两单共用同一 payTransactionId）。真实库有 `Order_payTransactionId_key` 唯一约束，
+ *   这条只能在内存快照里存在，用于验证 idempotency 规则本身；灌库时必须传 false。
+ */
+export function buildSnapshot(opts = {}) {
+  const includeSchemaImpossible = opts.includeSchemaImpossible !== false;
   const orders = [];
   const entitlementLedger = [];
   const entitlementBalance = [];
@@ -100,9 +107,9 @@ export function buildSnapshot() {
     payTransactionId: "syn-tx-7", paidAt: at(-5 * HOUR), refundedAt: null,
     completedAt: null, createdAt: at(-5 * HOUR - 60_000),
   });
-  users.push({ id: "syn-u7", memberLevel: "SCHOOL", memberExpire: at(360 * DAY) });
+  users.push({ id: "syn-u7", memberLevel: "YEARLY", memberExpire: at(360 * DAY) });
   memberPurchases.push({
-    id: "syn-mp-1", userId: "syn-u7", orderId: "syn-ord-member-ok", memberType: "SCHOOL",
+    id: "syn-mp-1", userId: "syn-u7", orderId: "syn-ord-member-ok", memberType: "YEARLY",
     paidAt: at(-5 * HOUR), expireAt: at(360 * DAY), refundedAt: null,
   });
   entitlementLedger.push({
@@ -169,7 +176,7 @@ export function buildSnapshot() {
     payTransactionId: "syn-tx-11", paidAt: at(-8 * DAY), refundedAt: null,
     completedAt: null, createdAt: at(-8 * DAY - 60_000),
   });
-  users.push({ id: "syn-u10", memberLevel: "SCHOOL", memberExpire: at(350 * DAY) });
+  users.push({ id: "syn-u10", memberLevel: "YEARLY", memberExpire: at(350 * DAY) });
   for (const [lid, oid, ts] of [
     ["syn-led-6", "syn-ord-member-refunded", -10 * DAY],
     ["syn-led-8", "syn-ord-member-live", -8 * DAY],
@@ -191,11 +198,11 @@ export function buildSnapshot() {
     resourceType: "MEMBER_PLAN", resourceId: "", scope: "GLOBAL", createdAt: at(-9 * DAY),
   });
   memberPurchases.push({
-    id: "syn-mp-2", userId: "syn-u10", orderId: "syn-ord-member-refunded", memberType: "SCHOOL",
+    id: "syn-mp-2", userId: "syn-u10", orderId: "syn-ord-member-refunded", memberType: "YEARLY",
     paidAt: at(-10 * DAY), expireAt: at(-9 * DAY), refundedAt: at(-9 * DAY),
   });
   memberPurchases.push({
-    id: "syn-mp-3", userId: "syn-u10", orderId: "syn-ord-member-live", memberType: "SCHOOL",
+    id: "syn-mp-3", userId: "syn-u10", orderId: "syn-ord-member-live", memberType: "YEARLY",
     paidAt: at(-8 * DAY), expireAt: at(350 * DAY), refundedAt: null,
   });
 
@@ -275,6 +282,9 @@ export function buildSnapshot() {
   // 8a 正常：同一订单只有一条 paidAt、一条 GRANT（由 payTransactionId 唯一 + idempotencyKey 唯一保证）
   //     已由 1a 覆盖。
   // 8b 异常注入：两单共用同一 payTransactionId → idempotency_violation(critical)
+  //     ⚠️ 2026-09-18 隔离库验证发现：真实表有 `Order_payTransactionId_key` 唯一约束，
+  //     这个状态在真实结构下插不进去。因此它只用于验证规则逻辑本身，灌库时必须跳过。
+  if (includeSchemaImpossible) {
   orders.push({
     id: "syn-ord-dup-tx-a", userId: "syn-u16", type: "COURSE", targetId: "syn-course-7",
     quantity: 1, amount: 39, payAmount: 39, status: "PAID", payMethod: "WECHAT",
@@ -295,6 +305,7 @@ export function buildSnapshot() {
       idempotencyKey: `order:${oid}:course.access`,
       resourceType: "COURSE", resourceId: "syn-course-7", scope: "GLOBAL", createdAt: at(-6 * DAY),
     });
+  }
   }
 
   // ───────── 附加：订单状态滞留 ─────────

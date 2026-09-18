@@ -21,6 +21,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runRules } from "./rules.mjs";
+import { runReadOnlyBatch, toPgTextArray } from "./driver-psql.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DAY_MS = 86_400_000;
@@ -149,19 +150,97 @@ async function main() {
   const maxPages = Math.min(Number(args["max-pages"] ?? 20), LIMITS.maxPages);
   const timeoutMs = Math.min(Number(args["timeout-ms"] ?? LIMITS.defaultTimeoutMs), LIMITS.maxTimeoutMs);
   const graceMinutes = Number(args["grace-minutes"] ?? 15);
+  // 评估基准时刻。默认当前时间；显式传入用于可重复验证（如对固定时间戳的合成数据集）。
+  // 只影响「是否超过 grace」「是否已过期」这类相对判断，不改变取数范围。
+  const asOf = args["as-of"] ? Date.parse(args["as-of"]) : Date.now();
+  if (!Number.isFinite(asOf)) throw new Error("--as-of 不是合法时间");
+
+  if (/:[^/@]*@/.test(args.dsn)) {
+    throw new Error("[连接门禁] 连接串中不得包含口令；请用集群认证配置或 PGPASSFILE");
+  }
+
+  const queries = loadQueries();
+  const driver = args.driver || "psql";
+
+  if (driver === "psql") {
+    const psqlPath = args.psql || "psql";
+    const ordersRows = [];
+    for (let page = 0; page < maxPages; page += 1) {
+      const r = runReadOnlyBatch({
+        psqlPath, dsn: args.dsn, timeoutMs,
+        queries,
+        plan: [{ name: "orders", params: [win.from.toISOString(), win.to.toISOString(), String(pageSize), String(page * pageSize)] }],
+      });
+      const rows = r.orders || [];
+      ordersRows.push(...rows);
+      if (rows.length < pageSize) break;
+      if (ordersRows.length >= LIMITS.maxTotalRows) {
+        console.warn(`[限流] 订单行数达到上限 ${LIMITS.maxTotalRows}，结果被截断，请缩小时间窗`);
+        break;
+      }
+    }
+    const orderIds = toPgTextArray(ordersRows.map((o) => o.id));
+    const userIds = toPgTextArray([...new Set(ordersRows.map((o) => o.userId))]);
+    const W = [win.from.toISOString(), win.to.toISOString(), String(pageSize), "0"];
+
+    const rest = runReadOnlyBatch({
+      psqlPath, dsn: args.dsn, timeoutMs, queries,
+      plan: [
+        { name: "entitlementLedger", params: [...W, orderIds] },
+        { name: "entitlementBalance", params: [...W, userIds] },
+        { name: "circleMembers", params: [...W, userIds] },
+        { name: "memberPurchases", params: [...W, userIds] },
+        { name: "users", params: [...W, userIds] },
+        { name: "practitionerProfiles", params: [...W, userIds] },
+        { name: "stations", params: [...W, userIds] },
+        { name: "operators", params: [...W, userIds] },
+        { name: "dupPayTransaction", params: [win.from.toISOString(), win.to.toISOString()] },
+        { name: "dupMemberPurchase", params: [win.from.toISOString(), win.to.toISOString()] },
+      ],
+    });
+
+    const snap = {
+      now: asOf,
+      windowFrom: win.from.getTime(),
+      windowTo: win.to.getTime(),
+      orders: ordersRows,
+      entitlementLedger: rest.entitlementLedger || [],
+      entitlementBalance: rest.entitlementBalance || [],
+      circleMembers: rest.circleMembers || [],
+      memberPurchases: rest.memberPurchases || [],
+      users: rest.users || [],
+      practitionerProfiles: rest.practitionerProfiles || [],
+      stations: rest.stations || [],
+      operators: rest.operators || [],
+    };
+
+    const result = runRules(snap, { graceMinutes });
+    result.crossCheck = {
+      dupPayTransactionGroups: rest.dupPayTransaction?.[0]?.dupGroups ?? 0,
+      dupMemberPurchaseGroups: rest.dupMemberPurchase?.[0]?.dupGroups ?? 0,
+    };
+    result.scope = {
+      driver: "psql",
+      host, windowFrom: win.from.toISOString(), windowTo: win.to.toISOString(),
+      asOf: new Date(asOf).toISOString(),
+      graceMinutes, orderRows: ordersRows.length,
+      truncated: ordersRows.length >= LIMITS.maxTotalRows,
+    };
+    emit(result, args);
+    return;
+  }
 
   let pg;
   try {
     pg = await import("pg");
   } catch {
     throw new Error(
-      "未找到 pg 驱动。本脚本不会自行安装依赖；请在隔离环境自行准备后重试（不得改动仓库 package.json）。",
+      "未找到 pg 驱动。可改用 --driver=psql（默认）。本脚本不会自行安装依赖，也不改动仓库 package.json。",
     );
   }
 
   const client = new pg.default.Client({ connectionString: args.dsn, application_name: "entitlement-audit-readonly" });
   await client.connect();
-  const queries = loadQueries();
 
   try {
     await client.query("BEGIN READ ONLY");
@@ -188,7 +267,7 @@ async function main() {
     const q = async (name, params) => (await client.query(queries.get(name), params)).rows;
 
     const snap = {
-      now: Date.now(),
+      now: asOf,
       windowFrom: win.from.getTime(),
       windowTo: win.to.getTime(),
       orders,
@@ -221,27 +300,7 @@ async function main() {
       truncated: orders.length >= LIMITS.maxTotalRows,
     };
 
-    // 默认只输出汇总；明细需显式 --with-findings（仍为脱敏引用）
-    const payload = args.flags.has("with-findings")
-      ? result
-      : {
-          scope: result.scope,
-          summary: result.summary,
-          observations: result.observations,
-          grantDelay: result.grantDelay,
-          needsReview: result.needsReview,
-          crossCheck: result.crossCheck,
-          findingsOmitted: result.findings.length,
-        };
-
-    const json = JSON.stringify(payload, null, 2);
-    if (args.out) {
-      mkdirSync(dirname(resolve(args.out)), { recursive: true });
-      writeFileSync(resolve(args.out), json, "utf8");
-      console.log(`报告已写入 ${resolve(args.out)}`);
-    } else {
-      console.log(json);
-    }
+    emit(result, args);
   } finally {
     try {
       await client.query("ROLLBACK");
@@ -249,6 +308,29 @@ async function main() {
       /* 事务可能已结束 */
     }
     await client.end();
+  }
+}
+
+/** 默认只输出汇总；明细需显式 --with-findings（仍为脱敏引用） */
+function emit(result, args) {
+  const payload = args.flags.has("with-findings")
+    ? result
+    : {
+        scope: result.scope,
+        summary: result.summary,
+        observations: result.observations,
+        grantDelay: result.grantDelay,
+        needsReview: result.needsReview,
+        crossCheck: result.crossCheck,
+        findingsOmitted: result.findings.length,
+      };
+  const json = JSON.stringify(payload, null, 2);
+  if (args.out) {
+    mkdirSync(dirname(resolve(args.out)), { recursive: true });
+    writeFileSync(resolve(args.out), json, "utf8");
+    console.log(`报告已写入 ${resolve(args.out)}`);
+  } else {
+    console.log(json);
   }
 }
 
