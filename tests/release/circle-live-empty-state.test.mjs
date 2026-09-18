@@ -89,7 +89,45 @@ test('圈子详情：精华/文章/问答栏目空态提供返回推荐入口', 
   const returns = source.match(/aria-label="返回推荐栏目"/gu) ?? []
   assert.equal(returns.length, 3, '精华、文章、问答三个栏目的空态都要能回推荐')
   assert.match(source, /查看推荐/u)
-  assert.match(source, /@tap="onTabTap\('home'\)"/u)
+  assert.match(source, /@tap="backToHomeTab\(\)"/u)
+})
+
+test('app-icon 的装饰语义按调用点声明，不对全站图标一刀切', async () => {
+  const source = await read('apps/mobile/src/components/common/app-icon.vue')
+
+  // 默认不隐藏：全仓约 1086 处图标位于无 aria-label、无同级文字的可点元素内，
+  // 一律标装饰等于承认这些控件永远无名，且会挡住后续给宿主补名
+  assert.match(source, /decorative\?: boolean/u)
+  assert.match(source, /decorative: false/u, 'decorative 必须默认关闭')
+  assert.match(source, /:aria-hidden="decorative \? 'true' : undefined"/u)
+  assert.doesNotMatch(source, /^\s*aria-hidden="true"/mu, '不得写死全局 aria-hidden')
+})
+
+test('圈子详情：栏目标签可键盘操作，触发返回推荐后焦点不丢失', async () => {
+  const source = await read(CIRCLE_DETAIL)
+
+  // tablist 只包 tab，搜索入口不能混进去
+  assert.match(source, /class="tab-group" role="tablist"/u)
+  assert.match(source, /role="tab"[\s\S]{0,200}?:aria-selected="activeTab === tab\.id"/u)
+  assert.match(source, /:tabindex="activeTab === tab\.id \? 0 : -1"/u, '需要漫游 tabindex')
+  assert.match(source, /@keydown="onTabKeydown\(\$event, tab\.id\)"/u)
+  assert.match(source, /function onTabKeydown/u)
+  assert.match(source, /event\.key === 'Enter' \|\| event\.key === ' '/u, 'Enter 与空格都要能选中')
+  assert.match(source, /ArrowLeft|ArrowRight/u)
+
+  // 「查看推荐」会把自己所在的空态卸载，必须把焦点交回推荐标签，否则键盘用户掉回 body
+  assert.match(source, /function backToHomeTab/u)
+  assert.match(source, /function focusActiveTab/u)
+  assert.match(source, /\.tab\[role="tab"\]\[aria-selected="true"\]/u)
+  const backCalls = source.match(/backToHomeTab\(\)/gu) ?? []
+  assert.ok(backCalls.length >= 6, '三个栏目空态的 tap 与 keydown 都要走带收焦点的处理')
+
+  // 搜索入口此前是无名可点 view
+  assert.match(source, /class="tab-search"[\s\S]{0,200}?aria-label="搜索圈内内容"/u)
+
+  // 焦点轮廓用物理 px：4rpx 在 320 宽机型上只算到 1px
+  const focusBlock = source.match(/:focus-visible[\s\S]{0,300}?\}/u)?.[0] ?? ''
+  assert.match(focusBlock, /outline: 2px solid/u)
 })
 
 test('圈子详情：部分接口失败说成失败，且不用原生 button 承载重试', async () => {

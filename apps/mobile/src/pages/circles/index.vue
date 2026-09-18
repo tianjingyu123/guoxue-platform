@@ -446,7 +446,7 @@ onShow(() => {
         </view>
         <!-- 空态：按归因分三种，每种都给出可直接点的出口（不再只留一句「换个分类看看吧」） -->
         <view v-else class="empty" role="status" aria-live="polite">
-          <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
+          <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" decorative /></view>
           <text v-if="emptyReason === 'category'" class="empty-text">「{{ currentCategoryName }}」分类下暂时没有圈子</text>
           <text v-else-if="emptyReason === 'all-joined'" class="empty-text">这里的圈子你都已经加入了</text>
           <text v-else class="empty-text">圈子还在筹备中，稍后再来看看</text>

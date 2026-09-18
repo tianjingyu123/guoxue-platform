@@ -7,7 +7,7 @@
  * 退出入口已移至「圈子·我的」(me.vue) 圈子卡 ···；管理入口移至身份区（仅圈主/管理员可见）
  * 数据层沿用原实现（circleDetailApi 全套 + 角色/加入/审批/付费/弹窗逻辑），不改后端契约。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -115,6 +115,38 @@ async function loadQaExperts() {
 function onTabTap(id: typeof activeTab.value) {
   activeTab.value = id
   if (id === 'qa') loadQaExperts()
+}
+
+/** 把焦点移到当前选中的栏目标签。
+ *  空态里的「查看推荐」一点就切回推荐，按钮本身随即被卸载——不主动收焦点的话
+ *  焦点会掉回 body，键盘用户当场失去位置，得从头 Tab 一遍。 */
+async function focusActiveTab() {
+  await nextTick()
+  if (typeof document === 'undefined') return
+  document.querySelector<HTMLElement>('.tab[role="tab"][aria-selected="true"]')?.focus()
+}
+
+/** 空态「查看推荐」：切回推荐栏目并把焦点交给推荐标签。 */
+function backToHomeTab() {
+  onTabTap('home')
+  void focusActiveTab()
+}
+
+/** 栏目标签键盘操作：Enter/空格选中，左右方向键漫游并跟随移动焦点。 */
+async function onTabKeydown(event: KeyboardEvent, id: typeof activeTab.value) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    onTabTap(id)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = tabs.findIndex((item) => item.id === id)
+  if (currentIndex < 0) return
+  const offset = event.key === 'ArrowRight' ? 1 : -1
+  const nextIndex = (currentIndex + offset + tabs.length) % tabs.length
+  onTabTap(tabs[nextIndex].id)
+  await focusActiveTab()
 }
 /** 空态/失败态按钮的键盘可达（与圈子广场、直播广场同一约定：Enter/空格等同点击）。 */
 function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
@@ -466,11 +498,31 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
       <!-- B. 内容区 Tab -->
       <view class="tabs">
-        <view v-for="tab in tabs" :key="tab.id" class="tab" @tap="onTabTap(tab.id)">
-          <text class="tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}</text>
-          <view v-if="activeTab === tab.id" class="tab-line" />
+        <!-- role="tablist" 挂在只含 tab 的内层容器上：搜索入口不是 tab，混进来会破坏
+             tablist 的必需子元素结构。栏目改为可聚焦 + 左右方向键漫游（与圈子广场、直播广场同一约定）。 -->
+        <view class="tab-group" role="tablist" aria-label="圈子内容栏目">
+          <view
+            v-for="tab in tabs" :key="tab.id"
+            class="tab"
+            role="tab"
+            :aria-selected="activeTab === tab.id"
+            :tabindex="activeTab === tab.id ? 0 : -1"
+            @tap="onTabTap(tab.id)"
+            @keydown="onTabKeydown($event, tab.id)"
+          >
+            <text class="tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}</text>
+            <view v-if="activeTab === tab.id" class="tab-line" />
+          </view>
         </view>
-        <view class="tab-search" @tap="navigateTo('/pkg-circle/circles/search')"><app-icon name="search" :size="32" color="#999999" /></view>
+        <!-- 搜索入口此前是无名可点 view：图标是它唯一内容，读屏念不出用途，键盘也到不了 -->
+        <view
+          class="tab-search"
+          role="link"
+          tabindex="0"
+          aria-label="搜索圈内内容"
+          @tap="navigateTo('/pkg-circle/circles/search')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-circle/circles/search'))"
+        ><app-icon name="search" :size="32" color="#999999" decorative /></view>
       </view>
 
       <!-- 动态 Tab：核心互动为主体，增值内容(课程/短视频/文章)以同一卡片语言穿插 -->
@@ -511,7 +563,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
              按钮用 empty-action 胶囊而非原生 button 元素——原生 button 会继承默认字色与 ::after 边框，
              真机上表现为灰字细框（2026-09-08 真机样式复验已记录过同类回归）。 -->
         <view v-if="feedLoadFailed" class="empty" role="alert" aria-live="assertive">
-          <app-icon name="wifi-off" :size="88" color="#E8E3DB" />
+          <app-icon name="wifi-off" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">部分内容加载失败，请重试</text>
           <view
             class="empty-action"
@@ -524,7 +576,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
         </view>
         <view v-else-if="posts.length || courses.length || postedArticles.length" class="scroll-end"><text>{{ VOICE.END }}</text></view>
         <view v-else class="empty" role="status">
-          <app-icon name="users" :size="88" color="#E8E3DB" />
+          <app-icon name="users" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">圈子还没有内容</text>
           <text class="empty-txt">{{ isJoined ? '点击右下角发布按钮，分享第一条动态吧' : '可以先了解圈子介绍，加入后参与交流' }}</text>
         </view>
@@ -540,15 +592,15 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           />
         </template>
         <view v-else class="empty" role="status">
-          <app-icon name="star" :size="88" color="#E8E3DB" />
+          <app-icon name="star" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">本圈还没有精华内容</text>
           <view
             class="empty-action"
             role="button"
             tabindex="0"
             aria-label="返回推荐栏目"
-            @tap="onTabTap('home')"
-            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+            @tap="backToHomeTab()"
+            @keydown="activateOnKeyboard($event, () => backToHomeTab())"
           ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
@@ -580,15 +632,15 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           </view>
         </template>
         <view v-else class="empty" role="status">
-          <app-icon name="message-circle" :size="88" color="#E8E3DB" />
+          <app-icon name="message-circle" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">本圈暂无开通问答的达人</text>
           <view
             class="empty-action"
             role="button"
             tabindex="0"
             aria-label="返回推荐栏目"
-            @tap="onTabTap('home')"
-            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+            @tap="backToHomeTab()"
+            @keydown="activateOnKeyboard($event, () => backToHomeTab())"
           ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
@@ -609,15 +661,15 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           </view>
         </template>
         <view v-else class="empty" role="status">
-          <app-icon name="file-text" :size="88" color="#E8E3DB" />
+          <app-icon name="file-text" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">本圈还没有文章</text>
           <view
             class="empty-action"
             role="button"
             tabindex="0"
             aria-label="返回推荐栏目"
-            @tap="onTabTap('home')"
-            @keydown="activateOnKeyboard($event, () => onTabTap('home'))"
+            @tap="backToHomeTab()"
+            @keydown="activateOnKeyboard($event, () => backToHomeTab())"
           ><text class="empty-action-txt">查看推荐</text></view>
         </view>
       </view>
@@ -841,7 +893,19 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
+/* tab-group 承接原先直接放在 .tabs 上的横向排布，保持栏目间距与整条高度不变 */
+.tab-group { display: flex; align-items: center; gap: 48rpx; height: 100%; }
 .tab { position: relative; height: 100%; display: flex; align-items: center; }
+/* 焦点可见性：全站没有统一的 :focus-visible 样式，键盘用户看不出焦点在哪。
+   这里只给本页新增的可聚焦控件补，不动全局。 */
+.tab:focus-visible,
+.tab-search:focus-visible,
+.empty-action:focus-visible {
+  /* 轮廓用物理 px：4rpx 在 320 宽机型上只算到 1px，实测几乎看不出焦点在哪 */
+  outline: 2px solid var(--brand, #c41e3a);
+  outline-offset: 2px;
+  border-radius: 8rpx;
+}
 .tab-txt { font-size: 30rpx; color: var(--text-secondary, #6e6e73); }
 .tab-txt.on { color: var(--text-primary, #2c2c2c); font-weight: 600; }
 .tab-line { position: absolute; left: 50%; bottom: 12rpx; transform: translateX(-50%); width: 36rpx; height: 6rpx; border-radius: 3rpx; background: var(--brand, #c41e3a); }

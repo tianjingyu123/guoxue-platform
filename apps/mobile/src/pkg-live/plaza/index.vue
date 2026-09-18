@@ -306,7 +306,7 @@ async function toggleBook(item: LiveItem) {
 
       <!-- 错误 -->
       <view v-else-if="error" class="state" role="alert" aria-live="assertive">
-        <view class="state-icon"><AppIcon name="alert-circle" :size="48" color="#B0A99A" /></view>
+        <view class="state-icon"><AppIcon name="alert-circle" :size="48" color="#B0A99A" decorative /></view>
         <text class="state-txt">{{ error }}</text>
         <view
           class="retry-btn"
@@ -612,7 +612,7 @@ async function toggleBook(item: LiveItem) {
           aria-live="polite"
         >
           <view class="empty-icon">
-            <AppIcon :name="needLoginForFollowed ? 'user' : 'calendar'" :size="56" color="#B0A99A" />
+            <AppIcon :name="needLoginForFollowed ? 'user' : 'calendar'" :size="56" color="#B0A99A" decorative />
           </view>
           <text v-if="needLoginForFollowed" class="empty-txt">登录后才能看到你关注主播的直播</text>
           <text v-else-if="activeTab !== '全部'" class="empty-txt">「{{ activeTab }}」暂时没有直播</text>
