@@ -202,6 +202,13 @@ export class CircleMembershipService {
       where: { circleId_userId: { circleId, userId } },
     });
     if (existing && (!existing.expireAt || new Date(existing.expireAt) > new Date())) {
+      // 服务端支付后处理器已完成履约时（支付回调/管理员确认/补偿任一），客户端仍会补调本接口。
+      // 此时不应报错，而应返回「已完成」的真实结果：既是幂等，也让支付页能正确显示已入圈。
+      // 归属严格校验：订单必须同时属于该用户、该圈子、且类型为圈子订单，才认定为本单已履约。
+      const fulfilledOrder = await this.findOwnedCircleOrder(circleId, userId, dto, ["COMPLETED"]);
+      if (fulfilledOrder) {
+        return { ...existing, alreadyFulfilled: true, orderId: fulfilledOrder.id };
+      }
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
@@ -255,16 +262,20 @@ export class CircleMembershipService {
       );
     }
 
-    // 更新订单状态
+    // 更新订单状态。
+    // 修正：原实现把 orderNo 也当作 id 去匹配（`{ id: dto.orderNo }`），既匹配不上真实的
+    // payTransactionId，又可能命中同名 id；且未按 targetId 限定，存在跨圈误标风险。
+    // 现在与查询条件保持同一套归属校验：id/payTransactionId + type + userId + targetId。
     if (dto.orderNo || dto.orderId) {
       await this.prisma.order.updateMany({
         where: {
           OR: [
-            { id: dto.orderId || "" },
-            { id: dto.orderNo || "" },
+            ...(dto.orderId ? [{ id: dto.orderId }] : []),
+            ...(dto.orderNo ? [{ payTransactionId: dto.orderNo }] : []),
           ],
           type: "CIRCLE_JOIN",
           userId,
+          targetId: circleId,
           status: "PAID",
         },
         data: { status: "COMPLETED", completedAt: new Date() },
@@ -418,8 +429,12 @@ export class CircleMembershipService {
         userId,
       },
     });
-    if (!order || order.status !== "PAID") {
+    if (!order || !["PAID", "COMPLETED"].includes(order.status)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
+    }
+    if (order.status === "COMPLETED") {
+      // 服务端支付后处理器已完成本单续期，客户端补调到这里。幂等返回当前状态，不重复顺延。
+      return { ...member, alreadyFulfilled: true, newExpireAt: member.expireAt?.toISOString() ?? null };
     }
 
     // 顺延到期时间：未过期从原到期时间续算（不损失剩余天数），已过期从现在起算
@@ -453,6 +468,34 @@ export class CircleMembershipService {
 
     await this.redis.del(`circles:member:${circleId}:${userId}`);
     return { ...updated, newExpireAt: newExpireAt.toISOString() };
+  }
+
+  /**
+   * 按「订单 id 或渠道流水号」定位一笔**确属该用户、该圈子**的圈子订单。
+   *
+   * 三重归属校验：userId + targetId + type ∈ (CIRCLE_JOIN, CIRCLE_RENEW)。
+   * orderNo 走 payTransactionId，不再错当成 id 匹配。
+   */
+  private async findOwnedCircleOrder(
+    circleId: string,
+    userId: string,
+    dto: { orderId?: string; orderNo?: string },
+    statuses: string[],
+  ) {
+    const or: Prisma.OrderWhereInput[] = [];
+    if (dto.orderId) or.push({ id: dto.orderId });
+    if (dto.orderNo) or.push({ payTransactionId: dto.orderNo });
+    if (or.length === 0) return null;
+    return this.prisma.order.findFirst({
+      where: {
+        OR: or,
+        userId,
+        targetId: circleId,
+        type: { in: ["CIRCLE_JOIN", "CIRCLE_RENEW"] },
+        status: { in: statuses as Prisma.EnumOrderStatusFilter["in"] },
+      },
+      select: { id: true, type: true, status: true },
+    });
   }
 
   /** 检查用户加入状态 */
