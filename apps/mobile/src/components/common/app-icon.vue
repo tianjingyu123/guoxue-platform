@@ -49,8 +49,12 @@ const iconStyle = computed(() => ({
 </script>
 
 <template>
+  <!-- aria-hidden：图标是纯装饰，语义一律由外层可点元素的 aria-label 提供。
+       不加时 H5 会渲染出无 alt 的 <img>，axe-core image-alt(critical) 逐页报错，
+       读屏也会念出一串无意义的图片节点。 -->
   <image
     lazy-load
+    aria-hidden="true"
     :src="src"
     :style="iconStyle"
     class="app-icon"
