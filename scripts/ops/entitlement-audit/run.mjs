@@ -180,6 +180,14 @@ async function main() {
       }
     }
     const orderIds = toPgTextArray(ordersRows.map((o) => o.id));
+    // 圈子订单的 targetId 就是 circleId；判别未决规则需要圈子当前状态
+    const circleIds = toPgTextArray([
+      ...new Set(
+        ordersRows
+          .filter((o) => o.type === "CIRCLE_JOIN" || o.type === "CIRCLE_RENEW")
+          .map((o) => o.targetId),
+      ),
+    ]);
     const userIds = toPgTextArray([...new Set(ordersRows.map((o) => o.userId))]);
     const W = [win.from.toISOString(), win.to.toISOString(), String(pageSize), "0"];
 
@@ -189,6 +197,7 @@ async function main() {
         { name: "entitlementLedger", params: [...W, orderIds] },
         { name: "entitlementBalance", params: [...W, userIds] },
         { name: "circleMembers", params: [...W, userIds] },
+        { name: "circles", params: [...W, circleIds] },
         { name: "memberPurchases", params: [...W, userIds] },
         { name: "users", params: [...W, userIds] },
         { name: "practitionerProfiles", params: [...W, userIds] },
@@ -207,6 +216,7 @@ async function main() {
       entitlementLedger: rest.entitlementLedger || [],
       entitlementBalance: rest.entitlementBalance || [],
       circleMembers: rest.circleMembers || [],
+      circles: rest.circles || [],
       memberPurchases: rest.memberPurchases || [],
       users: rest.users || [],
       practitionerProfiles: rest.practitionerProfiles || [],
@@ -274,6 +284,8 @@ async function main() {
       entitlementLedger: await q("entitlementLedger", [win.from, win.to, pageSize, 0, bind[4]]),
       entitlementBalance: await q("entitlementBalance", [win.from, win.to, pageSize, 0, bind[5]]),
       circleMembers: await q("circleMembers", [win.from, win.to, pageSize, 0, bind[5]]),
+      circles: await q("circles", [win.from, win.to, pageSize, 0,
+        orders.filter((o) => o.type === "CIRCLE_JOIN" || o.type === "CIRCLE_RENEW").map((o) => o.targetId)]),
       memberPurchases: await q("memberPurchases", [win.from, win.to, pageSize, 0, bind[5]]),
       users: await q("users", [win.from, win.to, pageSize, 0, bind[5]]),
       practitionerProfiles: await q("practitionerProfiles", [win.from, win.to, pageSize, 0, bind[5]]),

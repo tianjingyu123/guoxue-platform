@@ -4,7 +4,8 @@
  */
 
 import { buildSnapshot, EXPECTED_FINDINGS, EXPECTED_CLEAN, EXPECTED_OBSERVATIONS } from "./fixtures.mjs";
-import { runRules, maskRef, setRefSalt } from "./rules.mjs";
+import { readFileSync } from "node:fs";
+import { runRules, maskRef, setRefSalt, PAUSED_REASONS } from "./rules.mjs";
 
 // 自测固定盐，保证脱敏引用可重复比对（生产运行默认每次随机）
 setRefSalt("selftest-fixed-salt");
@@ -139,6 +140,40 @@ void allRefs;
   check("只读门禁拒绝注释绕过", gate('SELECT 1; -- x\nDELETE FROM "Order";') === "rejected:keyword");
   check("只读门禁拒绝多语句", gate("SELECT 1; SELECT 2;") === "rejected:multi");
   check("只读门禁拒绝非 SELECT 开头", gate("WITH x AS (SELECT 1) SELECT * FROM x;") === "rejected:not-select");
+}
+
+// ⑫ 防漂移：检测器的原因码必须与服务端 circle-fulfillment.ts 的 MANUAL_REASONS 完全一致。
+// 两边是不同语言的独立实现（.mjs 检测器 / .ts 服务），没有编译期约束，只能靠这条断言兜住。
+{
+  const FIX_TS =
+    process.env.AUDIT_FULFILLMENT_TS ||
+    new URL("../../../apps/server/src/modules/shop/circle-fulfillment.ts", import.meta.url);
+  let src = "";
+  try {
+    src = readFileSync(FIX_TS, "utf8");
+  } catch {
+    src = "";
+  }
+  if (!src) {
+    check("防漂移：能读到 circle-fulfillment.ts", false, "读不到源文件，无法比对原因码");
+  } else {
+    const block = src.slice(src.indexOf("MANUAL_REASONS"), src.indexOf("} as const;", src.indexOf("MANUAL_REASONS")));
+    const inTs = [...block.matchAll(/:\s*"([a-z_]+)"/g)].map((m) => m[1]).sort();
+    const inDetector = Object.values(PAUSED_REASONS).sort();
+    check(
+      "防漂移：原因码与服务端 MANUAL_REASONS 一致",
+      JSON.stringify(inTs) === JSON.stringify(inDetector),
+      `服务端=${inTs.join(",")} 检测器=${inDetector.join(",")}`,
+    );
+  }
+}
+
+// ⑬ fulfillment_paused 必须带 inferred 标记与处置提示，且不得自称「服务端已暂停」
+{
+  const paused = result.findings.filter((f) => f.rule === "fulfillment_paused");
+  check("暂停项标注为推断而非事实", paused.length > 0 && paused.every((f) => f.inferred === true));
+  check("暂停项带处置提示", paused.every((f) => typeof f.suggestedAction === "string" && f.suggestedAction.length > 0));
+  check("暂停项级别为 medium（需决策，不是抢修）", paused.every((f) => f.severity === "medium"));
 }
 
 console.log("--- 命中汇总 ---");

@@ -73,13 +73,42 @@ AUDIT_ALLOW_DB=1 node scripts/ops/entitlement-audit/run.mjs \
 | `fulfillment_gap` | high | 已支付但**实际访问真源**未被推进 | — |
 | `ledger_inconsistent` | medium | 支付后处理器应写权益台账却没写 | **不等于用户拿不到**。课程访问判定读的是 `Order`，台账缺失只影响权益中心展示与后续迁移；结果里带 `impactsAccess` 字段说明 |
 | `refund_not_revoked` | high | 已退款但权益仍可用（台账未冲正 / 真源未回收） | — |
-| `order_status_stale` | low | 圈子订单已履约但状态仍停在 PAID | 不影响可用 |
+| `order_status_stale` | low | 圈子订单**由这一单**建了成员但状态仍停在 PAID | 不影响可用，改状态即可 |
+| `fulfillment_paused` | medium | 已支付、未履约，且命中一条**尚未拍板**的业务规则 | **不是故障**。重跑补偿不会有任何变化，需要的是人拍板。详见下节 |
 | `idempotency_violation` | critical | 重复 GRANT / 重复 payTransactionId / 重复 MemberPurchase.orderId | 预期恒为 0，非 0 即唯一约束或幂等键有问题 |
 | `balance_drift` | info | 余额与台账复算不一致；或 `ACTIVE` 但已过期 | 后者是已知设计（余额只在 grant/consume/revoke 时重算，读模型用 `effectiveStatus` 兜底），**只计数不告警** |
 
 另有两个**不产生 finding、只产生计数**的观察项：
 - `grantDelay`：台账首条 GRANT 与 `paidAt` 的差值分桶。数字权益类同事务，正常落在 `<1s`；落在更大桶说明走了旁路（线下确认收款、Apple IAP、圈子客户端补调）。
 - `needsReview`：真源未定位的订单类型计数。**"没报异常"不等于"全都正常"**，这一栏就是为了不让未覆盖被静默。
+
+## `fulfillment_paused`：需要决策，不是需要抢修
+
+与 `fulfillment_gap` 的区别是**处置方式完全不同**：
+
+| | `fulfillment_gap`（high） | `fulfillment_paused`（medium） |
+|---|---|---|
+| 含义 | 系统本该履约却没履约 | 规则没定，系统**主动不处理** |
+| 处置 | 修代码 / 跑补偿 | 找产品或财务拍板 |
+| 重跑补偿 | 可能解决 | **一定不会变** |
+
+三个原因码（必须与服务端 `circle-fulfillment.ts` 的 `MANUAL_REASONS` 一致，selftest 有防漂移断言）：
+
+| 原因码 | 数据形状 | 决策点 |
+|---|---|---|
+| `duplicate_active_join` | 用户在**付款前**就已是有效成员（`CircleMember.joinedAt < Order.paidAt`），又付了一笔 JOIN 单 | D4：叠加时长还是退款 |
+| `renew_without_member` | 收到 RENEW 单但没有成员行（多半已被 `cleanupExpiredMembers` 硬删） | D1：按续期还是新购、起算点 |
+| `circle_not_active` | 圈子 `status != 'ACTIVE'` 时收到支付 | D5：是否仍履约或退款 |
+
+**`inferred: true` 是什么意思**：检测器只看数据库状态，**推断**这笔订单会被履约逻辑判为
+`needs_manual`。它分不清「服务端真的跑过并主动暂停」和「服务端根本没跑过、状态恰好长这样」——
+在修复上线前这些形状同样存在，只是当时没有任何代码会去暂停它们。
+**不要把这条 finding 当成「服务端已处理过」的证据。**
+
+`duplicate_active_join` 与 `order_status_stale` 靠 `joinedAt` 与 `paidAt` 的先后区分：
+成员是这一单建的（`joinedAt >= paidAt`）就只是状态没同步，对用户无损；
+成员付款前就存在（`joinedAt < paidAt`）才是「这笔钱没换来任何额外权益」。
+只看「有没有成员」会把这两种完全不同的情况混成一类。
 
 ## 误报边界（已用合成数据验证）
 

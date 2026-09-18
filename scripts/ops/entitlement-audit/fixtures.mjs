@@ -26,6 +26,7 @@ const at = (offsetMs) => new Date(NOW + offsetMs).toISOString();
 export function buildSnapshot(opts = {}) {
   const includeSchemaImpossible = opts.includeSchemaImpossible !== false;
   const orders = [];
+  const circles = [];
   const entitlementLedger = [];
   const entitlementBalance = [];
   const circleMembers = [];
@@ -320,6 +321,44 @@ export function buildSnapshot(opts = {}) {
     circleId: "syn-circle-7", userId: "syn-u17", joinedAt: at(-2 * HOUR), expireAt: at(363 * DAY),
   });
 
+  // ───────── 附加：未决规则暂停的三种形状（对应服务端 MANUAL_REASONS） ─────────
+  // P1 已是有效成员却又来一笔 JOIN 单 → duplicate_active_join
+  orders.push({
+    id: "syn-ord-paused-dupjoin", userId: "syn-u23", type: "CIRCLE_JOIN", targetId: "syn-circle-8",
+    quantity: 1, amount: 199, payAmount: 199, status: "PAID", payMethod: "WECHAT",
+    payTransactionId: "syn-tx-23", paidAt: at(-8 * HOUR), refundedAt: null,
+    completedAt: null, createdAt: at(-8 * HOUR - 60_000),
+  });
+  circleMembers.push({
+    circleId: "syn-circle-8", userId: "syn-u23", joinedAt: at(-100 * DAY), expireAt: at(200 * DAY),
+  });
+
+  // P2 成员被到期清理后收到续费单 → renew_without_member
+  orders.push({
+    id: "syn-ord-paused-renew", userId: "syn-u24", type: "CIRCLE_RENEW", targetId: "syn-circle-9",
+    quantity: 1, amount: 199, payAmount: 199, status: "PAID", payMethod: "WECHAT",
+    payTransactionId: "syn-tx-24", paidAt: at(-9 * HOUR), refundedAt: null,
+    completedAt: null, createdAt: at(-9 * HOUR - 60_000),
+  });
+  // 故意不建 CircleMember
+
+  // P3 圈子已下架时收到支付 → circle_not_active
+  orders.push({
+    id: "syn-ord-paused-disabled", userId: "syn-u25", type: "CIRCLE_JOIN", targetId: "syn-circle-10",
+    quantity: 1, amount: 199, payAmount: 199, status: "PAID", payMethod: "WECHAT",
+    payTransactionId: "syn-tx-25", paidAt: at(-10 * HOUR), refundedAt: null,
+    completedAt: null, createdAt: at(-10 * HOUR - 60_000),
+  });
+
+  // 圈子状态表：默认 ACTIVE，syn-circle-10 停用
+  for (const id of [
+    "syn-circle-1", "syn-circle-2", "syn-circle-3", "syn-circle-4",
+    "syn-circle-5", "syn-circle-6", "syn-circle-7", "syn-circle-8", "syn-circle-9",
+  ]) {
+    circles.push({ id, status: "ACTIVE", type: "YEARLY" });
+  }
+  circles.push({ id: "syn-circle-10", status: "DISABLED", type: "YEARLY" });
+
   // ───────── 附加：实物订单（必须被排除） ─────────
   orders.push({
     id: "syn-ord-product", userId: "syn-u18", type: "PRODUCT", targetId: "syn-prod-1",
@@ -378,7 +417,7 @@ export function buildSnapshot(opts = {}) {
     now: NOW,
     windowFrom: NOW - 31 * DAY,
     windowTo: NOW,
-    orders, entitlementLedger, entitlementBalance, circleMembers,
+    orders, circles, entitlementLedger, entitlementBalance, circleMembers,
     memberPurchases, users, practitionerProfiles, stations, operators,
   };
 }
@@ -409,6 +448,11 @@ export const EXPECTED_FINDINGS = Object.freeze([
 
   // 附加：订单状态滞留
   { rule: "order_status_stale", orderId: "syn-ord-circle-stale", severity: "low" },
+
+  // 未决规则暂停（F7）：三种形状各一条，级别 medium
+  { rule: "fulfillment_paused", orderId: "syn-ord-paused-dupjoin", severity: "medium" },
+  { rule: "fulfillment_paused", orderId: "syn-ord-paused-renew", severity: "medium" },
+  { rule: "fulfillment_paused", orderId: "syn-ord-paused-disabled", severity: "medium" },
 ]);
 
 /** 期望「不出现」的订单（误报边界断言） */

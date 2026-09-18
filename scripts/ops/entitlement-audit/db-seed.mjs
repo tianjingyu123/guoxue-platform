@@ -60,11 +60,16 @@ for (const o of snap.orders) {
   if (o.type === "CIRCLE_JOIN" || o.type === "CIRCLE_RENEW") circleIds.add(o.targetId);
 }
 for (const m of snap.circleMembers) circleIds.add(m.circleId);
+for (const c of snap.circles ?? []) circleIds.add(c.id);
+// 圈子状态以 snapshot.circles 为准（未决规则判别依赖它，不能一律写死 ACTIVE）
+const circleState = new Map((snap.circles ?? []).map((c) => [c.id, c]));
 for (const id of [...circleIds].sort()) {
+  const c = circleState.get(id);
   out.push(
     `INSERT INTO "Circle"(id,name,intro,"ownerId",type,price,status,"updatedAt","createdAt") VALUES (` +
       `${q(id)},${q("合成圈子" + id.slice(-1))},${q("用于隔离验证的合成圈子")},${q("syn-owner")},` +
-      `'YEARLY'::"CircleType",199,'ACTIVE'::"CircleStatus",'${nowIso}'::timestamp,'${nowIso}'::timestamp);`,
+      `'${c?.type ?? "YEARLY"}'::"CircleType",199,` +
+      `'${c?.status ?? "ACTIVE"}'::"CircleStatus",'${nowIso}'::timestamp,'${nowIso}'::timestamp);`,
   );
 }
 

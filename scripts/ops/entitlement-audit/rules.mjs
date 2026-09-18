@@ -208,6 +208,71 @@ export function evaluateAccessTruth(order, snap) {
   }
 }
 
+/**
+ * 「未决规则暂停」的原因码。
+ *
+ * ⚠️ 必须与服务端 `apps/server/src/modules/shop/circle-fulfillment.ts` 的 `MANUAL_REASONS` 一致。
+ * 这里是独立的 .mjs 检测器，不引 TS 源码；selftest 有一条断言会去读那个文件比对，防止两边漂移。
+ */
+export const PAUSED_REASONS = Object.freeze({
+  DUPLICATE_ACTIVE_JOIN: "duplicate_active_join",
+  RENEW_WITHOUT_MEMBER: "renew_without_member",
+  CIRCLE_NOT_ACTIVE: "circle_not_active",
+});
+
+/**
+ * 判断一笔已支付的圈子订单是否命中「未决规则」的数据形状。
+ *
+ * 重要限制（必须如实写进报告）：检测器只看数据库状态，**推断**这笔订单会被履约逻辑判为
+ * needs_manual；它无法区分「服务端真的跑过并主动暂停」与「服务端根本没跑过、只是状态恰好长这样」。
+ * 在修复上线前，这些形状同样存在，只是当时没有任何代码会去暂停它们。
+ * 因此结果里带 `inferred: true`，不要当成「服务端已处理过」的证据。
+ *
+ * 判别顺序与 `fulfillCircleOrderTx` 的决策顺序保持一致：
+ *   圈子非 ACTIVE → 无成员且是 RENEW → 有有效成员且是 JOIN
+ *
+ * @returns 原因码，或 null（不是未决规则形状）
+ */
+export function classifyPausedReason(order, snap) {
+  if (order.type !== "CIRCLE_JOIN" && order.type !== "CIRCLE_RENEW") return null;
+  const circle = snap.circles?.find((c) => c.id === order.targetId);
+  // 圈子信息拿不到时不猜：宁可让它落回 fulfillment_gap，也不要报一个可能错的原因码。
+  if (!circle) return null;
+  if (circle.status !== "ACTIVE") return PAUSED_REASONS.CIRCLE_NOT_ACTIVE;
+
+  const member = snap.circleMembers.find(
+    (m) => m.circleId === order.targetId && m.userId === order.userId,
+  );
+  if (!member) {
+    return order.type === "CIRCLE_RENEW" ? PAUSED_REASONS.RENEW_WITHOUT_MEMBER : null;
+  }
+  if (order.type === "CIRCLE_JOIN") {
+    const exp = toTime(member.expireAt);
+    const stillActive = exp == null || exp > snap.now;
+    if (!stillActive) return null;
+    // 关键区分：成员是**这一单**建的，还是本来就存在？
+    //  - joinedAt >= paidAt：成员就是这笔支付带来的，只是订单状态没同步 → 属 F4 订单状态滞留，
+    //    对用户无损，改个状态就行；
+    //  - joinedAt <  paidAt：用户付款前就已经是有效成员 → 这笔钱没换来任何额外权益，
+    //    属 F7 未决规则（duplicate_active_join），要人拍板。
+    // 只看「有没有成员」会把这两种完全不同的情况混成一类。
+    const joinedAt = toTime(member.joinedAt);
+    const paidAt = toTime(order.paidAt);
+    if (joinedAt != null && paidAt != null && joinedAt < paidAt) {
+      return PAUSED_REASONS.DUPLICATE_ACTIVE_JOIN;
+    }
+    return null;
+  }
+  return null;
+}
+
+/** 各原因码对应的处置提示（给运营看的，不是给代码用的） */
+const PAUSED_ACTION = Object.freeze({
+  duplicate_active_join: "用户已是有效成员却又付了一笔入圈单：需产品/财务决定叠加时长还是退款（决策点 D4）",
+  renew_without_member: "成员行已被到期清理后收到续费单：需产品决定按续期还是新购、起算点（决策点 D1）",
+  circle_not_active: "圈子已下架/停用时收到支付：需产品/内容治理决定是否仍履约或退款（决策点 D5）",
+});
+
 // ───────────────────────── 规则 ─────────────────────────
 
 /**
@@ -221,6 +286,10 @@ export function ruleFulfillmentGap(snap, opts) {
     if (!isPaidStatus(o.status) || o.paidAt == null) continue;
     if (isRefunded(o)) continue; // 退款单交 F3
     if (snap.now - toTime(o.paidAt) < graceMs) continue; // 允许的发放延迟
+
+    // 命中未决规则的形状归 fulfillment_paused，不混进「从未处理」的缺口里：
+    // 两者的处置完全不同 —— 一个要修代码/补履约，一个要人拍板业务规则。
+    if (classifyPausedReason(o, snap)) continue;
 
     const r = evaluateAccessTruth(o, snap);
     if (r.verdict !== "gap" && r.verdict !== "needs_review") continue;
@@ -468,8 +537,44 @@ export function ruleOrderStatusStale(snap, opts) {
     if (!m) continue; // 无成员的情况归 F1
     // 已被 F1 判为履约缺口的（如续费未顺延）不重复计入，避免同一笔订单双报
     if (evaluateAccessTruth(o, snap).verdict === "gap") continue;
+    // 「已是有效成员又来一笔 JOIN 单」不是订单状态滞留，而是待人工的未决规则，归 F7。
+    if (classifyPausedReason(o, snap)) continue;
     out.push(
       finding("order_status_stale", SEVERITY.LOW, o, {
+        ageBucket: durationBucket(snap.now - toTime(o.paidAt)),
+      }),
+    );
+  }
+  return out;
+}
+
+/**
+ * F7 未决规则暂停：已支付、未履约，且命中一条**尚未拍板**的业务规则。
+ *
+ * 与 F1 `fulfillment_gap` 的区别：
+ *  - F1 = 系统本该履约却没履约 → 修代码 / 跑补偿；
+ *  - F7 = 规则没定，系统**主动不处理** → 需要人拍板，补偿跑多少次都不会变。
+ * 混在一起会让运营把「等人决策」当成「系统坏了」，反复触发补偿也毫无效果。
+ *
+ * 严重级别定为 medium 而非 high：用户的钱已经收了但权益没给，确实要处理；
+ * 但它不是故障，重跑补偿解决不了，需要的是决策而不是抢修。
+ */
+export function ruleFulfillmentPaused(snap, opts) {
+  const out = [];
+  const graceMs = opts.graceMinutes * 60_000;
+  for (const o of snap.orders) {
+    if (!isPaidStatus(o.status) || o.paidAt == null) continue;
+    if (o.status === "COMPLETED") continue; // 已履约完成，不是暂停
+    if (isRefunded(o)) continue;
+    if (snap.now - toTime(o.paidAt) < graceMs) continue;
+    const reason = classifyPausedReason(o, snap);
+    if (!reason) continue;
+    out.push(
+      finding("fulfillment_paused", SEVERITY.MEDIUM, o, {
+        pausedReason: reason,
+        suggestedAction: PAUSED_ACTION[reason],
+        // 只能从数据形状推断，不代表服务端真的跑过并暂停过。见 classifyPausedReason 的注释。
+        inferred: true,
         ageBucket: durationBucket(snap.now - toTime(o.paidAt)),
       }),
     );
@@ -506,6 +611,7 @@ export function measureNeedsReview(snap, opts) {
     if (!isPaidStatus(o.status) || o.paidAt == null) continue;
     if (isRefunded(o)) continue;
     if (snap.now - toTime(o.paidAt) < graceMs) continue;
+    if (classifyPausedReason(o, snap)) continue;
     const r = evaluateAccessTruth(o, snap);
     if (r.verdict !== "needs_review") continue;
     counts.set(o.type, (counts.get(o.type) ?? 0) + 1);
@@ -533,6 +639,7 @@ export function runRules(snap, userOpts = {}) {
     ...ruleLedgerInconsistent(snap, opts),
     ...ruleRefundNotRevoked(snap),
     ...ruleOrderStatusStale(snap, opts),
+    ...ruleFulfillmentPaused(snap, opts),
   ];
   const observations = [
     ...ruleIdempotency(snap),

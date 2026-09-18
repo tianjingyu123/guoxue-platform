@@ -94,6 +94,16 @@ SELECT
 FROM "CircleMember" m
 WHERE m."userId" = ANY($5::text[]);
 
+-- ───────── Q4b 圈子状态（判别「未决规则暂停」用） ─────────
+-- 只取 id/status/type：不取圈名、简介、封面等内容字段
+-- name: circles
+SELECT
+  c.id,
+  c.status::text AS status,
+  c.type::text   AS type
+FROM "Circle" c
+WHERE c.id = ANY($5::text[]);
+
 -- ───────── Q5 会员购买对账记录 ─────────
 -- name: memberPurchases
 SELECT
