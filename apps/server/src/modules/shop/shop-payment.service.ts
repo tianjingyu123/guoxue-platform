@@ -16,7 +16,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
-import { fulfillCircleOrderTx, buildRetryCandidateWhere } from "./circle-fulfillment";
+import { fulfillCircleOrderTx, buildRetryCandidateWhere, type FulfillResult } from "./circle-fulfillment";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
@@ -890,14 +890,71 @@ export class ShopPaymentService {
     CIRCLE_RENEW: (order, tx) => this.processCirclePaid(order, tx),
   };
 
-  /** 圈子订单支付后处理（幂等·见 circle-fulfillment.ts） */
+  /**
+   * 圈子订单支付后处理（幂等·见 circle-fulfillment.ts）。
+   * 只传 orderId：履约函数会在事务内重新加锁读取订单，不采信外部快照。
+   * 履约结果暂存到 `pendingCircleFulfillment`，供事务提交后做缓存失效与收益记账。
+   */
   private async processCirclePaid(order: Order, tx: any) {
-    const r = await fulfillCircleOrderTx(tx, order as never);
-    if (r.outcome === "skipped") {
+    const r = await fulfillCircleOrderTx(tx, order.id);
+    if (r.outcome === "needs_manual") {
+      this.logger.warn(
+        `圈子履约暂停待人工 order=${order.id} circle=${order.targetId} user=${order.userId} 原因=${r.reason}`,
+      );
+    } else if (r.outcome === "skipped") {
       this.logger.warn(`圈子履约跳过 order=${order.id}：${r.reason}`);
     } else {
-      this.logger.log(`圈子履约 ${r.outcome} order=${order.id} 到期=${r.expireAt?.toISOString() ?? "永久"}`);
+      this.logger.log(
+        `圈子履约 ${r.outcome} order=${order.id} 到期=${r.expireAt?.toISOString() ?? "永久"}`,
+      );
     }
+    this.pendingCircleFulfillment.set(order.id, r);
+  }
+
+  /**
+   * 事务内履约结果的暂存区（key = orderId）。
+   * 事务提交后由 `settleCircleAfterCommit` 取出，用于缓存失效与收益记账，取出即删。
+   * 只在同一次调用链内存活，不做跨请求缓存。
+   */
+  private readonly pendingCircleFulfillment = new Map<string, FulfillResult>();
+
+  /**
+   * 圈子履约的事务后收尾：缓存失效 + 收益记账。
+   *
+   * 收益记账为什么放在这里：`recordCircleRevenue` 需要 commission 模块解析圈子分成费率
+   * （`resolveCircleSplit` / `calculatePlatformFee`），用的是独立的 prisma 连接，无法并进
+   * 履约事务。放在提交后是**与既有 confirmJoin/confirmRenew 完全相同的做法**。
+   *
+   * 不漏记 / 不双记的依据：履约被订单级行锁串行化，一笔订单在其生命周期内**最多只有一次**
+   * 返回 `shouldRecordRevenue=true`；`confirmJoin/confirmRenew` 在订单已 COMPLETED 时会走
+   * 幂等分支直接返回，不再记账。因此「每单恰好一次」。
+   * 已知残余风险：进程在提交后、记账前崩溃会漏记一笔（与既有实现同风险），
+   * 该缺口由只读检测的「已履约但无收益记录」核对项暴露，不做自动补记。
+   */
+  private async settleCircleAfterCommit(order: {
+    id: string;
+    userId: string;
+    targetId: string;
+    payAmount?: unknown;
+    amount?: unknown;
+  }): Promise<void> {
+    const r = this.pendingCircleFulfillment.get(order.id);
+    this.pendingCircleFulfillment.delete(order.id);
+
+    // 缓存失效：无论履约与否都清，成本极低，且避免 needs_manual 分支残留脏缓存。
+    // 键名与 circle-membership.service.ts / circle-core.service.ts 保持一致。
+    await Promise.all([
+      this.redis.del(`circles:member:${order.targetId}:${order.userId}`),
+      this.redis.del(`circles:detail:${order.targetId}`),
+    ]).catch((e) => this.logger.warn(`圈子缓存清除失败 order=${order.id}`, e));
+
+    if (!r?.shouldRecordRevenue || !r.memberId || !this.commissionSvc) return;
+    const priceYuan = Number(order.payAmount ?? order.amount ?? 0);
+    if (!(priceYuan > 0)) return;
+    // sourceId 必须是成员 id：circle-refund.service.ts:229-231 按 sourceId=member.id 追回圈主分成。
+    await this.commissionSvc
+      .recordCircleRevenue(order.targetId, "circle_join", r.memberId, priceYuan)
+      .catch((e: unknown) => this.logger.warn(`圈子收益记账失败 order=${order.id}`, e));
   }
 
   /**
@@ -916,7 +973,7 @@ export class ShopPaymentService {
     since: Date,
     until: Date,
     limit: number,
-  ): Promise<{ scanned: number; fulfilled: number; skipped: number; failed: number }> {
+  ): Promise<{ scanned: number; fulfilled: number; skipped: number; needsManual: number; failed: number }> {
     const safeLimit = Math.min(Math.max(1, Math.floor(limit)), 200);
     const candidates = await this.prisma.order.findMany({
       where: buildRetryCandidateWhere(since, until),
@@ -927,22 +984,31 @@ export class ShopPaymentService {
     let fulfilled = 0;
     let skipped = 0;
     let failed = 0;
+    let needsManual = 0;
     for (const { id } of candidates) {
       try {
-        const outcome = await this.prisma.$transaction(async (tx) => {
-          const order = await tx.order.findUnique({ where: { id } });
-          if (!order) return "skipped";
-          const r = await fulfillCircleOrderTx(tx, order as never);
-          return r.outcome;
+        const { result, order } = await this.prisma.$transaction(async (tx) => {
+          const r = await fulfillCircleOrderTx(tx, id);
+          const o = await tx.order.findUnique({
+            where: { id },
+            select: { id: true, userId: true, targetId: true, payAmount: true, amount: true },
+          });
+          return { result: r, order: o };
         });
-        if (outcome === "skipped") skipped += 1;
-        else fulfilled += 1;
+        this.pendingCircleFulfillment.set(id, result);
+        if (order) await this.settleCircleAfterCommit(order);
+        else this.pendingCircleFulfillment.delete(id);
+
+        if (result.outcome === "fulfilled" || result.outcome === "extended") fulfilled += 1;
+        else if (result.outcome === "needs_manual") needsManual += 1;
+        else skipped += 1;
       } catch (e) {
         failed += 1;
+        this.pendingCircleFulfillment.delete(id);
         this.logger.error(`圈子履约补偿失败 order=${id}`, e instanceof Error ? e.stack : String(e));
       }
     }
-    return { scanned: candidates.length, fulfilled, skipped, failed };
+    return { scanned: candidates.length, fulfilled, skipped, needsManual, failed };
   }
 
   /**
@@ -994,13 +1060,15 @@ export class ShopPaymentService {
     // 入账成功后立即清订单缓存：否则 getOrder 命中旧 PENDING 缓存(TTL 300s)，
     // 导致支付页轮询 getOrderPayState 永远读到未支付(不跳转)、订单详情显示「待付款」。
     await this.orderSvc.invalidateOrderCache(order.id, order.userId).catch((e) => this.logger.warn(`订单缓存清除失败 order=${order.id}`, e));
-    // 圈子履约在事务内完成后，成员态缓存必须失效，否则用户仍被判为「未加入」。
-    // 键名与 circle-membership.service.ts / circle-core.service.ts 保持一致。
+    // 圈子履约的事务后收尾（缓存失效 + 收益记账）。
     if (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW") {
-      await Promise.all([
-        this.redis.del(`circles:member:${order.targetId}:${order.userId}`),
-        this.redis.del(`circles:detail:${order.targetId}`),
-      ]).catch((e) => this.logger.warn(`圈子缓存清除失败 order=${order.id}`, e));
+      await this.settleCircleAfterCommit({
+        id: order.id,
+        userId: order.userId,
+        targetId: order.targetId ?? "",
+        payAmount: paidAmount,
+        amount: order.amount,
+      });
     }
     // 拼团订单：支付成功后结算成团（事务外独立处理，失败不影响支付主流程）
     await this.orderSvc.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
