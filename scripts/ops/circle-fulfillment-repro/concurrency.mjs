@@ -16,7 +16,15 @@
 import { createRequire } from "node:module";
 import { loadCandidatePrisma } from "../prisma-candidate/client.mjs";
 
-const SERVER_DIR = process.env.REPRO_SERVER_DIR || "D:/gx-deploy-91/apps/server";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// 被测源码与依赖一律按**本脚本自身所在的工作树**解析，不再硬编码到别的目录。
+// 硬编码默认值是一个安静的陷阱：脚本被复制到新工作树后仍会去测旧工作树的源码，
+// 结果全绿却与本候选无关。环境变量仍可覆盖，但默认值必须指向自己这棵树。
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const SERVER_DIR = process.env.REPRO_SERVER_DIR || `${REPO_ROOT}/apps/server`;
+const SRC_ROOT = process.env.REPRO_SRC_ROOT || `${SERVER_DIR}/src`;
 const req = createRequire(`${SERVER_DIR.replace(/\/?$/, "/")}package.json`);
 // Prisma 客户端走**独立生成**的候选产物，不碰共享 node_modules。
 // loadCandidatePrisma() 同时接管进程内 `@prisma/client` 的解析，
@@ -43,7 +51,7 @@ if (!["127.0.0.1", "localhost", "::1"].includes(new URL(args.dsn).hostname)) {
 const HERE = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 req("ts-node").register({ transpileOnly: true, compilerOptions: { module: "commonjs", target: "es2022" } });
 const FIX = req(process.env.REPRO_FIX_PATH ||
-  "D:/gx-deploy-91/.worktrees/entitlement-audit-20260918/apps/server/src/modules/shop/circle-fulfillment.ts");
+  `${SRC_ROOT}/modules/shop/circle-fulfillment.ts`);
 const { legacyFulfillCircleOrderTx } = await import(`file:///${HERE}legacy-fulfillment.mjs`.replace(/\\/g, "/"));
 
 const DAY = 86_400_000;

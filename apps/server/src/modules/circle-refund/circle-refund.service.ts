@@ -13,8 +13,48 @@ import { ErrorCode } from "../../common/error-codes";
 const FEE_RATE = 0.2; // 20% 手续费
 const DEFAULT_TOTAL_DAYS = 365; // 年费默认服务天数
 
+/**
+ * **推断匹配是否允许自动冲正圈主分成**（决策项 N9，未获业务批准前一律 false）。
+ *
+ * 只有 `exact`（按 `(type, orderId)` 唯一键命中，且归属与金额都核对通过）是**事实**。
+ * `single`（该成员只有一条候选）与 `amount`（金额唯一对上）都建立在假设之上：
+ *   · `single` 假设「只有一笔收益行 ⇒ 就是被退的那笔」。若某笔收益因记账旁路失败从未写入，
+ *     剩下的唯一一条恰恰**不是**被退的那笔；
+ *   · `amount` 假设「金额相等 ⇒ 同一笔」。入圈与续费同价很常见，其中一条缺失时会误认。
+ * 这两档的适用场景正是「历史数据不完整」，而不完整正是推断会出错的条件。
+ * 推断错的后果是**按错误金额追回圈主分成，且账面自洽、无从发现**。
+ *
+ * 因此未获批准前，这两档与 `ambiguous` 同样处理：**保留异常、转人工**，不替任何人决定钱该扣谁。
+ * 财务评估后若认为某一档误判概率可接受，改这里一个布尔值即可放开，判定逻辑不必改动。
+ * 放开前应先用 `docs` 中的只读 SQL 统计各原因码的真实发生量。
+ */
+const ALLOW_INFERRED_OWNER_RECALL: { single: boolean; amount: boolean } = {
+  single: false,
+  amount: false,
+};
+
+/** 转人工的原因码，写入 `CommissionRecall.reason`，供人工核对与发生量统计使用 */
+export const RECALL_MANUAL_REASONS = {
+  /** 多条候选且金额区分不开 */
+  AMBIGUOUS_CANDIDATES: "ambiguous_candidates",
+  /** 能推断出一条，但推断匹配尚未获业务批准（N9） */
+  INFERRED_NOT_APPROVED: "inferred_match_not_approved",
+  /** 按 orderId 命中了收益行，但它不属于本圈子/本成员 */
+  OWNERSHIP_MISMATCH: "revenue_ownership_mismatch",
+  /** 按 orderId 命中了收益行，但其金额与本次退款的已付金额对不上 */
+  AMOUNT_MISMATCH: "revenue_amount_mismatch",
+} as const;
+export type RecallManualReason = (typeof RECALL_MANUAL_REASONS)[keyof typeof RECALL_MANUAL_REASONS];
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** 一条可能对应本次退款的圈子入圈/续费收益行 */
+interface RevenueCandidate {
+  id: string;
+  amount: number;
+  ownerShare: number;
 }
 
 interface RefundCalc {
@@ -206,6 +246,22 @@ export class CircleRefundService {
     let ownerRecalled = 0;
 
     await this.prisma.$transaction(async (tx) => {
+      // 0) 退款单级串行化：锁住申请行，一切判断以**锁内事实**为准。
+      //    `adminReview` 的 CAS 挡住的是「两次审核」；这里挡的是「同一次审核被重放/重试」——
+      //    钱包入账是累加、成员删除与 memberCount 递减都不是天然幂等的，重入一次就是多退一笔。
+      //    状态不是 refunding 说明本单已被处理过或尚未进入执行态，直接返回，不做任何写入。
+      const lockedRows = await tx.$queryRawUnsafe<any[]>(
+        `SELECT "refundStatus" FROM "CircleRefundRequest" WHERE id=$1 FOR UPDATE`,
+        refundId,
+      );
+      const lockedStatus = lockedRows[0]?.refundStatus as string | undefined;
+      if (lockedStatus !== "refunding") {
+        this.logger.warn(
+          `退款执行跳过（锁内状态=${lockedStatus ?? "申请不存在"}）refund=${refundId}，未做任何写入`,
+        );
+        return;
+      }
+
       // 1) 退款入账到用户余额钱包（upsert 累加 + 流水）
       await tx.$executeRawUnsafe(
         `INSERT INTO "UserWallet" ("id","userId","balance","updatedAt")
@@ -224,34 +280,55 @@ export class CircleRefundService {
       // 2) 圈主分成全额追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
       const member = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
       if (member) {
-        // 圈主分成取值见 resolveOwnerShare()：精确 → 唯一 → 按金额消歧 → 存疑转人工。
-        const resolved = await this.resolveOwnerShare(tx, { orderId, memberId: member.id, paidAmount });
+        // 圈主分成取值见 resolveOwnerShare()：精确（含归属与金额核验）→ 推断 → 转人工。
+        const resolved = await this.resolveOwnerShare(tx, {
+          orderId, circleId, memberId: member.id, paidAmount,
+        });
         const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { ownerId: true } });
 
-        if (resolved.kind === "ambiguous") {
-          // **不猜**。用户的退款照退（那是用户的钱），但圈主分成追回多少无法确定，
-          // 猜错的两个方向都是真实损失：猜大了多扣圈主，猜小了平台自己吃差额。
+        // 只有 exact 是事实；single / amount 是推断，受 ALLOW_INFERRED_OWNER_RECALL 门控（N9）。
+        const autoRecall =
+          resolved.kind === "exact" ||
+          ((resolved.kind === "single" || resolved.kind === "amount") &&
+            ALLOW_INFERRED_OWNER_RECALL[resolved.kind]);
+
+        if (resolved.kind !== "none" && !autoRecall) {
+          // **不猜**。用户的退款照退（那是用户的钱，已在第 1 步入账），但圈主分成追回多少
+          // 在事实层面未确定，猜错的两个方向都是真实损失：猜大了多扣圈主，猜小了平台自己吃差额。
           // 这里只留一条**待人工核对**的追回台账，金额记 0，由财务按订单核对后补处理。
-          // 不写 circle_join_refund 冲正行：写了就等于用一个猜出来的数字改了账。
+          // 不写 circle_join_refund 冲正行：写了就等于用一个推断出来的数字改了账。
+          const reason: RecallManualReason =
+            resolved.kind === "ambiguous"
+              ? RECALL_MANUAL_REASONS.AMBIGUOUS_CANDIDATES
+              : resolved.kind === "mismatch"
+                ? resolved.reason
+                : RECALL_MANUAL_REASONS.INFERRED_NOT_APPROVED;
           await tx.$executeRawUnsafe(
-            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","createdAt")
-             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',CURRENT_TIMESTAMP)`,
-            randomUUID(), refundId, circle?.ownerId ?? "",
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","createdAt")
+             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',$4,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", reason,
           );
           this.logger.warn(
-            `圈主分成追回存疑，已转人工：refund=${refundId} circle=${circleId} member=${member.id} ` +
-              `候选=${resolved.candidates.length} 笔（金额 ${resolved.candidates.map((c) => c.amount).join("/")}）` +
+            `圈主分成追回转人工：refund=${refundId} circle=${circleId} member=${member.id} ` +
+              `原因=${reason} 候选=${resolved.candidates.length} 笔` +
+              `（金额 ${resolved.candidates.map((c) => c.amount).join("/") || "无"}）` +
               `，退款已付金额=${paidAmount}。查询：SELECT * FROM "CommissionRecall" WHERE status='pending_manual'`,
           );
-        } else if (resolved.kind !== "none") {
-          ownerRecalled = resolved.ownerShare;
+        } else if (autoRecall) {
+          ownerRecalled = resolved.ownerShare as number;
+          // 冲正行带上 orderId：`CircleRevenueRecord` 的 `(type, orderId)` 唯一约束因此也覆盖
+          // `circle_join_refund`，同一笔订单的冲正在**数据库层**只可能有一条。
+          // orderId 为空的历史退款拿不到这层保护，由上面的退款单级行锁兜底。
           await tx.circleRevenueRecord.create({
-            data: { circleId, type: "circle_join_refund", sourceId: member.id, amount: -paidAmount, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0 },
+            data: {
+              circleId, type: "circle_join_refund", sourceId: member.id, orderId,
+              amount: -paidAmount, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0,
+            },
           });
           await tx.$executeRawUnsafe(
-            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","createdAt")
-             VALUES ($1,$2,$3,'owner',$4,0,'completed',CURRENT_TIMESTAMP)`,
-            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled,
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","createdAt")
+             VALUES ($1,$2,$3,'owner',$4,0,'completed',$5,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled, resolved.kind,
           );
         }
         // 3) 成员身份失效 + 圈子成员数减一
@@ -275,15 +352,19 @@ export class CircleRefundService {
   }
 
   /**
-   * 确定本次退款应追回的圈主分成，按精确度降序，**拿不准就不猜**。
+   * 确定本次退款应追回的圈主分成，按可信度降序，**拿不准就不猜**。
    *
-   * | 档 | 判据 | 结果 |
-   * |---|---|---|
-   * | `exact` | 退款申请带 `orderId`，且该订单有收益行（`(type, orderId)` 唯一） | 用它 |
-   * | `single` | 该成员名下只有一条金额为正的 `circle_join` 收益行 | 用它，无歧义 |
-   * | `amount` | 多条候选，但只有一条金额与本次退款的已付金额相等 | 用它 |
-   * | `ambiguous` | 多条候选且金额区分不开 | **不取值**，转人工 |
-   * | `none` | 一条候选都没有（收益从未记上） | 不冲正，与改动前一致 |
+   * | 档 | 判据 | 性质 | 结果 |
+   * |---|---|---|---|
+   * | `exact`     | 退款带 `orderId`，命中 `(type, orderId)` 唯一键，且**圈子、成员、金额三项核验全过** | 事实 | 用它 |
+   * | `mismatch`  | 按 `orderId` 命中了行，但归属或金额核验不通过 | 异常 | 转人工，附原因码 |
+   * | `single`    | 该成员名下只有一条金额为正的 `circle_join` 收益行 | **推断** | 受 N9 门控，默认转人工 |
+   * | `amount`    | 多条候选，但只有一条金额与本次退款的已付金额相等 | **推断** | 受 N9 门控，默认转人工 |
+   * | `ambiguous` | 多条候选且金额区分不开 | 未知 | 转人工 |
+   * | `none`      | 一条候选都没有（收益从未记上） | 事实 | 不冲正，与改动前一致 |
+   *
+   * 本方法**只读、不写**：是否真的冲正由调用方按 `ALLOW_INFERRED_OWNER_RECALL` 决定。
+   * 判定与策略分开，是为了在业务放开某一档时不必改动判定逻辑。
    *
    * 为什么不能沿用「取最新一条」：一个成员会有多笔 `circle_join` 收益（入圈一笔、每次续费
    * 各一笔）。`orderId` 是后加的字段，**历史行全是 NULL**，这些行只能靠推断去配对。
@@ -291,30 +372,57 @@ export class CircleRefundService {
    *
    * `amount > 0` 的过滤不能省：金额为 0 的行不是真实收益，被选中就会把分成读成 0，
    * 圈主一分不追回而用户已全额退款。
+   *
+   * ── 为什么 `exact` 也要核验 ──────────────────────────────────────────────
+   * `(type, orderId)` 唯一键保证「这一行属于这个订单」，但不保证「这个订单属于本次退款」。
+   * 退款申请的 `orderId` 由 `calcRefund` 按 `userId + type + targetId` 取得，正常情况下归属成立；
+   * 数据订正、跨圈误标或历史脏数据都可能打破它。命中即用等于把唯一键当成了归属证明。
+   * 金额核验同理：收益行金额与本次退款的已付金额对不上，说明两者记的不是同一件事
+   * （例如促销单由旧 `confirmJoin` 路径按 `circle.price` 记账，而订单实付是折后价）。
+   * 这种情况下**任何取值都是猜**，因此一律转人工，由人核对后手工冲正。
+   * 注意：核验失败只影响「圈主分成追回」，**用户的退款照退、余额照到账、成员身份照常失效**。
    */
   private async resolveOwnerShare(
     tx: any,
-    params: { orderId: string | null; memberId: string; paidAmount: number },
+    params: { orderId: string | null; circleId: string; memberId: string; paidAmount: number },
   ): Promise<
-    | { kind: "exact" | "single" | "amount"; ownerShare: number; candidates: Array<{ id: string; amount: number }> }
-    | { kind: "ambiguous"; ownerShare: null; candidates: Array<{ id: string; amount: number }> }
-    | { kind: "none"; ownerShare: null; candidates: Array<{ id: string; amount: number }> }
+    | { kind: "exact" | "single" | "amount"; ownerShare: number; candidates: RevenueCandidate[] }
+    | { kind: "mismatch"; ownerShare: null; candidates: RevenueCandidate[]; reason: RecallManualReason }
+    | { kind: "ambiguous" | "none"; ownerShare: null; candidates: RevenueCandidate[] }
   > {
-    const { orderId, memberId, paidAmount } = params;
+    const { orderId, circleId, memberId, paidAmount } = params;
 
     if (orderId) {
+      // 不在 SQL 里带上归属条件：带了的话「归属不符」会退化成「查不到」，
+      // 进而落到推断分支或 none，异常就被无声吞掉了。先取出来，再逐项核验。
       const exact: any[] = await tx.$queryRawUnsafe(
-        `SELECT "id","ownerShare","amount" FROM "CircleRevenueRecord"
+        `SELECT "id","ownerShare","amount","circleId","sourceId" FROM "CircleRevenueRecord"
          WHERE "orderId"=$1 AND "type"='circle_join' LIMIT 1`,
         orderId,
       );
       if (exact.length) {
-        return { kind: "exact", ownerShare: Number(exact[0].ownerShare), candidates: [] };
+        const row = exact[0];
+        const hit: RevenueCandidate = {
+          id: String(row.id), amount: Number(row.amount), ownerShare: Number(row.ownerShare),
+        };
+        if (row.circleId !== circleId || row.sourceId !== memberId) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.OWNERSHIP_MISMATCH,
+          };
+        }
+        if (Math.abs(hit.amount - Number(paidAmount)) >= 0.01) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.AMOUNT_MISMATCH,
+          };
+        }
+        return { kind: "exact", ownerShare: hit.ownerShare, candidates: [hit] };
       }
     }
 
-    // 没有精确匹配：列出全部候选，由候选数量决定能不能判定
-    const candidates = (
+    // 没有精确匹配：列出全部候选，由候选数量决定能不能**推断**出一条
+    const candidates: RevenueCandidate[] = (
       (await tx.$queryRawUnsafe(
         `SELECT "id","ownerShare","amount" FROM "CircleRevenueRecord"
          WHERE "sourceId"=$1 AND "type"='circle_join' AND "amount" > 0
@@ -328,7 +436,7 @@ export class CircleRefundService {
       return { kind: "single", ownerShare: candidates[0].ownerShare, candidates };
     }
 
-    // 多条候选：只有当金额能唯一对上本次退款的已付金额时才敢认
+    // 多条候选：只有当金额能唯一对上本次退款的已付金额时才**推断**得出一条
     const byAmount = candidates.filter((c) => Math.abs(c.amount - Number(paidAmount)) < 0.01);
     if (byAmount.length === 1) {
       return { kind: "amount", ownerShare: byAmount[0].ownerShare, candidates };

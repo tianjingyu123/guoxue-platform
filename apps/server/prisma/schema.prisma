@@ -7189,12 +7189,16 @@ model CommissionRecall {
   userType          String // owner / station_master
   amount            Decimal   @db.Decimal(10, 2) // 追回金额（负数）
   balanceAfter      Decimal   @db.Decimal(10, 2) // 追回后余额
-  status            String    @default("pending") // pending / offsetting / completed
+  status            String    @default("pending") // pending / offsetting / completed / pending_manual
+  /// 转人工的原因码（`RECALL_MANUAL_REASONS`）或自动冲正的取值档（exact / single / amount）。
+  /// 可空：历史行保持 NULL。人工核对按它分流，也用于统计各分支的真实发生量以支撑 N9 决策。
+  reason            String?
   offsetCompletedAt DateTime?
   createdAt         DateTime  @default(now())
 
   @@index([userId, status])
   @@index([refundId])
+  @@index([status, createdAt])
 }
 
 // ─────────────────────────────────────────────────

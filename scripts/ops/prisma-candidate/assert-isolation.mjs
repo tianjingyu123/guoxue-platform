@@ -29,7 +29,7 @@ const ROOT = resolve(HERE, "../../..");
 /** 本候选新增、且只应出现在候选客户端里的字段 */
 const CANDIDATE_FIELDS = [
   { model: "CircleRevenueRecord", field: "orderId", unit: "B 单元·收益按订单幂等" },
-  { model: "User", field: "privacySettings", unit: "D 单元·隐私偏好" },
+  { model: "CommissionRecall", field: "reason", unit: "B 单元·追回转人工原因码" },
 ];
 
 let pass = 0;
