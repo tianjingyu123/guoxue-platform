@@ -10,6 +10,8 @@
  *   I4 confirmJoin / confirmRenew 的归属校验（跨用户、跨圈子、跨订单不得被认定为已履约）
  *   I5 收益记账参数正确且不双记（sourceId 必须是成员 id，退款追回依赖它）
  *   I6 三条路径（首次回调 / 管理员确认 / 补偿）提交后都做了缓存失效
+ *   I8 旧 confirmRenew 两笔不同续费订单并发：共顺延 2 年（含对旧「事务外读基线」算法的反证）
+ *   I9 旧 confirmJoin 对「成员行已过期」的订单能正常履约（旧实现会撞唯一约束报「已加入该圈子」）
  *
  * 只对本机隔离测试库运行，合成数据 `int-` 前缀。不连生产、不动真实订单、不发真实通知。
  */
@@ -58,6 +60,8 @@ const { ShopOrderLifecycleService } = req(`${ROOT}/modules/shop/shop-order-lifec
 const { CIRCLE_REVENUE_TYPE } = req(`${ROOT}/modules/shop/circle-fulfillment.ts`);
 
 const prisma = new PrismaClient({ datasources: { db: { url: args.dsn } } });
+// 第二条**独立连接**：并发用例必须让两侧各自持有自己的事务，同一个连接串不起来真并发。
+const prismaB = new PrismaClient({ datasources: { db: { url: args.dsn } } });
 const DAY = 86_400_000;
 
 let pass = 0, fail = 0;
@@ -106,9 +110,9 @@ function makePaymentService() {
   );
   return svc;
 }
-function makeCircleService() {
+function makeCircleService(client = prisma) {
   return new CircleMembershipService(
-    prisma,
+    client,
     redisStub,
     { calculateTargetPrice: async () => ({ effectivePrice: 199, originalPrice: 199, appliedPromotion: null }) },
     {},              // shared
@@ -117,6 +121,34 @@ function makeCircleService() {
     undefined,       // notificationService
     undefined,       // governance
   );
+}
+
+/**
+ * 两方可控屏障：双方都到达后才一起放行。
+ * 并发反证不能靠「碰运气重叠」——重跑几次总有一次不重叠，绿了也不说明问题。
+ */
+function makeBarrier(parties) {
+  let arrived = 0, release;
+  const gate = new Promise((r) => { release = r; });
+  return async function wait() {
+    arrived += 1;
+    if (arrived >= parties) release();
+    return gate;
+  };
+}
+
+/**
+ * 有界等待某个条件成立。**只用于等待代码里明确声明的 fire-and-forget 异步写入完成**，
+ * 不是「失败就重试直到变绿」：超时即判失败，由调用方断言。
+ */
+async function waitFor(fn, { timeoutMs = 4000, stepMs = 50 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const v = await fn();
+    if (v) return v;
+    if (Date.now() > deadline) return null;
+    await new Promise((r) => setTimeout(r, stepMs));
+  }
 }
 
 // ── 夹具 ──
@@ -350,6 +382,123 @@ async function i7() {
     JSON.stringify(rows.map((r) => Number(r.amount))));
 }
 
+/**
+ * I8 旧 `confirmRenew` 的**并发顺延**。
+ *
+ * 原实现虽然把顺延与订单完结放进同一事务，却在**事务外**读 `member.expireAt` 当基线。
+ * 两笔不同的续费订单并发时，双方读到同一个基线，各自写「基线 + 1 年」，后写覆盖先写 ——
+ * 用户付了两笔只拿到一年，而且两笔订单都 COMPLETED，账面看不出问题。
+ *
+ * 现在 `confirmRenew` 调用真实履约实现（订单行锁 + 成员行锁内重新读到期时间），
+ * 第二笔必然在第一笔提交后的新基线上顺延。
+ *
+ * 反证放在同一份数据形态上跑：先用旧算法复现「丢一年」，再用真实入口跑一遍对照。
+ */
+async function i8() {
+  const base = new Date(Date.now() + 30 * DAY);
+
+  // ── 反证：旧算法（事务外读基线，各自 +1 年）──
+  {
+    const f = await fixture({ type: "CIRCLE_RENEW", memberExpireAt: base });
+    const o2 = await prisma.order.create({
+      data: {
+        userId: f.user, type: "CIRCLE_RENEW", targetId: f.circle, quantity: 1,
+        amount: 199, payAmount: 199, status: "PAID", payMethod: "WECHAT",
+        payTransactionId: `${RUN}-legacy-renew2`, paidAt: new Date(),
+      },
+    });
+    // 旧算法：两侧都先在事务外读同一个 expireAt，再各自写 base+1 年。
+    // 用屏障保证「两边都读完之后才开始写」——这正是旧实现无法排除的交错，
+    // 不靠反复重跑去碰这个时序。
+    const barrier = makeBarrier(2);
+    const legacyRenew = async (client, orderId) => {
+      const m = await client.circleMember.findUnique({
+        where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+      });
+      const next = new Date(new Date(m.expireAt).getTime() + 365 * DAY);
+      await barrier(); // ← 两侧都读到同一个基线后才继续
+      await client.$transaction(async (tx) => {
+        await tx.circleMember.update({
+          where: { circleId_userId: { circleId: f.circle, userId: f.user } }, data: { expireAt: next },
+        });
+        await tx.order.update({ where: { id: orderId }, data: { status: "COMPLETED", completedAt: new Date() } });
+      });
+    };
+    await Promise.all([legacyRenew(prisma, f.order.id), legacyRenew(prismaB, o2.id)]);
+    const m = await prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+    });
+    const years = Math.round((new Date(m.expireAt).getTime() - base.getTime()) / (365 * DAY));
+    check("I8 反证：旧算法在同一份数据上确实丢一年", years === 1,
+      `旧算法顺延 ${years} 年（两笔订单应为 2 年）`);
+  }
+
+  // ── 真实入口：两笔续费并发 ──
+  {
+    const f = await fixture({ type: "CIRCLE_RENEW", memberExpireAt: base });
+    const o2 = await prisma.order.create({
+      data: {
+        userId: f.user, type: "CIRCLE_RENEW", targetId: f.circle, quantity: 1,
+        amount: 199, payAmount: 199, status: "PAID", payMethod: "WECHAT",
+        payTransactionId: `${RUN}-renew2`, paidAt: new Date(),
+      },
+    });
+    const svcA = makeCircleService(prisma);
+    const svcB = makeCircleService(prismaB);
+    const rs = await Promise.allSettled([
+      svcA.confirmRenew(f.circle, f.user, { orderId: f.order.id }),
+      svcB.confirmRenew(f.circle, f.user, { orderId: o2.id }),
+    ]);
+    check("I8 两笔并发续费均成功", rs.every((r) => r.status === "fulfilled"),
+      rs.map((r) => r.status + (r.reason ? `:${r.reason.message}` : "")).join(","));
+
+    const m = await prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+    });
+    const years = Math.round((new Date(m.expireAt).getTime() - base.getTime()) / (365 * DAY));
+    check("I8 旧 confirmRenew 并发下共顺延 2 年（不丢单）", years === 2, `实际顺延 ${years} 年`);
+
+    const orders = await prisma.order.findMany({
+      where: { id: { in: [f.order.id, o2.id] } }, select: { status: true },
+    });
+    check("I8 两笔订单均被认领为 COMPLETED",
+      orders.every((o) => o.status === "COMPLETED"), orders.map((o) => o.status).join(","));
+
+    const rows = await revRows(f.circle);
+    check("I8 两笔续费各记一条收益（按订单幂等，不多不少）", rows.length === 2,
+      JSON.stringify(rows.map((r) => Number(r.amount))));
+  }
+}
+
+/**
+ * I9 旧 `confirmJoin` 对「成员行仍在但已过期」的订单。
+ *
+ * 原实现走 `createMembership`，撞成员唯一约束直接抛「已加入该圈子」——
+ * 用户已经付了钱却进不去，只能找客服。真实履约实现对这种情况是更新到期时间按新购处理。
+ */
+async function i9() {
+  const expired = new Date(Date.now() - 10 * DAY);
+  const f = await fixture({ memberExpireAt: expired });
+  const svc = makeCircleService();
+  let err = null;
+  const r = await svc.confirmJoin(f.circle, f.user, { orderId: f.order.id, payMethod: "WECHAT" })
+    .catch((e) => { err = e; return null; });
+
+  check("I9 已过期成员再次入圈不再被误判为「已加入」", !err, err ? err.message : "未抛错");
+  check("I9 到期时间被重新起算（按新购）",
+    !!r?.expireAt && new Date(r.expireAt).getTime() > Date.now(), `到期=${r?.expireAt}`);
+  const order = await prisma.order.findUnique({ where: { id: f.order.id }, select: { status: true } });
+  check("I9 订单在同一事务内被认领为 COMPLETED", order.status === "COMPLETED", order.status);
+  // confirmJoin 的收益记账是**声明好的 fire-and-forget**（不阻塞主流程，失败由对账补齐），
+  // 因此这里有界等待它落库；超时即判失败，不重跑场景。
+  const rows = await waitFor(async () => {
+    const r = await revRows(f.circle);
+    return r.length ? r : null;
+  }) ?? [];
+  check("I9 恰记一条收益且金额为实付价", rows.length === 1 && Number(rows[0].amount) === 199,
+    JSON.stringify(rows.map((r) => Number(r.amount))));
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 真实业务入口集成验证 ===");
@@ -361,10 +510,12 @@ try {
   await i5();
   await i6();
   await i7();
+  await i8();
+  await i9();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);
   process.exitCode = fail > 0 ? 1 : 0;
 } finally {
-  await prisma.$disconnect();
+  await Promise.all([prisma.$disconnect(), prismaB.$disconnect()]);
 }

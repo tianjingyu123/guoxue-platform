@@ -131,6 +131,9 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     await expect(svc.renewQuote("c1", "u1")).rejects.toThrow(BusinessException);
   });
 
+  // 顺延实现已迁到服务端唯一实现 `fulfillCircleOrderTx`（订单行锁 → 成员行锁 → 顺延 → 认领订单）。
+  // 这里的桩按它实际读写的顺序提供：两次 `$queryRaw`（订单行锁、成员行锁）+ 圈子查询 +
+  // 成员更新 + 订单条件认领。断言仍是「quantity=2 从原到期日顺延 730 天」，口径未变。
   it("confirmRenew：quantity=2 的两年订单顺延 730 天", async () => {
     const { svc, prisma } = buildMocks();
     prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
@@ -138,13 +141,27 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     prisma.circleMember.findUnique.mockResolvedValue({ ...MEMBER, expireAt });
     prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 2, payAmount: 547.5, amount: 547.5 });
     const tx = {
+      $queryRaw: jest.fn()
+        // ① 订单行 FOR UPDATE
+        .mockResolvedValueOnce([{
+          id: "o1", userId: "u1", type: "CIRCLE_RENEW", targetId: "c1", quantity: 2,
+          status: "PAID", paidAt: new Date("2026-09-19T00:00:00Z"), refundedAt: null,
+        }])
+        // ② 成员行 FOR UPDATE
+        .mockResolvedValueOnce([{ id: "m1", expireAt }]),
+      circle: { findUnique: jest.fn().mockResolvedValue({ id: "c1", type: "YEARLY", status: "ACTIVE" }) },
       circleMember: { update: jest.fn().mockResolvedValue({ id: "m1" }) },
-      order: { update: jest.fn().mockResolvedValue({}) },
+      order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
 
     const r = await svc.confirmRenew("c1", "u1", { orderId: "o1" });
     const expected = new Date(expireAt.getTime() + 730 * 24 * 60 * 60 * 1000).toISOString();
     expect(r.newExpireAt).toBe(expected);
+    // 订单认领必须发生在同一事务内（原实现是事务外的第二次独立写入）
+    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.circleMember.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { expireAt: new Date(expected) } }),
+    );
   });
 });
