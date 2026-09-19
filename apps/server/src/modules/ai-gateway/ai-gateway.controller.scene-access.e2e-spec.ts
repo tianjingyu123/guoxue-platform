@@ -7,7 +7,7 @@ import request from "supertest";
 
 import { AiGatewayController } from "./ai-gateway.controller";
 import { AiGatewayService } from "./ai-gateway.service";
-import { ModelRouterService } from "./model-router.service";
+import { ModelRouterService, type ModelRoutingConfig } from "./model-router.service";
 import { StreamUnifierService } from "./stream-unifier.service";
 import { ChatSceneAccessService } from "./chat-scene-access.service";
 import { DeepSeekAdapter } from "./adapters/deepseek.adapter";
@@ -20,25 +20,48 @@ import { chineseValidationExceptionFactory } from "../../common/validation-chine
  * 通用 AI 对话接口的场景准入与输入收口 —— HTTP 入口级验证。
  *
  * ## 隔离性（重要）
- * - 供应商为**本机桩模型**（临时 http server，端口由系统分配 `listen(0)`，不固定占用），
+ * - 供应商为**本机桩模型**（临时 `http.Server`，`listen(0)` 由系统分配端口，不固定占用），
  *   全程 **不调用任何付费模型**；
- * - 不连数据库、不连 Redis、**不执行 `prisma generate`**，不写 node_modules；
+ * - 不连数据库、不连 Redis、**不执行 `prisma generate`**，不写 `node_modules`；
  *   测试中没有任何 Prisma 模型读写（`@prisma/client` 仅因控制器依赖链被加载，只读且未使用任何模型）；
  * - 不启动平台服务、不占用其他任务的端口。
  *
  * ## 被测链路
- * 真实 HTTP → 全局管道（SanitizePipe + ValidationPipe，配置与 `main.ts:154-163` 一致）
- *   → 真实 AiGatewayController → 真实 ChatSceneAccessService
- *   → 网关替身（逐字复刻 `ai-gateway.service.ts:93` 的 `{...options, ...req.options}` 合并）
- *   → **真实 DeepSeekAdapter** → 桩模型
+ * ```
+ * 真实 HTTP(supertest)
+ *   → 全局管道 SanitizePipe + ValidationPipe（配置逐项对齐 main.ts:154-163）
+ *   → 真实 AiGatewayController
+ *   → 真实 ChatSceneAccessService（含最终生效参数解析）
+ *   → 网关替身（逐字复刻 ai-gateway.service.ts:93 的 {...routeOptions, ...req.options} 合并，
+ *      且 routeOptions 由与被测服务同一份路由配置按 model-router.service.ts resolve() 的取值链推导）
+ *   → 真实 DeepSeekAdapter → 桩模型
+ * ```
  *
- * 网关替身的说明：`AiGatewayService` 在主工作区有未提交改动（09-17 用量记账），
- * 本候选基于 HEAD，不改动该文件，因此用替身承接，并把合并逻辑逐字复刻以保证
- * 「未传参数不得覆盖路由默认值」这一条是端到端可信的 —— 断言取自**桩模型实际收到的请求体**。
+ * 所有"最终发给供应商的参数"断言都取自**桩模型实际收到的请求体**，不是替身的内部状态。
+ *
+ * **为什么用网关替身**：`ai-gateway.service.ts` 在主工作区有未提交改动，本候选基于 HEAD
+ * 且不改该文件（本轮限定只影响通用 HTTP 入口，不擅自改变其他内部调用）。
  */
 
-const ROUTE_OPTIONS = { temperature: 0.25, maxTokens: 333, topP: 0.77 };
 const ROUTE_MODEL = "deepseek-stub-model";
+
+/** 与 nl2sql / general_chat 两个场景的边界都兼容；取非常规数字，避免与适配器硬编码 0.3/2048/0.9 混淆 */
+const CONFIG_COMPATIBLE: ModelRoutingConfig = {
+  default: { model: ROUTE_MODEL, temperature: 0.25, maxTokens: 333, topP: 0.77 },
+  scenes: {},
+};
+
+/** 与 prisma/seed.ts:1233 的 default 一致：maxTokens 2048 超过 nl2sql 的 500 */
+const CONFIG_SEED_LIKE: ModelRoutingConfig = {
+  default: { model: ROUTE_MODEL, temperature: 0.3, maxTokens: 2048, topP: 0.9 },
+  scenes: {},
+};
+
+/** 三项都超过 nl2sql 的边界（500 / 0.3 / 0.9） */
+const CONFIG_OVER: ModelRoutingConfig = {
+  default: { model: ROUTE_MODEL, temperature: 0.9, maxTokens: 4096, topP: 0.95 },
+  scenes: {},
+};
 
 interface StubRecord {
   model: string;
@@ -58,11 +81,9 @@ class StubModelServer {
   get callCount(): number {
     return this.received.length;
   }
-
   get baseUrl(): string {
     return `http://127.0.0.1:${this.port}`;
   }
-
   reset(): void {
     this.received.length = 0;
   }
@@ -111,6 +132,8 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   let app: INestApplication;
   const stub = new StubModelServer();
   let gatewayCalls = 0;
+  /** 被测服务与网关替身共用同一份路由配置，单个用例内可改 */
+  let routingConfig: ModelRoutingConfig = CONFIG_COMPATIBLE;
 
   beforeAll(async () => {
     await stub.start();
@@ -119,16 +142,26 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
 
     const adapter = new DeepSeekAdapter();
 
+    /** 复刻 model-router.service.ts resolve() 的 options 取值链 */
+    const routeOptionsOf = (scene: string) => {
+      const sc = routingConfig.scenes?.[scene] || routingConfig.default;
+      return {
+        temperature: sc?.temperature ?? routingConfig.default?.temperature ?? 0.3,
+        maxTokens: sc?.maxTokens ?? routingConfig.default?.maxTokens ?? 2048,
+        topP: sc?.topP ?? routingConfig.default?.topP ?? 0.9,
+      };
+    };
+
     // 网关替身：合并逻辑逐字复刻 ai-gateway.service.ts:93 / :188
     const gatewayDouble = {
       async chat(req: { scene: string; messages: any[]; options?: any }) {
         gatewayCalls++;
-        const merged = { ...ROUTE_OPTIONS, ...req.options };
+        const merged = { ...routeOptionsOf(req.scene), ...req.options };
         return adapter.chat(ROUTE_MODEL, req.messages, merged);
       },
       async *chatStream(req: { scene: string; messages: any[]; options?: any }) {
         gatewayCalls++;
-        const merged = { ...ROUTE_OPTIONS, ...req.options };
+        const merged = { ...routeOptionsOf(req.scene), ...req.options };
         yield* adapter.chatStream(ROUTE_MODEL, req.messages, merged);
       },
     };
@@ -142,13 +175,12 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
         {
           provide: ModelRouterService,
           useValue: {
-            getRoutingConfig: async () => ({ default: { model: ROUTE_MODEL, ...ROUTE_OPTIONS }, scenes: {} }),
+            getRoutingConfig: async () => routingConfig,
             getSceneBudgets: async () => ({ defaultModel: ROUTE_MODEL, scenes: {}, totalScenes: 0 }),
           },
         },
       ],
     })
-      // 身份由测试头注入，等价于 JwtAuthGuard 已通过
       .overrideGuard(JwtAuthGuard)
       .useValue({
         canActivate: (ctx: any) => {
@@ -163,7 +195,6 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
       .compile();
 
     app = moduleRef.createNestApplication();
-    // 与 main.ts:154-163 一致
     app.useGlobalPipes(
       new SanitizePipe(),
       new ValidationPipe({
@@ -184,20 +215,21 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   beforeEach(() => {
     stub.reset();
     gatewayCalls = 0;
+    routingConfig = CONFIG_COMPATIBLE;
   });
 
   const asUser = (r: request.Test) => r.set("x-test-user", "u-normal");
   const asAdmin = (r: request.Test) =>
     r.set("x-test-user", "u-admin").set("x-test-roles", "OPERATION_ADMIN");
 
-  // ────────────── 一、未授权场景被拒，且供应商零调用 ──────────────
+  // ────────────── 一、场景准入 ──────────────
 
   describe("场景准入", () => {
     it.each([
       ["未登记的场景名", "totally_made_up_scene"],
-      ["内部场景 zhixuan_chat（有自己的额度门禁）", "zhixuan_chat"],
-      ["内部场景 circle_assistant（有自己的成员门禁）", "circle_assistant"],
-      ["内部场景 paipan_report（有自己的归属校验）", "paipan_report"],
+      ["内部场景 zhixuan_chat", "zhixuan_chat"],
+      ["内部场景 circle_assistant", "circle_assistant"],
+      ["内部场景 paipan_report", "paipan_report"],
       ["管理端场景 nl2sql，但调用者是普通用户", "nl2sql"],
     ])("普通用户请求 %s → 403，桩模型调用次数为 0", async (_label, scene) => {
       const res = await asUser(
@@ -241,65 +273,29 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     });
   });
 
-  // ────────────── 二、畸形消息与超限输入被拒 ──────────────
+  // ────────────── 二、输入校验 ──────────────
 
   describe("输入校验", () => {
     const bad: Array<[string, unknown]> = [
       ["messages 为空数组", { scene: "general_chat", messages: [] }],
       ["messages 缺失", { scene: "general_chat" }],
-      [
-        "role 非法",
-        { scene: "general_chat", messages: [{ role: "root", content: "x" }] },
-      ],
-      [
-        "content 不是字符串",
-        { scene: "general_chat", messages: [{ role: "user", content: { a: 1 } }] },
-      ],
-      [
-        "content 为空串",
-        { scene: "general_chat", messages: [{ role: "user", content: "" }] },
-      ],
-      [
-        "scene 含非法字符",
-        { scene: "general chat/../admin", messages: [{ role: "user", content: "x" }] },
-      ],
-      [
-        "maxTokens 非整数",
-        { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 12.5 },
-      ],
-      [
-        "maxTokens 超出场景上限 2048",
-        { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 999999 },
-      ],
-      [
-        "maxTokens 为 0",
-        { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 0 },
-      ],
-      [
-        "temperature 超出场景上限 1",
-        { scene: "general_chat", messages: [{ role: "user", content: "x" }], temperature: 5 },
-      ],
-      [
-        "topP 超出场景上限 1",
-        { scene: "general_chat", messages: [{ role: "user", content: "x" }], topP: 1.5 },
-      ],
+      ["role 非法", { scene: "general_chat", messages: [{ role: "root", content: "x" }] }],
+      ["content 不是字符串", { scene: "general_chat", messages: [{ role: "user", content: { a: 1 } }] }],
+      ["content 为空串", { scene: "general_chat", messages: [{ role: "user", content: "" }] }],
+      ["scene 含非法字符", { scene: "general chat/../admin", messages: [{ role: "user", content: "x" }] }],
+      ["maxTokens 非整数", { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 12.5 }],
+      ["maxTokens 超出场景上限 2048", { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 999999 }],
+      ["maxTokens 为 0", { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 0 }],
+      ["temperature 超出场景上限 1", { scene: "general_chat", messages: [{ role: "user", content: "x" }], temperature: 5 }],
+      ["topP 超出场景上限 1", { scene: "general_chat", messages: [{ role: "user", content: "x" }], topP: 1.5 }],
       [
         "消息条数超出场景上限 20",
-        {
-          scene: "general_chat",
-          messages: Array.from({ length: 21 }, () => ({ role: "user", content: "x" })),
-        },
+        { scene: "general_chat", messages: Array.from({ length: 21 }, () => ({ role: "user", content: "x" })) },
       ],
-      [
-        "单条长度超出场景上限 4000",
-        { scene: "general_chat", messages: [{ role: "user", content: "字".repeat(4001) }] },
-      ],
+      ["单条长度超出场景上限 4000", { scene: "general_chat", messages: [{ role: "user", content: "字".repeat(4001) }] }],
       [
         "总长度超出场景上限 12000",
-        {
-          scene: "general_chat",
-          messages: Array.from({ length: 4 }, () => ({ role: "user", content: "字".repeat(3500) })),
-        },
+        { scene: "general_chat", messages: Array.from({ length: 4 }, () => ({ role: "user", content: "字".repeat(3500) })) },
       ],
     ];
 
@@ -333,56 +329,152 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     });
   });
 
-  // ────────────── 三、未传参数不得覆盖路由默认值 ──────────────
+  // ────────────── 三、最终生效参数（本轮重点） ──────────────
 
-  describe("路由默认值", () => {
-    it("完全不传可选参数 → 供应商收到的是路由配置值", async () => {
+  describe("最终生效参数", () => {
+    it("合法的路由默认值原样保留（不裁剪、不改写）", async () => {
+      routingConfig = CONFIG_COMPATIBLE;
+
       await asUser(
         request(app.getHttpServer())
           .post("/ai/chat")
           .send({ scene: "general_chat", messages: [{ role: "user", content: "你好" }] }),
+      ).expect(201);
+
+      expect(stub.received[0]).toMatchObject({
+        model: ROUTE_MODEL,
+        temperature: 0.25,
+        max_tokens: 333,
+        top_p: 0.77,
+      });
+    });
+
+    it("nl2sql 不传 maxTokens、路由默认 2048 时，发给供应商的不得超过场景上限 500", async () => {
+      routingConfig = CONFIG_SEED_LIKE; // 与 prisma/seed.ts 的 default 一致
+
+      await asAdmin(
+        request(app.getHttpServer())
+          .post("/ai/chat")
+          .send({ scene: "nl2sql", messages: [{ role: "user", content: "最近7天订单" }] }),
       ).expect(201);
 
       expect(stub.callCount).toBe(1);
+      expect(stub.received[0].max_tokens).toBe(500);
+      expect(stub.received[0].max_tokens).toBeLessThanOrEqual(500);
+      // temperature / topP 在该配置下未越界，应原样保留
+      expect(stub.received[0].temperature).toBe(0.3);
+      expect(stub.received[0].top_p).toBe(0.9);
+    });
+
+    it("路由默认值三项全部越界时，三项都被裁剪到 nl2sql 的场景边界", async () => {
+      routingConfig = CONFIG_OVER; // 0.9 / 4096 / 0.95
+
+      await asAdmin(
+        request(app.getHttpServer())
+          .post("/ai/chat")
+          .send({ scene: "nl2sql", messages: [{ role: "user", content: "x" }] }),
+      ).expect(201);
+
       expect(stub.received[0]).toMatchObject({
-        model: ROUTE_MODEL,
-        temperature: ROUTE_OPTIONS.temperature,
-        max_tokens: ROUTE_OPTIONS.maxTokens,
-        top_p: ROUTE_OPTIONS.topP,
+        temperature: 0.3,
+        max_tokens: 500,
+        top_p: 0.9,
       });
     });
 
-    it("只传 maxTokens → 只有它被覆盖，其余仍是路由配置值", async () => {
+    it("general_chat 的路由默认值越界时同样被裁剪到该场景边界 2048", async () => {
+      routingConfig = CONFIG_OVER; // maxTokens 4096
+
       await asUser(
         request(app.getHttpServer())
           .post("/ai/chat")
-          .send({ scene: "general_chat", messages: [{ role: "user", content: "你好" }], maxTokens: 128 }),
+          .send({ scene: "general_chat", messages: [{ role: "user", content: "x" }] }),
+      ).expect(201);
+
+      expect(stub.received[0].max_tokens).toBe(2048);
+      // general_chat 的 temperature 上限是 1，0.9 合法 → 保留
+      expect(stub.received[0].temperature).toBe(0.9);
+    });
+
+    it("调用方显式传入的越界值一律拒绝，不做裁剪", async () => {
+      routingConfig = CONFIG_SEED_LIKE;
+
+      const res = await asAdmin(
+        request(app.getHttpServer())
+          .post("/ai/chat")
+          .send({ scene: "nl2sql", messages: [{ role: "user", content: "x" }], maxTokens: 2048 }),
+      );
+
+      expect(res.status).toBe(400);
+      expect(stub.callCount).toBe(0);
+    });
+
+    it("只传一项时，另两项仍走（必要时裁剪后的）路由默认值", async () => {
+      routingConfig = CONFIG_SEED_LIKE;
+
+      await asAdmin(
+        request(app.getHttpServer())
+          .post("/ai/chat")
+          .send({ scene: "nl2sql", messages: [{ role: "user", content: "x" }], temperature: 0.1 }),
       ).expect(201);
 
       expect(stub.received[0]).toMatchObject({
-        temperature: ROUTE_OPTIONS.temperature,
-        max_tokens: 128,
-        top_p: ROUTE_OPTIONS.topP,
+        temperature: 0.1, // 调用方的合法取值
+        max_tokens: 500, // 路由 2048 → 裁剪
+        top_p: 0.9, // 路由值合法 → 保留
       });
     });
 
-    it("流式路径同样保留路由默认值", async () => {
-      await asUser(
-        request(app.getHttpServer())
-          .post("/ai/chat/stream")
-          .send({ scene: "general_chat", messages: [{ role: "user", content: "你好" }] }),
-      ).expect(201);
+    it("流式与非流式的最终生效参数完全一致", async () => {
+      routingConfig = CONFIG_OVER;
+      const body = { scene: "nl2sql", messages: [{ role: "user", content: "同一请求" }] };
 
-      expect(stub.received[0]).toMatchObject({
-        stream: true,
-        temperature: ROUTE_OPTIONS.temperature,
-        max_tokens: ROUTE_OPTIONS.maxTokens,
-        top_p: ROUTE_OPTIONS.topP,
+      await asAdmin(request(app.getHttpServer()).post("/ai/chat").send(body)).expect(201);
+      await asAdmin(request(app.getHttpServer()).post("/ai/chat/stream").send(body)).expect(201);
+
+      expect(stub.callCount).toBe(2);
+      const [nonStream, streamed] = stub.received;
+      expect(streamed.stream).toBe(true);
+      expect(nonStream.stream).toBe(false);
+      expect({
+        temperature: streamed.temperature,
+        max_tokens: streamed.max_tokens,
+        top_p: streamed.top_p,
+      }).toEqual({
+        temperature: nonStream.temperature,
+        max_tokens: nonStream.max_tokens,
+        top_p: nonStream.top_p,
       });
+      expect(streamed.max_tokens).toBe(500);
     });
   });
 
-  // ────────────── 四、正常调用兼容性（已知调用方） ──────────────
+  // ────────────── 四、拒绝发生在供应商调用与 SSE 响应头之前 ──────────────
+
+  describe("流式拒绝路径", () => {
+    it.each([
+      ["场景无权", 403, { scene: "nl2sql", messages: [{ role: "user", content: "x" }] }],
+      ["输入超限", 400, { scene: "general_chat", messages: [{ role: "user", content: "字".repeat(4001) }] }],
+      [
+        "调用方参数越界",
+        400,
+        { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 999999 },
+      ],
+    ])("%s → 普通 JSON %s，响应不是 SSE、不含任何 data: 行，桩模型零调用", async (_label, status, payload) => {
+      const res = await asUser(
+        request(app.getHttpServer()).post("/ai/chat/stream").send(payload as object),
+      );
+
+      expect(res.status).toBe(status);
+      expect(res.headers["content-type"]).toContain("application/json");
+      expect(res.headers["content-type"]).not.toContain("text/event-stream");
+      expect(res.text).not.toContain("data:");
+      expect(stub.callCount).toBe(0);
+      expect(gatewayCalls).toBe(0);
+    });
+  });
+
+  // ────────────── 五、已知调用方兼容 ──────────────
 
   describe("已知调用方兼容", () => {
     it("k6 压测脚本的请求体（general_chat + 平铺 temperature/maxTokens）仍然成功", async () => {
@@ -403,63 +495,46 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
       expect(stub.received[0]).toMatchObject({ temperature: 0.7, max_tokens: 128 });
     });
 
-    it("管理端 DataExplorer 的请求体（nl2sql + system 上下文 + 嵌套 options）在管理员身份下仍然成功", async () => {
-      // 取自 apps/admin/src/views/ai/DataExplorer.vue:165-183 与 ChatUI.vue:142-146
+    it("管理端 DataExplorer 的真实请求体：流式可用，嵌套 options 被忽略，最终参数由路由+裁剪决定", async () => {
+      // 路由配置取与 prisma/seed.ts:1233 一致的 default，贴近真实部署
+      routingConfig = CONFIG_SEED_LIKE;
+
+      // 请求体取自 apps/admin/src/views/ai/DataExplorer.vue:165-183 与 ChatUI.vue:142-152
       const res = await asAdmin(
         request(app.getHttpServer())
           .post("/ai/chat/stream")
           .send({
             scene: "nl2sql",
             messages: [
-              { role: "system", content: "你是一个 SQL 专家。数据库是 PostgreSQL。" },
+              {
+                role: "system",
+                content:
+                  "\n你是一个 SQL 专家。数据库是 PostgreSQL。\n可查询的表：User (用户), Content (内容), Comment (评论)\n查询规则：\n1. 只生成 SELECT 查询\n",
+              },
               { role: "user", content: "最近7天每天的订单金额" },
             ],
-            // 管理端把参数嵌在 options 里下发；ChatDto 是平铺字段，
-            // 该对象会被 whitelist 剥掉 —— 此前如此，本次改动后仍然如此（见交付说明 D-2）
+            // 管理端把参数嵌在 options 对象里下发；ChatDto 是平铺字段，
+            // 该对象被全局 whitelist 剥掉 —— 改动前后都如此
             options: { maxTokens: 500, temperature: 0.1 },
           }),
       );
 
+      // 输出可用：SSE 正常，chunk 与 done 都在
       expect(res.status).toBe(201);
       expect(res.headers["content-type"]).toContain("text/event-stream");
       expect(res.text).toContain('"type":"chunk"');
       expect(res.text).toContain('"type":"done"');
-      // options 被剥离 → 用的是路由配置值，不是管理端以为的 500/0.1
-      expect(stub.received[0]).toMatchObject({
-        max_tokens: ROUTE_OPTIONS.maxTokens,
-        temperature: ROUTE_OPTIONS.temperature,
-      });
-    });
-  });
 
-  // ────────────── 五、被拒的流式请求不得留下半截 SSE ──────────────
+      // 被忽略的是管理端嵌套 options 里的两项：
+      // - temperature 意图 0.1，实际用路由值 0.3（**未生效**）
+      // - maxTokens  意图 500，实际是路由 2048 被裁剪到场景上限 500（**数值恰好相同，但不是它生效了**）
+      expect(stub.received[0].temperature).toBe(0.3);
+      expect(stub.received[0].temperature).not.toBe(0.1);
+      expect(stub.received[0].max_tokens).toBe(500);
+      expect(stub.received[0].top_p).toBe(0.9);
 
-  describe("流式拒绝路径", () => {
-    it("场景无权 → 普通 JSON 403，响应不是 SSE、不含任何 data: 行", async () => {
-      const res = await asUser(
-        request(app.getHttpServer())
-          .post("/ai/chat/stream")
-          .send({ scene: "nl2sql", messages: [{ role: "user", content: "x" }] }),
-      );
-
-      expect(res.status).toBe(403);
-      expect(res.headers["content-type"]).toContain("application/json");
-      expect(res.headers["content-type"]).not.toContain("text/event-stream");
-      expect(res.text).not.toContain("data:");
-      expect(stub.callCount).toBe(0);
-    });
-
-    it("输入超限 → 普通 JSON 400，响应不是 SSE、不含任何 data: 行", async () => {
-      const res = await asUser(
-        request(app.getHttpServer())
-          .post("/ai/chat/stream")
-          .send({ scene: "general_chat", messages: [{ role: "user", content: "字".repeat(4001) }] }),
-      );
-
-      expect(res.status).toBe(400);
-      expect(res.headers["content-type"]).toContain("application/json");
-      expect(res.text).not.toContain("data:");
-      expect(stub.callCount).toBe(0);
+      // 系统提示词原样送达（SanitizePipe 对 content 字段放行）
+      expect(stub.received[0].messages[0].content).toContain("你是一个 SQL 专家");
     });
   });
 
