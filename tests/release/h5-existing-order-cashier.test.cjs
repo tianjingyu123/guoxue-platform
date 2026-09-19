@@ -254,15 +254,34 @@ test('详情真实去支付选择渠道；原订单ID不变，取消不发请求
   await fn(); assert.equal(paths.length, 0); assert.equal(options.itemList.length, 2)
   options.success({ tapIndex: 1 }); assert.equal(paths[0], api.existingOrderCashierRoute('old-one', 'unionpay', true))
 })
-test('非H5 checkout和详情不新增支付宝/云闪付支持', () => {
+test('iOS和小程序checkout与详情保留原有支付分支', () => {
   for (const target of ['APP-PLUS', 'MP-WEIXIN']) {
     const code = platform(file('lib/shop-data.ts'), target); const tree = ts.createSourceFile('data.ts', code, ts.ScriptTarget.Latest, true)
     const declaration = tree.statements.filter(ts.isVariableStatement).flatMap(s => [...s.declarationList.declarations]).find(n => n.name.getText(tree) === 'checkoutPayMethods')
     const options = compile('exports.options=' + declaration.initializer.getText(tree)).options
     assert.deepEqual(Array.from(options, x => x.id), ['wechat'])
-    let old = 0; realFunction('pkg-order/detail/index.vue', 'goPay', target, { order: { value: { id: 'one' } }, goLegacyPay: () => { old++ } })(); assert.equal(old, 1)
+    let old = 0; realFunction('pkg-order/detail/index.vue', 'goPay', target, { order: { value: { id: 'one' } }, uni: { getSystemInfoSync: () => ({ platform: 'ios' }) }, isAndroidPaymentPlatform: p => p === 'android', goLegacyPay: () => { old++ } })(); assert.equal(old, 1)
     assert.equal(platform(file('pages.json'), target).includes('"huifu-paying/index"'), false)
   }
+})
+
+test('安卓真实checkout、原订单、购买弹层均进入支付宝，未开通渠道建单前拦截', async () => {
+  const native=compile(file('utils/android-payment-options.ts'))
+  const paths=[], errors=[]; let creates=0
+  const uni={getSystemInfoSync:()=>({platform:'android'}),showToast:x=>errors.push(x.title)}
+  assert.deepEqual(Array.from(native.androidPaymentMethods(),x=>x.id),['alipay'])
+  const refs={submitting:{value:false},items:{value:[{productId:'product',quantity:1}]},currentAddress:{value:{id:'address'}},estimate:{value:{}},selectedCoupon:{value:null},createdOrders:new Map(),contentSource:{value:{}},payMethod:{value:'wechat'}}
+  const checkout=realFunction('pkg-shop/checkout/index.vue','submitOrder','APP-PLUS',{...refs,...native,uni,shopApi:{createOrder:async()=>{creates++;return{id:'order-one',amount:0.01}}},redirectTo:p=>paths.push(p)})
+  await checkout(); assert.equal(creates,0); assert.equal(errors.length,1)
+  refs.payMethod.value='alipay'; await checkout(); assert.equal(creates,1); assert.match(paths.pop(),/orderId=order-one&method=alipay/)
+  const order={value:{id:'order-one',status:'pending_pay'}}
+  const detail=realFunction('pkg-order/detail/index.vue','goPay','APP-PLUS',{order,uni,...native,navigateTo:p=>paths.push(p),goLegacyPay:()=>{throw Error('wrong branch')}})
+  await detail(); assert.equal(paths.pop(),'/shop/paying?orderId=order-one&method=alipay')
+  order.value.status='completed'; await detail(); assert.equal(paths.length,0)
+  const state={paying:{value:false},props:{product:{id:'product'},bizType:'PRODUCT'},hasSku:{value:false},selectedSku:{value:null},quantity:{value:1},total:{value:0.01},payMethod:{value:'wechat'}}
+  const sheet=realFunction('components/common/purchase-sheet.vue','onPay','APP-PLUS',{...state,...native,uni,purchaseApi:{createOrder:async()=>{creates++;return{id:'order-sheet'}}},onClose:()=>{},navigateTo:p=>paths.push(p)})
+  await sheet(); assert.equal(creates,1)
+  state.payMethod.value='alipay'; await sheet(); assert.equal(creates,2); assert.match(paths.pop(),/orderId=order-sheet&method=alipay/)
 })
 test('旧paying显式非微信链接提前转汇付，绝不触发微信授权/支付', () => {
   const source = ts.createSourceFile('page.ts', script('pkg-shop/paying/index.vue'), ts.ScriptTarget.Latest, true)
@@ -389,14 +408,29 @@ test('confirmed不能绕过归属、有效金额、终态、渠道禁用或未�
 })
 
 test('订单返回首次直读，后续缓存不回退同账号原单；退款和不同账号状态不冻结',async()=>{
+  for (const target of ['H5','APP-PLUS']) {
   const order={value:null},calls=[];let account='owner',next={id:'one',status:'pending_ship'}
-  const load=realFunction('pkg-order/detail/index.vue','loadData','H5',{
+  const load=realFunction('pkg-order/detail/index.vue','loadData',target,{
+    uni:{getSystemInfoSync:()=>({platform:'android'})},isAndroidPaymentPlatform:p=>p==='android',
     loading:{value:false},error:{value:''},freshAfterPayment:true,lastOrderAccount:'',order,orderId:{value:'one'},getUserInfo:()=>({id:account}),
     orderApi:{detail:async(id,fresh)=>{calls.push(fresh);return {...next}}},
   })
   await load();next.status='pending_pay';await load();assert.equal(order.value.status,'pending_ship');assert.deepEqual(calls,[true,false])
   next.status='refunded';await load();assert.equal(order.value.status,'refunded')
   account='other';next.status='pending_pay';await load();assert.equal(order.value.status,'pending_pay')
+  }
+})
+
+test('安卓真实付款完成只回原订单一次，账号变化不跳转',async()=>{
+  for (const owner of ['owner','other']) {
+    const paths=[];let settles=0
+    const paid=realFunction('pkg-shop/paying/index.vue','onHuifuAlipayPaid','APP-PLUS',{
+      alipayReturned:false,nativePageActive:true,paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:owner}),
+      settleCircleIfNeeded:async()=>{settles++},redirectTo:p=>paths.push(p),
+    })
+    await paid({id:'one',status:'PAID'});await paid({id:'one',status:'PAID'})
+    assert.deepEqual(paths,owner==='owner'?['/orders/one?paymentReturn=1']:[]);assert.equal(settles,owner==='owner'?1:0)
+  }
 })
 
 test('真实checkout禁用渠道在业务建单前拦截；原单仅一个可用渠道时直接进入',async()=>{

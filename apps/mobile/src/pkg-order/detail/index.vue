@@ -172,11 +172,14 @@ import { navigateTo } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
+import { getUserInfo } from '@/utils/storage'
+// #ifdef APP-PLUS
+import { isAndroidPaymentPlatform } from '@/utils/android-payment-options'
+// #endif
 // #ifdef H5
 import { existingOrderCashierRoute, type HuifuChannel } from '@/utils/existing-order-huifu'
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
-import { getUserInfo } from '@/utils/storage'
 // #endif
 
 const loading = ref(false)
@@ -186,9 +189,7 @@ const copied = ref(false)
 const orderId = ref('1')
 const submitting = ref(false)
 let freshAfterPayment = false
-// #ifdef H5
 let lastOrderAccount = ''
-// #endif
 
 // 虚拟商品订单（课程/会员等）：三段步骤，付款即交付；实物走四段物流步骤
 const steps = computed(() => (order.value?.isVirtual ? virtualDetailSteps : detailSteps))
@@ -215,9 +216,7 @@ async function loadData(silent = false) {
   const fresh = freshAfterPayment
   freshAfterPayment = false
   try {
-    // #ifdef H5
     const account = String(getUserInfo<{ id?: string }>()?.id || '')
-    // #endif
     const latest = await orderApi.detail(orderId.value, fresh)
     let accept = true
     // #ifdef H5
@@ -225,6 +224,13 @@ async function loadData(silent = false) {
     // 缓存清理失败时，不用旧待付快照覆盖已由服务端确认的状态。
     accept = fresh || lastOrderAccount !== account || !order.value || order.value.id !== latest.id || order.value.status === 'pending_pay' || latest.status !== 'pending_pay'
     lastOrderAccount = account
+    // #endif
+    // #ifdef APP-PLUS
+    if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) {
+      if (!account || account !== String(getUserInfo<{ id?: string }>()?.id || '')) throw new Error('登录账号已变化，请重新进入订单')
+      accept = fresh || lastOrderAccount !== account || !order.value || order.value.id !== latest.id || order.value.status === 'pending_pay' || latest.status !== 'pending_pay'
+      lastOrderAccount = account
+    }
     // #endif
     if (accept) order.value = latest
     error.value = ''
@@ -238,6 +244,9 @@ onLoad((q) => {
   // 返回标记只触发本人订单直读，不能代表已支付。
   // #ifdef H5
   freshAfterPayment = q?.paymentReturn === '1'
+  // #endif
+  // #ifdef APP-PLUS
+  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) freshAfterPayment = q?.paymentReturn === '1'
   // #endif
 })
 usePageRefresh(() => loadData(Boolean(order.value)))
@@ -256,6 +265,13 @@ let choosingPayment = false
 // #endif
 async function goPay() {
   if (!order.value) return
+  // #ifdef APP-PLUS
+  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) {
+    if (order.value.status !== 'pending_pay') return
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.value.id)}&method=alipay`)
+    return
+  }
+  // #endif
   // #ifdef H5
   if (choosingPayment) return
   choosingPayment = true

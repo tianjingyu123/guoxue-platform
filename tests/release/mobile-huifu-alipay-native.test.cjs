@@ -10,7 +10,7 @@ const { buildAlipayNativeUrl, createAlipayNativePayment } = mod.exports
 const qr = 'https://qr.alipay.com/test?x=1&y=a%2Bb'
 
 function fixture(overrides = {}) {
-  let record = { status: 'PENDING' }, saved = null, view = {}, failOpen, creates = 0, opened = 0, paid = 0, queries = 0
+  let record = { id: 'order-one', amount: '0.01', status: 'PENDING' }, saved = null, view = {}, failOpen, creates = 0, opened = 0, paid = 0, queries = 0
   const d = {
     orderId: 'order-one', platform: 'Android', now: () => 100000, active: () => true,
     readOrder: async () => ({ ...record }),
@@ -20,7 +20,7 @@ function fixture(overrides = {}) {
     openUrl: (url, fail) => { opened++; assert.equal(url, buildAlipayNativeUrl(qr)); failOpen = fail },
     update: (v) => { view = v }, paid: () => { paid++ }, ...overrides,
   }
-  return { d, flow: createAlipayNativePayment(d), setOrder: (v) => { record = v }, get view() { return view }, get saved() { return saved }, fail: () => failOpen(), counts: () => ({ creates, opened, paid, queries }) }
+  return { d, flow: createAlipayNativePayment(d), setOrder: (v) => { record = { id: 'order-one', amount: '0.01', ...v } }, get view() { return view }, get saved() { return saved }, fail: () => failOpen(), counts: () => ({ creates, opened, paid, queries }) }
 }
 
 test('二维码整体编码，不把内层查询参数注入支付宝 scheme', () => {
@@ -118,5 +118,77 @@ test('离开页面后迟到查询不触发成功导航，返回后重新确认',
   f.d.readOrder = () => new Promise(r => { release = r })
   const checking = f.flow.check(); active = false; release({ status: 'PAID' }); await checking
   assert.equal(f.counts().paid, 0)
-  active = true; f.d.readOrder = async () => ({ status: 'PAID' }); await f.flow.check(); assert.equal(f.counts().paid, 1)
+  active = true; f.d.readOrder = async () => ({ id: 'order-one', amount: '0.01', status: 'PAID' }); await f.flow.check(); assert.equal(f.counts().paid, 1)
+})
+
+test('初始化前后直读订单，旧缓存缺流水也能打开且金额不使用路由参数', async () => {
+  const reads = []; let created = false
+  const f = fixture({
+    readOrder: async fresh => { reads.push(fresh); return { id: 'order-one', amount: '0.01', status: 'PENDING', ...(fresh && created ? { payMethod: 'HUIFU', payTransactionId: 'HF-one' } : {}) } },
+    createPayment: async () => { created = true; return { outTradeNo: 'HF-one', qrCode: qr } },
+  })
+  await f.flow.start(); assert.equal(f.counts().opened, 1); assert.deepEqual(reads, [true, true])
+})
+
+test('缓存一直待付时有限直读仍能发现到账，查询S不能单独判成功', async () => {
+  let now = 100000, created = false, dbPaid = false; const reads = []
+  const f = fixture({ now: () => now,
+    readOrder: async fresh => { reads.push({ now, fresh }); return { id: 'order-one', amount: '0.01', status: fresh && dbPaid ? 'PAID' : 'PENDING', ...(created ? { payMethod: 'HUIFU', payTransactionId: 'HF-one' } : {}) } },
+    createPayment: async () => { created = true; return { outTradeNo: 'HF-one', qrCode: qr } }, queryPayment: async () => ({ trans_stat: 'S' }),
+  })
+  await f.flow.start()
+  for (let i=0;i<19;i++) { now+=3000; await f.flow.check() }
+  assert.ok(reads.filter(r=>r.fresh).length <= 8); assert.equal(f.counts().paid,0)
+  dbPaid=true; now+=12000; await f.flow.check(); assert.equal(f.counts().paid,1)
+})
+
+test('账号改变或页面离开后初始化迟到不会拉起，服务端原流水阻止重建', async () => {
+  let release, active = true
+  const f = fixture({ active:()=>active, createPayment:()=>new Promise(r=>{release=r}) })
+  const task=f.flow.start(); await new Promise(r=>setImmediate(r)); active=false
+  release({outTradeNo:'HF-one',qrCode:qr}); await task; assert.equal(f.counts().opened,0)
+  assert.ok(f.saved); active=true; f.setOrder({status:'PENDING',payMethod:'HUIFU',payTransactionId:'HF-one'})
+  await f.flow.reopen(); assert.equal(f.counts().opened,1)
+})
+
+test('错误订单、非法金额、存储读取失败时不建支付单', async () => {
+  for (const row of [{id:'other',amount:'0.01'},{id:'order-one',amount:'invalid'}]) {
+    const f=fixture({readOrder:async()=>({...row,status:'PENDING'})}); await f.flow.start(); assert.equal(f.counts().creates,0)
+  }
+  const f=fixture({load:()=>{throw Error('storage denied')}}); await f.flow.start(); assert.equal(f.counts().creates,0)
+})
+
+function componentFixture() {
+  const storage=new Map(), paths=[], opened=[], events=[], hooks={}, exported={exports:{}}
+  let account='account-one', now=100000, row={id:'order-one',amount:'0.01',status:'PENDING'}, delayPay=null
+  const modules={
+    vue:{ref:value=>({value}),onMounted:fn=>{hooks.mount=fn},onUnmounted:fn=>{hooks.unmount=fn}},
+    '@/utils/request':{apiGet:async path=>{paths.push(path);return {...row}}},
+    '@/utils/storage':{getUserInfo:()=>({id:account})},
+    '@/utils/huifu-alipay-native':mod.exports,
+    '@/lib/purchase-data':{purchaseApi:{payByChannel:async()=>{if(delayPay)await delayPay;row={...row,payMethod:'HUIFU',payTransactionId:'HF-one'};return{outTradeNo:'HF-one',qrCode:qr}},queryHuifuPayment:async()=>({trans_stat:'P'})}},
+  }
+  const src=fs.readFileSync('apps/mobile/src/components/common/huifu-alipay-payment.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
+  vm.runInNewContext(ts.transpileModule(src+'\nexports.view=view;exports.displayAmount=displayAmount;', {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
+    exports:exported.exports,require:name=>modules[name],defineProps:()=>({orderId:'order-one',amount:'999'}),defineEmits:()=>((...v)=>events.push(v)),defineExpose:api=>{hooks.api=api},Date:{now:()=>now},setTimeout:()=>1,clearTimeout:()=>{},
+    plus:{os:{name:'Android'},runtime:{openURL:url=>opened.push(url)}},uni:{getStorageSync:key=>storage.get(key),setStorageSync:(key,value)=>storage.set(key,JSON.parse(JSON.stringify(value)))},
+  })
+  return {hooks,storage,paths,opened,events,ui:exported.exports,setAccount:v=>{account=v},setNow:v=>{now=v},paid:()=>{row.status='PAID'},delay:v=>{delayPay=v}}
+}
+
+test('真实安卓组件读取/current和服务器金额，账号订单独立持久化，恢复到账只通知一次', async () => {
+  const f=componentFixture();await f.hooks.mount()
+  assert.deepEqual(f.paths,['/shop/orders/order-one/current','/shop/orders/order-one/current'])
+  assert.equal(f.ui.displayAmount.value,'0.01');assert.equal(f.opened.length,1)
+  assert.ok(f.storage.has('rebu:huifu-alipay:account-one:order-one'))
+  f.hooks.api.pause();f.paid();f.setNow(115000);await f.hooks.api.resume();await f.hooks.api.resume()
+  assert.equal(f.events.filter(v=>v[0]==='paid').length,1)
+})
+
+test('真实组件跨账号迟到的初始化响应不保存二维码、不拉起或发成功事件', async () => {
+  const f=componentFixture();let release;f.delay(new Promise(r=>{release=r}))
+  const pending=f.hooks.mount();await new Promise(r=>setImmediate(r));f.setAccount('account-two');release();await pending
+  assert.equal(f.opened.length,0);assert.equal(f.events.length,0)
+  assert.equal(f.storage.get('rebu:huifu-alipay:account-one:order-one').qrCode,undefined)
+  await f.hooks.api.resume();assert.equal(f.ui.view.value.phase,'closed')
 })

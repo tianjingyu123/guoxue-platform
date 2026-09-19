@@ -13,6 +13,8 @@ export function buildAlipayNativeUrl(value: unknown): string {
 }
 
 export interface AlipayOrderState {
+  id: string
+  amount: number | string
   status: string
   payMethod?: string | null
   payTransactionId?: string | null
@@ -30,7 +32,7 @@ export interface AlipayView { phase: AlipayPhase; busy: boolean; canOpen: boolea
 interface Dependencies {
   orderId: string
   platform: string
-  readOrder(): Promise<AlipayOrderState>
+  readOrder(fresh?: boolean): Promise<AlipayOrderState>
   createPayment(): Promise<{ outTradeNo?: string; qrCode?: string }>
   queryPayment(outTradeNo: string): Promise<unknown>
   load(): AlipayAttempt | null
@@ -48,6 +50,8 @@ export function createAlipayNativePayment(d: Dependencies) {
   let disposed = false
   let completed = false
   let openGeneration = 0
+  let lastFresh = -Infinity
+  const freshReads: number[] = []
   let attempt: AlipayAttempt | null = null
   let phase: AlipayPhase = 'ready'
   let message = '请前往支付宝完成付款'
@@ -69,6 +73,7 @@ export function createAlipayNativePayment(d: Dependencies) {
   }
   function acceptOrder(order: AlipayOrderState): boolean {
     if (disposed || !d.active()) return true
+    if (order.id !== d.orderId || !Number.isFinite(Number(order.amount)) || Number(order.amount) < 0) throw new Error('订单信息无效')
     if (['PAID', 'SHIPPED', 'COMPLETED'].includes(order.status)) {
       completed = true
       show('success', '支付结果已由服务端确认')
@@ -82,7 +87,7 @@ export function createAlipayNativePayment(d: Dependencies) {
     return false
   }
   async function run(action: () => Promise<void>) {
-    if (disposed || busy || completed) return
+    if (disposed || busy || completed || !d.active()) return
     if (d.platform.toLowerCase() !== 'android') {
       show('unsupported', '当前设备暂不支持此支付宝付款方式，请返回订单选择其他方式')
       return
@@ -96,16 +101,25 @@ export function createAlipayNativePayment(d: Dependencies) {
       show(phase, message)
     }
   }
+  // /current 每分钟限流10次；本页最多8次，普通轮询每10秒才直读一次。
+  async function read(fresh = false, required = false) {
+    const now = d.now()
+    while (freshReads.length && now - freshReads[0] >= 60000) freshReads.shift()
+    const direct = fresh && freshReads.length < 8 && (required || now - lastFresh >= 10000)
+    if (required && !direct) throw new Error('请稍后重试查询')
+    if (direct) { freshReads.push(now); lastFresh = now }
+    return d.readOrder(direct)
+  }
   async function check() {
     await run(async () => {
-      const order = await d.readOrder()
+      const order = await read(true)
       if (acceptOrder(order)) return
       // 只用本人订单保存的汇付交易号查单，不能使用任意本地缓存交易号。
       if (order.payMethod === 'HUIFU' && order.payTransactionId) {
         let queryFailed = false
         try { await d.queryPayment(order.payTransactionId) } catch { queryFailed = true }
         // 通道查单异常仍检查本地订单，异步通知可能已完成入账。
-        if (acceptOrder(await d.readOrder())) return
+        if (acceptOrder(await read(true))) return
         if (queryFailed) throw new Error('通道查单暂不可用')
       }
       show('pending', '尚未确认付款；如已付款请稍后再查，取消付款可重试原订单')
@@ -113,7 +127,7 @@ export function createAlipayNativePayment(d: Dependencies) {
   }
   async function open(allowCreate = false) {
     await run(async () => {
-      let order = await d.readOrder()
+      let order = await read(true, true)
       if (acceptOrder(order)) return
       if (order.payTransactionId && order.payMethod !== 'HUIFU') {
         show('closed', '订单已使用其他支付方式，请返回订单确认支付结果')
@@ -129,13 +143,14 @@ export function createAlipayNativePayment(d: Dependencies) {
         // 先持久化请求标记；网络超时或退出页面后再进，不创建第二笔支付。
         attempt = { orderId: d.orderId, requestedAt: d.now() }
         d.save(attempt)
+        if (disposed || !d.active()) return
         const pay = await d.createPayment()
         if (typeof pay.outTradeNo !== 'string' || !pay.outTradeNo) throw new Error('支付查询凭据缺失')
         buildAlipayNativeUrl(pay.qrCode)
         attempt = { ...attempt, outTradeNo: pay.outTradeNo, qrCode: pay.qrCode }
         d.save(attempt)
-        if (disposed) return
-        order = await d.readOrder()
+        if (disposed || !d.active()) return
+        order = await read(true, true)
         if (acceptOrder(order)) return
       }
       if (!validQr() || order.payMethod !== 'HUIFU' || order.payTransactionId !== attempt?.outTradeNo) {

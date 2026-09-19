@@ -3,7 +3,7 @@
     <app-nav-bar title="支付宝付款" custom-back @back="leave" />
     <view class="alipay-payment__body">
       <text class="alipay-payment__title">{{ view.phase === 'success' ? '支付成功' : '等待支付' }}</text>
-      <text class="alipay-payment__amount">¥{{ displayAmount }}</text>
+      <text v-if="displayAmount" class="alipay-payment__amount">¥{{ displayAmount }}</text>
       <text class="alipay-payment__message">{{ view.message }}</text>
       <button v-if="view.canOpen" :disabled="view.busy" @tap="reopen">重新打开支付宝</button>
       <button v-if="view.phase !== 'unsupported' && view.phase !== 'closed' && view.phase !== 'success'" :disabled="view.busy" @tap="check">
@@ -25,7 +25,7 @@ declare const plus: { os: { name: string }; runtime: { openURL(url: string, fail
 const props = defineProps<{ orderId: string; amount: string }>()
 const emit = defineEmits<{ (event: 'back'): void; (event: 'paid', order: AlipayOrderState): void }>()
 const view = ref<AlipayView>({ phase: 'ready', busy: false, canOpen: false, message: '正在准备付款…' })
-const displayAmount = ref(props.amount)
+const displayAmount = ref('')
 const owner = String(getUserInfo<{ id?: string }>()?.id || '')
 // rebu: 前缀随账号退出清理；不同用户和订单分别保存，重新进入仍复用原支付。
 const storageKey = `rebu:huifu-alipay:${owner}:${props.orderId}`
@@ -33,25 +33,32 @@ let timer: ReturnType<typeof setTimeout> | null = null
 let stopped = false
 let visible = true
 let polls = 0
+function sameOwner() { return Boolean(owner) && owner === String(getUserInfo<{ id?: string }>()?.id || '') }
+function assertOwner() { if (!sameOwner()) throw new Error('登录状态已变化，请重新进入订单') }
 const flow = createAlipayNativePayment({
   orderId: props.orderId,
   platform: typeof plus === 'undefined' ? '' : plus.os.name,
-  async readOrder() {
-    const currentOwner = String(getUserInfo<{ id?: string }>()?.id || '')
-    if (!owner || owner !== currentOwner) throw new Error('登录状态已变化')
-    const order = await apiGet<AlipayOrderState & { amount?: number | string }>(`/shop/orders/${encodeURIComponent(props.orderId)}`)
-    if (order.amount !== undefined) displayAmount.value = String(order.amount)
+  async readOrder(fresh = false) {
+    assertOwner()
+    const order = await apiGet<AlipayOrderState>(`/shop/orders/${encodeURIComponent(props.orderId)}${fresh ? '/current' : ''}`)
+    assertOwner()
+    if (order.id !== props.orderId || !Number.isFinite(Number(order.amount)) || Number(order.amount) < 0) throw new Error('订单信息无效')
+    displayAmount.value = Number(order.amount).toFixed(2)
     return order
   },
-  createPayment: () => purchaseApi.payByChannel(props.orderId, 'alipay'),
-  queryPayment: (outTradeNo) => purchaseApi.queryHuifuPayment(outTradeNo),
-  load: () => (uni.getStorageSync(storageKey) || null) as AlipayAttempt | null,
-  save: (attempt) => uni.setStorageSync(storageKey, attempt),
-  openUrl: (url, failed) => plus.runtime.openURL(url, failed),
-  update: (next) => { view.value = next },
-  paid: (order) => { pause(); emit('paid', order) },
+  createPayment: async () => { assertOwner(); const result = await purchaseApi.payByChannel(props.orderId, 'alipay'); assertOwner(); return result },
+  queryPayment: async (outTradeNo) => { assertOwner(); const result = await purchaseApi.queryHuifuPayment(outTradeNo); assertOwner(); return result },
+  load: () => { assertOwner(); return (uni.getStorageSync(storageKey) || null) as AlipayAttempt | null },
+  save: (attempt) => {
+    assertOwner()
+    uni.setStorageSync(storageKey, attempt)
+    if (JSON.stringify(uni.getStorageSync(storageKey)) !== JSON.stringify(attempt)) throw new Error('支付记录保存失败')
+  },
+  openUrl: (url, failed) => { assertOwner(); if (visible && !stopped) plus.runtime.openURL(url, failed) },
+  update: (next) => { if (sameOwner() && !stopped) view.value = next },
+  paid: (order) => { assertOwner(); pause(); emit('paid', order) },
   now: () => Date.now(),
-  active: () => visible && !stopped,
+  active: () => visible && !stopped && sameOwner(),
 })
 function pause() {
   visible = false
@@ -59,7 +66,7 @@ function pause() {
   timer = null
 }
 function schedule() {
-  if (stopped || !visible || timer || polls >= 70 || ['success', 'closed', 'unsupported'].includes(view.value.phase)) return
+  if (stopped || !visible || !sameOwner() || timer || polls >= 70 || ['success', 'closed', 'unsupported'].includes(view.value.phase)) return
   timer = setTimeout(async () => {
     timer = null
     polls++
@@ -71,11 +78,12 @@ async function check() { await flow.check(); schedule() }
 async function reopen() { await flow.reopen(); polls = 0; schedule() }
 async function resume() {
   if (stopped) return
+  if (!sameOwner()) { pause(); view.value = { phase: 'closed', busy: false, canOpen: false, message: '登录状态已变化，请返回订单重新进入' }; return }
   visible = true
   polls = 0
   await check()
 }
-function leave() { pause(); emit('back') }
+function leave() { stopped = true; pause(); flow.dispose(); emit('back') }
 onMounted(async () => { await flow.start(); schedule() })
 onUnmounted(() => { stopped = true; pause(); flow.dispose() })
 defineExpose({ resume, pause })

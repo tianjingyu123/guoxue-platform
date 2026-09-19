@@ -167,6 +167,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
+// #ifdef APP-PLUS
+import { isAndroidPaymentPlatform, androidPaymentMethods, assertAndroidPaymentMethod } from '@/utils/android-payment-options'
+// #endif
 // #ifdef H5
 import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
@@ -251,6 +254,12 @@ async function fetchCheckoutData() {
     addresses.value = result.addresses || []
     coupons.value = result.coupons || []
     payMethods.value = result.payMethods || []
+    // #ifdef APP-PLUS
+    if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) {
+      payMethods.value = androidPaymentMethods()
+      payMethod.value = 'alipay'
+    }
+    // #endif
     // #ifdef H5
     await hydrateRemoteConfig(true)
     const options = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top)
@@ -333,6 +342,9 @@ async function submitOrder() {
   }
   submitting.value = true
   try {
+    // #ifdef APP-PLUS
+    assertAndroidPaymentMethod(uni.getSystemInfoSync().platform, payMethod.value)
+    // #endif
     // #ifdef H5
     await hydrateRemoteConfig(true)
     const option = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === payMethod.value)

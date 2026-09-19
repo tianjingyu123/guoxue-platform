@@ -107,13 +107,13 @@ import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
 import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
+import { getUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
 import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/wechat-top-level'
 // #ifdef H5
 import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-order-huifu'
 import { reusableWechatPaymentIdentity } from '@/utils/wechat-payment-identity'
-import { getUserInfo } from '@/utils/storage'
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
@@ -142,12 +142,18 @@ const oauthAuthorizeUrl = ref('')
 const useHuifuAlipay = ref(false)
 // #ifdef APP-PLUS
 const huifuAlipay = ref<{ resume(): Promise<void>; pause(): void } | null>(null)
+const paymentOwner = String(getUserInfo<{ id?: string }>()?.id || '')
+let alipayReturned = false
+let nativePageActive = true
 onShow(() => { void huifuAlipay.value?.resume() })
-onHide(() => { huifuAlipay.value?.pause() })
+onShow(() => { nativePageActive = true })
+onHide(() => { nativePageActive = false; huifuAlipay.value?.pause() })
+onUnmounted(() => { nativePageActive = false })
 async function onHuifuAlipayPaid(order: AlipayOrderState) {
-  await settleCircleIfNeeded(order)
-  const liveReturn = returnLiveRoomId.value ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}` : ''
-  redirectTo(`/shop/pay-success?orderId=${encodeURIComponent(orderId.value)}${liveReturn}`)
+  if (alipayReturned || !nativePageActive || order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) return
+  alipayReturned = true
+  void settleCircleIfNeeded(order)
+  redirectTo(`/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`)
 }
 // #endif
 
@@ -238,6 +244,14 @@ async function startPaying() {
   clearTimers('all') // 清掉上一轮遗留的倒计时/轮询 timer，防泄漏
   startCountdown()
   try {
+  // #ifdef APP-PLUS
+  if (!isRecharge.value && uni.getSystemInfoSync().platform === 'android') {
+    status.value = 'failed'
+    failReason.value = '当前请返回订单使用支付宝支付'
+    clearTimers('all')
+    return
+  }
+  // #endif
   // #ifdef H5
   if (!isRecharge.value) {
     await hydrateRemoteConfig(true)

@@ -196,6 +196,9 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
+// #ifdef APP-PLUS
+import { isAndroidPaymentPlatform, androidPaymentMethods, assertAndroidPaymentMethod } from '@/utils/android-payment-options'
+// #endif
 // #ifdef H5
 import { drawQrToCanvas } from '@/utils/qrcode'
 // #endif
@@ -230,16 +233,22 @@ const ALL_PAY_METHODS = [
   { id: 'unionpay', name: '云闪付', badge: '云', color: '#C41E3A' },
 ] as const
 // 圈子/会员入圈只支持微信、支付宝现金（不含虚拟币/云闪付）；商品、课程支持全渠道
-const payMethods = computed(() =>
-  props.bizType === 'CIRCLE' || props.bizType === 'MEMBER'
+const payMethods = computed(() => {
+  // #ifdef APP-PLUS
+  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) return androidPaymentMethods()
+  // #endif
+  return props.bizType === 'CIRCLE' || props.bizType === 'MEMBER'
     ? ALL_PAY_METHODS.filter((m) => m.id !== 'unionpay')
-    : ALL_PAY_METHODS,
-)
+    : ALL_PAY_METHODS
+})
 
 // ===== UI 状态 =====
 const selectedSku = ref<string | null>(null)
 const quantity = ref(1)
 const payMethod = ref<string>('wechat')
+// #ifdef APP-PLUS
+if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) payMethod.value = 'alipay'
+// #endif
 const paying = ref(false)
 const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
@@ -293,6 +302,9 @@ function reset() {
   selectedSku.value = null
   quantity.value = 1
   payMethod.value = 'wechat'
+  // #ifdef APP-PLUS
+  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) payMethod.value = 'alipay'
+  // #endif
   paying.value = false
   paid.value = false
   paidSub.value = '请在订单中心完成支付'
@@ -393,11 +405,7 @@ async function onPay() {
   try {
     const channel = payMethod.value as PayChannel
     // #ifdef APP-PLUS
-    if (channel === 'alipay' && uni.getSystemInfoSync().platform !== 'android') {
-      uni.showToast({ title: '当前设备暂不支持此支付宝付款方式', icon: 'none' })
-      paying.value = false
-      return
-    }
+    assertAndroidPaymentMethod(uni.getSystemInfoSync().platform, channel)
     // #endif
     const order = await purchaseApi.createOrder({
       type: props.bizType,
