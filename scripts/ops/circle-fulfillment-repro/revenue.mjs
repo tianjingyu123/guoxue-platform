@@ -869,6 +869,67 @@ async function r18() {
   }
 }
 
+/**
+ * R19 处理时限（SLA）只标不做。
+ *
+ * 负责人与时限由业务指定（2026-09-19：7 天，自然日）。把超期待办标出来，
+ * 是「转人工」这条路真正闭环的最后一环 —— 没有超期视图，待办堆着也没人知道。
+ *
+ * 同时断言**只标不做**：标记超期不得改状态、不得写任何冲正行。
+ */
+async function r19() {
+  const { MANUAL_RECALL_SLA_DAYS } = req(`${ROOT}/modules/circle-refund/circle-refund.service.ts`);
+  check("R19 处理时限取自具名常量且为业务指定值", MANUAL_RECALL_SLA_DAYS === 7,
+    `slaDays=${MANUAL_RECALL_SLA_DAYS}`);
+
+  // 造两条 ambiguous 待办：一条刚产生、一条回拨到超期之外
+  const made = [];
+  for (const tag of ["fresh", "stale"]) {
+    const f = await fixture();
+    await fulfillOrder(f.order.id);
+    const ro = await renewOrder(f, 199);
+    await fulfillOrder(ro.id);                       // 两条同额候选 → 消歧失败
+    const rid = await runRefund({
+      circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150,
+    });
+    made.push({ tag, rid, circleId: f.circle });
+  }
+  const stale = made.find((m) => m.tag === "stale");
+  const fresh = made.find((m) => m.tag === "fresh");
+  await prisma.$executeRawUnsafe(
+    `UPDATE "CommissionRecall" SET "createdAt" = CURRENT_TIMESTAMP - make_interval(days => 9) WHERE "refundId" = $1`,
+    stale.rid,
+  );
+
+  const svc = new CircleRefundService(prisma);
+  const page = await svc.getManualRecalls({ limit: 100 });
+  const staleItem = page.items.find((i) => i.refundId === stale.rid);
+  const freshItem = page.items.find((i) => i.refundId === fresh.rid);
+
+  check("R19 超期待办被标出（ageDays ≥ 时限）",
+    !!staleItem && staleItem.overdue === true && staleItem.ageDays >= MANUAL_RECALL_SLA_DAYS,
+    `overdue=${staleItem?.overdue} ageDays=${staleItem?.ageDays}`);
+  check("R19 反证：未超期的待办不被标（否则这条断言没有区分力）",
+    !!freshItem && freshItem.overdue === false && freshItem.ageDays === 0,
+    `overdue=${freshItem?.overdue} ageDays=${freshItem?.ageDays}`);
+  check("R19 汇总里的超期条数与逐条标记一致",
+    page.overdue === page.items.filter((i) => i.overdue).length && page.overdue >= 1,
+    `overdue=${page.overdue} 逐条=${page.items.filter((i) => i.overdue).length}`);
+  check("R19 时限随结果返回，调用方不必自己猜", page.slaDays === MANUAL_RECALL_SLA_DAYS,
+    `slaDays=${page.slaDays}`);
+
+  // 只标不做：状态未变、这两个圈子下没有任何冲正行
+  // （计数必须限定在本用例造的圈子上：R7/R15/R16 在同一个库里写过 circle_join_refund，
+  //  不限定就会把别人的行算进来，断言随执行顺序变化 —— 那是假失败，不是发现问题）
+  const after = await recallsOf(stale.rid);
+  const reversals = await prisma.circleRevenueRecord.count({
+    where: { type: "circle_join_refund", circleId: { in: made.map((m) => m.circleId) } },
+  });
+  check("R19 只标不做：超期不改状态、不写冲正行",
+    after.length === 1 && after[0].status === "pending_manual" && reversals === 0,
+    `台账=${JSON.stringify(after)} 本用例圈子下的冲正行=${reversals}`);
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 收益与真实入口验证 ===");
@@ -876,7 +937,7 @@ try {
   await r1(); await r2(); await r3(); await r4(); await r5(); await r6();
   await r7(); await r8(); await r9(); await r10(); await r11(); await r12();
   await r13(); await r14(); await r15(); await r16();
-  await r17(); await r18();
+  await r17(); await r18(); await r19();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);

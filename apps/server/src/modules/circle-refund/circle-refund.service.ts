@@ -33,6 +33,19 @@ const ALLOW_INFERRED_OWNER_RECALL: { single: boolean; amount: boolean } = {
   amount: false,
 };
 
+/**
+ * 待人工核对追回的**处理时限**（自然日）。
+ *
+ * 取值依据：2026-09-19 由用户指定「7 天内」。按**自然日**计 —— 用户原话是「7 天」，
+ * 不是「7 个工作日」；若应按工作日计，改这里并同步交付说明。
+ * 负责人记录在 `docs/operations/圈子履约收益退款收口-20260919/候选交付说明-20260919.md` §4.4，
+ * 不写进代码：人会变，配置不该靠改代码。
+ *
+ * 这个值**只用于把超期的待办标出来**，不触发任何自动动作：不告警、不自动冲抵、不改任何状态。
+ * 超期意味着需要人去看，不意味着系统可以替人决定钱该扣谁。
+ */
+export const MANUAL_RECALL_SLA_DAYS = 7;
+
 /** 转人工的原因码，写入 `CommissionRecall.reason`，供人工核对与发生量统计使用 */
 export const RECALL_MANUAL_REASONS = {
   /** 多条候选且金额区分不开 */
@@ -459,12 +472,18 @@ export class CircleRefundService {
    *
    * `summary` 给出各原因码的条数。这是决策项 N9（推断匹配是否放开）唯一的量化依据：
    * `inferred_match_not_approved` 的占比说明放开后会自动处理多少、风险敞口有多大。
+   *
+   * `overdue` / `slaDays` 把超出处理时限（`MANUAL_RECALL_SLA_DAYS`）的待办标出来。
+   * **只标不做**：不告警、不自动冲抵、不改任何状态。
    */
   async getManualRecalls(params: { limit?: number; offset?: number } = {}) {
     const limit = Math.min(Math.max(1, Math.floor(Number(params.limit ?? 50))), 200);
     const offset = Math.max(0, Math.floor(Number(params.offset ?? 0)));
 
-    const [summary, totalRows, rows] = await Promise.all([
+    const slaDays = MANUAL_RECALL_SLA_DAYS;
+    const slaMs = slaDays * 24 * 60 * 60 * 1000;
+
+    const [summary, totalRows, overdueRows, rows] = await Promise.all([
       this.prisma.$queryRawUnsafe<any[]>(
         `SELECT coalesce("reason", 'unknown') AS "reason", count(*)::int AS "count"
          FROM "CommissionRecall" WHERE "status" = 'pending_manual'
@@ -472,6 +491,12 @@ export class CircleRefundService {
       ),
       this.prisma.$queryRawUnsafe<any[]>(
         `SELECT count(*)::int AS "n" FROM "CommissionRecall" WHERE "status" = 'pending_manual'`,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT count(*)::int AS "n" FROM "CommissionRecall"
+         WHERE "status" = 'pending_manual'
+           AND "createdAt" < CURRENT_TIMESTAMP - make_interval(days => $1::int)`,
+        slaDays,
       ),
       this.prisma.$queryRawUnsafe<any[]>(
         `SELECT r."id", r."refundId", r."userId" AS "ownerId", r."reason",
@@ -501,16 +526,25 @@ export class CircleRefundService {
         )
       : [];
 
+    const now = Date.now();
     return {
       total: Number(totalRows[0]?.n ?? 0),
+      /** 超出处理时限、仍未处理的条数。只标不做 */
+      overdue: Number(overdueRows[0]?.n ?? 0),
+      slaDays,
       limit,
       offset,
       summary,
-      items: rows.map((r) => ({
-        ...r,
-        // memberId 为空说明该行由旧版本写入（`sourceId` 是本次新增列），只能人工按订单反查
-        candidates: r.memberId ? candidates.filter((c) => c.sourceId === r.memberId) : [],
-      })),
+      items: rows.map((r) => {
+        const ageMs = now - new Date(r.createdAt).getTime();
+        return {
+          ...r,
+          ageDays: Math.floor(ageMs / (24 * 60 * 60 * 1000)),
+          overdue: ageMs > slaMs,
+          // memberId 为空说明该行由旧版本写入（`sourceId` 是本次新增列），只能人工按订单反查
+          candidates: r.memberId ? candidates.filter((c) => c.sourceId === r.memberId) : [],
+        };
+      }),
     };
   }
 
