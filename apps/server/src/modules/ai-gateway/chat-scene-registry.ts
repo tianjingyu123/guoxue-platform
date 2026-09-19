@@ -75,11 +75,11 @@ export interface ChatSceneRule {
  */
 export const PUBLIC_CHAT_SCENES: Readonly<Record<string, ChatSceneRule>> = {
   /**
-   * 压测脚本使用的通用对话场景。
-   * 它是本表里唯一对普通登录用户开放的场景，也是唯一让普通用户拿到"自由提示词 + 平台模型"的入口。
+   * 仅供受控运维账号执行压测与诊断的通用对话场景。
+   * 产品侧没有调用方，不向普通登录用户开放自由提示词入口。
    */
   general_chat: {
-    access: { kind: "authenticated" },
+    access: { kind: "roles", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     callers: ["tests/performance/k6/main.js:357（k6 压测脚本，POST /api/v1/ai/chat）"],
     input: {
       maxMessages: {
@@ -113,7 +113,7 @@ export const PUBLIC_CHAT_SCENES: Readonly<Record<string, ChatSceneRule>> = {
       },
     },
     notes: [
-      "唯一调用方是压测脚本，不是产品路径。是否保留该场景对普通用户开放，属待决策项（见《剩余决策点》D-1）。",
+      "唯一调用方是压测脚本，不是产品路径；仅允许高级管理与运营管理账号用于受控压测和诊断。",
     ],
   },
 

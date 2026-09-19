@@ -13,6 +13,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { userFeedbackApi } from "@/api";
+import { useAuthStore } from "@/store/auth";
 import PageHeader from "@/components/PageHeader.vue";
 
 interface Diagnosis {
@@ -56,6 +57,8 @@ const diagMeta: Record<string, { label: string; type: string }> = {
 };
 
 const loading = ref(false);
+const authStore = useAuthStore();
+const canRevealImages = computed(() => authStore.hasRole("SUPER_ADMIN", "OPERATION_ADMIN"));
 const rows = ref<FeedbackRow[]>([]);
 const total = ref(0);
 const stats = ref<{
@@ -115,6 +118,10 @@ function search() {
 // ── 明文 / 截图：每次都是一次独立调用，服务端留痕 ──
 const revealed = reactive<Record<string, { contact?: string; content?: string; images?: string[] }>>({});
 async function reveal(row: FeedbackRow, what: "contact" | "content" | "images") {
+  if (what === "images" && !canRevealImages.value) {
+    ElMessage.warning("当前角色无权查看用户上传的截图");
+    return;
+  }
   const tip =
     what === "contact" ? "查看联系方式明文" : what === "content" ? "查看正文原文" : "查看用户上传的截图";
   try {
@@ -362,7 +369,7 @@ onMounted(() => {
               联系方式：{{ revealed[row.id]?.contact ?? row.contactMasked }}
             </el-button>
             <el-button
-              v-if="row.imageCount > 0"
+              v-if="row.imageCount > 0 && canRevealImages"
               link
               type="primary"
               size="small"

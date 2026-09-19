@@ -46,7 +46,8 @@ export class FeedbackController {
   //
   // 权限分三档（《轻量反馈方案》§1.1）：
   //  - 列表 / 详情 / 状态流转：SUPER_ADMIN、OPERATION_ADMIN、CUSTOMER_SERVICE
-  //  - 查看明文联系方式 / 正文原文 / 截图：同上三个角色，但**每次都要独立调用 + 审计留痕 + 独立限流**
+  //  - 查看明文联系方式 / 正文原文：同上三个角色；截图仅 SUPER_ADMIN、OPERATION_ADMIN
+  //  - 三类敏感查看都必须**独立调用 + 审计留痕 + 独立限流**
   //  - 导出：仅 SUPER_ADMIN（与 CRM「禁导出防数据贩卖」同口径），本批不实现，先不开口子
   //
   // 「谁在什么时候做了什么」由 @Auditable 写进 AuditLog（含操作人、targetId、IP、时间），
@@ -104,7 +105,7 @@ export class FeedbackController {
 
   @Post("admin/feedback/:id/reveal-images")
   @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "查看反馈截图", targetType: "FEEDBACK" })
   @ApiOperation({ summary: "查看反馈截图（留痕 + 限流）" })
   @ApiResponse({ status: 200, description: "成功" })

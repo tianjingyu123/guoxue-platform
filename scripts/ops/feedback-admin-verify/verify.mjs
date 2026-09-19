@@ -83,6 +83,7 @@ const svc = new FeedbackService(prisma);
 
 // ══════════ P 组：权限（读 Nest 元数据）══════════
 const EXPECTED_ROLES = ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"];
+const EXPECTED_IMAGE_ROLES = ["SUPER_ADMIN", "OPERATION_ADMIN"];
 const ADMIN_HANDLERS = [
   "adminList", "adminStats", "adminDetail",
   "adminRevealContact", "adminRevealContent", "adminRevealImages",
@@ -105,10 +106,11 @@ const guardNamesOf = (fn) =>
 {
   const missingRoles = ADMIN_HANDLERS.filter((h) => {
     const roles = Reflect.getMetadata(ROLES_KEY, handler(h));
-    return !roles || JSON.stringify([...roles].sort()) !== JSON.stringify([...EXPECTED_ROLES].sort());
+    const expected = h === "adminRevealImages" ? EXPECTED_IMAGE_ROLES : EXPECTED_ROLES;
+    return !roles || JSON.stringify([...roles].sort()) !== JSON.stringify([...expected].sort());
   });
-  check(`P1 ${ADMIN_HANDLERS.length} 个管理端路由的角色限定都是三个管理角色`,
-    missingRoles.length === 0, missingRoles.length ? `缺失/不符：${missingRoles.join("、")}` : EXPECTED_ROLES.join("/"));
+  check(`P1 管理端路由按敏感级别限定角色（截图不向客服开放）`,
+    missingRoles.length === 0, missingRoles.length ? `缺失/不符：${missingRoles.join("、")}` : "正文/联系方式三角色，截图两角色");
 
   const noGuard = ADMIN_HANDLERS.filter((h) => {
     const g = guardNamesOf(handler(h));
@@ -118,7 +120,7 @@ const guardNamesOf = (fn) =>
     noGuard.length === 0, noGuard.length ? `缺守卫：${noGuard.join("、")}` : "7/7");
 
   const noThrottle = REVEAL_HANDLERS.filter(
-    (h) => !guardNamesOf(handler(h)).includes("StrictRedisThrottleGuard"));
+    (h) => !guardNamesOf(handler(h)).includes("SensitiveRedisThrottleGuard"));
   check("P3 三个明文接口都挂了独立限流守卫",
     noThrottle.length === 0, noThrottle.length ? `缺限流：${noThrottle.join("、")}` : "3/3");
 

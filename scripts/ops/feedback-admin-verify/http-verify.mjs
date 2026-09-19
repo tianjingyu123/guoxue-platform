@@ -292,6 +292,12 @@ try {
     check("H5 管理角色取明文能拿到真实值（说明 H3 拿不到不是因为接口本身没数据）",
       [200, 201].includes(r.status) && r.body?.contact === "13812345678",
       `status=${r.status} ${JSON.stringify(r.body)}`);
+    const csImage = await call("POST", `/users/admin/feedback/${fb.id}/reveal-images`, cs.token);
+    check("H5 客服无权查看截图", csImage.status === 403, `status=${csImage.status}`);
+    const opsImage = await call("POST", `/users/admin/feedback/${fb.id}/reveal-images`, ops.token);
+    check("H5 运营管理角色可按需查看截图",
+      [200, 201].includes(opsImage.status) && opsImage.body?.images?.[0] === "https://x/a.png",
+      `status=${opsImage.status}`);
   }
 
   // ── H6 审计：敏感操作留痕，只读查看不留痕 ──
@@ -338,19 +344,17 @@ try {
 
   // ── H7 明文接口的独立限流真的生效 ──
   {
-    // H7a 来自环回地址：**按平台既有设计豁免限流**。
-    // `common/rate-limit-whitelist.ts` 把 127.0.0.1 / ::1 / 192.168.* 列为白名单，
-    // 守卫在计数之前就 return true。这是既有平台行为，不是 C 的缺陷，
-    // 但它意味着「本机/内网发起的明文查看不受 10 次/分钟限制」。
+    // 敏感接口专用守卫不继承基础设施 IP 白名单，环回来源也必须按用户限流。
     counters.clear();
     const loopback = [];
     for (let i = 0; i < 13; i += 1) {
       const r = await call("POST", `/users/admin/feedback/${fb.id}/reveal-content`, sadmin.token);
       loopback.push(r.status);
     }
-    check("H7a 环回地址按既有白名单豁免限流（如实记录，非 C 缺陷）",
-      loopback.every((x) => x === 200 || x === 201),
-      `状态序列=${loopback.join(",")}；白名单见 common/rate-limit-whitelist.ts`);
+    const loopbackOk = loopback.filter((x) => x === 200 || x === 201).length;
+    const loopbackBlocked = loopback.filter((x) => x === 429).length;
+    check("H7a 环回来源也在第 11 次起被 429 挡下",
+      loopbackOk === 10 && loopbackBlocked === 3, `状态序列=${loopback.join(",")}`);
 
     // H7b 换成非白名单来源：守卫本身必须生效。
     // main.ts 开了 trust proxy，所以 X-Forwarded-For 决定 request.ip —— 与线上同一条判定路径。

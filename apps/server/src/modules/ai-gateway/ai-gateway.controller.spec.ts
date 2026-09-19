@@ -20,8 +20,8 @@ describe("AiGatewayController", () => {
   let gateway: jest.Mocked<AiGatewayService>;
   let router: jest.Mocked<ModelRouterService>;
 
-  // 场景准入按角色判定：general_chat 对任何已登录用户开放，无需角色
-  const mockReq = { user: { id: "u1", roles: [] } } as any;
+  // general_chat 仅供受控运维/压测账号使用
+  const mockReq = { user: { id: "u1", roles: ["OPERATION_ADMIN"] } } as any;
 
   const mockRes = () => {
     const res: any = {};

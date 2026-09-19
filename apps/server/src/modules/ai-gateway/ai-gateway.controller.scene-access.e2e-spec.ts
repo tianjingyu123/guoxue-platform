@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import * as http from "http";
 import { AddressInfo } from "net";
+import { runInThisContext } from "node:vm";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
@@ -136,6 +137,8 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   let routingConfig: ModelRoutingConfig = CONFIG_COMPATIBLE;
 
   beforeAll(async () => {
+    // Jest 的 node 环境不会稳定继承 Node 18+ 的全局 fetch；显式注入，避免测试环境误连供应商失败。
+    global.fetch = runInThisContext("fetch") as typeof fetch;
     await stub.start();
     process.env.DEEPSEEK_API_KEY = "stub-key-not-a-real-credential";
     process.env.DEEPSEEK_BASE_URL = stub.baseUrl;
@@ -230,6 +233,7 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
       ["内部场景 zhixuan_chat", "zhixuan_chat"],
       ["内部场景 circle_assistant", "circle_assistant"],
       ["内部场景 paipan_report", "paipan_report"],
+      ["受控场景 general_chat，但调用者是普通用户", "general_chat"],
       ["管理端场景 nl2sql，但调用者是普通用户", "nl2sql"],
     ])("普通用户请求 %s → 403，桩模型调用次数为 0", async (_label, scene) => {
       const res = await asUser(
@@ -300,7 +304,7 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     ];
 
     it.each(bad)("%s → 被拒，桩模型调用次数为 0", async (_label, payload) => {
-      const res = await asUser(request(app.getHttpServer()).post("/ai/chat").send(payload as object));
+      const res = await asAdmin(request(app.getHttpServer()).post("/ai/chat").send(payload as object));
 
       expect(res.status).toBeGreaterThanOrEqual(400);
       expect(res.status).toBeLessThan(500);
@@ -309,7 +313,7 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     });
 
     it("场景不同，参数边界不同：temperature 0.7 在 general_chat 放行、在 nl2sql 被拒", async () => {
-      const ok = await asUser(
+      const ok = await asAdmin(
         request(app.getHttpServer())
           .post("/ai/chat")
           .send({ scene: "general_chat", messages: [{ role: "user", content: "x" }], temperature: 0.7 }),
@@ -335,7 +339,7 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     it("合法的路由默认值原样保留（不裁剪、不改写）", async () => {
       routingConfig = CONFIG_COMPATIBLE;
 
-      await asUser(
+      await asAdmin(
         request(app.getHttpServer())
           .post("/ai/chat")
           .send({ scene: "general_chat", messages: [{ role: "user", content: "你好" }] }),
@@ -385,7 +389,7 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
     it("general_chat 的路由默认值越界时同样被裁剪到该场景边界 2048", async () => {
       routingConfig = CONFIG_OVER; // maxTokens 4096
 
-      await asUser(
+      await asAdmin(
         request(app.getHttpServer())
           .post("/ai/chat")
           .send({ scene: "general_chat", messages: [{ role: "user", content: "x" }] }),
@@ -461,7 +465,8 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
         { scene: "general_chat", messages: [{ role: "user", content: "x" }], maxTokens: 999999 },
       ],
     ])("%s → 普通 JSON %s，响应不是 SSE、不含任何 data: 行，桩模型零调用", async (_label, status, payload) => {
-      const res = await asUser(
+      const caller = status === 403 ? asUser : asAdmin;
+      const res = await caller(
         request(app.getHttpServer()).post("/ai/chat/stream").send(payload as object),
       );
 
@@ -477,9 +482,9 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   // ────────────── 五、已知调用方兼容 ──────────────
 
   describe("已知调用方兼容", () => {
-    it("k6 压测脚本的请求体（general_chat + 平铺 temperature/maxTokens）仍然成功", async () => {
+    it("受控运维账号执行 k6 请求体（general_chat + 平铺 temperature/maxTokens）仍然成功", async () => {
       // 取自 tests/performance/k6/main.js:357-365
-      const res = await asUser(
+      const res = await asAdmin(
         request(app.getHttpServer())
           .post("/ai/chat")
           .send({
