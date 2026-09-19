@@ -199,17 +199,41 @@
       </view>
     </view>
 
-    <!-- 飘屏礼物（大礼物横幅滑入） -->
-    <view class="gift-flyers">
-      <view v-for="g in giftFlyers" :key="g.id" class="gift-flyer">
-        <smart-avatar :src="g.avatar" :name="g.user" class="gift-flyer__avatar" />
-        <view class="gift-flyer__info">
-          <text class="gift-flyer__user">{{ g.user }}</text>
-          <text class="gift-flyer__desc">送出 {{ g.giftName }}</text>
+    <!-- 礼物反馈 L2 连击条：同房间同人同礼物窗口内合并，只改数量不重建 -->
+    <view class="gift-combos">
+      <view
+        v-for="item in giftCombos"
+        :key="item.key"
+        class="gift-combo"
+        :class="[`gift-combo--${item.level.toLowerCase()}`, { 'gift-combo--out': item.leaving }]"
+      >
+        <smart-avatar :src="item.avatar" :name="item.userName" class="gift-combo__avatar" />
+        <view class="gift-combo__info">
+          <text class="gift-combo__user">{{ item.userName }}</text>
+          <text class="gift-combo__desc">送出 {{ item.giftName }}</text>
         </view>
-        <text class="gift-flyer__icon">{{ g.giftIcon }}</text>
-        <text class="gift-flyer__count">x{{ g.count }}</text>
+        <image v-if="isGiftImageIcon(item.icon)" class="gift-combo__icon-img" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-combo__icon">{{ item.icon || '礼' }}</text>
+        <text class="gift-combo__count" :class="{ 'gift-combo__count--bump': item.bump }">×{{ item.count }}</text>
       </view>
+    </view>
+
+    <!-- 礼物反馈 L1 轻量气泡：短促、可识别发送者与数量，位置避开公屏 -->
+    <view class="gift-lights">
+      <view
+        v-for="item in giftLights"
+        :key="item.recordId"
+        class="gift-light"
+        :class="{ 'gift-light--out': item.leaving }"
+      >
+        <image v-if="isGiftImageIcon(item.icon)" class="gift-light__icon-img" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-light__icon">{{ item.icon || '礼' }}</text>
+        <text class="gift-light__txt">{{ item.userName }} 送出 {{ item.giftName }} ×{{ item.quantity }}</text>
+      </view>
+    </view>
+
+    <view v-if="giftOverflow > 0" class="gift-overflow">
+      <text class="gift-overflow__txt">另有 {{ giftOverflow }} 份心意已合并</text>
     </view>
 
     <!-- 电商实时已售通知 -->
@@ -386,6 +410,13 @@ import {
   type VerticalLiveProduct,
 } from '@/lib/live-data'
 import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
+import {
+  GiftFeed,
+  normalizeFromSendResponse,
+  normalizeFromTimMessage,
+  type GiftFeedRenderer,
+  type NormalizedGiftEvent,
+} from '@/pkg-live/gift-feed'
 import { getLiveFeed } from './presence-api'
 import { useLiveWatchPresence } from './use-live-watch-presence'
 
@@ -507,11 +538,33 @@ async function joinDanmaku(groupId: string, targetRoomId: string, requestVersion
     }
     danmakuGroupId = groupId
     offTimMessage = tim.onMessage((msgs: TimMessage[]) => {
-      const fresh = msgs.filter((m) => danmakuGroupId === groupId && m.conversationType === 'GROUP' && m.to === groupId && m.payload?.text)
-      if (!fresh.length) return
-      fresh.forEach((m) => {
+      const inRoom = msgs.filter((m) => danmakuGroupId === groupId && m.conversationType === 'GROUP' && m.to === groupId)
+      if (!inRoom.length) return
+      const ctx = giftNormalizeContext()
+      let touched = false
+      inRoom.forEach((m) => {
+        // 礼物事件承载在 payload.data（TIMCustomElem），原来的 payload.text 过滤会整条漏掉
+        const giftEvent = normalizeFromTimMessage(m, ctx)
+        if (giftEvent) {
+          giftFeed.push(giftEvent)
+          // 自己送礼的公屏条目在 onSendGift 里已本地写入，这里只补别人的，避免重复两行
+          if (!ctx.selfUserId || giftEvent.userId !== ctx.selfUserId) {
+            comments.value.push({
+              id: m.ID,
+              userName: giftEvent.userName,
+              content: `送出 ${giftEvent.giftName} x${giftEvent.quantity}`,
+              type: 'gift',
+              giftInfo: { name: giftEvent.giftName, icon: giftEvent.icon, count: giftEvent.quantity },
+            })
+            touched = true
+          }
+          return
+        }
+        if (!m.payload?.text) return
         comments.value.push({ id: m.ID, userName: m.nick || '观众', content: m.payload.text || '', type: 'text' })
+        touched = true
       })
+      if (!touched) return
       if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
       scrollDanmakuToBottom()
     })
@@ -570,6 +623,8 @@ async function fetchPlayUrl(roomId: string, requestVersion = roomLoadVersion) {
 const explainingProduct = computed(() => products.value.find((p) => p.isExplaining) || null)
 
 async function fetchRoomData(roomId: string) {
+  // 切房：清空上一房间的礼物反馈与去重记录，之后到达的旧房间事件一律拒绝
+  giftFeed.enterRoom(roomId)
   const requestVersion = ++roomLoadVersion
   loading.value = true
   error.value = ''
@@ -999,7 +1054,117 @@ useOverlayScrollLock(() =>
 
 const danmakuScrollTop = ref(0)
 const floatingHearts = ref<Array<{ id: number; left: number; duration: number }>>([])
-const giftFlyers = ref<Array<{ id: number; user: string; avatar: string; giftName: string; giftIcon: string; count: number }>>([])
+// ───────── 礼物反馈 L1/L2（编排在 pkg-live/gift-feed.ts，这里只做 H5/小程序展示）─────────
+// 原先只有"自己送礼"时的本地飘屏，现在统一由编排层驱动：
+// 自己的响应和房间广播走同一条展示链路，按 recordId 去重，不会出现两套动效。
+type GiftLightItem = { recordId: string; userName: string; giftName: string; icon: string; quantity: number; leaving: boolean }
+type GiftComboItem = { key: string; userName: string; avatar: string; giftName: string; icon: string; level: string; count: number; bump: boolean; leaving: boolean }
+const giftLights = ref<GiftLightItem[]>([])
+const giftCombos = ref<GiftComboItem[]>([])
+const giftOverflow = ref(0)
+const giftExitTimers = new Set<ReturnType<typeof setTimeout>>()
+
+function isGiftImageIcon(icon: string) {
+  return /^https?:\/\//.test(String(icon || ''))
+}
+
+/** 退场动画结束后再移除节点；所有定时器集中登记，页面卸载时一次清干净。 */
+function scheduleGiftExit(fn: () => void, ms: number) {
+  const timer = setTimeout(() => { giftExitTimers.delete(timer); fn() }, ms)
+  giftExitTimers.add(timer)
+}
+
+function clearGiftExitTimers() {
+  giftExitTimers.forEach((timer) => clearTimeout(timer))
+  giftExitTimers.clear()
+}
+
+const giftRenderer: GiftFeedRenderer = {
+  showLight(event: NormalizedGiftEvent) {
+    giftLights.value.push({
+      recordId: event.recordId,
+      userName: event.userName,
+      giftName: event.giftName,
+      icon: event.icon,
+      quantity: event.quantity,
+      leaving: false,
+    })
+  },
+  hideLight(recordId: string) {
+    const item = giftLights.value.find((x) => x.recordId === recordId)
+    if (!item) return
+    item.leaving = true
+    scheduleGiftExit(() => {
+      giftLights.value = giftLights.value.filter((x) => x.recordId !== recordId)
+    }, 320)
+  },
+  showCombo(key: string, event: NormalizedGiftEvent, count: number) {
+    giftCombos.value.push({
+      key,
+      userName: event.userName,
+      avatar: event.avatar,
+      giftName: event.giftName,
+      icon: event.icon,
+      level: event.level,
+      count,
+      bump: false,
+      leaving: false,
+    })
+  },
+  updateCombo(key: string, count: number) {
+    const item = giftCombos.value.find((x) => x.key === key)
+    if (!item) return
+    item.count = count
+    // 重放数量脉冲：先摘再加，连续连击时动画才会重新触发
+    item.bump = false
+    scheduleGiftExit(() => { const live = giftCombos.value.find((x) => x.key === key); if (live) live.bump = true }, 16)
+  },
+  hideCombo(key: string) {
+    const item = giftCombos.value.find((x) => x.key === key)
+    if (!item) return
+    item.leaving = true
+    scheduleGiftExit(() => {
+      giftCombos.value = giftCombos.value.filter((x) => x.key !== key)
+    }, 280)
+  },
+  showOverflow(dropped: number) {
+    giftOverflow.value = dropped
+  },
+  clearAll() {
+    clearGiftExitTimers()
+    giftLights.value = []
+    giftCombos.value = []
+    giftOverflow.value = 0
+  },
+}
+
+const giftFeed = new GiftFeed({ renderer: giftRenderer })
+
+// H5 能读系统"减少动态效果"偏好；小程序没有该能力，这里不假装支持，保持默认关闭。
+// #ifdef H5
+try {
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+  giftFeed.setReducedMotion(mq.matches)
+  if (typeof mq.addEventListener === 'function') {
+    mq.addEventListener('change', (e) => giftFeed.setReducedMotion(e.matches))
+  }
+} catch { /* 无 matchMedia 时按默认（不减少）处理 */ }
+// #endif
+
+/** 按 giftId 回查已拉取的礼物清单，补齐广播里没有的图标与层级；查不到不猜。 */
+function lookupGift(giftId: string) {
+  const hit = gifts.value.find((g) => g.id === giftId)
+  return hit ? { id: hit.id, name: hit.name, icon: hit.icon, level: hit.level } : undefined
+}
+
+function giftNormalizeContext() {
+  const profile = getUserInfo<{ id?: string; userId?: string }>()
+  return {
+    roomId: room.value.id || loadedRoomId.value,
+    lookupGift,
+    selfUserId: String(profile?.id || profile?.userId || ''),
+  }
+}
 const systemBanners = ref<Array<{ id: number; type: string; user: string; content: string; giftIcon?: string }>>([])
 const saleNotif = ref('')
 
@@ -1018,7 +1183,6 @@ const liveShareMeta = computed(() => {
 })
 
 let heartId = 0
-let flyerId = 0
 
 function formatCount(n: number): string {
   if (n >= 10000) return (n / 10000).toFixed(1) + '万'
@@ -1145,14 +1309,13 @@ async function onSendGift(gift: LiveGift, quantity: number) {
   showGiftPanel.value = false
   try {
     // 真实送礼：直接用后端礼物 uuid（后端事务扣国学币 + 记打赏）
-    await sendLiveGift(room.value.id, gift.id, count)
-    // 成功后飘屏 + 弹幕 + 扣余额（icon 为图片链接时飘屏文本位传空串容错）
-    const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
-    const fid = ++flyerId
-    // 飘屏头像=当前用户自己（原误用主播头像）。未登录/无头像 → 空串，smart-avatar 按昵称「我」兜底
+    const sent = await sendLiveGift(room.value.id, gift.id, count)
+    // 拿到 giftRecord 即代表扣币、建记录、主播分账已在同一事务提交成功；
+    // 反馈动效只是这件事的表现，播不出来也不改变交易结果。
     const myAvatar = getUserInfo<{ avatar?: string }>()?.avatar || ''
-    giftFlyers.value.push({ id: fid, user: '我', avatar: myAvatar, giftName: gift.name, giftIcon: flyIcon, count })
-    setTimeout(() => { giftFlyers.value = giftFlyers.value.filter((g) => g.id !== fid) }, 4000)
+    const own = normalizeFromSendResponse(sent.record, giftNormalizeContext())
+    giftFeed.push(own ? { ...own, avatar: own.avatar || myAvatar } : null)
+    const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
     comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name} x${count}`, type: 'gift', giftInfo: { name: gift.name, icon: flyIcon, count } })
     scrollDanmakuToBottom()
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
@@ -1223,6 +1386,8 @@ onLoad((opts) => {
 
 onShow(() => {
   pageVisible.value = true
+  // 回到前台：后台过久的积压礼物效果不集中补播（阈值见 gift-feed.ts）
+  giftFeed.resume()
   const shouldResume = resumeAfterHide
   resumeAfterHide = false
   if (endingLiveSession.value) {
@@ -1240,6 +1405,7 @@ onShow(() => {
 })
 
 onHide(() => {
+  giftFeed.pause()
   pageVisible.value = false
   resumeAfterHide = true
   roomLoadVersion += 1
@@ -1260,6 +1426,9 @@ onUnmounted(() => {
   void reportReplayProgress()
   // 退订 TIM 群消息 + 退出弹幕群
   void leaveDanmaku()
+  // 礼物反馈：清编排层定时器 + 清退场定时器，避免卸载后仍有回调改已销毁的状态
+  giftFeed.destroy()
+  clearGiftExitTimers()
   // 清理倒计时定时器
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   stopRoomPolling()
@@ -1553,22 +1722,93 @@ onUnmounted(() => {
 .sys-banner__user { font-size: 24rpx; color: inherit; font-weight: 500; white-space: nowrap; }
 .sys-banner__content { font-size: 24rpx; color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 飘屏礼物 */
-.gift-flyers { position: absolute; left: 0; top: 380rpx; z-index: 16; display: flex; flex-direction: column; gap: 12rpx; }
-.gift-flyer {
+/* ───────── 礼物反馈 L1/L2 ─────────
+   位置沿用原飘屏的左上区域；整层 pointer-events:none，
+   不遮挡右上退出、底部输入/点赞/送礼/分享/举报这些关键操作。 */
+.gift-combos {
+  position: absolute; left: 0; top: 380rpx; right: 0; z-index: 16;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12rpx;
+  pointer-events: none;
+}
+.gift-combo {
   display: flex; align-items: center; gap: 12rpx;
+  max-width: 78%;
   background: linear-gradient(to right, rgba(196,30,58,0.85), rgba(201,169,110,0.6));
   border-radius: 0 40rpx 40rpx 0;
   padding: 10rpx 24rpx 10rpx 10rpx;
-  animation: flyer-in 0.4s ease;
+  border: 1rpx solid transparent;
+  animation: gift-combo-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-@keyframes flyer-in { 0% { transform: translateX(-100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-.gift-flyer__avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; }
-.gift-flyer__info { display: flex; flex-direction: column; }
-.gift-flyer__user { font-size: 20rpx; color: #FFD700; white-space: nowrap; }
-.gift-flyer__desc { font-size: 18rpx; color: #fff; white-space: nowrap; }
-.gift-flyer__icon { font-size: 40rpx; }
-.gift-flyer__count { font-size: 28rpx; color: #FFD700; font-weight: 700; font-style: italic; }
+/* 层级越高描边越实，但不做独占特效——L3 未接入 */
+.gift-combo--mid { border-color: rgba(212,184,125,0.55); }
+.gift-combo--high { border-color: #D4B87D; }
+.gift-combo--top { border-color: #FFD700; }
+.gift-combo--out { animation: gift-combo-out 0.26s ease-in both; }
+@keyframes gift-combo-in { from { transform: translateX(-100%); opacity: 0; } }
+@keyframes gift-combo-out { to { transform: translateX(-40rpx); opacity: 0; } }
+.gift-combo__avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; }
+.gift-combo__info { display: flex; flex-direction: column; min-width: 0; }
+.gift-combo__user {
+  font-size: 20rpx; color: #FFD700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220rpx;
+}
+.gift-combo__desc {
+  font-size: 18rpx; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220rpx;
+}
+.gift-combo__icon { font-size: 40rpx; flex-shrink: 0; }
+.gift-combo__icon-img { width: 44rpx; height: 44rpx; flex-shrink: 0; }
+.gift-combo__count {
+  font-size: 32rpx; color: #FFD700; font-weight: 700; font-style: italic;
+  flex-shrink: 0; min-width: 64rpx;
+}
+/* 数量变化只做一次脉冲，条目本身不重建 */
+.gift-combo__count--bump { animation: gift-count-bump 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes gift-count-bump {
+  0% { transform: scale(1); }
+  32% { transform: scale(1.46); color: #fff; }
+  100% { transform: scale(1); }
+}
+
+.gift-lights {
+  position: absolute; right: 24rpx; top: 700rpx; z-index: 16;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10rpx;
+  max-width: 44%;
+  pointer-events: none;
+}
+.gift-light {
+  display: flex; align-items: center; gap: 10rpx;
+  max-width: 100%;
+  padding: 8rpx 20rpx 8rpx 8rpx;
+  border-radius: 999rpx;
+  background: rgba(12,11,14,0.58);
+  border: 1rpx solid rgba(201,169,110,0.30);
+  animation: gift-light-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gift-light--out { animation: gift-light-out 0.3s ease-in both; }
+@keyframes gift-light-in { from { transform: translateY(24rpx) scale(0.9); opacity: 0; } }
+@keyframes gift-light-out { to { transform: translateY(-18rpx); opacity: 0; } }
+.gift-light__icon { font-size: 30rpx; flex-shrink: 0; }
+.gift-light__icon-img { width: 36rpx; height: 36rpx; flex-shrink: 0; }
+.gift-light__txt {
+  font-size: 20rpx; color: #E8DCC4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.gift-overflow {
+  position: absolute; left: 24rpx; top: 660rpx; z-index: 16;
+  padding: 6rpx 16rpx; border-radius: 999rpx;
+  background: rgba(12,11,14,0.52);
+  pointer-events: none;
+}
+.gift-overflow__txt { font-size: 18rpx; color: rgba(232,220,196,0.72); }
+
+/* 系统"减少动态效果"：只去掉位移与缩放，信息本身照常显示 */
+@media (prefers-reduced-motion: reduce) {
+  .gift-combo, .gift-combo--out, .gift-light, .gift-light--out, .gift-combo__count--bump {
+    animation: none;
+  }
+}
 
 /* 电商已售通知 */
 .sale-notif {

@@ -686,14 +686,15 @@ export const horizontalAutoUsers = ['玄学新人', '易道弟子', '国学迷',
 
 // ============ 礼物（vertical / watch / horizontal 打赏面板共用）============
 // @data-needs: 礼物清单接口；送礼后扣减国学币余额 liveCoinBalance
-export interface LiveGift { id: string; name: string; icon: string; price: number }
+/** level 为后端 Gift.level（BASIC/MID/HIGH/TOP），礼物反馈按它分层，见 pkg-live/gift-feed.ts */
+export interface LiveGift { id: string; name: string; icon: string; price: number; level: string }
 export const liveGifts: LiveGift[] = [
-  { id: 'g1', name: '点赞', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 1 },
-  { id: 'g2', name: '鲜花', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 6 },
-  { id: 'g3', name: '香囊', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 18 },
-  { id: 'g4', name: '玉如意', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 66 },
-  { id: 'g5', name: '聚宝盆', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 188 },
-  { id: 'g6', name: '麒麟', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 520 },
+  { id: 'g1', name: '点赞', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 1, level: 'BASIC' },
+  { id: 'g2', name: '鲜花', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 6, level: 'BASIC' },
+  { id: 'g3', name: '香囊', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 18, level: 'BASIC' },
+  { id: 'g4', name: '玉如意', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 66, level: 'MID' },
+  { id: 'g5', name: '聚宝盆', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 188, level: 'MID' },
+  { id: 'g6', name: '麒麟', icon: 'https://api.rebugx.cn/assets/marketing/course.webp', price: 520, level: 'HIGH' },
 ]
 // 用户国学币余额（mock）
 export const liveCoinBalance = 2680
@@ -1364,7 +1365,14 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
 
 /** 后端礼物 Gift → 前端 LiveGift（priceCoin→price；icon 后端可空） */
 function adaptGift(g: RawGift): LiveGift {
-  return { id: g.id || '', name: g.name || '', icon: g.icon || '', price: Number(g.priceCoin) || 0 }
+  return {
+    id: g.id || '',
+    name: g.name || '',
+    icon: g.icon || '',
+    price: Number(g.priceCoin) || 0,
+    // 后端一直有返回 level，此前被适配层丢掉；礼物反馈分层需要它
+    level: String(g.level || 'BASIC').toUpperCase(),
+  }
 }
 
 export const liveApi = {
