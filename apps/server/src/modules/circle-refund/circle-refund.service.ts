@@ -224,10 +224,30 @@ export class CircleRefundService {
       // 2) 圈主分成全额追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
       const member = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
       if (member) {
-        const revRows = await tx.$queryRawUnsafe<any[]>(
-          `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "sourceId"=$1 AND "type"='circle_join' ORDER BY "createdAt" DESC LIMIT 1`,
-          member.id,
-        );
+        // 圈主分成的取值来源，按精确度降序：
+        //  1) 本次退款所属订单的收益行 —— `(type, orderId)` 唯一，是唯一精确的匹配；
+        //  2) 回落：该成员**金额为正**的最新一条 circle_join 收益行。
+        //
+        // 为什么要分两级：原实现只有第 2 级。一个成员会有多笔 circle_join 收益
+        // （入圈一笔、每次续费各一笔），"最新一条"在续费之后取到的就不是被退的那一笔。
+        // 在圈子订单履约补齐之前，续费根本不产生收益行，这个偏差撞不上；现在会。
+        //
+        // `amount > 0` 的过滤同样不能省：金额为 0 的行不是真实收益，一旦被当作最新记录
+        // 选中，ownerShare 就读成 0，圈主分成一分也追不回来，而用户已全额退款。
+        // 历史行的 orderId 全是 NULL（该字段是后加的），所以第 2 级必须保留。
+        let revRows: any[] = [];
+        if (orderId) {
+          revRows = await tx.$queryRawUnsafe<any[]>(
+            `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "orderId"=$1 AND "type"='circle_join' LIMIT 1`,
+            orderId,
+          );
+        }
+        if (!revRows.length) {
+          revRows = await tx.$queryRawUnsafe<any[]>(
+            `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "sourceId"=$1 AND "type"='circle_join' AND "amount" > 0 ORDER BY "createdAt" DESC LIMIT 1`,
+            member.id,
+          );
+        }
         if (revRows.length) {
           ownerRecalled = Number(revRows[0].ownerShare);
           await tx.circleRevenueRecord.create({
