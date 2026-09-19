@@ -169,6 +169,44 @@
       </view>
     </cover-view>
 
+    <!-- 礼物反馈 L2 连击条：同房间同人同礼物窗口内合并，只改数量不重建 -->
+    <cover-view v-if="giftCombos.length" class="gift-combo-lane" :style="giftComboLaneStyle">
+      <view
+        v-for="item in giftCombos"
+        :key="item.key"
+        class="gift-combo"
+        :class="`gift-combo-${item.level.toLowerCase()}`"
+        :style="giftComboStyle(item)"
+      >
+        <view class="gift-combo-avatar"><text class="gift-combo-avatar-text">{{ item.initial }}</text></view>
+        <view class="gift-combo-info">
+          <text class="gift-combo-user" :lines="1">{{ item.userName }}</text>
+          <text class="gift-combo-desc" :lines="1">送出 {{ item.giftName }}</text>
+        </view>
+        <image v-if="item.icon" class="gift-combo-icon" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-combo-icon-fallback">礼</text>
+        <text class="gift-combo-count" :style="giftComboCountStyle(item)">×{{ item.count }}</text>
+      </view>
+    </cover-view>
+
+    <!-- 礼物反馈 L1 轻量气泡：短促、可识别发送者与数量 -->
+    <cover-view v-if="giftLights.length" class="gift-light-lane" :style="giftLightLaneStyle">
+      <view
+        v-for="item in giftLights"
+        :key="item.recordId"
+        class="gift-light"
+        :style="giftLightStyle(item)"
+      >
+        <image v-if="item.icon" class="gift-light-icon" :src="item.icon" mode="aspectFit" />
+        <text v-else class="gift-light-icon-fallback">礼</text>
+        <text class="gift-light-text" :lines="1">{{ item.userName }} 送出 {{ item.giftName }} ×{{ item.quantity }}</text>
+      </view>
+    </cover-view>
+
+    <cover-view v-if="giftOverflow > 0" class="gift-overflow" :style="giftOverflowStyle">
+      <text class="gift-overflow-text">另有 {{ giftOverflow }} 份心意已合并</text>
+    </cover-view>
+
     <cover-view class="comment-stack" :style="commentStackStyle">
       <view v-if="visibleComments.length === 0" class="system-tip">
         <text class="system-tip-mark">热卜</text>
@@ -477,6 +515,13 @@ import { ensureLiveAudioPermission, ensureLiveCapturePermissions } from '@/pkg-l
 import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
 import { formatLiveGiftTimEvent, readLiveGiftTimEvent } from '@/pkg-live/live-tim-events'
 import {
+  GiftFeed,
+  normalizeFromSendResponse,
+  normalizeFromTimMessage,
+  type GiftFeedRenderer,
+  type NormalizedGiftEvent,
+} from '@/pkg-live/gift-feed'
+import {
   isLiveTrtcSupported,
   joinLiveAudio,
   joinLiveVideo,
@@ -755,6 +800,209 @@ function startLikeParticleTicker() {
   }, 55)
 }
 
+// ───────── 礼物反馈 L1/L2（编排在 pkg-live/gift-feed.ts，这里只做 nvue 展示）─────────
+// nvue 不支持 @keyframes，本文件既有的 likeParticles 也是帧驱动；此处沿用同一套做法，
+// 且每一帧的终态都是正确状态——即使定时器被系统压制，元素也停在可读的最终样式上。
+type GiftLightItem = {
+  recordId: string
+  userName: string
+  giftName: string
+  icon: string
+  quantity: number
+  frame: number
+  exitFrame: number
+  leaving: boolean
+}
+type GiftComboItem = {
+  key: string
+  userName: string
+  initial: string
+  giftName: string
+  icon: string
+  level: string
+  count: number
+  frame: number
+  bumpFrame: number
+  exitFrame: number
+  leaving: boolean
+}
+const giftLights = ref<GiftLightItem[]>([])
+const giftCombos = ref<GiftComboItem[]>([])
+const giftOverflow = ref(0)
+let giftTicker: ReturnType<typeof setInterval> | null = null
+const GIFT_FRAME_MS = 55
+const GIFT_ENTER_FRAMES = 5
+const GIFT_EXIT_FRAMES = 5
+const GIFT_BUMP_FRAMES = 6
+
+function startGiftTicker() {
+  if (giftTicker) return
+  giftTicker = setInterval(() => {
+    let alive = false
+    if (giftLights.value.length) {
+      giftLights.value = giftLights.value
+        .map((item) => ({
+          ...item,
+          frame: item.frame + 1,
+          exitFrame: item.leaving ? item.exitFrame + 1 : 0,
+        }))
+        .filter((item) => !item.leaving || item.exitFrame <= GIFT_EXIT_FRAMES)
+      alive = alive || giftLights.value.length > 0
+    }
+    if (giftCombos.value.length) {
+      giftCombos.value = giftCombos.value
+        .map((item) => ({
+          ...item,
+          frame: item.frame + 1,
+          bumpFrame: item.bumpFrame >= 0 && item.bumpFrame <= GIFT_BUMP_FRAMES ? item.bumpFrame + 1 : -1,
+          exitFrame: item.leaving ? item.exitFrame + 1 : 0,
+        }))
+        .filter((item) => !item.leaving || item.exitFrame <= GIFT_EXIT_FRAMES)
+      alive = alive || giftCombos.value.length > 0
+    }
+    if (alive) return
+    stopGiftTicker()
+  }, GIFT_FRAME_MS)
+}
+
+function stopGiftTicker() {
+  if (giftTicker) clearInterval(giftTicker)
+  giftTicker = null
+}
+
+function giftEnterProgress(frame: number) {
+  if (giftFeed.isReducedMotion) return 1
+  return Math.min(1, Math.max(0, frame) / GIFT_ENTER_FRAMES)
+}
+
+function giftExitProgress(item: { leaving: boolean; exitFrame: number }) {
+  if (!item.leaving) return 0
+  if (giftFeed.isReducedMotion) return 1
+  return Math.min(1, item.exitFrame / GIFT_EXIT_FRAMES)
+}
+
+function giftLightStyle(item: GiftLightItem) {
+  const enter = giftEnterProgress(item.frame)
+  const exit = giftExitProgress(item)
+  const rise = uni.upx2px(24) * (1 - enter) + uni.upx2px(18) * exit
+  return {
+    opacity: String(Math.max(0, enter * (1 - exit))),
+    transform: `translateY(${rise.toFixed(1)}px)`,
+  }
+}
+
+function giftComboStyle(item: GiftComboItem) {
+  const enter = giftEnterProgress(item.frame)
+  const exit = giftExitProgress(item)
+  const slide = -uni.upx2px(56) * (1 - enter) - uni.upx2px(32) * exit
+  return {
+    opacity: String(Math.max(0, enter * (1 - exit))),
+    transform: `translateX(${slide.toFixed(1)}px)`,
+  }
+}
+
+function giftComboCountStyle(item: GiftComboItem) {
+  if (giftFeed.isReducedMotion || item.bumpFrame < 0 || item.bumpFrame > GIFT_BUMP_FRAMES) {
+    return { transform: 'scale(1)' }
+  }
+  const t = item.bumpFrame / GIFT_BUMP_FRAMES
+  // 先放大再回落，数量变化看得见但不跳屏
+  const scale = t < 0.4 ? 1 + t * 1.15 : 1.46 - (t - 0.4) * 0.77
+  return { transform: `scale(${scale.toFixed(2)})` }
+}
+
+const giftComboLaneStyle = computed(() => ({
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(566)}px`,
+}))
+const giftLightLaneStyle = computed(() => ({
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(400)}px`,
+}))
+const giftOverflowStyle = computed(() => ({
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(372)}px`,
+}))
+
+/** 礼物图标由后端 Gift.icon 提供（可能为空）；为空时用「礼」字兜底，不下载任何外部素材。 */
+function giftRenderer(): GiftFeedRenderer {
+  return {
+    showLight(event: NormalizedGiftEvent) {
+      giftLights.value = giftLights.value.concat([{
+        recordId: event.recordId,
+        userName: event.userName,
+        giftName: event.giftName,
+        icon: event.icon,
+        quantity: event.quantity,
+        frame: 0,
+        exitFrame: 0,
+        leaving: false,
+      }])
+      startGiftTicker()
+    },
+    hideLight(recordId: string) {
+      giftLights.value = giftLights.value.map((item) =>
+        item.recordId === recordId ? { ...item, leaving: true, exitFrame: 0 } : item,
+      )
+      startGiftTicker()
+    },
+    showCombo(key: string, event: NormalizedGiftEvent, count: number) {
+      giftCombos.value = giftCombos.value.concat([{
+        key,
+        userName: event.userName,
+        initial: (event.userName || '观').slice(0, 1),
+        giftName: event.giftName,
+        icon: event.icon,
+        level: event.level,
+        count,
+        frame: 0,
+        bumpFrame: -1,
+        exitFrame: 0,
+        leaving: false,
+      }])
+      startGiftTicker()
+    },
+    updateCombo(key: string, count: number) {
+      giftCombos.value = giftCombos.value.map((item) =>
+        item.key === key ? { ...item, count, bumpFrame: 0 } : item,
+      )
+      startGiftTicker()
+    },
+    hideCombo(key: string) {
+      giftCombos.value = giftCombos.value.map((item) =>
+        item.key === key ? { ...item, leaving: true, exitFrame: 0 } : item,
+      )
+      startGiftTicker()
+    },
+    showOverflow(dropped: number) {
+      giftOverflow.value = dropped
+    },
+    clearAll() {
+      giftLights.value = []
+      giftCombos.value = []
+      giftOverflow.value = 0
+      stopGiftTicker()
+    },
+  }
+}
+
+const giftFeed = new GiftFeed({ renderer: giftRenderer() })
+
+/** 按 giftId 回查已拉取的礼物清单，补齐广播里没有的图标与层级；查不到不猜。 */
+function lookupGift(giftId: string) {
+  const hit = gifts.value.find((gift) => gift.id === giftId)
+  return hit ? { id: hit.id, name: hit.name, icon: hit.icon, level: hit.level } : undefined
+}
+
+function giftNormalizeContext() {
+  const profile = getUserInfo<{ id?: string; userId?: string }>()
+  return {
+    roomId: roomId.value,
+    lookupGift,
+    selfUserId: String(profile?.id || profile?.userId || ''),
+  }
+}
+
 function rememberLocalEcho(content: string) {
   const token = ++localEchoSequence
   const tokens = pendingLocalEchoes.get(content) || new Set<number>()
@@ -882,6 +1130,9 @@ async function joinPublicScreen(groupId: string, targetRoomId: string, requestVe
       )
       for (const message of incoming) {
         const giftEvent = readLiveGiftTimEvent(message)
+        // 礼物反馈与公屏是两条独立链路：本地回显抑制只管公屏，
+        // 自己送礼的广播回声照样喂给编排层，由 recordId 决定是否已展示过。
+        if (giftEvent) giftFeed.push(normalizeFromTimMessage(message, giftNormalizeContext()))
         const content = giftEvent ? formatLiveGiftTimEvent(giftEvent) : message.payload?.text || ''
         if (!content || consumeLocalEcho(message, content)) continue
         comments.value.push({
@@ -949,6 +1200,8 @@ async function refreshWatchContext(targetRoomId = roomId.value, requestVersion =
 async function loadRoom() {
   const targetRoomId = roomId.value
   if (!targetRoomId) return
+  // 切房：清空上一房间的礼物反馈与去重记录，之后到达的旧房间事件一律拒绝
+  giftFeed.enterRoom(targetRoomId)
   const requestVersion = ++roomLoadVersion
   loading.value = true
   error.value = ''
@@ -1350,7 +1603,10 @@ async function sendGift(gift: LiveGift) {
   const echoContent = `送出 ${gift.name} x1`
   const echoToken = rememberLocalEcho(echoContent)
   try {
-    await sendLiveGift(room.value.id, gift.id, 1)
+    const sent = await sendLiveGift(room.value.id, gift.id, 1)
+    // 拿到 giftRecord 即代表扣币、建记录、主播分账已在同一事务提交成功。
+    // 动画只是这件事的表现，播不出来也不改变交易结果。
+    giftFeed.push(normalizeFromSendResponse(sent.record, giftNormalizeContext()))
     coinBalance.value = Math.max(0, coinBalance.value - gift.price)
     if (giftPolicy.value) giftPolicy.value.spentTodayCoin += gift.price
     comments.value.push({
@@ -1795,6 +2051,8 @@ onLoad((options) => {
 onShow(() => {
   pageVisible.value = true
   presenceActive.value = true
+  // 回到前台：后台过久的积压礼物效果不集中补播（阈值见 gift-feed.ts）
+  giftFeed.resume()
   const shouldResume = resumeAfterHide
   resumeAfterHide = false
   if (roomEnded.value) {
@@ -1823,6 +2081,8 @@ onShow(() => {
 
 onHide(() => {
   // 先使所有在飞行请求失效，避免后台晚响应重新登记在线或改写当前房间。
+  giftFeed.pause()
+  stopGiftTicker()
   pageVisible.value = false
   presenceActive.value = false
   resumeAfterHide = true
@@ -1867,6 +2127,8 @@ onUnmounted(() => {
   if (likeParticleTimer) clearInterval(likeParticleTimer)
   likeParticleTimer = null
   likeParticles.value = []
+  giftFeed.destroy()
+  stopGiftTicker()
   if (offTimMessage) offTimMessage()
   if (timGroupId) void tim.quitGroup(timGroupId)
   stopRoomPolling()
@@ -1985,6 +2247,64 @@ onUnmounted(() => {
 .like-particle { position: absolute; bottom: 0; color: #F06476; font-size: 42rpx; opacity: 0; }
 .like-particle-1 { color: #F7F2E8; margin-left: -22rpx; }
 .like-particle-2 { color: #C9A96E; margin-left: 22rpx; }
+
+/* ───────── 礼物反馈 L1/L2 ─────────
+   位置刻意避开：顶部退出/举报入口、右侧社交栏（好物/心意/点赞/连麦/更多）、底部输入与分享条。
+   整层只做展示，没有任何点击事件，不会吃掉关键操作的触摸。 */
+.gift-combo-lane { position: absolute; width: 520rpx; align-items: flex-start; }
+.gift-combo {
+  flex-direction: row; align-items: center;
+  margin-top: 10rpx;
+  padding-left: 6rpx; padding-right: 20rpx; padding-top: 6rpx; padding-bottom: 6rpx;
+  border-radius: 40rpx;
+  background-color: rgba(98,67,34,0.78);
+  border-width: 1rpx; border-color: rgba(231,193,123,0.42);
+  opacity: 0;
+}
+/* 层级越高描边越实，但不做独占特效——L3 未接入 */
+.gift-combo-mid { border-color: rgba(231,193,123,0.62); }
+.gift-combo-high { border-color: #D4B87D; background-color: rgba(120,74,32,0.82); }
+.gift-combo-top { border-color: #FFD700; background-color: rgba(138,78,28,0.86); }
+.gift-combo-avatar {
+  width: 52rpx; height: 52rpx; border-radius: 26rpx;
+  background-color: #C9A96E; align-items: center; justify-content: center;
+}
+.gift-combo-avatar-text { color: #241B0E; font-size: 26rpx; font-weight: 700; }
+.gift-combo-info { margin-left: 12rpx; width: 220rpx; }
+.gift-combo-user { color: #E7C17B; font-size: 20rpx; text-overflow: ellipsis; }
+.gift-combo-desc { color: rgba(255,255,255,0.9); font-size: 19rpx; margin-top: 2rpx; text-overflow: ellipsis; }
+.gift-combo-icon { width: 44rpx; height: 44rpx; margin-left: 12rpx; }
+.gift-combo-icon-fallback {
+  width: 44rpx; height: 44rpx; margin-left: 12rpx;
+  border-radius: 22rpx; background-color: rgba(201,169,110,0.22);
+  color: #E7C17B; font-size: 22rpx; text-align: center; line-height: 44rpx;
+}
+.gift-combo-count { color: #FFD700; font-size: 36rpx; font-weight: 700; margin-left: 14rpx; }
+
+.gift-light-lane { position: absolute; width: 460rpx; align-items: flex-start; }
+.gift-light {
+  flex-direction: row; align-items: center;
+  margin-top: 8rpx;
+  padding-left: 6rpx; padding-right: 18rpx; padding-top: 5rpx; padding-bottom: 5rpx;
+  border-radius: 32rpx;
+  background-color: rgba(12,11,14,0.58);
+  border-width: 1rpx; border-color: rgba(201,169,110,0.30);
+  opacity: 0;
+}
+.gift-light-icon { width: 34rpx; height: 34rpx; }
+.gift-light-icon-fallback {
+  width: 34rpx; height: 34rpx; border-radius: 17rpx;
+  background-color: rgba(201,169,110,0.20);
+  color: #E7C17B; font-size: 18rpx; text-align: center; line-height: 34rpx;
+}
+.gift-light-text { margin-left: 10rpx; width: 380rpx; color: #E8DCC4; font-size: 20rpx; text-overflow: ellipsis; }
+
+.gift-overflow {
+  position: absolute;
+  padding-left: 14rpx; padding-right: 14rpx; padding-top: 5rpx; padding-bottom: 5rpx;
+  border-radius: 20rpx; background-color: rgba(12,11,14,0.52);
+}
+.gift-overflow-text { color: rgba(232,220,196,0.72); font-size: 18rpx; }
 .composer-mask { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,0,0,0.46); justify-content: flex-end; }
 .composer-sheet { background-color: #171419; padding-top: 26rpx; border-top-left-radius: 28rpx; border-top-right-radius: 28rpx; }
 .composer-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
