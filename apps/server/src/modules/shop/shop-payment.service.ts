@@ -930,15 +930,21 @@ export class ShopPaymentService {
    * 按**订单**幂等地记一次圈子收益。
    *
    * 两把钥匙各司其职，不能互相代替：
-   *  - `sourceId` 取 **成员 id**：退款追回按它反查圈主分成（circle-refund.service.ts:229-231）；
+   *  - `sourceId` 取 **成员 id**：退款追回的回落查询按它反查圈主分成（circle-refund.service.ts）；
    *  - `orderId`  取 **订单 id**：数据库 `(type, orderId)` 唯一约束保证同一笔订单只记一次。
    * 一个成员会有多笔订单（入圈 + 多次续费），成员唯一性挡不住订单级重复记账。
    *
-   * 两段式：先插占位行占住唯一键（挡住并发与重放），再算分成回填金额。
-   * 中途失败会留下金额为 0 的占位行，由 `reconcileCircleRevenue` 识别并补算 —— 占位行本身
-   * 已经阻止了双记，所以「失败后可恢复」和「不重复入账」可以同时成立。
+   * 唯一约束同时是**跨入口**的挡板：客户端付完款还会调 `confirm-join`，
+   * 那条路径（circle-membership.service.ts）现在同样传 orderId，两者互斥。
    *
-   * 失败不抛出，只记日志：收益是账务旁路，不应反噬订单主流程。
+   * **一次写入完整行，不留占位行。** 早先的两段式（先插 amount=0 占位行占住唯一键、
+   * 再回填金额）有一个未被发现的资金副作用：回填失败时留下的那条 `ownerShare=0` 的
+   * circle_join 行，会被退款冲正的「取该成员最新一条 circle_join」查询选中，
+   * 导致圈主分成按 0 追回。占位行并不提供额外保护——挡住并发与重放的是唯一约束本身，
+   * 无论先写占位行还是直接写完整行都一样成立。
+   *
+   * 失败不抛出，只记日志：收益是账务旁路，不应反噬订单主流程。失败留下的是「没有行」，
+   * 由 `reconcileCircleRevenue` 扫描补记。
    */
   private async recordCircleRevenueOnce(
     orderId: string,
@@ -948,30 +954,35 @@ export class ShopPaymentService {
   ): Promise<"recorded" | "duplicate" | "failed" | "no-service"> {
     if (!this.commissionSvc) return "no-service";
     try {
+      // 先解析分成（只读），再一次性写入。两者之间若有并发，唯一约束会挡下后到的那笔。
+      const split = await this.commissionSvc.resolveCircleRevenueSplit(circleId, priceYuan);
       await this.prisma.circleRevenueRecord.create({
         data: {
           circleId,
           type: CIRCLE_REVENUE_TYPE,
           sourceId: memberId,
           orderId,
-          amount: 0,
-          platformFee: 0,
-          ownerShare: 0,
-          splitRate: 0,
+          amount: priceYuan,
+          platformFee: split.platformFee,
+          ownerShare: split.ownerShare,
+          splitRate: split.splitRate,
         },
       });
+      return "recorded";
     } catch (e) {
       if (isUniqueConstraintError(e)) return "duplicate";
-      this.logger.error(`圈子收益占位失败 order=${orderId}`, e instanceof Error ? e.stack : String(e));
+      this.logger.error(`圈子收益记账失败 order=${orderId}`, e instanceof Error ? e.stack : String(e));
       return "failed";
     }
-    return this.fillCircleRevenueAmount(orderId, circleId, priceYuan);
   }
 
   /**
-   * 回填收益金额（占位行已存在时使用）。
-   * 单独拆出来的原因：对账补算时占位行已经在了，不能再走 create —— 那会撞唯一键，
-   * 被误判成「已记过」而永远补不上（这是隔离验证 R4 抓到的真实缺陷）。
+   * 回填收益金额（行已存在但金额为 0 时使用）。
+   *
+   * 正常路径不再产生金额为 0 的行，这里是**防御性**通道：用于兜底早先两段式版本
+   * 可能遗留的占位行，以及任何其他来源的 0 元 circle_join 行。
+   * 不能改用 create —— 行已经在了，create 会撞唯一键被误判成「已记过」而永远补不上
+   * （这是隔离验证 R4 抓到的真实缺陷）。
    */
   private async fillCircleRevenueAmount(
     orderId: string,
@@ -993,7 +1004,7 @@ export class ShopPaymentService {
       return "recorded";
     } catch (e) {
       this.logger.error(
-        `圈子收益金额回填失败 order=${orderId}（已留占位行待对账）`,
+        `圈子收益金额回填失败 order=${orderId}（0 元行仍在，待下次对账）`,
         e instanceof Error ? e.stack : String(e),
       );
       return "failed";
@@ -1005,7 +1016,7 @@ export class ShopPaymentService {
    *
    * 补两类：
    *  1) 已 COMPLETED 且未退款、但完全没有本订单收益行的；
-   *  2) 有占位行但金额仍为 0 的（占坑成功、回填失败）。
+   *  2) 有收益行但金额仍为 0 的（早先两段式版本遗留的占位行）。
    *
    * 硬约束：
    *  - `since` 必填且无默认值。调用方必须显式给出**不早于本改动上线时间**的起点；
@@ -1076,7 +1087,7 @@ export class ShopPaymentService {
           }
         }
 
-        // 占位行已存在 → 只回填金额；否则走「占坑 + 回填」完整路径。
+        // 已有 0 元行（早先两段式遗留）→ 只回填金额；否则直接写入完整行。
         const r = existing
           ? await this.fillCircleRevenueAmount(o.id, o.targetId, price)
           : await this.recordCircleRevenueOnce(o.id, o.targetId, member.id, price);
