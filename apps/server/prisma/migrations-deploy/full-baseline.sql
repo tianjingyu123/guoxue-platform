@@ -5476,6 +5476,7 @@ CREATE TABLE "CommissionRecall" (
     "balanceAfter" DECIMAL(10,2) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
     "reason" TEXT,
+    "sourceId" TEXT,
     "offsetCompletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

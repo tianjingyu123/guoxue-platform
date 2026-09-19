@@ -770,6 +770,49 @@ async function r16() {
   })).memberCount === 0, `member=${m ? "在" : "无"}`);
 }
 
+/**
+ * R17 待人工核对的只读查询（`getManualRecalls`）。
+ *
+ * 转人工只有在「有人能看到、且看到的信息足以核对」时才算闭环。
+ * 这里断言三件事：待办能被查出来、按原因码能统计出发生量（N9 决策的量化依据）、
+ * 每条待办带得出候选收益行 —— 退款成功后成员行已被删除，若不留 `sourceId`，
+ * 之后无法由 (circleId, userId) 反推成员 id，候选就再也关联不上。
+ */
+async function r17() {
+  // 造一条 ambiguous 待办（两条同额候选）
+  const f = await fixture();
+  await fulfillOrder(f.order.id);                       // 199
+  const ro = await renewOrder(f, 199);
+  await fulfillOrder(ro.id);                            // 199，同额 → 消歧失败
+  const m = await prisma.circleMember.findUnique({
+    where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+  });
+  const rid = await runRefund({
+    circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150,
+  });
+
+  const page = await new CircleRefundService(prisma).getManualRecalls({ limit: 50 });
+  const item = page.items.find((i) => i.refundId === rid);
+  check("R17 待人工追回能被只读查询列出", !!item, `总数=${page.total}`);
+  check("R17 待办带出退款事实（圈子、订单、金额）",
+    !!item && item.circleId === f.circle && Number(item.paidAmount) === 199 &&
+      item.reason === "ambiguous_candidates",
+    JSON.stringify({ circleId: item?.circleId, paidAmount: item?.paidAmount, reason: item?.reason }));
+  check("R17 待办记下了成员 id（成员行已被删，否则候选再也关联不上）",
+    !!item && item.memberId === m.id && !(await prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+    })), `memberId=${item?.memberId} 应为=${m.id}`);
+  check("R17 待办带出两条候选收益行（人工据此挑被退的那一笔）",
+    !!item && item.candidates.length === 2 &&
+      item.candidates.every((c) => Number(c.amount) === 199),
+    JSON.stringify(item?.candidates?.map((c) => Number(c.amount))));
+  check("R17 按原因码给出发生量（N9 决策的量化依据）",
+    page.summary.some((x) => x.reason === "ambiguous_candidates" && Number(x.count) >= 1),
+    JSON.stringify(page.summary));
+  check("R17 只读查询不产生任何写入",
+    (await recallsOf(rid)).length === 1, JSON.stringify(await recallsOf(rid)));
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 收益与真实入口验证 ===");
@@ -777,6 +820,7 @@ try {
   await r1(); await r2(); await r3(); await r4(); await r5(); await r6();
   await r7(); await r8(); await r9(); await r10(); await r11(); await r12();
   await r13(); await r14(); await r15(); await r16();
+  await r17();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);

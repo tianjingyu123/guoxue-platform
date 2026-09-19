@@ -304,9 +304,9 @@ export class CircleRefundService {
                 ? resolved.reason
                 : RECALL_MANUAL_REASONS.INFERRED_NOT_APPROVED;
           await tx.$executeRawUnsafe(
-            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","createdAt")
-             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',$4,CURRENT_TIMESTAMP)`,
-            randomUUID(), refundId, circle?.ownerId ?? "", reason,
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","sourceId","createdAt")
+             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',$4,$5,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", reason, member.id,
           );
           this.logger.warn(
             `圈主分成追回转人工：refund=${refundId} circle=${circleId} member=${member.id} ` +
@@ -326,9 +326,9 @@ export class CircleRefundService {
             },
           });
           await tx.$executeRawUnsafe(
-            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","createdAt")
-             VALUES ($1,$2,$3,'owner',$4,0,'completed',$5,CURRENT_TIMESTAMP)`,
-            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled, resolved.kind,
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","reason","sourceId","createdAt")
+             VALUES ($1,$2,$3,'owner',$4,0,'completed',$5,$6,CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "", -ownerRecalled, resolved.kind, member.id,
           );
         }
         // 3) 成员身份失效 + 圈子成员数减一
@@ -442,6 +442,76 @@ export class CircleRefundService {
       return { kind: "amount", ownerShare: byAmount[0].ownerShare, candidates };
     }
     return { kind: "ambiguous", ownerShare: null, candidates };
+  }
+
+  /**
+   * 待人工核对的圈主分成追回列表（**只读**）。
+   *
+   * 复用既有的平台退款审核入口与角色，不新建后台：`CircleRefundAudit` 用的
+   * `admin-pending` 在同一个控制器上，权限与审计范式一致。
+   *
+   * **只查不写**。这里刻意不提供「一键冲正」：自动冲抵就等于回到「猜」，
+   * 而这些行之所以存在，正是因为系统判定不出该冲正哪一笔。核对结论由人给出，
+   * 冲正动作按财务既定流程执行。
+   *
+   * 每行附带 `candidates`：该成员名下金额为正的 `circle_join` 收益行。
+   * 这是核对所需的全部事实 —— 人按退款申请的订单与金额挑出被退的那一笔。
+   *
+   * `summary` 给出各原因码的条数。这是决策项 N9（推断匹配是否放开）唯一的量化依据：
+   * `inferred_match_not_approved` 的占比说明放开后会自动处理多少、风险敞口有多大。
+   */
+  async getManualRecalls(params: { limit?: number; offset?: number } = {}) {
+    const limit = Math.min(Math.max(1, Math.floor(Number(params.limit ?? 50))), 200);
+    const offset = Math.max(0, Math.floor(Number(params.offset ?? 0)));
+
+    const [summary, totalRows, rows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT coalesce("reason", 'unknown') AS "reason", count(*)::int AS "count"
+         FROM "CommissionRecall" WHERE "status" = 'pending_manual'
+         GROUP BY 1 ORDER BY 2 DESC`,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT count(*)::int AS "n" FROM "CommissionRecall" WHERE "status" = 'pending_manual'`,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT r."id", r."refundId", r."userId" AS "ownerId", r."reason",
+                r."sourceId" AS "memberId", r."createdAt",
+                q."circleId", q."userId" AS "memberUserId", q."orderId",
+                q."paidAmount", q."actualRefund", q."refundedAt",
+                c."name" AS "circleName", u."nickname" AS "ownerNickname"
+         FROM "CommissionRecall" r
+         LEFT JOIN "CircleRefundRequest" q ON q."id" = r."refundId"
+         LEFT JOIN "Circle" c ON c."id" = q."circleId"
+         LEFT JOIN "User" u ON u."id" = r."userId"
+         WHERE r."status" = 'pending_manual'
+         ORDER BY r."createdAt" DESC
+         LIMIT $1 OFFSET $2`,
+        limit, offset,
+      ),
+    ]);
+
+    const memberIds = [...new Set(rows.map((r) => r.memberId).filter(Boolean))];
+    const candidates = memberIds.length
+      ? await this.prisma.$queryRawUnsafe<any[]>(
+          `SELECT "id", "sourceId", "orderId", "amount", "ownerShare", "createdAt"
+           FROM "CircleRevenueRecord"
+           WHERE "type" = 'circle_join' AND "amount" > 0 AND "sourceId" = ANY($1::text[])
+           ORDER BY "createdAt" DESC`,
+          memberIds,
+        )
+      : [];
+
+    return {
+      total: Number(totalRows[0]?.n ?? 0),
+      limit,
+      offset,
+      summary,
+      items: rows.map((r) => ({
+        ...r,
+        // memberId 为空说明该行由旧版本写入（`sourceId` 是本次新增列），只能人工按订单反查
+        candidates: r.memberId ? candidates.filter((c) => c.sourceId === r.memberId) : [],
+      })),
+    };
   }
 
   private async getById(id: string) {

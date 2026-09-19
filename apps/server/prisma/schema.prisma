@@ -7193,6 +7193,11 @@ model CommissionRecall {
   /// 转人工的原因码（`RECALL_MANUAL_REASONS`）或自动冲正的取值档（exact / single / amount）。
   /// 可空：历史行保持 NULL。人工核对按它分流，也用于统计各分支的真实发生量以支撑 N9 决策。
   reason            String?
+  /// 被追回收益的来源 id（圈主分成为 `CircleMember.id`，即 `CircleRevenueRecord.sourceId`）。
+  /// 必须留存：退款成功后成员行会被删除，之后无法再由 (circleId, userId) 反推出成员 id，
+  /// 而候选收益行正是按 sourceId 关联的 —— 不记下来，转人工的那条待办就无从核对。
+  /// 可空：历史行保持 NULL。
+  sourceId          String?
   offsetCompletedAt DateTime?
   createdAt         DateTime  @default(now())
 

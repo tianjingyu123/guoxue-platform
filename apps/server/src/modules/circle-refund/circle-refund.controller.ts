@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CircleRefundService } from "./circle-refund.service";
@@ -80,6 +80,20 @@ export class CircleRefundController {
   @ApiBearerAuth()
   adminPending() {
     return this.svc.getAdminPending();
+  }
+
+  @Get("admin-manual-recalls")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({
+    summary: "待人工核对的圈主分成追回（只读）",
+    description:
+      "系统判定不出该冲正哪一笔收益时留下的待办。只读，不提供自动冲抵——" +
+      "自动冲抵等于回到「猜」，而这些行正因为判定不出才存在。",
+  })
+  @ApiBearerAuth()
+  adminManualRecalls(@Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset) });
   }
 
   @Post(":id/admin-review")
