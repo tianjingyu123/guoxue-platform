@@ -1170,6 +1170,7 @@ async function toggleBook(item: LiveItem) {
   color: #6f6a5c;
   text-align: center;
   padding: 0 48rpx;
+  line-height: 1.55;
 }
 /* 空态出口按钮：与错误态 retry-btn 同一套胶囊样式，高度锁 44px 保证触达区
    （触达区下限用物理 px：88rpx 在 320 宽机型上只有 37.5px） */

@@ -388,26 +388,84 @@ try {
     const gAfter = await prisma.feedback.findUnique({ where: { id: g.id }, select: { status: true } });
     check("H8 非法状态值没有落库", gAfter.status !== "不存在的状态", gAfter.status);
 
-    // 并发：两个管理员同时改
-    const h = await prisma.feedback.create({
-      data: { userId: normal.id, type: "bug", content: "并发用例", status: "pending" },
+    // ── 并发：必须把两种情形分开，不能混成一条「两个管理员同时改」 ──
+    //
+    // 情形一（H8a）串行合法流转：一个改完另一个才开始。
+    //   pending → processing → resolved 两步都是**合法**流转，双方都 200 是正确行为，
+    //   不能当失败。此前的用例把这种情况也算进「恰好一个成功」，冷启动时就会假失败。
+    //
+    // 情形二（H8b）同一旧状态下的竞争更新：两个请求都读到 pending 之后才各自写。
+    //   这才是乐观并发守卫（updateMany where {id, status: 读到的旧值}，要求 count===1）
+    //   真正要防的东西。靠 Promise.all 碰运气制造不出来，必须**可控同步**。
+
+    // ── H8a 串行合法流转 ──
+    const hSeq = await prisma.feedback.create({
+      data: { userId: normal.id, type: "bug", content: "串行流转用例", status: "pending" },
     });
-    const [a, b] = await Promise.all([
-      call("PUT", `/users/admin/feedback/${h.id}/status`, ops.token, { status: "processing" }),
-      call("PUT", `/users/admin/feedback/${h.id}/status`, sadmin.token, { status: "resolved", result: "另一人直接结案" }),
-    ]);
-    const okN = [a, b].filter((r) => r.status === 200).length;
-    check("H8 并发流转恰好一个成功（HTTP 层）", okN === 1, `a=${a.status} b=${b.status}`);
-    const loser = [a, b].find((r) => r.status !== 200);
-    check("H8 失败方收到明确错误而不是静默覆盖", !!loser && loser.status >= 400,
-      // 整合复验加固：两个请求若未真正并发（冷启动时会完全串行，
-      // 此时 pending→processing→resolved 两步都是合法流转，双方都 200），
-      // loser 为 undefined，原写法在 JSON.stringify(undefined).slice() 处抛 TypeError，
-      // 会让整轮 41 项的结果一起丢失。这里只加固消息拼接，判定条件一字未改。
-      `status=${loser?.status ?? "无"} msg=${loser ? JSON.stringify(loser.body).slice(0, 100) : "两个请求都返回 200（本次未真正并发，见交接说明）"}`);
-    const fin = await prisma.feedback.findUnique({ where: { id: h.id }, select: { status: true } });
-    check("H8 最终状态是成功那一方写入的，没有被覆盖",
-      ["processing", "resolved"].includes(fin.status), fin.status);
+    const seq1 = await call("PUT", `/users/admin/feedback/${hSeq.id}/status`, ops.token, { status: "processing" });
+    const seq2 = await call("PUT", `/users/admin/feedback/${hSeq.id}/status`, sadmin.token, { status: "resolved", result: "串行结案" });
+    check("H8a 串行合法流转：pending→processing→resolved 两步都应成功",
+      seq1.status === 200 && seq2.status === 200, `第一步=${seq1.status} 第二步=${seq2.status}`);
+    const seqFin = await prisma.feedback.findUnique({ where: { id: hSeq.id }, select: { status: true, result: true } });
+    check("H8a 串行流转后落库为最后一步的状态与结果",
+      seqFin.status === "resolved" && seqFin.result === "串行结案", `${seqFin.status}/${seqFin.result}`);
+
+    // ── H8b 同一旧状态下的竞争更新（行锁造确定窗口，不靠重跑取绿）──
+    //
+    // 做法：另开一个事务对该行加 FOR UPDATE 行锁。
+    //   · Postgres MVCC 下 FOR UPDATE **不挡普通读**，所以两个请求的 findUnique
+    //     都会读到 status='pending' —— 这就把「同一旧状态」这个前提坐实了；
+    //   · 两个请求随后的 updateMany 都会被行锁挡住，停在写之前；
+    //   · 用 pg_stat_activity 轮询等到**确实有 2 个后端在等锁**（真实屏障条件，
+    //     不是 sleep）；
+    //   · 提交事务放锁，两个更新依次执行：先到的 count=1 成功，
+    //     后到的重新求值 WHERE（status 已变）得到 count=0 → 400。
+    // 屏障没等到就直接判失败，不退化成原来的碰运气写法。
+    const hRace = await prisma.feedback.create({
+      data: { userId: normal.id, type: "bug", content: "竞争更新用例", status: "pending" },
+    });
+
+    const lockedBackends = async () => {
+      const r = await prisma.$queryRawUnsafe(
+        `SELECT count(*)::int AS n FROM pg_stat_activity
+          WHERE datname = current_database() AND state = 'active' AND wait_event_type = 'Lock'`,
+      );
+      return Number(r?.[0]?.n ?? 0);
+    };
+
+    let raceA, raceB, barrierReached = false, barrierPeak = 0;
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(`SELECT id FROM "Feedback" WHERE id = $1 FOR UPDATE`, hRace.id);
+
+      // 两个请求都发出去，但**不在事务里 await**：它们会卡在 updateMany 上，
+      // 事务不提交它们就不会返回，在事务里 await 会死锁。
+      raceA = call("PUT", `/users/admin/feedback/${hRace.id}/status`, ops.token, { status: "processing" });
+      raceB = call("PUT", `/users/admin/feedback/${hRace.id}/status`, sadmin.token, { status: "resolved", result: "另一人直接结案" });
+
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        const n = await lockedBackends();
+        if (n > barrierPeak) barrierPeak = n;
+        if (n >= 2) { barrierReached = true; break; }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }, { timeout: 20000, maxWait: 10000 });
+
+    check("H8b 屏障成立：两个请求都读到了同一个旧状态并双双停在写之前",
+      barrierReached, `等锁后端峰值=${barrierPeak}（需 ≥2）`);
+
+    const [ra, rb] = await Promise.all([raceA, raceB]);
+    const raceOk = [ra, rb].filter((r) => r.status === 200).length;
+    check("H8b 同一旧状态竞争更新：恰好一个成功", raceOk === 1, `a=${ra.status} b=${rb.status}`);
+    const raceLoser = [ra, rb].find((r) => r.status !== 200);
+    check("H8b 失败方收到明确错误而不是静默覆盖",
+      !!raceLoser && raceLoser.status >= 400 && /状态已被他人变更/.test(JSON.stringify(raceLoser?.body ?? "")),
+      raceLoser ? `status=${raceLoser.status} msg=${JSON.stringify(raceLoser.body).slice(0, 100)}`
+                : "两个请求都成功——守卫未拦住同一旧状态下的竞争更新");
+    const raceWinner = [ra, rb].find((r) => r.status === 200);
+    const raceFin = await prisma.feedback.findUnique({ where: { id: hRace.id }, select: { status: true } });
+    check("H8b 最终状态正是成功那一方写入的，没有被覆盖",
+      !!raceWinner && raceFin.status === raceWinner.body?.status, `落库=${raceFin.status} 成功方=${raceWinner?.body?.status}`);
   }
 
   await cleanup();
