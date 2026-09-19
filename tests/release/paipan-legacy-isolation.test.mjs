@@ -25,7 +25,9 @@ test("第三方失败不会回退或闪现自研排盘", () => {
   assert.doesNotMatch(page, /本地工具不受影响/u);
   assert.match(page, /v-else-if="allowNative"/u);
   assert.match(page, /pkg-common\/legacy-paipan\/index/u);
-  assert.match(legacyPage, /window\.open\('', '_blank'\)/u);
+  assert.match(legacyPage, /markLegacyDeparture\(window\.history\)/u);
+  assert.match(legacyPage, /window\.location\.assign\(url\)/u);
+  assert.doesNotMatch(legacyPage, /window\.open\('', '_blank'\)/u);
   assert.match(legacyPage, /<web-view/u);
   assert.match(legacyPage, /onBackPress\(\(\) =>/u);
   assert.match(page, /重新连接/u);

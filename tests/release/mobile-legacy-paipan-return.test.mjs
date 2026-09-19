@@ -15,11 +15,11 @@ const pages = fs.readFileSync('apps/mobile/src/pages.json', 'utf8')
 const videoPage = fs.readFileSync('apps/mobile/src/pkg-video/detail/index.vue', 'utf8')
 const manifest = fs.readFileSync('apps/mobile/src/manifest.json', 'utf8')
 
-test('H5 旧排盘由用户手势新窗口打开并保留可见返回入口', () => {
-  assert.match(page, /window\.open\('', '_blank'\)/u)
-  assert.match(page, /opened\.opener = null/u)
-  assert.match(page, /opened\.location\.replace\(legacyUrl\.value\)/u)
-  assert.match(page, /window\.location\.assign\(legacyUrl\.value\)/u)
+test('H5 旧排盘同页进入并用一次性历史标记安全返回', () => {
+  assert.match(page, /markLegacyDeparture\(window\.history\)/u)
+  assert.match(page, /window\.location\.assign\(url\)/u)
+  assert.match(page, /consumeLegacyReturn\(window\.history\)/u)
+  assert.doesNotMatch(page, /window\.open\('', '_blank'\)/u)
   assert.doesNotMatch(page, /window\.location\.replace\(entry\.url\)/u)
   assert.match(page, />返回热卜首页</u)
 })
