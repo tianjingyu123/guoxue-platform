@@ -4,7 +4,8 @@
  *
  * 真的起服务、真的开浏览器点。覆盖 8 组：
  *   列表 / 筛选 / 详情（脱敏 + 查看原文留痕）/ 认领 / 结案必填校验 /
- *   结案成功 / 服务端拒绝时的失败提示 / 无权限跳转。
+ *   结案成功 / 服务端拒绝时的失败提示 / 无权限跳转 /
+ *   同一行重复查看与多个明文字段先后查看（U9）。
  *
  * 为什么不用「读组件源码确认调了哪个接口」代替：那只能证明代码写了什么，
  * 证明不了路由守卫、Element Plus 确认框、axios 解包、错误提示这几段真的串起来了。
@@ -427,6 +428,64 @@ try {
         : "仍未出现 → 数据没有被保存下来");
   }
   step("U3 完成");
+
+  // ── U9 同一行重复查看 + 多个明文字段先后查看 ──
+  //
+  // 修复用的是「新对象整体赋回」并展开旧值：
+  //   const cur = { ...(revealed[row.id] ?? {}) }; … ; revealed[row.id] = cur;
+  // 展开若漏掉，第二次查看**另一个字段**会把第一次的结果冲掉。
+  // 这种缺陷只验「第一次能不能显示」是发现不了的，所以单列一组。
+  {
+    const ROW = "登录后一直转圈"; // 该行的稳定锚点：脱敏态与明文态都含这段
+    const rowState = () => page.evaluate((rt) => {
+      const tr = [...document.querySelectorAll(".el-table__body-wrapper tbody tr")]
+        .find((r) => r.innerText.includes(rt));
+      if (!tr) return null;
+      const contactBtn = [...tr.querySelectorAll("button")]
+        .find((b) => b.innerText.trim().startsWith("联系方式"));
+      return {
+        content: tr.querySelector(".content")?.innerText ?? "",
+        contact: contactBtn?.innerText.trim() ?? "",
+        imgs: tr.querySelectorAll(".imgs .img").length,
+      };
+    }, ROW);
+    const revealInRow = async (btnText) => {
+      const r = await clickInRow(ROW, btnText);
+      await wait(700);
+      await page.evaluate(() => {
+        const b = [...document.querySelectorAll(".el-message-box__btns button")]
+          .find((x) => x.innerText.trim() === "确认查看");
+        b?.click();
+      });
+      await wait(1600);
+      return r;
+    };
+
+    // U9-1 同一行重复查看同一字段
+    const r1 = await revealInRow("查看原文");
+    const s1 = await rowState();
+    check("U9-1 同一行重复查看原文：仍然显示原文（不是只有第一次有效）",
+      r1 === "ok" && s1.content.includes("13812345678"), `正文=${JSON.stringify(s1?.content?.slice(0, 40))}`);
+
+    // U9-2 接着查看**另一个**字段：联系方式
+    const r2 = await revealInRow("联系方式");
+    const s2 = await rowState();
+    check("U9-2 接着查看联系方式：联系方式变明文", r2 === "ok" && s2.contact.includes("13812345678"),
+      `按钮=${JSON.stringify(s2?.contact)}`);
+    check("U9-2 关键：正文原文**没有被冲掉**（展开旧值有效）",
+      s2.content.includes("13812345678"), `正文=${JSON.stringify(s2?.content?.slice(0, 40))}`);
+
+    // U9-3 再查看第三个字段：截图
+    const r3 = await revealInRow("1 张截图");
+    const s3 = await rowState();
+    check("U9-3 再查看截图：缩略图出现", r3 === "ok" && s3.imgs >= 1, `缩略图数=${s3?.imgs}`);
+    check("U9-3 关键：前两个字段仍然都在（三者共存）",
+      s3.content.includes("13812345678") && s3.contact.includes("13812345678"),
+      `正文明文=${s3?.content.includes("13812345678")} 联系方式明文=${s3?.contact.includes("13812345678")}`);
+
+    await page.screenshot({ path: join(SHOTS, "11-multi-reveal.png") });
+  }
+  step("U9 完成");
 
   // ── U4 认领 ──
   await openList();
