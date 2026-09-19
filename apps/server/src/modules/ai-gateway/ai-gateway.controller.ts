@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { StreamUnifierService } from "./stream-unifier.service";
-import { ChatSceneAccessService } from "./chat-scene-access.service";
+import { ChatSceneAccessService, type ClampedParam } from "./chat-scene-access.service";
 import { ChatDto } from "./dto/chat.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -29,10 +29,21 @@ import { SkipFormat } from "../../common/skip-format.decorator";
  * - **未来演进：** 如果 Coze 开放模型路由 API，可将 Coze 作为一个 adapter 接入，
  *   保持架构不变
  *
- * ## 场景准入（2026-09-19）
- * `scene` 来自请求体，此前无任何白名单：任何登录用户都能指定任意场景名，
- * 绕开该场景专用接口上的角色/成员/权益门禁，并把成本记到别的场景头上。
- * 现由 {@link ChatSceneAccessService} 按 `chat-scene-registry.ts` 判定，默认拒绝。
+ * ## 场景准入与参数收口（2026-09-19）
+ *
+ * `scene` 来自请求体，此前无任何白名单，任何登录用户都能指定任意场景名。
+ *
+ * **这暴露的是什么，需要说准**：指定任意 scene，拿到的是**该场景的模型路由与参数**，
+ * 并让这次调用的用量、预算与审计记在该场景名下。它**不会**触发该场景的知识检索、
+ * 工具执行或权益发放——那些都在各自的专用接口与服务里（例如圈子助理的成员校验在
+ * `circle-assistant.service.ts`，SQL 的实际执行在 `/ai/data-explorer` 之后的服务层）。
+ * 所以准确的说法是：**模型路由暴露 + 成本与计量归属错配 + 绕过专用接口的限频与额度门禁**，
+ * 而**不是**绕过了对应业务资源的数据权限。
+ *
+ * 现由 {@link ChatSceneAccessService} 按 `chat-scene-registry.ts` 判定，默认拒绝；
+ * 同时把路由默认值与调用方覆盖合并成**最终生效参数**后再判约束，并将三项全部显式下发，
+ * 使网关侧不会再解析出一份不同的参数。
+ *
  * 判定一律发生在**调用供应商之前、写出 SSE 响应头之前**，被拒请求返回普通 JSON 错误，
  * 不会留下半截 SSE 流。
  */
@@ -58,19 +69,20 @@ export class AiGatewayController {
   @ApiResponse({ status: 403, description: "该场景不通过此接口开放，或当前账号无权使用" })
   @ApiBearerAuth()
   async chat(@Body() dto: ChatDto, @Req() req: Request) {
-    // 场景准入 + 输入校验：必须先于任何供应商调用
-    const options = this.sceneAccess.authorize(
+    // 场景准入 + 输入校验 + 最终参数解析：必须先于任何供应商调用
+    const { options, clamped } = await this.sceneAccess.authorize(
       dto.scene,
       { id: req.user?.id, roles: req.user?.roles },
       dto,
     );
+    this.warnClamped(dto.scene, clamped);
 
     try {
       return await this.gateway.chat({
         scene: dto.scene,
         userId: req.user?.id,
         messages: dto.messages,
-        // 只透传调用方真正传了的键：值为 undefined 的键同样会覆盖路由配置
+        // 最终生效参数，三项齐全：网关的 { ...routeOptions, ...req.options } 无法再改写
         options,
       });
     } catch (err: any) {
@@ -92,13 +104,14 @@ export class AiGatewayController {
   @ApiResponse({ status: 403, description: "该场景不通过此接口开放，或当前账号无权使用" })
   @ApiBearerAuth()
   async chatStream(@Body() dto: ChatDto, @Req() req: Request, @Res() res: Response) {
-    // 场景准入 + 输入校验先于 res.flushHeaders()：
+    // 场景准入 + 输入校验 + 最终参数解析，全部先于 res.flushHeaders()：
     // 拒绝时响应仍是普通 JSON 错误，前端走统一错误提示，不会收到半截 SSE 流。
-    const options = this.sceneAccess.authorize(
+    const { options, clamped } = await this.sceneAccess.authorize(
       dto.scene,
       { id: req.user?.id, roles: req.user?.roles },
       dto,
     );
+    this.warnClamped(dto.scene, clamped);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -121,6 +134,18 @@ export class AiGatewayController {
       res.write(this.sse.encode({ type: "error", message: err.message }));
     } finally {
       res.end();
+    }
+  }
+
+  /**
+   * 路由配置越界被裁剪时留一条控制器侧告警。
+   * 裁剪本身不改变响应契约，但必须可见——这是"不静默改变"的落点之一。
+   */
+  private warnClamped(scene: string, clamped: ClampedParam[]): void {
+    for (const c of clamped) {
+      this.logger.warn(
+        `AI_SCENE_PARAM_CLAMPED scene=${scene} param=${c.param} routeValue=${c.routeValue} applied=${c.applied}`,
+      );
     }
   }
 
