@@ -224,36 +224,30 @@ export class CircleRefundService {
       // 2) 圈主分成全额追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
       const member = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
       if (member) {
-        // 圈主分成的取值来源，按精确度降序：
-        //  1) 本次退款所属订单的收益行 —— `(type, orderId)` 唯一，是唯一精确的匹配；
-        //  2) 回落：该成员**金额为正**的最新一条 circle_join 收益行。
-        //
-        // 为什么要分两级：原实现只有第 2 级。一个成员会有多笔 circle_join 收益
-        // （入圈一笔、每次续费各一笔），"最新一条"在续费之后取到的就不是被退的那一笔。
-        // 在圈子订单履约补齐之前，续费根本不产生收益行，这个偏差撞不上；现在会。
-        //
-        // `amount > 0` 的过滤同样不能省：金额为 0 的行不是真实收益，一旦被当作最新记录
-        // 选中，ownerShare 就读成 0，圈主分成一分也追不回来，而用户已全额退款。
-        // 历史行的 orderId 全是 NULL（该字段是后加的），所以第 2 级必须保留。
-        let revRows: any[] = [];
-        if (orderId) {
-          revRows = await tx.$queryRawUnsafe<any[]>(
-            `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "orderId"=$1 AND "type"='circle_join' LIMIT 1`,
-            orderId,
+        // 圈主分成取值见 resolveOwnerShare()：精确 → 唯一 → 按金额消歧 → 存疑转人工。
+        const resolved = await this.resolveOwnerShare(tx, { orderId, memberId: member.id, paidAmount });
+        const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { ownerId: true } });
+
+        if (resolved.kind === "ambiguous") {
+          // **不猜**。用户的退款照退（那是用户的钱），但圈主分成追回多少无法确定，
+          // 猜错的两个方向都是真实损失：猜大了多扣圈主，猜小了平台自己吃差额。
+          // 这里只留一条**待人工核对**的追回台账，金额记 0，由财务按订单核对后补处理。
+          // 不写 circle_join_refund 冲正行：写了就等于用一个猜出来的数字改了账。
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","createdAt")
+             VALUES ($1,$2,$3,'owner',0,0,'pending_manual',CURRENT_TIMESTAMP)`,
+            randomUUID(), refundId, circle?.ownerId ?? "",
           );
-        }
-        if (!revRows.length) {
-          revRows = await tx.$queryRawUnsafe<any[]>(
-            `SELECT "ownerShare" FROM "CircleRevenueRecord" WHERE "sourceId"=$1 AND "type"='circle_join' AND "amount" > 0 ORDER BY "createdAt" DESC LIMIT 1`,
-            member.id,
+          this.logger.warn(
+            `圈主分成追回存疑，已转人工：refund=${refundId} circle=${circleId} member=${member.id} ` +
+              `候选=${resolved.candidates.length} 笔（金额 ${resolved.candidates.map((c) => c.amount).join("/")}）` +
+              `，退款已付金额=${paidAmount}。查询：SELECT * FROM "CommissionRecall" WHERE status='pending_manual'`,
           );
-        }
-        if (revRows.length) {
-          ownerRecalled = Number(revRows[0].ownerShare);
+        } else if (resolved.kind !== "none") {
+          ownerRecalled = resolved.ownerShare;
           await tx.circleRevenueRecord.create({
             data: { circleId, type: "circle_join_refund", sourceId: member.id, amount: -paidAmount, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0 },
           });
-          const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { ownerId: true } });
           await tx.$executeRawUnsafe(
             `INSERT INTO "CommissionRecall" ("id","refundId","userId","userType","amount","balanceAfter","status","createdAt")
              VALUES ($1,$2,$3,'owner',$4,0,'completed',CURRENT_TIMESTAMP)`,
@@ -278,6 +272,68 @@ export class CircleRefundService {
         (e) => this.logger.warn(`站长佣金追回失败 refund=${refundId} order=${orderId}`, e),
       );
     }
+  }
+
+  /**
+   * 确定本次退款应追回的圈主分成，按精确度降序，**拿不准就不猜**。
+   *
+   * | 档 | 判据 | 结果 |
+   * |---|---|---|
+   * | `exact` | 退款申请带 `orderId`，且该订单有收益行（`(type, orderId)` 唯一） | 用它 |
+   * | `single` | 该成员名下只有一条金额为正的 `circle_join` 收益行 | 用它，无歧义 |
+   * | `amount` | 多条候选，但只有一条金额与本次退款的已付金额相等 | 用它 |
+   * | `ambiguous` | 多条候选且金额区分不开 | **不取值**，转人工 |
+   * | `none` | 一条候选都没有（收益从未记上） | 不冲正，与改动前一致 |
+   *
+   * 为什么不能沿用「取最新一条」：一个成员会有多笔 `circle_join` 收益（入圈一笔、每次续费
+   * 各一笔）。`orderId` 是后加的字段，**历史行全是 NULL**，这些行只能靠推断去配对。
+   * 「最新一条」这个推断在续费之后必然取错——而且错得没有痕迹：账面自洽，只是数字不对。
+   *
+   * `amount > 0` 的过滤不能省：金额为 0 的行不是真实收益，被选中就会把分成读成 0，
+   * 圈主一分不追回而用户已全额退款。
+   */
+  private async resolveOwnerShare(
+    tx: any,
+    params: { orderId: string | null; memberId: string; paidAmount: number },
+  ): Promise<
+    | { kind: "exact" | "single" | "amount"; ownerShare: number; candidates: Array<{ id: string; amount: number }> }
+    | { kind: "ambiguous"; ownerShare: null; candidates: Array<{ id: string; amount: number }> }
+    | { kind: "none"; ownerShare: null; candidates: Array<{ id: string; amount: number }> }
+  > {
+    const { orderId, memberId, paidAmount } = params;
+
+    if (orderId) {
+      const exact: any[] = await tx.$queryRawUnsafe(
+        `SELECT "id","ownerShare","amount" FROM "CircleRevenueRecord"
+         WHERE "orderId"=$1 AND "type"='circle_join' LIMIT 1`,
+        orderId,
+      );
+      if (exact.length) {
+        return { kind: "exact", ownerShare: Number(exact[0].ownerShare), candidates: [] };
+      }
+    }
+
+    // 没有精确匹配：列出全部候选，由候选数量决定能不能判定
+    const candidates = (
+      (await tx.$queryRawUnsafe(
+        `SELECT "id","ownerShare","amount" FROM "CircleRevenueRecord"
+         WHERE "sourceId"=$1 AND "type"='circle_join' AND "amount" > 0
+         ORDER BY "createdAt" DESC`,
+        memberId,
+      )) as any[]
+    ).map((r) => ({ id: r.id as string, amount: Number(r.amount), ownerShare: Number(r.ownerShare) }));
+
+    if (candidates.length === 0) return { kind: "none", ownerShare: null, candidates: [] };
+    if (candidates.length === 1) {
+      return { kind: "single", ownerShare: candidates[0].ownerShare, candidates };
+    }
+
+    // 多条候选：只有当金额能唯一对上本次退款的已付金额时才敢认
+    const byAmount = candidates.filter((c) => Math.abs(c.amount - Number(paidAmount)) < 0.01);
+    if (byAmount.length === 1) {
+      return { kind: "amount", ownerShare: byAmount[0].ownerShare, candidates };
+    }
+    return { kind: "ambiguous", ownerShare: null, candidates };
   }
 
   private async getById(id: string) {

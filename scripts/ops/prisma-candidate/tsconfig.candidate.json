@@ -1,0 +1,24 @@
+{
+  // 候选侧类型检查专用。**不修改 apps/server/tsconfig.json**，只在它之上覆盖 paths。
+  //
+  // 为什么需要：工作树的 node_modules 是主工作区的 junction，`@prisma/client` 指向共享那一份，
+  // 形态由「最后一次谁跑了 prisma generate」决定。候选代码用到 CircleRevenueRecord.orderId /
+  // User.privacySettings，必须对着**独立生成**的候选客户端做类型检查。
+  //
+  // 用法：npx tsc --noEmit -p scripts/ops/prisma-candidate/tsconfig.candidate.json
+  "extends": "../../../apps/server/tsconfig.json",
+  "compilerOptions": {
+    // 本文件不在 apps/server 目录下，@types 的自动查找会从这里向上走而漏掉
+    // apps/server/node_modules/@types（jest 等）。显式指回去。
+    "typeRoots": [
+      "../../../apps/server/node_modules/@types",
+      "../../../node_modules/@types"
+    ],
+    // paths 是整体替换而不是合并，所以基础配置里的两项必须原样带上。
+    "paths": {
+      "@/*": ["src/*"],
+      "@guoxue/shared/paipan": ["../../packages/shared/dist/paipan/index.d.ts"],
+      "@prisma/client": [".prisma-candidate/client/index.d.ts"]
+    }
+  }
+}
