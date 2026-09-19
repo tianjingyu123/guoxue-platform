@@ -43,6 +43,18 @@ const relocatableNamespaces = [
   "workbench",
 ];
 const relocatableRoots = relocatableNamespaces.map((name) => join(componentRoot, name));
+// 这些组件不在上面的命名空间里，但经构建产物的 usingComponents 依赖图核实，
+// 同样没有任何主包页面消费者。逐个列出而不是整目录放行，因为 components/common
+// 与根目录下确有主包组件。
+// 只收**单一分包**消费的组件：多分包共用的会被复制到每个分包，反而撑大分包，
+// 而 pkg-paipan / pkg-paipan2 距各自上限已不足 0.02 MB，不能再加负担。
+const relocatableComponentBases = new Set([
+  join(componentRoot, "live", "gift-panel"),                // 仅 pkg-live/watch
+  join(componentRoot, "pricing-reference-card"),            // 仅 pkg-course
+  join(componentRoot, "common", "name-card-poster"),        // 仅 pkg-creator
+  join(componentRoot, "common", "teacher-influence-card"),  // 仅 pkg-creator
+  join(componentRoot, "common", "app-skeleton"),            // 仅 pkg-profile
+]);
 // paipan 首页和首页信息流仍在主包，必须保留其直接依赖；其余同命名空间组件均只在分包使用。
 const retainedComponentBases = new Set([
   join(componentRoot, "classics", "flat-cover"),
@@ -68,8 +80,9 @@ function isInside(target, root) {
 }
 
 function relocatableRelativePath(sourceBase) {
-  if (!relocatableRoots.some((root) => isInside(sourceBase, root))) return null;
   if (retainedComponentBases.has(sourceBase)) return null;
+  const inNamespace = relocatableRoots.some((root) => isInside(sourceBase, root));
+  if (!inNamespace && !relocatableComponentBases.has(sourceBase)) return null;
   return relative(componentRoot, sourceBase);
 }
 
@@ -181,6 +194,12 @@ for (const root of relocatableRoots) {
   }
   removeEmptyDirectories(root);
 }
+
+// 逐个列出的组件不在上面的命名空间里，按基名单独清理主包残留产物。
+for (const sourceBase of relocatableComponentBases) {
+  for (const extension of artifactExtensions) rmSync(`${sourceBase}${extension}`, { force: true });
+}
+removeEmptyDirectories(componentRoot);
 
 // 防止迁移遗漏：非分包 JSON 不得继续引用已移除的组件；所有相对依赖必须存在。
 const missing = [];
