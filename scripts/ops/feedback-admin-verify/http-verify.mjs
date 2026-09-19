@@ -400,7 +400,11 @@ try {
     check("H8 并发流转恰好一个成功（HTTP 层）", okN === 1, `a=${a.status} b=${b.status}`);
     const loser = [a, b].find((r) => r.status !== 200);
     check("H8 失败方收到明确错误而不是静默覆盖", !!loser && loser.status >= 400,
-      `status=${loser?.status} msg=${JSON.stringify(loser?.body).slice(0, 100)}`);
+      // 整合复验加固：两个请求若未真正并发（冷启动时会完全串行，
+      // 此时 pending→processing→resolved 两步都是合法流转，双方都 200），
+      // loser 为 undefined，原写法在 JSON.stringify(undefined).slice() 处抛 TypeError，
+      // 会让整轮 41 项的结果一起丢失。这里只加固消息拼接，判定条件一字未改。
+      `status=${loser?.status ?? "无"} msg=${loser ? JSON.stringify(loser.body).slice(0, 100) : "两个请求都返回 200（本次未真正并发，见交接说明）"}`);
     const fin = await prisma.feedback.findUnique({ where: { id: h.id }, select: { status: true } });
     check("H8 最终状态是成功那一方写入的，没有被覆盖",
       ["processing", "resolved"].includes(fin.status), fin.status);
