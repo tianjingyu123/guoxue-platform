@@ -252,6 +252,20 @@ try {
     if (!el) return false;
     el.click(); return true;
   }, text, sel);
+  /**
+   * 在**包含指定文本的那一行**里点按钮。
+   * 不能用全局 clickByText —— 列表里多行都有「查看原文」，
+   * 点到哪一行取决于排序，断言就变成碰运气了。
+   */
+  const clickInRow = async (rowText, btnText) => page.evaluate((rt, bt) => {
+    const tr = [...document.querySelectorAll(".el-table__body-wrapper tbody tr")]
+      .find((r) => r.innerText.includes(rt));
+    if (!tr) return "no-row";
+    const b = [...tr.querySelectorAll("button")].find((x) => x.innerText.trim().startsWith(bt));
+    if (!b) return "no-button";
+    b.click(); return "ok";
+  }, rowText, btnText);
+
   const clickDialogConfirm = () => page.evaluate(() => {
     const b = [...document.querySelectorAll(".el-dialog__footer button")]
       .find((x) => x.innerText.trim() === "确认");
@@ -331,11 +345,12 @@ try {
 
   // ── U3 详情：行内脱敏 + 查看原文（留痕确认）──
   await openList();
-  const opened = await clickByText("查看原文");
+  const opened = await clickInRow("138****5678", "查看原文");
+  check("U3 前置：在含目标手机号的那一行点「查看原文」", opened === "ok", opened);
   await wait(800);
   const confirmText = await txt();
   await page.screenshot({ path: join(SHOTS, "03-reveal-confirm.png") });
-  check("U3 点「查看原文」先弹留痕确认框", opened && /会记入审计日志/.test(confirmText), "");
+  check("U3 点「查看原文」先弹留痕确认框", opened === "ok" && /会记入审计日志/.test(confirmText), "");
   await page.evaluate(() => {
     const b = [...document.querySelectorAll(".el-message-box__btns button")]
       .find((x) => x.innerText.trim() === "确认查看");
@@ -349,7 +364,9 @@ try {
   });
   check("U3 该次查看写进审计日志（服务端确实被调用了）", logCount >= 1, `条数=${logCount}`);
   check("U3 确认后页面出现正文原文", body3.includes("13812345678"),
-    body3.includes("138****5678") ? "页面仍显示脱敏串，原文没渲染出来" : "未找到任何联系串");
+    body3.includes("13812345678")
+      ? "原文已渲染"
+      : body3.includes("138****5678") ? "页面仍显示脱敏串，原文没渲染出来" : "未找到任何联系串");
 
   // 区分「没取到」和「取到了但没渲染」：再点一次同一行的查看原文。
   // 第二次走的是 `revealed[row.id]` 已存在的分支，若这次能渲染出来，
@@ -370,7 +387,7 @@ try {
       [...document.querySelectorAll(".el-message")].map((e) => e.innerText.trim()).join(" | "));
     step(`U3 诊断：页面当前的提示条 = ${JSON.stringify(toast)}`);
 
-    await clickByText("查看原文");
+    await clickInRow("138****5678", "查看原文");
     await wait(600);
     await page.evaluate(() => {
       const b = [...document.querySelectorAll(".el-message-box__btns button")]
