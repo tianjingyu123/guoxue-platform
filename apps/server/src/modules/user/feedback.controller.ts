@@ -5,7 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
-import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { SensitiveRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { FeedbackService } from "./feedback.service";
 import { SubmitFeedbackDto } from "./feedback.dto";
 import { FeedbackListQueryDto, UpdateFeedbackStatusDto } from "./feedback-admin.dto";
@@ -83,7 +83,7 @@ export class FeedbackController {
   }
 
   @Post("admin/feedback/:id/reveal-contact")
-  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @Auditable({ action: "查看反馈联系方式", targetType: "FEEDBACK" })
   @ApiOperation({ summary: "查看反馈联系方式明文（留痕 + 限流）" })
@@ -93,7 +93,7 @@ export class FeedbackController {
   }
 
   @Post("admin/feedback/:id/reveal-content")
-  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @Auditable({ action: "查看反馈正文原文", targetType: "FEEDBACK" })
   @ApiOperation({ summary: "查看反馈正文原文（留痕 + 限流）" })
@@ -103,7 +103,7 @@ export class FeedbackController {
   }
 
   @Post("admin/feedback/:id/reveal-images")
-  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @Auditable({ action: "查看反馈截图", targetType: "FEEDBACK" })
   @ApiOperation({ summary: "查看反馈截图（留痕 + 限流）" })

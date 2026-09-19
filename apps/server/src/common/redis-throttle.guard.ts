@@ -31,6 +31,8 @@ export class RedisThrottleGuard implements CanActivate {
     @Optional() private readonly keyPrefix: string = "rate",
     /** 严格限流优先按可信用户/账号计数，避免共享 NAT 下不同用户互相占用额度 */
     @Optional() private readonly subjectAware: boolean = false,
+    /** 敏感数据读取接口必须计数，不能被基础设施或用户白名单绕过。 */
+    @Optional() private readonly allowWhitelist: boolean = true,
   ) {}
 
   private readonly logger = new Logger(RedisThrottleGuard.name);
@@ -92,11 +94,12 @@ export class RedisThrottleGuard implements CanActivate {
     const ip = request.ip || request.connection?.remoteAddress || "unknown";
 
     // 基础设施 IP 白名单不受限流。
-    if (isWhitelisted(ip)) return true;
+    if (this.allowWhitelist && isWhitelisted(ip)) return true;
 
     // JwtAuthGuard 位于路由附加限流守卫之前时 request.user 已可信；
     // 这里只豁免附加频率限制，全局基础防护、权限、审核及资金风控仍保留。
-    if (await this.isUserRateLimitWhitelisted(request.user?.id)) return true;
+    if (this.allowWhitelist && (await this.isUserRateLimitWhitelisted(request.user?.id)))
+      return true;
 
     const identity = this.resolveRateLimitIdentity(request, ip);
     const key = `${this.keyPrefix}:${identity}`;
@@ -123,5 +126,13 @@ export class RedisThrottleGuard implements CanActivate {
 export class StrictRedisThrottleGuard extends RedisThrottleGuard {
   constructor(redis: RedisService) {
     super(redis, 10, 60, "rate:strict", true);
+  }
+}
+
+/** 敏感明文读取限流：每用户每分钟 10 次，任何白名单均不跳过计数。 */
+@Injectable()
+export class SensitiveRedisThrottleGuard extends RedisThrottleGuard {
+  constructor(redis: RedisService) {
+    super(redis, 10, 60, "rate:sensitive", true, false);
   }
 }

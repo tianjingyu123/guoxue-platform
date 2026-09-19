@@ -1,5 +1,9 @@
 import { ThrottleGuard, StrictThrottleGuard } from "./throttle.guard";
-import { RedisThrottleGuard, StrictRedisThrottleGuard } from "./redis-throttle.guard";
+import {
+  RedisThrottleGuard,
+  SensitiveRedisThrottleGuard,
+  StrictRedisThrottleGuard,
+} from "./redis-throttle.guard";
 import { RedisService } from "../redis/redis.service";
 import { ExecutionContext, HttpException } from "@nestjs/common";
 
@@ -193,5 +197,32 @@ describe("StrictRedisThrottleGuard 用户限流白名单", () => {
       await guard.canActivate(mockContext("203.0.113.10", undefined, secondPhone)),
     ).toBe(true);
     expect([...redis.counters.keys()].every((key) => !key.includes("13800138000"))).toBe(true);
+  });
+});
+
+describe("SensitiveRedisThrottleGuard 敏感数据限流", () => {
+  it("环回和内网 IP 仍执行计数", async () => {
+    const redis = createFakeRedis();
+    const guard = new SensitiveRedisThrottleGuard(redis);
+
+    expect(await guard.canActivate(mockContext("192.168.1.8", "staff-1"))).toBe(true);
+    expect(redis.incrWithTtl).toHaveBeenCalledTimes(1);
+    expect([...redis.counters.keys()].some((key) => key.startsWith("rate:sensitive:user:"))).toBe(
+      true,
+    );
+  });
+
+  it("用户白名单也不跳过敏感明文读取计数", async () => {
+    const redis = createFakeRedis();
+    (redis.getJson as jest.Mock).mockResolvedValue([{ userId: "staff-2" }]);
+    const guard = new SensitiveRedisThrottleGuard(redis);
+
+    for (let i = 0; i < 10; i++) {
+      await guard.canActivate(mockContext("203.0.113.20", "staff-2"));
+    }
+    await expect(
+      guard.canActivate(mockContext("203.0.113.20", "staff-2")),
+    ).rejects.toThrow(HttpException);
+    expect(redis.getJson).not.toHaveBeenCalled();
   });
 });
