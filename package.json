@@ -87,7 +87,7 @@
     "release:test-dispatch-gate": "node --test tests/release/validate-production-dispatch.test.mjs tests/release/predeploy-readiness-workflow.test.mjs",
     "release:test-package-verifier": "node --test tests/release/verify-fixed-package.test.mjs tests/release/client-evidence-consistency.test.mjs",
     "release:test-retention": "node --test tests/release/audit-release-retention.test.mjs",
-    "release:test-client-artifacts": "node --test tests/release/audit-client-artifacts.test.mjs tests/release/verify-client-artifacts.test.mjs",
+    "release:test-client-artifacts": "node --test tests/release/audit-client-artifacts.test.mjs tests/release/check-client-artifacts.test.mjs tests/release/verify-client-artifacts.test.mjs",
     "release:aggregate-evidence": "node scripts/release/aggregate-launch-evidence.mjs",
     "release:aggregate-predeploy": "node scripts/release/aggregate-predeploy-evidence.mjs",
     "release:finalize-launch": "node scripts/release/finalize-launch-acceptance.mjs",

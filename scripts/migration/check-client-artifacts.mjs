@@ -13,6 +13,16 @@ const valuesOf = (name) =>
 
 const forbiddenOrigins = valuesOf("--forbid-origin");
 const expectedOrigins = valuesOf("--expect-origin");
+// 继续使用现有正式域名时，同一个地址会同时作为历史默认值和本次预期值传入。
+// 这种情况下它不是“残留旧地址”，必须以本次显式预期为准；真正切换到新域名时仍严格禁止旧地址。
+const effectiveForbiddenOrigins = forbiddenOrigins.filter(
+  (origin) => {
+    const base = origin.replace(/\/+$/u, "");
+    return !expectedOrigins.some(
+      (expected) => expected === origin || expected.startsWith(`${base}/`),
+    );
+  },
+);
 const textExtensions = new Set([
   ".css",
   ".html",
@@ -73,7 +83,7 @@ for (const file of files) {
 
 let failed = false;
 
-for (const origin of forbiddenOrigins) {
+for (const origin of effectiveForbiddenOrigins) {
   const hitFiles = matches.get(origin);
   if (hitFiles.length > 0) {
     failed = true;
@@ -94,4 +104,4 @@ for (const origin of expectedOrigins) {
 
 if (failed) process.exit(1);
 
-console.log(`客户端产物门禁通过：扫描 ${files.length} 个文本产物，未发现旧地址`);
+console.log(`客户端产物门禁通过：扫描 ${files.length} 个文本产物，未发现非预期旧地址`);
