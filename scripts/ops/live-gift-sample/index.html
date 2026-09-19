@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>直播礼物动画样例 · 热卜国学</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="lab">
+
+  <!-- ══════════ 真实直播页结构复刻 ══════════ -->
+  <section class="stage-col">
+    <div class="phone" id="phone">
+      <div class="watch" id="watch">
+
+        <!-- 推流画面占位（真实页为 live-player / video） -->
+        <div class="watch__video" aria-hidden="true">
+          <div class="watch__video-grain"></div>
+          <span class="watch__video-note">推流画面占位</span>
+        </div>
+
+        <!-- 顶部渐变 + 主播条 -->
+        <div class="watch__top">
+          <div class="watch__top-row">
+            <div class="host-card">
+              <div class="host-card__avatar">玄</div>
+              <div class="host-card__info">
+                <span class="host-card__name">玄清子</span>
+                <span class="host-card__fans">1.2万 粉丝</span>
+              </div>
+              <button class="host-card__follow" type="button">关注</button>
+            </div>
+            <div class="watch__top-right">
+              <div class="online-box"><span class="online-box__count">3,412</span></div>
+              <button class="watch__close" type="button" aria-label="退出直播间" id="btnClose">✕</button>
+            </div>
+          </div>
+
+          <div class="watch__title-row"><span class="watch__title">紫微斗数命盘精讲 · 第七讲 化忌星</span></div>
+
+          <div class="watch__meta-row">
+            <div class="quality-badge"><span class="quality-badge__txt">超清</span></div>
+            <div class="circle-link"><span class="circle-link__txt">来自圈子 紫微研习社 ›</span></div>
+          </div>
+
+          <div class="watch__disclaimer"><span>内容为传统文化娱乐解读，不构成任何决策建议</span></div>
+        </div>
+
+        <!-- 系统横幅（进入/送礼/购买） -->
+        <div class="sys-banners" id="sysBanners"></div>
+
+        <!-- ═══ 礼物展示层（本样例的对象）═══
+             整层 pointer-events:none，且上下留出关键操作安全区 -->
+        <div class="gift-layer" id="giftLayer">
+          <!-- L2 连击条 -->
+          <div class="combo-lane" id="comboLane"></div>
+          <!-- 队列溢出摘要 -->
+          <div class="overflow-chip" id="overflowChip" hidden></div>
+          <!-- L1 轻量气泡 -->
+          <div class="light-lane" id="lightLane"></div>
+        </div>
+
+        <!-- L3 高价值特效：独占层，避开顶部关闭/底部操作条 -->
+        <div class="premium-layer" id="premiumLayer" hidden>
+          <div class="premium-stage" id="premiumStage"></div>
+          <div class="premium-caption" id="premiumCaption"></div>
+          <div class="premium-progress"><i id="premiumProgress"></i></div>
+          <button class="premium-skip" type="button" id="btnSkip">跳过</button>
+        </div>
+        <!-- L3 降级横幅（素材失败 / 减少动态效果） -->
+        <div class="premium-fallback" id="premiumFallback" hidden></div>
+
+        <!-- 左侧公屏 -->
+        <div class="danmaku" id="danmaku"></div>
+
+        <!-- 飘心 -->
+        <div class="hearts" id="hearts" aria-hidden="true"></div>
+
+        <!-- 底部互动栏 -->
+        <div class="watch__bottom">
+          <div class="watch__bottom-row">
+            <div class="input-box"><span class="input-box__ph">说点什么...</span><span class="input-box__send">➤</span></div>
+            <button class="act-btn" type="button" id="btnLike" aria-label="点赞">♥</button>
+            <button class="act-btn act-btn--gift" type="button" id="btnGift" aria-label="送礼">🎁</button>
+            <button class="act-btn" type="button" aria-label="分享">↗</button>
+            <button class="act-btn" type="button" id="btnReport" aria-label="举报">⚑</button>
+          </div>
+        </div>
+
+        <!-- 礼物面板（复刻 components/live/gift-panel.vue） -->
+        <div class="gp-mask" id="giftPanel" hidden>
+          <div class="gp-sheet">
+            <div class="gp-grabber"></div>
+            <div class="gp-head">
+              <span class="gp-title">送礼支持</span>
+              <span class="gp-split">礼物收入：主播分成 <b class="gp-split-b">50%</b></span>
+            </div>
+            <div class="gp-grid" id="gpGrid"></div>
+            <div class="gp-send-bar">
+              <div class="gp-balance">样例金币 <b id="gpBalance">2000</b></div>
+              <button class="gp-send" type="button" id="gpSend">送出</button>
+            </div>
+            <p class="gp-note">样例页不连接任何计费接口；此处金币仅为页面内存数字。</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="stage-note">
+      结构与视觉取自 <code>apps/mobile/src/pkg-live/watch/index.vue</code> 与
+      <code>components/live/gift-panel.vue</code>；仅礼物展示层为本次新增。
+    </p>
+  </section>
+
+  <!-- ══════════ 样例控制台（不属于产品界面）══════════ -->
+  <aside class="console">
+    <header class="console__head">
+      <h1>礼物动画样例控制台</h1>
+      <p>本地模拟事件，不发往任何直播间，不触发扣费。</p>
+    </header>
+
+    <section class="panel">
+      <h2>三个层级</h2>
+      <div class="tier-rows" id="tierRows"></div>
+    </section>
+
+    <section class="panel">
+      <h2>压力与边界</h2>
+      <div class="btn-grid">
+        <button type="button" data-act="burst-light">L1 洪峰 · 30 连</button>
+        <button type="button" data-act="burst-combo">L2 连击 · 同人 12 连</button>
+        <button type="button" data-act="burst-premium">L3 排队 · 5 个大礼物</button>
+        <button type="button" data-act="mixed">混合洪峰 · 60 事件</button>
+        <button type="button" data-act="dup">重复广播 · 同 recordId ×8</button>
+        <button type="button" data-act="broken">素材失败 · 坏路径 L3</button>
+        <button type="button" data-act="hide">模拟切后台 12 秒</button>
+        <button type="button" data-act="reset">切房 · 清空队列</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>降级开关</h2>
+      <label class="switch"><input type="checkbox" id="swReduced" /><span>减少动态效果（全部转文字条）</span></label>
+      <label class="switch"><input type="checkbox" id="swOff" /><span>完全关闭礼物特效</span></label>
+      <p class="hint">关闭后礼物仍进公屏与系统横幅，业务反馈不丢。</p>
+    </section>
+
+    <section class="panel">
+      <h2>运行观测</h2>
+      <div class="stats" id="stats"></div>
+      <h3>事件日志</h3>
+      <div class="log" id="log"></div>
+      <div class="console__actions">
+        <button type="button" id="btnExport">导出观测 JSON</button>
+        <button type="button" id="btnClear">清空日志</button>
+      </div>
+    </section>
+
+    <footer class="console__foot">
+      <p><b>素材说明：</b>L3 两个 Lottie 由 <code>tools/build-gift-lottie.mjs</code> 按几何参数自制，
+      配色取项目既有令牌。<b>属技术验证级小样，不是商用美术成品</b>，正式上线需美术重做。</p>
+      <p><b>播放器：</b>lottie-web 5.13.0（MIT），仅 L3 按需加载，L1/L2 为纯 CSS。</p>
+      <p><b>边界：</b>动画只负责表现，不作为扣费或送礼成功的判断依据。</p>
+    </footer>
+  </aside>
+
+</div>
+
+<script src="src/app.js" type="module"></script>
+</body>
+</html>
