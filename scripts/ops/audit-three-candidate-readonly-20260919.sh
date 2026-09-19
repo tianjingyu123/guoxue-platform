@@ -21,6 +21,7 @@ docker inspect "$nginx_id" --format 'NGINX_EXPOSURE network_mode={{.HostConfig.N
 
 echo "SERVER_ARTIFACTS_BEGIN"
 docker exec "$server_id" sh -lc '
+  find /app/apps/server/dist -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | sed "s#  -#  /app/apps/server/dist#"
   for f in /app/apps/server/dist/main.js /app/apps/server/prisma/schema.prisma /app/admin-dist-shared/index.html /app/h5-dist-shared/index.html; do
     if [ -f "$f" ]; then sha256sum "$f"; else echo "MISSING $f"; fi
   done
