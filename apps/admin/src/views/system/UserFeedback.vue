@@ -127,10 +127,18 @@ async function reveal(row: FeedbackRow, what: "contact" | "content" | "images") 
     return;
   }
   try {
-    const cur = revealed[row.id] ?? (revealed[row.id] = {});
+    // 先在一个**普通对象**上取值，最后整体赋回 `revealed[row.id]`。
+    //
+    // 不能写成 `const cur = revealed[row.id] ?? (revealed[row.id] = {})` 再改 `cur.xxx`：
+    // 赋值表达式的值是那个**原始对象**，不是 reactive 代理，后续 `cur.content = …`
+    // 绕过代理写进原始对象，Vue 收不到通知，单元格不会更新。
+    // 实测表现是：接口 201 正常返回原文、页面无任何报错、审计也照记，
+    // 但界面始终显示脱敏串 —— 用户只会以为没点上，反复点，白白刷审计日志。
+    const cur = { ...(revealed[row.id] ?? {}) };
     if (what === "contact") cur.contact = (await userFeedbackApi.revealContact(row.id)).data.contact;
     if (what === "content") cur.content = (await userFeedbackApi.revealContent(row.id)).data.content;
     if (what === "images") cur.images = (await userFeedbackApi.revealImages(row.id)).data.images;
+    revealed[row.id] = cur; // 整体替换，走 reactive 的 set 陷阱，确保重渲染
   } catch (e) {
     ElMessage.error((e as Error)?.message || "获取失败");
   }
