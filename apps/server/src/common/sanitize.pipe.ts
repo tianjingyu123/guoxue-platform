@@ -16,7 +16,7 @@ const SKIP_FIELDS = new Set([
   "translation", "annotation", "excerpt", "evidence",
   "answer", "question",
   "url", "iiifUrl", "manifestUrl", "src", "href", "link", "cover", "path",
-  "sourceUrl", "avatar", "imageUrl", "redirectUri",
+  "sourceUrl", "avatar", "imageUrl", "redirectUri", "downloadUrl",
   // 视频/媒体 URL：VOD/COS 播放地址，转义会把 / → &#x2F; 导致 <video src> 无法播放（视频课程/短视频播不了的真凶）
   "videoUrl", "mediaUrl", "coverUrl", "poster", "fileUrl", "playUrl",
   "thumbnail", "videoCover", "audioUrl", "hlsUrl",
