@@ -91,11 +91,27 @@ test('直播广场、课程播放器和语音通话不再依赖隐式安全区',
 
 test('直播广场空态不在全部分类误导用户，并给分类空态真实出口', () => {
   const content = source('apps/mobile/src/pkg-live/plaza/index.vue')
-  assert.match(content, /activeTab\.value === '全部'/)
-  assert.match(content, /暂时没有正在直播或精彩回放，稍后再来看看/)
-  assert.match(content, /v-if="activeTab !== '全部'"/)
-  assert.match(content, /@tap="onTabChange\('全部'\)"/)
+
+  // 断言的是「意图」而不是某一版文案的字面量：
+  // 本页的空态实现在 2026-09-19 由两态（全部/分类）升级为三态
+  // （全部 / 分类 / 未登录「关注的」权限态），出口也从一个变成三个
+  // （去登录 / 查看全部直播 / 刷新）。原用例写死了旧版文案与
+  // `@tap="onTabChange('全部')"` 这一具体写法，升级后必然失败，
+  // 但它要守的两件事没有变，这里按新实现重述并加固。
+
+  // ① 全部分类有自己的专属文案，且不复用分类文案
+  assert.match(content, /v-else class="empty-txt">暂时没有正在直播、预告或回放</)
+  // ② 分类空态必须指明是哪个分类，不能泛化
+  assert.match(content, /v-else-if="activeTab !== '全部'" class="empty-txt">「\{\{ activeTab \}\}」暂时没有直播</)
+  // ③ 分类空态必须给真实出口（回到全部分类）。backToAllTab 内部就是 onTabChange('全部')
+  assert.match(content, /function backToAllTab\(\)\s*\{\s*onTabChange\('全部'\)/)
+  assert.match(content, /v-else-if="activeTab !== '全部'"[\s\S]{0,240}@tap="backToAllTab"/)
+  // ④ 未登录的「关注的」是权限态，不能显示成普通空态（本次新增能力，一并锁住防回退）
+  assert.match(content, /v-if="needLoginForFollowed" class="empty-txt">登录后才能看到你关注主播的直播</)
+  assert.match(content, /@tap="goLogin"/)
+  // ⑤ 旧的误导文案不得回来
   assert.doesNotMatch(content, /这个分类还没有直播，去看看全部直播或精彩回放/)
+  assert.doesNotMatch(content, /暂时没有正在直播或精彩回放，稍后再来看看/)
 })
 
 test('主播页不允许回退到固定安全区占位', () => {
