@@ -5,6 +5,7 @@ import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { StreamUnifierService } from "./stream-unifier.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ChatSceneAccessService } from "./chat-scene-access.service";
 
 const mockSSE = { encode: jest.fn((chunk: any) => `data: ${JSON.stringify(chunk)}\n\n`), writeSseStream: jest.fn() } as any;
 
@@ -13,7 +14,8 @@ describe("AiGatewayController", () => {
   let gateway: jest.Mocked<AiGatewayService>;
   let router: jest.Mocked<ModelRouterService>;
 
-  const mockReq = { user: { id: "u1" } } as any;
+  // 场景准入按角色判定：general_chat 对任何已登录用户开放，无需角色
+  const mockReq = { user: { id: "u1", roles: [] } } as any;
 
   const mockRes = () => {
     const res: any = {};
@@ -24,8 +26,9 @@ describe("AiGatewayController", () => {
     return res;
   };
 
+  // scene 必须是 chat-scene-registry.ts 中登记的场景，否则 403（默认拒绝）
   const chatDto = {
-    scene: "general",
+    scene: "general_chat",
     messages: [{ role: "user" as const, content: "你好" }],
     temperature: 0.7,
     maxTokens: 2048,
@@ -36,6 +39,7 @@ describe("AiGatewayController", () => {
     const mod = await Test.createTestingModule({
       controllers: [AiGatewayController],
       providers: [
+        ChatSceneAccessService,
         { provide: StreamUnifierService, useValue: mockSSE },
         {
           provide: AiGatewayService,
@@ -72,7 +76,7 @@ describe("AiGatewayController", () => {
       const result = await ctrl.chat(chatDto, mockReq);
 
       expect(gateway.chat).toHaveBeenCalledWith({
-        scene: "general",
+        scene: "general_chat",
         userId: "u1",
         messages: [{ role: "user", content: "你好" }],
         options: { temperature: 0.7, maxTokens: 2048, topP: 0.9 },
@@ -81,27 +85,26 @@ describe("AiGatewayController", () => {
       expect(result.model).toBe("deepseek-v4-flash");
     });
 
-    it("不传可选参数时 options 字段全为 undefined", async () => {
+    // 行为变更（2026-09-19）：此前不传可选参数也会下发 { temperature: undefined, ... }，
+    // 而网关的 { ...routeOptions, ...reqOptions } 是按键覆盖的 —— undefined 同样会把路由配置覆盖掉，
+    // 导致场景路由参数在这两个接口上从未生效。现在改为只透传调用方真正传了的键。
+    it("不传可选参数时 options 为空对象，不覆盖路由配置", async () => {
       gateway.chat.mockResolvedValue({
         content: "ok",
         model: "deepseek-v4-flash",
       });
       const minimalDto = {
-        scene: "general",
+        scene: "general_chat",
         messages: [{ role: "user" as const, content: "hi" }],
       };
 
       await ctrl.chat(minimalDto, mockReq);
 
       expect(gateway.chat).toHaveBeenCalledWith({
-        scene: "general",
+        scene: "general_chat",
         userId: "u1",
         messages: [{ role: "user", content: "hi" }],
-        options: {
-          temperature: undefined,
-          maxTokens: undefined,
-          topP: undefined,
-        },
+        options: {},
       });
     });
 
