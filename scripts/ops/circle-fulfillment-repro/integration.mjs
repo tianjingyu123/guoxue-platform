@@ -290,6 +290,15 @@ async function i3(f1) {
   cacheDeleted.length = 0;
   const circleSvc = makeCircleService();
   const beforeRows = (await revRows(f1.circle)).length;
+  // 平台费双计（N2）是既有缺陷，本候选**不得扩大**它。旧路径的 `recordCircleRevenue` 内部是
+  // 「写收益行」与「写平台费」两件事并行发起：收益行撞唯一约束被拒，平台费那一条照样落库。
+  // 所以「不扩大」必须断言在**调用层面**——本单已由服务端履约时，旧路径整个不进记账。
+  // 只数 PlatformFeeRecord 行数不行：费率未配置时它本来就一条都不写，断言会恒真而无区分力。
+  const revenueCalls = [];
+  const spyCommission = makeCommission();
+  const realRecord = spyCommission.recordCircleRevenue.bind(spyCommission);
+  spyCommission.recordCircleRevenue = async (...a) => { revenueCalls.push(a); return realRecord(...a); };
+  circleSvc.commissionService = spyCommission;
   // I1 里服务端已履约，客户端仍会补调 confirmJoin
   const res = await circleSvc.confirmJoin(f1.circle, f1.user, { orderId: f1.order.id, payMethod: "WECHAT" })
     .then((r) => ({ ok: true, r })).catch((e) => ({ ok: false, e: e?.message }));
@@ -299,6 +308,9 @@ async function i3(f1) {
   check("I3 旧 confirmJoin 未重复记账", afterRows === beforeRows, `${beforeRows} → ${afterRows}`);
   const cnt = await prisma.circleMember.count({ where: { circleId: f1.circle, userId: f1.user } });
   check("I3 旧 confirmJoin 未重复履约", cnt === 1, `members=${cnt}`);
+  check("I3 旧 confirmJoin 补调根本不进记账（因此不扩大既有平台费双计）",
+    revenueCalls.length === 0,
+    `recordCircleRevenue 调用 ${revenueCalls.length} 次（改动前为 1 次：收益行被唯一约束拒掉，平台费仍会写）`);
 
   // confirmRenew：服务端已履约续费单后，客户端补调
   const f = await fixture({ type: "CIRCLE_RENEW", memberExpireAt: new Date(Date.now() + 30 * DAY), status: "PENDING" });
