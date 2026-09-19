@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { StreamUnifierService } from "./stream-unifier.service";
+import { ChatSceneAccessService } from "./chat-scene-access.service";
 import { ChatDto } from "./dto/chat.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -27,6 +28,13 @@ import { SkipFormat } from "../../common/skip-format.decorator";
  *   3. 自建网关 + 适配器（当前方案）→ ✅ 最佳，模型无关、统一限流/监控/降级
  * - **未来演进：** 如果 Coze 开放模型路由 API，可将 Coze 作为一个 adapter 接入，
  *   保持架构不变
+ *
+ * ## 场景准入（2026-09-19）
+ * `scene` 来自请求体，此前无任何白名单：任何登录用户都能指定任意场景名，
+ * 绕开该场景专用接口上的角色/成员/权益门禁，并把成本记到别的场景头上。
+ * 现由 {@link ChatSceneAccessService} 按 `chat-scene-registry.ts` 判定，默认拒绝。
+ * 判定一律发生在**调用供应商之前、写出 SSE 响应头之前**，被拒请求返回普通 JSON 错误，
+ * 不会留下半截 SSE 流。
  */
 @ApiTags("AI网关")
 @Controller("ai")
@@ -37,6 +45,7 @@ export class AiGatewayController {
     private readonly gateway: AiGatewayService,
     private readonly router: ModelRouterService,
     private readonly sse: StreamUnifierService,
+    private readonly sceneAccess: ChatSceneAccessService,
   ) {}
 
   /** 非流式对话 */
@@ -46,19 +55,23 @@ export class AiGatewayController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "该场景不通过此接口开放，或当前账号无权使用" })
   @ApiBearerAuth()
   async chat(@Body() dto: ChatDto, @Req() req: Request) {
-    const userId = req.user?.id;
+    // 场景准入 + 输入校验：必须先于任何供应商调用
+    const options = this.sceneAccess.authorize(
+      dto.scene,
+      { id: req.user?.id, roles: req.user?.roles },
+      dto,
+    );
+
     try {
       return await this.gateway.chat({
         scene: dto.scene,
-        userId,
+        userId: req.user?.id,
         messages: dto.messages,
-        options: {
-          temperature: dto.temperature,
-          maxTokens: dto.maxTokens,
-          topP: dto.topP,
-        },
+        // 只透传调用方真正传了的键：值为 undefined 的键同样会覆盖路由配置
+        options,
       });
     } catch (err: any) {
       if (err.message?.includes("未配置")) {
@@ -76,9 +89,16 @@ export class AiGatewayController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "该场景不通过此接口开放，或当前账号无权使用" })
   @ApiBearerAuth()
   async chatStream(@Body() dto: ChatDto, @Req() req: Request, @Res() res: Response) {
-    const userId = req.user?.id;
+    // 场景准入 + 输入校验先于 res.flushHeaders()：
+    // 拒绝时响应仍是普通 JSON 错误，前端走统一错误提示，不会收到半截 SSE 流。
+    const options = this.sceneAccess.authorize(
+      dto.scene,
+      { id: req.user?.id, roles: req.user?.roles },
+      dto,
+    );
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -89,13 +109,9 @@ export class AiGatewayController {
     try {
       for await (const chunk of this.gateway.chatStream({
         scene: dto.scene,
-        userId,
+        userId: req.user?.id,
         messages: dto.messages,
-        options: {
-          temperature: dto.temperature,
-          maxTokens: dto.maxTokens,
-          topP: dto.topP,
-        },
+        options,
       })) {
         res.write(this.sse.encode({ type: "chunk", content: chunk }));
       }
