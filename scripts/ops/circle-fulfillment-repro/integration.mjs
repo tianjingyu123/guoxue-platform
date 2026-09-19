@@ -12,6 +12,7 @@
  *   I6 三条路径（首次回调 / 管理员确认 / 补偿）提交后都做了缓存失效
  *   I8 旧 confirmRenew 两笔不同续费订单并发：共顺延 2 年（含对旧「事务外读基线」算法的反证）
  *   I9 旧 confirmJoin 对「成员行已过期」的订单能正常履约（旧实现会撞唯一约束报「已加入该圈子」）
+ *   I10 圈规确认前移到下单前：未确认的用户连待支付订单都建不出来（决策点 D3）
  *
  * 只对本机隔离测试库运行，合成数据 `int-` 前缀。不连生产、不动真实订单、不发真实通知。
  */
@@ -110,7 +111,7 @@ function makePaymentService() {
   );
   return svc;
 }
-function makeCircleService(client = prisma) {
+function makeCircleService(client = prisma, governance = undefined) {
   return new CircleMembershipService(
     client,
     redisStub,
@@ -119,7 +120,7 @@ function makeCircleService(client = prisma) {
     undefined,       // coinService
     makeCommission(), // commissionService（真实服务）
     undefined,       // notificationService
-    undefined,       // governance
+    governance,      // governance（I10 注入，用于圈规确认门禁）
   );
 }
 
@@ -511,6 +512,51 @@ async function i9() {
     JSON.stringify(rows.map((r) => Number(r.amount))));
 }
 
+/**
+ * I10 圈规确认前移到下单前（决策点 D3）。
+ *
+ * 改动前这道门只在 `confirmJoin` 上，即**付款之后**；而服务端履约路径拿不到治理服务、
+ * 根本不校验。结果要么是「未确认圈规的用户照样进圈」（门槛形同虚设），
+ * 要么是「已收款之后被拒」（收钱不给货）。两种都不可接受。
+ *
+ * 前移到 `prepareJoin` 之后，未确认的用户**连待支付订单都建不出来**。
+ * 断言的重点不是「抛错」，而是**一张 PENDING 订单都没留下** —— 抛错但订单已建，
+ * 用户仍可能从别处把那张单付掉。
+ */
+async function i10() {
+  // ── 未确认圈规 ──
+  {
+    const f = await fixture({ status: "COMPLETED" }); // 夹具订单置为终态，不干扰下面的计数
+    const denying = {
+      assertRuleAck: async () => {
+        throw new Error("RULE_ACK_REQUIRED：请先阅读并确认圈规");
+      },
+    };
+    const svc = makeCircleService(prisma, denying);
+    const before = await prisma.order.count({ where: { userId: f.user, targetId: f.circle, status: "PENDING" } });
+    let err = null;
+    await svc.prepareJoin(f.circle, f.user, { payMethod: "WECHAT" }).catch((e) => { err = e; });
+    check("I10 未确认圈规时下单被拒", !!err && /RULE_ACK_REQUIRED/.test(err.message ?? ""),
+      err ? err.message : "未抛错（错误）");
+    const after = await prisma.order.count({ where: { userId: f.user, targetId: f.circle, status: "PENDING" } });
+    check("I10 被拒时一张待支付订单都没建（用户根本付不了钱）", after === before,
+      `PENDING 订单 ${before} → ${after}`);
+  }
+
+  // ── 反证：已确认圈规（或该圈不要求）时行为完全不变 ──
+  {
+    const f = await fixture({ status: "COMPLETED" });
+    const allowing = { assertRuleAck: async () => undefined };
+    const svc = makeCircleService(prisma, allowing);
+    const r = await svc.prepareJoin(f.circle, f.user, { payMethod: "WECHAT" });
+    check("I10 反证：已确认圈规时照常建出待支付订单（门禁不误伤）",
+      !!r?.orderId && r.needPayment === true, JSON.stringify({ orderId: r?.orderId, need: r?.needPayment }));
+    const o = await prisma.order.findUnique({ where: { id: r.orderId }, select: { status: true, payAmount: true } });
+    check("I10 反证：订单为 PENDING 且金额取自价格引擎",
+      o?.status === "PENDING" && Number(o.payAmount) === 199, `${o?.status} / ${o?.payAmount}`);
+  }
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 真实业务入口集成验证 ===");
@@ -524,6 +570,7 @@ try {
   await i7();
   await i8();
   await i9();
+  await i10();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);

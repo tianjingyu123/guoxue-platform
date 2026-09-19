@@ -813,6 +813,62 @@ async function r17() {
     (await recallsOf(rid)).length === 1, JSON.stringify(await recallsOf(rid)));
 }
 
+/**
+ * R18 平台费口径统一（决策项 N2 第一步：止血）。
+ *
+ * 同一笔圈子入圈，平台抽成此前被记两条：订单侧按 (订单类型, 订单id)，
+ * 本路径按 (circle_join, 成员id)。`recordPlatformFee` 的幂等守卫是
+ * `type + sourceId + platformFee > 0`，三个字段全不同，判不出重复。
+ *
+ * 改后：**有 orderId（订单来源）就不在收益路径写平台费**，由订单侧那一条负责；
+ * 无 orderId 的来源（礼物等）订单侧不会记，行为必须保持不变。
+ *
+ * 这里必须先把费率配置种进去 —— 没有配置时 `calculatePlatformFee` 返回 null，
+ * 两条分支都一条不写，断言会恒真而没有区分力。
+ */
+async function r18() {
+  const keys = ["circle_join", "gift"];
+  try {
+    for (const k of keys) {
+      await prisma.commissionConfig.upsert({
+        where: { configKey: k },
+        update: { rateB: 0.2 },
+        create: { configKey: k, configName: `验证用-${k}`, rateA: 0.8, rateB: 0.2 },
+      });
+    }
+
+    const f = await fixture();
+    const m = await prisma.circleMember.create({
+      data: { circleId: f.circle, userId: f.user, role: "MEMBER", expireAt: null },
+    });
+    const feesBefore = await prisma.platformFeeRecord.count({ where: { circleId: f.circle } });
+
+    // ① 订单来源（带 orderId）→ 收益行照记，平台费**不在这里写**
+    await makeCommission().recordCircleRevenue(f.circle, CIRCLE_REVENUE_TYPE, m.id, 199, f.order.id);
+    const rev = await prisma.circleRevenueRecord.findUnique({
+      where: { type_orderId: { type: CIRCLE_REVENUE_TYPE, orderId: f.order.id } },
+    });
+    check("R18 前置：费率配置生效（否则本组断言没有区分力）",
+      !!rev && Math.abs(Number(rev.platformFee) - 39.8) < 0.01, `platformFee=${rev?.platformFee}`);
+    check("R18 订单来源的收益行照常写入且分成正确",
+      !!rev && Number(rev.amount) === 199 && Math.abs(Number(rev.ownerShare) - 159.2) < 0.01,
+      `amount=${rev?.amount} ownerShare=${rev?.ownerShare}`);
+    const feesAfterOrder = await prisma.platformFeeRecord.count({ where: { circleId: f.circle } });
+    check("R18 订单来源不再重复写平台费（止血，不扩大双计）",
+      feesAfterOrder === feesBefore, `${feesBefore} → ${feesAfterOrder}`);
+
+    // ② 非订单来源（无 orderId）→ 行为必须不变，仍写平台费
+    await makeCommission().recordCircleRevenue(f.circle, "gift", `${RUN}-gift-1`, 100);
+    const feesAfterGift = await prisma.platformFeeRecord.count({ where: { circleId: f.circle } });
+    check("R18 反证：非订单来源（礼物）仍照常写平台费，行为未被误伤",
+      feesAfterGift === feesBefore + 1, `${feesAfterOrder} → ${feesAfterGift}`);
+
+    await prisma.platformFeeRecord.deleteMany({ where: { circleId: f.circle } });
+  } finally {
+    await prisma.commissionConfig.deleteMany({ where: { configKey: { in: keys } } });
+  }
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 收益与真实入口验证 ===");
@@ -820,7 +876,7 @@ try {
   await r1(); await r2(); await r3(); await r4(); await r5(); await r6();
   await r7(); await r8(); await r9(); await r10(); await r11(); await r12();
   await r13(); await r14(); await r15(); await r16();
-  await r17();
+  await r17(); await r18();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);

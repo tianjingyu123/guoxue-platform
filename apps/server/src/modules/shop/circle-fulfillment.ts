@@ -33,7 +33,11 @@ import { Prisma, OrderStatus, OrderType } from "@prisma/client";
  *   - 不发 Redis 缓存失效（调用方在事务提交后处理，见 ShopPaymentService）；
  *   - 不记圈子收益（`recordCircleRevenue` 依赖 commission 模块的费率解析，无法在本事务内
  *     调用；由调用方在提交后按「每单恰好一次」的语义记账，见 ShopPaymentService）；
- *   - 不做圈规确认（`assertRuleAck`）—— 事务内拿不到治理服务；见决策点 D3；
+ *   - 不做圈规确认（`assertRuleAck`）—— 事务内拿不到治理服务。这不再是缺口：
+ *     该门禁已按决策点 D3 前移到**下单前**（`prepareJoin`），未确认圈规的用户根本付不了钱，
+ *     因此走到这里的订单都已通过门禁。切勿改为在履约时校验 —— 钱已经收了，
+ *     此处拒发就是「收钱不给货」；
+
  *   - 不自动补发历史订单：补偿入口由调用方显式触发，受时间窗与条数上限约束。
  */
 
