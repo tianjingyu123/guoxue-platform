@@ -22,6 +22,7 @@ import { MarketplaceService } from "./marketplace.service";
 import { MarketplaceController } from "./marketplace.controller";
 import { SemanticCacheService } from "./semantic-cache.service";
 import { StreamUnifierService } from "./stream-unifier.service";
+import { ChatSceneAccessService } from "./chat-scene-access.service";
 import { KnowledgeGraphService } from "./knowledge-graph.service";
 import { UserKnowledgeService } from "./user-knowledge.service";
 import { KnowledgeQualityService } from "./knowledge-quality.service";
@@ -68,6 +69,7 @@ import { RecommendationService } from "../bot/recommendation.service";
     AiLoggerService,
     SemanticCacheService,
     StreamUnifierService,
+    ChatSceneAccessService,
     QualityScorerService,
     VectorService,
     HunyuanEmbeddingService,
