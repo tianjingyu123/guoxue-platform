@@ -108,6 +108,34 @@ test('双桥转发正确协议，不把旧APK的类型/场景/小程序ID错当�
   assert.match(page, /action === 'legacy-share'\) void requestLegacyShare\(url, child\)/u)
 })
 
+test('App 为没有分享按钮的第三方结果页补入口，并在点击时读取当前地址', () => {
+  const late = page.match(/function legacyNavigationBridgeScript\(\): string \{\s*return `([\s\S]*?)`\s*\}/u)[1]
+  const assigned = []
+  const elements = new Map()
+  const body = { appendChild: node => elements.set(node.id, node) }
+  const document = {
+    title: '诸葛神卦', readyState: 'complete', body,
+    documentElement: {}, querySelectorAll: () => [], addEventListener: () => {},
+    getElementById: id => elements.get(id) || null,
+    createElement: () => ({ style: {}, setAttribute() {}, addEventListener(name, callback) { this[name] = callback } }),
+  }
+  const window = {
+    location: {
+      hostname: 'www.yrydai.cn', href: 'https://www.yrydai.cn/app_p1.php?id=result-1',
+      assign: url => assigned.push(url),
+    },
+    history: { length: 1 },
+  }
+  vm.runInNewContext(late, { URL, window, document })
+  const button = elements.get('rebu-paipan-share')
+  assert.equal(button.textContent, '分享')
+  button.click({ preventDefault() {}, stopPropagation() {} })
+  const request = runtime().api.parseLegacyShareBridgeUrl(assigned.at(-1))
+  assert.equal(request.kind, 'page')
+  assert.equal(request.title, '诸葛神卦')
+  assert.equal(request.url, 'https://www.yrydai.cn/app_p1.php?id=result-1')
+})
+
 for (const platform of ['ios', 'android']) {
   test(`${platform} 先菜单再截图和微信SDK，发送图片而不是签名URL`, async () => {
     const { api, calls, options } = runtime({ getSystemInfoSync: () => ({ platform }) })

@@ -196,6 +196,27 @@ function legacyNavigationBridgeScript(): string {
       navigateBack:function(){openRebuAction('home');},
       postMessage:function(message){handleWebUniMessage(message);}
     };
+    /*
+     * 第三方结果页并非每个工具都提供分享按钮，但当前地址就是对方确认的分享地址。
+     * App 在受信页面内补一个轻量入口，点击时才读取当前 URL；最终仍由父容器做公开链接校验。
+     */
+    function installRebuShareButton(){
+      if(!document.createElement||!document.body||document.getElementById('rebu-paipan-share'))return;
+      var button=document.createElement('button');
+      button.id='rebu-paipan-share';
+      button.type='button';
+      button.textContent='分享';
+      button.setAttribute('aria-label','分享当前排盘结果');
+      button.style.cssText='position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483646;width:52px;height:52px;border:0;border-radius:26px;background:#8f1d22;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22);';
+      button.addEventListener('click',function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        openLegacyShare('page',{title:document.title||'排盘结果',path:window.location.href});
+      });
+      document.body.appendChild(button);
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installRebuShareButton,{once:true});
+    else installRebuShareButton();
     function normalize(){
       var links=document.querySelectorAll('a[target="_blank"],a[target="_new"]');
       for(var i=0;i<links.length;i++)links[i].setAttribute('target','_self');
