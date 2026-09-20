@@ -372,11 +372,25 @@ export class GiftFeed {
     return this.reducedMotion
   }
 
-  /** 进入房间 / 切房。清空上一房间的展示状态与去重记录，并拒绝旧房间迟到事件。 */
+  /**
+   * 进入房间 / 切房。切房时清空上一房间的展示状态与去重记录，并拒绝旧房间迟到事件。
+   *
+   * **对同一房间是幂等的**：画面缓冲退避重试（`onPlayerError` → `loadRoom()`）和
+   * 前台恢复重载都会再次调到这里，那不是切房。若照样全清：
+   * - 用户刚送出的礼物反馈会被一次正常卡顿抹掉；
+   * - 去重记录一并清空后，重连补发的同一条广播会重复展示一次。
+   * 因此同房间只解除终态标记，不动展示与去重。
+   */
   enterRoom(roomId: string) {
+    const next = String(roomId || '')
+    if (next && next === this.roomId && !this.destroyed) {
+      this.roomClosed = false
+      this.closeReason = null
+      return
+    }
     this.clearRoomState()
     this.dedupe.clear()
-    this.roomId = String(roomId || '')
+    this.roomId = next
     this.epoch += 1
     this.dropped = 0
     this.roomClosed = false
