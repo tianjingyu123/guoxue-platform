@@ -474,6 +474,59 @@ test('终态与后台叠加：恢复前台不会把终态期间的事件补出�
   assert.equal(feed.snapshot().queued, 0)
 })
 
+// ───────── 6d. 画面重试不得清掉反馈（接收评审补充）─────────
+
+test('同房间重复 enterRoom（画面重试重载）不清展示、不清去重', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 'r-1', userId: 'u-a', giftId: 'g-a', at: clock.now() }))
+  feed.push(evt({ recordId: 'r-2', userId: 'u-b', giftId: 'g-b', level: 'MID', at: clock.now() }))
+  assert.equal(renderer.lights.length, 1)
+  assert.equal(renderer.combos.size, 1)
+
+  // nvue 的 onPlayerError 退避重试会调 loadRoom()，loadRoom() 开头就是 enterRoom(同一个房间)
+  feed.enterRoom('room-A')
+
+  assert.equal(renderer.lights.length, 1, '一次正常缓冲重试不该把 L1 抹掉')
+  assert.equal(renderer.combos.size, 1, '一次正常缓冲重试不该把 L2 抹掉')
+  // 去重必须保留，否则重连后同一条广播会重复展示
+  assert.equal(feed.push(evt({ recordId: 'r-1', userId: 'u-a', giftId: 'g-a', at: clock.now() })), 'deduped')
+})
+
+test('真正切房仍然全清：展示、队列与去重都不带到新房间', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 's-1', userId: 'u-a', giftId: 'g-a', at: clock.now() }))
+  feed.enterRoom('room-B')
+  assert.equal(renderer.lights.length, 0)
+  assert.equal(feed.snapshot().queued, 0)
+  assert.equal(feed.snapshot().dedupeSize, 0, '切房必须清去重，否则新房间会误判重复')
+  assert.equal(feed.push(evt({ recordId: 's-1', roomId: 'room-B', at: clock.now() })), 'accepted')
+})
+
+test('重试重载会解除终态：error 清空后房间恢复可展示', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.closeRoom('unavailable')
+  feed.enterRoom('room-A')   // 重载同房间
+  assert.equal(feed.snapshot().roomClosed, false)
+  assert.equal(feed.push(evt({ recordId: 'after-retry', at: clock.now() })), 'accepted')
+  assert.equal(renderer.lights.length, 1)
+})
+
+test('nvue 的画面重试链路确实会走到 enterRoom（源码断言，说明为何必须幂等）', () => {
+  const nvue = readFileSync(WATCH_NVUE, 'utf8')
+  const NL3 = String.fromCharCode(10)
+  const lines = nvue.split(NL3)
+  const errIdx = lines.findIndex((l) => l.includes('function onPlayerError()'))
+  assert.ok(errIdx > 0)
+  const errBody = lines.slice(errIdx, errIdx + 20).join(NL3)
+  assert.ok(errBody.includes('loadRoom()'), 'onPlayerError 退避后会重载房间')
+  const loadIdx = lines.findIndex((l) => l.includes('async function loadRoom()'))
+  const loadHead = lines.slice(loadIdx, loadIdx + 8).join(NL3)
+  assert.ok(loadHead.includes('giftFeed.enterRoom('), 'loadRoom 开头会调 enterRoom')
+})
+
 // ───────── 6c. 缓冲 / 重试不是终态 ─────────
 
 test('页面只在确定终态调 closeRoom：两端 watch 都不取缓冲与重试标志', () => {
