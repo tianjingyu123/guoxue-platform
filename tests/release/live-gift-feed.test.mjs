@@ -361,6 +361,58 @@ test('短暂切后台：恢复后正常继续派发', () => {
   assert.equal(renderer.lights.length, 1)
 })
 
+test('后台积压的同一组合，恢复后并成一条连击，不并排出现多条', () => {
+  const { feed, renderer, clock } = makeFeed({ backgroundStaleMs: 8000 })
+  feed.enterRoom('room-A')
+  feed.pause()
+  // 锁屏/切后台期间同一个人连送同一份礼物：三条同组合的 L2 都堆在队列里
+  for (let i = 0; i < 3; i++) {
+    feed.push(evt({ recordId: `cb-${i}`, userId: 'u-9', giftId: 'g-9', level: 'MID', at: clock.now() }))
+  }
+  assert.equal(feed.snapshot().queued, 3)
+
+  clock.advance(1_000) // 短暂后台，积压保留
+  feed.resume()
+
+  const shown = renderer.calls.filter((c) => c[0] === 'showCombo')
+  assert.equal(shown.length, 1, '同一个人送的同一份礼物只应有一条连击条')
+  assert.equal(renderer.combos.size, 1)
+  assert.equal([...renderer.combos.values()][0], 3, '三笔真实记录应合并为 x3，而不是三条各 x1')
+})
+
+test('派发阶段不会用同一 key 覆盖在屏连击条（覆盖后旧条永远收不到隐藏）', () => {
+  const { feed, renderer, clock } = makeFeed({ backgroundStaleMs: 8000 })
+  feed.enterRoom('room-A')
+  feed.pause()
+  for (let i = 0; i < 4; i++) {
+    feed.push(evt({ recordId: `ov-${i}`, userId: 'u-7', giftId: 'g-7', level: 'HIGH', at: clock.now() }))
+  }
+  clock.advance(500)
+  feed.resume()
+  // 展示层节点必须与编排层车道一一对应：多出来的节点没有任何定时器会来收它，
+  // 会永久留在礼物层上（nvue 端还会让 55ms 帧驱动停不下来）。
+  assert.equal(renderer.combos.size, feed.snapshot().comboActive,
+    '展示层连击条数量必须等于编排层车道数')
+  assert.equal(renderer.calls.filter((c) => c[0] === 'showCombo').length, 1)
+})
+
+test('车道占满时同组合的后续记录并入在屏连击条，不被车道数挡住', () => {
+  const { feed, renderer, clock } = makeFeed({ comboLanes: 2 })
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 'ln-1', userId: 'u-1', giftId: 'g-1', level: 'MID', at: clock.now() }))
+  feed.push(evt({ recordId: 'ln-2', userId: 'u-2', giftId: 'g-1', level: 'MID', at: clock.now() }))
+  assert.equal(renderer.combos.size, 2, '两条车道已占满')
+
+  // 第三位观众只能排队
+  feed.push(evt({ recordId: 'ln-3', userId: 'u-3', giftId: 'g-1', level: 'MID', at: clock.now() }))
+  assert.equal(feed.snapshot().queued, 1)
+
+  // u-1 的第二笔属于已在屏的组合，应直接并入，不排队也不新开车道
+  assert.equal(feed.push(evt({ recordId: 'ln-4', userId: 'u-1', giftId: 'g-1', level: 'MID', at: clock.now() })), 'merged')
+  assert.equal(feed.snapshot().queued, 1, '并入不应让排队的第三位观众受影响')
+  assert.equal(renderer.combos.get('room-A|u-1|g-1#1'), 2)
+})
+
 test('destroy：定时器归零、队列清空、展示层被清理', () => {
   const { feed, renderer, clock } = makeFeed()
   feed.enterRoom('room-A')
