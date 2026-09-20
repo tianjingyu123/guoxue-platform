@@ -7198,6 +7198,15 @@ model CommissionRecall {
   /// 而候选收益行正是按 sourceId 关联的 —— 不记下来，转人工的那条待办就无从核对。
   /// 可空：历史行保持 NULL。
   sourceId          String?
+  /// 人工结案时间。`pending_manual` 只是「待办产生」，结案才是这条待办的终点。
+  resolvedAt        DateTime?
+  /// 结案操作人（User.id）。与 AuditLog 互为佐证：这里是业务结论，那里是访问轨迹。
+  resolvedBy        String?
+  /// 结案依据（凭据）。接口层强制必填且有最小长度——空白依据等于没有核对过。
+  resolutionNote    String?
+  /// 「确需调整」时人工判定的那条收益行 id（`CircleRevenueRecord.id`）。
+  /// 「无需调整」时为空。系统从不自行挑选这一行，只校验人工指定的这一行确属本笔退款。
+  resolvedRevenueId String?
   offsetCompletedAt DateTime?
   createdAt         DateTime  @default(now())
 

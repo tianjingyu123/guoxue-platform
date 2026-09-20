@@ -92,8 +92,32 @@ export class CircleRefundController {
       "自动冲抵等于回到「猜」，而这些行正因为判定不出才存在。",
   })
   @ApiBearerAuth()
-  adminManualRecalls(@Query("limit") limit?: string, @Query("offset") offset?: string) {
-    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset) });
+  adminManualRecalls(
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Query("state") state?: "pending" | "resolved",
+  ) {
+    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset), state });
+  }
+
+  @Post("manual-recalls/:id/resolve")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "圈主分成追回人工结案", targetType: "COMMISSION_RECALL" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({
+    summary: "人工结案一条待办（无需调整 / 按指定收益行冲正）",
+    description:
+      "两种结论：no_change（核实后无需调整，不动资金）、adjust（确需调整，按人工指定的 revenueRecordId 冲正）。" +
+      "系统不挑选收益行，只校验指定的那一行确属本笔退款。核对依据必填。重复提交会被拒绝。",
+  })
+  @ApiBearerAuth()
+  resolveManualRecall(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Body() body: { decision?: string; revenueRecordId?: string; note?: string },
+  ) {
+    return this.svc.resolveManualRecall(id, req.user.id, body);
   }
 
   @Post(":id/admin-review")
