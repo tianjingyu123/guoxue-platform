@@ -272,6 +272,16 @@ export interface GiftFeedRenderer {
   clearAll(): void
 }
 
+/**
+ * 房间进入**确定**的终态。只有这两种才清展示：
+ * - ended：房间已结束或转回放
+ * - unavailable：房间加载失败、画面重试耗尽，页面已给出「重新连接」出口
+ *
+ * 画面缓冲与重试中（playerNotice / playerRetryTimer）**不是终态**，不能据此清理，
+ * 否则一次正常卡顿就会把用户刚送出的礼物反馈一并抹掉。
+ */
+export type RoomCloseReason = 'ended' | 'unavailable'
+
 export type GiftFeedMetric =
   | { type: 'deduped'; recordId: string; source: NormalizedGiftEvent['source'] }
   | { type: 'merged'; key: string; count: number }
@@ -279,6 +289,9 @@ export type GiftFeedMetric =
   | { type: 'cross-room'; recordId: string }
   | { type: 'overflow'; dropped: number }
   | { type: 'background-drop'; dropped: number }
+  | { type: 'room-closed'; reason: RoomCloseReason; dropped: number }
+  | { type: 'room-reopened' }
+  | { type: 'closed-drop'; recordId: string }
 
 interface ComboSlot {
   /** 合并键：房间 + 用户 + 礼物 */
@@ -309,11 +322,13 @@ export class GiftFeed {
   private epoch = 0
   private dropped = 0
   private paused = false
+  private roomClosed = false
+  private closeReason: RoomCloseReason | null = null
   private hiddenSince = 0
   private reducedMotion = false
   private destroyed = false
 
-  stats = { accepted: 0, deduped: 0, merged: 0, stale: 0, crossRoom: 0, droppedByLimit: 0 }
+  stats = { accepted: 0, deduped: 0, merged: 0, stale: 0, crossRoom: 0, droppedByLimit: 0, droppedByClose: 0 }
 
   constructor(options: {
     renderer: GiftFeedRenderer
@@ -364,6 +379,8 @@ export class GiftFeed {
     this.roomId = String(roomId || '')
     this.epoch += 1
     this.dropped = 0
+    this.roomClosed = false
+    this.closeReason = null
     this.renderer.showOverflow(0)
   }
 
@@ -371,7 +388,9 @@ export class GiftFeed {
    * 接收一条**服务端已确认成功**的礼物事件。
    * @returns 处理结果，便于调用方记录与验证
    */
-  push(event: NormalizedGiftEvent | null): 'accepted' | 'merged' | 'deduped' | 'stale' | 'cross-room' | 'ignored' {
+  push(
+    event: NormalizedGiftEvent | null,
+  ): 'accepted' | 'merged' | 'deduped' | 'stale' | 'cross-room' | 'room-closed' | 'ignored' {
     if (this.destroyed || !event || !event.recordId) return 'ignored'
 
     // 1) 跨房间：切房后迟到的旧房间消息一律不展示
@@ -397,9 +416,18 @@ export class GiftFeed {
       this.onMetric({ type: 'deduped', recordId: event.recordId, source: event.source })
       return 'deduped'
     }
+
+    // 4) 房间已结束或不可访问：事件仍计入去重（房间恢复后不会补播这条），
+    //    但不进入任何展示，避免反馈盖住「重新连接」「返回」等出口。
+    //    公屏与交易记录不受影响——那是业务反馈，由页面自己保留。
+    if (this.roomClosed) {
+      this.stats.droppedByClose += 1
+      this.onMetric({ type: 'closed-drop', recordId: event.recordId })
+      return 'room-closed'
+    }
     this.stats.accepted += 1
 
-    // 4) 连击合并：同房间 + 同发送者 + 同礼物，窗口内累加。
+    // 5) 连击合并：同房间 + 同发送者 + 同礼物，窗口内累加。
     //    quantity 是单次数量（giftRecord.quantity），累加不会翻倍。
     const key = this.comboKeyOf(event)
     const slot = this.combos.get(key)
@@ -502,6 +530,36 @@ export class GiftFeed {
 
   // ── 生命周期 ──
 
+  /**
+   * 房间进入确定终态：清掉在播与排队中的展示，并拒绝后续事件。
+   *
+   * **不碰公屏、不碰交易记录**——那两者是业务反馈，必须留在原地。
+   * 调用方只能在终态触发，缓冲与重试中的画面波动不算终态。
+   */
+  closeRoom(reason: RoomCloseReason) {
+    if (this.destroyed) return
+    if (this.roomClosed && this.closeReason === reason) return
+    const dropped = this.queue.length
+    this.roomClosed = true
+    this.closeReason = reason
+    this.clearRoomState()
+    this.dropped = 0
+    this.renderer.showOverflow(0)
+    this.onMetric({ type: 'room-closed', reason, dropped })
+  }
+
+  /** 房间恢复可用（重连成功 / 重新加载成功），允许继续展示新事件。 */
+  reopenRoom() {
+    if (this.destroyed || !this.roomClosed) return
+    this.roomClosed = false
+    this.closeReason = null
+    this.onMetric({ type: 'room-reopened' })
+  }
+
+  get isRoomClosed() {
+    return this.roomClosed
+  }
+
   /** 页面隐藏 / 切后台 */
   pause() {
     if (this.paused || this.destroyed) return
@@ -558,6 +616,8 @@ export class GiftFeed {
       dedupeSize: this.dedupe.size,
       timers: this.timers.size,
       paused: this.paused,
+      roomClosed: this.roomClosed,
+      closeReason: this.closeReason,
       reducedMotion: this.reducedMotion,
       destroyed: this.destroyed,
     }

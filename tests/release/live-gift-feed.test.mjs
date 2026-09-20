@@ -387,6 +387,147 @@ test('减少动态效果不改变编排结果，只交给展示层做静态呈�
   assert.equal(renderer.combos.size, 1)
 })
 
+// ───────── 6b. 房间终态：结束 / 不可访问 ─────────
+
+test('房间结束：清掉在播与排队中的展示，交易与公屏不归本模块管', () => {
+  const { feed, renderer, clock } = makeFeed({ queueLimit: 50 })
+  feed.enterRoom('room-A')
+  for (let i = 0; i < 8; i++) {
+    feed.push(evt({ recordId: `e-${i}`, userId: `u-${i}`, level: i % 2 ? 'MID' : 'BASIC', at: clock.now() }))
+  }
+  assert.ok(renderer.lights.length + renderer.combos.size > 0)
+  const queuedBefore = feed.snapshot().queued
+
+  feed.closeRoom('ended')
+  const snap = feed.snapshot()
+  assert.equal(snap.roomClosed, true)
+  assert.equal(snap.closeReason, 'ended')
+  assert.equal(snap.queued, 0, '排队中的事件必须清空')
+  assert.equal(renderer.lights.length, 0, '在播 L1 必须收掉')
+  assert.equal(renderer.combos.size, 0, '在播 L2 必须收掉')
+  assert.equal(renderer.overflow, 0, '溢出摘要也要收掉，否则会压在重连出口上')
+  assert.ok(queuedBefore >= 0)
+})
+
+test('房间不可访问：同样清展示，原因记为 unavailable', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 'e-1', at: clock.now() }))
+  feed.closeRoom('unavailable')
+  assert.equal(feed.snapshot().closeReason, 'unavailable')
+  assert.equal(renderer.lights.length, 0)
+})
+
+test('终态期间到达的成功事件不展示，且房间恢复后也不补播', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.closeRoom('ended')
+
+  assert.equal(feed.push(evt({ recordId: 'late-1', at: clock.now() })), 'room-closed')
+  assert.equal(feed.push(evt({ recordId: 'late-2', level: 'MID', at: clock.now() })), 'room-closed')
+  assert.equal(renderer.lights.length, 0)
+  assert.equal(renderer.combos.size, 0)
+  assert.equal(feed.snapshot().queued, 0, '终态事件连队都不进')
+  assert.equal(feed.snapshot().droppedByClose, 2)
+
+  // 房间恢复后，终态期间那两条已计入去重，不会补播
+  feed.reopenRoom()
+  assert.equal(feed.snapshot().roomClosed, false)
+  assert.equal(feed.push(evt({ recordId: 'late-1', at: clock.now() })), 'deduped')
+  assert.equal(renderer.lights.length, 0, '旧事件不补播')
+
+  // 恢复后的新事件正常展示
+  assert.equal(feed.push(evt({ recordId: 'fresh-1', at: clock.now() })), 'accepted')
+  assert.equal(renderer.lights.length, 1)
+})
+
+test('重复调用 closeRoom 同一原因不重复清理', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 'x-1', at: clock.now() }))
+  feed.closeRoom('ended')
+  const clears = renderer.calls.filter((c) => c[0] === 'clearAll').length
+  feed.closeRoom('ended')
+  feed.closeRoom('ended')
+  assert.equal(renderer.calls.filter((c) => c[0] === 'clearAll').length, clears)
+})
+
+test('切房会解除终态，新房间可以正常展示', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.closeRoom('unavailable')
+  feed.enterRoom('room-B')
+  assert.equal(feed.snapshot().roomClosed, false)
+  assert.equal(feed.push(evt({ recordId: 'b-1', roomId: 'room-B', at: clock.now() })), 'accepted')
+  assert.equal(renderer.lights.length, 1)
+})
+
+test('终态与后台叠加：恢复前台不会把终态期间的事件补出来', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.pause()
+  feed.push(evt({ recordId: 'bg-1', at: clock.now() }))
+  feed.closeRoom('ended')
+  clock.advance(2000)
+  feed.resume()
+  assert.equal(renderer.lights.length, 0)
+  assert.equal(feed.snapshot().queued, 0)
+})
+
+// ───────── 6c. 缓冲 / 重试不是终态 ─────────
+
+test('页面只在确定终态调 closeRoom：两端 watch 都不取缓冲与重试标志', () => {
+  const nvue = readFileSync(WATCH_NVUE, 'utf8')
+  const vue = readFileSync(WATCH_VUE, 'utf8')
+  const NL = String.fromCharCode(10)
+
+  // 取 watch 的响应式来源那一行，看它到底读了哪些标志
+  const nvueSrc = nvue.split(NL).find((line) => line.includes('() => ({ ended: roomEnded.value'))
+  assert.ok(nvueSrc, 'nvue 应有终态 watch')
+  assert.ok(nvueSrc.includes('roomEnded.value') && nvueSrc.includes('error.value'))
+  assert.equal(/playerNotice|playerRetryTimer|playerRetryCount|loading/.test(nvueSrc), false,
+    'nvue：缓冲、重试与加载中标志不得进入终态判定')
+
+  const vueSrc = vue.split(NL).find((line) => line.includes('() => ({ ended: endingLiveSession.value'))
+  assert.ok(vueSrc, 'vue 应有终态 watch')
+  assert.ok(vueSrc.includes('endingLiveSession.value') && vueSrc.includes('error.value'))
+  assert.equal(/loading|playerNotice|retry/i.test(vueSrc), false,
+    'vue：加载中与画面波动不得进入终态判定')
+})
+
+test('缓冲态不会清展示：只要没调 closeRoom，队列与在播都保留', () => {
+  const { feed, renderer, clock } = makeFeed()
+  feed.enterRoom('room-A')
+  feed.push(evt({ recordId: 'buf-1', userId: 'u-a', giftId: 'g-a', at: clock.now() }))
+  feed.push(evt({ recordId: 'buf-2', userId: 'u-b', giftId: 'g-b', level: 'MID', at: clock.now() }))
+  // 模拟画面缓冲/重试：页面不调用 closeRoom，编排层不该有任何反应
+  assert.equal(feed.snapshot().roomClosed, false)
+  assert.equal(renderer.lights.length, 1)
+  assert.equal(renderer.combos.size, 1)
+  // 缓冲期间新事件照常展示
+  // 换一个发送者与礼物，避免落进上面那条连击槽
+  assert.equal(feed.push(evt({ recordId: 'buf-3', userId: 'u-c', giftId: 'g-c', at: clock.now() })), 'accepted')
+  assert.equal(renderer.lights.length, 2)
+})
+
+test('房间终态不触碰公屏与交易：两端都只在 closeRoom 里动展示层', () => {
+  const nvue = readFileSync(WATCH_NVUE, 'utf8')
+  const vue = readFileSync(WATCH_VUE, 'utf8')
+  for (const [name, src] of [['nvue', nvue], ['vue', vue]]) {
+    const idx = src.indexOf('giftFeed.closeRoom(')
+    assert.ok(idx > 0, `${name} 应接入 closeRoom`)
+    const around = src.slice(idx - 400, idx + 400)
+    assert.equal(/comments\.value|coinBalance|sendLiveGift/.test(around), false,
+      `${name}：终态处理不得顺带改公屏或余额`)
+  }
+  const feedSrc = readFileSync(SRC, 'utf8')
+  const start = feedSrc.indexOf('  closeRoom(reason: RoomCloseReason)')
+  const NL2 = String.fromCharCode(10)
+  const body = feedSrc.slice(start, feedSrc.indexOf(NL2 + '  }', start))
+  assert.equal(/comment|balance|coin|order/i.test(body), false,
+    'closeRoom 只动展示状态，不碰业务记录')
+})
+
 // ───────── 7. 源码结构断言（不是行为测试）─────────
 
 test('失败送礼不会产生成功反馈：只有拿到 giftRecord 才 push', () => {
