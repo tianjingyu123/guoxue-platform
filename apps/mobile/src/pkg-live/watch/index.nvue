@@ -485,7 +485,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { onBackPress, onHide, onLoad, onShow } from '@dcloudio/uni-app'
 import {
   liveApi,
@@ -987,6 +987,20 @@ function giftRenderer(): GiftFeedRenderer {
 }
 
 const giftFeed = new GiftFeed({ renderer: giftRenderer() })
+
+// 房间终态与礼物反馈的关系：
+// - roomEnded：status 为 ENDED/REPLAY，已下播；
+// - error：房间加载失败，或画面连续重试耗尽（此时页面给出「重新连接」出口）。
+// 这两种才清展示，否则反馈会盖住重连与返回入口。
+// **画面缓冲/重试中只体现在 playerNotice 与 playerRetryTimer 上，刻意不在这里取**，
+// 否则一次正常卡顿就会把刚送出的礼物反馈一起抹掉。公屏与交易记录始终不动。
+watch(
+  () => ({ ended: roomEnded.value, failed: Boolean(error.value) }),
+  ({ ended, failed }) => {
+    if (ended || failed) giftFeed.closeRoom(ended ? 'ended' : 'unavailable')
+    else giftFeed.reopenRoom()
+  },
+)
 
 /** 按 giftId 回查已拉取的礼物清单，补齐广播里没有的图标与层级；查不到不猜。 */
 function lookupGift(giftId: string) {
