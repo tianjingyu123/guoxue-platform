@@ -39,7 +39,7 @@ function runtime(overrides = {}, plusOverrides = {}) {
     },
   }
   const exports = {}
-  vm.runInNewContext(compile(source), { exports, uni, plus, setTimeout, clearTimeout })
+  vm.runInNewContext(compile(source), { exports, uni, plus, URL, setTimeout, clearTimeout })
   const options = {
     canProceed: () => true,
     capture: async () => { calls.push(['capture']); return '_doc/fixture-capture.jpg' },
@@ -134,8 +134,8 @@ test('取消菜单和取消微信均不复制、不保存、不换渠道或重�
   assert.doesNotMatch(source, /setClipboardData|setStorage|console\./u)
 })
 
-test('公开链接使用系统支持的text类型，不生成图片、不带网页签名', async () => {
-  const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 3 }) })
+test('公开链接仍可使用系统text分享，不生成图片、不带网页签名', async () => {
+  const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 5 }) })
   const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://www.yrydai.cn/share.php?id=1' }))
   assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
   const message = calls.find(x => x[0] === 'system')[1]
@@ -277,6 +277,8 @@ function sharePageHarness(share) {
   const context = {
     legacyChildWebview: child, legacyPageVisible: true, legacyDocumentVersion: 1, legacyShareBusy: false,
     parseLegacyShareBridgeUrl: api.parseLegacyShareBridgeUrl,
+    legacyShareLandingUrl: api.legacyShareLandingUrl,
+    legacyShareBase: 'https://api.rebugx.cn/h5',
     LegacyShareError: api.LegacyShareError,
     isTrustedLegacyUrl: url => url.startsWith('https://www.yrydai.cn/'),
     shareLegacyPaipan: share,
@@ -292,6 +294,25 @@ function sharePageHarness(share) {
   vm.runInContext(compile(page.slice(page.indexOf('async function requestLegacyShare'), page.indexOf('function bindLegacyChildWebview'))), context)
   return { context, child, actions }
 }
+
+test('当前第三方结果页转换为热卜承接链接，App入口不直接外发', () => {
+  const { api } = runtime()
+  assert.equal(api.publicLegacyResultUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc'), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
+  const landing = api.legacyShareLandingUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc')
+  assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\?target=/u)
+  assert.equal(decodeURIComponent(new URL(landing).searchParams.get('target')), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
+})
+
+test('有公开结果时微信优先分享热卜网页卡片', async () => {
+  const { api, calls, options } = runtime()
+  const request = { ...fixture(), url: api.legacyShareLandingUrl('https://www.yrydai.cn/share.php?id=1') }
+  assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
+  const native = calls.find(x => x[0] === 'share')[1]
+  assert.equal(native.type, 0)
+  assert.equal(native.scene, 'WXSceneSession')
+  assert.equal(native.href, request.url)
+  assert.equal(calls.some(x => x[0] === 'capture'), false)
+})
 
 test('页面分享只接受当前可见受信子窗口，畸形请求不进入原生层', async () => {
   let attempts = 0

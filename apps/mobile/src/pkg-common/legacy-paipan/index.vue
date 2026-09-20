@@ -10,10 +10,11 @@ import { consumeLegacyReturn, markLegacyDeparture, validateLegacyNavigation } fr
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
 // #ifdef APP-PLUS
-import { captureLegacyShareImage, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
 // #endif
 
 let entryContext = readLegacyPaipanContext()
+const legacyShareBase = String(import.meta.env.VITE_PUBLIC_H5_URL || 'https://api.rebugx.cn/h5')
 onLoad((query) => { entryContext = readLegacyPaipanContext(query || {}) })
 
 const loading = ref(true)
@@ -482,6 +483,9 @@ async function requestLegacyShare(url: string, child: any) {
     uni.showToast({ title: '分享内容无效，请返回排盘页面重新生成', icon: 'none' })
     return
   }
+  // 旧页原生 shareWX 不传链接；以发起分享时子 WebView 的当前结果地址为准。
+  if (!request.url) request.url = legacyShareLandingUrl(requestUrl, legacyShareBase)
+  else request.url = legacyShareLandingUrl(request.url, legacyShareBase)
   const documentVersion = legacyDocumentVersion
   const canProceed = () => {
     try {

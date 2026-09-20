@@ -140,6 +140,9 @@
                     }
                 },
                 "payment" : {
+                    "alipay" : {
+                        "__platform__" : [ "android" ]
+                    },
                     "weixin" : {
                         "appid" : "wxb3c0f47634f99c0b",
                         "UniversalLinks" : "https://api.rebugx.cn/h5/"

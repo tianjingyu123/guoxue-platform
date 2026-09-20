@@ -12,6 +12,40 @@ export function buildAlipayNativeUrl(value: unknown): string {
   return `alipays://platformapi/startapp?saId=10000007&qrcode=${encodeURIComponent(value)}`
 }
 
+type AlipayOpenRuntime = {
+  android?: {
+    importClass(name: string): any
+    runtimeMainActivity(): unknown
+    implements(name: string, methods: Record<string, (...args: any[]) => void>): unknown
+  }
+  runtime: { openURL(url: string, failed: () => void): void }
+}
+
+/**
+ * 优先使用支付宝官方 SDK 的 H5→Native 拦截器处理汇付 A_NATIVE 链接。
+ * 云打包未包含支付宝 SDK 或旧 SDK 不支持该接口时，才退回已经实付验证的支付宝扫码 Scheme。
+ */
+export function openHuifuAlipayWithSdk(
+  value: unknown,
+  runtime: AlipayOpenRuntime,
+  failed: () => void,
+  onReturned: () => void = () => {},
+): 'sdk' | 'scheme' {
+  const qrCode = String(value || '')
+  buildAlipayNativeUrl(qrCode)
+  try {
+    if (!runtime.android) throw new Error('ANDROID_BRIDGE_UNAVAILABLE')
+    const PayTask = runtime.android.importClass('com.alipay.sdk.app.PayTask')
+    const callback = runtime.android.implements('com.alipay.sdk.app.H5PayCallback', {
+      onPayResult: () => onReturned(),
+    })
+    const task = new PayTask(runtime.android.runtimeMainActivity())
+    if (task.payInterceptorWithUrl(qrCode, true, callback) === true) return 'sdk'
+  } catch { /* 老包继续走已经验证的直接拉起方案 */ }
+  runtime.runtime.openURL(buildAlipayNativeUrl(qrCode), failed)
+  return 'scheme'
+}
+
 export interface AlipayOrderState {
   id: string
   amount: number | string

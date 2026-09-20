@@ -32,6 +32,25 @@ export function publicLegacyShareUrl(value: unknown, image = false): string {
   return value
 }
 
+/** 把旧 App 专用结果页收敛为第三方已经提供的公开结果地址。 */
+export function publicLegacyResultUrl(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  try {
+    const url = new URL(value)
+    if (url.pathname.endsWith('/app_p1.php')) url.pathname = url.pathname.replace(/app_p1\.php$/u, 'p1.php')
+    return publicLegacyShareUrl(url.toString())
+  } catch { return '' }
+}
+
+/** 分享给外部用户的是热卜承接页，第三方结果地址只作为受控 iframe 目标。 */
+export function legacyShareLandingUrl(target: unknown, base = 'https://api.rebugx.cn/h5'): string {
+  const result = publicLegacyResultUrl(target)
+  if (!result) return ''
+  const root = String(base || '').replace(/\/+$/u, '')
+  if (!/^https:\/\/[A-Za-z0-9.-]+(?:\/[^?#]*)?$/u.test(root)) return ''
+  return `${root}/pkg-common/legacy-paipan-share/index?target=${encodeURIComponent(result)}`
+}
+
 export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | null {
   if (value.length > 24000) return null
   const match = value.match(/^rebu:\/\/legacy-share\?payload=([^&#]+)$/u)
@@ -149,7 +168,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
     if (!['android', 'ios'].includes(uni.getSystemInfoSync().platform)) {
       throw new LegacyShareError('UNAVAILABLE', '请在热卜 App 中使用原生分享')
     }
-    let action: 'friend' | 'timeline' | 'save' | 'link'
+    let action: 'friend' | 'timeline' | 'save' | 'link' | 'link-friend' | 'link-timeline'
     if (request.kind === 'save') {
       const decision = await callback<{ confirm: boolean }>((ok, fail) => uni.showModal({
         title: '保存排盘图片', content: request.imageUrl ? '将这张排盘图片保存到手机相册？' : '将当前页面的可见内容保存到手机相册？',
@@ -161,14 +180,26 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       const source = request.imageUrl ? '图片' : '当前页截图'
       const nativeWeixin = await hasNativeWeixin()
       assertCurrent(options)
-      const actions: Array<'friend' | 'timeline' | 'save' | 'link'> = nativeWeixin ? ['friend', 'timeline', 'save'] : ['save']
-      const items = nativeWeixin ? [`微信好友（${source}）`, `朋友圈（${source}）`, `保存${source}`] : [`保存${source}`]
+      const actions: Array<'friend' | 'timeline' | 'save' | 'link' | 'link-friend' | 'link-timeline'> = request.url && nativeWeixin
+        ? ['link-friend', 'link-timeline', 'friend', 'timeline', 'save']
+        : nativeWeixin ? ['friend', 'timeline', 'save'] : ['save']
+      const items = request.url && nativeWeixin
+        ? ['微信好友（热卜链接）', '朋友圈（热卜链接）', `微信好友（${source}）`, `朋友圈（${source}）`, `保存${source}`]
+        : nativeWeixin ? [`微信好友（${source}）`, `朋友圈（${source}）`, `保存${source}`] : [`保存${source}`]
       if (request.url) { actions.push('link'); items.push('系统分享公开链接') }
       const decision = await callback<{ tapIndex: number }>((ok, fail) => uni.showActionSheet({ itemList: items, success: ok, fail }), 0)
       if (!Number.isInteger(decision.tapIndex) || decision.tapIndex < 0 || decision.tapIndex >= items.length) return 'cancelled'
       action = actions[decision.tapIndex]
     }
     assertCurrent(options)
+    if (action === 'link-friend' || action === 'link-timeline') {
+      await callback<void>((ok, fail) => uni.share({
+        provider: 'weixin', scene: action === 'link-timeline' ? 'WXSceneTimeline' : 'WXSceneSession',
+        type: 0, href: request.url, title: request.title, summary: request.text || '在热卜查看排盘结果',
+        success: () => ok(), fail,
+      }), 0)
+      return 'requested'
+    }
     if (action === 'link') {
       // 系统分享只支持 text/image；不得沿用旧公共工具里无效的 type:web。
       await callback<void>((ok, fail) => plus.share.sendWithSystem({

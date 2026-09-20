@@ -26,6 +26,27 @@ function fixture(overrides = {}) {
 test('二维码整体编码，不把内层查询参数注入支付宝 scheme', () => {
   assert.equal(buildAlipayNativeUrl(qr), 'alipays://platformapi/startapp?saId=10000007&qrcode=' + encodeURIComponent(qr))
 })
+
+test('支付宝SDK可用时拦截汇付URL，不再打开浏览器或手工scheme', () => {
+  const opened=[]; let returned=0
+  const runtime={
+    android:{
+      importClass:name=>{ assert.equal(name,'com.alipay.sdk.app.PayTask'); return class { payInterceptorWithUrl(url,loading,callback){ assert.equal(url,qr); assert.equal(loading,true); callback.onPayResult({}); return true } } },
+      runtimeMainActivity:()=>({}),
+      implements:(name,methods)=>{ assert.equal(name,'com.alipay.sdk.app.H5PayCallback'); return methods },
+    },
+    runtime:{openURL:url=>opened.push(url)},
+  }
+  assert.equal(mod.exports.openHuifuAlipayWithSdk(qr,runtime,()=>{},()=>returned++),'sdk')
+  assert.equal(returned,1); assert.deepEqual(opened,[])
+})
+
+test('旧包无支付宝SDK时退回已验证scheme且不经过浏览器', () => {
+  const opened=[]
+  const runtime={runtime:{openURL:url=>opened.push(url)}}
+  assert.equal(mod.exports.openHuifuAlipayWithSdk(qr,runtime,()=>{}),'scheme')
+  assert.equal(opened[0],mod.exports.buildAlipayNativeUrl(qr))
+})
 test('拒绝伪装主机、协议、端口、用户信息、控制符和任意 payInfo', () => {
   for (const bad of [null, {}, '', 'http://qr.alipay.com/a', 'https://qr.alipay.com.evil/a', 'https://qr.alipay.com@evil/a', 'https://evil@qr.alipay.com/a', 'https://qr.alipay.com:443/a', 'https://qr.alipay.com./a', 'https://qr%2ealipay.com/a', 'https://qr.alipay.com\\evil/a', 'https://qr.alipay.com/a\n', 'https://qr.alipay.com/a#x', 'javascript:alert(1)', 'alipays://platformapi/startapp?saId=1', 'app_id=123&sign=abc', 'https://qr.alipay.com/' + 'a'.repeat(1100)]) assert.throws(() => buildAlipayNativeUrl(bad))
 })

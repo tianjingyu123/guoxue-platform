@@ -2766,6 +2766,13 @@
             "navigationStyle": "custom",
             "disableScroll": true
           }
+        },
+        {
+          "path": "legacy-paipan-share/index",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
         }
       ]
     },

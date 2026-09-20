@@ -19,9 +19,13 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { apiGet } from '@/utils/request'
 import { purchaseApi } from '@/lib/purchase-data'
 import { getUserInfo } from '@/utils/storage'
-import { createAlipayNativePayment, type AlipayAttempt, type AlipayOrderState, type AlipayView } from '@/utils/huifu-alipay-native'
+import { createAlipayNativePayment, openHuifuAlipayWithSdk, type AlipayAttempt, type AlipayOrderState, type AlipayView } from '@/utils/huifu-alipay-native'
 
-declare const plus: { os: { name: string }; runtime: { openURL(url: string, failed: () => void): void } }
+declare const plus: {
+  os: { name: string }
+  android?: { importClass(name: string): any; runtimeMainActivity(): unknown; implements(name: string, methods: Record<string, (...args: any[]) => void>): unknown }
+  runtime: { openURL(url: string, failed: () => void): void }
+}
 const props = defineProps<{ orderId: string; amount: string }>()
 const emit = defineEmits<{ (event: 'back'): void; (event: 'paid', order: AlipayOrderState): void }>()
 const view = ref<AlipayView>({ phase: 'ready', busy: false, canOpen: false, message: '正在准备付款…' })
@@ -54,12 +58,19 @@ const flow = createAlipayNativePayment({
     uni.setStorageSync(storageKey, attempt)
     if (JSON.stringify(uni.getStorageSync(storageKey)) !== JSON.stringify(attempt)) throw new Error('支付记录保存失败')
   },
-  openUrl: (url, failed) => { assertOwner(); if (visible && !stopped) plus.runtime.openURL(url, failed) },
+  openUrl: (_url, failed) => {
+    assertOwner()
+    if (visible && !stopped) openHuifuAlipayWithSdk(attemptQrCode(), plus, failed, () => { if (visible && !stopped) void check() })
+  },
   update: (next) => { if (sameOwner() && !stopped) view.value = next },
   paid: (order) => { assertOwner(); pause(); emit('paid', order) },
   now: () => Date.now(),
   active: () => visible && !stopped && sameOwner(),
 })
+function attemptQrCode(): string {
+  const saved = uni.getStorageSync(storageKey) as AlipayAttempt | null
+  return String(saved?.qrCode || '')
+}
 function pause() {
   visible = false
   if (timer) clearTimeout(timer)
