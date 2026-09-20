@@ -447,12 +447,7 @@ export class GiftFeed {
     const slot = this.combos.get(key)
     if (slot) {
       if (now - slot.lastAt < this.cfg.comboWindowMs) {
-        slot.count += event.quantity
-        slot.lastAt = now
-        if (event.at > slot.event.at) slot.event = event
-        this.cancel(slot.timer)
-        slot.timer = this.later(() => this.closeCombo(key), this.cfg.comboHoldMs)
-        this.renderer.updateCombo(slot.renderKey, slot.count)
+        this.mergeCombo(slot, event, now)
         this.stats.merged += 1
         this.onMetric({ type: 'merged', key: slot.renderKey, count: slot.count })
         return 'merged'
@@ -496,9 +491,16 @@ export class GiftFeed {
     for (let i = 0; i < this.queue.length;) {
       const event = this.queue[i]
       if (event.tier === 2) {
-        if (this.combos.size >= this.cfg.comboLanes) { i += 1; continue }
+        // 排队期间（后台暂停、车道占满）同一组合可能堆了多条。
+        // 这里必须先看它是否已经在屏：直接 openCombo 会用同一个 key 覆盖旧 slot，
+        // 旧连击条再也收不到 hideCombo，会永久留在礼物层上（nvue 端还会让帧驱动停不下来），
+        // 同一个人送的同一份礼物也会被拆成并排的两条而不是合并计数。
+        if (!this.combos.has(this.comboKeyOf(event)) && this.combos.size >= this.cfg.comboLanes) {
+          i += 1
+          continue
+        }
         this.queue.splice(i, 1)
-        this.openCombo(event)
+        this.admitCombo(event)
         continue
       }
       if (this.lightActive.size >= this.cfg.lightLanes) { i += 1; continue }
@@ -515,6 +517,39 @@ export class GiftFeed {
       this.drain()
     }, this.cfg.lightHoldMs)
     this.lightActive.set(event.recordId, timer)
+  }
+
+  /**
+   * 把一条 L2 事件并入已在屏的连击条：累加单次数量、续驻留、刷新展示。
+   * 入口统计由调用方按各自口径记（push 计 merged，派发阶段的合并不重复计数）。
+   */
+  private mergeCombo(slot: ComboSlot, event: NormalizedGiftEvent, now: number) {
+    slot.count += event.quantity
+    slot.lastAt = now
+    if (event.at > slot.event.at) slot.event = event
+    this.cancel(slot.timer)
+    slot.timer = this.later(() => this.closeCombo(slot.key), this.cfg.comboHoldMs)
+    this.renderer.updateCombo(slot.renderKey, slot.count)
+  }
+
+  /**
+   * 派发一条 L2 事件：同组合仍在窗口内就并入现有连击条，超窗口先收掉旧条再另起一轮，
+   * 都没有则新开。与 push 的合并口径一致，避免两条路径给出不同结果。
+   */
+  private admitCombo(event: NormalizedGiftEvent) {
+    const key = this.comboKeyOf(event)
+    const slot = this.combos.get(key)
+    if (slot) {
+      const now = this.now()
+      if (now - slot.lastAt < this.cfg.comboWindowMs) {
+        this.mergeCombo(slot, event, now)
+        this.onMetric({ type: 'merged', key: slot.renderKey, count: slot.count })
+        return
+      }
+      // 超窗口：先收掉旧条，累计数不能凭空并进新一轮
+      this.closeCombo(key, false)
+    }
+    this.openCombo(event)
   }
 
   private openCombo(event: NormalizedGiftEvent) {
