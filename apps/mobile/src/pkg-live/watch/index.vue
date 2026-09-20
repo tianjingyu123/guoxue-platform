@@ -383,7 +383,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import { onHide, onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -1139,6 +1139,18 @@ const giftRenderer: GiftFeedRenderer = {
 }
 
 const giftFeed = new GiftFeed({ renderer: giftRenderer })
+
+// 同 nvue：只有确定终态才清礼物展示。
+// - endingLiveSession：已进入下播流程；
+// - error：房间加载失败，页面已给出返回/重试出口。
+// 加载中（loading）与画面波动都不算终态，不在这里取。公屏与交易记录始终不动。
+watch(
+  () => ({ ended: endingLiveSession.value, failed: Boolean(error.value) }),
+  ({ ended, failed }) => {
+    if (ended || failed) giftFeed.closeRoom(ended ? 'ended' : 'unavailable')
+    else giftFeed.reopenRoom()
+  },
+)
 
 // H5 能读系统"减少动态效果"偏好；小程序没有该能力，这里不假装支持，保持默认关闭。
 // #ifdef H5
