@@ -9,6 +9,7 @@
  * X5 合规：padding-top 撑比例不用 aspect-ratio；吸顶实色+透明度不用毛玻璃；负反馈浮层纯色。
  */
 import { ref, computed, onMounted, nextTick } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import PlatformSupportActions from "@/components/common/platform-support-actions.vue";
 import FeedCard from "@/components/feed/feed-card.vue";
@@ -62,6 +63,19 @@ const page = ref(1);
 const PAGE_SIZE = 20;
 // 首页 feed 首屏缓存 key（SWR：秒开旧内容 + 后台静默刷新替换）
 const FEED_CACHE_KEY = "feed:home:cache";
+
+// App 微信支付通过微信 URL Scheme 进入已发布首页，再由首页转入支付分包。
+// 只接受固定格式订单 ID，金额与订单归属仍由支付页向服务端重新读取。
+onLoad((query?: Record<string, string>) => {
+  // #ifdef MP-WEIXIN
+  const orderId = String(query?.miniPayOrderId || "").trim();
+  if (/^[A-Za-z0-9_-]{8,128}$/.test(orderId) && query?.fromApp === "1") {
+    setTimeout(() => {
+      uni.redirectTo({ url: `/pkg-shop/paying/index?orderId=${encodeURIComponent(orderId)}&method=wechat&fromApp=1` });
+    }, 0);
+  }
+  // #endif
+});
 
 // 请求序号守卫：静默刷新（init 命中缓存后的后台刷新）与下拉刷新/切频道/加载更多可能并发，
 // 慢的旧响应晚到会覆盖新结果（乱序写 feed）。每次 loadFeed 领取自增序号，

@@ -370,8 +370,8 @@ async function startPaying() {
   try {
     if (payMethod.value !== 'wechat') throw new Error('当前 App 尚未开通此支付方式，请返回选择微信支付')
     if (isRecharge.value) throw new Error('请返回钱包选择已开通的充值方式；iOS 请使用 Apple 应用内购买')
-    const { shortLink } = await shopApi.getWechatMiniPaymentLink(orderId.value)
-    await launchWechatMiniPayment({ orderId: orderId.value, amount: amount.value, shortLink })
+    const { scheme } = await shopApi.getWechatMiniPaymentLink(orderId.value)
+    await launchWechatMiniPayment({ orderId: orderId.value, amount: amount.value, scheme })
     status.value = 'confirming'
   } catch (error) {
     const message = (error as Error)?.message || '微信支付暂时不可用，请稍后重试'

@@ -593,6 +593,38 @@ export class WechatService {
     return result.link;
   }
 
+  /** 生成微信外打开正式版小程序的加密 URL Scheme（默认 1 天有效） */
+  async generateUrlScheme(params: {
+    path: string;
+    query?: string;
+    expireIntervalDays?: number;
+  }): Promise<string> {
+    const token = await this.getMiniAccessToken();
+    const resp = await fetch(
+      `https://api.weixin.qq.com/wxa/generatescheme?access_token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jump_wxa: {
+            path: params.path,
+            query: params.query || "",
+            env_version: "release",
+          },
+          is_expire: true,
+          expire_type: 1,
+          expire_interval: params.expireIntervalDays ?? 1,
+        }),
+      },
+    );
+    const result = await resp.json() as WechatBaseResponse & { openlink?: string };
+    if (result.errcode !== 0 || !result.openlink?.startsWith("weixin://dl/business/")) {
+      this.logger.error("小程序 URL Scheme 生成失败", result);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `小程序入口生成失败: ${result.errmsg || "未知错误"}`);
+    }
+    return result.openlink;
+  }
+
   // ───────── 客服消息 ─────────
 
   /** 发送小程序客服消息 */
