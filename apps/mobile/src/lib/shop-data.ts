@@ -1821,6 +1821,10 @@ export const shopApi = {
     return await apiPost<WechatJsapiPayParams>(`/shop/orders/${orderId}/pay/jsapi`, { ...(opts?.openid ? { openid: opts.openid } : {}), ...(opts?.channel ? { channel: opts.channel } : {}) })
   },
 
+  async getWechatMiniPaymentLink(orderId: string): Promise<{ shortLink: string }> {
+    return apiPost<{ shortLink: string }>(`/shop/orders/${encodeURIComponent(orderId)}/pay/mini-program-link`, {})
+  },
+
   // #ifdef APP-PLUS
   async payOrderApp(orderId: string, platform: 'ios' | 'android'): Promise<WechatAppPayParams> {
     return apiPost<WechatAppPayParams>(`/shop/orders/${orderId}/pay/app`, { platform })

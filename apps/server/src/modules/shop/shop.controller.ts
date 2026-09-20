@@ -30,6 +30,7 @@ import { RequireFeature } from "../../common/feature-flag.decorator";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { Auditable } from "../../common/audit.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { WechatService } from "../auth/wechat.service";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -47,6 +48,7 @@ export class ShopController {
     private afterSaleSla: AfterSaleSlaService,
     private logistics: LogisticsService,
     private systemService: SystemService,
+    private wechatService: WechatService,
   ) {}
 
   // ───────── 商品 ─────────
@@ -287,6 +289,21 @@ export class ShopController {
   @ApiBearerAuth()
   getCurrentOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.getCurrentOrder(id, req.user.id);
+  }
+
+  @Post("orders/:id/pay/mini-program-link")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "生成本人订单的微信支付小程序短链接" })
+  @ApiBearerAuth()
+  async miniProgramPayLink(@Req() req: AuthRequest, @Param("id") id: string) {
+    const order = await this.shop.getCurrentOrder(id, req.user.id);
+    if (order.status !== "PENDING") throw new BadRequestException("订单当前状态不可支付");
+    const shortLink = await this.wechatService.generateShortLink({
+      pageUrl: `pkg-shop/paying/index?orderId=${encodeURIComponent(id)}&method=wechat&fromApp=1`,
+      pageTitle: "微信支付",
+    });
+    return { shortLink };
   }
 
   @Get("orders/:id")
