@@ -124,32 +124,9 @@
             </view>
           </view>
 
-          <!-- 支付方式 -->
-          <view class="ps-section">
-            <text class="ps-section__label">支付方式</text>
-            <view class="ps-pay-list">
-              <view
-                v-for="m in payMethods"
-                :key="m.id"
-                class="ps-pay"
-                :class="{ 'ps-pay--on': payMethod === m.id }"
-                role="radio"
-                :aria-checked="payMethod === m.id"
-                tabindex="0"
-                @tap="onSelectPay(m.id)"
-                @keydown="activateOnKeyboard($event, () => onSelectPay(m.id))"
-              >
-                <view class="ps-pay__left">
-                  <view class="ps-pay__badge" :style="{ backgroundColor: m.color }">
-                    <text class="ps-pay__badge-txt">{{ m.badge }}</text>
-                  </view>
-                  <text class="ps-pay__name">{{ m.name }}</text>
-                </view>
-                <view class="ps-pay__radio" :class="{ 'ps-pay__radio--on': payMethod === m.id }">
-                  <AppIcon v-if="payMethod === m.id" name="check" :size="12" color="#fff" />
-                </view>
-              </view>
-            </view>
+          <view class="ps-section ps-fast-pay">
+            <AppIcon name="zap" :size="18" color="#22c55e" />
+            <text>将按当前环境直接打开安全收银台</text>
           </view>
         </scroll-view>
 
@@ -197,7 +174,7 @@ import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
 // #ifdef APP-PLUS
-import { isAndroidPaymentPlatform, androidPaymentMethods, assertAndroidPaymentMethod } from '@/utils/android-payment-options'
+import { isAndroidPaymentPlatform, assertAndroidPaymentMethod } from '@/utils/android-payment-options'
 // #endif
 // #ifdef H5
 import { drawQrToCanvas } from '@/utils/qrcode'
@@ -232,23 +209,22 @@ const ALL_PAY_METHODS = [
   { id: 'alipay', name: '支付宝', badge: '支', color: '#1677FF' },
   { id: 'unionpay', name: '云闪付', badge: '云', color: '#C41E3A' },
 ] as const
-// 圈子/会员入圈只支持微信、支付宝现金（不含虚拟币/云闪付）；商品、课程支持全渠道
-const payMethods = computed(() => {
-  // #ifdef APP-PLUS
-  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) return androidPaymentMethods()
-  // #endif
-  return props.bizType === 'CIRCLE' || props.bizType === 'MEMBER'
-    ? ALL_PAY_METHODS.filter((m) => m.id !== 'unionpay')
-    : ALL_PAY_METHODS
-})
-
 // ===== UI 状态 =====
 const selectedSku = ref<string | null>(null)
 const quantity = ref(1)
-const payMethod = ref<string>('wechat')
-// #ifdef APP-PLUS
-if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) payMethod.value = 'alipay'
-// #endif
+function environmentPayMethod(): PayChannel {
+  let method: PayChannel = 'wechat'
+  // #ifdef H5
+  method = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('micromessenger')
+    ? 'wechat'
+    : 'alipay'
+  // #endif
+  // #ifdef APP-PLUS
+  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) method = 'alipay'
+  // #endif
+  return method
+}
+const payMethod = ref<PayChannel>(environmentPayMethod())
 const paying = ref(false)
 const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
@@ -279,12 +255,11 @@ const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
   if (hasSku.value && !selectedSku.value) return '请选择规格'
-  return '确认下单'
+  return `立即支付 ¥${total.value}`
 })
 
 // ===== 交互 =====
 function onSelectSku(sku: string) { selectedSku.value = sku }
-function onSelectPay(id: string) { payMethod.value = id }
 function onMinus() { if (quantity.value > 1) quantity.value-- }
 function onPlus() {
   const max = props.product?.stock ?? 99
@@ -301,10 +276,7 @@ function reset() {
   // #endif
   selectedSku.value = null
   quantity.value = 1
-  payMethod.value = 'wechat'
-  // #ifdef APP-PLUS
-  if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) payMethod.value = 'alipay'
-  // #endif
+  payMethod.value = environmentPayMethod()
   paying.value = false
   paid.value = false
   paidSub.value = '请在订单中心完成支付'

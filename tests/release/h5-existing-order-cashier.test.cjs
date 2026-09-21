@@ -248,11 +248,11 @@ test('checkout真实提交仅建一次原订单，再进入同一汇付收银路
     assert.equal(count, 1); assert.equal(paths.length, 2); assert.ok(paths.every(p => p === api.existingOrderCashierRoute('original-one', method, true)))
   }
 })
-test('详情真实去支付选择渠道；原订单ID不变，取消不发请求', async () => {
-  let options; const paths = []
-  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', status: 'pending_pay', payAmount: 0.01 } }, choosingPayment: false, uni: { showActionSheet(v) { options = v } }, navigateTo: p => paths.push(p), ...api, ...device, ...policy, ...config })
-  await fn(); assert.equal(paths.length, 0); assert.equal(options.itemList.length, 2)
-  options.success({ tapIndex: 1 }); assert.equal(paths[0], api.existingOrderCashierRoute('old-one', 'unionpay', true))
+test('详情真实去支付按环境一键进入默认渠道且原订单ID不变', async () => {
+  const paths = []
+  const browser={};browser.self=browser;browser.top=browser
+  const fn = realFunction('pkg-order/detail/index.vue', 'goPay', 'H5', { order: { value: { id: 'old-one', orderType: 'PRODUCT', status: 'pending_pay', payAmount: 0.01 } }, choosingPayment: false, navigator:{userAgent:mobileUa}, window:browser, uni: { showToast() {}, showActionSheet() { assert.fail('不应再显示渠道选择') } }, navigateTo: p => paths.push(p), ...api, ...device, ...policy, ...config })
+  await fn(); assert.deepEqual(paths,[api.existingOrderCashierRoute('old-one','alipay',true)])
 })
 test('iOS和小程序checkout与详情保留原有支付分支', () => {
   for (const target of ['APP-PLUS', 'MP-WEIXIN']) {
@@ -265,23 +265,23 @@ test('iOS和小程序checkout与详情保留原有支付分支', () => {
   }
 })
 
-test('安卓真实checkout、原订单、购买弹层均进入支付宝，未开通渠道建单前拦截', async () => {
+test('安卓真实checkout、原订单、购买弹层均一键进入默认支付宝', async () => {
   const native=compile(file('utils/android-payment-options.ts'))
   const paths=[], errors=[]; let creates=0
   const uni={getSystemInfoSync:()=>({platform:'android'}),showToast:x=>errors.push(x.title)}
-  assert.deepEqual(Array.from(native.androidPaymentMethods(),x=>x.id),['alipay'])
-  const refs={submitting:{value:false},items:{value:[{productId:'product',quantity:1}]},currentAddress:{value:{id:'address'}},estimate:{value:{}},selectedCoupon:{value:null},createdOrders:new Map(),contentSource:{value:{}},payMethod:{value:'wechat'}}
+  assert.deepEqual(Array.from(native.androidPaymentMethods(),x=>x.id),['alipay','wechat'])
+  const refs={submitting:{value:false},items:{value:[{productId:'product',quantity:1}]},currentAddress:{value:{id:'address'}},estimate:{value:{}},selectedCoupon:{value:null},createdOrders:new Map(),contentSource:{value:{}},payMethod:{value:'alipay'}}
   const checkout=realFunction('pkg-shop/checkout/index.vue','submitOrder','APP-PLUS',{...refs,...native,uni,shopApi:{createOrder:async()=>{creates++;return{id:'order-one',amount:0.01}}},redirectTo:p=>paths.push(p)})
-  await checkout(); assert.equal(creates,0); assert.equal(errors.length,1)
-  refs.payMethod.value='alipay'; await checkout(); assert.equal(creates,1); assert.match(paths.pop(),/orderId=order-one&method=alipay/)
+  await checkout(); assert.equal(creates,1); assert.equal(errors.length,0); assert.match(paths.pop(),/orderId=order-one&method=alipay/)
   const order={value:{id:'order-one',status:'pending_pay'}}
   const detail=realFunction('pkg-order/detail/index.vue','goPay','APP-PLUS',{order,uni,...native,navigateTo:p=>paths.push(p),goLegacyPay:()=>{throw Error('wrong branch')}})
   await detail(); assert.equal(paths.pop(),'/shop/paying?orderId=order-one&method=alipay')
   order.value.status='completed'; await detail(); assert.equal(paths.length,0)
-  const state={paying:{value:false},props:{product:{id:'product'},bizType:'PRODUCT'},hasSku:{value:false},selectedSku:{value:null},quantity:{value:1},total:{value:0.01},payMethod:{value:'wechat'}}
+  const state={paying:{value:false},props:{product:{id:'product'},bizType:'PRODUCT'},hasSku:{value:false},selectedSku:{value:null},quantity:{value:1},total:{value:0.01},payMethod:{value:'alipay'}}
   const sheet=realFunction('components/common/purchase-sheet.vue','onPay','APP-PLUS',{...state,...native,uni,purchaseApi:{createOrder:async()=>{creates++;return{id:'order-sheet'}}},onClose:()=>{},navigateTo:p=>paths.push(p)})
-  await sheet(); assert.equal(creates,1)
-  state.payMethod.value='alipay'; await sheet(); assert.equal(creates,2); assert.match(paths.pop(),/orderId=order-sheet&method=alipay/)
+  await sheet(); assert.equal(creates,2); assert.match(paths.pop(),/orderId=order-sheet&method=alipay/)
+  assert.equal(script('components/common/purchase-sheet.vue').includes('v-for="m in payMethods"'),false)
+  assert.equal(script('pkg-shop/checkout/index.vue').includes('v-for="m in payMethods"'),false)
 })
 test('旧paying显式非微信链接提前转汇付，绝不触发微信授权/支付', () => {
   const source = ts.createSourceFile('page.ts', script('pkg-shop/paying/index.vue'), ts.ScriptTarget.Latest, true)
@@ -426,7 +426,7 @@ test('安卓真实付款完成只回原订单一次，账号变化不跳转',asy
     const paths=[];let settles=0
     const paid=realFunction('pkg-shop/paying/index.vue','onHuifuAlipayPaid','APP-PLUS',{
       alipayReturned:false,nativePageActive:true,paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:owner}),
-      settleCircleIfNeeded:async()=>{settles++},redirectTo:p=>paths.push(p),
+      settleCircleIfNeeded:async()=>{settles++},paidBusinessTarget:()=>'/orders/one?paymentReturn=1',redirectTo:p=>paths.push(p),
     })
     await paid({id:'one',status:'PAID'});await paid({id:'one',status:'PAID'})
     assert.deepEqual(paths,owner==='owner'?['/orders/one?paymentReturn=1']:[]);assert.equal(settles,owner==='owner'?1:0)
@@ -448,13 +448,14 @@ test('真实checkout禁用渠道在业务建单前拦截；原单仅一个可用
   await pay();assert.deepEqual(paths,[api.existingOrderCashierRoute('one','alipay',true)])
 })
 
-test('真实微信轮询：收银返回只是有限直读提示，订单PAID才回单；APP保持原成功页',async()=>{
+test('真实微信轮询：收银返回只是有限直读提示，订单PAID后各端直接回业务页',async()=>{
   for(const target of ['H5','APP-PLUS']){
     let scheduled,now=100000,paid=false;const paths=[],reads=[],status={value:'paying'}
     const globals={
       pollCount:0,pollTimer:null,maxPolls:70,isRecharge:{value:false},status,orderId:{value:'one'},amount:{value:0.01},payMethod:{value:'wechat'},returnLiveRoomId:{value:''},
       h5PaymentConfirmed:true,lastH5CurrentRead:-Infinity,Date:class extends Date{static now(){return now}},
       setTimeout:fn=>{scheduled=fn;return 1},clearTimers:()=>{},track:{purchase:()=>{}},settleCircleIfNeeded:async()=>{},redirectTo:x=>paths.push(x),
+      paidBusinessTarget:()=>'/orders/one?paymentReturn=1',
       shopApi:{getOrderPayState:async(id,fresh)=>{reads.push(fresh);return {paid}}},console,
     }
     const poll=realFunction('pkg-shop/paying/index.vue','startPolling',target,globals)
@@ -462,6 +463,14 @@ test('真实微信轮询：收银返回只是有限直读提示，订单PAID才�
     await scheduled();assert.equal(reads[1],false)
     now+=30000;paid=true;await scheduled();assert.equal(status.value,'success')
     if(target==='APP-PLUS')await scheduled()
-    assert.deepEqual(paths,[target==='H5'?'/orders/one?paymentReturn=1':'/shop/pay-success?orderId=one'])
+    assert.deepEqual(paths,['/orders/one?paymentReturn=1'])
   }
+})
+
+test('圈子付款成功直接进入圈子，不经过通用成功页',async()=>{
+  const paths=[]
+  const target=realFunction('pkg-shop/paying/index.vue','paidBusinessTarget','APP-PLUS',{})
+  assert.equal(target({id:'order-one',type:'CIRCLE_JOIN',targetId:'circle-one'}),'/circles/circle-one?paymentSuccess=1')
+  assert.equal(target({id:'order-one',type:'COURSE',targetId:'course-one'}),'/courses/course-one?paymentSuccess=1')
+  assert.equal(target({id:'order-one',type:'MEMBER',targetId:'vip-one'}),'/vip?paymentSuccess=1')
 })

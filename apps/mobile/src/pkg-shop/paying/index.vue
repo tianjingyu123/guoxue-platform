@@ -153,8 +153,8 @@ onUnmounted(() => { nativePageActive = false })
 async function onHuifuAlipayPaid(order: AlipayOrderState) {
   if (alipayReturned || !nativePageActive || order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) return
   alipayReturned = true
-  void settleCircleIfNeeded(order)
-  redirectTo(`/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`)
+  await settleCircleIfNeeded(order)
+  redirectTo(paidBusinessTarget(order))
 }
 // #endif
 
@@ -405,9 +405,9 @@ let lastH5CurrentRead = -Infinity
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
  * ① 优先读取本人当前支付公众号的登录身份，再读按账号/公众号隔离的会话缓存；
  * ② URL 带授权回跳 code → 调后端兑换 openid，成功后缓存并用 replaceState 清掉 code（code 一次性，防刷新复用）；
- * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），展示一次用户确认按钮后再跳转微信授权，
+ * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗）并立即顶层跳转；
  *    回跳本页后重走 onLoad。部分微信 WebView 会拦截异步脚本外跳并白屏，而用户点击授权按钮可稳定触发跳转。
- * 返回 ''=等待用户确认授权（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
+ * 返回 ''=已经发起授权跳转（调用方直接 return）；抛错=授权失败。
  */
 async function ensureOaOpenid(): Promise<string> {
   const sp = new URLSearchParams(window.location.search)
@@ -448,6 +448,7 @@ async function ensureOaOpenid(): Promise<string> {
   oauthAuthorizeUrl.value = url
   status.value = 'authorizing'
   clearTimers('all')
+  navigateWechatAuthorization(window, url)
   return ''
 }
 
@@ -554,6 +555,16 @@ async function settleCircleIfNeeded(st: { type?: string; targetId?: string }) {
   }
 }
 
+function paidBusinessTarget(st: { type?: string; targetId?: string }): string {
+  const targetId = String(st.targetId || '').trim()
+  if (targetId && (st.type === 'CIRCLE_JOIN' || st.type === 'CIRCLE_RENEW')) {
+    return `/circles/${encodeURIComponent(targetId)}?paymentSuccess=1`
+  }
+  if (targetId && st.type === 'COURSE') return `/courses/${encodeURIComponent(targetId)}?paymentSuccess=1`
+  if (st.type === 'MEMBER') return '/vip?paymentSuccess=1'
+  return `/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`
+}
+
 function startCountdown() {
   clearTimers('cd')
   cdTimer = setInterval(() => {
@@ -611,10 +622,10 @@ function startPolling(delayMs?: number) {
           status.value = 'success'
           track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
           clearTimers('all')
-          // #ifdef H5
-          redirectTo(`/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`)
-          return
-          // #endif
+          if (!returnLiveRoomId.value) {
+            redirectTo(paidBusinessTarget(st))
+            return
+          }
           const liveReturn = returnLiveRoomId.value
             ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}`
             : ''
