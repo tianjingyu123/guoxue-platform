@@ -408,9 +408,10 @@ async function r7() {
     where: { circleId: f.circle, type: "circle_join_refund" },
   });
   check("R7 退款产生一条冲正记录", refundRows.length === 1, `条数=${refundRows.length}`);
+  const expectedJoinRecall = Math.round(joinOwner * (150 / 199) * 100) / 100;
   check("R7 冲正取的是被退订单的分成，不是最新那笔",
-    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + joinOwner) < 0.01,
-    `冲正=${refundRows[0]?.ownerShare} 应为=${-joinOwner}（若取最新会是 ${-renewOwner}）`);
+    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + expectedJoinRecall) < 0.01,
+    `冲正=${refundRows[0]?.ownerShare} 应为=${-expectedJoinRecall}（若错取最新会按 ${renewOwner} 计算）`);
 }
 
 /**
@@ -700,9 +701,10 @@ async function r15() {
   const after1 = await prisma.circleRevenueRecord.findMany({
     where: { circleId: f.circle, type: "circle_join_refund" },
   });
-  check("R15 exact 归属与金额核验通过 → 正常冲正",
-    after1.length === 1 && Math.abs(Number(after1[0].ownerShare) + ownerShare) < 0.01,
-    `冲正=${after1[0]?.ownerShare} 应为=${-ownerShare}`);
+  const expectedRecall = Math.round(ownerShare * (150 / 199) * 100) / 100;
+  check("R15 exact 归属与金额核验通过 → 按实际退款比例自动冲正",
+    after1.length === 1 && Math.abs(Number(after1[0].ownerShare) + expectedRecall) < 0.01,
+    `冲正=${after1[0]?.ownerShare} 应为=${-expectedRecall}`);
   check("R15 冲正行带 orderId（唯一约束因此覆盖 circle_join_refund）",
     after1.length === 1 && after1[0].orderId === f.order.id, `orderId=${after1[0]?.orderId}`);
   const balance1 = await walletOf(f.user);
@@ -755,8 +757,9 @@ async function r16() {
   const refundRows = await prisma.circleRevenueRecord.findMany({
     where: { circleId: f.circle, type: "circle_join_refund" },
   });
+  const expectedRecall = Math.round(ownerShare * (150 / 199) * 100) / 100;
   check("R16 并发下只写一条冲正行",
-    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + ownerShare) < 0.01,
+    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + expectedRecall) < 0.01,
     `冲正行数=${refundRows.length}`);
   check("R16 并发下用户余额只加一次",
     Math.abs((await walletOf(f.user)) - 150) < 0.01, `余额=${await walletOf(f.user)}`);

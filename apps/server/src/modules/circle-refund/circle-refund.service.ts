@@ -266,7 +266,7 @@ export class CircleRefundService {
   }
 
   /**
-   * 执行退款（平台审核通过后）。事务原子：退款入账用户余额钱包 + 圈主分成全额追回 + 成员身份失效 + 状态 refunded。
+   * 执行退款（平台审核通过后）。事务原子：退款入账用户余额钱包 + 圈主分成按退款比例追回 + 成员身份失效 + 状态 refunded。
    * 站长佣金追回复用 commission.reverseCommission（事务外，自带事务避免嵌套；失败异步补偿不阻断主退款）。
    * ⚠️ 高风险资金代码：上线前须人工 review + 真实付费数据 e2e 验证。
    */
@@ -311,7 +311,7 @@ export class CircleRefundService {
         randomUUID(), userId, actualRefund, balanceAfter, refundId,
       );
 
-      // 2) 圈主分成全额追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
+      // 2) 圈主分成按退款比例追回（查入圈分成 ownerShare，记负数冲正 + 追回记录）
       const member = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
       if (member) {
         // 圈主分成取值见 resolveOwnerShare()：精确（含归属与金额核验）→ 推断 → 转人工。
@@ -349,14 +349,26 @@ export class CircleRefundService {
               `，退款已付金额=${paidAmount}。查询：SELECT * FROM "CommissionRecall" WHERE status='pending_manual'`,
           );
         } else if (autoRecall) {
-          ownerRecalled = resolved.ownerShare as number;
+          if (
+            !Number.isFinite(actualRefund) || actualRefund <= 0 ||
+            !Number.isFinite(paidAmount) || paidAmount <= 0 ||
+            actualRefund > paidAmount
+          ) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实际退款额或原订单实付额异常，禁止自动冲正");
+          }
+          const refundRatio = actualRefund / paidAmount;
+          ownerRecalled = round2((resolved.ownerShare as number) * refundRatio);
+          const revenueAmountRecalled = round2((resolved.revenueAmount as number) * refundRatio);
+          if (ownerRecalled <= 0 || revenueAmountRecalled <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的自动冲正金额为零，禁止自动冲正");
+          }
           // 冲正行带上 orderId：`CircleRevenueRecord` 的 `(type, orderId)` 唯一约束因此也覆盖
           // `circle_join_refund`，同一笔订单的冲正在**数据库层**只可能有一条。
           // orderId 为空的历史退款拿不到这层保护，由上面的退款单级行锁兜底。
           await tx.circleRevenueRecord.create({
             data: {
               circleId, type: "circle_join_refund", sourceId: member.id, orderId,
-              amount: -paidAmount, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0,
+              amount: -revenueAmountRecalled, platformFee: 0, ownerShare: -ownerRecalled, splitRate: 0,
             },
           });
           await tx.$executeRawUnsafe(
@@ -420,7 +432,7 @@ export class CircleRefundService {
     tx: any,
     params: { orderId: string | null; circleId: string; memberId: string; paidAmount: number },
   ): Promise<
-    | { kind: "exact" | "single" | "amount"; ownerShare: number; candidates: RevenueCandidate[] }
+    | { kind: "exact" | "single" | "amount"; ownerShare: number; revenueAmount: number; candidates: RevenueCandidate[] }
     | { kind: "mismatch"; ownerShare: null; candidates: RevenueCandidate[]; reason: RecallManualReason }
     | { kind: "ambiguous" | "none"; ownerShare: null; candidates: RevenueCandidate[] }
   > {
@@ -451,7 +463,7 @@ export class CircleRefundService {
             reason: RECALL_MANUAL_REASONS.AMOUNT_MISMATCH,
           };
         }
-        return { kind: "exact", ownerShare: hit.ownerShare, candidates: [hit] };
+        return { kind: "exact", ownerShare: hit.ownerShare, revenueAmount: hit.amount, candidates: [hit] };
       }
     }
 
@@ -467,13 +479,19 @@ export class CircleRefundService {
 
     if (candidates.length === 0) return { kind: "none", ownerShare: null, candidates: [] };
     if (candidates.length === 1) {
-      return { kind: "single", ownerShare: candidates[0].ownerShare, candidates };
+      return {
+        kind: "single", ownerShare: candidates[0].ownerShare,
+        revenueAmount: candidates[0].amount, candidates,
+      };
     }
 
     // 多条候选：只有当金额能唯一对上本次退款的已付金额时才**推断**得出一条
     const byAmount = candidates.filter((c) => Math.abs(c.amount - Number(paidAmount)) < 0.01);
     if (byAmount.length === 1) {
-      return { kind: "amount", ownerShare: byAmount[0].ownerShare, candidates };
+      return {
+        kind: "amount", ownerShare: byAmount[0].ownerShare,
+        revenueAmount: byAmount[0].amount, candidates,
+      };
     }
     return { kind: "ambiguous", ownerShare: null, candidates };
   }
