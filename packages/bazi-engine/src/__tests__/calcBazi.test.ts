@@ -84,22 +84,29 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       expect(result.taiYuan.zhi).toBe('辰')
     })
 
-    it('命宫为戊午', () => {
-      expect(result.mingGong.gan).toBe('戊')
-      expect(result.mingGong.zhi).toBe('午')
+    /**
+     * 🔴 2026-09-19 更正：原期望「戊午 / 庚申」是旧公式 `(月支±时支)%12` 的输出。
+     * 本例年柱癸亥（立春前）、月支丑、巳时，按已核验规则：
+     *   命宫支 = (5 − 丑1 − 巳5) mod 12 = 亥；宫干由癸年五虎遁（甲寅起）得癸 → 癸亥
+     *   身宫支 = (1 + 丑1 + 巳5) mod 12 = 未；同法得己 → 己未
+     * 地支与旧版矩阵丑月巳时格（乙亥 / 辛未，己卯年）一致，天干因年柱不同而异。
+     */
+    it('命宫为癸亥', () => {
+      expect(`${result.mingGong.gan}${result.mingGong.zhi}`).toBe('癸亥')
     })
 
-    it('身宫为庚申', () => {
-      expect(result.shenGong.gan).toBe('庚')
-      expect(result.shenGong.zhi).toBe('申')
+    it('身宫为己未', () => {
+      expect(`${result.shenGong.gan}${result.shenGong.zhi}`).toBe('己未')
     })
 
     it('旺相休囚死为旺（戊土生丑月，同气为旺）', () => {
       expect(result.wangXiang).toBe('旺')
     })
 
-    it('大运至少8步', () => {
-      expect(result.qiYun.daYun.length).toBe(8)
+    it('大运共10列：首列为起运前（月柱本身），其后9步', () => {
+      expect(result.qiYun.daYun.length).toBe(10)
+      // 值断言：首列即本盘月柱，不是第一步大运
+      expect(result.qiYun.daYun[0].ganZhi).toBe(result.siZhu.yue.gan + result.siZhu.yue.zhi)
     })
 
     it('起运年龄为正整数', () => {

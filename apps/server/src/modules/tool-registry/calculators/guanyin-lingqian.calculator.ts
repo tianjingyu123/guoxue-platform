@@ -3,18 +3,71 @@
 // 传统观音灵签100签，含签诗、白话解、解曰、仙机、典故
 
 import type { GuanYinLingQianResult, LingQianDetail } from "@guoxue/shared";
+import { dayGanzhi } from "@guoxue/shared/paipan";
 
 // ── 时辰干支起卦辅助 ──
 // 禁止 Date.now() 毫秒/随机定签。未传签号时，用求签时刻的「日干支序数」(六十甲子) 起卦，
 // 同一日得同一签，符合传统「心诚则灵、同时同签」逻辑，结果可复现。
-const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
 const DAY_MS = 86400000;
 
-/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。 */
+/**
+ * 🔴 2026-09-20 修两处，原实现如下：
+ *
+ * ```ts
+ * const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日   ← 注释是错的
+ * function getDayGanZhiIndex(date) {
+ *   const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+ *   return ((days % 60) + 60) % 60;
+ * }
+ * ```
+ *
+ * **① 纪元错两天。** 1984-02-02 是**丙寅**日不是甲子日（甲子日为 1984-01-31）。
+ * 两个独立实现互证：`bazi-engine` 的 `calcRiZhu`（纯数学天文算法）与
+ * `@guoxue/shared/paipan` 的 `dayGanzhi` 逐项一致，而本地这份与它们
+ * **78/78 全不符、恒差 2**。于是起签整体偏两签，
+ * 而展示文案还煞有介事地写「六十甲子第 N 位」——**错得有鼻子有眼**。
+ * 现改为直接调 `dayGanzhi`，本地不再自备纪元。
+ *
+ * **② 兜底起签覆盖不到全表。** 原式 `日干支序 % 表长`，
+ * 而日干支序只有 **60** 个取值，表长 100（观音签）／125（灵棋经）——
+ * **第 61 签以后永远抽不到**（观音 60/100、灵棋 60/125）。
+ * 这是本项目第三次撞上同一错法（前两次：诸葛神数 76% 签不可达、蠢子数 61–96 不可达）。
+ *
+ * 改用 `dayOrdinal()`——自 Unix 纪元起的绝对日序。
+ * 它**不声称任何干支含义**，只是「第几天」，故取模后可覆盖任意表长。
+ *
+ * ⚠️ 必须说清楚：日期→签号这个映射**没有典籍依据**，
+ * 传统求签是摇签（随机）。它存在只是为了「用户没报签号时也能出一签」，
+ * 且本项目明令禁止 `Date.now()` 毫秒/随机（结果要可复现、可存库、可生成报告）。
+ * 所以 `qiGuaNote` 里如实写明这是确定性替代，不冒充古法。
+ */
+const dayOrdinal = (date?: string | number | Date): number =>
+  Math.floor((date !== undefined ? new Date(date).getTime() : Date.now()) / DAY_MS);
+
+/**
+ * 日干支序数（0=甲子 … 59=癸亥），走 shared 真源，本地不再自备纪元。
+ *
+ * ⚠️ 这里有个**会随机器时区改变结果**的坑，实测踩到过：
+ * `"1950-01-01"` 这种**纯日期串**被 `new Date()` 按 **UTC 午夜**解析，
+ * 若再用 `getFullYear()/getMonth()/getDate()`（**本地**时区）取回年月日，
+ * 在 UTC 以西的机器上会**退到前一天**——本机是 UTC−8，实测 5/5 全偏一天。
+ *
+ * 更麻烦的是它**只在部分时区出错**：在 UTC+8 的机器上跑测试是绿的。
+ * 所以纯日期串一律按字面取字段，不经时区转换；
+ * 只有真正的时间戳/Date 实例才用本地分量（那时它确实代表一个时刻）。
+ */
+function ymdOf(date?: string | number | Date): [number, number, number] {
+  if (typeof date === "string") {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+    if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+  }
+  const d = date !== undefined ? new Date(date) : new Date();
+  return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
+}
+
 function getDayGanZhiIndex(date?: string | number | Date): number {
-  const t = date !== undefined ? new Date(date).getTime() : Date.now();
-  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
-  return ((days % 60) + 60) % 60;
+  const [y, m, d] = ymdOf(date);
+  return dayGanzhi(y, m, d, 12).idx;
 }
 
 const QIAN_DB: LingQianDetail[] = [
@@ -48,7 +101,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 2,
     name: "鬼谷先师",
-    level: "中平",
+    level: "中下",
     poem: "鬼谷仙师天下奇，不向朝中做客卿。却被世人少识见，只知持技在山林。",
     baiHua: "此签隐才不露之象，需等待时机。鬼谷子身怀绝技却隐居山林，喻有才之人暂不得志。",
     jieYue: "此签隐逸之象，宜静守待时，不可躁进。功名未遂，财利微薄。",
@@ -168,7 +221,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 7,
     name: "苏娘走难",
-    level: "中平",
+    level: "中下",
     poem: "奔波终日苦中求，暂时困难且低头。待到水穷山尽处，回看月上一轮秋。",
     baiHua: "此签暂时困顿之象，终见光明。目前奔波劳苦，但山穷水尽之时自有转机，月圆秋明。",
     jieYue: "此签先苦后甜之象，暂时困难，只要忍耐终有出头之日。",
@@ -216,7 +269,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 9,
     name: "孔明点将",
-    level: "中平",
+    level: "中下",
     poem: "烦恼从来未已离，行藏终是费心机。一朝好事从天降，不比寻常只是时。",
     baiHua: "此签时运未至之象，宜静待时机。烦恼不断，心机费尽，但好事终会从天而降。",
     jieYue: "此签烦恼重重之象，但守得云开见月明。诸事先难后易。",
@@ -408,7 +461,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 17,
     name: "话说陶三春",
-    level: "中平",
+    level: "中下",
     poem: "莫听闲言与是非，晨昏只好念阿弥。若将狂语为真实，画饼如何救得饥。",
     baiHua: "此签虚妄不实之象，勿信谣言。不要听信闲言碎语，流言蜚语如同画饼充饥，不能解决实际问题。",
     jieYue: "此签诫人勿信谗言之象。谣言止于智者，宜静心守正。",
@@ -528,7 +581,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 22,
     name: "六郎逢救",
-    level: "中平",
+    level: "中下",
     poem: "长途跋涉有重山，水远难通路又难。哪时虹桥重修起，这般方可得平安。",
     baiHua: "此签路途艰难之象，需人相助。山重水复路难行，只有彩虹桥修起之后方能得平安。",
     jieYue: "此签困难重重之象，需贵人相助才能渡过难关。目前宜静不宜动。",
@@ -600,7 +653,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 25,
     name: "伍子胥过昭关",
-    level: "中平",
+    level: "中下",
     poem: "一朝无事忽遭殃，须把头低暗度过。若到前头安稳处，却教此日再安然。",
     baiHua: "此签突遇波折之象，低头避灾。突遭横祸需低头忍耐，待到了安稳之处方可重获安宁。",
     jieYue: "此签避祸之象。突遇不测，宜暂避锋芒，隐忍待时，方能保全。",
@@ -648,7 +701,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 27,
     name: "刘基谏主",
-    level: "中平",
+    level: "中下",
     poem: "一谋二用命中逢，进退求之总是空。须信花开还有落，须知福至更无穷。",
     baiHua: "此签进退两难之象，需做选择。一计二用，进退皆难，当知花开花落自有定时，福祸相生。",
     jieYue: "此签两难之象，需果断抉择。犹豫不决只会错失良机。",
@@ -696,7 +749,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 29,
     name: "赵子龙救主",
-    level: "中平",
+    level: "中下",
     poem: "宝刀切水水无痕，运去英雄不自由。安守光阴待运至，石中藏玉有谁知。",
     baiHua: "此签怀才不遇之象，需等时运。英雄失势如宝刀切水不留痕迹，但石中美玉终有被发现之日。",
     jieYue: "此签暂时埋没之象，才华未被发现，需待时机。隐忍待时，终有出头之日。",
@@ -758,7 +811,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 32,
     name: "刘备求贤",
-    level: "中平",
+    level: "中下",
     poem: "皓月当空林木落，三春过后始得圆。扁舟一叶如飘荡，何日得还在故乡。",
     baiHua: "此签漂泊不定之象，思乡心切。月圆林落，春去秋来，如孤舟飘荡，不知何日归故乡。",
     jieYue: "暂时漂泊，思归不得。需耐心等待，自有归期。",
@@ -768,7 +821,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 33,
     name: "庄子试妻",
-    level: "中平",
+    level: "中下",
     poem: "一池荷叶半干枯，宛似人心两不如。不必更劳心力费，自然秋到叶飘疏。",
     baiHua: "此签世态炎凉之象，看清人心。荷叶半枯如人心不古，不必费力强求，秋来自有结果。",
     jieYue: "人情冷暖，世态炎凉。不必强求，顺其自然。",
@@ -818,7 +871,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 38,
     name: "何文秀遇难",
-    level: "中平",
+    level: "中下",
     poem: "月缺花残暂未全，哪堪时运不如年。渐到中秋月明夜，清光不照两人圆。",
     baiHua: "此签暂时残缺之象，日后圆满。月缺花残时运不济，但待到中秋月明时自有转机。",
     jieYue: "暂时分离，后会有期。时运不济，但终有圆满之日。",
@@ -828,7 +881,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 39,
     name: "姜女寻夫",
-    level: "中平",
+    level: "中下",
     poem: "天边鸟语笑凡人，似梦还非百样新。若见前头路坎坷，暗里须防有暗人。",
     baiHua: "此签虚实难分之象，提防暗害。前路坎坷，需防暗中小人。世事如梦真假难辨。",
     jieYue: "虚实难辨，谨慎前行。前方坎坷，暗中有小人。",
@@ -868,7 +921,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 43,
     name: "行者误入天罗",
-    level: "中平",
+    level: "中下",
     poem: "天地交泰万物生，若逢一阵暗云遮。黑中一人来引路，也许前途见太平。",
     baiHua: "此签暗中有路之象，困境中有人帮。天地交泰本万物生，却被乌云遮蔽，黑暗中有贵人引路。",
     jieYue: "困境中自有贵人相助。暗中有路，不必绝望。",
@@ -918,7 +971,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 48,
     name: "韩信功劳",
-    level: "中平",
+    level: "中下",
     poem: "鱼游深水被网惊，撞入网中路不通。若得遂心须出网，暂时却在水中行。",
     baiHua: "此签被困其中之象，需找出路。鱼游深水却误入网中，需设法脱网方能得自由。",
     jieYue: "处于困境，需寻出路。暂时被困，但只要想办法终可脱身。",
@@ -968,7 +1021,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 53,
     name: "刘玄德入赘孙权",
-    level: "中平",
+    level: "中下",
     poem: "失意翻成得意时，龙蛇混杂认精微。耐心守份无差错，一朝否极泰来时。",
     baiHua: "此签龙蛇混杂之象，辨别真假。失意反成得意，龙蛇混杂之中需辨别真伪，耐心守候否极泰来。",
     jieYue: "真假难辨，需耐心分辨。守正待时，否极泰来。",
@@ -998,7 +1051,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 56,
     name: "禄山反唐",
-    level: "中平",
+    level: "中下",
     poem: "事虽亨通不自由，心中常有未除忧。待到春风来日到，自然身上乐悠悠。",
     baiHua: "此签喜中有忧之象，居安思危。表面亨通内心有忧，待到春风到来时方能真正安乐。",
     jieYue: "表面顺利暗藏隐忧，居安思危。需未雨绸缪。",
@@ -1018,7 +1071,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 58,
     name: "文王问卦",
-    level: "中平",
+    level: "中下",
     poem: "阴里详看仔细求，须知此事用心谋。若是中间无贵助，恐有前途未可收。",
     baiHua: "此签贵人难寻之象，需多方求助。暗中仔细谋划，若无贵人相助恐难有成。",
     jieYue: "需要借助外力方能成功。寻求贵人相助为当前要务。",
@@ -1088,7 +1141,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 65,
     name: "韩世忠遇难",
-    level: "中平",
+    level: "中下",
     poem: "眼前欢喜未为荣，必虑分别几度更。人世无常莫执著，暗里云遮未见明。",
     baiHua: "此签无常变化之象，莫过执著。眼前的欢喜未必长久，人世无常莫要执着，乌云遮日天未明。",
     jieYue: "世事无常，不必执着。暂时昏暗，耐心等待光明。",
@@ -1118,7 +1171,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 68,
     name: "陈仓暗度",
-    level: "中平",
+    level: "中下",
     poem: "南贩珍珠北贩盐，年来几倍到头赚。劝君勤做修善事，正是天时才顺然。",
     baiHua: "此签奔波劳碌之象，行善积德。南北奔波辛苦赚钱，但劝君多行善事，顺应天时方得顺利。",
     jieYue: "奔波劳碌但需行善，顺应天时方能顺利。",
@@ -1128,7 +1181,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 69,
     name: "梅开二度",
-    level: "中平",
+    level: "中下",
     poem: "冬来岭上一枝梅，叶落已久花始开。既有幽香如许发，何愁不被早春催。",
     baiHua: "此签厚积薄发之象，花终会开。冬梅晚开但终究开放，既有幽香何愁春不来。",
     jieYue: "厚积薄发，耐心等待。只要坚持终有绽放之日。",
@@ -1178,7 +1231,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 74,
     name: "秦哥卖身",
-    level: "中平",
+    level: "中下",
     poem: "驿外断桥梅雪中，寂寞开无主人观。零落成泥碾作尘，只有香如故依然。",
     baiHua: "此签孤芳自赏之象，坚守本心。断桥边梅花寂寞开放无人欣赏，零落成泥但香气不改。坚守本心终有善果。",
     jieYue: "暂时无人赏识，但坚持本心终被认可。保持节操。",
@@ -1218,7 +1271,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 78,
     name: "刘智远投军",
-    level: "中平",
+    level: "中下",
     poem: "事君人分在前头，休怨频频各怪尤。大抵前生多种植，到头苦尽始方收。",
     baiHua: "此签先苦后甜之象，前因后果。各人各有缘分，不必怨天尤人。前生种因今世得果，苦尽甘来。",
     jieYue: "先苦后甜，因果不虚。忍耐辛苦方有收获。",
@@ -1378,7 +1431,7 @@ const QIAN_DB: LingQianDetail[] = [
   {
     number: 94,
     name: "伯牙绝弦",
-    level: "中平",
+    level: "中下",
     poem: "小人挡道未为真，灾祸重重正犯身。仗义每多屠狗辈，负心多是读书人。",
     baiHua: "此签小人当道之象，防范是非。小人挡道灾祸临身，仗义之人多在市井，负心之人反多有学识。需明辨是非。",
     jieYue: "防小人，远离是非。世态炎凉需谨慎。",
@@ -1464,9 +1517,13 @@ export function calculateGuanYinLingQian(input: Record<string, unknown>): GuanYi
     selectedQian = found;
     qiGuaNote = `指定第 ${qianNumber} 签`;
   } else {
-    const gzIndex = getDayGanZhiIndex(date); // 0-59
-    selectedQian = QIAN_DB[gzIndex % QIAN_DB.length];
-    qiGuaNote = `依求签时刻日干支（六十甲子第 ${gzIndex + 1} 位）起卦`;
+    // 日干支序只有 60 个取值，直接对 100 取模会让第 61–100 签永不可达（见文件头 ②）
+    const gzIndex = getDayGanZhiIndex(date);
+    const idx = ((dayOrdinal(date) % QIAN_DB.length) + QIAN_DB.length) % QIAN_DB.length;
+    selectedQian = QIAN_DB[idx];
+    qiGuaNote =
+      `未报签号，依求签日期确定性起签（第 ${idx + 1} 签；当日日干支为六十甲子第 ${gzIndex + 1} 位）。` +
+      `⚠️ 日期起签为可复现替代法，非典籍古法——古法为摇签，请以亲自摇出的签号为准。`;
   }
 
   const allQian = QIAN_DB.map((q) => ({

@@ -112,24 +112,30 @@ describe('calcTaiYuan - 胎元计算', () => {
   })
 })
 
+/**
+ * 🔴 2026-09-19 更正。这三条原本的期望值是**照着有 bug 的实现输出写的**，
+ * 不是基准值——痕迹很明显：身宫那条标题写「酉宫（癸酉）」，断言却写 `乙酉`，
+ * 标题与断言自相矛盾，说明写的时候是跑一遍代码把结果填进去。
+ *
+ * 现改用旧版 App 实机 12×12 全矩阵作基准（见 `minggong-shengong.test.ts`）。
+ * 寅月巳时：命宫 丙戌、身宫 甲申；子月子时：命宫 辛巳。
+ */
 describe('calcMingGong - 命宫计算', () => {
-  it('寅月巳时 → 未宫（癸未）', () => {
+  it('寅月巳时 → 戌宫（庚年得丙戌）', () => {
     const result = calcMingGong('寅', '巳', '庚', '庚')
-    expect(result.gan).toBe('癸')
-    expect(result.zhi).toBe('未')
+    expect(`${result.gan}${result.zhi}`).toBe('丙戌')
   })
 
-  it('子月子时 → 子宫', () => {
-    const result = calcMingGong('子', '子', '甲', '甲')
-    expect(result.zhi).toBe('子')
+  it('子月子时 → 巳宫（庚年得辛巳）', () => {
+    const result = calcMingGong('子', '子', '庚', '庚')
+    expect(`${result.gan}${result.zhi}`).toBe('辛巳')
   })
 })
 
 describe('calcShenGong - 身宫计算', () => {
-  it('寅月巳时g → 酉宫（癸酉）', () => {
+  it('寅月巳时 → 申宫（庚年得甲申）', () => {
     const result = calcShenGong('寅', '巳', '庚', '庚')
-    expect(result.gan).toBe('乙')
-    expect(result.zhi).toBe('酉')
+    expect(`${result.gan}${result.zhi}`).toBe('甲申')
   })
 })
 

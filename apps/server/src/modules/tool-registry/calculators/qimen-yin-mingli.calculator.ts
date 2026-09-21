@@ -8,7 +8,7 @@ import {
   calcBazi, calcNianZhu,
   type BaziInput, type BaziResult,
 } from "@guoxue/bazi-engine";
-import { calculateQimenYin } from "./qimen-yin.calculator";
+import { calculateQimenYin } from "./qimen.calculator";
 
 const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
@@ -213,20 +213,39 @@ export function calculateQimenYinMingli(input: Record<string, unknown>): Record<
   };
 
   // ── 7. 大运格式化 ──
-  const ganZhi60Idx = (gz: string): number => {
-    const g = gz[0], z = gz[1];
-    for (let i = 0; i < 60; i++) {
-      if (TIAN_GAN[i % 10] === g && DI_ZHI[i % 12] === z) return i;
-    }
-    return 0;
-  };
+  // （原有一个 ganZhi60Idx 辅助函数，只服务于已删除的「大运局数」，一并移除）
 
-  const daYun = bz.qiYun.daYun.map(step => ({
-    name: `${step.startAge}-${step.endAge}岁`,
-    startAge: step.startAge,
-    endAge: step.endAge,
-    juNumber: (ganZhi60Idx(step.ganZhi) % 9) + 1,
-  }));
+  /**
+   * 🔴 2026-09-19 修，两处。
+   *
+   * **一、原先丢掉了大运干支。** 这个数组只给 name/startAge/endAge，
+   * 而干支是命理大运最核心的信息，调用方拿不到就没法讲这步运是什么性质。
+   * （完整数据一直在 daYunSteps 里，但 daYun 才是断语与展示实际用的那份。）
+   *
+   * **二、原先有个 `juNumber: (ganZhi60Idx(step.ganZhi) % 9) + 1`，已删除。**
+   * 「六十甲子序除九」不对应任何已知规则——
+   *   · 阴盘的定局法是（年支序数＋农历月＋农历日＋时支序数）除九，不是干支序除九；
+   *   · 公开讲法里奇门命理的大运讲的是**落宫**（一宫十年、阳顺阴逆），没有「大运局数」这一说；
+   *   · 最直接的证据是**本文件自相矛盾**：流年用「地支→宫」（ZHI_TO_GONG_IDX），
+   *     大运却另起一套下标算术。同一份输出里两种口径，必有一种是编的。
+   * 这与本目录 qimen-chuanren 那张「七十二局表」是同一种毛病：
+   * 在正确的数据（八字引擎给的大运）之上，再加一层凭空生成的数字。
+   *
+   * 现改为与流年同口径：**大运地支 → 后天八卦宫**，可核、可解释。
+   */
+  const daYun = bz.qiYun.daYun.map(step => {
+    const gongIdx = ZHI_TO_GONG_IDX[step.ganZhi[1]] ?? 0;
+    return {
+      name: `${step.startAge}-${step.endAge}岁`,
+      ganZhi: step.ganZhi,
+      startAge: step.startAge,
+      endAge: step.endAge,
+      startYear: step.startYear,
+      endYear: step.endYear,
+      gongIdx,
+      gongName: GONG_NAMES[gongIdx],
+    };
+  });
 
   const daYunSteps = bz.qiYun.daYun.map(step => ({
     name: `${step.startAge}-${step.endAge}岁`,
@@ -252,10 +271,16 @@ export function calculateQimenYinMingli(input: Record<string, unknown>): Record<
   const liuNianGanZhi = nianZhu.gan + nianZhu.zhi;
   const liuNianGongIdx = ZHI_TO_GONG_IDX[nianZhu.zhi] ?? 0;
 
+  /**
+   * 2026-09-19：大运现为 **10 列**——首列（daYun[0]）是「起运前」，取月柱本身，不是第一步大运。
+   * 所以年龄小于起运岁的人会落在首列，措辞上必须区分，不能说成「行某某大运」。
+   */
   let currentDaYun = bz.qiYun.daYun[0];
+  let isPreQiYun = true;
   for (const dyn of bz.qiYun.daYun) {
     if (currentAge >= dyn.startAge && currentAge <= dyn.endAge) {
       currentDaYun = dyn;
+      isPreQiYun = dyn === bz.qiYun.daYun[0];
       break;
     }
   }
@@ -298,13 +323,26 @@ export function calculateQimenYinMingli(input: Record<string, unknown>): Record<
     g.isRuMu || g.isJiXing || g.isMenPo
   );
 
+  /**
+   * 🔴 2026-09-19 修：原先这里写死 `dunType: "阴遁"`，断语里也写死「阴遁N局」。
+   *
+   * 这是把「阴**盘**」（流派名）当成了「阴**遁**」（遁法）——同一个误会
+   * 已经让本目录的 qimen-yin.calculator.ts 整份作废（它恒判阴遁、不查节气、
+   * 按月支查自造表定局，把时家奇门做成了月家）。
+   *
+   * 阴盘奇门的遁型**照样分阴阳**：冬至（含当天）之后到次年夏至之前为阳遁，
+   * 夏至之后到冬至之前为阴遁。`calculateQimenYin` 已按此算好，
+   * 这里照它给的取，不要再另行断言。
+   */
+  const dunLabel = birthPlate.dunType === "yang" ? "阳遁" : "阴遁";
+
   const duanYu = [
     `命主${gender}，生于${year}年${month}月${day}日${hour}时（公历）。`,
     `八字：${baziSummary.nian} ${baziSummary.yue} ${baziSummary.ri} ${baziSummary.shi}，生肖${baziSummary.shengXiao}。`,
-    `命盘：阴遁${birthPlate.juNumber}局，值符${birthPlate.zhiFu}，值使${birthPlate.zhiShiMen}。`,
+    `命盘：${dunLabel}${birthPlate.juNumber}局，值符${birthPlate.zhiFu}，值使${birthPlate.zhiShiMen}。`,
     `命宫落${mingGongInfo.gongName}宫（${mingGongInfo.ganZhi}，${mingGongInfo.star}+${mingGongInfo.men}+${mingGongInfo.shen}），身宫落${shenGongInfo.gongName}宫（${shenGongInfo.ganZhi}，${shenGongGong.star}+${shenGongGong.men}+${shenGongGong.shen}）。`,
     bz.geJu ? `八字格局：${bz.geJu.name}${bz.geJu.yongShen ? `，用神${bz.geJu.yongShen}` : ""}${bz.geJu.xiShen ? `，喜${bz.geJu.xiShen}` : ""}${bz.geJu.jiShen ? `，忌${bz.geJu.jiShen}` : ""}。` : "",
-    `起运：${bz.qiYun.startAge}岁（${bz.qiYun.startYear}年），共${bz.qiYun.daYun.length}步大运。当前${currentAge}岁，行${currentDaYun.ganZhi}大运（${currentDaYun.startAge}-${currentDaYun.endAge}岁）。`,
+    `起运：${bz.qiYun.startAge}岁（${bz.qiYun.startYear}年），共${bz.qiYun.daYun.length}步大运。当前${currentAge}岁，${isPreQiYun ? `尚未起运（起运前行月柱${currentDaYun.ganZhi}，${currentDaYun.startAge}-${currentDaYun.endAge}岁）` : `行${currentDaYun.ganZhi}大运（${currentDaYun.startAge}-${currentDaYun.endAge}岁）`}。`,
     `流年${currentYear}年（${liuNianGanZhi}），落${GONG_NAMES[liuNianGongIdx]}宫。`,
     xiongGongs.length > 0
       ? `注意宫位：${xiongGongs.map(g => `${g.name}宫（${g.isRuMu ? "入墓" : ""}${g.isJiXing ? "击刑" : ""}${g.isMenPo ? "门破" : ""}）`).join("、")}。`
@@ -315,7 +353,7 @@ export function calculateQimenYinMingli(input: Record<string, unknown>): Record<
     input: { birthTime, birthplace, gender, trueSolar, ziShiMode, daylightSaving },
     basicInfo: {
       juShu: birthPlate.juNumber,
-      dunType: "阴遁",
+      dunType: dunLabel,
       riGanZhi: baziSummary.ri,
       shiGanZhi: baziSummary.shi,
       gender,

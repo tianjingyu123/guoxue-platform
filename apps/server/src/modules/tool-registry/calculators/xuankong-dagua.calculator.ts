@@ -93,8 +93,34 @@ const WX_SHENG_KE: Record<string, Record<string, string>> = {
 
 // 抽爻换象：翻转该爻的阴阳，得到变卦
 function getYaoBian(gua: typeof GUA[0]): XuanKongYaoBian[] {
-  // 每卦6爻的阴阳：用卦序号对应8宫卦的爻位来推算
-  // 简化：根据上下卦生成抽爻换象
+  /**
+   * 八卦爻象。**本表的位序是 `[上,中,下]`**，不是自下而上。
+   *
+   * 🔴 2026-09-19 修爻位颠倒。原注释写 `allYao = [...lowerYao, ...upperYao]; // 从下往上`，
+   * 但表是自上而下的，直接拼接得到的每三爻**内部是倒的**。
+   *
+   * 后果：**爻位标注错位**——
+   *
+   * | 标注 | 实际变的爻 |
+   * |---|---|
+   * | 初爻 | 第三爻 |
+   * | 三爻 | 初爻 |
+   * | 四爻 | 上爻 |
+   * | 上爻 | 第四爻 |
+   *
+   * 二爻、五爻恰在中间故未受影响。实证：乾为天「初爻变」应得**天风姤**
+   * （上乾下巽），原实现给出「乾兑」——改的是第三爻。
+   *
+   * 这个错很隐蔽：**六个变卦的集合仍然是对的**（读回时用同一张表，前后抵消），
+   * 只有「哪一爻变」这个标签错了。而下面的 `jiXiongMap` 正是按爻位派吉凶的，
+   * 于是吉凶全落在错误的爻上。
+   *
+   * 同一张 `[上,中,下]` 表在 `xiaochengtu.calculator.ts` 里也出现过
+   * （该工具已因本卦不进九宫而整体删除，见 §2.86），是同一处抄来的。
+   *
+   * 现在显式反转为自下而上，读回时再反转回去——表本身不动，
+   * 免得牵动本文件其它处对它的引用。
+   */
   const baguaYao = {
     "乾": [1,1,1], "兑": [0,1,1], "离": [1,0,1], "震": [0,0,1],
     "巽": [1,1,0], "坎": [0,1,0], "艮": [1,0,0], "坤": [0,0,0],
@@ -102,13 +128,15 @@ function getYaoBian(gua: typeof GUA[0]): XuanKongYaoBian[] {
 
   const upperYao = baguaYao[gua.upper as keyof typeof baguaYao];
   const lowerYao = baguaYao[gua.lower as keyof typeof baguaYao];
-  const allYao = [...lowerYao, ...upperYao]; // 从下往上
+  // 表为 [上,中,下]，各自反转后拼接才是真正的自下而上（初→上）
+  const allYao = [...lowerYao].reverse().concat([...upperYao].reverse());
 
   return allYao.map((y, i) => {
     const flipped = [...allYao];
     flipped[i] = y === 0 ? 1 : 0;
-    const newUpper = flipped.slice(3).join(",");
-    const newLower = flipped.slice(0, 3).join(",");
+    // 反转回 [上,中,下] 再查表（与 reverseMap 的位序一致）
+    const newUpper = [...flipped.slice(3)].reverse().join(",");
+    const newLower = [...flipped.slice(0, 3)].reverse().join(",");
 
     const reverseMap: Record<string, string> = {
       "1,1,1":"乾","0,1,1":"兑","1,0,1":"离","0,0,1":"震",

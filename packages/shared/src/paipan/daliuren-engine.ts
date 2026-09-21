@@ -20,7 +20,7 @@
 //  - 行年：男一岁丙寅顺行，女一岁壬申逆行（虚岁）
 // ─────────────────────────────────────────────
 
-import { GANS, ZHIS, type Gan, type Zhi, GAN_WUXING, ZHI_WUXING, GAN_YANG, dayGanzhi, yearGanzhi, monthGanzhi, hourGanzhi } from "./ganzhi"
+import { GANS, ZHIS, type Gan, type Zhi, GAN_WUXING, ZHI_WUXING, GAN_YANG, ZHI_CANG, dayGanzhi, yearGanzhi, monthGanzhi, hourGanzhi } from "./ganzhi"
 import { findTerm, getJieqiRange } from "./jieqi"
 
 // ─── 基础常量 ───
@@ -35,12 +35,23 @@ export const GAN_JI_GONG: Record<string, Zhi> = {
 export const TIANJIANG = ["贵人", "螣蛇", "朱雀", "六合", "勾陈", "青龙", "天空", "白虎", "太常", "玄武", "太阴", "天后"] as const
 export const TIANJIANG_SHORT = ["贵", "蛇", "朱", "合", "勾", "龙", "空", "虎", "常", "玄", "阴", "后"] as const
 
-/** 天乙贵人：甲戊庚牛羊 乙己鼠猴乡 丙丁猪鸡位 壬癸蛇兔藏 六辛逢马虎（昼/夜） */
-const GUIREN_DAY: Record<string, Zhi> = { 甲: "丑", 戊: "丑", 庚: "丑", 乙: "子", 己: "子", 丙: "亥", 丁: "亥", 壬: "巳", 癸: "巳", 辛: "午" }
-const GUIREN_NIGHT: Record<string, Zhi> = { 甲: "未", 戊: "未", 庚: "未", 乙: "申", 己: "申", 丙: "酉", 丁: "酉", 壬: "卯", 癸: "卯", 辛: "寅" }
+/**
+ * 天乙贵人：甲戊庚牛羊 乙己鼠猴乡 丙丁猪鸡位 **壬癸兔蛇藏** 六辛逢马虎（昼/夜）
+ *
+ * 🔴 2026-09-21（★43）修壬癸昼夜：原注释写「壬癸**蛇兔**藏」、数据也跟着作昼巳夜卯。
+ * 证据链两条都指向字序颠倒：
+ *  · **口诀字序**：全仓 5 处引用，4 处作「壬癸兔蛇藏」（含《渊海子平》《李虚中命书》两部典籍引文），
+ *    本文件是唯一写「蛇兔」的孤例。
+ *  · **数据实现**：金口诀 `GUIREN_A` 与紫微斗数的天魁天钺 **10/10 完全一致**（壬癸昼卯夜巳），
+ *    本文件是唯一相反的（昼巳夜卯）。
+ * 三处独立实现里两处一致、一处孤例，且孤例的口诀字序本身就错 —— 故判定本文件写反，已改正。
+ * 闸门见 `apps/server/test/tianyi-guiren-daynight.spec.ts`。
+ */
+const GUIREN_DAY: Record<string, Zhi> = { 甲: "丑", 戊: "丑", 庚: "丑", 乙: "子", 己: "子", 丙: "亥", 丁: "亥", 壬: "卯", 癸: "卯", 辛: "午" }
+const GUIREN_NIGHT: Record<string, Zhi> = { 甲: "未", 戊: "未", 庚: "未", 乙: "申", 己: "申", 丙: "酉", 丁: "酉", 壬: "巳", 癸: "巳", 辛: "寅" }
 /** 甲羊戊庚牛 变法（另一派贵人歌诀） */
-const GUIREN_DAY_ALT: Record<string, Zhi> = { 甲: "未", 戊: "丑", 庚: "丑", 乙: "子", 己: "子", 丙: "亥", 丁: "亥", 壬: "巳", 癸: "巳", 辛: "午" }
-const GUIREN_NIGHT_ALT: Record<string, Zhi> = { 甲: "丑", 戊: "未", 庚: "未", 乙: "申", 己: "申", 丙: "酉", 丁: "酉", 壬: "卯", 癸: "卯", 辛: "寅" }
+const GUIREN_DAY_ALT: Record<string, Zhi> = { 甲: "未", 戊: "丑", 庚: "丑", 乙: "子", 己: "子", 丙: "亥", 丁: "亥", 壬: "卯", 癸: "卯", 辛: "午" }
+const GUIREN_NIGHT_ALT: Record<string, Zhi> = { 甲: "丑", 戊: "未", 庚: "未", 乙: "申", 己: "申", 丙: "酉", 丁: "酉", 壬: "巳", 癸: "巳", 辛: "寅" }
 
 /** 月将（中气换将）：雨水亥 春分戌 谷雨酉 小满申 夏至未 大暑午 处暑巳 秋分辰 霜降卯 小雪寅 冬至丑 大寒子 */
 const YUEJIANG_TERMS: [string, Zhi][] = [
@@ -211,11 +222,17 @@ function zhongMo(chu: Zhi, tianPan: Record<string, Zhi>): [Zhi, Zhi] {
 }
 
 /** 涉害深度：受克之神自所临地盘位顺数归本家，历各位地盘藏干克其五行的次数 */
-const ZHI_CANG_LOCAL: Record<string, string[]> = {
-  子: ["癸"], 丑: ["己", "癸", "辛"], 寅: ["甲", "丙", "戊"], 卯: ["乙"], 辰: ["戊", "乙", "癸"],
-  巳: ["丙", "戊", "庚"], 午: ["丁", "己"], 未: ["己", "丁", "乙"], 申: ["庚", "壬", "戊"], 酉: ["辛"],
-  戌: ["戊", "辛", "丁"], 亥: ["壬", "甲"],
-}
+/**
+ * 地支藏干：2026-09-19 起直接用 `./ganzhi` 的 `ZHI_CANG`，本文件不再自持副本。
+ *
+ * 原先这里有一份 `ZHI_CANG_LOCAL`，与同包 `ganzhi.ts` 的 `ZHI_CANG` 内容相同，
+ * 只有巳的气位顺序不一致（本地作「丙戊庚」、ganzhi 作「丙庚戊」）。
+ * 按金长生在巳，庚为中气、戊为余气（土寄），以 ganzhi 那份为准。
+ *
+ * 同包引用没有任何依赖代价——本文件本就 import 了 ./ganzhi，加个名字而已。
+ * （跨包那一份在 `bazi-engine/src/constants.ts`，两包互不依赖、不宜硬接，
+ * 由 `apps/server/test/shared-constants-consistency.spec.ts` 卡住一致性。）
+ */
 function sheHaiDepth(shen: Zhi, lin: Zhi, isShangKe: boolean): number {
   // 从所临地盘位顺数至本家（天盘神=shen 落在地盘 lin）
   let depth = 0
@@ -225,7 +242,7 @@ function sheHaiDepth(shen: Zhi, lin: Zhi, isShangKe: boolean): number {
   for (let steps = 0; steps < 12; steps++) {
     const gong = zi(i)
     // 本位藏干 + 寄宫干
-    for (const g of ZHI_CANG_LOCAL[gong]) {
+    for (const g of ZHI_CANG[gong]) {
       if (isShangKe) {
         if (KE[shenWX] === GAN_WUXING[g]) depth++ // 上克下：数我克者
       } else {

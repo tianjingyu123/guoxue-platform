@@ -42,8 +42,21 @@ export function calcNianZhu(year: number, month?: number, day?: number, hour?: n
 }
 
 // ---------- 生肖 ----------
-export function calcShengXiao(year: number, month?: number, day?: number, hour?: number): string {
-  const { zhi } = calcNianZhu(year, month, day, hour)
+/**
+ * 生肖。
+ *
+ * 🔴 2026-09-19 修：原先签名少一个 `minute`，调 `calcNianZhu` 时也没传，
+ * 于是**立春当天、交节那一小时内出生的人，年柱与生肖会对不上**。
+ *
+ * 复现：2000-02-04 立春在 20:40。20:40–20:59 出生者，
+ * 四柱那条路（`sizhu.ts` 内部另一处调用传了分钟）算出年柱**庚辰**，
+ * 生肖这条路因为丢了分钟、按 20:00 判，仍落在立春前，给出**兔**。
+ * 同一份盘里年柱说龙、生肖说兔。
+ *
+ * 每年立春当天、交节所在的那一小时内出生者都会中招。
+ */
+export function calcShengXiao(year: number, month?: number, day?: number, hour?: number, minute = 0): string {
+  const { zhi } = calcNianZhu(year, month, day, hour, minute)
   return SHENG_XIAO[ZHI.indexOf(zhi)]
 }
 

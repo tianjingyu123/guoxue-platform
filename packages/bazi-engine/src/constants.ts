@@ -9,20 +9,40 @@ export const ZHI: Zhi[] = ['子','丑','寅','卯','辰','巳','午','未','申'
 /** 地支藏干（主气） */
 export const ZHI_GAN: Gan[] = ['癸','己','甲','乙','戊','丙','丁','己','庚','辛','戊','壬']
 
-/** 地支藏干完整 */
+/**
+ * 地支藏干完整（子丑寅卯辰巳午未申酉戌亥）
+ *
+ * 🔴 2026-09-19 修三处，来源见接续文档 §2.80。
+ *
+ * **子、卯、酉是三个独气支**，各只藏一个本气；其余支藏二到三个。
+ * 原表里子对了，卯与酉却各多出一个余气，说明不是流派选择而是抄表出错：
+ *
+ * | 支 | 原表 | 正解 |
+ * | -- | ---- | ---- |
+ * | 卯 | 乙、**甲** | 乙（独气） |
+ * | 酉 | 辛、**庚** | 辛（独气） |
+ * | 亥 | 壬、**戊** | 壬、**甲** |
+ *
+ * 第三处（亥）是前端窗口的差异清单里**没有报到**的，逐支对照《渊海子平》
+ * 《三命通会》通行藏干表才查出来——而且看得出是**串行**：
+ * 亥本该藏的「甲」跑到了卯上，亥自己补了个不该有的「戊」。
+ *
+ * 影响范围不止显示：藏干参与十神推导、`geju.ts` 的「藏干加分」与五行能量计算，
+ * 错一个字整盘的用神喜忌都可能跟着偏。
+ */
 export const ZHI_CANG: { gan: Gan; shiShen: string }[][] = [
-  [{ gan: '癸', shiShen: '元' }],
-  [{ gan: '己', shiShen: '元' }, { gan: '癸', shiShen: '余' }, { gan: '辛', shiShen: '库' }],
-  [{ gan: '甲', shiShen: '元' }, { gan: '丙', shiShen: '余' }, { gan: '戊', shiShen: '库' }],
-  [{ gan: '乙', shiShen: '元' }, { gan: '甲', shiShen: '余' }],
-  [{ gan: '戊', shiShen: '元' }, { gan: '乙', shiShen: '余' }, { gan: '癸', shiShen: '库' }],
-  [{ gan: '丙', shiShen: '元' }, { gan: '戊', shiShen: '余' }, { gan: '庚', shiShen: '库' }],
-  [{ gan: '丁', shiShen: '元' }, { gan: '己', shiShen: '余' }],
-  [{ gan: '己', shiShen: '元' }, { gan: '丁', shiShen: '余' }, { gan: '乙', shiShen: '库' }],
-  [{ gan: '庚', shiShen: '元' }, { gan: '壬', shiShen: '余' }, { gan: '戊', shiShen: '库' }],
-  [{ gan: '辛', shiShen: '元' }, { gan: '庚', shiShen: '余' }],
-  [{ gan: '戊', shiShen: '元' }, { gan: '辛', shiShen: '余' }, { gan: '丁', shiShen: '库' }],
-  [{ gan: '壬', shiShen: '元' }, { gan: '戊', shiShen: '余' }],
+  [{ gan: '癸', shiShen: '元' }],                                                                  // 子（独气）
+  [{ gan: '己', shiShen: '元' }, { gan: '癸', shiShen: '余' }, { gan: '辛', shiShen: '库' }],        // 丑
+  [{ gan: '甲', shiShen: '元' }, { gan: '丙', shiShen: '余' }, { gan: '戊', shiShen: '库' }],        // 寅
+  [{ gan: '乙', shiShen: '元' }],                                                                  // 卯（独气）
+  [{ gan: '戊', shiShen: '元' }, { gan: '乙', shiShen: '余' }, { gan: '癸', shiShen: '库' }],        // 辰
+  [{ gan: '丙', shiShen: '元' }, { gan: '庚', shiShen: '余' }, { gan: '戊', shiShen: '库' }],        // 巳（庚为中气·金长生在巳；戊为余气·土寄）
+  [{ gan: '丁', shiShen: '元' }, { gan: '己', shiShen: '余' }],                                     // 午
+  [{ gan: '己', shiShen: '元' }, { gan: '丁', shiShen: '余' }, { gan: '乙', shiShen: '库' }],        // 未
+  [{ gan: '庚', shiShen: '元' }, { gan: '壬', shiShen: '余' }, { gan: '戊', shiShen: '库' }],        // 申
+  [{ gan: '辛', shiShen: '元' }],                                                                  // 酉（独气）
+  [{ gan: '戊', shiShen: '元' }, { gan: '辛', shiShen: '余' }, { gan: '丁', shiShen: '库' }],        // 戌
+  [{ gan: '壬', shiShen: '元' }, { gan: '甲', shiShen: '余' }],                                     // 亥
 ]
 
 /** 五虎遁（年干→寅月天干）：甲己→丙寅, 乙庚→戊寅, ... */

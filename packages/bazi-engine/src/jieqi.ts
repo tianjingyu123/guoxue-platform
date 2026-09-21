@@ -328,16 +328,42 @@ export function daysBetween(
 }
 
 /**
- * 找到最近的「节」距离出生日的天数
- * 阳男阴女顺数到下一节，阴男阳女逆数到上一节
- * @param hour 出生小时(0-23)，用于精确判断出生时刻与节气的先后
+ * 找到最近的「节」距离出生时刻的天数（含小数）
+ *
+ * 阳男阴女顺数到下一节，阴男阳女逆数到上一节。
+ *
+ * 🔴 2026-09-19 修两处，来源见接续文档 §2.80。旧版实排比对查出的最严重一条。
+ *
+ * **一、原先只取到整点，丢了分钟。** 节气时刻 `jieJD` 精确到分，
+ * 出生时刻却被截断成整点去比——于是**节气归属判错**，换挡点落在整点而非节气时刻上。
+ *
+ * 复现（2000-02-04，立春 20:40，顺排）：
+ * | 出生时刻 | 应得 | 原实现 |
+ * | -- | -- | -- |
+ * | 19:30–20:39（立春前） | ≈0.4 天（到立春） | 1 |
+ * | **20:40–20:59（立春已过）** | **≈29.7 天（到惊蛰）** | **1** ← 错 |
+ * | 21:00 起 | ≈29.7 天 | 30 |
+ *
+ * 后果比生肖那条重得多：生肖只错显示，这条**直接错起运时间与全部大运年份**。
+ * 实测 2000-02-04 20:45 男（阳男顺排）：旧版 App 为「9 年 10 个月 29 日」起运，
+ * 原实现算成「0 岁 4 个月」——**差了近十年**。
+ * 影响面：每年每个节气当天、节气时刻所在那一小时内出生者。
+ *
+ * **二、原先返回 `Math.ceil(minDist)`，向上取整。** 起运本就是「三天折一岁」的换算，
+ * 保留小数才谈得上「几年几月几日」。取整之后 29.4 天变 30 天，起运年整体偏一年
+ * （旧版 9 年 9 个月 22 日 → 原实现 10 岁整）。现返回小数，由调用方决定怎么折。
+ *
+ * @param hour 出生小时(0-23)
+ * @param minute 出生分钟(0-59)——**不传会退回整点精度，节气当天会判错**
+ * @returns 距最近节的天数，**含小数**
  */
 export function daysToNearestJie(
   year: number, month: number, day: number,
   direction: 'forward' | 'backward',
   hour = 12,
+  minute = 0,
 ): number {
-  const birthJD = gregorianToJD(year, month, day) + hour / 24
+  const birthJD = gregorianToJD(year, month, day) + (hour * 60 + minute) / 1440
 
   if (direction === 'forward') {
     // 顺排：找下一个节（搜索当年及次年）
@@ -347,13 +373,20 @@ export function daysToNearestJie(
       const jieQi = calcAllJieQi(y)
       for (const jieName of JIE_NAMES) {
         const jie = jieQi.get(jieName)!
-        const jieYear = (jieName === '小寒' && jie.month === 1) ? y + 1 : y
+        // 🔴 2026-09-19 修：原先这里写 `小寒 && month===1 ? y + 1 : y`，是错的。
+        // `calcAllJieQi(y)` 返回的小寒本就在**公历 y 年 1 月**（2000 年是 2000-01-06 09:01），
+        // 不需要 +1。这个补丁在逆排时后果很实在：搜 [y, y-1] 两年，
+        // y 那份被挪到未来而排除，真正被用上的是 y-1 那份——
+        // **拿上一年小寒的时刻、贴上本年的年份**。节气时刻每年漂移约 5 小时 49 分，
+        // 于是 2000-02-04 19:30 距上一节算出 29.68 天，实际是 29.44 天，
+        // 折进「三天折一岁」后起运差了近一个月（旧版 9年9个月22日）。
+        const jieYear = y
         const jieJD = gregorianToJD(jieYear, jie.month, jie.day) + (jie.hour * 60 + jie.minute) / 1440
         const dist = jieJD - birthJD
         if (dist > 0 && dist < minDist) minDist = dist
       }
     }
-    return Math.ceil(minDist)
+    return minDist
   } else {
     // 逆排：找上一个节（搜索当年及上年）
     let minDist = Infinity
@@ -362,12 +395,19 @@ export function daysToNearestJie(
       const jieQi = calcAllJieQi(y)
       for (const jieName of JIE_NAMES) {
         const jie = jieQi.get(jieName)!
-        const jieYear = (jieName === '小寒' && jie.month === 1) ? y + 1 : y
+        // 🔴 2026-09-19 修：原先这里写 `小寒 && month===1 ? y + 1 : y`，是错的。
+        // `calcAllJieQi(y)` 返回的小寒本就在**公历 y 年 1 月**（2000 年是 2000-01-06 09:01），
+        // 不需要 +1。这个补丁在逆排时后果很实在：搜 [y, y-1] 两年，
+        // y 那份被挪到未来而排除，真正被用上的是 y-1 那份——
+        // **拿上一年小寒的时刻、贴上本年的年份**。节气时刻每年漂移约 5 小时 49 分，
+        // 于是 2000-02-04 19:30 距上一节算出 29.68 天，实际是 29.44 天，
+        // 折进「三天折一岁」后起运差了近一个月（旧版 9年9个月22日）。
+        const jieYear = y
         const jieJD = gregorianToJD(jieYear, jie.month, jie.day) + (jie.hour * 60 + jie.minute) / 1440
         const dist = birthJD - jieJD
         if (dist > 0 && dist < minDist) minDist = dist
       }
     }
-    return Math.ceil(minDist)
+    return minDist
   }
 }

@@ -2,6 +2,7 @@
 // 算法参考：《康熙字典》《五格剖象法》
 // 五格数理/三才配置/81数理/笔画分析
 
+import { calcWuGe } from "@guoxue/shared/paipan";
 import type { WuGeResult, WuGeName, ShuLiJiXiong, SanCaiWuXing, GeDetail, SanCaiConfig, StrokeDetail } from "@guoxue/shared";
 import { getKangXiStroke, getWuXingByStroke, getShuLi, getShengXiaoNamingScore, getShengXiaoByYear, SAN_CAI_TABLE } from "./xingming-data";
 import type { ShengXiao } from "./xingming-data";
@@ -51,14 +52,26 @@ export function calculateXingmingJiexi(input: Record<string, unknown>): WuGeResu
     };
   });
 
-  const surnameStrokes = strokes.slice(0, surname.length).reduce((s, x) => s + x.kangXiStroke, 0);
-  const givenStrokes = strokes.slice(surname.length).reduce((s, x) => s + x.kangXiStroke, 0);
+  const surStrokes = strokes.slice(0, surname.length).map((x) => x.kangXiStroke);
+  const givStrokes = strokes.slice(surname.length).map((x) => x.kangXiStroke);
+  const surnameStrokes = surStrokes.reduce((a, b) => a + b, 0);
+  const givenStrokes = givStrokes.reduce((a, b) => a + b, 0);
 
-  const tianGe = surnameStrokes + 1;
-  const renGe = surnameStrokes + givenStrokes;
-  const diGe = givenStrokes + 1;
-  const zongGe = surnameStrokes + givenStrokes;
-  const waiGe = zongGe - renGe + 1;
+  /**
+   * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。
+   *
+   * 原实现对**所有姓名**都套单姓单名那套公式，代入即得
+   * `人格 ≡ 总格`、`外格 ≡ 1` 恒成立——**只有单姓单名算对，其余全错**，
+   * 而单姓双名是绝大多数中国人的姓名（李小明原得 天8/人18/地12/外1，
+   * 正解 天8/人10/地11/外9）。
+   *
+   * 同一套五格后端原有三份实现、三份各错各的，已合并到共享包，
+   * 详见该文件头部的对照表。
+   */
+  const { tianGe, renGe, diGe, zongGe, waiGe } = calcWuGe({
+    surnameStrokes: surStrokes,
+    givenStrokes: givStrokes,
+  });
 
   const geNums: Record<WuGeName, number> = { "天格": tianGe, "人格": renGe, "地格": diGe, "总格": zongGe, "外格": waiGe };
   const geDetails: GeDetail[] = (Object.entries(geNums) as [WuGeName, number][]).map(([name, num]) => {

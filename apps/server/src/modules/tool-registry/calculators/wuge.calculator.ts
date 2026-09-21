@@ -1,3 +1,4 @@
+import { calcWuGe, strokeOf } from "@guoxue/shared/paipan";
 // ── 五格数理计算引擎 ──
 // 算法参考：《康熙字典》《五格剖象法》
 // 天格/人格/地格/总格/外格 + 三才配置 + 81数理
@@ -109,17 +110,22 @@ const CHAR_STROKE_TABLE: Record<string, [number, number]> = {
   "儒":[16,1],"晓":[16,4],"橘":[16,2],"橙":[16,2],"历":[16,4],"燃":[16,4],"熹":[16,4],"烧":[16,4],"灯":[16,4],
 };
 
-function getCharStroke(char: string, useKangXi: boolean): number {
-  const entry = CHAR_STROKE_TABLE[char];
-  if (entry) return entry[0];
-  // 查表失败时按Unicode区段估算（简体字）
-  const code = char.charCodeAt(0);
-  if (code >= 0x4e00 && code <= 0x9fff) {
-    // CJK统一汉字区段，基于笔画数频率分布的合理估计
-    const baseStrokes = Math.min(24, Math.max(1, Math.ceil((code - 0x4e00) / 1200) + 3));
-    return useKangXi ? baseStrokes : Math.max(1, baseStrokes - 1);
-  }
-  return 1;
+/**
+ * 🔴 2026-09-19 改走共享包的 20992 字康熙表，**删掉码点兜底**。
+ *
+ * 原实现查不到时执行 `Math.ceil((code - 0x4e00) / 1200) + 3`，
+ * 注释写着「基于笔画数频率分布的合理估计」——**这句话本身是假的**：
+ * Unicode 码点按部首与历史排序，与笔画数没有任何函数关系，
+ * 更谈不上什么频率分布。它只是把编造包装成了计算。
+ *
+ * 同一个公式在 `xingming-data.ts` 与 `sancai-wuge.calculator.ts` 里各有一份，
+ * 三处都已切到共享表。
+ *
+ * `useKangXi` 参数保留但不再区分：五格剖象本就只用康熙笔画，
+ * 传 false 也返回康熙值，避免调用方以为自己拿到的是简体笔画。
+ */
+function getCharStroke(char: string, _useKangXi: boolean): number {
+  return strokeOf(char);
 }
 
 function getCharWuXing(char: string): string {
@@ -219,11 +225,23 @@ export function calculateWuGe(input: Record<string, unknown>): WuGeResult & { su
 
   const surnameStrokes = strokes.slice(0, surname.length).reduce((s,x) => s + x.kangXiStroke, 0);
   const givenStrokes = strokes.slice(surname.length).reduce((s,x) => s + x.kangXiStroke, 0);
-  const tianGe = surnameStrokes + 1; // 天格：姓氏笔画+1
-  const renGe = surnameStrokes + givenStrokes; // 人格：姓氏+名字
-  const diGe = givenName.length === 1 ? givenStrokes + 1 : givenStrokes; // 地格：单名+1，双名直接用名笔画
-  const zongGe = surnameStrokes + givenStrokes; // 总格：全部笔画
-  const waiGe = zongGe - renGe + 1; // 外格：总格-人格+1
+  /**
+   * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。
+   *
+   * 原实现两处错：
+   * ① `renGe = surnameStrokes + givenStrokes`——那是**总格**的算式，
+   *    人格应取姓末字＋名首字。与下一行的 `zongGe` 相同式，
+   *    于是 `人格 ≡ 总格`，再代入 `waiGe = zongGe − renGe + 1` 得 **`外格 ≡ 1`**。
+   *    两条恒等式是硬矛盾，不需要外部基准即可证伪。
+   * ② 天格对复姓也加 1；「假添一数」只在单姓时加。
+   *
+   * 地格那行（单名+1、多名取名总）原本是对的，合并后行为不变。
+   */
+  const { tianGe, renGe, diGe, zongGe, waiGe } = calcWuGe({
+    // 复用上面已按 useKangXi 查好的逐字笔画，不再二次查表（免得两处口径不一）
+    surnameStrokes: strokes.slice(0, surname.length).map((x) => x.kangXiStroke),
+    givenStrokes: strokes.slice(surname.length).map((x) => x.kangXiStroke),
+  });
 
   function buildGe(name: string, num: number): GeDetail {
     const n = Math.max(1, Math.min(81, num));

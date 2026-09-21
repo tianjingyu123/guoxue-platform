@@ -3,18 +3,71 @@
 // 125卦 + 颜幼明/何承天古注 + 白话释义
 
 import type { LingQiJingInput, LingQiJingResult, LingQiJingGua } from "@guoxue/shared";
+import { dayGanzhi } from "@guoxue/shared/paipan";
 
 // ── 时辰干支起卦辅助 ──
 // 禁止 Date.now() 毫秒/随机定卦。未传卦号时，依次用「所问文字」或「占卜时刻日干支」起卦，
 // 同一时辰/同一问得同一卦，符合传统「同事同时占以首占为准」逻辑，结果可复现。
-const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日
 const DAY_MS = 86400000;
 
-/** 计算给定时刻的日干支序数（0=甲子 … 59=癸亥）。 */
+/**
+ * 🔴 2026-09-20 修两处，原实现如下：
+ *
+ * ```ts
+ * const GANZHI_EPOCH_UTC = Date.UTC(1984, 1, 2); // 甲子日   ← 注释是错的
+ * function getDayGanZhiIndex(date) {
+ *   const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
+ *   return ((days % 60) + 60) % 60;
+ * }
+ * ```
+ *
+ * **① 纪元错两天。** 1984-02-02 是**丙寅**日不是甲子日（甲子日为 1984-01-31）。
+ * 两个独立实现互证：`bazi-engine` 的 `calcRiZhu`（纯数学天文算法）与
+ * `@guoxue/shared/paipan` 的 `dayGanzhi` 逐项一致，而本地这份与它们
+ * **78/78 全不符、恒差 2**。于是起签整体偏两签，
+ * 而展示文案还煞有介事地写「六十甲子第 N 位」——**错得有鼻子有眼**。
+ * 现改为直接调 `dayGanzhi`，本地不再自备纪元。
+ *
+ * **② 兜底起签覆盖不到全表。** 原式 `日干支序 % 表长`，
+ * 而日干支序只有 **60** 个取值，表长 100（观音签）／125（灵棋经）——
+ * **第 61 签以后永远抽不到**（观音 60/100、灵棋 60/125）。
+ * 这是本项目第三次撞上同一错法（前两次：诸葛神数 76% 签不可达、蠢子数 61–96 不可达）。
+ *
+ * 改用 `dayOrdinal()`——自 Unix 纪元起的绝对日序。
+ * 它**不声称任何干支含义**，只是「第几天」，故取模后可覆盖任意表长。
+ *
+ * ⚠️ 必须说清楚：日期→签号这个映射**没有典籍依据**，
+ * 传统求签是摇签（随机）。它存在只是为了「用户没报签号时也能出一签」，
+ * 且本项目明令禁止 `Date.now()` 毫秒/随机（结果要可复现、可存库、可生成报告）。
+ * 所以 `qiGuaNote` 里如实写明这是确定性替代，不冒充古法。
+ */
+const dayOrdinal = (date?: string | number | Date): number =>
+  Math.floor((date !== undefined ? new Date(date).getTime() : Date.now()) / DAY_MS);
+
+/**
+ * 日干支序数（0=甲子 … 59=癸亥），走 shared 真源，本地不再自备纪元。
+ *
+ * ⚠️ 这里有个**会随机器时区改变结果**的坑，实测踩到过：
+ * `"1950-01-01"` 这种**纯日期串**被 `new Date()` 按 **UTC 午夜**解析，
+ * 若再用 `getFullYear()/getMonth()/getDate()`（**本地**时区）取回年月日，
+ * 在 UTC 以西的机器上会**退到前一天**——本机是 UTC−8，实测 5/5 全偏一天。
+ *
+ * 更麻烦的是它**只在部分时区出错**：在 UTC+8 的机器上跑测试是绿的。
+ * 所以纯日期串一律按字面取字段，不经时区转换；
+ * 只有真正的时间戳/Date 实例才用本地分量（那时它确实代表一个时刻）。
+ */
+function ymdOf(date?: string | number | Date): [number, number, number] {
+  if (typeof date === "string") {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+    if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+  }
+  const d = date !== undefined ? new Date(date) : new Date();
+  return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
+}
+
 function getDayGanZhiIndex(date?: string | number | Date): number {
-  const t = date !== undefined ? new Date(date).getTime() : Date.now();
-  const days = Math.floor((t - GANZHI_EPOCH_UTC) / DAY_MS);
-  return ((days % 60) + 60) % 60;
+  const [y, m, d] = ymdOf(date);
+  return dayGanzhi(y, m, d, 12).idx;
 }
 
 const LING_QI_125: LingQiJingGua[] = [
@@ -292,9 +345,12 @@ export function calculateLingQiJing(input: Record<string, unknown>): LingQiJingR
     idx = seed % 125;
     qiGuaNote = "依所问文字起卦";
   } else {
-    const gzIndex = getDayGanZhiIndex(date); // 0-59
-    idx = gzIndex % 125;
-    qiGuaNote = `依占卜时刻日干支（六十甲子第 ${gzIndex + 1} 位）起卦`;
+    // 日干支序只有 60 个取值，直接对 125 取模会让第 61–125 卦永不可达（见文件头 ②）
+    const gzIndex = getDayGanZhiIndex(date);
+    idx = ((dayOrdinal(date) % 125) + 125) % 125;
+    qiGuaNote =
+      `未报卦号，依占卜日期确定性起卦（第 ${idx + 1} 卦；当日日干支为六十甲子第 ${gzIndex + 1} 位）。` +
+      `⚠️ 日期起卦为可复现替代法，非典籍古法——古法为掷棋，请以亲自掷出的卦号为准。`;
   }
 
   const gua = ALL_125[idx];

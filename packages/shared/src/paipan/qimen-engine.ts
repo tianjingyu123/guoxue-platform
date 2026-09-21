@@ -281,11 +281,26 @@ function getMaXing(hourZhi: string): string {
 }
 
 /** 十干入墓宫：坤2(甲癸墓未) 乾6(乙丙戊墓戌) 艮8(丁己庚墓丑) 巽4(辛壬墓辰) */
-const MU_PALACE: Record<number, string[]> = {
+/**
+ * 入墓：各宫所墓之干（2026-09-20 由 const 改为 export）。
+ *
+ * 导出的理由是**消灭第二套定义**。此前 `apps/server` 的
+ * `qimen-mingli.calculator.ts` 自带一份 `calcJiXing`（只认戊震3/己艮8/庚离9），
+ * 与本文件的 `JIXING_PALACE` 直接冲突；`shanxiang-qimen.calculator.ts` 更是
+ * 拿 `pos % 5 === 0` / `pos % 7 === 2` 当入墓与击刑。
+ * 同一个概念三套算法，其中至少两套是错的，而三边各自都能跑出结果。
+ *
+ * 本文件这一份有竞品黄金基准逐宫核过，定为真源；其余两处改为引用此处。
+ */
+export const MU_PALACE: Record<number, string[]> = {
   2: ["甲", "癸"], 6: ["乙", "丙", "戊"], 8: ["丁", "己", "庚"], 4: ["辛", "壬"],
 }
-/** 六仪击刑：戊刑震3 己刑坤2 庚刑艮8 辛刑离9 壬刑巽4 癸刑巽4 */
-const JIXING_PALACE: Record<string, number> = { 戊: 3, 己: 2, 庚: 8, 辛: 9, 壬: 4, 癸: 4 }
+/**
+ * 六仪击刑：戊刑震3 己刑坤2 庚刑艮8 辛刑离9 壬刑巽4 癸刑巽4
+ * （2026-09-20 导出，理由同 `MU_PALACE`：**六仪六个全在**，
+ *  而另外两处实现一处只认三个干、一处干脆用宫号模 7。）
+ */
+export const JIXING_PALACE: Record<string, number> = { 戊: 3, 己: 2, 庚: 8, 辛: 9, 壬: 4, 癸: 4 }
 
 // ─── 十二长生（阳干顺行/阴干逆行，火土同宫；经竞品黄金测试9宫逐值验证） ───
 const CS_STATES = ["长生", "沐浴", "冠带", "临官", "帝旺", "衰", "病", "死", "墓", "绝", "胎", "养"]

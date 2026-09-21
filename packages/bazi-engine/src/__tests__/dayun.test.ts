@@ -16,29 +16,41 @@ describe('isYangNian - 阳年判断', () => {
 })
 
 describe('calcQiYun - 起运计算', () => {
-  it('阳男顺排，起运信息完整', () => {
-    // 庚午年(阳年) 男 → 顺排
+  // 大运共 10 列 = 首列「起运前」(月柱本身) + 9 步大运，与旧版排盘列数一致
+  it('阳男顺排：10 列，首列为月柱，其后逐步顺行', () => {
+    // 庚午年(阳年) 男 → 顺排；月柱辛巳
     const result = calcQiYun(1990, 5, 20, 8, '男', '庚', '辛巳')
     expect(result.startAge).toBeGreaterThanOrEqual(0)
     expect(result.startYear).toBeGreaterThan(1990)
-    expect(result.daYun).toHaveLength(8)
     expect(result.desc).toContain('顺排')
+    // 值断言：首列即月柱辛巳，其后顺行 壬午 癸未 …
+    expect(result.daYun.map((d) => d.ganZhi)).toEqual(
+      ['辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑', '庚寅'],
+    )
   })
 
-  it('阴男逆排，描述中含逆字', () => {
-    // 乙巳年(阴年) 男 → 逆排
+  it('阴男逆排：10 列，首列为月柱，其后逐步逆行', () => {
+    // 乙巳年(阴年) 男 → 逆排；月柱辛巳
     const result = calcQiYun(1990, 5, 20, 8, '男', '乙', '辛巳')
     expect(result.desc).toContain('逆排')
-    expect(result.daYun).toHaveLength(8)
+    // 值断言：首列即月柱辛巳，其后逆行 庚辰 己卯 …
+    expect(result.daYun.map((d) => d.ganZhi)).toEqual(
+      ['辛巳', '庚辰', '己卯', '戊寅', '丁丑', '丙子', '乙亥', '甲戌', '癸酉', '壬申'],
+    )
   })
 
-  it('大运每步跨度10年', () => {
+  it('大运每步跨度10年（首列为起运前，从0岁到起运前一年）', () => {
     const result = calcQiYun(1984, 2, 4, 10, '男', '甲', '丙寅')
-    for (let i = 0; i < result.daYun.length; i++) {
+    // 首列：起运前，自 0 岁起，至起运年龄前一年止
+    expect(result.daYun[0].ganZhi).toBe('丙寅') // 月柱本身
+    expect(result.daYun[0].startAge).toBe(0)
+    expect(result.daYun[0].endAge).toBe(Math.max(result.startAge - 1, 0))
+    // 其后 9 步：每步 10 年
+    for (let i = 1; i < result.daYun.length; i++) {
       const step = result.daYun[i]
       expect(step.endAge - step.startAge).toBe(9)
       expect(step.endYear - step.startYear).toBe(9)
-      if (i > 0) {
+      if (i > 1) {
         expect(step.startAge - result.daYun[i - 1].startAge).toBe(10)
       }
     }
