@@ -20,8 +20,9 @@ function compilePages(appPlus) {
     }
     const [, kind, expression] = directive
     if (kind === 'ifdef' || kind === 'ifndef') {
-      assert.equal(expression.trim(), 'APP-PLUS', `安全区审计尚未支持条件标识 ${expression.trim()}`)
-      const condition = kind === 'ifdef' ? appPlus : !appPlus
+      assert.ok(['APP-PLUS', 'H5'].includes(expression.trim()), `安全区审计尚未支持条件标识 ${expression.trim()}`)
+      const isAppPlus = expression.trim() === 'APP-PLUS'
+      const condition = kind === 'ifdef' ? (isAppPlus ? appPlus : !appPlus) : (isAppPlus ? !appPlus : appPlus)
       stack.push({ parent: active, condition })
       active = active && condition
     } else if (kind === 'else') {

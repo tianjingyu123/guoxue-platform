@@ -26,3 +26,10 @@ test('个人中心消息设置和排盘历史按钮应用胶囊避让', () => {
   assert.match(profile, /right: menuSafeRight \? menuSafeRight \+ 'px'/)
   assert.match(paipan, /marginRight: menuSafeRight \+ 'px'/)
 })
+
+test('圈子顶栏操作区应用胶囊避让并在小程序端下移', () => {
+  const circles = read('apps/mobile/src/pages/circles/index.vue')
+  assert.match(circles, /getMiniProgramMenuSafeRight/u)
+  assert.match(circles, /marginRight: menuSafeRight \+ 'px'/u)
+  assert.match(circles, /#ifdef MP-WEIXIN[\s\S]*padding-top: calc\(var\(--status-bar-height, 0px\) \+ 96rpx\)/u)
+})

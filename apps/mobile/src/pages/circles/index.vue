@@ -12,6 +12,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { getToken } from '@/utils/storage'
 import {
   circleApi, circleCategories, formatMembers,
@@ -19,6 +20,9 @@ import {
 } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { growthApi } from '@/lib/circle-growth-data'
+
+// 微信原生胶囊覆盖顶栏时，按真实左边界给操作区留出可点击空间。
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 const category = ref('')
 const circles = ref<Circle[]>([])
@@ -249,7 +253,12 @@ onShow(() => {
     <!-- 顶栏：标题 + 搜索 + 创建 + 圈子·我的入口 -->
     <view class="topbar">
       <text class="title" role="heading" aria-level="1">圈子</text>
-      <view class="actions" role="navigation" aria-label="圈子广场快捷操作">
+      <view
+        class="actions"
+        role="navigation"
+        aria-label="圈子广场快捷操作"
+        :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined"
+      >
         <view
           class="icon-btn"
           role="link"
@@ -550,6 +559,13 @@ onShow(() => {
   background: rgba(250, 248, 245, 0.92);
   backdrop-filter: blur(20rpx);
 }
+/* 微信小程序右上角原生胶囊会覆盖页面顶栏。把操作区整体下移到胶囊下方，
+ * 保证搜索、创建和「我的圈子」都能点击；其他端保持原有紧凑布局。 */
+/* #ifdef MP-WEIXIN */
+.topbar {
+  padding-top: calc(var(--status-bar-height, 0px) + 96rpx);
+}
+/* #endif */
 .title { font-size: 44rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); letter-spacing: 1rpx; }
 .actions { display: flex; align-items: center; gap: 14rpx; }
 /* 搜索入口：常显浅底衬+88rpx 触达区 */
