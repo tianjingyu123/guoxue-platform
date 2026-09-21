@@ -20,6 +20,7 @@ import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
 import { resolveAgentReferral } from '@/lib/agent-routing'
 import { gotoComplaint } from '@/lib/trust-entry'
+import { track } from '@/composables/useTrack'
 
 const loading = ref(true)
 const error = ref('')
@@ -31,6 +32,7 @@ const quickQuestions = ref<string[]>([])
 const recommendedCourses = ref<any[]>([])
 const recommendedCircles = ref<any[]>([])
 const discoveryItems = ref<RecommendItem[]>([])
+const discoveryReported = ref(false)
 
 const messages = ref<ChatMessage[]>([
   { id: 0, role: 'assistant', content: chatWelcome, time: nowTime() },
@@ -173,6 +175,16 @@ async function loadData() {
     recommendedCourses.value = recs?.courses || []
     recommendedCircles.value = recs?.circles || []
     discoveryItems.value = recs?.items || []
+    if (discoveryItems.value.length && !discoveryReported.value) {
+      // 仅在真实卡片已有数据、即将进入首屏时记录一次曝光；埋点失败不影响对话。
+      nextTick(() => {
+        track.custom('agent_discovery_view', {
+          agentId: id,
+          itemIds: discoveryItems.value.map((item) => String(item.data?.id || '')).filter(Boolean),
+        })
+        discoveryReported.value = true
+      })
+    }
     freeRemaining.value = detail?.freeQuota || 0
 
     // 续聊并回填真实历史消息（拉取失败则保留欢迎语，不伪造历史）
@@ -494,6 +506,13 @@ function declineReco(msg: ChatMessage) {
 
 // 推荐卡片点击 → 跳转对应板块
 function openRecommend(item: RecommendItem) {
+  if (discoveryItems.value.some((candidate) => candidate === item)) {
+    track.custom('agent_discovery_click', {
+      agentId: agentId.value,
+      type: item.type,
+      itemId: String(item.data?.id || ''),
+    })
+  }
   if (item.data?.href) navigateTo(item.data.href)
   else if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
