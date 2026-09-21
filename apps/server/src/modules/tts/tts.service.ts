@@ -65,6 +65,11 @@ export const MAX_SYNTH_CHARS = 3000
 @Injectable()
 export class TtsService {
   private readonly logger = new Logger(TtsService.name)
+  /**
+   * 供应商熔断：窗口内失败达阈值即跳过该供应商一段时间，降级期间新文本不必每次都等首选失败/超时。
+   * 到期后自动重试首选；Edge 是最后兜底，不熔断。
+   */
+  static readonly BREAKER = { windowSeconds: 60, threshold: 3, openSeconds: 120 }
 
   constructor(
     private redis: RedisService,
@@ -182,28 +187,62 @@ export class TtsService {
     return v.edge
   }
 
-  /** 实际合成：火山引擎优先，腾讯云次选，失败降级 Edge。返回实际使用的供应商与音色。 */
+  private async providerOpen(provider: TtsProviderId): Promise<boolean> {
+    try {
+      return !!(await this.redis.get(`tts-provider-open:${provider}`))
+    } catch {
+      return false // 熔断状态读不到时照常尝试，不因 Redis 故障放弃首选
+    }
+  }
+
+  private async recordProviderFailure(provider: TtsProviderId) {
+    try {
+      const { windowSeconds, threshold, openSeconds } = TtsService.BREAKER
+      const { count } = await this.redis.incrWithTtl(`tts-provider-fail:${provider}`, windowSeconds)
+      if (count >= threshold) {
+        await this.redis.set(`tts-provider-open:${provider}`, "1", openSeconds)
+        await this.redis.del(`tts-provider-fail:${provider}`)
+        this.logger.warn(`TTS 供应商 ${provider} ${windowSeconds} 秒内失败 ${count} 次，暂停使用 ${openSeconds} 秒`)
+      }
+    } catch (e: any) {
+      this.logger.warn(`记录 TTS 供应商失败次数出错：${e?.message || e}`)
+    }
+  }
+
+  private async recordProviderSuccess(provider: TtsProviderId) {
+    try {
+      await this.redis.del(`tts-provider-fail:${provider}`)
+    } catch {
+      // 失败计数清不掉只影响熔断灵敏度，不影响本次合成结果
+    }
+  }
+
+  /** 实际合成：火山引擎优先，腾讯云次选，失败降级 Edge。返回实际使用的供应商与音色。熔断中的供应商跳过。 */
   private async doSynthesize(text: string, voiceKey: string, rate: string, style: TtsStyle): Promise<SynthesisOutput> {
     // 优先火山引擎（有声读书专用）
-    if (process.env.VOLCENGINE_ACCESS_KEY && process.env.VOLCENGINE_TTS_APP_ID) {
+    if (process.env.VOLCENGINE_ACCESS_KEY && process.env.VOLCENGINE_TTS_APP_ID && !(await this.providerOpen("volcengine"))) {
       try {
         const audio = await this.volcengineSynthesize(text, voiceKey, rate, style)
+        await this.recordProviderSuccess("volcengine")
         return { audio, ttsProvider: "volcengine", voiceId: this.providerVoiceId("volcengine", voiceKey) }
       } catch (e: any) {
         this.logger.warn(`火山引擎 TTS 失败，尝试腾讯云：${e?.message || e}`)
+        await this.recordProviderFailure("volcengine")
       }
     }
 
     // 腾讯云
     const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || ""
     const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || ""
-    if (hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
+    if (hasTencentCloudCredentialConfiguration(secretId, secretKey) && !(await this.providerOpen("tencent"))) {
       try {
         const credentials = await resolveTencentCloudCredentials(secretId, secretKey)
         const audio = await this.tencentSynthesize(text, voiceKey, rate, style, credentials)
+        await this.recordProviderSuccess("tencent")
         return { audio, ttsProvider: "tencent", voiceId: this.providerVoiceId("tencent", voiceKey) }
       } catch (e: any) {
         this.logger.warn(`腾讯云 TTS 失败，降级 Edge：${e?.message || e}`)
+        await this.recordProviderFailure("tencent")
       }
     }
 

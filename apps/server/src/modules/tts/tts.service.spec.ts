@@ -254,6 +254,64 @@ describe("TtsService", () => {
     });
   });
 
+  describe("降级期间的成本：不重复合成、首选熔断", () => {
+    let redis: RedisService;
+    let svc2: TtsService;
+    const tencentFail = { json: () => Promise.resolve({ Response: { Error: { Code: "InternalError", Message: "down" } } }) };
+    const edgeOk = { ok: true, arrayBuffer: () => Promise.resolve(Buffer.from("edge-audio")) };
+    const calls = () => mockFetch.mock.calls.map((c) => (String(c[0]).includes("tencentcloudapi") ? "tencent" : "edge"));
+
+    beforeEach(() => {
+      process.env.TENCENT_SECRET_ID = "AKIDtest";
+      process.env.TENCENT_SECRET_KEY = "sk-test";
+      redis = new RedisService();
+      svc2 = new TtsService(redis, new AudioAssetService(fakePrisma.prisma, redis, fakeStorage.storage as any), mockVolcengine as unknown as VolcengineTtsAdapter);
+      mockFetch.mockReset();
+      mockFetch.mockImplementation(async (url: string) => (String(url).includes("tencentcloudapi") ? tencentFail : edgeOk));
+    });
+
+    it("同一段文字降级后再次请求：不再调首选、不再合成，直接读备用音频", async () => {
+      await svc2.synthesize({ text: "降级复用测试" });
+      expect(calls()).toEqual(["tencent", "edge"]);
+      mockFetch.mockClear();
+      const again = await svc2.synthesize({ text: "降级复用测试" });
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(again.audio.toString()).toBe("edge-audio");
+      expect(fakeStorage.storage.uploadBuffer).toHaveBeenCalledTimes(1);
+    });
+
+    it("首选连续失败达阈值后熔断：新文字直接走备用；熔断到期后重试首选并恢复", async () => {
+      const { threshold } = TtsService.BREAKER;
+      for (let i = 0; i < threshold; i++) await svc2.synthesize({ text: `熔断测试${i}` });
+      expect(calls().filter((c) => c === "tencent")).toHaveLength(threshold);
+
+      mockFetch.mockClear();
+      await svc2.synthesize({ text: "熔断后的新文字" });
+      expect(calls()).toEqual(["edge"]); // 不再等首选失败
+
+      // 熔断到期（模拟 TTL 过去），首选已恢复
+      await redis.del("tts-provider-open:tencent");
+      mockFetch.mockReset();
+      mockFetch.mockImplementation(async (url: string) =>
+        String(url).includes("tencentcloudapi")
+          ? { json: () => Promise.resolve({ Response: { Audio: Buffer.from("tencent-audio").toString("base64") } }) }
+          : edgeOk,
+      );
+      const back = await svc2.synthesize({ text: "恢复后的新文字" });
+      expect(calls()).toEqual(["tencent"]);
+      expect(back.audio.toString()).toBe("tencent-audio");
+    });
+
+    it("首选偶发一次失败不熔断，成功后清零失败计数", async () => {
+      await svc2.synthesize({ text: "偶发失败" });
+      expect(await redis.get("tts-provider-open:tencent")).toBeNull();
+      mockFetch.mockReset();
+      mockFetch.mockImplementation(async () => ({ json: () => Promise.resolve({ Response: { Audio: Buffer.from("t").toString("base64") } }) }));
+      await svc2.synthesize({ text: "随后成功" });
+      expect(await redis.get("tts-provider-fail:tencent")).toBeNull();
+    });
+  });
+
   describe("getVoices", () => {
     it("返回可用语音列表", () => {
       const voices = svc.getVoices();
