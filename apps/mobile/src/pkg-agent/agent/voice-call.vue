@@ -52,6 +52,11 @@ const duration = computed(() => {
   return `${min}:${sec}`
 })
 const latestTranscript = computed(() => transcripts.value[transcripts.value.length - 1])
+const transcriptCount = computed(() => transcripts.value.filter((item) => item.final && item.speaker === 'user').length)
+const callSummaryHint = computed(() => {
+  if (!transcripts.value.length) return '这次还没有形成文字记录，可以继续用文字对话。'
+  return `本次已记录 ${transcriptCount.value || transcripts.value.length} 段对话，切换到文字模式可继续追问。`
+})
 
 function startTimer() {
   stopTimer()
@@ -202,6 +207,13 @@ onUnmounted(() => {
         <text class="caption-speaker">{{ latestTranscript.speaker === 'user' ? '你' : detail?.name }}</text>
         <text class="caption-text">{{ latestTranscript.text }}</text>
       </view>
+      <view v-if="state === 'ended'" class="call-summary-card">
+        <view class="call-summary-icon"><AppIcon name="sparkles" :size="30" color="#ffffff" /></view>
+        <view class="call-summary-copy">
+          <text class="call-summary-title">本次通话已结束</text>
+          <text class="call-summary-desc">{{ callSummaryHint }}</text>
+        </view>
+      </view>
       <view v-else-if="error" class="readiness-card">
         <view class="readiness-icon"><AppIcon name="shield-check" :size="34" color="#8d6d2f" /></view>
         <view class="readiness-copy">
@@ -321,6 +333,11 @@ onUnmounted(() => {
 .readiness-copy { display: flex; flex-direction: column; gap: 8rpx; }
 .readiness-title { font-size: 25rpx; font-weight: 800; color: #3d4759; }
 .readiness-desc { font-size: 22rpx; line-height: 1.6; color: #7c756a; }
+.call-summary-card { z-index: 1; width: 100%; box-sizing: border-box; margin-top: 30rpx; padding: 22rpx 24rpx; display: flex; gap: 20rpx; align-items: center; border-radius: 24rpx; background: rgba(255,255,255,.82); border: 1rpx solid rgba(59,79,99,.09); box-shadow: 0 18rpx 50rpx rgba(47,67,84,.08); }
+.call-summary-icon { width: 54rpx; height: 54rpx; flex-shrink: 0; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, #49627b, #2b8a82); }
+.call-summary-copy { min-width: 0; }
+.call-summary-title { display: block; font-size: 26rpx; font-weight: 700; color: #25364d; }
+.call-summary-desc { display: block; margin-top: 6rpx; font-size: 21rpx; line-height: 1.45; color: #69798a; }
 .voice-actions { padding: 20rpx 34rpx 34rpx; }
 .privacy-line { min-height: 42rpx; display: flex; justify-content: center; align-items: center; gap: 9rpx; color: #77869a; font-size: 20rpx; }
 .start-btn {
