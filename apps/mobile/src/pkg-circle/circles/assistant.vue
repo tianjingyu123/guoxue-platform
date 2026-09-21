@@ -10,6 +10,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
 import { assistantApi, type AssistantHistory } from '@/lib/circle-assistant-data'
+import type { Recommendation } from '@/lib/agent-data'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 const circleId = ref('')
@@ -41,13 +42,17 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
       { question: text, history: history.value },
       {
         onChunk: (t) => { acc += t; handlers.appendText(t) },
-        onMeta: (m) => { if (m.disclaimer) handlers.setDisclaimer(m.disclaimer) },
+        onMeta: (m) => {
+          if (m.disclaimer) handlers.setDisclaimer(m.disclaimer)
+          if (m.recommendation) handlers.setRecommendation(m.recommendation as Recommendation)
+        },
       },
     )
   } else {
     const r = await assistantApi.ask(circleId.value, text, history.value)
     acc = r.answer || '抱歉，我暂时无法回答这个问题。'
     handlers.appendText(acc)
+    if (r.recommendation) handlers.setRecommendation(r.recommendation as Recommendation)
   }
   if (acc) pushHistory(text, acc.slice(0, 2000))
 }

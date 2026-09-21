@@ -6,7 +6,7 @@
  */
 import { ref, onMounted } from 'vue'
 import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
-import { agentApi, zhixuanAiApi, type AiHistoryMsg } from '@/lib/agent-data'
+import { agentApi, zhixuanAiApi, type AiHistoryMsg, type Recommendation } from '@/lib/agent-data'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 const loading = ref(true)
@@ -43,7 +43,10 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
       {
         onChunk: (t) => { acc += t; handlers.appendText(t) },
         onCard: (c) => handlers.pushCard(c.cardType, c.payload),
-        onMeta: (m) => { if (m.disclaimer) handlers.setDisclaimer(m.disclaimer) },
+        onMeta: (m) => {
+          if (m.disclaimer) handlers.setDisclaimer(m.disclaimer)
+          if (m.recommendation) handlers.setRecommendation(m.recommendation as Recommendation)
+        },
       },
     )
   } else {
