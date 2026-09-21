@@ -49,7 +49,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
       },
     )
   } else {
-    const r = await assistantApi.ask(circleId.value, text, history.value)
+    const r = await assistantApi.ask(circleId.value, text, history.value) as Awaited<ReturnType<typeof assistantApi.ask>> & { recommendation?: Recommendation }
     acc = r.answer || '抱歉，我暂时无法回答这个问题。'
     handlers.appendText(acc)
     if (r.recommendation) handlers.setRecommendation(r.recommendation as Recommendation)
