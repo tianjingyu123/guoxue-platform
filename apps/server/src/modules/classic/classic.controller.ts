@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { ClassicService } from "./classic.service";
 import { ClassicSegmentService } from "./classic-segment.service";
 import { ClassicPunctuationService } from "./classic-punctuation.service";
+import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
@@ -23,6 +24,7 @@ export class ClassicController {
     private svc: ClassicService,
     private segment: ClassicSegmentService,
     private punctuation: ClassicPunctuationService,
+    private simplified: ClassicSimplifiedService,
     private seeder: ClassicLibrarySeeder,
     private daizhigeSeeder: ClassicDaizhigeSeeder,
     private companion: ClassicCompanionService,
@@ -75,6 +77,7 @@ export class ClassicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async getChapterSegments(@Param("id") id: string) {
+    await this.segment.assertChapterPublic(id);
     const segments = await this.segment.getSegmentsForChapter(id);
     if (segments.length === 0) {
       // 首次访问：只按现有 content 原样切分（幂等），不在读请求中写回用户笔记/注疏锚点
@@ -91,10 +94,43 @@ export class ClassicController {
   @ApiOperation({ summary: "按需为段落加标点（AI 草稿，字序严格校验，跨用户复用）" })
   @ApiResponse({ status: 201, description: "返回断句结果（source=original/ai_draft）" })
   async punctuateSegment(@Req() req: Request, @Param("id") id: string) {
+    await this.segment.assertSegmentPublic(id);
     const existing = await this.punctuation.peek(id);
     if (existing) return existing;
     await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.punctuation.punctuate(id, req.user.id);
+  }
+
+  /** 章节简体阅读版（确定性转换，不改底本；每段带回原文段落 ID、哈希与偏移） */
+  @Get("chapters/:id/simplified")
+  @ApiOperation({ summary: "章节简体阅读版（等长转换，可映射回原文位置）" })
+  async getChapterSimplified(@Param("id") id: string) {
+    return this.simplified.forChapter(id);
+  }
+
+  @Get("segments/:id/simplified")
+  @ApiOperation({ summary: "段落简体阅读版（持久化派生资产）" })
+  async getSegmentSimplified(@Param("id") id: string) {
+    return this.simplified.forSegment(id);
+  }
+
+  /** 段落译文状态：不生成、不计次（none/generating/success/failed/expired + 人工复核状态） */
+  @Get("segments/:id/translation")
+  @ApiOperation({ summary: "段落白话译文状态（绑定段落 ID 与原文版本）" })
+  async getSegmentTranslation(@Param("id") id: string) {
+    return this.svc.segmentTranslationStatus(id);
+  }
+
+  /** 段落白话译文：已有合格译文直接返回且不计 AI 次数；未生成才计次并调用模型 */
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("segments/:id/translate")
+  @ApiOperation({ summary: "按需生成段落白话译文（跨用户复用；命中不计次）" })
+  async translateSegment(@Req() req: Request, @Param("id") id: string) {
+    const st = await this.svc.segmentTranslationStatus(id);
+    if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
+    await this.memberBenefit.consumeAiQuota(req.user.id);
+    return this.svc.translateSegment(id, req.user.id);
   }
 
   // ── 书籍管理（需管理员） ──
@@ -354,8 +390,11 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Req() req: Request, @Body() dto: TranslateDto) {
+    // 命中已有合格译文不调模型、不计次数（是否计次待产品拍板，拍板前不擅自扣）
+    const hit = await this.svc.peekTranslation(dto);
+    if (hit) return hit;
     await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.svc.translateClassical(dto);
+    return this.svc.translateClassical(dto, req.user.id);
   }
 
   // ── 古籍AI问答 ──

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PERSONAS } from "../dialogue/dialogue-personas";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 import { MAX_CONTEXT_CHARS, MinimalVoiceContext, VoiceScene } from "./provider/voice-provider.types";
 
 /**
@@ -171,16 +172,17 @@ export class VoiceContextBuilder {
   /** S06：只接受已发布古籍的稳定段落；选中句必须是原文子串 */
   private async forSegment(req: VoiceContextRequest): Promise<ResolvedVoiceContext> {
     if (!req.contextId) throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少段落编号");
-    const seg = await this.prisma.classicSegment.findUnique({
-      where: { id: req.contextId },
+    // 与古籍正文接口同一公开口径：已发布、未删除、有已审计的可商用版权记录
+    const seg = await this.prisma.classicSegment.findFirst({
+      where: { id: req.contextId, deletedAt: null, chapter: { deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE } },
       select: {
-        id: true, chapterId: true, sortOrder: true, content: true, contentHash: true, deletedAt: true,
-        chapter: { select: { title: true, book: { select: { title: true, status: true, deletedAt: true } } } },
+        id: true, chapterId: true, sortOrder: true, content: true, contentHash: true,
+        chapter: { select: { title: true, book: { select: { title: true } } } },
       },
     });
     const book = seg?.chapter?.book;
-    if (!seg || seg.deletedAt || !book || book.deletedAt || book.status !== "PUBLISHED") {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "段落不存在或古籍未发布");
+    if (!seg || !book) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "段落不存在或古籍未公开");
     }
     const selected = (req.selectedText || "").trim();
     if (selected && !seg.content.includes(selected)) {

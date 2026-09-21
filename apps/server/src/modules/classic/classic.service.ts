@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 import { CreateAnnotationDto } from "./classic.dto";
 import { JwtService } from "@nestjs/jwt";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
-import { TextDerivedAssetService } from "./text-derived-asset.service";
+import { TextDerivedAssetService, TextAssetRequest } from "./text-derived-asset.service";
 import { createHash } from "node:crypto";
 import {
   PUBLIC_CLASSIC_BOOK_WHERE,
@@ -404,30 +404,41 @@ export class ClassicService {
   }
 
   // ── 白话翻译（AI）with TextDerivedAsset 持久化 ──
-  async translateClassical(dto: { text: string; context?: string }) {
-    // 先尝试从文本资产服务获取缓存的翻译
-    // 身份包含原文与上下文哈希、提示词版本和网关路由策略；实际模型由网关返回后记录
-    const text = dto.text.trim();
-    const assetReq = {
-      sourceType: "classic_translation",
-      sourceId: createHash("sha256").update(text, "utf8").digest("hex").slice(0, 32),
+  //
+  // S04 口径（2026-09-21）：
+  // - 身份含原文哈希、上下文哈希（无上下文记 none）、策略、网关路由策略、提示词版本；实际模型由网关返回后记录
+  // - 命中已有合格译文**不调用模型、不计 AI 次数**（控制器先 peek）：命中缓存要不要计次尚待产品拍板，
+  //   拍板前按「不擅自扣」处理
+  // - 段落级译文绑定稳定段落 ID 与段落内容哈希；原文修订后旧译文判为 expired，不会被当成当前译文返回
+
+  private translationRequest(text: string, context?: string, source?: { segmentId: string }): TextAssetRequest {
+    return {
+      sourceType: source ? "classic_segment" : "classic_translation",
+      sourceId: source ? source.segmentId : createHash("sha256").update(text, "utf8").digest("hex").slice(0, 32),
       content: text,
-      context: dto.context?.trim() || undefined,
-      processingType: "translation" as const,
+      context: context?.trim() || undefined,
+      processingType: "translation",
       strategy: "vernacular_json",
       modelPolicy: "gateway:classic_translate",
       promptVersion: "translate-v1",
       language: "zh-CN",
     };
+  }
 
-    const result = await this.textAssetService.getOrCreateTextAsset(
-      assetReq,
+  private parseTranslation(raw: string, original: string) {
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      this.logger.warn("翻译JSON解析失败", err);
+      return { original, translation: raw?.slice(0, 2000) || "翻译暂不可用", notes: [], source: "" };
+    }
+  }
+
+  private async runTranslation(req: TextAssetRequest, userId?: string) {
+    return this.textAssetService.getOrCreateTextAsset(
+      req,
       async () => {
-        // 未命中缓存，调用 AI 网关进行翻译
-        const contextHint = dto.context
-          ? `\n上下文提示：这段话出自「${dto.context}」。请根据上下文做出准确翻译。`
-          : "";
-
+        const contextHint = req.context ? `\n上下文提示：这段话出自「${req.context}」。请根据上下文做出准确翻译。` : "";
         const prompt = `你是一位资深的古籍白话翻译专家。请将用户提供的文言文段落翻译成准确、流畅的现代白话文。
 保留原文的修辞风格和文化内涵，对关键词语给出注释。${contextHint}
 必须使用以下JSON格式返回（不要包含其他文字，不要用markdown代码块包裹）：
@@ -437,20 +448,18 @@ export class ClassicService {
   "notes": ["关键词语的注释1", "关键词语的注释2"],
   "source": "推测的出处（不确定则填空字符串）"
 }`;
-
         const aiResult = await this.gateway.chat({
           scene: "classic_translate",
+          userId,
           // 精确复用由 TextDerivedAsset（原文+上下文+提示词版本）负责且带校验；
           // 语义缓存只按用户原文相似度匹配、不含上下文，且会把一次坏结果长期复用导致“重试”无效
           skipCache: true,
           messages: [
             { role: "system", content: prompt },
-            { role: "user", content: text },
+            { role: "user", content: req.content },
           ],
           options: { temperature: 0.3, maxTokens: 1536 },
         });
-
-        // 返回 JSON 字符串与实际模型供 TextDerivedAsset 存储
         return { result: aiResult.content, model: aiResult.model };
       },
       // 只有可解析且译文非空的结果才作为可复用资产保存
@@ -463,19 +472,72 @@ export class ClassicService {
         }
       },
     );
+  }
 
-    // 解析并返回翻译结果
-    try {
-      return JSON.parse(result.result);
-    } catch (err) {
-      this.logger.warn("翻译JSON解析失败", err);
+  /** 只查已有合格译文（不调模型、不计次数）；没有返回 null */
+  async peekTranslation(dto: { text: string; context?: string }) {
+    const text = dto.text.trim();
+    const hit = await this.textAssetService.findCompletedAsset(this.translationRequest(text, dto.context));
+    return hit ? { ...this.parseTranslation(hit.result, text), cached: true } : null;
+  }
+
+  async translateClassical(dto: { text: string; context?: string }, userId?: string) {
+    const text = dto.text.trim();
+    const result = await this.runTranslation(this.translationRequest(text, dto.context), userId);
+    return { ...this.parseTranslation(result.result, text), cached: result.cached };
+  }
+
+  /** 段落级：加载公开可读段落与上下文（书名·篇名） */
+  private async loadSegmentForTranslation(segmentId: string) {
+    const seg = await this.prisma.classicSegment.findFirst({
+      where: { id: segmentId, deletedAt: null, chapter: { deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE } },
+      select: { id: true, content: true, contentHash: true, sortOrder: true, chapter: { select: { title: true, book: { select: { title: true } } } } },
+    });
+    if (!seg) throw new BusinessException(ErrorCode.NOT_FOUND, "段落不存在");
+    if (seg.content.length > 1500) throw new BusinessException(ErrorCode.BAD_REQUEST, "段落过长，暂不支持整段翻译");
+    const context = `${seg.chapter?.book?.title ?? ""}·${seg.chapter?.title ?? ""}`;
+    return { seg, context };
+  }
+
+  /**
+   * 段落译文状态（不生成、不计次）：
+   * none 未生成 / generating 生成中 / success 成功 / failed 失败 / expired 原文已修订、旧译文过期
+   * 人工复核状态另见 reviewStatus（none/pending_review/approved/rejected）
+   */
+  async segmentTranslationStatus(segmentId: string) {
+    const { seg, context } = await this.loadSegmentForTranslation(segmentId);
+    const req = this.translationRequest(seg.content, context, { segmentId });
+    const assetKey = this.textAssetService.buildAssetKey(req);
+    const current = await this.prisma.textDerivedAsset.findUnique({ where: { assetKey } });
+    const base = { segmentId, contentHash: seg.contentHash, promptVersion: req.promptVersion };
+    if (current) {
+      const status =
+        current.processingStatus === "completed" ? "success" : current.processingStatus === "processing" ? "generating" : "failed";
       return {
-        original: dto.text,
-        translation: result.result?.slice(0, 2000) || "翻译暂不可用",
-        notes: [],
-        source: "",
+        ...base,
+        status,
+        reviewStatus: current.reviewStatus,
+        model: current.model,
+        result: status === "success" ? this.parseTranslation(current.result, seg.content) : null,
       };
     }
+    // 同一段落有旧版本原文的译文：说明原文已修订，旧译文过期（不返回正文，避免把旧译文当成当前译文）
+    const stale = await this.prisma.textDerivedAsset.findFirst({
+      where: { sourceType: "classic_segment", sourceId: segmentId, processingType: "translation", processingStatus: "completed" },
+      select: { id: true },
+    });
+    return { ...base, status: stale ? "expired" : "none", reviewStatus: null, model: null, result: null };
+  }
+
+  async translateSegment(segmentId: string, userId?: string) {
+    const { seg, context } = await this.loadSegmentForTranslation(segmentId);
+    const result = await this.runTranslation(this.translationRequest(seg.content, context, { segmentId }), userId);
+    return {
+      segmentId,
+      contentHash: seg.contentHash,
+      cached: result.cached,
+      ...this.parseTranslation(result.result, seg.content),
+    };
   }
 
   // ── 古籍AI问答（自由对话） ──

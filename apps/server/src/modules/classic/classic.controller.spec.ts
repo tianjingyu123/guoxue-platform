@@ -3,6 +3,7 @@ import { ClassicController } from "./classic.controller";
 import { ClassicService } from "./classic.service";
 import { ClassicSegmentService } from "./classic-segment.service";
 import { ClassicPunctuationService } from "./classic-punctuation.service";
+import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
@@ -31,6 +32,9 @@ const mockClassicSvc = {
   getDownloads: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   dictionaryLookup: jest.fn().mockResolvedValue({ word: "仁", pinyin: "rén", explanation: "仁爱" }),
   translateClassical: jest.fn().mockResolvedValue({ original: "学而时习之", translation: "学习并经常温习", notes: [], source: "" }),
+  peekTranslation: jest.fn().mockResolvedValue(null),
+  segmentTranslationStatus: jest.fn().mockResolvedValue({ segmentId: "seg1", status: "none", contentHash: "h1", result: null }),
+  translateSegment: jest.fn().mockResolvedValue({ segmentId: "seg1", contentHash: "h1", cached: false, translation: "学习" }),
   getContinueReading: jest.fn().mockResolvedValue({ items: [{ book: { title: "论语" }, progress: 50 }], total: 1 }),
   getReadingStats: jest.fn().mockResolvedValue({ totalBooksRead: 5, totalChaptersRead: 12, totalReadingTime: 36, readingStreak: 3, mostReadCategories: [], recentActivity: [] }),
   listAnnotations: jest.fn().mockResolvedValue({ items: [{ id: "a1", type: "注疏", content: "..." }], total: 1, page: 1, pageSize: 20 }),
@@ -63,6 +67,13 @@ const mockSegment = {
     { id: "seg1", sortOrder: 0, content: "学而时习之", versionTag: "v1", processingStatus: "raw" },
   ]),
   migrateChapterToSegments: jest.fn().mockResolvedValue({ segmentsCreated: 1, notesMigrated: 0, annotationsMigrated: 0 }),
+  assertChapterPublic: jest.fn().mockResolvedValue(undefined),
+  assertSegmentPublic: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockSimplified = {
+  forChapter: jest.fn().mockResolvedValue({ chapterId: "ch1", segments: [] }),
+  forSegment: jest.fn().mockResolvedValue({ segmentId: "seg1", text: "学而时习之" }),
 };
 
 const mockMemberBenefit = {
@@ -82,6 +93,7 @@ describe("ClassicController", () => {
         { provide: ClassicService, useValue: mockClassicSvc },
         { provide: ClassicSegmentService, useValue: mockSegment },
         { provide: ClassicPunctuationService, useValue: { peek: jest.fn(), punctuate: jest.fn() } },
+        { provide: ClassicSimplifiedService, useValue: mockSimplified },
         { provide: ClassicLibrarySeeder, useValue: mockSeeder },
         { provide: ClassicDaizhigeSeeder, useValue: mockDaizhigeSeeder },
         { provide: ClassicCompanionService, useValue: mockCompanion },
@@ -202,13 +214,53 @@ describe("ClassicController", () => {
     expect(mockClassicSvc.dictionaryLookup).toHaveBeenCalledWith("仁");
   });
 
-  it("POST /classic/translate — 白话翻译（消耗 AI 额度）", async () => {
+  it("POST /classic/translate — 未命中：消耗 AI 额度并生成", async () => {
     const req: any = { user: { id: "u1" } };
     const dto: any = { text: "学而时习之" };
+    mockMemberBenefit.consumeAiQuota.mockClear();
     const result = await ctrl.translate(req, dto);
     expect(result.translation).toBeTruthy();
     expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledWith("u1");
-    expect(mockClassicSvc.translateClassical).toHaveBeenCalledWith(dto);
+    expect(mockClassicSvc.translateClassical).toHaveBeenCalledWith(dto, "u1");
+  });
+
+  it("POST /classic/translate — 命中已有合格译文：不计 AI 次数、不调模型", async () => {
+    const req: any = { user: { id: "u1" } };
+    mockMemberBenefit.consumeAiQuota.mockClear();
+    mockClassicSvc.translateClassical.mockClear();
+    mockClassicSvc.peekTranslation.mockResolvedValueOnce({ translation: "已有译文", cached: true });
+    const result: any = await ctrl.translate(req, { text: "学而时习之" } as any);
+    expect(result).toMatchObject({ translation: "已有译文", cached: true });
+    expect(mockMemberBenefit.consumeAiQuota).not.toHaveBeenCalled();
+    expect(mockClassicSvc.translateClassical).not.toHaveBeenCalled();
+  });
+
+  it("POST /classic/segments/:id/translate — 已有译文不计次；未生成才计次", async () => {
+    const req: any = { user: { id: "u1" } };
+    mockMemberBenefit.consumeAiQuota.mockClear();
+    mockClassicSvc.segmentTranslationStatus.mockResolvedValueOnce({ segmentId: "seg1", status: "success", contentHash: "h1", result: { translation: "已有" } });
+    const hit: any = await ctrl.translateSegment(req, "seg1");
+    expect(hit).toMatchObject({ cached: true, translation: "已有" });
+    expect(mockMemberBenefit.consumeAiQuota).not.toHaveBeenCalled();
+    const miss: any = await ctrl.translateSegment(req, "seg1");
+    expect(miss.cached).toBe(false);
+    expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledWith("u1");
+    expect(mockClassicSvc.translateSegment).toHaveBeenCalledWith("seg1", "u1");
+  });
+
+  it("GET /classic/chapters/:id/segments — 先校验章节公开可读", async () => {
+    mockSegment.assertChapterPublic.mockClear();
+    await ctrl.getChapterSegments("ch1");
+    expect(mockSegment.assertChapterPublic).toHaveBeenCalledWith("ch1");
+    mockSegment.assertChapterPublic.mockRejectedValueOnce(new Error("章节不存在"));
+    await expect(ctrl.getChapterSegments("draft-ch")).rejects.toThrow("章节不存在");
+  });
+
+  it("GET /classic/chapters/:id/simplified 与 segments/:id/simplified — 简体阅读版", async () => {
+    await ctrl.getChapterSimplified("ch1");
+    await ctrl.getSegmentSimplified("seg1");
+    expect(mockSimplified.forChapter).toHaveBeenCalledWith("ch1");
+    expect(mockSimplified.forSegment).toHaveBeenCalledWith("seg1");
   });
 
   it("GET /classic/continue-reading — 继续阅读", async () => {

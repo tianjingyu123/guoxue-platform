@@ -4,6 +4,7 @@ import { ClassicController } from "./classic.controller";
 import { ClassicService } from "./classic.service";
 import { ClassicSegmentService } from "./classic-segment.service";
 import { ClassicPunctuationService } from "./classic-punctuation.service";
+import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { TextDerivedAssetService } from "./text-derived-asset.service";
 import { ClassicSegmentMigrationTask } from "./classic-segment-migration.task";
 import { ClassicsBffController } from "./classics-bff.controller";
@@ -34,7 +35,7 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
   imports: [JwtModule.register({ secret: serverConfig.jwtSecret }), AiGatewayModule, RedisModule, MemberModule],
   controllers: [ClassicController, ClassicsBffController, ClassicImageController, ClassicFontController, ClassicQaController, ClassicCommentaryController, BaziClassicController, ClassicKnowledgeController],
   providers: [PreferredNameService, 
-    ClassicService, ClassicSegmentService, ClassicPunctuationService, TextDerivedAssetService, ClassicSegmentMigrationTask, ClassicCompanionService, ClassicsBffService, ClassicImageService, ClassicQaService, ClassicIndexTask,
+    ClassicService, ClassicSegmentService, ClassicPunctuationService, ClassicSimplifiedService, TextDerivedAssetService, ClassicSegmentMigrationTask, ClassicCompanionService, ClassicsBffService, ClassicImageService, ClassicQaService, ClassicIndexTask,
     ClassicLibrarySeeder, ClassicCommentaryService, ClassicCommentarySeeder,
     ClassicBaziSeeder, ClassicDaizhigeSeeder, BaziClassicQueryService,
   ],
