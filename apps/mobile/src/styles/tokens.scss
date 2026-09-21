@@ -5,7 +5,8 @@
    ============================================================ */
 
 /* ---------- ① 原始调色板（仅供语义层引用，组件禁止直接用） ---------- */
-:root {
+:root,
+page {
   /* ⚠️ 全站锁定浅色：暗色未全站适配（hex 与 var 混用会在系统深色下半翻转花屏），
      强制浏览器只用浅色配色，防止原生控件/表单被 UA 强制深色。待暗色专项重构后再放开。 */
   color-scheme: light;
@@ -47,7 +48,8 @@
 }
 
 /* ---------- ② 语义令牌 · 浅色 ---------- */
-:root {
+:root,
+page {
   --touch-target-min: 88rpx; /* 44px */
   --radius: 16rpx;           /* 0.5rem */
 
@@ -145,7 +147,8 @@
 ---------- 深色语义令牌注释结束 ---------- */
 
 /* ---------- 字族 ---------- */
-:root {
+:root,
+page {
   --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
 }
@@ -154,7 +157,8 @@
    新代码禁止手写字号魔法数字，一律引用下列变量。
    caption 22rpx 为全站最小字号，禁止更小（纯装饰性徽标数字除外）。
    正文行高统一 1.6（page 全局已设，见 App.vue）。 */
-:root {
+:root,
+page {
   --fs-display: 44rpx;   /* 特大标题/金额 · font-weight 700 */
   --fs-title-lg: 36rpx;  /* 页面主标题 · font-weight 600 */
   --fs-title: 32rpx;     /* 卡片/区块标题 · font-weight 600 */
@@ -164,7 +168,8 @@
 }
 
 /* ---------- 五行专属色 + indigo 辅助色（从原型 globals.css 1:1 迁移） ---------- */
-:root {
+:root,
+page {
   --wuxing-wood: #2d8a4e;   /* 木 - 青绿色 */
   --wuxing-fire: #c41e3a;   /* 火 - 朱红色 */
   --wuxing-earth: #b8860b;  /* 土 - 土黄色 */
@@ -209,7 +214,8 @@
    诗词板块专属配色系统（从原型 globals.css 1:1 迁移）
    定位：深色沉浸式文化体验——深棕夜色为底，琥珀金为点缀
    ============================================================ */
-:root {
+:root,
+page {
   --poem-bg:          #1c1208;   /* 页面底色：深夜棕黑 */
   --poem-bg-2:        #241a0e;   /* 次级背景 */
   --poem-surface:     #2e1f10;   /* 卡片/面板底色 */
@@ -232,7 +238,8 @@
    var(--separator, ...) / var(--text-primary, ...) 等，变量从未定义，
    全靠 fallback 空转。本层正式定义这批语义令牌，自此统一生效、可全局调优。
    ============================================================ */
-:root {
+:root,
+page {
   --bg-page: var(--xuan-paper);        /* 页面底：宣纸 */
   --bg-card: var(--pure-white);        /* 卡片底：纯白 */
   --bg-warm: #f8f4ec;                  /* 暖底：米宣（区块衬底） */

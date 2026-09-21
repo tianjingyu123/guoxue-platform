@@ -26,6 +26,7 @@ import {
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
 import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
+import { getMiniProgramMenuSafeRight } from "@/utils/mini-program-menu";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -40,6 +41,7 @@ const legacyRouting = ref(false);
 const allowNative = ref(false);
 const qaNotFound = ref(false);
 const loginRequired = ref(false);
+const menuSafeRight = getMiniProgramMenuSafeRight();
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
@@ -345,6 +347,7 @@ onShow(() => {
       <text class="header-title">{{ pageTitle }}</text>
       <view
         class="header-action"
+        :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined"
         role="link"
         tabindex="0"
         aria-label="查看排盘历史记录"

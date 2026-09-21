@@ -611,7 +611,9 @@ async function onRefreshRanking() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: color-mix(in srgb, var(--classics-bg) 80%, transparent);
+  /* 微信小程序不支持 color-mix 时使用接近原设计的实色兜底。 */
+  background: rgba(244, 242, 238, 0.96);
+  background: color-mix(in srgb, var(--classics-bg, #f4f2ee) 80%, transparent);
   backdrop-filter: blur(20rpx);
   -webkit-backdrop-filter: blur(20rpx);
 }
@@ -632,6 +634,8 @@ async function onRefreshRanking() {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(44, 44, 44, 0.08);
   &:active { transform: scale(0.9); }
 }
 .ch-topbar-title {
@@ -811,7 +815,8 @@ async function onRefreshRanking() {
   gap: 24rpx;
   padding: 20rpx;
   border-radius: 32rpx;
-  background: var(--card);
+  background: var(--card, #ffffff);
+  border: 1rpx solid rgba(44, 44, 44, 0.08);
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   &:active { transform: scale(0.99); }
 }

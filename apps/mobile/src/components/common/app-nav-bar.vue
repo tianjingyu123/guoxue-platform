@@ -23,7 +23,7 @@
         <text class="nav-title" :style="{ color, fontSize: titleSize + 'rpx', fontWeight: titleWeight, fontFamily: serifTitle ? 'var(--font-serif)' : '' }">{{ title }}</text>
       </slot>
       <!-- 右侧：操作插槽 -->
-      <view class="nav-side nav-right">
+      <view class="nav-side nav-right" :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined">
         <slot name="right" />
       </view>
     </view>
@@ -34,6 +34,7 @@
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const props = withDefaults(
   defineProps<{
@@ -80,6 +81,7 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: 'back'): void }>()
 
 const safeTop = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 try {
   const systemInfo = uni.getSystemInfoSync()
   safeTop.value = Math.max(

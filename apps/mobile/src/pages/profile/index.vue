@@ -14,6 +14,7 @@ import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { getToken } from '@/utils/storage'
 import { usePageRefresh } from '@/composables/usePageRefresh'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const loading = ref(true)
 const error = ref('')
@@ -22,6 +23,7 @@ const isGuest = ref(!getToken())
 
 // 状态栏高度（自定义导航顶栏 paddingTop）
 const statusBarHeight = ref(20)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 // 从 API 获取的数据（响应式）
 function createEmptyUserData() {
@@ -328,7 +330,10 @@ function applyRole(role: string) {
     <!-- ===== ① 头部身份区（白卡通栏） ===== -->
     <view class="id-area" :style="{ paddingTop: statusBarHeight + 14 + 'px' }">
       <!-- 右上角操作：消息（带未读红点）+ 设置 -->
-      <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
+      <view
+        class="top-acts"
+        :style="{ top: statusBarHeight + 6 + 'px', right: menuSafeRight ? menuSafeRight + 'px' : '16rpx' }"
+      >
         <view
           class="top-act tap-press"
           role="link"

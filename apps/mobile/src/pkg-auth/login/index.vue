@@ -1156,7 +1156,8 @@ onUnmounted(() => {
   z-index: 1000;
   display: flex;
   align-items: flex-end;
-  background: rgba(34, 27, 23, 0.42);
+  /* 使用不透明底色，避免原登录页协议行透出造成“重复两行”的错觉。 */
+  background: #faf8f5;
 }
 .mini-auth-card {
   width: 100%;
@@ -1186,7 +1187,11 @@ onUnmounted(() => {
   line-height: 96rpx;
 }
 .mini-phone-button::after { border: 0; }
-.mini-phone-button-disabled { color: #7c8580; background: #e9eeeb; }
+.mini-phone-button-disabled {
+  color: #25633f;
+  background: #d8eee2;
+  border: 2rpx solid #9bcbb0;
+}
 .mini-auth-other {
   min-height: 80rpx;
   padding-top: 12rpx;

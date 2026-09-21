@@ -14,6 +14,8 @@ test('小程序进入登录页立即展示真实的一键手机号授权层，�
   assert.match(login, /手机号一键登录/u)
   assert.match(login, /class="form"/u)
   assert.match(login, /使用其他登录方式/u)
+  assert.match(login, /\.mini-auth-mask\s*\{[\s\S]*background: #faf8f5/u)
+  assert.match(login, /\.mini-phone-button-disabled\s*\{[\s\S]*color: #25633f/u)
   assert.match(login, /if \(!agreedTerms\.value\)[\s\S]*请先阅读并同意用户协议和隐私政策/u)
 })
 

@@ -655,7 +655,7 @@ async function toBook(id: string) {
   width: 88rpx;
   height: 88rpx;
   border-radius: 999rpx;
-  background: var(--brand);
+  background: var(--brand, #c41e3a);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -828,7 +828,9 @@ async function toBook(id: string) {
   right: 0;
   bottom: 0;
   z-index: 45;
-  background: color-mix(in srgb, var(--classics-bg) 90%, transparent);
+  /* 微信小程序不支持 color-mix 时保持固定操作栏可见。 */
+  background: rgba(244, 242, 238, 0.98);
+  background: color-mix(in srgb, var(--classics-bg, #f4f2ee) 90%, transparent);
   backdrop-filter: blur(20rpx);
   -webkit-backdrop-filter: blur(20rpx);
   border-top: 2rpx solid var(--border);
@@ -850,7 +852,7 @@ async function toBook(id: string) {
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  background: var(--card);
+  background: var(--card, #ffffff);
   border: 2rpx solid rgba(0, 0, 0, 0.06);
 }
 .cd-shelf-on {
@@ -869,7 +871,7 @@ async function toBook(id: string) {
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  background: var(--brand);
+  background: var(--brand, #c41e3a);
   box-shadow: 0 2rpx 12rpx rgba(196, 30, 58, 0.2);
 }
 .cd-read-text {

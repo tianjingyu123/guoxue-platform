@@ -10,6 +10,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
 import { getToken } from '@/utils/storage'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 withDefaults(defineProps<{
   compact?: boolean
@@ -20,6 +21,7 @@ withDefaults(defineProps<{
 })
 
 const unreadCount = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 async function loadUnread() {
   if (!getToken()) { unreadCount.value = 0; return }
@@ -43,7 +45,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <view class="support-actions" :class="[`support-actions--${tone}`, { 'support-actions--compact': compact }]">
+  <view
+    class="support-actions"
+    :class="[`support-actions--${tone}`, { 'support-actions--compact': compact }]"
+    :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined"
+  >
     <view
       class="support-action"
       role="button"
