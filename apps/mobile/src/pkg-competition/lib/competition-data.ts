@@ -6,6 +6,14 @@
  */
 import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost } from '@/utils/request'
 
+// 微信小程序基础库未保证提供 URLSearchParams，赛事首页首屏请求不能依赖它。
+function queryString(values: Record<string, unknown>): string {
+  return Object.entries(values)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+}
+
 // ─────────── 后端枚举 ───────────
 export type CompetitionStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
 export type RoundType = 'REGISTRATION' | 'PRELIMINARY' | 'SEMIFINAL' | 'FINAL'
@@ -285,13 +293,8 @@ export function fmtDate(iso?: string | null): string {
 export const competitionApi = {
   /** 赛事列表（公开，拉全部由页面按状态过滤；后端默认 createdAt desc） */
   async list(params: { type?: string; status?: CompetitionStatus; keyword?: string; page?: number; pageSize?: number } = {}) {
-    const q = new URLSearchParams()
-    if (params.type) q.set('type', params.type)
-    if (params.status) q.set('status', params.status)
-    if (params.keyword) q.set('keyword', params.keyword)
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 50))
-    return apiGetPaged<Competition>(`/competitions?${q.toString()}`)
+    const q = queryString({ type: params.type, status: params.status, keyword: params.keyword, page: params.page ?? 1, pageSize: params.pageSize ?? 50 })
+    return apiGetPaged<Competition>(`/competitions?${q}`)
   },
   /** 赛事详情（公开） */
   detail(id: string) {
@@ -299,10 +302,8 @@ export const competitionApi = {
   },
   /** 排名（公开） */
   rankings(id: string, roundId?: string) {
-    const q = new URLSearchParams()
-    if (roundId) q.set('roundId', roundId)
-    q.set('pageSize', '100')
-    return apiGetPaged<Ranking>(`/competitions/${id}/rankings?${q.toString()}`)
+    const q = queryString({ roundId, pageSize: 100 })
+    return apiGetPaged<Ranking>(`/competitions/${id}/rankings?${q}`)
   },
   /** 我的报名状态（登录；未报名后端返回 null） */
   myRegistration(id: string) {
@@ -334,10 +335,8 @@ export const competitionApi = {
   },
   /** 人才榜（公开·脱敏·按 talentScore 降序） */
   talents(params: { page?: number; pageSize?: number } = {}) {
-    const q = new URLSearchParams()
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 50))
-    return apiGetPaged<TalentItem>(`/competitions/talents?${q.toString()}`)
+    const q = queryString({ page: params.page ?? 1, pageSize: params.pageSize ?? 50 })
+    return apiGetPaged<TalentItem>(`/competitions/talents?${q}`)
   },
   /** 我的战绩档案（登录） */
   myTalent(optionalAuth = false) {

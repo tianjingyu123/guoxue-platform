@@ -5,6 +5,15 @@
 
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 
+// 微信小程序部分运行环境没有 URLSearchParams；视频列表是首页视频入口的首个请求，
+// 这里直接拼接查询参数，避免入口加载阶段抛出「URLSearchParams is not defined」。
+function queryString(values: Record<string, unknown>): string {
+  return Object.entries(values)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+}
+
 export interface VideoProduct {
   id: string
   name: string
@@ -550,11 +559,8 @@ export const videoApi = {
    * sort: recommend(默认)/hot/follow —— 三 tab 各驱动不同查询；错误传播给页面三态，不回退假 mock。
    */
   async listItems(params?: { page?: number; pageSize?: number; sort?: string }): Promise<VideoListItem[]> {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 50))
-    if (params?.sort) q.set('sort', params.sort)
-    const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q.toString()}`)
+    const q = queryString({ page: params?.page ?? 1, pageSize: params?.pageSize ?? 50, sort: params?.sort })
+    const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q}`)
     const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])
     const seen = new Set<string>()
     return arr.filter((v: VideoListItem) => { const k = v.title || v.id; if (seen.has(k)) return false; seen.add(k); return true })
@@ -565,12 +571,8 @@ export const videoApi = {
    * 后端 items 字段已对齐 VideoSearchResult(id/title/author/authorAvatar/cover/duration/views/publishedAt/category)，直接返回。
    */
   async search(params: { keyword?: string; category?: string; page?: number; pageSize?: number } = {}): Promise<VideoSearchResult[]> {
-    const q = new URLSearchParams()
-    if (params.keyword) q.set('keyword', params.keyword)
-    if (params.category) q.set('category', params.category)
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 20))
-    const res = await apiGet<{ items?: VideoSearchResult[] } | VideoSearchResult[]>(`/videos/search?${q.toString()}`)
+    const q = queryString({ keyword: params.keyword, category: params.category, page: params.page ?? 1, pageSize: params.pageSize ?? 20 })
+    const res = await apiGet<{ items?: VideoSearchResult[] } | VideoSearchResult[]>(`/videos/search?${q}`)
     return Array.isArray(res) ? res : (res?.items ?? [])
   },
 
