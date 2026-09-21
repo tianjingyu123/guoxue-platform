@@ -76,6 +76,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
     icon-color="#5266d4"
     icon-bg="rgba(82,102,212,0.12)"
     :welcome="welcome"
+    scene-hint="可以帮你找内容、选学伴、做学习规划，也可以随时转到专业智能体"
     :quick-prompts="quickPrompts"
     :resolve-stream="resolveStream"
     experience-key="GUIDE"
