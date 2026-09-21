@@ -6,7 +6,7 @@
  * - 智玄助手(zhixuan)/智能客服(cs) 是「按类型查到的具体智能体」：
  *   cs → GET /bots?type=CUSTOMER_SERVICE 取首个；zhixuan → GET /bots 取首个（默认主智能体）。
  * - welcome/quickPrompts/quickQuestions 为前端运营文案常量（非后端业务数据），保留。
- * - 推荐内容(课程/圈子/商品) 与「用户全部对话历史」后端无对应端点 → 返回空数组走空态。
+ * - 对话后的平台探索卡片复用 /discover/recommendations；接口失败时保持空态，不伪造内容。
  * - 失败直接 throw，让页面走 error 态，禁止 catch 返回假回复。
  */
 import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
@@ -352,9 +352,29 @@ export const agentApi = {
     }))
   },
 
-  /** 推荐内容 —— 后端无对应端点，返回空走空态 */
-  async getRecommendations(): Promise<{ courses: unknown[]; circles: unknown[]; products: unknown[] }> {
-    return { courses: [], circles: [], products: [] }
+  /**
+   * 对话页的“顺着当前继续”：使用真实个性化内容流，不把运营静态数据冒充个性化推荐。
+   * discover 返回的是统一内容卡，前端统一转成 GuidedRecommendCard 可消费的载荷。
+   */
+  async getRecommendations(): Promise<{ courses: unknown[]; circles: unknown[]; products: unknown[]; items: RecommendItem[] }> {
+    try {
+      const raw = await apiGetOptionalAuth<{ items?: Array<Record<string, any>> }>('/discover/recommendations?page=1&pageSize=6')
+      const items = (raw?.items || []).map((item) => ({
+        type: (item.type === 'course' || item.type === 'circle' || item.type === 'product' || item.type === 'article'
+          ? item.type : 'article') as RecommendItem['type'],
+        data: {
+          id: item.id,
+          title: item.title || item.name || '平台内容',
+          cover: item.cover || item.coverUrl || '',
+          excerpt: item.excerpt || item.intro || item.description || '',
+          href: item.href,
+          reason: item.reason,
+        },
+      }))
+      return { courses: [], circles: [], products: [], items }
+    } catch (_e) {
+      return { courses: [], circles: [], products: [], items: [] }
+    }
   },
 }
 

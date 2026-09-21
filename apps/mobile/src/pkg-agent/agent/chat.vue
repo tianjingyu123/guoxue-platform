@@ -27,9 +27,10 @@ const agentId = ref('')
 // 模板中多处裸访问 agentDetail 字段，收敛为具体类型会触发大量报错，保留 any
 const agentDetail = ref<any>({ name: '', freeQuota: 0, pricePerChat: 0, callPrice: 0 })
 const quickQuestions = ref<string[]>([])
-// 推荐课程/圈子来自后端动态结构（未在模板渲染，仅暂存），结构未固定，保留 any
+// 平台探索卡片来自真实 /discover/recommendations；接口不可用时保持空态
 const recommendedCourses = ref<any[]>([])
 const recommendedCircles = ref<any[]>([])
+const discoveryItems = ref<RecommendItem[]>([])
 
 const messages = ref<ChatMessage[]>([
   { id: 0, role: 'assistant', content: chatWelcome, time: nowTime() },
@@ -171,6 +172,7 @@ async function loadData() {
     messages.value = [{ id: 0, role: 'assistant', content: tailored.welcome, time: nowTime() }]
     recommendedCourses.value = recs?.courses || []
     recommendedCircles.value = recs?.circles || []
+    discoveryItems.value = recs?.items || []
     freeRemaining.value = detail?.freeQuota || 0
 
     // 续聊并回填真实历史消息（拉取失败则保留欢迎语，不伪造历史）
@@ -665,6 +667,23 @@ onUnmounted(() => {
           </view>
         </view>
 
+        <!-- 对话是平台入口：只展示接口返回的真实内容，点击后进入对应详情，不打断当前对话。 -->
+        <view v-if="showQuick && discoveryItems.length" class="discovery-deck">
+          <view class="discovery-head">
+            <view>
+              <text class="discovery-kicker">顺着当前继续</text>
+              <text class="discovery-title">平台里还有这些内容</text>
+            </view>
+            <text class="discovery-note">为你挑选</text>
+          </view>
+          <GuidedRecommendCard
+            v-for="(item, index) in discoveryItems"
+            :key="`discovery-${item.type}-${item.data?.id || index}`"
+            :item="item"
+            @tap="openRecommend"
+          />
+        </view>
+
         <view :id="scrollId" class="anchor" />
       </view>
     </scroll-view>
@@ -966,6 +985,14 @@ onUnmounted(() => {
 .quick-label { font-size: 22rpx; color: #999; }
 .quick-list { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .quick-chip { font-size: 23rpx; color: var(--agent-ink); padding: 11rpx 20rpx; border: 1rpx solid rgba(91,108,154,.1); border-radius: 999rpx; background: var(--agent-soft); }
+
+/* 平台探索区：像“下一站”一样承接对话，不遮挡输入区，也不制造强销售感。 */
+.discovery-deck { margin: 6rpx 0 18rpx 62rpx; padding: 20rpx; border: 1rpx solid rgba(201,169,110,.24); border-radius: 22rpx; background: linear-gradient(145deg, #fffdf8, #faf8f2); }
+.discovery-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
+.discovery-kicker { display: block; font-size: 18rpx; letter-spacing: 2rpx; color: #9a7444; }
+.discovery-title { display: block; margin-top: 3rpx; font-size: 27rpx; font-weight: 700; color: #332f29; }
+.discovery-note { flex-shrink: 0; font-size: 19rpx; color: #aa9b88; }
+.discovery-deck :deep(.guide-card) { margin-top: 10rpx; }
 
 /* 追问额度轻提示条（低调不打扰对话） */
 .quota-bar { flex-shrink: 0; display: flex; align-items: center; gap: 8rpx; padding: 10rpx 24rpx; background: rgba(201,169,110,0.06); border-top: 1rpx solid #f5f5f5; }
