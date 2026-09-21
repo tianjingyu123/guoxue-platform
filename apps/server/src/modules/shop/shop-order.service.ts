@@ -11,6 +11,7 @@ import { CommissionService } from "../commission/commission.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { safePagination } from "../../common/pagination";
 import { CreateOrderDto, OrderListQueryDto } from "./shop.dto";
+import { priceVoiceTopupOrder, VOICE_TOPUP_ORDER_TYPE } from "../voice/voice-topup";
 
 /** 订单缓存 TTL */
 const ORDER_CACHE_TTL = 300;
@@ -85,6 +86,9 @@ export class ShopOrderService {
         throw new BusinessException(ErrorCode.FORBIDDEN, "分站已被平台停用，暂不可续费，请联系平台客服");
       }
       actualAmount = await this.resolveBillingPrice("station_master_price", "分站年租");
+    } else if (dto.type === VOICE_TOPUP_ORDER_TYPE) {
+      // 小卜语音时长充值：targetId = 分钟档位；价格按语音计费配置服务端计算；语音未开始计费时拒绝下单
+      actualAmount = (await priceVoiceTopupOrder(this.prisma, dto.targetId)).amountYuan;
     } else if (dto.type === "PRACTITIONER_PRO") {
       // 从业者会员（工作台专业版）月付：价格真源 CommissionConfig.rateA，禁硬编码
       actualAmount = await this.resolveBillingPrice("practitioner_pro_monthly", "从业者会员");

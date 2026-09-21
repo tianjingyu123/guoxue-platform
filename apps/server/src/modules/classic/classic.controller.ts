@@ -87,7 +87,10 @@ export class ClassicController {
     return segments;
   }
 
-  /** 段落 AI 断句：已有结果（或原文已有足够标点）直接返回，不计次数 */
+  /**
+   * 段落 AI 断句。计次口径（决策人 2026-09-21）：复用已有 AI 结果也扣 AI 次数；
+   * 原文本身已有足够标点、直接返回原文的不是 AI 结果，不扣。
+   */
   @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiBearerAuth()
   @Post("segments/:id/punctuate")
@@ -96,9 +99,9 @@ export class ClassicController {
   async punctuateSegment(@Req() req: Request, @Param("id") id: string) {
     await this.segment.assertSegmentPublic(id);
     const existing = await this.punctuation.peek(id);
-    if (existing) return existing;
+    if (existing?.source === "original") return existing;
     await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.punctuation.punctuate(id, req.user.id);
+    return existing ?? this.punctuation.punctuate(id, req.user.id);
   }
 
   /** 章节简体阅读版（确定性转换，不改底本；每段带回原文段落 ID、哈希与偏移） */
@@ -114,22 +117,26 @@ export class ClassicController {
     return this.simplified.forSegment(id);
   }
 
-  /** 段落译文状态：不生成、不计次（none/generating/success/failed/expired + 人工复核状态） */
+  /**
+   * 段落译文状态：不生成、不计次，**只返回状态不返回译文正文**
+   * （复用也要扣次数，正文只能经 POST translate 取得，否则这里就成了免费读译文的旁路）
+   */
   @Get("segments/:id/translation")
-  @ApiOperation({ summary: "段落白话译文状态（绑定段落 ID 与原文版本）" })
+  @ApiOperation({ summary: "段落白话译文状态（绑定段落 ID 与原文版本；不含正文）" })
   async getSegmentTranslation(@Param("id") id: string) {
-    return this.svc.segmentTranslationStatus(id);
+    const { result: _body, ...status } = await this.svc.segmentTranslationStatus(id);
+    return status;
   }
 
-  /** 段落白话译文：已有合格译文直接返回且不计 AI 次数；未生成才计次并调用模型 */
+  /** 段落白话译文：计 AI 次数（复用已有译文也扣）；已有合格译文不再调用模型 */
   @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiBearerAuth()
   @Post("segments/:id/translate")
-  @ApiOperation({ summary: "按需生成段落白话译文（跨用户复用；命中不计次）" })
+  @ApiOperation({ summary: "按需生成段落白话译文（跨用户复用；复用也计次，但不再调用模型）" })
   async translateSegment(@Req() req: Request, @Param("id") id: string) {
     const st = await this.svc.segmentTranslationStatus(id);
-    if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
     await this.memberBenefit.consumeAiQuota(req.user.id);
+    if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
     return this.svc.translateSegment(id, req.user.id);
   }
 
@@ -390,10 +397,10 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Req() req: Request, @Body() dto: TranslateDto) {
-    // 命中已有合格译文不调模型、不计次数（是否计次待产品拍板，拍板前不擅自扣）
+    // 计次口径（决策人 2026-09-21）：复用已有译文也扣 AI 次数；命中时只是不再调用模型
+    await this.memberBenefit.consumeAiQuota(req.user.id);
     const hit = await this.svc.peekTranslation(dto);
     if (hit) return hit;
-    await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.svc.translateClassical(dto, req.user.id);
   }
 

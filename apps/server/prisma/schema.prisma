@@ -1390,6 +1390,7 @@ enum OrderType {
   LIVESTREAM
   BUNDLE
   PRACTITIONER_PRO // 从业者会员 ¥98/月（独立于 MEMBER 书院会员）
+  VOICE_MINUTES // 小卜语音时长充值（targetId=分钟档位，2026-09-21）
 }
 
 enum OrderStatus {

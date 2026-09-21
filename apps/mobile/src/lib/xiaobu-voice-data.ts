@@ -122,7 +122,20 @@ export const SCENE_TEXT: Record<string, string> = {
   device: '硬件设备',
 }
 
+export interface VoiceTopupPacks {
+  canTopUp: boolean
+  reason: string | null
+  orderType: string
+  pricePerMinuteCents: number
+  availableMinutes: number
+  packs: { minutes: number; amountYuan: number }[]
+}
+
 export const xiaobuVoiceApi = {
+  /** 语音时长充值档位（报告赠送时长用完后可充值；语音未开始计费时 canTopUp=false） */
+  topupPacks(): Promise<VoiceTopupPacks> {
+    return apiGet<VoiceTopupPacks>('/voice/topup/packs')
+  },
   capabilities(): Promise<VoiceCapabilities> {
     return apiGetOptionalAuth<VoiceCapabilities>('/voice/capabilities')
   },

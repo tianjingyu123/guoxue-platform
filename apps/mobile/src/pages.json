@@ -1353,6 +1353,12 @@
           }
         },
         {
+          "path": "agent/xiaobu-voice-topup",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "agent/xiaobu-devices",
           "style": {
             "navigationStyle": "custom"

@@ -15,6 +15,7 @@ import { RMB_TO_FEN } from "../../common/constants";
 import { isStocklessOrderType } from "./shop-order-types.constants";
 import { HuifuService } from "../huifu/huifu.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
+import { reverseVoiceTopupOrderInTx } from "../voice/voice-topup";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -212,6 +213,8 @@ export class ShopRefundService {
       await this.entitlement.revokeSourceWithTx(tx, order.userId, "ORDER", order.id, reason || "订单退款");
       if (order.type === "MEMBER") await this.rebuildSchoolMembershipAfterRefund(tx, order.userId, order.id);
       if (order.type === "PRACTITIONER_PRO") await this.rebuildPractitionerMembershipAfterRefund(tx, order.userId);
+      // 语音时长充值：扣回本单发放的时长（最多扣到可用余额，已用部分记流水待人工核对）
+      if (order.type === "VOICE_MINUTES") await reverseVoiceTopupOrderInTx(tx, order);
       return true;
     });
     if (!changed) {

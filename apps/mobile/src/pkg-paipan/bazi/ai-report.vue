@@ -925,6 +925,8 @@ onLoad((q) => {
             每份报告附赠 {{ Math.round(voiceQuota.includedSecondsPerReport / 60) }} 分钟，单次通话最长
             {{ Math.round(voiceQuota.sessionMaxSeconds / 60) }} 分钟
           </text>
+          <!-- 赠送时长用完可充值继续（决策人 2026-09-21）；未开始计费时不显示，避免服务没开放就引导付费 -->
+          <text v-if="voiceQuota.charging" class="vq-topup" data-testid="report-topup" @tap="navigateTo('/pkg-agent/agent/xiaobu-voice-topup')">充值时长 ›</text>
         </view>
 
         <view class="actions">
@@ -1330,4 +1332,5 @@ onLoad((q) => {
 .vq-val { font-size: 28rpx; font-weight: 700; color: #2E4B58; }
 .vq-sub { font-size: 21rpx; font-weight: 400; color: #999; }
 .vq-note { font-size: 21rpx; color: #999; line-height: 1.6; }
+.vq-topup { align-self: flex-end; font-size: 24rpx; color: #C41E3A; padding: 8rpx 0; }
 </style>

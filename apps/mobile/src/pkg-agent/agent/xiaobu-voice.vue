@@ -168,6 +168,10 @@ function useText() {
   else goBack()
 }
 
+function openTopup() {
+  navigateTo('/pkg-agent/agent/xiaobu-voice-topup')
+}
+
 function openHistory() {
   navigateTo('/pkg-agent/agent/xiaobu-voice-history')
 }
@@ -236,6 +240,8 @@ onUnmounted(stopTimer)
 
       <view v-else-if="state === 'failed'" class="card" data-testid="voice-failed">
         <text class="card-text">{{ errorText }}</text>
+        <!-- 时长用完：可充值继续（决策人 2026-09-21） -->
+        <view v-if="/额度不足/.test(errorText)" class="btn btn-primary" data-testid="voice-topup" @tap="openTopup"><text class="btn-text-primary">充值时长</text></view>
         <view class="row">
           <view v-if="retryable" class="btn btn-primary" @tap="start"><text class="btn-text-primary">重试</text></view>
           <view class="btn" @tap="useText"><text class="btn-text">改用文字</text></view>

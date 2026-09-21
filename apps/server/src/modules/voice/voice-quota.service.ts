@@ -70,6 +70,8 @@ export interface VoicePricingConfig {
   warnAtSeconds: number[];
   /** 试聊剩余提示节点（秒）：只提示一次，全程倒计时会产生压迫感 */
   trialWarnAtSeconds: number[];
+  /** 语音时长充值档位（分钟）：报告赠送时长用完后按 userMicroPerMinute 充值（决策人 2026-09-21） */
+  topUpPackMinutes: number[];
 }
 
 /** 1 元 = 1_000_000 micro */
@@ -89,6 +91,7 @@ export const DEFAULT_VOICE_PRICING: VoicePricingConfig = {
   graceSeconds: 60,
   warnAtSeconds: [300, 60],
   trialWarnAtSeconds: [30],
+  topUpPackMinutes: [10, 30, 60],
 };
 
 export const DEFAULT_VOICE_BILLING: VoiceBillingConfig = {
@@ -104,6 +107,17 @@ export const DEFAULT_VOICE_BILLING: VoiceBillingConfig = {
 
 export type VoiceTier = "lite" | "standard";
 
+/** 解析后台配置 voice_billing_config（缺省项取默认值）；供服务与不走注入的调用方（如订单链路）共用 */
+export function parseVoiceBillingConfig(raw: string): VoiceBillingConfig {
+  const parsed = JSON.parse(raw);
+  return {
+    ...DEFAULT_VOICE_BILLING,
+    ...parsed,
+    supplierMicroPerMinute: { ...DEFAULT_VOICE_BILLING.supplierMicroPerMinute, ...(parsed.supplierMicroPerMinute || {}) },
+    pricing: { ...DEFAULT_VOICE_PRICING, ...(parsed.pricing || {}) },
+  };
+}
+
 @Injectable()
 export class VoiceQuotaService {
   private readonly logger = new Logger(VoiceQuotaService.name);
@@ -116,15 +130,7 @@ export class VoiceQuotaService {
   async getConfig(): Promise<VoiceBillingConfig> {
     try {
       const cfg = await this.system?.getConfig("voice_billing_config");
-      if (cfg?.configValue) {
-        const parsed = JSON.parse(cfg.configValue);
-        return {
-          ...DEFAULT_VOICE_BILLING,
-          ...parsed,
-          supplierMicroPerMinute: { ...DEFAULT_VOICE_BILLING.supplierMicroPerMinute, ...(parsed.supplierMicroPerMinute || {}) },
-          pricing: { ...DEFAULT_VOICE_PRICING, ...(parsed.pricing || {}) },
-        };
-      }
+      if (cfg?.configValue) return parseVoiceBillingConfig(cfg.configValue);
     } catch (error: any) {
       this.logger.warn(`语音计费配置解析失败，使用默认（不向用户收费）：${error?.message || error}`);
     }
