@@ -9,7 +9,7 @@
  * 🔴 AI 只解读，不算盘：盘面是后端已存档的排盘记录（引擎算的），
  * AI 拿到的是算好的结果。合规红线由后端 prompt 内置（不断生死、不诊病、不承诺）。
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -97,6 +97,16 @@ function bodyOf(res: any): string {
   if (typeof res.text === 'string') return res.text
   return ''
 }
+
+const resultText = computed(() => bodyOf(result.value))
+const resultLead = computed(() => {
+  const first = resultText.value.split(/\n+/u).map((x) => x.trim()).find(Boolean) || '解读已完成，可以继续查看盘面依据。'
+  return first.length > 76 ? `${first.slice(0, 76)}…` : first
+})
+const resultPoints = computed(() => resultText.value.split(/\n+/u).map((x) => x.trim()).filter(Boolean).slice(1, 4))
+
+function openHistory() { navigateTo('/paipan/bazi/history') }
+function openAgents() { navigateTo('/agents') }
 </script>
 
 <template>
@@ -174,7 +184,24 @@ function bodyOf(res: any): string {
           title="AI 解读"
           :subtitle="SCHOOLS.find((s) => s.key === school)?.label || '通用分析'"
         />
+        <view class="ai-lead">
+          <text class="ai-lead-label">先看结论</text>
+          <text class="ai-lead-text">{{ resultLead }}</text>
+        </view>
+        <view v-if="resultPoints.length" class="ai-points">
+          <view v-for="(point, index) in resultPoints" :key="index" class="ai-point">
+            <text class="ai-point-mark">{{ index + 1 }}</text>
+            <text class="ai-point-text">{{ point }}</text>
+          </view>
+        </view>
         <text class="ai-result">{{ bodyOf(result) || '（本次未返回解读内容）' }}</text>
+        <view class="ai-next">
+          <text class="ai-next-title">接下来可以</text>
+          <view class="ai-next-row">
+            <view class="ai-next-action" @tap="openHistory"><AppIcon name="book-open" :size="22" color="#C41E3A" /><text>查看完整盘面</text></view>
+            <view class="ai-next-action" @tap="openAgents"><AppIcon name="message-circle" :size="22" color="#315F7A" /><text>继续找智能体追问</text></view>
+          </view>
+        </view>
       </PaperCard>
 
       <view v-if="result" class="ai-disc">
@@ -227,6 +254,18 @@ function bodyOf(res: any): string {
   border-color: #C41E3A;
   background: rgba(196, 30, 58, 0.04);
 }
+
+.ai-lead { margin: 10rpx 0 18rpx; padding: 20rpx; border-radius: 16rpx; background: rgba(196, 30, 58, 0.06); }
+.ai-lead-label { display: block; font-size: 21rpx; color: #9f6d65; }
+.ai-lead-text { display: block; margin-top: 8rpx; font-size: 30rpx; line-height: 1.5; font-weight: 700; color: #3A2A1E; }
+.ai-points { display: flex; flex-direction: column; gap: 10rpx; margin-bottom: 18rpx; }
+.ai-point { display: flex; align-items: flex-start; gap: 10rpx; }
+.ai-point-mark { width: 28rpx; height: 28rpx; flex-shrink: 0; border-radius: 50%; background: rgba(49, 95, 122, 0.12); color: #315F7A; font-size: 19rpx; line-height: 28rpx; text-align: center; }
+.ai-point-text { flex: 1; font-size: 23rpx; line-height: 1.5; color: #63574e; }
+.ai-next { margin-top: 22rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(58, 42, 30, 0.1); }
+.ai-next-title { display: block; margin-bottom: 12rpx; font-size: 21rpx; color: #8b7b70; }
+.ai-next-row { display: flex; gap: 12rpx; }
+.ai-next-action { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx; min-height: 68rpx; border-radius: 12rpx; background: #fff; border: 1rpx solid rgba(58, 42, 30, 0.1); color: #4b4038; font-size: 22rpx; }
 
 .ai-record-avatar {
   display: flex;
