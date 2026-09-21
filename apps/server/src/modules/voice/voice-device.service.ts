@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { normalizeDeviceSerial } from "./xiaozhi/xiaozhi-protocol";
 
 /**
  * 圈主 IP 硬件设备台账与绑定状态机（S09）
@@ -78,7 +79,8 @@ export class VoiceDeviceService {
   // ───────── 平台侧 ─────────
 
   async register(adminId: string, input: { serial: string; productSku: string; circleId?: string | null; agentProfileId?: string | null }) {
-    const serial = (input.serial || "").trim();
+    // 小智协议终端以 MAC 作序列号：带冒号/横线的 MAC 统一规范为 12 位大写十六进制，与 OTA 上报的 Device-Id 一致
+    const serial = normalizeDeviceSerial(input.serial) ?? (input.serial || "").trim();
     if (serial.length < 6 || serial.length > 64 || !/^[A-Za-z0-9_-]+$/.test(serial)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "序列号格式不正确");
     }
@@ -172,10 +174,25 @@ export class VoiceDeviceService {
     if (!d || d.status !== "unbound" || !d.bindCodeExpiresAt || d.bindCodeExpiresAt < new Date()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "绑定码无效或已过期，请联系客服重新获取");
     }
+    return this.bindUnboundDevice(userId, d.id, d.bindCodeHash);
+  }
+
+  /**
+   * 未绑定设备 → 绑定到 userId（平台绑定码与小智终端激活码共用）。
+   * 条件更新保证并发只有一次成功；绑定代次 +1，新主人看不到此前任何历史。
+   */
+  async bindUnboundDevice(userId: string, deviceId: string, expectBindCodeHash?: string | null) {
+    const d = await this.prisma.voiceDevice.findUnique({ where: { id: deviceId } });
+    if (!d || d.status !== "unbound") throw new BusinessException(ErrorCode.CONFLICT, "设备已被绑定或不可用，请刷新后查看");
     const nextVersion = d.bindingVersion + 1;
     return this.prisma.$transaction(async (tx) => {
       const r = await tx.voiceDevice.updateMany({
-        where: { id: d.id, status: "unbound", bindingVersion: d.bindingVersion, bindCodeHash: d.bindCodeHash },
+        where: {
+          id: d.id,
+          status: "unbound",
+          bindingVersion: d.bindingVersion,
+          ...(expectBindCodeHash !== undefined ? { bindCodeHash: expectBindCodeHash } : {}),
+        },
         data: { status: "bound", currentUserId: userId, bindingVersion: nextVersion, bindCodeHash: null, bindCodeExpiresAt: null },
       });
       if (r.count !== 1) throw new BusinessException(ErrorCode.CONFLICT, "设备刚被绑定，请刷新后查看");

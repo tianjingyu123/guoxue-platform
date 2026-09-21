@@ -199,6 +199,10 @@ export const xiaobuVoiceApi = {
   bindDevice(bindCode: string): Promise<VoiceDeviceView> {
     return apiPost('/voice/devices/bind', { bindCode })
   },
+  /** 小智协议终端：输入设备开机播报的数字激活码完成绑定 */
+  activateDevice(activationCode: string): Promise<VoiceDeviceView> {
+    return apiPost('/voice/devices/activate', { activationCode })
+  },
   unbindDevice(id: string): Promise<VoiceDeviceView> {
     return apiPost(`/voice/devices/${encodeURIComponent(id)}/unbind`, {})
   },

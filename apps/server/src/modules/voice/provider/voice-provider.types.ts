@@ -51,6 +51,11 @@ export interface VoiceProviderCapabilities {
   answerCompleteness: CapabilityState;
   /** 是否会录制、保存或允许复播实时对话音频。未取得接口与授权前热卜一律不录不存 */
   audioRecording: CapabilityState;
+  /**
+   * 设备音频中继：热卜服务端接住小智协议终端的 Opus 音频流，转给供应商的实时语音服务并把回复音频送回设备
+   * （「热卜主业务、小智协议终端」模式）。真实语音通话服务包的接入方式签约后才知道。
+   */
+  deviceAudioRelay: CapabilityState;
 }
 
 export interface ProviderProbeResult {
@@ -163,10 +168,60 @@ export class VoiceProviderError extends Error {
   }
 }
 
+/** 设备音频参数（小智终端默认上行 Opus 16kHz 单声道 60ms 帧） */
+export interface StreamAudioParams {
+  codec: "opus";
+  sampleRate: number;
+  channels: number;
+  frameDurationMs: number;
+}
+
+/** 用户化名、智能体与最小上下文已在 issueSession 交给供应商，中继只按供应商会话号关联 */
+export interface DeviceStreamRequest {
+  providerSessionId: string;
+  correlationId: string;
+  /** 设备上行音频参数；供应商据此决定下行参数 */
+  uplink: StreamAudioParams;
+  timeoutMs: number;
+}
+
+/** 设备端控制事件（由协议层从设备 JSON 翻译而来，与具体终端协议无关） */
+export type DeviceStreamControl =
+  | { type: "listen_start"; mode: "auto" | "manual" | "realtime" }
+  | { type: "listen_stop" }
+  | { type: "abort"; reason?: string }
+  | { type: "wake"; text?: string };
+
+/** 供应商回给设备的事件；isMock=true 的内容一律不得当成真实识别/合成结果 */
+export type DeviceStreamEvent =
+  | { type: "stt"; text: string; isMock: boolean }
+  | { type: "emotion"; emotion: string }
+  | { type: "tts_start" }
+  | { type: "tts_sentence"; text: string }
+  | { type: "audio"; opus: Buffer }
+  | { type: "tts_stop" }
+  /** 供应商侧检测到的用户语音活动（刷新空闲计时） */
+  | { type: "user_activity" }
+  | { type: "error"; code: VoiceProviderErrorCode; message: string };
+
+export interface DeviceStream {
+  /** 下行音频参数（写进给设备的 hello） */
+  readonly downlink: StreamAudioParams;
+  pushAudio(opus: Buffer): void;
+  control(c: DeviceStreamControl): void;
+  onEvent(listener: (e: DeviceStreamEvent) => void): void;
+  close(reason: string): void;
+}
+
 export interface VoiceProvider {
   readonly id: string;
   readonly isMock: boolean;
   probe(): Promise<ProviderProbeResult>;
+  /**
+   * 打开设备音频中继（可选能力）。未实现即表示该供应商不支持设备中继，
+   * 协议层会告知设备「语音服务暂未开放」并结束会话，不伪造对话。
+   */
+  openDeviceStream?(req: DeviceStreamRequest): Promise<DeviceStream>;
   issueSession(req: IssueSessionRequest): Promise<IssueSessionResult>;
   endSession(req: EndSessionRequest): Promise<EndSessionResult>;
   /**

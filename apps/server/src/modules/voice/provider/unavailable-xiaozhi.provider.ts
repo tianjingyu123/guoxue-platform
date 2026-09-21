@@ -20,6 +20,7 @@ export const ALL_UNKNOWN: VoiceProviderCapabilities = {
   memoryControl: "unknown",
   answerCompleteness: "unknown",
   audioRecording: "unknown",
+  deviceAudioRelay: "unknown",
 };
 
 export const VOICE_NOT_OPEN_MESSAGE = "小卜语音暂未开放，你可以先用文字和小卜聊。";

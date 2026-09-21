@@ -1,5 +1,8 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import { MockEchoDeviceStream } from "./mock-device-stream";
 import {
+  DeviceStream,
+  DeviceStreamRequest,
   EndSessionRequest,
   EndSessionResult,
   IssueSessionRequest,
@@ -43,6 +46,8 @@ const MOCK_CAPABILITIES: VoiceProviderCapabilities = {
   memoryControl: "unknown",
   answerCompleteness: "unknown",
   audioRecording: "unsupported",
+  // 模拟器只「回放」设备上行音频，用来验证协议与音频链路；不做识别与合成
+  deviceAudioRelay: "supported",
 };
 
 export const MOCK_SIGNATURE_HEADER = "x-xiaobu-mock-signature";
@@ -57,7 +62,9 @@ export class MockXiaozhiProvider implements VoiceProvider {
   private readonly issued = new Map<string, { correlationId: string; idempotencyKey: string }>();
   private readonly byIdem = new Map<string, string>();
   /** 调用计数：测试据此断言「重复请求没有重复调用供应商」 */
-  readonly calls = { issue: 0, end: 0 };
+  readonly calls = { issue: 0, end: 0, stream: 0 };
+  /** 测试可读：最近打开的设备中继 */
+  lastStream: MockEchoDeviceStream | null = null;
 
   behave(b: MockBehavior) {
     this.behavior = { ...b };
@@ -106,6 +113,16 @@ export class MockXiaozhiProvider implements VoiceProvider {
       throw new VoiceProviderError("REJECTED", "模拟供应商不认识该会话", false);
     }
     return { stopConfirmed: this.behavior.stopConfirmed ?? true, isMock: true };
+  }
+
+  /** 设备音频中继（模拟）：原样回放用户刚说的话，所有文本标注「模拟」 */
+  async openDeviceStream(req: DeviceStreamRequest): Promise<DeviceStream> {
+    this.calls.stream++;
+    if (!this.issued.has(req.providerSessionId)) {
+      throw new VoiceProviderError("REJECTED", "模拟供应商不认识该会话", false);
+    }
+    this.lastStream = new MockEchoDeviceStream(req);
+    return this.lastStream;
   }
 
   /** 测试用：按模拟器自己的格式生成一条带签名的用量回调 */

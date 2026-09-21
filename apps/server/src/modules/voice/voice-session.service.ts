@@ -175,12 +175,21 @@ export class VoiceSessionService {
    * 硬件会话（S09）：设备必须绑定在本人名下、未停用、且已由**真实供应商**激活。
    * 商业固件与 API 未接通前 activationState 恒为 pending_vendor，这里返回「待开通」。
    */
-  async startForDevice(userId: string, deviceId: string, clientRequestId: string) {
+  async startForDevice(
+    userId: string,
+    deviceId: string,
+    clientRequestId: string,
+    /** 仅小智协议终端接入层传 true：模拟供应商下用于协议与链路契约测试（生产环境注册表禁用模拟供应商） */
+    opts: { allowPendingVendorForMockRelay?: boolean } = {},
+  ) {
     if (!clientRequestId || clientRequestId.length > 64) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少客户端请求号");
     }
     const d = await this.devices.assertUsable(userId, deviceId);
-    if (d.activationState !== "activated") {
+    // activationState 只能由真实供应商置为 activated。App 发起的硬件会话一律按此判断（未激活显示「待开通」）；
+    // 只有协议终端接入层在模拟供应商下显式放行，会话照常标记 providerIsMock=true，不代表真实语音接通
+    const mockRelay = opts.allowPendingVendorForMockRelay === true && this.provider.isMock;
+    if (d.activationState !== "activated" && !mockRelay) {
       return { available: false as const, userMessage: "设备待开通：商业固件与语音服务接通后即可使用。", isMock: this.provider.isMock };
     }
     const context = {

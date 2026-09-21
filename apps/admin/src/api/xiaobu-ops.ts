@@ -39,6 +39,27 @@ export interface ProviderStatus {
   userRefStable: boolean;
 }
 
+export interface XiaozhiTerminal {
+  seenId: string;
+  serialHint: string;
+  deviceId: string | null;
+  registered: boolean;
+  status: string | null;
+  canRegister: boolean;
+  info: {
+    chipModel: string | null;
+    firmwareName: string | null;
+    firmwareVersion: string | null;
+    idfVersion: string | null;
+    boardType: string | null;
+    boardName: string | null;
+    flashSize: number | null;
+    userAgent: string | null;
+  };
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
 export interface AdminVoiceSession {
   id: string;
   requestId: string;
@@ -106,6 +127,15 @@ export const xiaobuOpsApi = {
   },
   async disableDevice(id: string, reason: string) {
     const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/disable`, { reason });
+    return data as AdminDevice;
+  },
+  /** 小智协议终端：最近 OTA 上报的终端（型号/芯片/固件；不含明文 MAC） */
+  async terminals() {
+    const { data } = await api.get("/admin/xiaobu/terminals");
+    return (Array.isArray(data) ? data : []) as XiaozhiTerminal[];
+  },
+  async registerTerminal(seenId: string, body: { productSku: string; circleId?: string }) {
+    const { data } = await api.post(`/admin/xiaobu/terminals/${encodeURIComponent(seenId)}/register`, body);
     return data as AdminDevice;
   },
   async enableDevice(id: string) {

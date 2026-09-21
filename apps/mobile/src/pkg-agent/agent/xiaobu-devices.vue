@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
  * 我的小卜硬件（S09）：扫码/输入绑定码绑定、解绑、转赠、接收转赠。
+ * 小智协议终端开机会逐位播报数字激活码：输入纯数字即按激活码绑定。
  *
  * 商业固件与语音接口未接通前，设备语音显示「待开通」——绑定关系先建好，真实通话等供应商激活。
  * 转赠后新主人看不到原主人的历史（服务端按绑定代次隔离）。
@@ -60,7 +61,12 @@ function scan() {
 
 function bind() {
   const c = code.value.trim()
-  if (c.length < 10) { uni.showToast({ title: '请输入完整的绑定码', icon: 'none' }); return }
+  // 设备播报的激活码是 4—8 位数字；平台绑定码是 15 位字母数字
+  if (/^\d{4,8}$/.test(c)) {
+    run(() => xiaobuVoiceApi.activateDevice(c), '绑定成功，设备稍后自动连上').then(() => { code.value = '' })
+    return
+  }
+  if (c.length < 10) { uni.showToast({ title: '请输入完整的绑定码或设备播报的激活码', icon: 'none' }); return }
   run(() => xiaobuVoiceApi.bindDevice(c), '绑定成功').then(() => { code.value = '' })
 }
 
@@ -112,7 +118,7 @@ onShow(load)
     <view class="card">
       <text class="label">绑定或接收设备</text>
       <view class="input-row">
-        <input v-model="code" class="input" maxlength="40" placeholder="输入设备绑定码或转赠码" data-testid="device-code" />
+        <input v-model="code" class="input" maxlength="40" placeholder="输入设备播报的激活码、绑定码或转赠码" data-testid="device-code" />
         <view class="icon-btn" @tap="scan"><app-icon name="qr-code" :size="36" color="#666666" /></view>
       </view>
       <view class="row">
@@ -134,7 +140,7 @@ onShow(load)
     </view>
     <view v-else-if="!devices.length" class="state" data-testid="device-empty">
       <text class="state-text">还没有绑定设备</text>
-      <text class="hint">在设备包装或屏幕上找到绑定码，输入后即可绑定。</text>
+      <text class="hint">设备开机后会播报一串数字激活码，或在设备包装上找到绑定码，输入后即可绑定。</text>
     </view>
     <view v-else class="list">
       <view v-for="d in devices" :key="d.id" class="item">
