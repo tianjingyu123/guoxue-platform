@@ -554,7 +554,7 @@ async function toggleFavorite() {
 .desc { display: block; font-size: 30rpx; color: var(--text); line-height: 1.7; }
 .desc-empty { padding: 0 28rpx 28rpx; color: var(--text-soft); }
 /* 底部操作栏 */
-.action-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--surface); border-top: 1rpx solid var(--border, #eee); padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; }
+.action-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: #ffffff; border-top: 1rpx solid var(--border, #eee); box-shadow: 0 -8rpx 24rpx rgba(44,44,44,0.08); padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; }
 /* 左侧图标组：每项 ≥88rpx 触达区·图标+文字·收藏激活有浅红底衬（X5 防御：内容层 relative+z-index） */
 .action-icons { display: flex; gap: 8rpx; }
 .action-ico { position: relative; z-index: 1; min-width: 88rpx; min-height: 88rpx; padding: 8rpx 4rpx; border-radius: 16rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
@@ -570,7 +570,7 @@ async function toggleFavorite() {
 .btn-buy-text { font-size: 26rpx; font-weight: 500; color: #fff; }
 /* 规格面板 */
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-.spec-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--surface); border-radius: 32rpx 32rpx 0 0; max-height: 80vh; padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
+.spec-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #ffffff; border-radius: 32rpx 32rpx 0 0; max-height: 80vh; padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
 .sp-head { display: flex; gap: 24rpx; padding-bottom: 28rpx; border-bottom: 1rpx solid var(--border, #eee); }
 .sp-thumb { width: 160rpx; height: 160rpx; border-radius: 16rpx; overflow: hidden; background: var(--surface-sunken); }
 .sp-thumb-img { width: 100%; height: 100%; }

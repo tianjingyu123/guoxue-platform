@@ -547,7 +547,7 @@ onShow(() => {
 .faq-a { font-size: 22rpx; color: #8A8478; margin-top: 8rpx; display: block; line-height: 1.5; }
 
 /* 底部购买栏 */
-.buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(250,248,245,0.95); backdrop-filter: blur(16rpx); border-top: 2rpx solid #E8E3DB; padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
+.buy-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #faf8f5; border-top: 2rpx solid #E8E3DB; box-shadow: 0 -6rpx 20rpx rgba(44,44,44,0.06); padding-bottom: env(safe-area-inset-bottom); z-index: 50; }
 .buy-bar-inner { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
 .buy-price-box { display: flex; flex-direction: column; }
 .buy-price-row { display: flex; align-items: baseline; gap: 4rpx; }

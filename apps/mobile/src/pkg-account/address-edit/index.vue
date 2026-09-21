@@ -129,7 +129,15 @@
           <view class="picker-ph" />
         </view>
 
-        <scroll-view scroll-y class="picker-list">
+        <scroll-view
+          :key="`${pickerSession}-${pickerStep}`"
+          scroll-y
+          class="picker-list"
+          :scroll-top="0"
+          :show-scrollbar="true"
+          :enhanced="true"
+          :bounces="true"
+        >
           <template v-if="pickerStep === 'province'">
             <view
               v-for="p in provinces"
@@ -208,6 +216,8 @@ const showPicker = ref(false)
 const pickerStep = ref<'province' | 'city' | 'district'>('province')
 const tempProvince = ref('')
 const tempCity = ref('')
+// 微信真机关闭 scroll-view 后可能保留失效的触摸状态；每次打开强制创建新实例。
+const pickerSession = ref(0)
 
 const pickerCities = computed(() => (tempProvince.value ? Object.keys(REGIONS[tempProvince.value] || {}) : []))
 const pickerDistricts = computed(() =>
@@ -283,6 +293,7 @@ async function handleSave() {
 }
 
 function openPicker() {
+  pickerSession.value += 1
   tempProvince.value = province.value || ''
   tempCity.value = city.value || ''
   pickerStep.value = 'province'
@@ -570,7 +581,10 @@ function selectDistrict(d: string) {
   width: 80rpx;
 }
 .picker-list {
+  /* 微信小程序 scroll-view 必须有明确高度，仅 max-height 在二次打开时可能无法滚动。 */
+  height: calc(70vh - 120rpx);
   max-height: calc(70vh - 120rpx);
+  overscroll-behavior: contain;
 }
 .picker-item {
   display: flex;

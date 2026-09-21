@@ -686,7 +686,7 @@ function goService() {
   gap: 20rpx;
   padding: 24rpx;
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border-top: 2rpx solid #ECE5DB;
 }
 .btn-prev {

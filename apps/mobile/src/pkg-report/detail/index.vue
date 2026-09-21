@@ -305,7 +305,7 @@ onMounted(loadDetail)
 .rd-feedback-text, .rd-feedback-link { font-size: 22rpx; }
 .rd-feedback-text { color: #A1988C; }
 .rd-feedback-link { color: #9A6F34; font-weight: 600; }
-.rd-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom)); background: rgba(250,248,245,.96); border-top: 1rpx solid rgba(99,77,49,.08); backdrop-filter: blur(18px); }
+.rd-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom)); background: #faf8f5; border-top: 1rpx solid rgba(99,77,49,.08); box-shadow: 0 -6rpx 20rpx rgba(44,44,44,.06); }
 .rd-footer-btn { height: 84rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: #2B2620; box-shadow: 0 8rpx 20rpx rgba(43,38,32,.16); }
 .rd-footer-text { font-size: 28rpx; font-weight: 650; color: #FFF; }
 .rd-state { min-height: 720rpx; padding: 80rpx 64rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }

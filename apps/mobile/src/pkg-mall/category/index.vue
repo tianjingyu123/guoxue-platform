@@ -477,7 +477,7 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
 .empty-reset { font-size: 26rpx; color: var(--brand); margin-top: 20rpx; }
 /* 筛选面板 */
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; }
-.filter-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: var(--surface); border-radius: 32rpx 32rpx 0 0; padding-bottom: env(safe-area-inset-bottom); }
+.filter-panel { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #ffffff; border-radius: 32rpx 32rpx 0 0; padding-bottom: env(safe-area-inset-bottom); }
 .fp-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; border-bottom: 1rpx solid var(--border, #eee); }
 .fp-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
 .fp-body { padding: 28rpx; }

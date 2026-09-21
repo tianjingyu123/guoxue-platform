@@ -396,7 +396,7 @@ async function submit() {
   left: 0;
   right: 0;
   padding: 16rpx 32rpx;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border-top: 1rpx solid #E8E3DB;
 }
 .submit-hint {

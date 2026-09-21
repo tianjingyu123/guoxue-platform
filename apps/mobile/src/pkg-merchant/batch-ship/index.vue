@@ -303,7 +303,7 @@ $gold: #c6a15b;
 .empty-sub { margin-top: 10rpx; color: $muted; font-size: 12px; }
 .scroll-space { height: 190rpx; }
 
-.bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; align-items: center; gap: 24rpx; padding: 18rpx 28rpx; background: rgba(255,253,249,.96); border-top: 1px solid $line; backdrop-filter: blur(14px); }
+.bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; align-items: center; gap: 24rpx; padding: 18rpx 28rpx; background: #fffdf9; border-top: 1px solid $line; box-shadow: 0 -6rpx 20rpx rgba(44,44,44,.06); }
 .bottom-copy { flex: 1; min-width: 0; }
 .bottom-main { display: block; color: $ink; font-size: 14px; font-weight: 700; }
 .bottom-sub { display: block; margin-top: 5rpx; color: $muted; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
