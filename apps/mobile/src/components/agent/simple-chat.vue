@@ -61,6 +61,8 @@ const props = defineProps<{
   iconBg: string
   welcome: string
   quickPrompts: string[]
+  /** 当前智能体在本场景能完成的事情，作为进入对话后的方向提示。 */
+  sceneHint?: string
   /** 智能体专业模板键；GUIDE / SERVICE / 各领域 type */
   experienceKey?: string
   /** 用于生成专属题签与跨专业路由 */
@@ -335,6 +337,12 @@ function reset() {
       <view class="refresh" role="button" aria-label="重新开始对话" @tap="reset"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
     </view>
 
+    <!-- 场景能力提示：让用户知道当前助手能做什么，也为后续内容分发留出稳定入口。 -->
+    <view v-if="sceneHint" class="scene-hint" role="status">
+      <view class="scene-hint__pulse" />
+      <text class="scene-hint__text">{{ sceneHint }}</text>
+    </view>
+
     <!-- 消息区 -->
     <scroll-view class="msg-area" scroll-y :scroll-into-view="scrollId" :scroll-with-animation="true" @scroll="onScroll" @touchstart="onTouchStart" @touchend="onTouchEnd">
       <view class="msg-list">
@@ -458,6 +466,26 @@ function reset() {
 .head-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .head-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; }
 .head-online { font-size: 20rpx; color: #16a34a; background: #f0fdf4; padding: 2rpx 12rpx; border-radius: 999rpx; }
+
+.scene-hint {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-height: 54rpx;
+  padding: 0 28rpx;
+  background: linear-gradient(90deg, rgba(49, 95, 122, 0.08), rgba(201, 169, 110, 0.08));
+  border-bottom: 1rpx solid rgba(49, 95, 122, 0.08);
+}
+.scene-hint__pulse {
+  width: 12rpx;
+  height: 12rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #3f8197;
+  box-shadow: 0 0 0 6rpx rgba(63, 129, 151, 0.12);
+}
+.scene-hint__text { font-size: 21rpx; line-height: 1.4; color: #536b74; }
 
 .msg-area { flex: 1; overflow: hidden; }
 .msg-list { padding: 32rpx 24rpx; display: flex; flex-direction: column; gap: 32rpx; }
