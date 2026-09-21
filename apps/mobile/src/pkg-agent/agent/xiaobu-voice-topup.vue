@@ -6,7 +6,7 @@
  * 到账由支付回调在同一事务里加时长。语音尚未开始计费时不给充值入口，避免服务没开放就先收钱。
  */
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -17,6 +17,9 @@ const loading = ref(true)
 const error = ref('')
 const picked = ref(0)
 const buying = ref(false)
+/** 从圈子语音页进入时带的圈子编号：服务端校验后记圈主分成，无效则按普通充值处理 */
+const circleId = ref('')
+onLoad((q) => { circleId.value = String(q?.circleId || '') })
 
 async function load() {
   loading.value = true
@@ -38,7 +41,12 @@ async function buy() {
   buying.value = true
   try {
     // 金额由服务端按分钟档位计算，这里的数量固定 1
-    const order = await shopApi.createOrder({ type: 'VOICE_MINUTES', targetId: String(picked.value), quantity: 1 })
+    const order = await shopApi.createOrder({
+      type: 'VOICE_MINUTES',
+      targetId: String(picked.value),
+      quantity: 1,
+      ...(circleId.value ? { sourceContentType: 'CIRCLE_VOICE', sourceContentId: circleId.value } : {}),
+    })
     if (!order.id) throw new Error('订单创建失败')
     const pack = info.value?.packs.find((p) => p.minutes === picked.value)
     navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pack?.amountYuan || 0}`)

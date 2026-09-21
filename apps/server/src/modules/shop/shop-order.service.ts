@@ -11,7 +11,7 @@ import { CommissionService } from "../commission/commission.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { safePagination } from "../../common/pagination";
 import { CreateOrderDto, OrderListQueryDto } from "./shop.dto";
-import { priceVoiceTopupOrder, VOICE_TOPUP_ORDER_TYPE } from "../voice/voice-topup";
+import { CIRCLE_VOICE_SOURCE, isValidCircleVoiceSource, priceVoiceTopupOrder, VOICE_TOPUP_ORDER_TYPE } from "../voice/voice-topup";
 import { priceMemberOrder, priceReportOrder, XIAOBU_MEMBER_ORDER_TYPE, XIAOBU_REPORT_ORDER_TYPE } from "../voice/xiaobu-commerce";
 
 /** 订单缓存 TTL */
@@ -381,6 +381,18 @@ export class ShopOrderService {
         && await this.attribution.isLiveProductSource(sourceContentId, dto.targetId);
       if (!isValidLiveSource) {
         this.logger.warn(`忽略无效直播商品来源: live=${sourceContentId || "-"}, product=${dto.targetId}`);
+        sourceContentType = null;
+        sourceContentId = null;
+      }
+    }
+    // 圈内语音时长充值：圈主与平台五五分成（决策人 2026-09-21），须是语音充值单、该圈有效成员、该圈语音助理已上线；
+    // 不满足只剥离归因，照常按平台价购买
+    if (sourceContentType === CIRCLE_VOICE_SOURCE) {
+      const isValidCircleVoice = dto.type === VOICE_TOPUP_ORDER_TYPE
+        && !!sourceContentId
+        && await isValidCircleVoiceSource(this.prisma, userId, sourceContentId);
+      if (!isValidCircleVoice) {
+        this.logger.warn(`忽略无效圈内语音来源: circle=${sourceContentId || "-"}, type=${dto.type}`);
         sourceContentType = null;
         sourceContentId = null;
       }

@@ -374,6 +374,8 @@ export class VoiceQuotaService {
     contextId?: string;
     tier?: VoiceTier;
     account?: { ownerType: "user" | "circle"; ownerId: string };
+    /** 首选账户可用额度不足开播门槛时改用的账户（圈子场景：成员自己的时长） */
+    fallbackAccount?: { ownerType: "user" | "circle"; ownerId: string };
     /** 会话编排层附加字段（供应商、关联 ID、幂等键、上下文摘要等），不参与额度计算 */
     extra?: Omit<Prisma.VoiceSessionUncheckedCreateInput, "userId" | "scene" | "maxSeconds">;
   }) {
@@ -398,7 +400,11 @@ export class VoiceQuotaService {
     }
 
     const owner = input.account ?? { ownerType: "user" as const, ownerId: input.userId };
-    const account = await this.ensureAccount(owner.ownerType, owner.ownerId);
+    let account = await this.ensureAccount(owner.ownerType, owner.ownerId);
+    if (input.fallbackAccount && account.balanceSeconds - account.reservedSeconds < cfg.minStartSeconds) {
+      // 首选（如圈子账户）不够开播：改扣备选账户；两边都不够时仍按下面的统一口径报额度不足
+      account = await this.ensureAccount(input.fallbackAccount.ownerType, input.fallbackAccount.ownerId);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const fresh = await tx.voiceQuotaAccount.findUniqueOrThrow({ where: { id: account.id } });

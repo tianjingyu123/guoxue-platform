@@ -1,6 +1,7 @@
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { DEFAULT_VOICE_BILLING, VoiceBillingConfig, parseVoiceBillingConfig } from "./voice-quota.service";
+import { loadXiaobuCommerceConfig } from "./xiaobu-commerce";
 
 /**
  * 语音时长充值（决策人 2026-09-21：报告赠送的 30 分钟用完后，支持充值继续使用）
@@ -91,18 +92,126 @@ export async function grantVoiceSecondsInTx(
 
 export const topupIdempotencyKey = (orderId: string) => `order:${orderId}:voice-minutes`;
 
-/** 支付成功：按订单 targetId（分钟数）加时长。targetId 已在下单时校验过档位 */
-export async function fulfillVoiceTopupOrderInTx(tx: Tx, order: { id: string; userId: string; targetId?: string | null }) {
+/** 支付成功：按订单 targetId（分钟数）加时长；圈内充值同一事务记圈主分成。targetId 已在下单时校验过档位 */
+export async function fulfillVoiceTopupOrderInTx(tx: Tx, order: TopupOrder) {
   const minutes = Number(order.targetId);
   if (!Number.isInteger(minutes) || minutes <= 0) {
     throw new BusinessException(ErrorCode.BAD_REQUEST, `语音充值订单分钟数无效：${order.id}`);
   }
-  return grantVoiceSecondsInTx(tx, {
+  const res = await grantVoiceSecondsInTx(tx, {
     ownerType: "user",
     ownerId: order.userId,
     seconds: minutes * 60,
     idempotencyKey: topupIdempotencyKey(order.id),
     note: `充值语音时长 ${minutes} 分钟（订单 ${order.id}）`,
+  });
+  await recordCircleVoiceRevenueInTx(tx, order);
+  return res;
+}
+
+// ───────── 圈内充值：圈主与平台五五分成（决策人 2026-09-21） ─────────
+
+/**
+ * 只分「在圈子里充值的语音时长」：下单时 sourceContentType=CIRCLE_VOICE、sourceContentId=圈子 ID，
+ * 服务端校验是该圈有效成员且该圈语音助理已上线，否则只剥离归因、照常按平台价购买。
+ * 记入圈主既有收益账（CircleRevenueRecord，与入圈费、礼物同一套结算），固定比例不走收款主体双轨费率。
+ */
+export const CIRCLE_VOICE_SOURCE = "CIRCLE_VOICE";
+export const CIRCLE_VOICE_REVENUE_TYPE = "voice_ai";
+
+type TopupOrder = {
+  id: string;
+  userId: string;
+  targetId?: string | null;
+  amount?: unknown;
+  payAmount?: unknown;
+  sourceContentType?: string | null;
+  sourceContentId?: string | null;
+};
+
+export async function isValidCircleVoiceSource(db: Tx, userId: string, circleId: string) {
+  if (!circleId) return false;
+  const member = await db.circleMember.findUnique({
+    where: { circleId_userId: { circleId, userId } },
+    select: { expireAt: true, circle: { select: { status: true, deletedAt: true, ownerId: true } } },
+  });
+  if (!member?.circle || member.circle.deletedAt || member.circle.status !== "ACTIVE") return false;
+  if (member.expireAt && new Date(member.expireAt) < new Date()) return false;
+  // 圈主给自己充值不产生分成
+  if (member.circle.ownerId === userId) return false;
+  const profile = await db.voiceAgentProfile.findUnique({
+    where: { ownerType_ownerId: { ownerType: "circle", ownerId: circleId } },
+    select: { status: true, activeVersion: true },
+  });
+  return !!profile && profile.status !== "DISABLED" && profile.activeVersion != null;
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** 幂等：同一订单只记一笔正向分成 */
+export async function recordCircleVoiceRevenueInTx(tx: Tx, input: TopupOrder) {
+  // 各支付入口传进来的订单对象字段不一（有的只有 id/type/userId/amount），缺来源字段时在事务内重读
+  const order: TopupOrder =
+    input.sourceContentType === undefined
+      ? (await tx.order.findUnique({
+          where: { id: input.id },
+          select: { id: true, userId: true, targetId: true, amount: true, payAmount: true, sourceContentType: true, sourceContentId: true },
+        })) ?? input
+      : input;
+  if (order.sourceContentType !== CIRCLE_VOICE_SOURCE || !order.sourceContentId) return null;
+  const existed = await tx.circleRevenueRecord.findFirst({
+    where: { type: CIRCLE_VOICE_REVENUE_TYPE, sourceId: order.id },
+  });
+  if (existed) return existed;
+  const amount = round2(Number(order.payAmount ?? order.amount) || 0);
+  if (!(amount > 0)) return null;
+  const cfg = await loadXiaobuCommerceConfig(tx);
+  const ownerShare = round2(amount * cfg.circleVoiceOwnerShare);
+  const platformFee = round2(amount - ownerShare);
+  const record = await tx.circleRevenueRecord.create({
+    data: {
+      circleId: order.sourceContentId,
+      type: CIRCLE_VOICE_REVENUE_TYPE,
+      sourceId: order.id,
+      amount,
+      platformFee,
+      ownerShare,
+      splitRate: cfg.circleVoiceOwnerShare,
+    },
+  });
+  if (platformFee > 0) {
+    await tx.platformFeeRecord.create({
+      data: {
+        type: CIRCLE_VOICE_REVENUE_TYPE,
+        sourceId: order.id,
+        sourceAmount: amount,
+        platformRate: round2(1 - cfg.circleVoiceOwnerShare),
+        platformFee,
+        circleId: order.sourceContentId,
+        circleShare: ownerShare,
+      },
+    });
+  }
+  return record;
+}
+
+/** 退款：记负数冲正（与入圈退款同口径），已结算的由下次结算扣回。幂等 */
+export async function reverseCircleVoiceRevenueInTx(tx: Tx, order: { id: string }) {
+  const original = await tx.circleRevenueRecord.findFirst({ where: { type: CIRCLE_VOICE_REVENUE_TYPE, sourceId: order.id } });
+  if (!original) return null;
+  const refundType = `${CIRCLE_VOICE_REVENUE_TYPE}_refund`;
+  const existed = await tx.circleRevenueRecord.findFirst({ where: { type: refundType, sourceId: order.id } });
+  if (existed) return existed;
+  return tx.circleRevenueRecord.create({
+    data: {
+      circleId: original.circleId,
+      type: refundType,
+      sourceId: order.id,
+      amount: -Number(original.amount),
+      platformFee: -Number(original.platformFee),
+      ownerShare: -Number(original.ownerShare),
+      splitRate: 0,
+    },
   });
 }
 
@@ -111,6 +220,7 @@ export async function fulfillVoiceTopupOrderInTx(tx: Tx, order: { id: string; us
  * 扣不回的部分（已用掉）写进流水备注，交人工核对；不在这里替业务决定退多少钱。
  */
 export async function reverseVoiceTopupOrderInTx(tx: Tx, order: { id: string; userId: string }) {
+  await reverseCircleVoiceRevenueInTx(tx, order);
   const grant = await tx.voiceQuotaLedger.findUnique({ where: { idempotencyKey: topupIdempotencyKey(order.id) } });
   if (!grant) return { reversed: 0, shortfall: 0, duplicated: false };
   const refundKey = `${topupIdempotencyKey(order.id)}:refund`;

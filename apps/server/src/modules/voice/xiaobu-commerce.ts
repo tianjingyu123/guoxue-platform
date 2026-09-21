@@ -44,6 +44,8 @@ export interface XiaobuCommerceConfig {
   memberPlans: XiaobuMemberPlan[];
   /** 会员期内每月赠送的语音分钟数 */
   memberMonthlyVoiceMinutes: number;
+  /** 圈内语音时长充值的圈主分成比例（决策人 2026-09-21：圈主与平台五五分成） */
+  circleVoiceOwnerShare: number;
 }
 
 export const DEFAULT_XIAOBU_COMMERCE: XiaobuCommerceConfig = {
@@ -57,6 +59,7 @@ export const DEFAULT_XIAOBU_COMMERCE: XiaobuCommerceConfig = {
     { key: "YEAR5", label: "五年会员", months: 60, priceYuan: 2499 },
   ],
   memberMonthlyVoiceMinutes: 300,
+  circleVoiceOwnerShare: 0.5,
 };
 
 type Tx = any;
@@ -88,6 +91,10 @@ export function parseXiaobuCommerceConfig(raw: unknown): XiaobuCommerceConfig {
     reportVoiceMinutes: nonNegInt(v.reportVoiceMinutes, d.reportVoiceMinutes),
     memberPlans: plans.length ? plans : d.memberPlans,
     memberMonthlyVoiceMinutes: nonNegInt(v.memberMonthlyVoiceMinutes, d.memberMonthlyVoiceMinutes),
+    circleVoiceOwnerShare:
+      Number.isFinite(Number(v.circleVoiceOwnerShare)) && Number(v.circleVoiceOwnerShare) >= 0 && Number(v.circleVoiceOwnerShare) <= 1
+        ? Number(v.circleVoiceOwnerShare)
+        : d.circleVoiceOwnerShare,
   };
 }
 

@@ -196,6 +196,7 @@ export class VoiceSessionService {
       agentId: d.agentProfileId,
       tier: "lite",
       billingOwner: d.circleId ? { ownerType: "circle", ownerId: d.circleId } : { ownerType: "user", ownerId: userId },
+      fallbackBillingOwner: d.circleId ? { ownerType: "user", ownerId: userId } : null,
       context,
       digest: digestContext(context),
       displayTopic: "小卜硬件",
@@ -231,6 +232,7 @@ export class VoiceSessionService {
         contextId: resolved.contextId ?? undefined,
         tier: resolved.tier,
         account: resolved.billingOwner ?? undefined,
+        fallbackAccount: resolved.fallbackBillingOwner ?? undefined,
         extra: {
           provider: this.provider.id,
           providerIsMock: this.provider.isMock,

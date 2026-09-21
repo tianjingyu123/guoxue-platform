@@ -34,8 +34,10 @@ export interface ResolvedVoiceContext {
   contextId: string | null;
   agentId: string | null;
   tier: "lite" | "standard";
-  /** 圈子场景：额度从圈主账户扣 */
+  /** 圈子场景：额度先从圈主账户扣 */
   billingOwner: { ownerType: "user" | "circle"; ownerId: string } | null;
+  /** 首选账户不足时改扣的账户（圈子场景：成员自己充值的时长，决策人 2026-09-21） */
+  fallbackBillingOwner?: { ownerType: "user" | "circle"; ownerId: string } | null;
   context: MinimalVoiceContext;
   /** 给用户看的一句话（「正在讨论：…」）；context.topic 是给模型的指令，不展示给用户 */
   displayTopic: string;
@@ -263,6 +265,8 @@ export class VoiceContextBuilder {
       // 档位以平台审核通过的版本为准，圈主无权自行升档
       tier: version?.tier === "standard" ? "standard" : "lite",
       billingOwner: { ownerType: "circle", ownerId: circleId },
+      // 圈主赠送/承担的时长用完后，改扣成员自己的时长（成员可在圈内充值，圈主与平台五五分成）
+      fallbackBillingOwner: { ownerType: "user", ownerId: userId },
       displayTopic: `「${clip(member.circle.name, 30)}」语音助理 · ${clip(version?.name ?? profile.name, 20)}`,
       context: {
         scene: "circle_assistant",

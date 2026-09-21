@@ -208,7 +208,9 @@ function useText() {
 }
 
 function openTopup() {
-  navigateTo('/pkg-agent/agent/xiaobu-voice-topup')
+  // 圈子场景带上圈子编号：在圈内充值的时长收入由圈主与平台五五分成
+  const q = scene.value === 'circle_assistant' && contextId.value ? `?circleId=${encodeURIComponent(contextId.value)}` : ''
+  navigateTo(`/pkg-agent/agent/xiaobu-voice-topup${q}`)
 }
 
 function openHistory() {
