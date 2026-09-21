@@ -2,7 +2,7 @@
   <view class="orders">
     <!-- 顶部导航 + 状态Tab（含角标数） -->
     <view class="header" :style="{ paddingTop: 'calc(20rpx + var(--status-bar-height, 0px))' }">
-      <app-nav-bar title="我的订单" background="transparent" no-border />
+      <app-nav-bar title="我的订单" background="transparent" no-border custom-back @back="handleBack" />
       <scroll-view scroll-x class="tabs" :show-scrollbar="false">
         <view class="tabs-inner">
           <view
@@ -189,7 +189,7 @@ import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
-import { navigateTo, redirectTo } from '@/utils/router'
+import { goBack, navigateTo, redirectTo, reLaunch } from '@/utils/router'
 import { useList } from '@/composables/useList'
 import { usePageRefresh } from '@/composables/usePageRefresh'
 import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, orderTypeMeta, type OrderListItem } from '@/pkg-order/lib/order-data'
@@ -202,6 +202,7 @@ const showCancel = ref(false)
 const cancelId = ref<string | null>(null)
 const cancelReason = ref('')
 const submitting = ref(false)
+const fromPayment = ref(false)
 /** Tab 角标计数（待付款/待发货/待收货，轻量探测 total） */
 const counts = ref<Record<string, number>>({})
 const pendingCount = computed(() =>
@@ -226,6 +227,7 @@ async function loadCounts() {
 const retry = () => refresh()
 // 支持 ?tab= 深链（我的页四状态入口直达对应筛选）
 onLoad((query?: Record<string, string>) => {
+  fromPayment.value = query?.paymentReturn === '1'
   const tab = query?.tab
   if (tab === 'after_sale') {
     redirectTo('/shop/my-after-sales')
@@ -233,6 +235,12 @@ onLoad((query?: Record<string, string>) => {
   }
   if (tab && statusTabs.some((t) => t.key === tab)) activeTab.value = tab
 })
+
+function handleBack() {
+  // 支付链路已被清理为订单中心根页，此处明确回商城，避免再钻回订单详情。
+  if (fromPayment.value) { reLaunch('/mall'); return }
+  goBack()
+}
 let firstDisplay = true
 usePageRefresh(async () => {
   const first = firstDisplay

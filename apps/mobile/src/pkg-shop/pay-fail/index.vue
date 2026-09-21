@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo, redirectTo } from '@/utils/router'
+import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
 import { shopApi, payFailReasons } from '@/lib/shop-data'
 
 const orderId = ref('')
@@ -108,8 +108,8 @@ function goRePay() {
   redirectTo(`/shop/paying?${q}`)
 }
 // P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
-function goOrder() { navigateTo(`/orders/${orderId.value}`) }
-function goShop() { navigateTo('/mall') }
+function goOrder() { reLaunch(`/orders/${orderId.value}?paymentReturn=1`) }
+function goShop() { reLaunch('/mall') }
 function goService() { navigateTo('/customer-service') }
 </script>
 

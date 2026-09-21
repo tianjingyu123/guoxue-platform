@@ -1,7 +1,7 @@
 <template>
   <view class="detail">
     <!-- 顶部 -->
-    <app-nav-bar title="订单详情" :back-size="40" :title-weight="500" title-align="left">
+    <app-nav-bar title="订单详情" :back-size="40" :title-weight="500" title-align="left" custom-back @back="handleBack">
       <template #right>
         <view class="nav-act" @tap="toService"><app-icon name="message-circle" :size="40" color="#666666" /></view>
       </template>
@@ -168,7 +168,7 @@ import { usePageRefresh } from '@/composables/usePageRefresh'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
-import { navigateTo } from '@/utils/router'
+import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
@@ -187,6 +187,7 @@ const error = ref('')
 const order = ref<OrderDetail | null>(null)
 const copied = ref(false)
 const orderId = ref('1')
+const fromPayment = ref(false)
 const submitting = ref(false)
 let freshAfterPayment = false
 let lastOrderAccount = ''
@@ -241,6 +242,7 @@ async function loadData(silent = false) {
 
 onLoad((q) => {
   if (q?.id) orderId.value = q.id
+  fromPayment.value = q?.paymentReturn === '1'
   // 返回标记只触发本人订单直读，不能代表已支付。
   // #ifdef H5
   freshAfterPayment = q?.paymentReturn === '1'
@@ -249,6 +251,12 @@ onLoad((q) => {
   if (isAndroidPaymentPlatform(uni.getSystemInfoSync().platform)) freshAfterPayment = q?.paymentReturn === '1'
   // #endif
 })
+
+function handleBack() {
+  // 支付完成后的订单详情是交易终点；返回订单中心，不再退回收银台或结算页。
+  if (fromPayment.value) { reLaunch('/orders?paymentReturn=1'); return }
+  goBack()
+}
 usePageRefresh(() => loadData(Boolean(order.value)))
 
 function copyNo() {

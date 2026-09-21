@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref, nextTick, getCurrentInstance } from 'vue'
 import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
-import { redirectTo } from '@/utils/router'
+import { reLaunch } from '@/utils/router'
 import { apiGet } from '@/utils/request'
 import { getUserInfo } from '@/utils/storage'
 import { purchaseApi } from '@/lib/purchase-data'
@@ -120,7 +120,7 @@ function backToOrder() {
   visible = false
   stopPolling()
   flow?.dispose()
-  redirectTo(orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders')
+  reLaunch(orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders')
 }
 onLoad(async (q) => {
   orderId = String(q?.orderId || '')

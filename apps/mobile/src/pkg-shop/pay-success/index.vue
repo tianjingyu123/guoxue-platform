@@ -110,7 +110,7 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import BrandSeal from '@/components/common/brand-seal.vue'
-import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
+import { redirectTo, reLaunch } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 
 const orderInfo = reactive({
@@ -171,7 +171,7 @@ function goOrder() {
   if (submitting.value) return
   submitting.value = true
   // 走订单详情真路由 /orders/:id（原 /shop/orders/:id 无映射为死链）
-  navigateTo(`/orders/${orderInfo.orderId}`)
+  reLaunch(`/orders/${orderInfo.orderId}?paymentReturn=1`)
   setTimeout(() => { submitting.value = false }, 500)
 }
 function backToLive() {
@@ -188,7 +188,7 @@ function backToLive() {
 function goOrders() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/orders')
+  reLaunch('/orders')
   setTimeout(() => { submitting.value = false }, 500)
 }
 function goHome() {
@@ -199,7 +199,7 @@ function goHome() {
 function goShop() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/mall')
+  reLaunch('/mall')
   setTimeout(() => { submitting.value = false }, 500)
 }
 </script>

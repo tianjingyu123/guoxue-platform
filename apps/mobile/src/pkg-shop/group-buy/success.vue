@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo, goBack } from '@/utils/router'
+import { reLaunch } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -169,13 +169,13 @@ function share() {
 }
 function viewOrder() {
   if (!data.value) return
-  navigateTo(`/orders/${data.value.orderId}`)
+  reLaunch(`/orders/${data.value.orderId}?paymentReturn=1`)
 }
 function goShop() {
-  navigateTo('/mall')
+  reLaunch('/mall')
 }
 function onBack() {
-  goBack()
+  reLaunch('/mall')
 }
 async function retryLoad() {
   loading.value = true

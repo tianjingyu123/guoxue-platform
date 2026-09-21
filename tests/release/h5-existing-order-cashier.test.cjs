@@ -349,7 +349,7 @@ function cashierPage(state, ua = mobileUa) {
   const modules={
     vue:{ref:value=>({value}),nextTick:async()=>{},getCurrentInstance:()=>({})},
     '@dcloudio/uni-app':Object.fromEntries(['onLoad','onShow','onHide','onUnload'].map(n=>[n,f=>hooks[n]=f])),
-    '@/utils/router':{redirectTo:p=>paths.push(p)},
+    '@/utils/router':{redirectTo:p=>paths.push(p),reLaunch:p=>paths.push(p)},
     '@/utils/request':{apiGet:async url=>{state.reads.push(url);if(state.denied)throw Error('只能查看自己的订单');return {...state.order,status:url.endsWith('/current')?state.dbStatus:state.order.status}}},
     '@/utils/storage':{getUserInfo:()=>({id:state.account})},
     '@/lib/purchase-data':{purchaseApi:{payByChannel:async()=>{state.creates++; if(state.fail)throw Error('结果未知');return {outTradeNo:'HF-one',qrCode:'https://qr.alipay.com/test'}},queryHuifuPayment:async()=>({trans_stat:state.channelStatus})}},
@@ -426,7 +426,7 @@ test('安卓真实付款完成只回原订单一次，账号变化不跳转',asy
     const paths=[];let settles=0
     const paid=realFunction('pkg-shop/paying/index.vue','onHuifuAlipayPaid','APP-PLUS',{
       alipayReturned:false,nativePageActive:true,paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:owner}),
-      settleCircleIfNeeded:async()=>{settles++},paidBusinessTarget:()=>'/orders/one?paymentReturn=1',redirectTo:p=>paths.push(p),
+      settleCircleIfNeeded:async()=>{settles++},paidBusinessTarget:()=>'/orders/one?paymentReturn=1',reLaunch:p=>paths.push(p),
     })
     await paid({id:'one',status:'PAID'});await paid({id:'one',status:'PAID'})
     assert.deepEqual(paths,owner==='owner'?['/orders/one?paymentReturn=1']:[]);assert.equal(settles,owner==='owner'?1:0)
@@ -454,7 +454,7 @@ test('真实微信轮询：收银返回只是有限直读提示，订单PAID后�
     const globals={
       pollCount:0,pollTimer:null,maxPolls:70,isRecharge:{value:false},status,orderId:{value:'one'},amount:{value:0.01},payMethod:{value:'wechat'},returnLiveRoomId:{value:''},
       h5PaymentConfirmed:true,lastH5CurrentRead:-Infinity,Date:class extends Date{static now(){return now}},
-      setTimeout:fn=>{scheduled=fn;return 1},clearTimers:()=>{},track:{purchase:()=>{}},settleCircleIfNeeded:async()=>{},redirectTo:x=>paths.push(x),
+      setTimeout:fn=>{scheduled=fn;return 1},clearTimers:()=>{},track:{purchase:()=>{}},settleCircleIfNeeded:async()=>{},reLaunch:x=>paths.push(x),
       paidBusinessTarget:()=>'/orders/one?paymentReturn=1',
       shopApi:{getOrderPayState:async(id,fresh)=>{reads.push(fresh);return {paid}}},console,
     }

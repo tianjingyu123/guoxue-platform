@@ -80,7 +80,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo, redirectTo } from '@/utils/router'
+import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
 import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 
@@ -106,7 +106,7 @@ function goRePay() {
 }
 // P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
 // 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
-function goOrder() { navigateTo(`/orders/${orderId.value}`) }
+function goOrder() { reLaunch(`/orders/${orderId.value}?paymentReturn=1`) }
 function goService() { navigateTo('/customer-service') }
 </script>
 

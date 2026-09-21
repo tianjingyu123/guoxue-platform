@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { redirectTo, navigateTo } from '@/utils/router'
+import { redirectTo, reLaunch } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
 import { mineApi } from '@/lib/mine-data'
@@ -154,7 +154,7 @@ async function onHuifuAlipayPaid(order: AlipayOrderState) {
   if (alipayReturned || !nativePageActive || order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) return
   alipayReturned = true
   await settleCircleIfNeeded(order)
-  redirectTo(paidBusinessTarget(order))
+  reLaunch(paidBusinessTarget(order))
 }
 // #endif
 
@@ -623,7 +623,7 @@ function startPolling(delayMs?: number) {
           track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
           clearTimers('all')
           if (!returnLiveRoomId.value) {
-            redirectTo(paidBusinessTarget(st))
+            reLaunch(paidBusinessTarget(st))
             return
           }
           const liveReturn = returnLiveRoomId.value
@@ -668,7 +668,8 @@ function handleCancel() {
     }
     return
   }
-  navigateTo(returnTarget())
+  // 结束收银流程时清理结算页、旧订单页等交易栈，避免返回时在订单链路内循环。
+  reLaunch(returnTarget())
   setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
@@ -687,7 +688,7 @@ function handleRetry() {
   startPaying()
 }
 function goOrder() {
-  navigateTo(returnTarget())
+  reLaunch(returnTarget())
 }
 
 onUnmounted(() => clearTimers('all'))
