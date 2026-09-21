@@ -21,6 +21,7 @@ const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 const loginRequired = ref(false)
+const miniProgramUnavailable = ref(false)
 const h5Fallback = ref(false)
 let h5FallbackTimer: ReturnType<typeof setTimeout> | undefined
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
@@ -730,6 +731,12 @@ function handleLegacyPageShow(event: PageTransitionEvent) {
 }
 // #endif
 onMounted(() => {
+  // 小程序正式发布先保留入口，第三方业务域名调通后再通过配置放开。
+  // #ifdef MP-WEIXIN
+  miniProgramUnavailable.value = true
+  loading.value = false
+  return
+  // #endif
   // #ifdef H5
   window.addEventListener('pageshow', handleLegacyPageShow)
   if (consumeLegacyReturn(window.history)) { returnToNewSystem(); return }
@@ -786,6 +793,12 @@ onBackPress(() => {
     <view class="spinner" />
     <text class="title">排盘工具</text>
     <text class="desc">正在安全连接，请稍候</text>
+  </view>
+
+  <view v-else-if="miniProgramUnavailable" class="state" role="status" aria-live="polite">
+    <text class="title">热卜排盘工具正在升级中</text>
+    <text class="desc">暂时仅对 APP 用户和微信公众号用户开放，小程序端恢复后我们会第一时间通知。</text>
+    <button class="action primary" @tap="returnToNewSystem">返回热卜首页</button>
   </view>
 
   <view v-else-if="error" class="state" role="alert">
