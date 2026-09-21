@@ -19,6 +19,7 @@ import { ShopOrderService } from "./shop-order.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
+import { NotificationService } from "../notification/notification.service";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -55,6 +56,7 @@ export class ShopPaymentService {
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
+    @Optional() private notification?: NotificationService,
   ) {
     this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
   }
@@ -801,6 +803,15 @@ export class ShopPaymentService {
       tradeNo,
       amount: Number(order.amount),
       userId: order.userId,
+    }).then(async () => {
+      try {
+        await this.notification?.sendOnce(order.userId, `ORDER_PAID:${order.id}`, {
+          type: "PURCHASE", title: "支付成功", content: "订单已支付成功，可查看订单详情。",
+          targetType: "ORDER", targetId: order.id,
+        });
+      } catch (err) {
+        this.logger.error(`支付成功站内通知写入失败 order=${order.id}`, err);
+      }
     }).catch((err) => {
       // 外发箱都未能落库时必须让支付渠道重投，不能吞掉这类本地持久化故障。
       this.logger.error("Webhook ORDER_PAID 外发箱写入失败", err);
