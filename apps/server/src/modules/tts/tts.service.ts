@@ -59,6 +59,9 @@ interface TtsStyle {
   segmentRate: number
 }
 
+/** 单次合成文本上限（字）：超过即拒绝，不做静默截断 */
+export const MAX_SYNTH_CHARS = 3000
+
 @Injectable()
 export class TtsService {
   private readonly logger = new Logger(TtsService.name)
@@ -81,8 +84,12 @@ export class TtsService {
     const voiceKey = req.voice && VOICES[req.voice] ? req.voice : "xiaoxiao"
     const rate = req.rate || "0%"
     const style = this.normalizeStyle(req)
-    const text = normalizeSpeechText(req.text || "").slice(0, 3000)
+    const text = normalizeSpeechText(req.text || "")
     if (!text) throw new BusinessException(ErrorCode.BAD_REQUEST, "合成文本不能为空")
+    // 超长文本明确拒绝，不静默截断（此前 slice(0, 3000) 会让长段后半截无声消失）
+    if (text.length > MAX_SYNTH_CHARS) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `单次朗读文本过长（${text.length} 字），请按段落朗读`)
+    }
 
     const provider = this.determineTtsProvider()
     const cacheKey = this.buildCacheKey(text, voiceKey, rate, style, provider)
@@ -131,6 +138,40 @@ export class TtsService {
     }
 
     return { audio, contentType: "audio/mpeg" }
+  }
+
+  /**
+   * 有声读书按段落生成/复用音频资产（S05）：只保证资产存在并返回身份，不把音频读进内存。
+   * 倍速由播放器调整：这里 rate 固定 0%，避免每种倍速各合成一份。
+   */
+  async synthesizeAsset(input: { text: string; voice?: string; sourceType: string; sourceId: string; textType: "original" | "vernacular" }) {
+    const voiceKey = input.voice && VOICES[input.voice] ? input.voice : "xiaoxiao"
+    const rate = "0%"
+    const style: TtsStyle = { segmentRate: 0 }
+    const text = normalizeSpeechText(input.text || "")
+    if (!text) throw new BusinessException(ErrorCode.BAD_REQUEST, "这段没有可朗读的文字")
+    if (text.length > MAX_SYNTH_CHARS) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `段落过长（${text.length} 字），暂不支持整段朗读`)
+    }
+    const provider = this.determineTtsProvider()
+    return this.audioAssetService.getOrCreateAudioAsset(
+      {
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        text,
+        textType: input.textType,
+        ttsProvider: provider,
+        voiceId: this.providerVoiceId(provider, voiceKey),
+        audioFormat: "mp3",
+        synthesisParams: { rate, segmentRate: 0 },
+      },
+      () => this.doSynthesize(text, voiceKey, rate, style),
+    )
+  }
+
+  /** 读取已有音频资产（对象丢失时返回 null，由资产服务标记不可播放） */
+  async readAsset(asset: { assetId: string; key: string }): Promise<Buffer | null> {
+    return this.audioAssetService.readAssetAudio(asset)
   }
 
   /** 各供应商下的真实音色标识（资产身份使用，避免不同供应商同名音色混用） */

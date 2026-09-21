@@ -83,16 +83,45 @@ describe("TtsService", () => {
       mockFetch.mockResolvedValue({ ok: false, status: 403 });
       await expect(svc.synthesize({ text: "你好" })).rejects.toThrow("TTS API 请求失败: 403");
     });
-    it("超过 3000 字的文本被截断", async () => {
+    it("超过 3000 字的文本明确拒绝，不静默截断、不调用任何合成（2026-09-21 改：原先截断会让后半段无声消失）", async () => {
       mockRedis.getBuffer.mockResolvedValue(null);
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)),
-      });
+      mockFetch.mockClear();
+      await expect(svc.synthesize({ text: "字".repeat(5000) })).rejects.toThrow(/过长/);
+      expect(mockFetch).not.toHaveBeenCalled();
+      // 恰好 3000 字仍可合成
+      mockFetch.mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)) });
       mockRedis.setBuffer.mockResolvedValue(undefined);
-      const longText = "字".repeat(5000);
-      await svc.synthesize({ text: longText });
+      await svc.synthesize({ text: "字".repeat(3000) });
       expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it("腾讯云按标点切分：任意长度的文本切分后拼接与原文逐字相同（不丢字、不重复）", () => {
+      const split = (t: string) => (svc as any).splitByLength(t, 140) as string[];
+      const alphabet = "子曰学而时习之不亦说乎，。；！？\n、";
+      let seed = 7;
+      const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+      for (let len = 0; len <= 1200; len += 7) {
+        let t = "";
+        for (let i = 0; i < len; i++) t += alphabet[Math.floor(rnd() * alphabet.length)];
+        const parts = split(t);
+        expect(parts.join("")).toBe(t);
+        for (const p of parts) expect(p.length).toBeLessThanOrEqual(180);
+      }
+      // 无标点长文本：硬切兜底，仍不丢字
+      const noPunct = "乾".repeat(1000);
+      expect(split(noPunct).join("")).toBe(noPunct);
+    });
+
+    it("段落音频不把倍速带进资产身份：同一段不同倍速请求复用同一资产、只合成一次", async () => {
+      const spy = jest.spyOn(svc as any, "doSynthesize").mockResolvedValue({ audio: Buffer.from("mp3"), ttsProvider: "edge", voiceId: (svc as any).providerVoiceId("edge", "xiaoxiao") });
+      const a = await svc.synthesizeAsset({ text: "学而时习之", sourceType: "classic_segment", sourceId: "seg1", textType: "original" });
+      const b = await svc.synthesizeAsset({ text: "学而时习之", sourceType: "classic_segment", sourceId: "seg1", textType: "original" });
+      expect(b.assetId).toBe(a.assetId);
+      expect(b.reused).toBe(true);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][2]).toBe("0%");
+      await expect(svc.synthesizeAsset({ text: "   ", sourceType: "classic_segment", sourceId: "seg2", textType: "original" })).rejects.toThrow(/没有可朗读/);
+      await expect(svc.synthesizeAsset({ text: "字".repeat(3001), sourceType: "classic_segment", sourceId: "seg3", textType: "original" })).rejects.toThrow(/过长/);
     });
     it("配置腾讯云密钥时优先走腾讯云 TextToVoice", async () => {
       process.env.TENCENT_SECRET_ID = "AKIDtest";
