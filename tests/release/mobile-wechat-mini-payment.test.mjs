@@ -60,13 +60,18 @@ test('服务端先校验本人待付订单，再生成不含金额的小程序 S
   assert.match(method, /getCurrentOrder\(id, req\.user\.id\)/u)
   assert.match(method, /order\.status !== "PENDING"/u)
   assert.match(method, /generateUrlScheme/u)
-  assert.match(method, /miniPayOrderId=\$\{encodeURIComponent\(id\)\}/u)
+  assert.match(method, /orderId=\$\{encodeURIComponent\(id\)\}/u)
   assert.doesNotMatch(method, /amount/u)
 })
 
-test('Scheme 只落到已发布首页，由小程序首页校验后转入支付分包', () => {
+test('Scheme 直接落到小程序付款页，首页仅保留旧链接兼容转发', () => {
   assert.match(wechatService, /wxa\/generatescheme/u)
-  assert.match(wechatService, /env_version: "release"/u)
+  assert.match(wechatService, /env_version: params\.envVersion \|\| "release"/u)
+  const start = shopController.indexOf('async miniProgramPayLink')
+  const end = shopController.indexOf('\n  @Get("orders/:id")', start)
+  const method = start >= 0 && end > start ? shopController.slice(start, end) : ''
+  assert.match(method, /path: "pkg-shop\/paying\/index"/u)
+  assert.match(method, /query: `orderId=\$\{encodeURIComponent\(id\)\}&method=wechat&fromApp=1`/u)
   assert.match(homePage, /miniPayOrderId/u)
   assert.ok(homePage.includes('/^[A-Za-z0-9_-]{8,128}$/'))
   assert.match(homePage, /pkg-shop\/paying\/index\?orderId=/u)

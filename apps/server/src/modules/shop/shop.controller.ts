@@ -303,9 +303,10 @@ export class ShopController {
     const envVersion: "release" | "trial" | "develop" =
       configuredEnv === "trial" || configuredEnv === "develop" ? configuredEnv : "release";
     const scheme = await this.wechatService.generateUrlScheme({
-      // 当前正式小程序已发布首页；首页收到受限参数后再进入支付分包。
-      path: "pages/index/index",
-      query: `miniPayOrderId=${encodeURIComponent(id)}&method=wechat&fromApp=1`,
+      // 直接落到付款页，避免先显示首页再二次跳转，用户进入微信后即可继续付款。
+      // 首页仍保留 miniPayOrderId 转发逻辑，仅兼容已经生成的旧 Scheme。
+      path: "pkg-shop/paying/index",
+      query: `orderId=${encodeURIComponent(id)}&method=wechat&fromApp=1`,
       // 未发布阶段可显式配置 trial 使用体验版；缺省始终进入正式版。
       envVersion,
     });
