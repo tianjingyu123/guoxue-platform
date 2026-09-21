@@ -299,10 +299,15 @@ export class ShopController {
   async miniProgramPayLink(@Req() req: AuthRequest, @Param("id") id: string) {
     const order = await this.shop.getCurrentOrder(id, req.user.id);
     if (order.status !== "PENDING") throw new BadRequestException("订单当前状态不可支付");
+    const configuredEnv = process.env.WECHAT_MINI_SCHEME_ENV_VERSION?.trim().toLowerCase();
+    const envVersion: "release" | "trial" | "develop" =
+      configuredEnv === "trial" || configuredEnv === "develop" ? configuredEnv : "release";
     const scheme = await this.wechatService.generateUrlScheme({
       // 当前正式小程序已发布首页；首页收到受限参数后再进入支付分包。
       path: "pages/index/index",
       query: `miniPayOrderId=${encodeURIComponent(id)}&method=wechat&fromApp=1`,
+      // 未发布阶段可显式配置 trial 使用体验版；缺省始终进入正式版。
+      envVersion,
     });
     return { scheme };
   }

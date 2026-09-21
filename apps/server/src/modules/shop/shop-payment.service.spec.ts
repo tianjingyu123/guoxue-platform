@@ -15,6 +15,7 @@ import { WebhookService } from "../webhook/webhook.service"
 import { MemberBenefitService } from "../member/member-benefit.service"
 import { EntitlementService } from "../entitlement/entitlement.service"
 import { BusinessException } from "../../common/business.exception"
+import { WechatService } from "../auth/wechat.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockUnifiedPricing, makeMockCommission,
   makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook, makeMockMemberBenefit, makeMockHuifu, makeMockEntitlement,
@@ -32,6 +33,7 @@ const mockWebhook = makeMockWebhook()
 const mockMemberBenefit = makeMockMemberBenefit()
 const mockHuifu = makeMockHuifu()
 const mockEntitlement = makeMockEntitlement()
+const mockWechatPlatform = { uploadVirtualOrderShipping: jest.fn().mockResolvedValue(undefined) }
 
 describe("ShopPaymentService", () => {
   let svc: ShopPaymentService
@@ -55,6 +57,7 @@ describe("ShopPaymentService", () => {
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
         { provide: EntitlementService, useValue: mockEntitlement },
         { provide: HuifuService, useValue: mockHuifu },
+        { provide: WechatService, useValue: mockWechatPlatform },
       ],
     }).compile()
     svc = mod.get(ShopPaymentService)
@@ -272,6 +275,49 @@ describe("ShopPaymentService", () => {
         payMethod: "WECHAT",
         tradeNo: "WX-CHANNEL-OK",
       }))
+    })
+
+    it("小程序虚拟订单支付成功后自动上报交付", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini"
+      const order = {
+        id: "o-wx-virtual", userId: "u1", type: "CIRCLE_JOIN", amount: "88", status: "PENDING",
+        payTransactionId: "WX-MERCHANT-VIRTUAL", shippingInfo: null,
+      }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+      jest.spyOn((svc as any).orderSvc, "invalidateOrderCache").mockResolvedValue(undefined)
+      jest.spyOn((svc as any).orderSvc, "settleGroupBuyIfNeeded").mockResolvedValue(undefined)
+      jest.spyOn((svc as any).attribution, "recordOrderCommissionAndFee").mockResolvedValue(undefined)
+
+      const handled = await svc.handlePaymentNotify({
+        appid: "wx-mini",
+        trade_type: "JSAPI",
+        payer: { openid: "mini-openid" },
+        out_trade_no: "WX-MERCHANT-VIRTUAL",
+        transaction_id: "WX-CHANNEL-VIRTUAL",
+        trade_state: "SUCCESS",
+        attach: "o-wx-virtual",
+        amount: { total: 8800 },
+      })
+
+      expect(handled).toBe(true)
+      expect(mockWechatPlatform.uploadVirtualOrderShipping).toHaveBeenCalledWith(expect.objectContaining({
+        transactionId: "WX-CHANNEL-VIRTUAL",
+        openid: "mini-openid",
+      }))
+      expect(mockRedis.set).toHaveBeenCalledWith("wechat:mini:delivery:WX-CHANNEL-VIRTUAL", "1", 30 * 24 * 60 * 60)
+      delete process.env.WECHAT_MINI_APP_ID
+    })
+
+    it("带收货地址的实物订单不得自动上报交付", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini"
+      await (svc as any).reportWechatVirtualDelivery(
+        { id: "o-wx-physical", type: "PRODUCT", shippingInfo: { province: "测试省" } },
+        { appid: "wx-mini", trade_type: "JSAPI", payer: { openid: "mini-openid" } },
+        "WX-CHANNEL-PHYSICAL",
+      )
+      expect(mockWechatPlatform.uploadVirtualOrderShipping).not.toHaveBeenCalled()
+      delete process.env.WECHAT_MINI_APP_ID
     })
 
     it("微信成功回调的商户单号不属于当前支付意图时拒绝入账", async () => {

@@ -598,6 +598,7 @@ export class WechatService {
     path: string;
     query?: string;
     expireIntervalDays?: number;
+    envVersion?: "release" | "trial" | "develop";
   }): Promise<string> {
     const token = await this.getMiniAccessToken();
     const resp = await fetch(
@@ -609,7 +610,7 @@ export class WechatService {
           jump_wxa: {
             path: params.path,
             query: params.query || "",
-            env_version: "release",
+            env_version: params.envVersion || "release",
           },
           is_expire: true,
           expire_type: 1,
@@ -623,6 +624,43 @@ export class WechatService {
       throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `小程序入口生成失败: ${result.errmsg || "未知错误"}`);
     }
     return result.openlink;
+  }
+
+  /**
+   * 小程序虚拟商品自动发货。
+   * 微信支付到账后由服务端调用，用户无需再到微信订单页手工点“发货”。
+   * 使用微信支付交易号定位，只适用于无需物流的虚拟权益订单。
+   */
+  async uploadVirtualOrderShipping(params: {
+    transactionId: string;
+    openid: string;
+    itemDesc: string;
+    uploadTime?: Date;
+  }): Promise<void> {
+    const token = await this.getMiniAccessToken();
+    const resp = await fetch(
+      `https://api.weixin.qq.com/wxa/sec/order/upload_shipping_info?access_token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_key: { order_number_type: 2, transaction_id: params.transactionId },
+          logistics_type: 3,
+          delivery_mode: 1,
+          is_all_delivered: true,
+          shipping_list: [{ item_desc: params.itemDesc.slice(0, 120) }],
+          upload_time: (params.uploadTime || new Date()).toISOString(),
+          payer: { openid: params.openid },
+        }),
+      },
+    );
+    const result = await resp.json() as WechatBaseResponse;
+    if (!resp.ok || result.errcode !== 0) {
+      throw new BusinessException(
+        ErrorCode.THIRD_WECHAT_FAILED,
+        `小程序虚拟订单发货失败: ${result.errmsg || resp.status}`,
+      );
+    }
   }
 
   // ───────── 客服消息 ─────────

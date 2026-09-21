@@ -80,6 +80,43 @@ describe("WechatService", () => {
     }
   });
 
+  it("虚拟商品交付使用微信小程序无需物流接口", async () => {
+    const originalFetch = global.fetch;
+    process.env.MINIPROGRAM_APP_ID = "wx-delivery-mini";
+    process.env.MINIPROGRAM_APP_SECRET = "delivery-secret";
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ access_token: "token", expires_in: 7200 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ errcode: 0, errmsg: "ok" }),
+      });
+    global.fetch = fetchMock as typeof fetch;
+
+    try {
+      await expect(svc.uploadVirtualOrderShipping({
+        transactionId: "wx-transaction",
+        openid: "mini-openid",
+        itemDesc: "虚拟权益",
+        uploadTime: new Date("2026-09-21T00:00:00.000Z"),
+      })).resolves.toBeUndefined();
+      expect(fetchMock.mock.calls[1][0]).toContain("/wxa/sec/order/upload_shipping_info");
+      const request = fetchMock.mock.calls[1][1] as RequestInit;
+      expect(JSON.parse(String(request.body))).toEqual(expect.objectContaining({
+        order_key: { order_number_type: 2, transaction_id: "wx-transaction" },
+        logistics_type: 3,
+        is_all_delivered: true,
+        payer: { openid: "mini-openid" },
+      }));
+    } finally {
+      delete process.env.MINIPROGRAM_APP_ID;
+      delete process.env.MINIPROGRAM_APP_SECRET;
+      global.fetch = originalFetch;
+    }
+  });
+
   it("多小程序按 clientKey 选取凭据，并共享开放平台命名空间", () => {
     process.env.WECHAT_LOGIN_CLIENTS_JSON = JSON.stringify({
       miniA: { type: "miniprogram", appId: "wx-a", appSecret: "secret-a", openPlatformId: "rebu" },

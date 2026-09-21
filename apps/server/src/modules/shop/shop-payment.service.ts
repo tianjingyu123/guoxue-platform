@@ -20,6 +20,7 @@ import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
 import { StationPaipanSyncService } from "../station/station-paipan-sync.service";
+import { WechatService } from "../auth/wechat.service";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -57,6 +58,7 @@ export class ShopPaymentService {
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
     @Optional() private readonly stationPaipan?: StationPaipanSyncService,
+    @Optional() private readonly wechatPlatform?: WechatService,
   ) {
     this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
   }
@@ -651,6 +653,7 @@ export class ShopPaymentService {
         if (order.payMethod === "WECHAT" && order.payTransactionId === transactionId) {
           // 订单已入账但首次外发箱落库失败时，渠道重投必须补建事件；唯一键会拦截正常重复通知。
           await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
+          await this.reportWechatVirtualDelivery(order, body, transactionId);
           return true;
         }
         this.logger.error(
@@ -699,12 +702,49 @@ export class ShopPaymentService {
       }
       await this.attribution.recordOrderCommissionAndFee({ ...order, id: orderId });
       await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
+      await this.reportWechatVirtualDelivery(order, body, transactionId);
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
       return true;
     } finally {
       await this.redis.del(lockKey);
     }
+  }
+
+  /**
+   * 微信小程序虚拟订单到账后自动上报“已发货”。实物商品必须由商家填写真实物流，绝不自动处理。
+   * 首次失败不影响已确认的支付；在当前进程内退避重试，微信回调重投也会再次补报。
+   */
+  private async reportWechatVirtualDelivery(
+    order: Pick<Order, "id" | "type" | "shippingInfo">,
+    body: Record<string, unknown>,
+    transactionId: string,
+  ): Promise<void> {
+    if (!this.wechatPlatform) return;
+    const miniAppId = (process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID || "").trim();
+    const callbackAppId = String(body.appid || "").trim();
+    const payer = body.payer as Record<string, unknown> | undefined;
+    const openid = String(payer?.openid || "").trim();
+    const isVirtual = order.type !== "PRODUCT" || !order.shippingInfo;
+    if (!miniAppId || callbackAppId !== miniAppId || body.trade_type !== "JSAPI" || !openid || !isVirtual) return;
+
+    const deliveredKey = `wechat:mini:delivery:${transactionId}`;
+    if (await this.redis.get(deliveredKey)) return;
+    const attempt = async (index: number): Promise<void> => {
+      try {
+        await this.wechatPlatform!.uploadVirtualOrderShipping({
+          transactionId,
+          openid,
+          itemDesc: `热卜虚拟权益订单 ${order.id}`,
+        });
+        await this.redis.set(deliveredKey, "1", 30 * 24 * 60 * 60);
+      } catch (error) {
+        this.logger.warn(`小程序虚拟订单自动发货失败 order=${order.id}, attempt=${index + 1}: ${(error as Error).message}`);
+        const delays = [1000, 3000, 10000, 30000];
+        if (index < delays.length) setTimeout(() => { void attempt(index + 1); }, delays[index]);
+      }
+    };
+    await attempt(0);
   }
 
   /** 支付宝回调验签 */
