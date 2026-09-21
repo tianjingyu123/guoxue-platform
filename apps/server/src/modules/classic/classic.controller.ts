@@ -1,14 +1,14 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
-import { ClassicService } from "./classic.service";
+import { ClassicService, CLASSIC_QA_EMPTY_ANSWER } from "./classic.service";
 import { ClassicSegmentService } from "./classic-segment.service";
 import { ClassicPunctuationService } from "./classic-punctuation.service";
 import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
-import { ClassicCompanionService } from "./classic-companion.service";
+import { ClassicCompanionService, COMPANION_EMPTY_ANSWER } from "./classic-companion.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
@@ -100,8 +100,8 @@ export class ClassicController {
     await this.segment.assertSegmentPublic(id);
     const existing = await this.punctuation.peek(id);
     if (existing?.source === "original") return existing;
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return existing ?? this.punctuation.punctuate(id, req.user.id);
+    // 生成失败（模型不可用、改字校验不过）退回次数
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => existing ?? this.punctuation.punctuate(id, req.user.id));
   }
 
   /** 章节简体阅读版（确定性转换，不改底本；每段带回原文段落 ID、哈希与偏移） */
@@ -135,9 +135,10 @@ export class ClassicController {
   @ApiOperation({ summary: "按需生成段落白话译文（跨用户复用；复用也计次，但不再调用模型）" })
   async translateSegment(@Req() req: Request, @Param("id") id: string) {
     const st = await this.svc.segmentTranslationStatus(id);
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
-    return this.svc.translateSegment(id, req.user.id);
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => {
+      if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
+      return this.svc.translateSegment(id, req.user.id);
+    });
   }
 
   // ── 书籍管理（需管理员） ──
@@ -385,8 +386,12 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async dictionaryLookup(@Req() req: Request, @Body() dto: DictionaryLookupDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id); // 权益①：会员不限量，免费用户每日限次
-    return this.svc.dictionaryLookup(dto.word);
+    // 权益①：会员不限量，免费用户每日限次；模型无产出（无释义也无解释）不计次
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () => this.svc.dictionaryLookup(dto.word),
+      (r: any) => !(r?.meanings?.length) && (!r?.explanation || r.explanation === "暂无解释"),
+    );
   }
 
   // ── 白话翻译 ──
@@ -398,10 +403,12 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Req() req: Request, @Body() dto: TranslateDto) {
     // 计次口径（决策人 2026-09-21）：复用已有译文也扣 AI 次数；命中时只是不再调用模型
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    const hit = await this.svc.peekTranslation(dto);
-    if (hit) return hit;
-    return this.svc.translateClassical(dto, req.user.id);
+    // 生成失败退回次数（决策人 2026-09-21）
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => {
+      const hit = await this.svc.peekTranslation(dto);
+      if (hit) return hit;
+      return this.svc.translateClassical(dto, req.user.id);
+    });
   }
 
   // ── 古籍AI问答 ──
@@ -412,8 +419,11 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async ask(@Req() req: Request, @Body() dto: AskClassicDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.svc.askClassic(dto.question);
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () => this.svc.askClassic(dto.question),
+      (r) => r.answer === CLASSIC_QA_EMPTY_ANSWER,
+    );
   }
 
   // ── 古籍伴读智能体（识典伴读·注入当前章节正文的开放多轮对话） ──
@@ -434,10 +444,14 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.companion.chat(
-      { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
-      req.user?.id,
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () =>
+        this.companion.chat(
+          { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
+          req.user?.id,
+        ),
+      (r) => r.answer === COMPANION_EMPTY_ANSWER,
     );
   }
 
@@ -451,13 +465,16 @@ export class ClassicController {
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChatStream(@Req() req: Request, @Res() res: Response, @Body() dto: CompanionChatDto) {
     // 门控与非流式一致：先于 SSE 头执行，超限以普通错误响应返回
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    // 统一 SSE 写入器（含 X-Accel-Buffering: no 防 nginx 缓冲）
+    const ticket = await this.memberBenefit.consumeAiQuota(req.user.id);
+    // 统一 SSE 写入器（含 X-Accel-Buffering: no 防 nginx 缓冲）；流中途出错或无产出退回次数
     await this.sse.writeSseStream(
       res,
-      this.companion.chatStream(
-        { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
-        req.user?.id,
+      this.memberBenefit.guardAiStream(
+        ticket,
+        this.companion.chatStream(
+          { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
+          req.user?.id,
+        ),
       ),
     );
   }

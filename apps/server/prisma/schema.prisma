@@ -3985,6 +3985,7 @@ model VoiceSession {
   clientEstimatedSeconds Int? // 客户端自报时长，仅作估算参考
   issuedAt               DateTime? // 供应商签发成功时间
   lastEventAt            DateTime? // 最近一次心跳/回调时间，超时清理依据
+  lastInputAt            DateTime? // 最近一次用户输入（说话/发文字）；超过 idleTimeoutSeconds 无新输入自动结束
 
   @@index([userId, startedAt])
   @@index([accountId])

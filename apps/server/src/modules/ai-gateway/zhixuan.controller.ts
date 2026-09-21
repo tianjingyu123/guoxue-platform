@@ -37,8 +37,12 @@ export class ZhixuanController {
   @ApiBearerAuth()
   async chat(@Body() dto: ZhixuanChatDto, @Req() req: Request) {
     // AI 额度门控：会员不限量，免费用户每日限次（超限抛 RATE_LIMITED 引导开会员）
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    const res = await this.zhixuan.chat(dto, req.user.id);
+    // 生成失败（异常或无文字回答）退回次数
+    const res = await this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () => this.zhixuan.chat(dto, req.user.id),
+      (r) => !r.messages.some((m: { type: string; content?: string }) => m.type === "text" && !!m.content?.trim()),
+    );
     return { ...res, disclaimer: RISK_DISCLAIMER };
   }
 
@@ -52,7 +56,7 @@ export class ZhixuanController {
   @ApiBearerAuth()
   async chatStream(@Body() dto: ZhixuanChatDto, @Req() req: Request, @Res() res: Response) {
     // 额度检查先于 SSE 头：耗尽时以普通 JSON 错误返回，前端走统一错误提示
-    await this.memberBenefit.consumeAiQuota(req.user.id);
+    const ticket = await this.memberBenefit.consumeAiQuota(req.user.id);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -61,7 +65,10 @@ export class ZhixuanController {
     res.flushHeaders();
 
     try {
-      const { card, stream } = this.zhixuan.prepareStream(dto, req.user.id);
+      const prepared = this.zhixuan.prepareStream(dto, req.user.id);
+      const card = prepared.card;
+      // 流中途出错或没有文字产出退回次数
+      const stream = this.memberBenefit.guardAiStream(ticket, prepared.stream);
       // 富消息：先推结构化卡片，前端立即渲染，再流式推文本
       if (card) {
         res.write(this.sse.encode({ type: "card", cardType: card.cardType, payload: card.payload }));
@@ -73,6 +80,7 @@ export class ZhixuanController {
       res.write(this.sse.encode({ type: "done" }));
     } catch (err: any) {
       this.logger.error(`智玄SSE流式错误: ${err.message}`);
+      await this.memberBenefit.refundAiQuota(ticket); // 流未建立就失败时守卫不在场，这里兜底（同一凭据只退一次）
       res.write(this.sse.encode({ type: "error", message: err.message || "AI服务异常" }));
     } finally {
       res.end();

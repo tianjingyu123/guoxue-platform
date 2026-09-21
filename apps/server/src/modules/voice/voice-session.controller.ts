@@ -20,7 +20,8 @@ export class StartVoiceSessionDto {
 }
 
 export class EndVoiceSessionDto {
-  @IsOptional() @IsIn(["user_hangup", "page_exit", "switch_context"]) reason?: "user_hangup" | "page_exit" | "switch_context";
+  // idle_timeout：客户端到点自动挂断（1 分钟无新输入）
+  @IsOptional() @IsIn(["user_hangup", "page_exit", "switch_context", "idle_timeout"]) reason?: "user_hangup" | "page_exit" | "switch_context" | "idle_timeout";
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(7200) clientEstimatedSeconds?: number;
 }
 
@@ -88,6 +89,16 @@ export class VoiceSessionController {
   @ApiBearerAuth()
   async cancel(@Req() req: Request, @Param("id") id: string) {
     return this.sessions.cancel((req as any).user.id, id);
+  }
+
+  /** 用户有新的输入（说话/发文字）：刷新空闲计时；1 分钟无新输入自动结束 */
+  @Post("sessions/:id/input")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "上报用户有新输入（刷新空闲计时，不传语音内容）" })
+  async input(@Req() req: Request, @Param("id") id: string) {
+    return this.sessions.recordInput((req as any).user.id, id);
   }
 
   @Post("sessions/:id/feedback")

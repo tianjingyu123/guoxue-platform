@@ -32,6 +32,7 @@ export interface VoiceSessionView {
   startedAt: string
   endedAt: string | null
   endReason: string | null
+  lastInputAt?: string | null
   isMock: boolean
   clientCredential?: string | null
   credentialExpiresAt?: string | null
@@ -44,6 +45,8 @@ export type StartResult =
       duplicated: boolean
       session: VoiceSessionView
       context?: { topic: string; version: string }
+      /** 连续多少秒没有新输入自动结束（决策人 2026-09-21：1 分钟） */
+      policy?: { idleTimeoutSeconds: number }
       error?: { code: string; message: string; retryable: boolean }
     }
 
@@ -149,8 +152,16 @@ export const xiaobuVoiceApi = {
   }): Promise<StartResult> {
     return apiPost<StartResult>('/voice/sessions', body)
   },
-  end(id: string, clientEstimatedSeconds?: number): Promise<{ session: VoiceSessionView }> {
-    return apiPost(`/voice/sessions/${encodeURIComponent(id)}/end`, { reason: 'user_hangup', clientEstimatedSeconds })
+  end(
+    id: string,
+    clientEstimatedSeconds?: number,
+    reason: 'user_hangup' | 'page_exit' | 'idle_timeout' = 'user_hangup',
+  ): Promise<{ session: VoiceSessionView }> {
+    return apiPost(`/voice/sessions/${encodeURIComponent(id)}/end`, { reason, clientEstimatedSeconds })
+  },
+  /** 用户有新输入：刷新服务端空闲计时（只报「有输入」这件事，不传语音或文字内容） */
+  input(id: string): Promise<{ status: string; lastInputAt: string | null; idleTimeoutSeconds: number }> {
+    return apiPost(`/voice/sessions/${encodeURIComponent(id)}/input`, {})
   },
   cancel(id: string): Promise<{ session: VoiceSessionView }> {
     return apiPost(`/voice/sessions/${encodeURIComponent(id)}/cancel`, {})

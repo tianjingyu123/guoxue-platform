@@ -211,6 +211,70 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
     expect((await quota.getAvailable("user", user)).reservedSeconds).toBe(0);
   });
 
+  it("1 分钟无新输入自动结束（决策人 09-21）：服务端在客户端之后 15 秒兜底；新输入刷新计时", async () => {
+    const mock = new MockXiaozhiProvider();
+    mock.behave({ capabilities: { usageCallback: "unknown" } });
+    const { svc, quota } = build(mock);
+    const user = `${prefix}-idle`;
+    await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
+    const s: any = await svc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: reqId("idle") });
+    expect(s.policy).toEqual({ idleTimeoutSeconds: 60 });
+    const id = s.session.id;
+    const back = (sec: number) => prisma.voiceSession.update({ where: { id }, data: { lastInputAt: new Date(Date.now() - sec * 1000) } });
+
+    // 70 秒无输入：客户端已该挂断，服务端还在 15 秒宽限内，不动
+    await back(70);
+    await svc.sweep(new Date());
+    expect((await prisma.voiceSession.findUniqueOrThrow({ where: { id } })).status).toBe("active");
+
+    // 80 秒前的最后输入，但刚刚又说了一句 → 计时刷新，不结束
+    await back(80);
+    const touched = await svc.recordInput(user, id);
+    expect(touched).toMatchObject({ status: "active", idleTimeoutSeconds: 60 });
+    await svc.sweep(new Date());
+    expect((await prisma.voiceSession.findUniqueOrThrow({ where: { id } })).status).toBe("active");
+
+    // 80 秒没有新输入 → 按 idle_timeout 结束，并请求供应商停止
+    await back(80);
+    await svc.sweep(new Date());
+    const ended = await prisma.voiceSession.findUniqueOrThrow({ where: { id } });
+    expect(ended).toMatchObject({ status: "ended", endReason: "idle_timeout" });
+    expect(await prisma.voiceProviderAttempt.count({ where: { sessionId: id, operation: "end" } })).toBe(1);
+
+    // 结束后迟到的输入上报不会让会话「复活」
+    const late = await svc.recordInput(user, id);
+    expect(late.status).toBe("ended");
+    expect((await prisma.voiceSession.findUniqueOrThrow({ where: { id } })).status).toBe("ended");
+  });
+
+  it("空闲秒数后台可调（限 15–600）；一直有输入的会话到时长上限按 max_duration 结束；他人不能替我刷新", async () => {
+    cfg = billing({ idleTimeoutSeconds: 5 });
+    const mock = new MockXiaozhiProvider();
+    mock.behave({ capabilities: { usageCallback: "unknown" } });
+    const { svc, quota } = build(mock);
+    const user = `${prefix}-maxdur`;
+    await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
+    const s: any = await svc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: reqId("maxdur") });
+    expect(s.policy).toEqual({ idleTimeoutSeconds: 15 });
+    await expect(svc.recordInput(`${prefix}-other`, s.session.id)).rejects.toThrow(/不存在/);
+
+    // 模拟「一直在说话」：最近输入永远是当下；超过单次上限后按 max_duration 结束
+    const future = new Date(Date.now() + 3600_000);
+    await prisma.voiceSession.update({ where: { id: s.session.id }, data: { lastInputAt: future } });
+    await svc.sweep(future);
+    const ended = await prisma.voiceSession.findUniqueOrThrow({ where: { id: s.session.id } });
+    expect(ended).toMatchObject({ status: "ended", endReason: "max_duration" });
+  });
+
+  it("客户端到点自动挂断：结束原因记 idle_timeout", async () => {
+    const { svc, quota } = build(new MockXiaozhiProvider());
+    const user = `${prefix}-idle-client`;
+    await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
+    const s: any = await svc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: reqId("idlec") });
+    const r: any = await svc.end(user, s.session.id, { reason: "idle_timeout", clientEstimatedSeconds: 61 });
+    expect(r.session.endReason).toBe("idle_timeout");
+  });
+
   it("切换供应商后，旧供应商遗留的会话不发给新供应商，按用量未知收尾", async () => {
     const { svc: mockSvc, quota } = build(new MockXiaozhiProvider());
     const user = `${prefix}-switch`;

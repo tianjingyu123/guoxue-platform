@@ -36,6 +36,10 @@ export const END_TIMEOUT_MS = 5_000;
 export const CALLBACK_WAIT_MS = 10 * 60_000;
 /** 签发卡住（reserved 超过此时长）视为失败 */
 export const RESERVED_STALE_MS = 2 * 60_000;
+/** 服务端空闲兜底比客户端多等的秒数：正常由客户端到点挂断，页面关掉或断网时由清理任务收尾 */
+export const IDLE_SWEEP_GRACE_MS = 15_000;
+/** 客户端上报「有新输入」的最小间隔，防止每句话都打一次库 */
+export const INPUT_TOUCH_MIN_INTERVAL_MS = 5_000;
 
 export interface StartVoiceSessionInput extends VoiceContextRequest {
   /** 客户端请求号：重复点击「开始」只建一个会话 */
@@ -149,6 +153,7 @@ export class VoiceSessionService {
       startedAt: s.startedAt,
       endedAt: s.endedAt,
       endReason: s.endReason,
+      lastInputAt: s.lastInputAt,
       isMock: s.providerIsMock,
       ...(extra ? { clientCredential: extra.clientCredential ?? null, credentialExpiresAt: extra.credentialExpiresAt ?? null } : {}),
     };
@@ -272,6 +277,7 @@ export class VoiceSessionService {
           providerSessionId: issued.providerSessionId,
           issuedAt: new Date(),
           lastEventAt: new Date(),
+          lastInputAt: new Date(), // 空闲计时从接通开始算
           usageState: issued.isMock ? "mock" : "pending",
         },
       });
@@ -283,10 +289,13 @@ export class VoiceSessionService {
       }
       this.logger.log(`语音会话已签发 requestId=${fresh.requestId} provider=${this.provider.id}${issued.isMock ? "（模拟）" : ""}`);
       // 凭据只返回给本次发起者，不落库、不写日志
+      const { idleTimeoutSeconds } = await this.quota.getConfig();
       return {
         available: true as const,
         duplicated: false,
         session: this.toView(fresh, { clientCredential: issued.clientCredential, credentialExpiresAt: issued.expiresAt }),
+        // 1 分钟无新输入自动结束：客户端据此到点挂断，服务端清理任务兜底
+        policy: { idleTimeoutSeconds },
         // 只给用户看简短话题；给模型的指令（context.topic/facts）不下发到端上
         context: { topic: resolved.displayTopic, version: resolved.context.version },
       };
@@ -360,6 +369,28 @@ export class VoiceSessionService {
       this.logger.warn(`请求供应商结束会话失败 requestId=${s.requestId} code=${code}（停费未确认，记为用量未知）`);
       return { stopConfirmed: false, attempted: true };
     }
+  }
+
+  /**
+   * 用户有新的输入（说话、发文字）：刷新空闲计时。
+   * 只接受本人、进行中的会话；已结束的会话不会因为迟到的上报「复活」。
+   * 真实供应商接通后，适配器把供应商的输入/语音活动事件也映射到这里。
+   */
+  async recordInput(userId: string, sessionId: string) {
+    const s = await this.ownSession(userId, sessionId);
+    const { idleTimeoutSeconds } = await this.quota.getConfig();
+    if (s.status !== "active") return { status: s.status, lastInputAt: s.lastInputAt, idleTimeoutSeconds };
+    const now = new Date();
+    await this.prisma.voiceSession.updateMany({
+      where: {
+        id: s.id,
+        status: "active",
+        OR: [{ lastInputAt: null }, { lastInputAt: { lt: new Date(now.getTime() - INPUT_TOUCH_MIN_INTERVAL_MS) } }],
+      },
+      data: { lastInputAt: now },
+    });
+    const fresh = await this.prisma.voiceSession.findUniqueOrThrow({ where: { id: s.id } });
+    return { status: fresh.status, lastInputAt: fresh.lastInputAt, idleTimeoutSeconds };
   }
 
   /**
@@ -568,19 +599,26 @@ export class VoiceSessionService {
       finalized++;
     }
 
+    // 进行中的会话两条结束线，先到先结束：
+    // - 空闲：最近一次用户输入后 idleTimeoutSeconds 没有新输入（决策人 2026-09-21：1 分钟），服务端多给 15 秒让客户端先挂
+    // - 上限：超过单次时长上限 + 宽限
+    const idleMs = cfg.idleTimeoutSeconds * 1000 + IDLE_SWEEP_GRACE_MS;
     const actives = await this.prisma.voiceSession.findMany({ where: { status: "active", provider: this.provider.id }, take: 200 });
     for (const s of actives) {
-      const deadline = (s.issuedAt ?? s.startedAt).getTime() + s.maxSeconds * 1000 + grace;
-      if (deadline > now.getTime()) continue;
+      const began = (s.issuedAt ?? s.startedAt).getTime();
+      const maxDeadline = began + s.maxSeconds * 1000 + grace;
+      const idleDeadline = (s.lastInputAt ?? s.issuedAt ?? s.startedAt).getTime() + idleMs;
+      if (Math.min(maxDeadline, idleDeadline) > now.getTime()) continue;
+      const reason = idleDeadline <= maxDeadline ? "idle_timeout" : "max_duration";
       const claimed = await this.prisma.voiceSession.updateMany({
         where: { id: s.id, status: "active" },
-        data: { status: "ending", endReason: "idle_timeout", lastEventAt: now },
+        data: { status: "ending", endReason: reason, lastEventAt: now },
       });
       if (claimed.count !== 1) continue;
-      const { stopConfirmed } = await this.endAtProvider(s, s.providerSessionId, "idle_timeout");
+      const { stopConfirmed } = await this.endAtProvider(s, s.providerSessionId, reason);
       const probe = await this.provider.probe();
       if (!(stopConfirmed && probe.capabilities.usageCallback === "supported")) {
-        await this.finalizeWithoutVendorUsage(s.id, null, "idle_timeout", stopConfirmed ? "success" : "interrupted");
+        await this.finalizeWithoutVendorUsage(s.id, null, reason, stopConfirmed ? "success" : "interrupted");
       }
       ended++;
     }

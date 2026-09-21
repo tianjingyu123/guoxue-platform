@@ -31,6 +31,7 @@ const mockClassicSvc = {
   generateDownloadUrl: jest.fn().mockResolvedValue({ url: "https://cdn.example.com/book1.epub" }),
   getDownloads: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
   dictionaryLookup: jest.fn().mockResolvedValue({ word: "仁", pinyin: "rén", explanation: "仁爱" }),
+  askClassic: jest.fn().mockResolvedValue({ answer: "仁者爱人" }),
   translateClassical: jest.fn().mockResolvedValue({ original: "学而时习之", translation: "学习并经常温习", notes: [], source: "" }),
   peekTranslation: jest.fn().mockResolvedValue(null),
   segmentTranslationStatus: jest.fn().mockResolvedValue({ segmentId: "seg1", status: "none", contentHash: "h1", result: null }),
@@ -76,12 +77,16 @@ const mockSimplified = {
   forSegment: jest.fn().mockResolvedValue({ segmentId: "seg1", text: "学而时习之" }),
 };
 
-const mockMemberBenefit = {
+const mockMemberBenefit: any = {
   isActiveMember: jest.fn().mockResolvedValue(false),
   consumeAiQuota: jest.fn().mockResolvedValue({ isMember: false, remaining: 9 }),
+  refundAiQuota: jest.fn().mockResolvedValue(undefined),
   getAiQuota: jest.fn().mockResolvedValue({ isMember: false, dailyLimit: 10, usedToday: 0, remaining: 10 }),
   grantMonthlyBenefits: jest.fn().mockResolvedValue(true),
 };
+// 「扣次 → 生成 → 失败退回」用真实实现，只把扣次/退回换成桩，断言退没退
+mockMemberBenefit.runWithAiQuota = MemberBenefitService.prototype.runWithAiQuota.bind(mockMemberBenefit);
+mockMemberBenefit.guardAiStream = MemberBenefitService.prototype.guardAiStream.bind(mockMemberBenefit);
 
 describe("ClassicController", () => {
   let ctrl: ClassicController;
@@ -255,6 +260,46 @@ describe("ClassicController", () => {
     expect(miss.cached).toBe(false);
     expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledWith("u1");
     expect(mockClassicSvc.translateSegment).toHaveBeenCalledWith("seg1", "u1");
+  });
+
+  it("生成失败退回次数（决策人 09-21）：翻译模型报错 → 扣后退回，错误照常抛给前端", async () => {
+    mockMemberBenefit.consumeAiQuota.mockClear();
+    mockMemberBenefit.refundAiQuota.mockClear();
+    mockClassicSvc.peekTranslation.mockResolvedValueOnce(null);
+    mockClassicSvc.translateClassical.mockRejectedValueOnce(new Error("AI服务未配置"));
+    await expect(ctrl.translate({ user: { id: "u1" } } as any, { text: "潛龍勿用" } as any)).rejects.toThrow("AI服务未配置");
+    expect(mockMemberBenefit.consumeAiQuota).toHaveBeenCalledTimes(1);
+    expect(mockMemberBenefit.refundAiQuota).toHaveBeenCalledTimes(1);
+  });
+
+  it("生成成功不退；段落译文、断句生成失败都退", async () => {
+    const punct: any = (ctrl as any).punctuation;
+    mockMemberBenefit.refundAiQuota.mockClear();
+    mockClassicSvc.peekTranslation.mockResolvedValueOnce(null);
+    await ctrl.translate({ user: { id: "u1" } } as any, { text: "学而时习之" } as any);
+    expect(mockMemberBenefit.refundAiQuota).not.toHaveBeenCalled();
+
+    mockClassicSvc.segmentTranslationStatus.mockResolvedValueOnce({ segmentId: "seg1", status: "none", contentHash: "h1", result: null });
+    mockClassicSvc.translateSegment.mockRejectedValueOnce(new Error("生成结果不完整"));
+    await expect(ctrl.translateSegment({ user: { id: "u1" } } as any, "seg1")).rejects.toThrow("不完整");
+    expect(mockMemberBenefit.refundAiQuota).toHaveBeenCalledTimes(1);
+
+    punct.peek.mockResolvedValueOnce(null);
+    punct.punctuate.mockRejectedValueOnce(new Error("自动断句暂不可用"));
+    await expect(ctrl.punctuateSegment({ user: { id: "u1" } } as any, "seg1")).rejects.toThrow("暂不可用");
+    expect(mockMemberBenefit.refundAiQuota).toHaveBeenCalledTimes(2);
+  });
+
+  it("模型无产出、服务返回兜底文案（问答/查词）：结果照给，但不计次", async () => {
+    mockMemberBenefit.refundAiQuota.mockClear();
+    mockClassicSvc.askClassic.mockResolvedValueOnce({ answer: "抱歉，我暂时无法回答这个问题，请换个方式提问。" });
+    const ask: any = await ctrl.ask({ user: { id: "u1" } } as any, { question: "何谓仁" } as any);
+    expect(ask.answer).toContain("抱歉");
+    expect(mockMemberBenefit.refundAiQuota).toHaveBeenCalledTimes(1);
+
+    mockClassicSvc.dictionaryLookup.mockResolvedValueOnce({ word: "仁", meanings: [], explanation: "暂无解释" });
+    await ctrl.dictionaryLookup({ user: { id: "u1" } } as any, { word: "仁" } as any);
+    expect(mockMemberBenefit.refundAiQuota).toHaveBeenCalledTimes(2);
   });
 
   it("GET /classic/segments/:id/translation — 只返回状态，不返回译文正文（防止绕过计次）", async () => {

@@ -44,6 +44,41 @@ let startedAt = 0
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 const elapsed = ref(0)
 
+// ── 无输入自动结束（决策人 2026-09-21：通话 1 分钟没有新的输入就结束，与小智开源服务端规则一致）──
+// 页面到点主动挂断；页面被关或断网时由服务端清理任务兜底。只记「有没有输入」，不录音、不存内容。
+const DEFAULT_IDLE_SECONDS = 60
+const IDLE_WARN_SECONDS = 15
+const INPUT_REPORT_INTERVAL_MS = 5_000
+const idleSeconds = ref(DEFAULT_IDLE_SECONDS)
+const idleLeft = ref(DEFAULT_IDLE_SECONDS)
+let lastInputAt = 0
+let lastInputReportAt = 0
+
+const idleText = computed(() => {
+  const s = idleSeconds.value
+  return s % 60 === 0 ? `${s / 60} 分钟` : `${s} 秒`
+})
+
+/**
+ * 用户有新的输入（说话被识别到、发了文字）：重置空闲计时，并节流上报服务端。
+ * 真实语音 SDK 接入后，在它的「检测到用户说话/识别到文字」回调里调用这里。
+ */
+function markInput() {
+  const s = session.value
+  if (!s || state.value !== 'connected') return
+  lastInputAt = Date.now()
+  idleLeft.value = idleSeconds.value
+  if (Date.now() - lastInputReportAt < INPUT_REPORT_INTERVAL_MS) return
+  lastInputReportAt = Date.now()
+  xiaobuVoiceApi.input(s.id).catch(() => undefined)
+}
+
+function tick() {
+  elapsed.value = Math.floor((Date.now() - startedAt) / 1000)
+  idleLeft.value = Math.max(0, idleSeconds.value - Math.floor((Date.now() - lastInputAt) / 1000))
+  if (state.value === 'connected' && idleLeft.value <= 0) hangup('idle_timeout')
+}
+
 const SCENE_TITLE: Record<string, string> = {
   plaza: '和小卜语音聊',
   report_dialogue: '和小卜聊这份报告',
@@ -128,8 +163,12 @@ async function start() {
     state.value = uiStateOfSession(r.session)
     startedAt = Date.now()
     elapsed.value = 0
+    idleSeconds.value = r.policy?.idleTimeoutSeconds || DEFAULT_IDLE_SECONDS
+    lastInputAt = startedAt
+    lastInputReportAt = startedAt
+    idleLeft.value = idleSeconds.value
     stopTimer()
-    elapsedTimer = setInterval(() => { elapsed.value = Math.floor((Date.now() - startedAt) / 1000) }, 1000)
+    elapsedTimer = setInterval(tick, 1000)
   } catch (e) {
     errorText.value = (e as Error)?.message || '没有接通，请稍后再试'
     retryable.value = true
@@ -137,13 +176,13 @@ async function start() {
   }
 }
 
-async function hangup() {
+async function hangup(reason: 'user_hangup' | 'idle_timeout' = 'user_hangup') {
   const s = session.value
   if (!s || state.value === 'ending') return
   stopTimer()
   state.value = 'ending'
   try {
-    const r = await xiaobuVoiceApi.end(s.id, elapsed.value)
+    const r = await xiaobuVoiceApi.end(s.id, elapsed.value, reason)
     session.value = r.session
     state.value = uiStateOfSession(r.session) === 'ending' ? 'ended' : uiStateOfSession(r.session)
   } catch {
@@ -181,7 +220,7 @@ function releaseOnLeave() {
   stopTimer()
   const s = session.value
   if (s && (state.value === 'connected' || state.value === 'connecting')) {
-    xiaobuVoiceApi.end(s.id, elapsed.value).catch(() => undefined)
+    xiaobuVoiceApi.end(s.id, elapsed.value, 'page_exit').catch(() => undefined)
   }
 }
 
@@ -235,7 +274,12 @@ onUnmounted(stopTimer)
       <view v-else-if="state === 'connected'" class="card">
         <text v-if="topic" class="card-text">正在讨论：{{ topic }}</text>
         <text v-if="isMock" class="hint">模拟会话只验证开通、计时和挂断流程；真实收音与播报需接入语音服务后才可用。</text>
-        <view class="btn btn-danger" data-testid="voice-hangup" @tap="hangup"><text class="btn-text-primary">挂断</text></view>
+        <text class="hint" data-testid="voice-idle-hint">
+          {{ idleLeft <= IDLE_WARN_SECONDS ? `${idleLeft} 秒内没有新的输入将自动结束` : `${idleText}没有新的输入会自动结束` }}
+        </text>
+        <!-- 模拟会话没有真实收音：用这个按钮代表「用户说了一句」，验证空闲计时会被重置 -->
+        <view v-if="isMock" class="btn" data-testid="voice-mock-input" @tap="markInput"><text class="btn-text">模拟说一句</text></view>
+        <view class="btn btn-danger" data-testid="voice-hangup" @tap="hangup()"><text class="btn-text-primary">挂断</text></view>
       </view>
 
       <view v-else-if="state === 'failed'" class="card" data-testid="voice-failed">
@@ -249,7 +293,9 @@ onUnmounted(stopTimer)
       </view>
 
       <view v-else-if="state === 'ended' && session" class="card" data-testid="voice-ended">
-        <text class="card-text">本次通话已结束。{{ USAGE_TEXT[session.usageState] }}</text>
+        <text class="card-text">
+          {{ session.endReason === 'idle_timeout' ? `${idleText}没有新的输入，已自动结束。` : '本次通话已结束。' }}{{ USAGE_TEXT[session.usageState] }}
+        </text>
         <text v-if="errorText" class="hint">{{ errorText }}</text>
         <view v-if="!feedbackDone" class="row">
           <view class="btn" @tap="rate('satisfied')"><text class="btn-text">有帮助</text></view>

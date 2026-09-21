@@ -15,6 +15,9 @@ import {
   PUBLIC_CLASSIC_COPYRIGHT_WHERE,
 } from "./classic-publication-policy";
 
+/** 古籍问答模型无产出时的兜底文案（不计 AI 次数） */
+export const CLASSIC_QA_EMPTY_ANSWER = "抱歉，我暂时无法回答这个问题，请换个方式提问。";
+
 @Injectable()
 export class ClassicService {
   private readonly logger = new Logger(ClassicService.name);
@@ -556,7 +559,7 @@ export class ClassicService {
       ],
       options: { temperature: 0.6, maxTokens: 1200 },
     });
-    return { answer: result.content?.trim() || "抱歉，我暂时无法回答这个问题，请换个方式提问。" };
+    return { answer: result.content?.trim() || CLASSIC_QA_EMPTY_ANSWER };
   }
 
   // ── 继续阅读 ──

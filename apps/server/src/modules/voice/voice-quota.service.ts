@@ -27,6 +27,8 @@ export interface VoiceBillingConfig {
   sessionMaxSeconds: number;
   /** 开始会话要求的最少可用额度（秒） */
   minStartSeconds: number;
+  /** 通话中连续多少秒没有新的用户输入即自动结束（默认 60，限 15–600） */
+  idleTimeoutSeconds: number;
   /** 供应商成本（百万分之一元/分钟）；来源：用户 2026-09-14 转述报价，以合同为准 */
   supplierMicroPerMinute: { lite: number; standard: number };
   /** 售价与赠送额度（决策人 2026-09-17 拍板）；金额单位一律 micro 元（1 元 = 1_000_000） */
@@ -96,6 +98,8 @@ export const DEFAULT_VOICE_PRICING: VoicePricingConfig = {
 
 export const DEFAULT_VOICE_BILLING: VoiceBillingConfig = {
   version: "priced-2026-09-17",
+  // 决策人 2026-09-21：通话 1 分钟没有新的输入即结束（与小智开源服务端的无语音断开规则一致）
+  idleTimeoutSeconds: 60,
   // 价格已拍板，但真实语音链路未接通前不向用户扣费；链路就绪后由运营后台打开
   chargeUsers: false,
   freeSessionMaxSeconds: 180,
@@ -115,7 +119,15 @@ export function parseVoiceBillingConfig(raw: string): VoiceBillingConfig {
     ...parsed,
     supplierMicroPerMinute: { ...DEFAULT_VOICE_BILLING.supplierMicroPerMinute, ...(parsed.supplierMicroPerMinute || {}) },
     pricing: { ...DEFAULT_VOICE_PRICING, ...(parsed.pricing || {}) },
+    idleTimeoutSeconds: clampIdleSeconds(parsed.idleTimeoutSeconds),
   };
+}
+
+/** 无输入自动结束的秒数：后台可调，限定 15–600 秒，非法值回落默认 60 */
+function clampIdleSeconds(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_VOICE_BILLING.idleTimeoutSeconds;
+  return Math.min(600, Math.max(15, Math.floor(n)));
 }
 
 @Injectable()
