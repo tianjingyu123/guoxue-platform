@@ -267,6 +267,16 @@ function playFromSelection() {
   if (!playing.value) play()
 }
 
+function openRelatedAgents() {
+  closeAi()
+  uni.navigateTo({ url: '/pkg-agent/agents/index' })
+}
+
+function openClassicsLibrary() {
+  closeAi()
+  uni.navigateTo({ url: '/pkg-classics/home/index' })
+}
+
 function saveProgress() {
   if (!getToken() || !curChapter.value) return
   classicsApi.saveProgress(bookId.value, curChapter.value.id, progress.value, true).catch(() => {})
@@ -587,7 +597,7 @@ onLoad((q) => {
             </view>
           </view>
           <!-- AI 研读中动态卡（阶段文案轮播+墨点晕开+伪进度·关抽屉不中断请求，回来结果已在对话流） -->
-          <view v-if="aiLoading" class="ai-row">
+        <view v-if="aiLoading" class="ai-row">
             <view class="ai-avatar ai-avatar--sm"><app-icon name="sparkles" :size="26" color="#ffffff" /></view>
             <view class="ai-bubble-assist">
               <ai-thinking :mode="aiThinkMode" :since="aiThinkStart" />
@@ -595,6 +605,15 @@ onLoad((q) => {
           </view>
           <view id="ai-bottom" class="ai-bottom-anchor" />
         </scroll-view>
+
+        <!-- 对话完成后的平台导引：保持轻量，不打断当前伴读。 -->
+        <view v-if="aiMessages.length && !aiLoading" class="ai-discover">
+          <text class="ai-discover-title">顺着本章继续</text>
+          <view class="ai-discover-row">
+            <view class="ai-discover-action" @tap="openClassicsLibrary"><app-icon name="book-open" :size="22" color="#92400e" /><text>继续读古籍</text></view>
+            <view class="ai-discover-action" @tap="openRelatedAgents"><app-icon name="sparkles" :size="22" color="#315f7a" /><text>找专业智能体</text></view>
+          </view>
+        </view>
 
         <!-- 自由输入 -->
         <view class="ai-input-bar">
@@ -881,6 +900,10 @@ onLoad((q) => {
   border-top: 1rpx solid rgba(150, 130, 90, 0.16);
   background: #faf8f5;
 }
+.ai-discover { padding: 12rpx 32rpx 8rpx; background: rgba(250, 248, 243, 0.96); border-top: 1rpx solid rgba(150, 130, 90, 0.12); }
+.ai-discover-title { display: block; margin-bottom: 10rpx; font-size: 20rpx; color: #9a8879; }
+.ai-discover-row { display: flex; gap: 12rpx; }
+.ai-discover-action { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8rpx; min-height: 58rpx; border: 1rpx solid rgba(150, 130, 90, 0.18); border-radius: 12rpx; background: #fffdf9; color: #63564b; font-size: 21rpx; }
 .ai-input {
   flex: 1;
   height: 76rpx;
