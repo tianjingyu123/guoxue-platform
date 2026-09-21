@@ -13,6 +13,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { computeLiuren, SHENJIANG_NAME, type LiurenResult } from '@/pkg-paipan/lib/daliuren-engine'
 import { saveDaliurenHistory, type DaliurenParams } from './daliuren-history'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
+import { getToken } from '@/utils/storage'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '大六壬排盘'
@@ -56,6 +58,44 @@ const params = ref<DaliurenParams | null>(null)
 const hourOffset = ref(0) // 上一时/下一时偏移（步长一个时辰=2小时）
 const r = ref<LiurenResult | null>(null)
 const loadError = ref('')
+
+// 生成课书：把起课参数（含流派选项与时辰偏移后的实际时刻）存服务端，换 recordId
+const generatingKeShu = ref(false)
+async function openKeShu() {
+  const p = params.value
+  if (!p) return
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录',
+      content: '登录后即可生成有依据的课书',
+      confirmText: '去登录',
+      success: (res) => { if (res.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (generatingKeShu.value) return
+  generatingKeShu.value = true
+  try {
+    // 页面支持时辰前后翻看，课书按当前所看的这一课生成
+    const d = new Date(p.year, p.month - 1, p.day, p.hour, p.minute)
+    d.setHours(d.getHours() + hourOffset.value * 2)
+    const rec = await aiReportApi.saveDaliurenRecord({
+      matter: p.matter,
+      year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(),
+      jiangMethod: p.jiangMethod,
+      guirenMethod: p.guirenMethod,
+      guishenType: p.guishenType,
+      shehaiType: p.shehaiType,
+      birthYear: p.birthYear || undefined,
+      gender: p.gender,
+    })
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${rec.id}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败，请稍后重试', icon: 'none' })
+  } finally {
+    generatingKeShu.value = false
+  }
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -337,6 +377,15 @@ function onShare() {
           <text class="keti-note">{{ r.quKeNote }}</text>
         </view>
 
+        <!-- 生成课书：四课取传、三传递进、天将神煞、应期与断语，带依据出处 -->
+        <view class="keshu" @tap="openKeShu">
+          <view class="keshu-main">
+            <text class="keshu-title">{{ generatingKeShu ? '正在准备…' : '生成小卜课书' }}</text>
+            <text class="keshu-sub">讲清四课怎么取传、三传如何递进，并注明依据出处</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#ffffff" />
+        </view>
+
         <disclaimer
           variant="custom"
           tone="subtle"
@@ -477,4 +526,8 @@ $serif: Georgia, 'Songti SC', serif;
 }
 .keti-chip-text { font-family: $serif; font-size: 26rpx; color: var(--brand); }
 .keti-note { display: block; margin-top: 20rpx; font-size: 26rpx; line-height: 1.7; color: var(--text-soft); }
+.keshu { display: flex; align-items: center; gap: 16rpx; margin: 12rpx 0 4rpx; padding: 26rpx 28rpx; border-radius: 20rpx; background: var(--brand); }
+.keshu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.keshu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
+.keshu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
 </style>

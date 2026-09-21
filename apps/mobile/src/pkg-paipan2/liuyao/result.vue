@@ -18,6 +18,8 @@ import { navigateTo } from '@/utils/router'
 import { computeLiuyao } from '@/pkg-paipan2/lib/liuyao-engine'
 import { QIGUA_METHODS, type LiuyaoResultLine, type QiguaMethodKey } from '@/pkg-paipan2/lib/liuyao-data'
 import { saveLiuyaoHistory, type LiuyaoParams } from './liuyao-history'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
+import { getToken } from '@/utils/storage'
 
 const loadError = ref('')
 const params = ref<LiuyaoParams | null>(null)
@@ -102,6 +104,42 @@ onLoad((q: Record<string, string> = {}) => {
     loadError.value = (e as Error).message || '起卦参数无效'
   }
 })
+
+// 生成卦书：本地起卦结果先落库换取 recordId，再进报告页（报告按同一套起卦参数重算，卦面一致）
+const generating = ref(false)
+async function openGuaShu() {
+  const p = params.value
+  if (!p) return
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录',
+      content: '登录后即可生成有依据的卦书',
+      confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (generating.value) return
+  generating.value = true
+  try {
+    const rec = await aiReportApi.saveLiuyaoRecord({
+      matter: p.matter,
+      year: p.year,
+      month: p.month,
+      day: p.day,
+      hour: p.hour,
+      method: p.methodKey,
+      coins: p.coins,
+      numberInput: p.numberInput,
+      guaPick: p.guaPick,
+    })
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${rec.id}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败，请稍后重试', icon: 'none' })
+  } finally {
+    generating.value = false
+  }
+}
 
 function onShare() {
   const r = result.value
@@ -284,6 +322,15 @@ function onShare() {
           </view>
         </paper-card>
 
+        <!-- 生成卦书：用神取定、旺衰生克、动变、应期、断语，带门派与典籍依据 -->
+        <view class="guashu" @tap="openGuaShu">
+          <view class="guashu-main">
+            <text class="guashu-title">{{ generating ? '正在准备…' : '生成小卜卦书' }}</text>
+            <text class="guashu-sub">按所问之事取用神，逐条给出旺衰、动变、应期与断语，并注明依据出处</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#ffffff" />
+        </view>
+
         <disclaimer
           variant="custom"
           tone="subtle"
@@ -342,6 +389,10 @@ $serif: Georgia, 'Songti SC', serif;
 /* 错误态 */
 .status { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; padding: 80rpx 48rpx; }
 .status-text { font-size: 28rpx; color: var(--text-soft); text-align: center; }
+.guashu { display: flex; align-items: center; gap: 16rpx; margin: 8rpx 0 4rpx; padding: 26rpx 28rpx; border-radius: 20rpx; background: var(--brand); }
+.guashu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.guashu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
+.guashu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
 .status-btn { padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
 .status-btn-text { font-size: 28rpx; color: #fff; font-weight: 600; }
 

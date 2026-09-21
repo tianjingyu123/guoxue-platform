@@ -115,6 +115,27 @@ async function onSave() {
   }
 }
 
+// 生成局书：需要服务端记录，已保存则直接用，否则先保存再跳
+const generatingReport = ref(false)
+async function openJuShu() {
+  if (!getToken()) { uni.showToast({ title: '请先登录后生成局书', icon: 'none' }); return }
+  if (generatingReport.value) return
+  generatingReport.value = true
+  try {
+    let id = serverRecordId.value
+    if (!id) {
+      const saved = await qimenApi.save(buildInput())
+      serverRecordId.value = saved.id
+      id = saved.id
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${id}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败，请稍后重试', icon: 'none' })
+  } finally {
+    generatingReport.value = false
+  }
+}
+
 /** 当前盘面 AI 输入：补齐统一工具提示词需要的可读字段，结果仍以引擎结构化数据为准。 */
 const aiInput = computed(() => ({
   ...buildInput(),
@@ -468,6 +489,15 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
         </template>
       </tool-ai-analysis>
 
+      <!-- 生成局书：用神落宫、格局吉凶、方位取用、应期与断语，带依据出处 -->
+      <view class="jushu" @tap="openJuShu">
+        <view class="jushu-main">
+          <text class="jushu-title">{{ generatingReport ? '正在准备…' : '生成小卜局书' }}</text>
+          <text class="jushu-sub">按所问取用神，逐条讲清落宫、格局、方位与应期，并注明依据出处</text>
+        </view>
+        <app-icon name="chevron-right" :size="30" color="#ffffff" />
+      </view>
+
       <!-- 免责声明 -->
       <view class="dc-wrap">
         <disclaimer variant="fortune" tone="card" />
@@ -598,6 +628,10 @@ function saveMatter() { q.matter = editedMatter.value; showEditMatter.value = fa
 .cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 
+.jushu { display: flex; align-items: center; gap: 16rpx; margin: 16rpx 24rpx 4rpx; padding: 26rpx 28rpx; border-radius: 20rpx; background: var(--brand); }
+.jushu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.jushu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
+.jushu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
 .dc-wrap { padding: 24rpx; }
 
 /* FAB */
