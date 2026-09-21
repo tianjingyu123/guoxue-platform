@@ -1346,7 +1346,32 @@ function adaptNotification(n: RawNotification): NotifyItem {
 
 // ============ API 层 ============
 
+/** 小卜怎么称呼我 */
+export interface PreferredNameData {
+  /** 当前实际使用的称呼；null 表示一律用「你」 */
+  name: string | null
+  /** asked=自己说的 / nickname=取自昵称 / null=还没有 */
+  source: 'asked' | 'nickname' | null
+  nickname: string | null
+  /** 昵称能不能直接当称呼 */
+  nicknameUsable: boolean
+  askedAt: string | null
+}
+
 export const mineApi = {
+  /** 小卜怎么称呼我 */
+  getPreferredName(): Promise<PreferredNameData> {
+    return apiGet<PreferredNameData>('/users/preferred-name')
+  },
+  /** 设置称呼；服务端会判断能不能当面叫，不合适时返回可直接展示的说明 */
+  setPreferredName(name: string): Promise<{ name: string }> {
+    return apiPut<{ name: string }>('/users/preferred-name', { name })
+  },
+  /** 不再使用称呼，改回用「你」 */
+  clearPreferredName(): Promise<{ cleared: boolean }> {
+    return apiDelete<{ cleared: boolean }>('/users/preferred-name')
+  },
+
   /** 获取当前用户资料 —— GET /auth/me（脱敏展示 + phoneFull 供发码） */
   async getProfile(): Promise<MineProfileData> {
     const me = await apiGet<RawMe>('/auth/me')

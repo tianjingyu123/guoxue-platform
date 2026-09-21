@@ -1,5 +1,7 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PreferredNameService } from "../dialogue/preferred-name.service";
+import { buildSceneSystemPrefix, detectReferral, referralCard } from "../dialogue/dialogue-policy";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
@@ -13,14 +15,56 @@ import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
  * E3 带记忆升级（2026-07-03）：每用户每书一条持久会话（跨章节/跨登录），近期消息 + 滚动记忆摘要
  * 一起注入 —— AI「记得」此前共读到哪、聊过什么，陪用户读完一本经典。
  * 摘要每积累 SUMMARY_EVERY 条消息异步压缩一次（自吞失败，不影响对话主流程）。
+ *
+ * 小卜 AI 统一（2026-09-17）：
+ * - 用户可见名称统一为“小卜”；
+ * - 长章节不再只注入前 4000 字：按用户所问句子（focusText 或问题中的「」引文）在章节中的位置注入前后文，
+ *   避免问后半章时模型看不到原文而凭空解释；
+ * - 危机信号直接温和转介，不做古籍解读，不调用模型。
  */
-const COMPANION_SYSTEM = `你是「识典伴读」，一位博学、亲切、善于启发的国学伴读导师，正陪伴用户研读一部古籍。你贯通经史子集、历代注疏与现代研究。
+// 人设（名字与性格）由角色谱 dialogue-personas 统一提供：伴读场景是「小简」。
+// 这里只保留与伴读这件事本身相关的做事规则。
+const COMPANION_SYSTEM = `你正陪伴用户研读一部古籍，贯通经史子集、历代注疏与现代研究。
 
 请基于【当前正在阅读的原文】回应用户，并主动引导其深入思考。要求：
 1. 紧扣【当前原文】解读；引用本章文字时点明是"本章原文"。涉及本文之外的古籍、观点或史实时，标注出处书名（如《论语·学而》）；不确定就坦诚说明，**绝不编造原文或出处**。
 2. 像一位陪读的师长：先认真回应问题，再适时抛出一个延伸思考或追问，引导用户继续探索，让阅读越读越深。若【此前共读记忆】中有相关讨论，可自然呼应（如"我们之前读到……时聊过"），体现连续陪伴感。
 3. 善于：解释疑难字词与概念、梳理脉络主旨、提出可研究的问题、关联其他典籍的相关论述、联系现实给予启发。
-4. 条理清晰、详略得当（一般 400–600 字），语言典雅而不晦涩，不说空泛套话。`;
+4. 条理清晰、详略得当（一般 400–600 字），语言典雅而不晦涩，不说空泛套话。
+5. 本章原文之外、平台也没有收录依据的内容，可以按通行的学术说法讲，但要让用户知道这是通行说法而非某本书的原话；有不同说法时并列陈述。`;
+
+/** 章节正文注入上限（字） */
+const BODY_LIMIT = 4000;
+/** 围绕所问句子注入的前后文长度（字） */
+const FOCUS_WINDOW = 1800;
+
+const CRISIS_PATTERNS = [/不想活/, /活着没意思/, /想死/, /自杀/, /轻生/, /结束(自己的)?生命/, /自残/];
+export const COMPANION_CRISIS_REPLY =
+  "听到你这样说，我很在意你现在的状态。这种时候读书和解读帮不上最重要的忙，请先联系身边信任的人，或拨打当地心理援助热线；如果有立即的危险，请拨打 110 或 120。等你愿意的时候，我们再一起读下去。";
+
+/** 从问题中提取用户引用的句子（「」或“”内，至少 4 个字） */
+export function extractQuoted(question: string): string | null {
+  const m = question.match(/[「“"]([^」”"]{4,300})[」”"]/);
+  return m ? m[1].replace(/…$/, "").trim() : null;
+}
+
+/** 选取注入正文：有所问句子且能在原文中定位时，注入其前后文；否则注入开头 BODY_LIMIT 字 */
+export function selectChapterBody(content: string, focus?: string | null): { body: string; focused: boolean } {
+  const text = content || "";
+  if (text.length <= BODY_LIMIT) return { body: text, focused: false };
+  const needle = (focus || "").trim();
+  if (needle.length >= 4) {
+    // 截断的引文（末尾省略号）取前 30 字定位
+    const probe = needle.length > 30 ? needle.slice(0, 30) : needle;
+    const idx = text.indexOf(probe);
+    if (idx >= 0) {
+      const start = Math.max(0, idx - FOCUS_WINDOW);
+      const end = Math.min(text.length, idx + needle.length + FOCUS_WINDOW);
+      return { body: `${start > 0 ? "……（前略）" : ""}${text.slice(start, end)}${end < text.length ? "（后略）……" : ""}`, focused: true };
+    }
+  }
+  return { body: text.slice(0, BODY_LIMIT), focused: false };
+}
 
 /** 每次注入的近期消息条数 */
 const RECENT_MESSAGES = 12;
@@ -36,6 +80,8 @@ export class ClassicCompanionService {
   constructor(
     private prisma: PrismaService,
     private gateway: AiGatewayService,
+    /** 可选：称呼记忆。缺它时伴读照常，只是一律用「你」 */
+    @Optional() private readonly names?: PreferredNameService,
   ) {}
 
   /** 载入当前章节正文与书目信息 */
@@ -110,13 +156,13 @@ export class ClassicCompanionService {
 
   /** 组装伴读上下文（chat / chatStream 共用）：章节正文 + 持久记忆 + 近期历史 */
   private async prepareContext(
-    dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
+    dto: { chapterId: string; question: string; focusText?: string; history?: { role: string; content: string }[] },
     userId?: string,
   ) {
     const ch = await this.loadChapter(dto.chapterId);
     const meta = [ch.book?.dynasty, ch.book?.author].filter(Boolean).join("·");
-    // 章节正文可能很长，截断注入控制 token
-    const body = (ch.content || "").slice(0, 4000);
+    // 章节正文可能很长：优先注入所问句子前后文，否则注入开头部分
+    const { body, focused } = selectChapterBody(ch.content || "", dto.focusText || extractQuoted(dto.question));
 
     // 持久会话（登录用户）：DB 为多轮真源；无 userId 时降级为客户端传的 history（兼容旧行为）
     let session: { id: string; summary: string | null; messageCount: number } | null = null;
@@ -145,20 +191,33 @@ export class ClassicCompanionService {
       }));
     }
 
+    // 统一对话策略：本章原文为依据；超出伴读职责（如为用户排盘算命）转介到平台专业服务
+    const referral = detectReferral("classic_companion", dto.question);
+    const policyPrompt = buildSceneSystemPrefix({
+      scene: "classic_companion",
+      hasEvidence: !!body,
+      referral,
+    });
+
+    // 称呼：昵称不适合当面叫时，伴读会在本轮结尾顺口商量一次并记住（与报告对话同一套口径）
+    const address = (await this.names?.addressPrompt(userId)) ?? { prompt: "", preferred: null, shouldAsk: false };
+
     const messages: AiMessage[] = [
       { role: "system", content: COMPANION_SYSTEM },
+      ...(policyPrompt ? [{ role: "system" as const, content: policyPrompt }] : []),
+      ...(address.prompt ? [{ role: "system" as const, content: address.prompt }] : []),
       ...(session?.summary
         ? [{ role: "system" as const, content: `【此前共读记忆】（你与用户此前研读本书的讨论摘要）：\n${session.summary}` }]
         : []),
       {
         role: "system",
-        content: `【当前正在阅读】《${ch.book?.title ?? ""}》${meta ? "（" + meta + "）" : ""} · ${ch.title}\n本章原文：\n${body}`,
+        content: `【当前正在阅读】《${ch.book?.title ?? ""}》${meta ? "（" + meta + "）" : ""} · ${ch.title}\n${focused ? "本章原文（节选，围绕用户所问句子前后）" : "本章原文"}：\n${body}`,
       },
       ...hist,
       { role: "user", content: dto.question },
     ];
 
-    return { ch, session, messages };
+    return { ch, session, messages, referral, askedName: address.shouldAsk };
   }
 
   /** 持久化一轮对话 + 触发记忆压缩（chat / chatStream 共用，失败自吞不影响回答） */
@@ -196,35 +255,48 @@ export class ClassicCompanionService {
 
   /** 伴读对话（非流式）：注入当前章节正文 + 持久记忆（摘要+近期历史） */
   async chat(
-    dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
+    dto: { chapterId: string; question: string; focusText?: string; history?: { role: string; content: string }[] },
     userId?: string,
-  ): Promise<{ answer: string; disclaimer: string }> {
-    const { ch, session, messages } = await this.prepareContext(dto, userId);
+  ): Promise<{ answer: string; disclaimer: string; referral?: ReturnType<typeof referralCard> | null }> {
+    if (CRISIS_PATTERNS.some((re) => re.test(dto.question))) {
+      return { answer: COMPANION_CRISIS_REPLY, disclaimer: "", referral: null };
+    }
+    // 用户这句话里若说了「叫我XX」，先记下来，本轮就按新称呼答
+    if (userId) await this.names?.captureFromMessage(userId, dto.question);
+    const { ch, session, messages, referral, askedName } = await this.prepareContext(dto, userId);
 
     const result = await this.gateway.chat({
       scene: "classic_companion",
       userId,
+      skipCache: true, // 回答依赖章节原文与个人记忆，语义缓存只看用户问题，会跨章节/跨用户误命中
       messages,
       options: { temperature: 0.6, maxTokens: 1500 },
     });
     const answer = result.content?.trim() || "抱歉，我暂时无法回答，请换个角度再问问。";
 
     await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
+    // 问过称呼就留痕：用户没答也算问过，否则下次又问一遍
+    if (userId && askedName) await this.names?.markAsked(userId);
 
-    return { answer, disclaimer: RISK_DISCLAIMER };
+    return { answer, disclaimer: RISK_DISCLAIMER, referral: referral ? referralCard(referral) : null };
   }
 
   /** 伴读对话（流式）：同一套上下文/记忆闭环，文本增量逐块下发，完整回答落库 */
   async *chatStream(
-    dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
+    dto: { chapterId: string; question: string; focusText?: string; history?: { role: string; content: string }[] },
     userId?: string,
   ): AsyncIterable<string> {
+    if (CRISIS_PATTERNS.some((re) => re.test(dto.question))) {
+      yield COMPANION_CRISIS_REPLY;
+      return;
+    }
     const { ch, session, messages } = await this.prepareContext(dto, userId);
 
     let full = "";
     for await (const chunk of this.gateway.chatStream({
       scene: "classic_companion",
       userId,
+      skipCache: true, // 回答依赖章节原文与个人记忆，语义缓存只看用户问题，会跨章节/跨用户误命中
       messages,
       options: { temperature: 0.6, maxTokens: 1500 },
     })) {
@@ -257,6 +329,7 @@ export class ClassicCompanionService {
 
     const result = await this.gateway.chat({
       scene: "classic_companion",
+      skipCache: true,
       messages: [
         {
           role: "system",

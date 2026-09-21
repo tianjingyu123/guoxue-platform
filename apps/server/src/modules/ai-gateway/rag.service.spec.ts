@@ -71,6 +71,49 @@ describe("RagService", () => {
       );
     });
 
+    it("按问话人角色调整回答角度（决策人要求助理区分圈成员身份）", async () => {
+      await svc.askCircle("最近大家在关心什么", "c1", "u1", undefined, { role: "OWNER", joinedAt: new Date() });
+      const msgs = gateway.chat.mock.calls.at(-1)[0].messages;
+      const joined = msgs.map((m: any) => m.content).join("\n");
+      expect(joined).toContain("问话人身份");
+      expect(joined).toContain("圈主");
+
+      gateway.chat.mockClear();
+      await svc.askCircle("最近大家在关心什么", "c1", "u2", undefined, { role: "MEMBER" });
+      const joined2 = gateway.chat.mock.calls.at(-1)[0].messages.map((m: any) => m.content).join("\n");
+      expect(joined2).toContain("普通成员");
+    });
+
+    it("语义缓存按「圈 + 角色」隔离：圈主问过的答案不能端给普通成员", async () => {
+      await svc.askCircle("问题", "c1", "u1", undefined, { role: "OWNER" });
+      expect(gateway.chat.mock.calls.at(-1)[0].cacheScopeKey).toBe("c1:OWNER");
+
+      await svc.askCircle("问题", "c1", "u2", undefined, { role: "MEMBER" });
+      expect(gateway.chat.mock.calls.at(-1)[0].cacheScopeKey).toBe("c1:MEMBER");
+
+      // 角色取不到时归一到 MEMBER，避免同一个人因取不到角色而绕开缓存
+      await svc.askCircle("问题", "c1", "u3");
+      expect(gateway.chat.mock.calls.at(-1)[0].cacheScopeKey).toBe("c1:MEMBER");
+    });
+
+    it("确认过称呼的用户单独成缓存域，其余人继续共享——个性化的代价只由需要它的人承担", async () => {
+      // 没有确认称呼：与同圈同角色的人共享一份答案
+      await svc.askCircle("问题", "c1", "u1", undefined, { role: "MEMBER" }, { prompt: "", preferred: null });
+      expect(gateway.chat.mock.calls.at(-1)[0].cacheScopeKey).toBe("c1:MEMBER");
+
+      // 确认过称呼：答案会带上他的名字，再复用给别人就成了叫错人，所以单独成域
+      await svc.askCircle("问题", "c1", "u2", undefined, { role: "MEMBER" }, { prompt: "【称呼】叫他老陈", preferred: "老陈" });
+      expect(gateway.chat.mock.calls.at(-1)[0].cacheScopeKey).toBe("c1:MEMBER:uu2");
+      const joined = gateway.chat.mock.calls.at(-1)[0].messages.map((m: any) => m.content).join("\n");
+      expect(joined).toContain("叫他老陈");
+    });
+
+    it("没确认称呼时不注入称呼指令，避免污染共享缓存", async () => {
+      await svc.askCircle("问题", "c1", "u3", undefined, { role: "MEMBER" }, { prompt: "", preferred: null });
+      const joined = gateway.chat.mock.calls.at(-1)[0].messages.map((m: any) => m.content).join("\n");
+      expect(joined).not.toContain("【称呼】");
+    });
+
     it("知识库为空时走通用大模型兜底（第三级）", async () => {
       vector.searchCircleKnowledge.mockResolvedValue([]);
       vector.searchGlobalKnowledge.mockResolvedValue([]);

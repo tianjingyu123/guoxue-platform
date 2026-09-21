@@ -8,6 +8,8 @@ import { Prisma } from "@prisma/client";
 import { CreateAnnotationDto } from "./classic.dto";
 import { JwtService } from "@nestjs/jwt";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { TextDerivedAssetService } from "./text-derived-asset.service";
+import { createHash } from "node:crypto";
 import {
   PUBLIC_CLASSIC_BOOK_WHERE,
   PUBLIC_CLASSIC_COPYRIGHT_WHERE,
@@ -22,6 +24,7 @@ export class ClassicService {
     private jwt: JwtService,
     private redis: RedisService,
     private gateway: AiGatewayService,
+    private textAssetService: TextDerivedAssetService,
   ) {}
 
   /** 书籍列表缓存 TTL（秒） */
@@ -400,11 +403,32 @@ export class ClassicService {
     }
   }
 
-  // ── 白话翻译（AI） ──
+  // ── 白话翻译（AI）with TextDerivedAsset 持久化 ──
   async translateClassical(dto: { text: string; context?: string }) {
-    const contextHint = dto.context ? `\n上下文提示：这段话出自「${dto.context}」。请根据上下文做出准确翻译。` : "";
+    // 先尝试从文本资产服务获取缓存的翻译
+    // 身份包含原文与上下文哈希、提示词版本和网关路由策略；实际模型由网关返回后记录
+    const text = dto.text.trim();
+    const assetReq = {
+      sourceType: "classic_translation",
+      sourceId: createHash("sha256").update(text, "utf8").digest("hex").slice(0, 32),
+      content: text,
+      context: dto.context?.trim() || undefined,
+      processingType: "translation" as const,
+      strategy: "vernacular_json",
+      modelPolicy: "gateway:classic_translate",
+      promptVersion: "translate-v1",
+      language: "zh-CN",
+    };
 
-    const prompt = `你是一位资深的古籍白话翻译专家。请将用户提供的文言文段落翻译成准确、流畅的现代白话文。
+    const result = await this.textAssetService.getOrCreateTextAsset(
+      assetReq,
+      async () => {
+        // 未命中缓存，调用 AI 网关进行翻译
+        const contextHint = dto.context
+          ? `\n上下文提示：这段话出自「${dto.context}」。请根据上下文做出准确翻译。`
+          : "";
+
+        const prompt = `你是一位资深的古籍白话翻译专家。请将用户提供的文言文段落翻译成准确、流畅的现代白话文。
 保留原文的修辞风格和文化内涵，对关键词语给出注释。${contextHint}
 必须使用以下JSON格式返回（不要包含其他文字，不要用markdown代码块包裹）：
 {
@@ -414,22 +438,40 @@ export class ClassicService {
   "source": "推测的出处（不确定则填空字符串）"
 }`;
 
-    const result = await this.gateway.chat({
-      scene: "classic_translate",
-      messages: [
-        { role: "system", content: prompt },
-        { role: "user", content: dto.text },
-      ],
-      options: { temperature: 0.3, maxTokens: 1536 },
-    });
+        const aiResult = await this.gateway.chat({
+          scene: "classic_translate",
+          // 精确复用由 TextDerivedAsset（原文+上下文+提示词版本）负责且带校验；
+          // 语义缓存只按用户原文相似度匹配、不含上下文，且会把一次坏结果长期复用导致“重试”无效
+          skipCache: true,
+          messages: [
+            { role: "system", content: prompt },
+            { role: "user", content: text },
+          ],
+          options: { temperature: 0.3, maxTokens: 1536 },
+        });
 
+        // 返回 JSON 字符串与实际模型供 TextDerivedAsset 存储
+        return { result: aiResult.content, model: aiResult.model };
+      },
+      // 只有可解析且译文非空的结果才作为可复用资产保存
+      (raw) => {
+        try {
+          const parsed = JSON.parse(raw);
+          return typeof parsed?.translation === "string" && parsed.translation.trim().length > 0;
+        } catch {
+          return false;
+        }
+      },
+    );
+
+    // 解析并返回翻译结果
     try {
-      return JSON.parse(result.content);
+      return JSON.parse(result.result);
     } catch (err) {
       this.logger.warn("翻译JSON解析失败", err);
       return {
         original: dto.text,
-        translation: result.content?.slice(0, 2000) || "翻译暂不可用",
+        translation: result.result?.slice(0, 2000) || "翻译暂不可用",
         notes: [],
         source: "",
       };

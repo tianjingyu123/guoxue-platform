@@ -2,6 +2,7 @@ import { Controller, Get, Delete, Query, Req, Res, UseGuards, Logger } from "@ne
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { SearchService } from "./search.service";
+import { ContentGuideService } from "./content-guide.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -13,7 +14,11 @@ import { SkipFormat } from "../../common/skip-format.decorator";
 @Controller("search")
 export class SearchController {
   private readonly logger = new Logger(SearchController.name);
-  constructor(private svc: SearchService, private weightSvc: SearchWeightService) {}
+  constructor(
+    private svc: SearchService,
+    private weightSvc: SearchWeightService,
+    private guide: ContentGuideService,
+  ) {}
 
   /** 全局搜索 */
   @Get()
@@ -42,6 +47,17 @@ export class SearchController {
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回数量" })
   hotSearches(@Query("limit") limit = 10) {
     return this.svc.getHotSearches(+limit);
+  }
+
+  /** 内容导览（S08：统一来源卡片 + 导航目标） */
+  @Get("guide")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "内容导览 — 返回真实来源卡片与导航目标" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "q", required: true, type: String, description: "检索关键词" })
+  @ApiQuery({ name: "topK", required: false, type: Number, description: "返回卡片数量" })
+  contentGuide(@Query("q") q: string, @Query("topK") topK = 8) {
+    return this.guide.guide(q || "", +topK);
   }
 
   /** 保存搜索历史 */

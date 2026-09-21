@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SearchController } from "./search.controller";
 import { SearchService } from "./search.service";
 import { SearchWeightService } from "./search-weight.service";
+import { ContentGuideService } from "./content-guide.service";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockSearchSvc = {
@@ -18,6 +19,10 @@ const mockWeightSvc = {
   getWeightMap: jest.fn().mockResolvedValue(new Map([["article:all", 1.0]])),
 };
 
+const mockGuideSvc = {
+  guide: jest.fn().mockResolvedValue({ query: "论语", cards: [] }),
+};
+
 describe("SearchController", () => {
   let ctrl: SearchController;
 
@@ -27,6 +32,7 @@ describe("SearchController", () => {
       providers: [
         { provide: SearchService, useValue: mockSearchSvc },
         { provide: SearchWeightService, useValue: mockWeightSvc },
+        { provide: ContentGuideService, useValue: mockGuideSvc },
       ],
     })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })

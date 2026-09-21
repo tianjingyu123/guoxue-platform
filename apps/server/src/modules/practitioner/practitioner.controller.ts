@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagg
 import { Request } from "express";
 import { PractitionerService } from "./practitioner.service";
 import { ReportAiService } from "./report-ai.service";
+import { ClientReportService } from "./client-report.service";
+import { ReportAskService } from "./report-ask.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 /**
@@ -18,6 +20,8 @@ export class PractitionerController {
   constructor(
     private svc: PractitionerService,
     private ai: ReportAiService,
+    private readonly clientReport: ClientReportService,
+    private readonly reportAsk: ReportAskService,
   ) {}
 
   // ───────── 公开：客户凭链接查看已交付的报告（令牌即凭证）─────────
@@ -80,6 +84,36 @@ export class PractitionerController {
   @ApiOperation({ summary: "新建报告（免费版限 3 份）" })
   createReport(@Req() req: Request, @Body() dto: any) {
     return this.svc.createReport(req.user.id, dto);
+  }
+
+  @Post("reports/import-xiaobu")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "把小卜报告导入为工作台草稿（导入后为老师自己的稿子，可编辑、以自己名义交付）" })
+  importXiaobu(
+    @Req() req: Request,
+    @Body() dto: { reportId: string; clientId?: string; clientName?: string; title?: string },
+  ) {
+    return this.svc.importFromXiaobuReport(req.user.id, dto);
+  }
+
+  @Post("reports/shared/:token/ask")
+  @ApiOperation({
+    summary: "客户就这份交付报告提问（公开，令牌即凭证；回答以老师助理的身份，只依据报告内容）",
+  })
+  askShared(
+    @Param("token") token: string,
+    @Body() dto: { question: string; history?: { role: string; content: string }[] },
+  ) {
+    return this.reportAsk.ask(token, dto?.question, dto?.history);
+  }
+
+  @Post("reports/:id/rewrite-for-client")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "把报告改写成交给客户看的话（通俗易懂、老师视角；盘面结论不变）" })
+  rewriteForClient(@Req() req: Request, @Param("id") id: string) {
+    return this.clientReport.rewriteReport(req.user.id, id);
   }
 
   @Post("reports/ai-draft")

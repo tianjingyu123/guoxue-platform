@@ -6,6 +6,23 @@ import { KnowledgeQualityService } from "./knowledge-quality.service";
 import { AiGatewayService, GatewayChatRequest } from "./ai-gateway.service";
 import { AiMessage } from "./adapters/base.adapter";
 import { PrismaService } from "../../prisma/prisma.service";
+import { buildCircleReferralPrompt, detectReferral, referralCard } from "../dialogue/dialogue-policy";
+import { buildRoleAnglePrompt } from "../dialogue/circle-member-roles";
+
+/**
+ * 圈子助理的语义缓存域：圈 + 问话人角色（+ 用了称呼的用户单独成域）。
+ *
+ * 角色取不到时按 MEMBER 归一，避免同一个人因取不到角色而绕开缓存。
+ *
+ * 关于称呼的取舍：圈子助理的缓存是**跨用户共享**的（同一圈同角色的通用问题复用一份答案），
+ * 这是有意的成本设计。一旦把某个用户的称呼写进提示词，答案就带上了他的名字，
+ * 再复用给别人就成了「叫错人」——所以**只有确认过称呼的用户才单独成域**，
+ * 其余用户（绝大多数）继续共享缓存。个性化的代价只由需要它的人承担。
+ */
+function cacheScope(circleId: string, role?: string | null, personalizedUserId?: string | null) {
+  const base = `${circleId}:${role || "MEMBER"}`;
+  return personalizedUserId ? `${base}:u${personalizedUserId}` : base;
+}
 
 interface KnowledgeChunk {
   id: string;
@@ -17,6 +34,8 @@ interface KnowledgeChunk {
 interface RagAskResult {
   answer: string;
   sources: KnowledgeChunk[];
+  /** 问题超出本圈职责（如要求排盘算命）时给出的更专业去处 */
+  referral?: ReturnType<typeof referralCard> | null;
 }
 
 const RAG_SYSTEM_PROMPT = `你是一个专业的国学知识助手。请根据提供的知识库内容回答用户的问题。
@@ -72,7 +91,25 @@ export class RagService {
     circleId: string,
     userId?: string,
     history?: AiMessage[],
+    /** 问话人在本圈的身份：助理据此调整回答角度（决策人 2026-09-18 要求） */
+    who?: { role?: string | null; joinedAt?: Date | null },
+    /** 称呼指令与已确认的称呼；只有确认过的才注入并单独成缓存域 */
+    address?: { prompt: string; preferred: string | null },
   ): Promise<RagAskResult> {
+    // 圈名与圈主自己的服务：用于转介话术（优先引导到圈主的服务，而不是外推）；取不到不影响作答
+    const [circleName, ownerServices] = await Promise.all([
+      Promise.resolve(this.prisma.circle?.findUnique({ where: { id: circleId }, select: { name: true } }))
+        .then((c) => c?.name ?? undefined)
+        .catch(() => undefined),
+      Promise.resolve(
+        this.prisma.voiceAgentProfile?.findUnique({
+          where: { ownerType_ownerId: { ownerType: "circle", ownerId: circleId } },
+          select: { ownerServices: true, status: true },
+        }),
+      )
+        .then((p) => (p?.status === "APPROVED" ? p?.ownerServices ?? [] : []))
+        .catch(() => [] as string[]),
+    ]);
     // 1. 三级兜底检索：圈子专属知识（优先）+ 全局通用知识库（searchFederated 本地不降权、全局降权 0.3）
     const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
 
@@ -89,6 +126,13 @@ export class RagService {
       // 2b. 知识库无命中 → 通用大模型兜底（基于国学通识，第三级）
       messages.push({ role: "system", content: "知识库暂无直接相关内容。请你作为本圈子的国学助手，基于通用国学常识简明作答，并在结尾用一句话友好说明：本回答来自通用知识，圈子专属内容仍在完善中。" });
     }
+    // 2c. 圈子优先：助理由圈主付费供养，先介绍圈内资源，不把成员推给平台其他老师或别的圈子
+    const referral = detectReferral("circle_assistant", question);
+    messages.push({ role: "system", content: buildCircleReferralPrompt({ referral, circleName, ownerServices }) });
+    // 同一个问题，圈主问与普通成员问，想要的东西不一样——按身份调整切入角度（不调整口径）
+    messages.push({ role: "system", content: buildRoleAnglePrompt(who?.role, who?.joinedAt) });
+    // 称呼只在用户确认过时注入：没确认的不注入，既不影响共享缓存，也不会让助理叫错人
+    if (address?.prompt) messages.push({ role: "system", content: address.prompt });
     messages.push(...(history || []), { role: "user", content: question });
 
     // 3. 调用 AI 生成回答
@@ -97,10 +141,13 @@ export class RagService {
       userId,
       messages,
       options: { temperature: 0.3, maxTokens: 1024 },
-      cacheScopeKey: circleId, // 按圈隔离语义缓存，防跨圈串答
+      // 按「圈 + 问话人角色」隔离语义缓存。
+      // 只按圈隔离是不够的：助理现在按角色调整回答角度，圈主问过的答案若被普通成员命中，
+      // 角色区分就形同虚设，还可能把面向圈主的经营视角答复端给成员看。
+      cacheScopeKey: cacheScope(circleId, who?.role, address?.preferred ? userId : null),
     });
 
-    return { answer: result.content, sources: chunks };
+    return { answer: result.content, sources: chunks, referral: referral ? referralCard(referral) : null };
   }
 
   /** 流式向圈子知识库提问 */
@@ -109,6 +156,7 @@ export class RagService {
     circleId: string,
     userId?: string,
     history?: AiMessage[],
+    who?: { role?: string | null; joinedAt?: Date | null },
   ): AsyncIterable<string> {
     // 三级兜底检索：圈子专属（优先）+ 全局通用知识库
     const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
@@ -124,6 +172,13 @@ export class RagService {
     } else {
       messages.push({ role: "system", content: "知识库暂无直接相关内容。请你作为本圈子的国学助手，基于通用国学常识简明作答，并在结尾用一句话友好说明：本回答来自通用知识，圈子专属内容仍在完善中。" });
     }
+    // 圈子优先：与非流式同一套立场，不把成员推给平台其他老师或别的圈子
+    messages.push({
+      role: "system",
+      content: buildCircleReferralPrompt({ referral: detectReferral("circle_assistant", question) }),
+    });
+    // 与非流式同一套：按问话人身份调整切入角度
+    messages.push({ role: "system", content: buildRoleAnglePrompt(who?.role, who?.joinedAt) });
     messages.push(...(history || []), { role: "user", content: question });
 
     const req: GatewayChatRequest = {
@@ -131,7 +186,8 @@ export class RagService {
       userId,
       messages,
       options: { temperature: 0.3, maxTokens: 1024 },
-      cacheScopeKey: circleId, // 按圈隔离语义缓存，防跨圈串答
+      // 同上：流式与非流式共用一套缓存域，必须一起带上角色
+      cacheScopeKey: cacheScope(circleId, who?.role),
     };
 
     for await (const chunk of this.gateway.chatStream(req)) {

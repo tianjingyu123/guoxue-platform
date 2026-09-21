@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
+import { AiUsageRecordService } from "./ai-usage-record.service";
 import { DeepSeekAdapter } from "./adapters/deepseek.adapter";
 import { ClaudeAdapter } from "./adapters/claude.adapter";
 import { QwenAdapter } from "./adapters/qwen.adapter";
@@ -72,6 +73,7 @@ describe("AiGatewayService", () => {
         AiGatewayService,
         { provide: ModelRouterService, useValue: mockRouter },
         { provide: AiLoggerService, useValue: mockAiLogger },
+        { provide: AiUsageRecordService, useValue: { record: jest.fn().mockResolvedValue(undefined), recordBatch: jest.fn().mockResolvedValue(undefined) } },
         { provide: DeepSeekAdapter, useValue: mockDeepSeek },
         { provide: ClaudeAdapter, useValue: mockClaude },
         { provide: QwenAdapter, useValue: mockQwen },

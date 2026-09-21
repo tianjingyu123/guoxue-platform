@@ -4,7 +4,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import { clearAuthSession } from '@/utils/storage'
-import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
+import { mineApi, type SettingNotifyItem, type PreferredNameData } from '@/lib/mine-data'
 
 /** 运行时读取正式包版本，避免发版时出现“商店已升级、设置页仍显示旧版本”。 */
 const APP_VERSION = ref('v1.1.0')
@@ -14,6 +14,64 @@ const error = ref('')
 const notifyItems = ref<SettingNotifyItem[]>([])
 
 // 账号安全预览值（与 /mine/security 同一接口 getSecurityItems，避免两页口径打架）
+/**
+ * 小卜怎么称呼我。
+ * 机器人记住了称呼，用户就得能看见、能改、能删——这既是体验，也是隐私上的必要项。
+ */
+const preferredName = ref<PreferredNameData | null>(null)
+const nameEditing = ref(false)
+const nameInput = ref('')
+const nameSaving = ref(false)
+
+async function loadPreferredName() {
+  try {
+    preferredName.value = await mineApi.getPreferredName()
+  } catch {
+    preferredName.value = null
+  }
+}
+
+function startEditName() {
+  nameInput.value = preferredName.value?.name ?? ''
+  nameEditing.value = true
+}
+
+async function savePreferredName() {
+  const v = nameInput.value.trim()
+  if (!v || nameSaving.value) return
+  nameSaving.value = true
+  try {
+    await mineApi.setPreferredName(v)
+    await loadPreferredName()
+    nameEditing.value = false
+    uni.showToast({ title: '以后就这么叫你', icon: 'none' })
+  } catch (e) {
+    // 服务端的拒绝理由是写给用户看的人话（「这个称呼我叫不出口」），直接展示
+    uni.showToast({ title: (e as Error)?.message || '换一个称呼试试', icon: 'none', duration: 2500 })
+  } finally {
+    nameSaving.value = false
+  }
+}
+
+async function clearPreferredName() {
+  const r = await new Promise<boolean>((resolve) =>
+    uni.showModal({
+      title: '不再使用称呼',
+      content: '以后小卜一律用「你」称呼你。',
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    }),
+  )
+  if (!r) return
+  try {
+    await mineApi.clearPreferredName()
+    await loadPreferredName()
+    nameEditing.value = false
+  } catch {
+    uni.showToast({ title: '操作失败，请稍后再试', icon: 'none' })
+  }
+}
+
 const securityScore = ref(0)
 const phoneDisplay = ref('')
 const payPwdSet = ref(false)
@@ -82,6 +140,7 @@ onMounted(() => {
   }
   fetchData()
   calcCacheSize()
+  loadPreferredName()
 })
 
 /* —— 隐私开关（谁可以看我的收藏/浏览记录可见）与字体大小已整组下架 ——
@@ -242,6 +301,53 @@ function handleLogout() {
           <view class="row list-press" @tap="navigateTo('/mine/delete-account')">
             <AppIcon name="trash-2" :size="18" color="#ef4444" />
             <text class="row-label danger-label">账号注销</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 小卜怎么称呼我：记住了就得让用户看得见、改得了、删得掉 -->
+      <view class="group">
+        <text class="group-title">小卜怎么称呼我</text>
+        <view class="card">
+          <view v-if="!nameEditing" class="row list-press" @tap="startEditName">
+            <AppIcon name="user" :size="18" color="#999" />
+            <text class="row-label">称呼</text>
+            <text class="row-value">{{ preferredName?.name || '还没设（小卜会用「你」）' }}</text>
+            <AppIcon name="chevron-right" :size="16" color="#ccc" />
+          </view>
+
+          <view v-else class="pn-edit">
+            <input
+              v-model="nameInput"
+              class="pn-input"
+              type="text"
+              :disabled="nameSaving"
+              maxlength="16"
+              placeholder="你希望小卜怎么叫你？"
+              confirm-type="done"
+              @confirm="savePreferredName"
+            />
+            <view class="pn-btns">
+              <text class="pn-btn" @tap="nameEditing = false">取消</text>
+              <text class="pn-btn pn-btn-primary" :class="{ off: !nameInput.trim() || nameSaving }" @tap="savePreferredName">
+                {{ nameSaving ? '保存中…' : '保存' }}
+              </text>
+            </view>
+          </view>
+
+          <text v-if="preferredName?.source === 'nickname'" class="pn-note">
+            当前用的是你的昵称「{{ preferredName.nickname }}」，可以改成更习惯的叫法。
+          </text>
+          <text v-else-if="preferredName?.source === 'asked'" class="pn-note">
+            这是你自己告诉小卜的叫法。
+          </text>
+          <text v-else-if="preferredName && !preferredName.nicknameUsable" class="pn-note">
+            你的昵称不太适合当面叫，设一个称呼，小卜聊天时会更自然。
+          </text>
+
+          <view v-if="preferredName?.source === 'asked'" class="row list-press" @tap="clearPreferredName">
+            <AppIcon name="trash" :size="18" color="#c45a3c" />
+            <text class="row-label danger">不再使用称呼</text>
           </view>
         </view>
       </view>
@@ -667,4 +773,15 @@ function handleLogout() {
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
 .retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
+
+/* 小卜怎么称呼我 */
+.row-value { margin-left: auto; margin-right: 8rpx; font-size: 26rpx; color: #999; }
+.pn-edit { padding: 20rpx 24rpx; display: flex; flex-direction: column; gap: 14rpx; }
+.pn-input { height: 76rpx; padding: 0 22rpx; border-radius: 12rpx; background: rgba(0, 0, 0, 0.04); font-size: 28rpx; }
+.pn-btns { display: flex; justify-content: flex-end; gap: 18rpx; }
+.pn-btn { font-size: 27rpx; color: #888; padding: 8rpx 22rpx; }
+.pn-btn-primary { color: #fff; background: #2E4B58; border-radius: 999rpx; }
+.pn-btn-primary.off { opacity: 0.45; }
+.pn-note { display: block; padding: 0 24rpx 18rpx; font-size: 23rpx; color: #999; line-height: 1.6; }
+.row-label.danger { color: #c45a3c; }
 </style>

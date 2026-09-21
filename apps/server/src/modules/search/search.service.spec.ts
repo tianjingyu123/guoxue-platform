@@ -51,6 +51,20 @@ describe("SearchService", () => {
       expect(result).toHaveProperty("contents");
     });
 
+    it("文章/课程只搜索全平台开放且未删除的内容（全文与模糊回退两条路径都不含圈内私有）", async () => {
+      await svc.search({ q: "私有测试", type: "article" });
+      await svc.search({ q: "私有测试课", type: "course" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((c: unknown[]) => String(c[0]));
+      const articleSql = sqls.filter((sql: string) => sql.includes('"Article"'));
+      const courseSql = sqls.filter((sql: string) => sql.includes('"Course"'));
+      expect(articleSql.length).toBeGreaterThanOrEqual(2);
+      expect(courseSql.length).toBeGreaterThanOrEqual(2);
+      for (const sql of [...articleSql, ...courseSql]) {
+        expect(sql).toContain(`"visibility" = 'PLATFORM'`);
+        expect(sql).toContain(`"deletedAt" IS NULL`);
+      }
+    });
+
     it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });
@@ -143,6 +157,17 @@ describe("SearchService", () => {
       const result = await svc.suggest("论语");
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].type).toBe("article");
+    });
+
+    it("联想建议不含圈内私有文章/课程", async () => {
+      await svc.suggest("论语");
+      const texts = mockPrisma.$queryRaw.mock.calls.map((c: any[]) => (c[0] as string[]).join("?"));
+      const article = texts.find((t: string) => t.includes('"Article"'))!;
+      const course = texts.find((t: string) => t.includes('"Course"'))!;
+      for (const t of [article, course]) {
+        expect(t).toContain(`"visibility" = 'PLATFORM'`);
+        expect(t).toContain(`"deletedAt" IS NULL`);
+      }
     });
 
     it("空关键字返回空数组", async () => {

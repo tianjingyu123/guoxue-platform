@@ -11,6 +11,8 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto, PersonalDataExportDto } from "./user.dto";
 import { PersonalDataExportService } from "./personal-data-export.service";
+import { PreferredNameService } from "../dialogue/preferred-name.service";
+import { SetPreferredNameDto } from "./user.dto";
 import { Auditable } from "../../common/audit.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -24,6 +26,7 @@ export class UserController {
     private user: UserService,
     private systemService: SystemService,
     private personalDataExport: PersonalDataExportService,
+    private names: PreferredNameService,
   ) {}
 
   // ───────── 个人资料 ─────────
@@ -36,6 +39,46 @@ export class UserController {
   @ApiResponse({ status: 401, description: "未登录" })
   updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     return this.user.updateProfile(req.user.id, dto);
+  }
+
+  // ───────── 小卜怎么称呼我 ─────────
+  // 机器人记住了你的称呼，你就得能看见、能改、能删——这既是体验，也是隐私上的必要项。
+
+  @Get("preferred-name")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "小卜怎么称呼我" })
+  async getPreferredName(@Req() req: Request) {
+    return this.names.detail(req.user.id);
+  }
+
+  @Put("preferred-name")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "设置小卜对我的称呼" })
+  async setPreferredName(@Req() req: Request, @Body() dto: SetPreferredNameDto) {
+    const r = await this.names.set(req.user.id, dto.name);
+    if (!r.ok) {
+      // 把判定原因翻译成用户能懂的话，而不是丢一个错误码
+      const why: Record<string, string> = {
+        empty: "称呼不能为空",
+        placeholder: "这看起来是系统默认名，换一个你习惯被叫的称呼吧",
+        identifier: "这像是账号名，换一个能叫出口的称呼吧",
+        too_long: "称呼太长了，两到四个字最好记",
+        symbols: "称呼里需要有能念出来的字",
+        ad: "称呼里不要放联系方式",
+        self_deprecating: "换一个吧，这个称呼我叫不出口",
+        offensive: "换一个吧，这个称呼我叫不出口",
+      };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, why[r.reason] ?? "换一个称呼试试");
+    }
+    return { name: r.name };
+  }
+
+  @Delete("preferred-name")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "不再使用称呼（改回用「你」）" })
+  async clearPreferredName(@Req() req: Request) {
+    await this.names.clear(req.user.id);
+    return { cleared: true };
   }
 
   // ───────── 通知设置 ─────────

@@ -1,5 +1,6 @@
 import { Injectable, Inject, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PILLAR_LABEL } from "@guoxue/bazi-engine";
 import type { BaziResult } from "@guoxue/bazi-engine";
 import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { BusinessException } from "../../common/business.exception";
@@ -9,6 +10,8 @@ import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { getSchool } from "./bazi-schools";
+import { extractCoupleFacts, formatCoupleFacts, coupleSignals, stripBirthDetails, SCENE_LABEL, SCENE_SIDES, type CoupleScene } from "./couple-facts";
+import { PaipanReportKnowledgeService } from "./paipan-report-knowledge.service";
 import { safePagination } from "../../common/pagination";
 // 合规修复(后端审计P1·R4红线)：通用命理分析主路径原漏挂免责声明，此处统一在返回点追加。
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
@@ -32,6 +35,9 @@ export class PaipanAiService {
     private redis: RedisService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
     @Optional() private coin?: CoinService,
+    // 合婚报告要像其余六个工具那样站在已审核的知识条目上，而不是模型自说自话。
+    // 标 @Optional 是为了不影响现有单测的构造方式：取不到就退回纯模型作答。
+    @Optional() private reportKnowledge?: PaipanReportKnowledgeService,
   ) {
     this.apiKey = process.env.DEEPSEEK_API_KEY || "";
   }
@@ -551,7 +557,7 @@ ${geShi.length > 0 ? geShi.join("、") : "无特殊格局"}
     // 神煞（取前 15 个最关键的）
     const shenShaLines = shenSha
       .slice(0, 15)
-      .map((s) => `${s.name}（${s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`);
+      .map((s) => `${s.name}（${PILLAR_LABEL[s.pillar] || s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`);
 
     // 藏干
     const cangGanLines = [
@@ -634,18 +640,30 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
 
   /**
    * 八字合婚分析
+   *
+   * @param opts.shared 这份报告要给**两个不同的用户**看（双人合盘邀请流程）。
+   *   此时不能把任何一方的生辰与四柱交给模型——报告正文是双方共享的，
+   *   模型一旦写出四柱，对方就能反推出生时刻，而产品设计承诺的是「不共享生辰」。
+   *   缺省（自己给自己的两个盘做合婚）不受此限，照旧给完整四柱。
    */
   async analyzeHehun(
     userId: string,
     maleResult: BaziResult,
     femaleResult: BaziResult,
+    opts?: { shared?: boolean; scene?: CoupleScene },
   ) {
     if (!this.apiKey) {
       return { analysisContent: "AI解析服务暂未配置，请联系管理员" };
     }
 
-    const prompt = this.buildHehunPrompt(maleResult, femaleResult);
-    const { content, tokenUsage } = await this.callDeepSeek(prompt);
+    const shared = !!opts?.shared;
+    const prompt = shared
+      ? await this.buildSharedHehunPrompt(maleResult, femaleResult, opts?.scene ?? "marriage")
+      : this.buildHehunPrompt(maleResult, femaleResult);
+    const raw = await this.callDeepSeek(prompt);
+    // 双人合盘再过一道：模型即便凭空编个出生日期，也不该出现在共享报告里
+    const content = shared ? stripBirthDetails(raw.content) : raw.content;
+    const tokenUsage = raw.tokenUsage;
 
     const record = await this.prisma.aiAnalysisRecord.create({
       data: {
@@ -661,7 +679,105 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
     return { id: record.id, analysisContent: record.analysisContent + RISK_DISCLAIMER, createdAt: record.createdAt, isCached: false };
   }
 
-  /** 构建合婚分析 prompt */
+  /**
+   * 双人合盘的 prompt：模型只拿到引擎算好的「关系」，拿不到任何一方的生辰与四柱。
+   *
+   * 这么做而不是在 prompt 里叮嘱模型「不要泄露生辰」——**拿不到就写不出来**，
+   * 比靠模型守规矩可靠得多。可给与不可给的划线见 couple-facts.ts 的说明。
+   */
+  private async buildSharedHehunPrompt(male: BaziResult, female: BaziResult, scene: CoupleScene = "marriage"): Promise<string> {
+    const coupleFacts = extractCoupleFacts(male, female);
+    const facts = formatCoupleFacts(coupleFacts);
+
+    // 依据来自已审核的合婚条目，检索方式与其余六个工具完全一致（tags 精确命中关系信号）
+    const hits = this.reportKnowledge
+      ? await this.reportKnowledge
+          // 多取一些再按场景筛：婚恋条目挂在夫妻宫信号上，任何场景都会命中，
+          // 只取 12 条的话名额会被它们占满，真正属于这个场景的条目反而挤不进来
+          .findEvidence({ paipanType: "couple", signals: coupleSignals(coupleFacts, scene), limit: 24 })
+          .catch(() => [])
+      : [];
+
+    // 婚恋专属条目不能串到别的场景去。
+    // 它们挂在夫妻宫信号上，而夫妻宫（双方日支的关系）在任何场景都算得出来，
+    // 于是亲子、合作的报告里也会冒出「属相相冲不作为否决依据」这类婚恋口径——
+    // 场景对了、依据却还是合婚那一套，读起来就是套模板。
+    const usable = (scene === "marriage"
+      ? hits
+      : hits.filter((h) => !/合婚|夫妻宫|婚配/.test(`${h.topic ?? ""}${h.title ?? ""}`))
+    ).slice(0, 12);
+
+    // 主线单独提出来：民间「属相相冲不能结婚」影响太大，
+    // 报告若把各说法平摆着让人自己选，等于把用户推回原地更慌
+    const line = usable.find((h) => h.stance === "platform_line");
+    const evidence = usable.filter((h) => h !== line);
+
+    const evidenceBlock = evidence.length
+      ? `\n## 可引用的依据（人工审核过的合婚知识条目）\n${evidence
+          .map((h, i) => `E${i + 1}［${h.topic}］${h.title}：${h.content.replace(/\s+/g, " ").slice(0, 300)}`)
+          .join("\n")}\n`
+      : "";
+
+    const lineBlock = line
+      ? `\n## 本报告的主线（按这个口径讲，不要另立一套）\n${line.content.replace(/\s+/g, " ").slice(0, 400)}\n`
+      : "";
+
+    const [sideA, sideB] = SCENE_SIDES[scene];
+    const sceneCn = SCENE_LABEL[scene];
+    // 场景决定问的是什么、怎么称呼两边。措辞混了就荒腔走板——
+    // 把合作伙伴讲成「感情和睦」，把亲子讲成「婚姻美满」，用户一眼就看出这是套模板
+    const SCENE_TASK: Record<CoupleScene, string> = {
+      marriage: `1. **五行互补**：双方日主五行的生克方向说明什么，谁在关系里更主动、谁更需要被照顾。
+2. **喜用互益**：一方喜用的五行在对方盘里旺不旺，落到相处上是谁能补谁。
+3. **夫妻宫与合冲**：双方日支（夫妻宫）的关系，以及其余各柱的合冲刑害各自意味着什么。
+4. **相处提醒**：由上面这些关系推出的现实相处建议，具体可行，不说空话。
+5. **综合判断**：给出总体评价与最值得留意的一两处，不必强行打分。`,
+      partnership: `1. **谁主导、谁出力**：日主生克的方向说明推进中谁更强势、谁更多承担，落到分工上怎么安排。
+2. **能力互补**：一方喜用的五行在对方盘里旺不旺，说明谁能补谁的短板，宜怎么分工。
+3. **钱与分配**：双方日主同类（比劫）时尤其要讲清「能一起打江山、未必能一起分钱」，以及该把什么写进协议。
+4. **摩擦点**：各柱的冲害刑分别提示哪一块容易谈不拢，要提前谈死哪几件事。
+5. **综合判断**：说清这段合作的结构与要留意之处；**不预言生意成败**——成败取决于行业、时机、资金与执行。`,
+      family: `1. **给予与约束**：长辈一方与晚辈一方日主生克的方向，说明是庇护型还是管束型，各自要防什么。
+2. **彼此补益**：一方所需的五行在对方盘里旺不旺，落到照顾与支持上是谁托着谁。
+3. **相处的松紧**：各柱的合冲刑害提示哪一块容易亲近、哪一块容易起争执。
+4. **相处提醒**：给具体可行的相处建议，讲相处方式，不评判谁对谁错。
+5. **综合判断**：说清这段关系的样子；**不预言亲缘厚薄、不谈寿夭**。`,
+      colleague: `1. **配合方式**：日主生克的方向说明谁适合定方向、谁适合执行，反过来为什么容易顶牛。
+2. **能力互补**：一方所需在对方盘里旺不旺，宜怎么分工。
+3. **边界与职责**：各柱的合冲刑害提示哪些方面容易起分歧，职责与汇报线该怎么划清楚。
+4. **共事提醒**：具体可行的共事建议。
+5. **综合判断**：说清配合的结构与要留意之处，不评价能力高低、不预言升迁。`,
+      friend: `1. **相处的松紧**：日主生克与比和说明这段交情是互相照应、还是各有主张。
+2. **投缘之处**：一方所需在对方盘里旺不旺，哪一块最谈得来。
+3. **需要留空间的地方**：各柱的冲害刑提示哪些话题、哪些牵扯容易伤交情。
+4. **相处提醒**：具体可行的建议；若涉及借贷、合伙、共同投资，要提醒按合作的规矩另行约定。
+5. **综合判断**：说清这段交情的样子，不排高低、不预言长短。`,
+    };
+
+    return `你是精通中国传统命理合盘的资深专家。下面是引擎算好的双方盘面关系，请据此做**${sceneCn}场景**的合盘分析。
+
+两边分别称为「${sideA}」与「${sideB}」，全文一律这样称呼，不要用「男方女方」以外的其他叫法混用，也不要按${sceneCn}以外的场景来讲。
+
+${facts}
+${lineBlock}${evidenceBlock}
+---
+
+硬性要求（先读这一条）：
+1. 出于隐私保护，上面**没有给出任何一方的出生日期与四柱干支**，你也**不得写出、不得推测、不得编造**具体的出生年月日时或年月日时四柱干支。这份报告双方都会看到。
+2. 只依据上面列出的关系与依据作答；上面没有的信息就不要讲，不要为了凑篇幅编细节，也不得提及依据之外的书名与门派原话。
+3. ${
+      line
+        ? "遇到各家讲法不一致之处，一律按上面「本报告的主线」的口径讲，并把结论说明白，不要把选择甩回给用户。"
+        : "遇到各家讲法不一致之处，给出一个明确的说法并说清理由，不要罗列几种讲法让用户自己选。"
+    }
+${scene === "marriage" ? "4. **属相相冲不作为否决依据**：属相只是年支一个字，不得据此断定两人不能在一起。" : "4. 不得据属相下断言，也不得把这段关系说成注定成或注定败。"}
+
+请从以下 5 个方面分析，总篇幅约 1000-1500 字：
+
+${SCENE_TASK[scene]}`;
+  }
+
+  /** 构建合婚分析 prompt（自己的两个盘，不涉及第二个用户，可含完整四柱） */
   private buildHehunPrompt(male: BaziResult, female: BaziResult): string {
     const fmt = (p: typeof male.siZhu.nian) => `${p.gan}${p.zhi}（${p.nayin}）`;
     const m = male;

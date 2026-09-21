@@ -2,6 +2,8 @@ import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Req, Res
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { ClassicService } from "./classic.service";
+import { ClassicSegmentService } from "./classic-segment.service";
+import { ClassicPunctuationService } from "./classic-punctuation.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
@@ -19,6 +21,8 @@ import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, Updat
 export class ClassicController {
   constructor(
     private svc: ClassicService,
+    private segment: ClassicSegmentService,
+    private punctuation: ClassicPunctuationService,
     private seeder: ClassicLibrarySeeder,
     private daizhigeSeeder: ClassicDaizhigeSeeder,
     private companion: ClassicCompanionService,
@@ -63,6 +67,34 @@ export class ClassicController {
     @Query("end") end?: string,
   ) {
     return this.svc.getChapterContentSlice(id, start ? +start : 0, end ? +end : 2000);
+  }
+
+  /** 获取章节稳定段落列表（S03：首次访问只按原文确定性切分；旧锚点迁移需管理端预览确认后执行） */
+  @Get("chapters/:id/segments")
+  @ApiOperation({ summary: "获取章节段落列表（稳定ID，供笔记/注疏锚定）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "章节不存在" })
+  async getChapterSegments(@Param("id") id: string) {
+    const segments = await this.segment.getSegmentsForChapter(id);
+    if (segments.length === 0) {
+      // 首次访问：只按现有 content 原样切分（幂等），不在读请求中写回用户笔记/注疏锚点
+      await this.segment.createSegmentsForChapter(id);
+      return this.segment.getSegmentsForChapter(id);
+    }
+    return segments;
+  }
+
+  /** 段落 AI 断句：已有结果（或原文已有足够标点）直接返回，不计次数 */
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("segments/:id/punctuate")
+  @ApiOperation({ summary: "按需为段落加标点（AI 草稿，字序严格校验，跨用户复用）" })
+  @ApiResponse({ status: 201, description: "返回断句结果（source=original/ai_draft）" })
+  async punctuateSegment(@Req() req: Request, @Param("id") id: string) {
+    const existing = await this.punctuation.peek(id);
+    if (existing) return existing;
+    await this.memberBenefit.consumeAiQuota(req.user.id);
+    return this.punctuation.punctuate(id, req.user.id);
   }
 
   // ── 书籍管理（需管理员） ──
@@ -358,7 +390,7 @@ export class ClassicController {
   async companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
     await this.memberBenefit.consumeAiQuota(req.user.id);
     return this.companion.chat(
-      { chapterId: dto.chapterId, question: dto.question, history: dto.history },
+      { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
       req.user?.id,
     );
   }
@@ -378,7 +410,7 @@ export class ClassicController {
     await this.sse.writeSseStream(
       res,
       this.companion.chatStream(
-        { chapterId: dto.chapterId, question: dto.question, history: dto.history },
+        { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
         req.user?.id,
       ),
     );

@@ -4,6 +4,7 @@ import type { BaziResult } from "@guoxue/bazi-engine";
 import { PrismaService } from "../../prisma/prisma.service";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
+import { isCoupleScene, type CoupleScene } from "./couple-facts";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { serverConfig } from "../../config/server-config";
@@ -58,12 +59,18 @@ export class CoupleService {
   }
 
   /** 1. 发起邀请：校验我的盘归属本人 → 建 CoupleChart(PENDING_INVITE·7天过期) */
-  async invite(userId: string, myRecordId: string) {
+  /**
+   * @param scene 合盘场景（决策人 2026-09-18：合盘不光是合婚，还有合作等）。
+   *   场景在发起时定下，报告按它决定问什么、怎么称呼两边——
+   *   把合作伙伴讲成「感情和睦」是笑话，所以不能事后猜。
+   */
+  async invite(userId: string, myRecordId: string, scene: CoupleScene = "marriage") {
     await this.assertOwnBaziRecord(myRecordId, userId);
 
     const inviteToken = randomBytes(16).toString("hex"); // 32 位 hex
     const chart = await this.prisma.coupleChart.create({
       data: {
+        scene,
         initiatorId: userId,
         initiatorRecordId: myRecordId,
         inviteToken,
@@ -125,10 +132,13 @@ export class CoupleService {
       this.paipan.getBaziRecord(myRecordId, userId),
     ]);
 
+    // shared=true：报告文本是双方唯一共享的内容，所以模型不能拿到任何一方的生辰与四柱，
+    // 否则对方可由四柱反推出生时刻——本服务承诺的「不共享生辰」就落空了
     const analysis = await this.paipanAi.analyzeHehun(
       userId,
       hydrateInput(initiatorRecord) as unknown as BaziResult,
       hydrateInput(partnerRecord) as unknown as BaziResult,
+      { shared: true, scene: isCoupleScene(chart.scene) ? chart.scene : "marriage" },
     );
     const analysisId = (analysis as { id?: string }).id ?? null;
 

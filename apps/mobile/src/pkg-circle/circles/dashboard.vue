@@ -385,6 +385,14 @@ onLoad((q) => {
             </view>
             <text class="tag-ai">AI</text>
           </view>
+          <view class="section-card" @tap="go(`/pkg-circle/circles/voice-agent?id=${circleId}`)">
+            <view class="section-icon"><app-icon name="mic" :size="34" color="#6E6E73" /></view>
+            <view class="section-main">
+              <text class="section-title">小卜语音角色</text>
+              <text class="section-desc">角色设定 · 提交审核</text>
+            </view>
+            <text class="tag-ai">AI</text>
+          </view>
           <view class="section-card" @tap="go(`/pkg-circle/circles/manage?id=${circleId}&tab=settings`)">
             <view class="section-icon"><app-icon name="settings" :size="34" color="#6E6E73" /></view>
             <view class="section-main">

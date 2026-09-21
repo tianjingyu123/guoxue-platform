@@ -4,6 +4,7 @@ import { UserService } from "./user.service";
 import { SystemService } from "../system/system.service";
 import { RolesGuard } from "../../common/roles.guard";
 import { PersonalDataExportService } from "./personal-data-export.service";
+import { PreferredNameService } from "../dialogue/preferred-name.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
@@ -43,6 +44,13 @@ const mockPersonalDataExport = {
   create: jest.fn().mockResolvedValue({ accountId: "u1", selectedTypes: ["profile"] }),
 };
 
+/** 小卜怎么称呼我：设置页的读 / 改 / 删 */
+const mockPreferredName = {
+  detail: jest.fn(async () => ({ name: "老陈", source: "asked", nickname: "用户8f3a", nicknameUsable: false, askedAt: null })),
+  set: jest.fn(async (_u: string, n: string) => ({ ok: true as const, name: n })),
+  clear: jest.fn(async () => undefined),
+};
+
 describe("UserController", () => {
   let ctrl: UserController;
 
@@ -53,6 +61,7 @@ describe("UserController", () => {
         { provide: UserService, useValue: mockUserSvc },
         { provide: SystemService, useValue: mockSystemSvc },
         { provide: PersonalDataExportService, useValue: mockPersonalDataExport },
+        { provide: PreferredNameService, useValue: mockPreferredName },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -217,5 +226,34 @@ describe("UserController", () => {
   it("POST /users/:id/delete-execute — 管理员执行注销", async () => {
     const result: any = await ctrl.executeAccountDeletion("u1");
     expect(result.message).toBe("已注销");
+  });
+
+  // ───────── 小卜怎么称呼我 ─────────
+
+  const meReq = { user: { id: "u1", roles: ["USER"] }, ip: "127.0.0.1" } as any;
+
+  it("GET /users/preferred-name — 告诉用户现在叫什么、这个称呼哪来的", async () => {
+    const r = await ctrl.getPreferredName(meReq);
+    expect(r).toMatchObject({ name: "老陈", source: "asked" });
+    expect(mockPreferredName.detail).toHaveBeenCalledWith("u1");
+  });
+
+  it("PUT /users/preferred-name — 设置称呼", async () => {
+    const r = await ctrl.setPreferredName(meReq, { name: "老陈" } as any);
+    expect(r).toEqual({ name: "老陈" });
+  });
+
+  it("设了叫不出口的称呼要给人话，而不是丢一个错误码", async () => {
+    mockPreferredName.set.mockResolvedValueOnce({ ok: false, reason: "self_deprecating" } as any);
+    await expect(ctrl.setPreferredName(meReq, { name: "废物一个" } as any)).rejects.toThrow("我叫不出口");
+
+    mockPreferredName.set.mockResolvedValueOnce({ ok: false, reason: "identifier" } as any);
+    await expect(ctrl.setPreferredName(meReq, { name: "abc123" } as any)).rejects.toThrow("像是账号名");
+  });
+
+  it("DELETE /users/preferred-name — 不再使用称呼（隐私上的必要项：记住了就得能删）", async () => {
+    const r = await ctrl.clearPreferredName(meReq);
+    expect(r).toEqual({ cleared: true });
+    expect(mockPreferredName.clear).toHaveBeenCalledWith("u1");
   });
 });

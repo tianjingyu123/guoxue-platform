@@ -83,6 +83,38 @@ function onEdit(i: number, e: any) {
   dirty.value = true
 }
 
+// 一键改写成交付口径：平台报告是给学习者看的，交给客户要换成通俗、老师视角的说法。
+// 盘面事实章不动（那是排盘数据），改完仍是草稿，老师可以继续改。
+const rewriting = ref(false)
+async function rewriteForClient() {
+  if (!report.value || rewriting.value) return
+  const ok = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '改写成给客户看的话',
+      content: '会把各章改得更通俗、用你对客户说话的口吻；盘面结论不变。改完仍可继续编辑。',
+      confirmText: '开始改写',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!ok) return
+  rewriting.value = true
+  uni.showLoading({ title: '正在改写…', mask: true })
+  try {
+    const res = await wsApi.rewriteForClient(report.value.id)
+    report.value = res.report
+    uni.showToast({
+      title: res.failed ? `已改写 ${res.rewritten} 章，${res.failed} 章未成功` : `已改写 ${res.rewritten} 章`,
+      icon: 'none',
+    })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '改写失败，请稍后重试', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+    rewriting.value = false
+  }
+}
+
 async function aiDraft(i: number) {
   const c = chapters.value[i]
   if (drafting.value) return
@@ -309,6 +341,10 @@ function archive() {
         <view class="re-bar-btn" @tap="archive">
           <AppIcon name="book-marked" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">归档案例</text>
+        </view>
+        <view class="re-bar-btn" @tap="rewriteForClient">
+          <AppIcon name="wand-2" :size="18" color="#7A6C5E" />
+          <text class="re-bar-btn-txt">{{ rewriting ? '改写中…' : '改成客户口径' }}</text>
         </view>
         <view class="re-bar-btn" @tap="preview">
           <AppIcon name="eye" :size="18" color="#7A6C5E" />

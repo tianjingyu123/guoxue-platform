@@ -1,6 +1,12 @@
-import { Test } from "@nestjs/testing";
 import { TtsService } from "./tts.service";
 import { RedisService } from "../../redis/redis.service";
+import { AudioAssetService } from "./audio-asset.service";
+import { VolcengineTtsAdapter } from "./volcengine-tts.adapter";
+import { createFakeAudioAssetPrisma, createFakeStorage } from "./audio-asset.test-utils";
+
+/**
+ * 模拟验证：真实 AudioAssetService + 内存 Prisma/存储 + RedisService 内存模式；外部 TTS 调用用 fetch mock 计数。
+ */
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -10,17 +16,31 @@ const mockRedis = {
   setBuffer: jest.fn(),
 };
 
+const mockVolcengine = {
+  synthesize: jest.fn(),
+  getAvailableVoices: jest.fn(),
+};
+
 describe("TtsService", () => {
   let svc: TtsService;
+  let fakePrisma: ReturnType<typeof createFakeAudioAssetPrisma>;
+  let fakeStorage: ReturnType<typeof createFakeStorage>;
+  let assetService: AudioAssetService;
 
-  beforeAll(async () => {
-    const mod = await Test.createTestingModule({
-      providers: [TtsService, { provide: RedisService, useValue: mockRedis }],
-    }).compile();
-    svc = mod.get(TtsService);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.REDIS_URL;
+    delete process.env.VOLCENGINE_ACCESS_KEY;
+    delete process.env.VOLCENGINE_TTS_APP_ID;
+    fakePrisma = createFakeAudioAssetPrisma();
+    fakeStorage = createFakeStorage();
+    assetService = new AudioAssetService(fakePrisma.prisma, new RedisService(), fakeStorage.storage as any);
+    svc = new TtsService(
+      mockRedis as unknown as RedisService,
+      assetService,
+      mockVolcengine as unknown as VolcengineTtsAdapter,
+    );
   });
-
-  beforeEach(() => { jest.clearAllMocks(); });
   afterEach(() => {
     delete process.env.TENCENT_SECRET_ID;
     delete process.env.TENCENT_SECRET_KEY;
@@ -139,6 +159,58 @@ describe("TtsService", () => {
         SegmentRate: 2,
       }));
     });
+    it("Redis 未命中但持久化资产存在：供应商调用 0 次，从存储读回音频", async () => {
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch.mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(Buffer.from("edge-audio")) });
+      const first = await svc.synthesize({ text: "学而时习之" });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // 模拟 Redis 过期/服务重启
+      mockFetch.mockClear();
+      mockRedis.getBuffer.mockResolvedValue(null);
+      const second = await svc.synthesize({ text: "学而时习之" });
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fakeStorage.storage.download).toHaveBeenCalledTimes(1);
+      expect(second.audio.equals(first.audio)).toBe(true);
+    });
+
+    it("并发相同文本只调用一次外部合成", async () => {
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch.mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 80));
+        return { ok: true, arrayBuffer: () => Promise.resolve(Buffer.from("once")) };
+      });
+      const results = await Promise.all(Array.from({ length: 5 }, () => svc.synthesize({ text: "并发测试" })));
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(results.every((r) => r.audio.toString() === "once")).toBe(true);
+    });
+
+    it("存储对象丢失时只重新生成一次", async () => {
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch.mockResolvedValue({ ok: true, arrayBuffer: () => Promise.resolve(Buffer.from("v1")) });
+      await svc.synthesize({ text: "丢失测试" });
+      fakeStorage.objects.clear();
+      mockFetch.mockClear();
+      const result = await svc.synthesize({ text: "丢失测试" });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(result.audio.toString()).toBe("v1");
+    });
+
+    it("腾讯云失败降级 Edge 时资产记录实际供应商，且不写入腾讯云缓存键", async () => {
+      process.env.TENCENT_SECRET_ID = "AKIDtest";
+      process.env.TENCENT_SECRET_KEY = "sk-test";
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch
+        .mockResolvedValueOnce({ json: () => Promise.resolve({ Response: { Error: { Code: "AuthFailure", Message: "bad" } } }) })
+        .mockResolvedValueOnce({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)) });
+      await svc.synthesize({ text: "降级记录测试" });
+      const row = [...fakePrisma.rows.values()][0];
+      expect(row.ttsProvider).toBe("edge");
+      expect(row.requestedProvider).toBe("tencent");
+      expect(row.voiceId).toBe("zh-CN-XiaoxiaoNeural");
+      expect(mockRedis.setBuffer).not.toHaveBeenCalled();
+    });
+
     it("腾讯云失败时降级 Edge TTS", async () => {
       process.env.TENCENT_SECRET_ID = "AKIDtest";
       process.env.TENCENT_SECRET_KEY = "sk-test";
@@ -156,7 +228,7 @@ describe("TtsService", () => {
   describe("getVoices", () => {
     it("返回可用语音列表", () => {
       const voices = svc.getVoices();
-      expect(voices.length).toBe(4);
+      expect(voices.length).toBe(6); // 更新：新增了 gushi_female 和 gushi_male
       expect(voices[0]).toHaveProperty("id");
       expect(voices[0]).toHaveProperty("name");
       expect(voices.find((v: { id: string }) => v.id === "xiaoxiao")).toBeTruthy();

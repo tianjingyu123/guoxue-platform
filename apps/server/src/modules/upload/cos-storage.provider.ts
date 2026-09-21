@@ -6,7 +6,12 @@ import {
   getTencentInstanceRoleCredentialProvider,
   TencentInstanceRoleCredentialProvider,
 } from "../../common/tencent-instance-role-credentials";
-import { StorageProvider, UploadResult } from "./storage.interface";
+import {
+  BufferUploadRequest,
+  StorageProvider,
+  UploadResult,
+} from "./storage.interface";
+import { getSafeExtension, normalizeStoragePrefix } from "./storage-extension";
 
 @Injectable()
 export class CosStorageProvider implements StorageProvider {
@@ -62,51 +67,68 @@ export class CosStorageProvider implements StorageProvider {
   }
 
   async upload(file: Express.Multer.File): Promise<UploadResult> {
-    // 安全扩展名：按已验证的 MIME 映射，不回退用户原始扩展名（与 LocalStorageProvider 一致，防 .svg/.html 落地）
-    const ext = this.getSafeExtension(file.mimetype);
+    const ext = getSafeExtension(file.mimetype);
     const key = `uploads/${randomUUID()}${ext}`;
+    await this.putObject(key, file.buffer, file.mimetype);
+    return { url: this.buildUrl(key), key };
+  }
 
+  async uploadBuffer(req: BufferUploadRequest): Promise<UploadResult> {
+    const prefix = normalizeStoragePrefix(req.prefix);
+    const key = `${prefix}${randomUUID()}${getSafeExtension(req.mimetype)}`;
+    await this.putObject(key, req.body, req.mimetype);
+    return { url: this.buildUrl(key), key };
+  }
+
+  private async putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.cos.putObject(
         {
           Bucket: this.bucket,
           Region: this.region,
           Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
+          Body: body,
+          ContentType: contentType,
         },
         (err, _data) => {
           if (err) {
             this.logger.error("COS 上传失败", err.message);
             return reject(err);
           }
-          const base = this.cdnBase
-            ? this.cdnBase.replace(/\/$/, "")
-            : `https://${this.bucket}.cos.${this.region}.myqcloud.com`;
-          resolve({ url: `${base}/${key}`, key });
+          resolve();
         },
       );
     });
   }
 
-  /** 根据已验证的 MIME 类型返回安全扩展名，不回退用户原始扩展名 */
-  private getSafeExtension(mime: string): string {
-    const map: Record<string, string> = {
-      "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp",
-      "audio/mpeg": ".mp3", "audio/mp3": ".mp3", "audio/wav": ".wav", "audio/m4a": ".m4a", "audio/ogg": ".ogg",
-      "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm", "video/x-msvideo": ".avi", "video/x-matroska": ".mkv",
-      // 文档附件（帖子文件卡 /upload/file）：白名单校验后的安全扩展名
-      "application/pdf": ".pdf",
-      "application/msword": ".doc",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-      "application/vnd.ms-excel": ".xls",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
-      "application/vnd.ms-powerpoint": ".ppt",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
-      "text/plain": ".txt", "text/markdown": ".md",
-      "application/zip": ".zip", "application/x-zip-compressed": ".zip",
-    };
-    return map[mime] || ".bin";
+  private buildUrl(key: string): string {
+    const base = this.cdnBase
+      ? this.cdnBase.replace(/\/$/, "")
+      : `https://${this.bucket}.cos.${this.region}.myqcloud.com`;
+    return `${base}/${key}`;
+  }
+
+  async download(key: string): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      this.cos.getObject(
+        { Bucket: this.bucket, Region: this.region, Key: key },
+        (err, data) => {
+          if (err) {
+            const status = (err as any)?.statusCode;
+            if (status === 404) {
+              return reject(Object.assign(new Error("对象不存在"), { code: "NOT_FOUND" }));
+            }
+            return reject(err);
+          }
+          const body = data?.Body;
+          resolve(Buffer.isBuffer(body) ? body : Buffer.from(body as any));
+        },
+      );
+    });
   }
 
   async delete(key: string): Promise<void> {

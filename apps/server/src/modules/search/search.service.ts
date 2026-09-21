@@ -59,7 +59,7 @@ export class SearchService {
 
     if (!q?.trim()) return { q, type };
 
-    const cacheKey = `search:v2:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    const cacheKey = `search:v3:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
@@ -149,24 +149,28 @@ export class SearchService {
     }
   }
 
-  /** PostgreSQL 全文搜索 */
+  /**
+   * PostgreSQL 全文搜索
+   * 公共搜索只返回公共池内容：文章/课程须审核通过且 visibility=PLATFORM（CIRCLE_ONLY 为圈内私有，标题摘要也不得外泄），
+   * 并排除软删除（2026-09-17 修复跨圈泄露，口径与 article.service getHomeFeed / course.service 一致）。
+   */
   private async runFts(entityType: string, q: string, limit: number, offset: number): Promise<any[]> {
     const configs: Record<string, { table: string; fields: string; select: string; where: string }> = {
       Article: {
         table: "Article", fields: "coalesce(title,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Course: {
         table: "Course", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Product: {
         table: "Product", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE' AND "deletedAt" IS NULL`,
       },
       Circle: {
         table: "Circle", fields: "coalesce(name,'') || ' ' || coalesce(intro,'')",
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
@@ -178,11 +182,11 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
       },
       Content: {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
       },
       Ebook: {
         table: "Ebook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(description,'')",
@@ -224,19 +228,19 @@ export class SearchService {
     const configs: Record<string, { table: string; searchFields: string[]; select: string; where: string }> = {
       Article: {
         table: "Article", searchFields: ["title", "excerpt"],
-        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Course: {
         table: "Course", searchFields: ["title", "intro"],
-        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL`,
       },
       Product: {
         table: "Product", searchFields: ["title", "intro"],
-        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE' AND "deletedAt" IS NULL`,
       },
       Circle: {
         table: "Circle", searchFields: ["name", "intro"],
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", searchFields: ["title"],
@@ -248,11 +252,11 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", searchFields: ["title", "author", "intro"],
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
       },
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
       },
       Ebook: {
         table: "Ebook", searchFields: ["title", "author", "description"],
@@ -336,7 +340,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Article"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "auditStatus" = 'APPROVED'
+          AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3
@@ -344,7 +348,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Course"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "auditStatus" = 'APPROVED'
+          AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3
@@ -352,7 +356,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, name FROM "Circle"
         WHERE to_tsvector('simple', coalesce(name,'')) @@ plainto_tsquery('simple', ${q})
-          AND "status" = 'ACTIVE'
+          AND "status" = 'ACTIVE' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(name,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 2
@@ -360,7 +364,7 @@ export class SearchService {
       this.prisma.$queryRaw<any[]>`
         SELECT id, title FROM "Content"
         WHERE to_tsvector('simple', coalesce(title,'')) @@ plainto_tsquery('simple', ${q})
-          AND "status" = 'PUBLISHED'
+          AND "status" = 'PUBLISHED' AND "deletedAt" IS NULL
         ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'')),
                          plainto_tsquery('simple', ${q})) DESC
         LIMIT 3

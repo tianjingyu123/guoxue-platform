@@ -27,6 +27,7 @@ export class RedisService implements OnModuleDestroy {
   private memory = new Map<string, { value: string; expiry: number }>();
   private connected = false;
   private triedConnect = false;
+  private connecting: Promise<Redis | null> | null = null;
 
   constructor() {
     const sentinelHosts = process.env.REDIS_SENTINEL_HOSTS;

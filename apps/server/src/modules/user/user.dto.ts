@@ -144,3 +144,11 @@ export class UpdateNotifySettingsDto {
   @IsBoolean()
   value: boolean;
 }
+
+/** 小卜对我的称呼：长度在服务端还会按「能不能当面叫」再判一次 */
+export class SetPreferredNameDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(16)
+  name: string;
+}
