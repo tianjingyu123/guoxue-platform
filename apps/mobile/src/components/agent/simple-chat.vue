@@ -86,6 +86,7 @@ const experience = computed(() => resolveAgentExperience({
 const experienceStyle = computed(() => agentThemeStyle(experience.value.theme.key))
 const input = ref('')
 const loading = ref(false)
+const quotaExhausted = ref(false)
 const scrollId = ref('')
 const safeTop = ref(0)
 const safeBottom = ref(0)
@@ -182,6 +183,7 @@ async function send(text: string) {
     track.custom('cs_question_submitted', { scene: 'customer_service' })
   }
   input.value = ''
+  quotaExhausted.value = false
   loading.value = true
   autoFollow.value = true // 新发送强制回底部跟随
   scrollToBottom(true)
@@ -260,7 +262,10 @@ async function sendStreaming(t: string) {
   } catch (e) {
     const m = live()
     const errText = (e as Error)?.message || '请稍后再试'
-    if (m) m.content = m.content ? m.content + `\n\n（连接中断：${errText}）` : `抱歉，回复生成失败：${errText}`
+    if (/额度|次数|用完|余额不足/u.test(errText)) {
+      quotaExhausted.value = true
+      if (m) m.content = '本次服务额度已用完。你可以恢复权益后继续当前对话，已有内容不会丢失。'
+    } else if (m) m.content = m.content ? m.content + `\n\n（连接中断：${errText}）` : `抱歉，回复生成失败：${errText}`
     if (props.experienceKey === 'SERVICE') {
       track.custom('cs_reply_failed', { scene: 'customer_service' })
     }
@@ -321,6 +326,11 @@ function openRecommendation(item: RecommendItem) {
 
 function reset() {
   messages.value = [{ id: 0, role: 'assistant', content: props.welcome, time: nowTime() }]
+  quotaExhausted.value = false
+}
+
+function openQuotaCenter() {
+  navigateTo('/vip')
 }
 </script>
 
@@ -415,6 +425,13 @@ function reset() {
         </view>
         <view :id="scrollId" class="anchor" />
       </view>
+      <view v-if="quotaExhausted" class="quota-recovery" role="status">
+        <view class="quota-recovery__copy">
+          <text class="quota-recovery__title">继续当前对话</text>
+          <text class="quota-recovery__desc">恢复 AI 使用权益后，直接回到这里继续提问。</text>
+        </view>
+        <view class="quota-recovery__action" @tap="openQuotaCenter"><text>恢复权益</text></view>
+      </view>
     </scroll-view>
 
     <!-- 快捷词 -->
@@ -486,6 +503,11 @@ function reset() {
   box-shadow: 0 0 0 6rpx rgba(63, 129, 151, 0.12);
 }
 .scene-hint__text { font-size: 21rpx; line-height: 1.4; color: #536b74; }
+.quota-recovery { display: flex; align-items: center; gap: 18rpx; margin: 0 24rpx 18rpx; padding: 18rpx 20rpx; border-radius: 18rpx; background: linear-gradient(135deg, rgba(201,169,110,.12), rgba(49,95,122,.08)); border: 1rpx solid rgba(201,169,110,.24); }
+.quota-recovery__copy { flex: 1; min-width: 0; }
+.quota-recovery__title { display: block; font-size: 24rpx; font-weight: 700; color: #4b4038; }
+.quota-recovery__desc { display: block; margin-top: 4rpx; font-size: 20rpx; line-height: 1.4; color: #81756d; }
+.quota-recovery__action { flex-shrink: 0; padding: 12rpx 18rpx; border-radius: 999rpx; background: #315f7a; color: #fff; font-size: 21rpx; }
 
 .msg-area { flex: 1; overflow: hidden; }
 .msg-list { padding: 32rpx 24rpx; display: flex; flex-direction: column; gap: 32rpx; }
