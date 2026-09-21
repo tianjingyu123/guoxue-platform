@@ -72,6 +72,23 @@ export class NotificationService {
     return notification;
   }
 
+  /**
+   * 关键业务事件的幂等发送。幂等键只在成功落库后保留；落库失败会释放，便于任务重试。
+   * 这是候选补齐能力，暂不改变既有 send 调用方。
+   */
+  async sendOnce(userId: string, idempotencyKey: string, dto: SendNotificationDto) {
+    if (!idempotencyKey.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键不能为空");
+    const key = `notification:sent:${userId}:${idempotencyKey}`;
+    const claimed = await this.redis.setNX(key, "1", PREFS_TTL);
+    if (!claimed) return null;
+    try {
+      return await this.send(userId, { ...dto, idempotencyKey });
+    } catch (err) {
+      await this.redis.del(key).catch(() => undefined);
+      throw err;
+    }
+  }
+
   /** 批量发送通知 */
   async batchSend(dto: BatchSendDto) {
     const data = dto.userIds.map(userId => ({
