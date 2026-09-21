@@ -193,6 +193,7 @@ export class VoiceSessionService {
       billingOwner: d.circleId ? { ownerType: "circle", ownerId: d.circleId } : { ownerType: "user", ownerId: userId },
       context,
       digest: digestContext(context),
+      displayTopic: "小卜硬件",
       device: { id: d.id, bindingVersion: d.bindingVersion },
     });
   }
@@ -286,7 +287,8 @@ export class VoiceSessionService {
         available: true as const,
         duplicated: false,
         session: this.toView(fresh, { clientCredential: issued.clientCredential, credentialExpiresAt: issued.expiresAt }),
-        context: { topic: resolved.context.topic, version: resolved.context.version },
+        // 只给用户看简短话题；给模型的指令（context.topic/facts）不下发到端上
+        context: { topic: resolved.displayTopic, version: resolved.context.version },
       };
     } catch (error: any) {
       const code = error instanceof VoiceProviderError ? error.code : "UNKNOWN";

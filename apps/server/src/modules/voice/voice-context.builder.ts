@@ -37,6 +37,8 @@ export interface ResolvedVoiceContext {
   /** 圈子场景：额度从圈主账户扣 */
   billingOwner: { ownerType: "user" | "circle"; ownerId: string } | null;
   context: MinimalVoiceContext;
+  /** 给用户看的一句话（「正在讨论：…」）；context.topic 是给模型的指令，不展示给用户 */
+  displayTopic: string;
   digest: string;
 }
 
@@ -53,8 +55,10 @@ export function scrubPrivate(text: string): string {
   return out;
 }
 
-function clip(text: unknown, max: number): string {
-  const s = scrubPrivate(String(text ?? "").replace(/\s+/g, " ").trim());
+function clip(text: unknown, max: number, names: string[] = []): string {
+  let s = scrubPrivate(String(text ?? "").replace(/\s+/g, " ").trim());
+  // 命主/客户姓名也是身份信息：给供应商的文本里一律换成「命主」
+  for (const n of names) if (n && n.length >= 2) s = s.split(n).join("命主");
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
@@ -99,6 +103,7 @@ export class VoiceContextBuilder {
           agentId: "xiaore",
           tier: "lite",
           billingOwner: null,
+          displayTopic: "帮你在热卜找文章、古籍、课程与圈子",
           context: {
             scene: "content_guide",
             topic: "帮用户在热卜找文章、古籍、课程与圈子；只推荐平台真实存在、用户有权访问的内容",
@@ -125,7 +130,7 @@ export class VoiceContextBuilder {
     if (!req.contextId) throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少报告编号");
     const report = await this.prisma.aiAnalysisRecord.findUnique({
       where: { id: req.contextId },
-      select: { id: true, userId: true, scene: true, analysisContent: true, paipanRecordId: true },
+      select: { id: true, userId: true, scene: true, analysisContent: true, paipanRecordId: true, paipanRecord: { select: { clientName: true } } },
     });
     if (!report || report.scene !== "paipan_report") throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
     if (report.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该报告");
@@ -143,6 +148,10 @@ export class VoiceContextBuilder {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "报告里没有这个小节");
     }
     const paipanType = String(content?.metadata?.paipanType || "bazi");
+    // 可能出现在标题、摘要、要点里的姓名：排盘记录的被排盘人、报告事实里的姓名字段
+    const names = [report.paipanRecord?.clientName, content?.facts?.name, content?.facts?.clientName]
+      .filter((n): n is string => typeof n === "string" && n.trim().length >= 2)
+      .map((n) => n.trim());
     const version = String(content?.metadata?.version || content?.metadata?.generatedAt || report.id);
 
     return this.finish({
@@ -151,20 +160,22 @@ export class VoiceContextBuilder {
       agentId: ["liuyao", "meihua", "qimen", "daliuren", "xiaoliuren", "jinkoujue"].includes(paipanType) ? "xiaoyao" : "xiaobu",
       tier: "lite",
       billingOwner: { ownerType: "user", ownerId: userId },
+      displayTopic: `《${clip(content?.title, 30)}》${current ? ` · ${clip(current.title, 20)}` : ""}`,
       context: {
         scene: "report_dialogue",
-        topic: `围绕用户自己的《${clip(content?.title, 40)}》交流：只讲报告里已有的盘面事实与依据，不重新排盘、不改结论、不编书名原句`,
+        // 不带报告标题：标题常含命主姓名
+        topic: "围绕用户自己的排盘报告交流：只讲报告里已有的盘面事实与依据，不重新排盘、不改结论、不编书名原句",
         facts: {
           paipanType,
           reportVersion: version,
-          summary: clip(content?.summary, 500),
-          sections: outline.slice(0, 12).map((o) => `${o.sectionId} ${clip(o.title, 20)}：${(o.keyPoints || []).slice(0, 3).map((k: string) => clip(k, 60)).join("；")}`),
+          summary: clip(content?.summary, 500, names),
+          sections: outline.slice(0, 12).map((o) => `${o.sectionId} ${clip(o.title, 20, names)}：${(o.keyPoints || []).slice(0, 3).map((k: string) => clip(k, 60, names)).join("；")}`),
           currentSection: current ? `${current.sectionId} ${clip(current.title, 20)}` : null,
           boundary: "资料不足或门派分歧时直说；不作疾病、投资、婚姻的确定性结论；不推销化解",
         },
         version,
         // 报告里的四柱/起盘校验/起运时刻都能反推出生时间，一律不下发
-        redactions: ["facts", "chartView", "provenance", "references.fullText", "paipanRecord.input"],
+        redactions: ["title", "clientName", "facts", "chartView", "provenance", "references.fullText", "paipanRecord.input"],
       },
     });
   }
@@ -200,6 +211,7 @@ export class VoiceContextBuilder {
       agentId: "xiaojian",
       tier: "lite",
       billingOwner: null,
+      displayTopic: `《${clip(book.title, 30)}·${clip(seg.chapter?.title, 30)}》第 ${seg.sortOrder + 1} 段${selected ? `「${clip(selected, 24)}」` : ""}`,
       context: {
         scene: "classic_companion",
         topic: `正在讨论《${clip(book.title, 30)}·${clip(seg.chapter?.title, 30)}》第 ${seg.sortOrder + 1} 段` +
@@ -251,6 +263,7 @@ export class VoiceContextBuilder {
       // 档位以平台审核通过的版本为准，圈主无权自行升档
       tier: version?.tier === "standard" ? "standard" : "lite",
       billingOwner: { ownerType: "circle", ownerId: circleId },
+      displayTopic: `「${clip(member.circle.name, 30)}」语音助理 · ${clip(version?.name ?? profile.name, 20)}`,
       context: {
         scene: "circle_assistant",
         topic: `你是「${clip(member.circle.name, 30)}」圈的语音助理「${clip(version?.name ?? profile.name, 20)}」`,
@@ -276,6 +289,7 @@ export class VoiceContextBuilder {
       agentId: persona.id,
       tier: "lite",
       billingOwner: null,
+      displayTopic: `${persona.name} · ${persona.tagline}`,
       context: {
         scene: "plaza",
         topic: `你是热卜的「${persona.name}」：${persona.tagline}`,

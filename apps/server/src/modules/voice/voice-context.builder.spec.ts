@@ -4,7 +4,7 @@ import { MAX_CONTEXT_CHARS } from "./provider/voice-provider.types";
 function reportContent(over: any = {}) {
   return JSON.stringify({
     title: "张三的八字命书",
-    summary: "日主甲木生于1990年5月1日辰时，手机13812345678，身弱喜水木。",
+    summary: "张三日主甲木生于1990年5月1日辰时，手机13812345678，身弱喜水木。",
     sections: [{ id: "s3", title: "日主与格局", content: "……" }],
     dialogueOutline: [
       { sectionId: "s3", title: "日主与格局", keyPoints: ["身弱", "喜印比"], evidenceIds: ["E1"] },
@@ -47,6 +47,11 @@ describe("VoiceContextBuilder · 报告对话（S07）", () => {
     expect(wire).not.toMatch(/13812345678/);
     expect(wire).not.toMatch(/庚午|甲子|戊辰/);
     expect(wire).not.toMatch(/08:30|08:12|真太阳时/);
+    // 姓名也不下发：标题不进上下文，摘要里的姓名被替换
+    expect(wire).not.toMatch(/张三/);
+    // 给用户看的话题是简短的（本人报告，可以带标题），不是给模型的指令
+    expect(r.displayTopic).toBe("《张三的八字命书》 · 日主与格局");
+    expect(r.displayTopic).not.toMatch(/只讲|不重新排盘/);
     expect(r.context.redactions).toEqual(expect.arrayContaining(["facts", "chartView", "provenance"]));
     expect(r.context.facts.currentSection).toBe("s3 日主与格局");
     expect(r.billingOwner).toEqual({ ownerType: "user", ownerId: "u1" });
