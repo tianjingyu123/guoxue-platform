@@ -288,14 +288,12 @@ async function goPay() {
       navigateTo(existingOrderCashierRoute(currentId, selected, true))
     }
     if (!options.length) { choosingPayment = false; uni.showToast({ title: '当前环境暂无可用支付方式，请在微信中打开', icon: 'none' }); return }
-    if (options.length === 1) { choose(options[0].id); choosingPayment = false; return }
-    uni.showActionSheet({
-      itemList: options.map(item => item.name),
-      success: ({ tapIndex }) => { if (options[tapIndex]) choose(options[tapIndex].id) },
-      complete: () => { choosingPayment = false },
-    })
+    const inWechat = ua.toLowerCase().includes('micromessenger')
+    const preferred = options.find(item => item.id === (inWechat ? 'wechat' : 'alipay')) || options[0]
+    choose(preferred.id)
+    choosingPayment = false
   } catch (e) { choosingPayment = false; uni.showToast({ title: (e as Error)?.message || '支付方式暂不可用', icon: 'none' }) }
-  return
+  return;
   // #endif
   goLegacyPay()
 }

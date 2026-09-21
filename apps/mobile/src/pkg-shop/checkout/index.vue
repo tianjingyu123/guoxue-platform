@@ -72,15 +72,11 @@
         <app-icon name="chevron-right" :size="32" color="#999999" />
       </view>
 
-      <!-- 支付方式 -->
-      <view class="pay-card">
-        <text class="pay-title">支付方式</text>
-        <view v-for="m in payMethods" :key="m.id" class="pay-item" :class="{ disabled: m.enabled === false }" @tap="m.enabled !== false && (payMethod = m.id)">
-          <view class="pay-badge" :style="{ background: m.badgeColor }"><text>{{ m.badge }}</text></view>
-          <view class="pay-description"><text class="pay-name">{{ m.name }}</text><text v-if="m.reason" class="pay-reason">{{ m.reason }}</text></view>
-          <view class="radio" :class="{ checked: payMethod === m.id }">
-            <view v-if="payMethod === m.id" class="radio-dot" />
-          </view>
+      <view class="pay-card pay-card--fast">
+        <app-icon name="zap" :size="36" color="#22c55e" />
+        <view class="pay-description">
+          <text class="pay-name">快捷支付</text>
+          <text class="pay-reason">提交后将按当前环境直接打开安全收银台</text>
         </view>
       </view>
 
@@ -264,7 +260,11 @@ async function fetchCheckoutData() {
     await hydrateRemoteConfig(true)
     const options = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top)
     payMethods.value = payMethods.value.map(item => ({ ...item, ...options.find(option => option.id === item.id) }))
-    if (!payMethods.value.some(item => item.id === payMethod.value && item.enabled)) payMethod.value = payMethods.value.find(item => item.enabled)?.id || ''
+    const inWechat = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('micromessenger')
+    const preferred = inWechat ? 'wechat' : 'alipay'
+    payMethod.value = payMethods.value.some(item => item.id === preferred && item.enabled)
+      ? preferred
+      : payMethods.value.find(item => item.enabled)?.id || ''
     // #endif
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
     if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
