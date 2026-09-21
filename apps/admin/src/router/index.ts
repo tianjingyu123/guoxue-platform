@@ -1280,6 +1280,13 @@ const routes = [
         component: () => import("@/views/ai/VoiceAgentReview.vue"),
         meta: { title: "小卜语音角色审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      // === 小卜 · 硬件台账（登记、绑定码、停用；客服只读）===
+      {
+        path: "xiaobu-devices",
+        name: "XiaobuDevices",
+        component: () => import("@/views/ai/XiaobuDevices.vue"),
+        meta: { title: "小卜硬件台账", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      },
       // === 小卜 · 运营（用量、成本、语音额度）===
       {
         path: "xiaobu-ops",

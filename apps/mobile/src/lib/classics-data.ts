@@ -845,6 +845,15 @@ export const classicsApi = {
   async chapterSegments(chapterId: string): Promise<{ id: string; sortOrder: number; content: string }[]> {
     return await apiGet<{ id: string; sortOrder: number; content: string }[]>(`/classic/chapters/${encodeURIComponent(chapterId)}/segments`)
   },
+  /** 章节简体阅读版：等长转换，每段带原文段落 ID/哈希/偏移；converted=false 的段落显示原貌 */
+  async chapterSimplified(chapterId: string): Promise<{
+    chapterId: string
+    policyVersion: string
+    keptAmbiguousTotal: number
+    segments: { segmentId: string; sortOrder: number; text: string; converted: boolean; contentHash: string; startCharOffset: number; endCharOffset: number }[]
+  }> {
+    return await apiGet(`/classic/chapters/${encodeURIComponent(chapterId)}/simplified`)
+  },
   /** 段落断句：source=original 表示原文已有足够标点；ai_draft 为 AI 断句草稿 */
   async punctuateSegment(segmentId: string): Promise<{ segmentId: string; text: string; source: 'original' | 'ai_draft'; cached: boolean }> {
     return await apiPost<{ segmentId: string; text: string; source: 'original' | 'ai_draft'; cached: boolean }>(

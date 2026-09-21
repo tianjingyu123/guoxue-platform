@@ -263,6 +263,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/ai/circle-assistants"),
       M("/voice-agent-review", "小卜语音角色审核", "human"),
       M("/xiaobu-ops", "小卜运营", "human"),
+      M("/xiaobu-devices", "小卜硬件台账", "human"),
       M("/ai/customer-service"),
       M("/bots"),
     ],

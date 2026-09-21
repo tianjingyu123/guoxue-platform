@@ -117,6 +117,18 @@
 
     <!-- 常规陈列模式 -->
     <template v-else>
+      <!-- 小卜语音与硬件：与文字智能体分开的独立入口（S01/S09）；未开放时进入后如实显示「暂未开放」 -->
+      <view class="section-px xb-voice-row">
+        <view class="xb-voice-entry" data-testid="plaza-voice" @tap="navigateTo('/pkg-agent/agent/xiaobu-voice?scene=plaza&contextId=xiaobu')">
+          <app-icon name="mic" :size="30" color="#C41E3A" />
+          <text class="xb-voice-txt">和小卜语音聊</text>
+        </view>
+        <view class="xb-voice-entry" data-testid="plaza-devices" @tap="navigateTo('/pkg-agent/agent/xiaobu-devices')">
+          <app-icon name="smartphone" :size="30" color="#6E6E73" />
+          <text class="xb-voice-txt">我的小卜硬件</text>
+        </view>
+      </view>
+
       <!-- ① 官方学习向导：承担平台内容导航，不与下方垂直学伴重复 -->
       <view class="section-px zx-wrap">
         <view
@@ -1006,4 +1018,7 @@ function goBack() {
   .guide-node,
   .top-orbit { animation: none; }
 }
+.xb-voice-row { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.xb-voice-entry { flex: 1; display: flex; align-items: center; gap: 12rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: var(--card, #fff); }
+.xb-voice-txt { font-size: 26rpx; color: var(--text-ink, #2c2c2c); }
 </style>

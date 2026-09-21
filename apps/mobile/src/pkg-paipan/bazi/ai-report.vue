@@ -5,7 +5,8 @@
  * 版面按《小卜命书设计方案》：主旨 → 命盘图 → 五行分布/喜忌 → 章节卡（盘/派/典 依据印、要点、原文出处、问小卜）→ 依据与局限
  * - 盘面事实由排盘引擎计算，模型不改写；解读只引用人工审核的报告知识库条目
  * - 生成失败时不展示空报告，盘面仍可返回查看
- * - “问小卜”先用文字问答（POST /paipan/report/:id/ask）；语音需接入小智语音链路，未接通前语音按钮如实提示未开放
+ * - “问小卜”先用文字问答（POST /paipan/report/:id/ask）；语音按钮进入统一的小卜语音页（S07），
+ *   商业语音接口未到位时由该页如实显示「暂未开放」并引导回文字问答
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -394,8 +395,13 @@ async function useAsClientReport() {
   }
 }
 
-function voiceNotReady() {
-  uni.showToast({ title: '语音问答暂未开放，可先用文字问小卜', icon: 'none' })
+/** 语音问答：进入统一语音页，携带报告与当前小节（服务端校验报告归属，不下发出生信息） */
+function openVoice() {
+  const id = report.value?.id
+  if (!id) return
+  const q = [`scene=report_dialogue`, `contextId=${encodeURIComponent(id)}`]
+  if (chatSectionId.value) q.push(`sectionId=${encodeURIComponent(chatSectionId.value)}`)
+  navigateTo(`/pkg-agent/agent/xiaobu-voice?${q.join('&')}`)
 }
 
 onLoad((q) => {
@@ -909,7 +915,7 @@ onLoad((q) => {
             </text>
           </view>
           <text v-if="!voiceQuota.charging" class="vq-note">
-            语音功能开放中，当前单次可体验 {{ Math.round(voiceQuota.freeSessionMaxSeconds / 60) }} 分钟，暂不计时长
+            语音通话尚未开放；开放初期不计时长，单次可体验 {{ Math.round(voiceQuota.freeSessionMaxSeconds / 60) }} 分钟
           </text>
           <text v-else-if="voiceQuota.availableMinutes <= 5" class="vq-note">
             时长不多了，用完可按 {{ (voiceQuota.topUpPricePerMinuteCents / 100).toFixed(0) }} 元/分钟续；每份新报告另送
@@ -996,7 +1002,7 @@ onLoad((q) => {
           </view>
         </scroll-view>
         <view class="sheet-input">
-          <view class="voice-btn" @tap="voiceNotReady"><app-icon name="mic" :size="36" color="#9ca3af" /></view>
+          <view class="voice-btn" data-testid="report-voice" @tap="openVoice"><app-icon name="mic" :size="36" color="#9ca3af" /></view>
           <input
             id="xiaobu-ask-input"
             v-model="chatInput"

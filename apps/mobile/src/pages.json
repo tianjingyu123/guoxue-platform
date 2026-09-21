@@ -1341,6 +1341,24 @@
           }
         },
         {
+          "path": "agent/xiaobu-voice",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice-history",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-devices",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "agent/customer-service",
           "style": {
             "navigationStyle": "custom"
