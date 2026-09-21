@@ -109,7 +109,7 @@ run("AudioAsset / TextDerivedAsset 真实库并发去重", () => {
     expect(await prisma.textDerivedAsset.count({ where: { sourceId: req.sourceId } })).toBe(1);
   });
 
-  it("报告知识库真实查询：只命中已审核条目、按标签数组匹配、通用+指定门派", async () => {
+  it("报告知识库真实查询：只命中已审核条目、按标签数组匹配；各派都返回、指定门派加权排第一（2026-09-18 口径）", async () => {
     const svc = new PaipanReportKnowledgeService(prisma as any);
     const tag = `${prefix}-偏财格`;
     const base = { kind: "school_theory" as const, topic: "格局", tags: [tag], content: "要点" };
@@ -119,10 +119,13 @@ run("AudioAsset / TextDerivedAsset 真实库并发去重", () => {
     await svc.create({ ...base, school: null, title: `${prefix}-草稿` }, "it");
     for (const r of [common, ziping, mangpai]) await svc.approve(r.id, "it-reviewer");
     const signals = [{ value: tag, weight: 10, reason: "格局" }];
+    // 09-18 决策人口径：报告是「各门各派对这个盘怎么看」的汇总，不按门派排除；指定门派只加权靠前。
+    // （本用例写于 09-17，按旧口径断言「只返回通用+指定门派」；因需真实库默认跳过，口径改后一直未重跑，09-21 更新）
     const hits = await svc.findEvidence({ paipanType: "bazi", school: "ziping", signals });
-    expect(hits.map((h) => h.title).sort()).toEqual([`${prefix}-子平`, `${prefix}-通用`].sort());
+    expect(hits.map((h) => h.title).sort()).toEqual([`${prefix}-子平`, `${prefix}-盲派`, `${prefix}-通用`].sort());
     expect(hits[0].title).toBe(`${prefix}-子平`);
+    expect(hits.map((h) => h.title)).not.toContain(`${prefix}-草稿`);
     const noSchool = await svc.findEvidence({ paipanType: "bazi", signals });
-    expect(noSchool.map((h) => h.title)).toEqual([`${prefix}-通用`]);
+    expect(noSchool.map((h) => h.title).sort()).toEqual([`${prefix}-子平`, `${prefix}-盲派`, `${prefix}-通用`].sort());
   });
 });
