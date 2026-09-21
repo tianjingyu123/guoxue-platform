@@ -6,6 +6,7 @@ import { VoiceAdminController } from "./voice-admin.controller";
 import { VoiceUserController } from "./voice-user.controller";
 import { VoiceTrialService } from "./voice-trial.service";
 import { XiaobuMcpServer } from "./xiaobu-mcp-server";
+import { XiaobuCommerceService } from "./xiaobu-commerce.service";
 import { XiaozhiMcpBridgeService } from "./xiaozhi-mcp-bridge.service";
 import { SearchModule } from "../search/search.module";
 import { VoiceContextBuilder } from "./voice-context.builder";
@@ -41,6 +42,7 @@ import { createVoiceProvider } from "./provider/voice-provider.registry";
     VoiceTrialService,
     VoiceAgentProfileService,
     XiaobuMcpServer,
+    XiaobuCommerceService,
     XiaozhiMcpBridgeService,
     VoiceContextBuilder,
     VoiceDeviceService,
@@ -48,6 +50,6 @@ import { createVoiceProvider } from "./provider/voice-provider.registry";
     VoiceSessionSweeperTask,
     { provide: VOICE_PROVIDER, useFactory: () => createVoiceProvider() },
   ],
-  exports: [VoiceQuotaService, VoiceTrialService, VoiceAgentProfileService, XiaobuMcpServer, VoiceSessionService, VoiceDeviceService],
+  exports: [VoiceQuotaService, VoiceTrialService, VoiceAgentProfileService, XiaobuMcpServer, XiaobuCommerceService, VoiceSessionService, VoiceDeviceService],
 })
 export class VoiceModule {}

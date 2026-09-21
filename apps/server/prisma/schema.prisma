@@ -1391,6 +1391,8 @@ enum OrderType {
   BUNDLE
   PRACTITIONER_PRO // 从业者会员 ¥98/月（独立于 MEMBER 书院会员）
   VOICE_MINUTES // 小卜语音时长充值（targetId=分钟档位，2026-09-21）
+  XIAOBU_REPORT // 小卜报告单独购买（targetId=排盘记录ID:报告类型，2026-09-21）
+  XIAOBU_MEMBER // 小卜AI会员（targetId=档位 MONTHLY/YEARLY/YEAR3/YEAR5，2026-09-21）
 }
 
 enum OrderStatus {

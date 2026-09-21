@@ -9,10 +9,11 @@
  *   商业语音接口未到位时由该页如实显示「暂未开放」并引导回文字问答
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { wsApi } from '@/pkg-workspace/lib/workspace-api'
+import { shopApi } from '@/lib/shop-data'
 import { getToken } from '@/utils/storage'
 import {
   aiReportApi,
@@ -33,6 +34,7 @@ import {
   type AiZiweiChartView,
   type AiDaliurenChartView,
   type AiReportChartView,
+  type AiReportAccess,
 } from '@/lib/paipan/ai-report-data'
 
 const recordId = ref('')
@@ -239,7 +241,7 @@ async function load(regenerate = false) {
     unveiling.value = true
     setTimeout(() => { unveiling.value = false }, 900)
     loadRelated(res.id)
-    // 报告生成时会发放附带的语音时长，随后刷新余额
+    // 购买报告的赠送时长在付款时到账，会员按月赠送；这里刷新一次余额
     loadVoiceQuota()
   } catch (e) {
     if (seq !== requestSeq) return
@@ -404,6 +406,57 @@ function openVoice() {
   navigateTo(`/pkg-agent/agent/xiaobu-voice?${q.join('&')}`)
 }
 
+/**
+ * 付费门禁（决策人 2026-09-21）：单份 29 元含 30 分钟 AI 语音，或小卜AI会员免费不限次。
+ * 先查权限再生成；没权限时显示购买选项，从收银页返回后（onShow）重新检查，已到账则直接开始生成。
+ */
+const paywall = ref<AiReportAccess | null>(null)
+const checkingAccess = ref(false)
+const buyingReport = ref(false)
+
+async function checkAccessThenLoad() {
+  if (!recordId.value || checkingAccess.value) return
+  checkingAccess.value = true
+  error.value = ''
+  try {
+    const access = await aiReportApi.access(recordId.value)
+    if (access.granted) {
+      paywall.value = null
+      load()
+    } else {
+      paywall.value = access
+    }
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载失败，请稍后重试'
+  } finally {
+    checkingAccess.value = false
+  }
+}
+
+async function buyReport() {
+  if (buyingReport.value || !paywall.value) return
+  buyingReport.value = true
+  try {
+    // 金额由服务端计算（29 元），targetId = 排盘记录:报告类型
+    const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId: `${recordId.value}:${paywall.value.reportType}`, quantity: 1 })
+    if (!order.id) throw new Error('订单创建失败')
+    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || paywall.value.priceYuan || 0}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
+  } finally {
+    buyingReport.value = false
+  }
+}
+
+function openMember() {
+  navigateTo('/pkg-agent/agent/xiaobu-member')
+}
+
+const memberFrom = computed(() => {
+  const plans = paywall.value?.memberPlans || []
+  return plans.length ? Math.min(...plans.map((p) => p.priceYuan)) : 0
+})
+
 onLoad((q) => {
   recordId.value = String(q?.recordId || '')
   if (!recordId.value) {
@@ -414,7 +467,12 @@ onLoad((q) => {
     error.value = '登录后才能生成属于你的报告'
     return
   }
-  load()
+  checkAccessThenLoad()
+})
+
+// 从收银页或会员页返回：仍停在购买选项时重新检查一次
+onShow(() => {
+  if (paywall.value && !loading.value) checkAccessThenLoad()
 })
 </script>
 
@@ -447,10 +505,32 @@ onLoad((q) => {
         <text class="state-sub">通常需要几十秒，请勿离开页面</text>
       </view>
 
+      <view v-else-if="paywall" class="paywall" data-testid="report-paywall">
+        <text class="pw-title">生成这份报告</text>
+        <text class="pw-sub">盘面由排盘引擎确定性计算，解读对照门派理论与古籍出处，可随时围绕报告与小卜语音交流。</text>
+        <view class="pw-card pw-main" data-testid="report-buy" @tap="buyReport">
+          <view class="pw-row">
+            <text class="pw-name">单独购买这份报告</text>
+            <text class="pw-price">¥{{ paywall.priceYuan }}</text>
+          </view>
+          <text class="pw-desc">含 {{ paywall.includedVoiceMinutes }} 分钟 AI 语音对话；购买后切换门派、重新生成不再收费</text>
+          <view class="btn btn-primary pw-btn" :class="{ disabled: buyingReport }">
+            <text class="btn-text-primary">{{ buyingReport ? '正在下单…' : '去支付' }}</text>
+          </view>
+        </view>
+        <view class="pw-card" data-testid="report-member" @tap="openMember">
+          <view class="pw-row">
+            <text class="pw-name">开通小卜AI会员</text>
+            <text class="pw-price pw-price-soft">¥{{ memberFrom }} 起</text>
+          </view>
+          <text class="pw-desc">会员期内报告免费、不限次数，每月赠送 {{ paywall.memberMonthlyVoiceMinutes }} 分钟 AI 语音对话</text>
+        </view>
+      </view>
+
       <view v-else-if="error" class="state">
         <text class="state-title">{{ error }}</text>
         <view class="state-actions">
-          <view v-if="recordId" class="btn btn-primary" @tap="load()"><text class="btn-text-primary">重试</text></view>
+          <view v-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
           <view class="btn" @tap="navigateBack()"><text class="btn-text">返回查看盘面</text></view>
         </view>
       </view>
@@ -1033,6 +1113,18 @@ onLoad((q) => {
 .state-title { font-size: 30rpx; color: var(--text-ink); text-align: center; line-height: 1.6; }
 .state-sub { font-size: 24rpx; color: var(--text-soft); }
 .state-actions { display: flex; gap: 20rpx; margin-top: 16rpx; flex-wrap: wrap; justify-content: center; }
+.paywall { padding: 48rpx 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.pw-title { font-size: 36rpx; font-weight: 700; color: var(--text-ink); padding: 0 8rpx; }
+.pw-sub { font-size: 25rpx; line-height: 1.7; color: var(--text-soft); padding: 0 8rpx 8rpx; }
+.pw-card { padding: 28rpx; background: var(--card); border-radius: 24rpx; border: 3rpx solid transparent; display: flex; flex-direction: column; gap: 12rpx; }
+.pw-main { border-color: #C41E3A; }
+.pw-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.pw-name { font-size: 30rpx; font-weight: 600; color: var(--text-ink); }
+.pw-price { font-size: 40rpx; font-weight: 700; color: #C41E3A; font-variant-numeric: tabular-nums; }
+.pw-price-soft { font-size: 30rpx; color: var(--text-ink); }
+.pw-desc { font-size: 24rpx; line-height: 1.6; color: var(--text-soft); }
+.pw-btn { margin-top: 8rpx; }
+.btn.disabled { opacity: 0.5; }
 
 .card { margin: 20rpx 24rpx 0; padding: 28rpx; background: var(--card); border-radius: 24rpx; display: flex; flex-direction: column; gap: 18rpx; }
 .card-limit { background: #fbf6ea; }

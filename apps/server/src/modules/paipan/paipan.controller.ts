@@ -252,6 +252,15 @@ export class PaipanController {
     return this.paipanReport.preflight(req.user.id, recordId, school);
   }
 
+  /** 这份报告能否生成：免费 / 会员 / 已购 / 需购买（附价格与会员档位）。须在 report/:id 之前声明 */
+  @Get("report/access")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "报告生成权限与价格（单份购买或小卜AI会员）" })
+  @ApiBearerAuth()
+  reportAccess(@Req() req: Request, @Query("recordId") recordId: string, @Query("reportType") reportType?: string) {
+    return this.paipanReport.reportAccess(req.user.id, recordId, reportType || "general");
+  }
+
   /** 获取排盘报告详情（校验用户归属） */
   @Get("report/:id")
   @UseGuards(JwtAuthGuard)

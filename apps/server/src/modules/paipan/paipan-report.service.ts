@@ -55,7 +55,7 @@ import { PILLAR_LABEL } from "@guoxue/bazi-engine";
 import type { BaziResult } from "@guoxue/bazi-engine";
 import { createHash } from "node:crypto";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
-import { VoiceQuotaService } from "../voice/voice-quota.service";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
 import {
   PaipanReportKnowledgeService,
   STANCE_LABEL,
@@ -243,8 +243,11 @@ export class PaipanReportService {
     private prisma: PrismaService,
     private gateway: AiGatewayService,
     private reportKnowledge: PaipanReportKnowledgeService,
-    /** 可选注入：现有测试大量以三参数构造本服务，缺它时只是不发放额度，不影响报告生成 */
-    @Optional() private readonly voiceQuota?: VoiceQuotaService,
+    /**
+     * 报告付费门禁（决策人 2026-09-21：单份 29 元或小卜AI会员）。模块内总是注入；
+     * 可选只为兼容大量以三参数构造本服务的单测（不传即不设门禁）
+     */
+    @Optional() private readonly commerce?: XiaobuCommerceService,
   ) {}
 
   async generateReport(
@@ -260,6 +263,8 @@ export class PaipanReportService {
     });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
+    // 付费门禁在任何模型调用与复用之前：未购买且非会员不生成
+    await this.commerce?.assertReportAccess(userId, paipanRecordId, type);
 
     const plan = await this.prepareChart(record);
     const { paipanType, facts } = plan;
@@ -316,14 +321,8 @@ export class PaipanReportService {
           },
         });
 
-    // 报告附带 30 分钟语音（决策人定价：29 元一份）。
-    // 幂等键绑报告 id，重新生成不会重复发放；发放失败只记日志——
-    // 报告本身已经生成好了，不能因为记额度出错就把它一起丢掉。
-    try {
-      await this.voiceQuota?.grantForReport(userId, saved.id);
-    } catch (error: any) {
-      this.logger.warn(`报告语音时长发放失败（报告已保存，可后台补发）：${saved.id} ${error?.message || error}`);
-    }
+    // 附带的 30 分钟语音改在报告订单付款成功时发放（xiaobu-commerce.fulfillReportOrderInTx）；
+    // 会员生成报告不按份送，改为会员期内每月赠送（决策人 2026-09-21）
 
     this.logger.log(`排盘报告已生成 ${saved.id} version=${version} model=${model} evidence=${evidence.length}`);
     return { id: saved.id, content: report, version, createdAt: saved.createdAt, reused: false };
@@ -748,6 +747,16 @@ export class PaipanReportService {
    * 同时并行发起真正的生成请求，完成后整页揭幕——仪式感来自真实信息的逐步揭示，
    * 不是假进度条。小程序端不支持 SSE，因此不用流式推送。
    */
+  /** 报告生成权限（只校验归属，不调模型）；未注入门禁时视为免费 */
+  async reportAccess(userId: string, paipanRecordId: string, reportType: string) {
+    const type = REPORT_TITLES[reportType] ? reportType : "general";
+    const record = await this.prisma.paipanRecord.findUnique({ where: { id: paipanRecordId }, select: { userId: true } });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
+    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
+    const access = this.commerce ? await this.commerce.reportAccess(userId, paipanRecordId, type) : { granted: true, via: "free" as const };
+    return { recordId: paipanRecordId, reportType: type, ...access };
+  }
+
   async preflight(userId: string, paipanRecordId: string, school?: string) {
     const record = await this.prisma.paipanRecord.findUnique({
       where: { id: paipanRecordId },

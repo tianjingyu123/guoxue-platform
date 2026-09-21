@@ -6,6 +6,7 @@ import { IsInt, IsString, Max, MaxLength, Min, MinLength } from "class-validator
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { VoiceQuotaService } from "./voice-quota.service";
 import { VoiceTrialService } from "./voice-trial.service";
+import { XiaobuCommerceService } from "./xiaobu-commerce.service";
 import { quoteVoiceTopup, topupPacks, VOICE_TOPUP_ORDER_TYPE } from "./voice-topup";
 
 export class FinishTrialDto {
@@ -33,7 +34,18 @@ export class VoiceUserController {
   constructor(
     private readonly quota: VoiceQuotaService,
     private readonly trial: VoiceTrialService,
+    private readonly commerce: XiaobuCommerceService,
   ) {}
+
+  /**
+   * 小卜AI会员（决策人 2026-09-21：独立于书院会员；会员免费不限次生成报告、每月送语音）。
+   * 开通走平台订单：POST /shop/orders { type: "XIAOBU_MEMBER", targetId: "<档位>" }，价格以服务端为准。
+   */
+  @Get("xiaobu-member")
+  @ApiOperation({ summary: "我的小卜AI会员状态与档位" })
+  xiaobuMember(@Req() req: Request) {
+    return this.commerce.memberOverview((req as any).user?.id as string);
+  }
 
   @Get("my-quota")
   @ApiOperation({ summary: "我的语音时长余额" })

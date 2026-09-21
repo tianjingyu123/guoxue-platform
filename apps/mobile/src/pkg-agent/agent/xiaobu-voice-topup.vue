@@ -71,7 +71,8 @@ onShow(load)
       <view class="card">
         <text class="label">当前可用</text>
         <text class="big" data-testid="topup-available">{{ info.availableMinutes }} 分钟</text>
-        <text class="hint">每份排盘报告附赠 30 分钟，用完后可在这里充值继续和小卜语音交流。</text>
+        <text class="hint">购买一份报告附赠 30 分钟，小卜AI会员每月赠送 300 分钟；用完后可在这里充值继续和小卜语音交流。</text>
+        <text class="link" data-testid="topup-member" @tap="navigateTo('/pkg-agent/agent/xiaobu-member')">了解小卜AI会员 ›</text>
       </view>
 
       <view v-if="!info.canTopUp" class="card muted" data-testid="topup-closed">
@@ -116,6 +117,7 @@ onShow(load)
 .label { font-size: 26rpx; color: var(--text-soft); }
 .big { font-size: 48rpx; font-weight: 700; color: var(--text-ink); font-variant-numeric: tabular-nums; }
 .hint { font-size: 23rpx; line-height: 1.6; color: var(--text-soft); }
+.link { font-size: 24rpx; color: #C41E3A; }
 .packs { margin: 24rpx 24rpx 0; display: flex; gap: 16rpx; }
 .pack { flex: 1; padding: 28rpx 0; border-radius: 20rpx; background: var(--card); border: 3rpx solid transparent; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
 .pack.on { border-color: #C41E3A; background: rgba(196,30,58,0.06); }

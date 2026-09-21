@@ -18,6 +18,7 @@ import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { fulfillVoiceTopupOrderInTx } from "../voice/voice-topup";
+import { fulfillMemberOrderInTx, fulfillReportOrderInTx } from "../voice/xiaobu-commerce";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
 
@@ -837,6 +838,9 @@ export class ShopPaymentService {
     LIVESTREAM: (order, tx) => this.processAccessPaid(order, tx),
     // 小卜语音时长充值：与订单置 PAID 同一事务加时长，幂等键 order:<id>:voice-minutes
     VOICE_MINUTES: async (order, tx) => { await fulfillVoiceTopupOrderInTx(tx, order); },
+    // 小卜报告单独购买 / 小卜AI会员：登记权益并赠送语音时长，与订单置 PAID 同一事务、均幂等
+    XIAOBU_REPORT: async (order, tx) => { await fulfillReportOrderInTx(tx, this.entitlement, order); },
+    XIAOBU_MEMBER: async (order, tx) => { await fulfillMemberOrderInTx(tx, this.entitlement, order); },
   };
 
   /**

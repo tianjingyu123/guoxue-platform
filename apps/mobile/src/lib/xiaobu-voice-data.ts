@@ -134,7 +134,27 @@ export interface VoiceTopupPacks {
   packs: { minutes: number; amountYuan: number }[]
 }
 
+export interface XiaobuMemberPlan {
+  key: string
+  label: string
+  months: number
+  priceYuan: number
+}
+
+/** 小卜AI会员（独立于书院会员）：会员免费不限次生成报告，会员期内每月赠送语音 */
+export interface XiaobuMemberOverview {
+  active: boolean
+  expireAt: string | null
+  planKey: string | null
+  plans: XiaobuMemberPlan[]
+  monthlyVoiceMinutes: number
+}
+
 export const xiaobuVoiceApi = {
+  /** 我的小卜AI会员状态与档位（开通走 /shop/orders type=XIAOBU_MEMBER，价格以服务端为准） */
+  xiaobuMember(): Promise<XiaobuMemberOverview> {
+    return apiGet<XiaobuMemberOverview>('/voice/xiaobu-member')
+  },
   /** 语音时长充值档位（报告赠送时长用完后可充值；语音未开始计费时 canTopUp=false） */
   topupPacks(): Promise<VoiceTopupPacks> {
     return apiGet<VoiceTopupPacks>('/voice/topup/packs')

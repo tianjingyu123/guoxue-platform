@@ -47,10 +47,14 @@ function setup() {
       { id: "k-1", kind: "school_theory", quotable: false, sourceKind: "platform_expert", school: "ziping", topic: "格局", title: "偏财格概说", content: "偏财格以财为用。", bookTitle: null, chapterTitle: null, classicBookId: null, classicChapterId: null, version: 2, score: 12, matchedOn: ["格局「偏财格」"] },
     ]),
   };
-  const voiceQuota: any = { grantForReport: jest.fn(async () => ({ duplicated: false, ledger: { id: "l1" } })) };
-  const svc = new PaipanReportService(prisma, gateway, knowledge, voiceQuota);
+  // 默认放行的门禁；个别用例改成拒绝
+  const commerce: any = {
+    assertReportAccess: jest.fn(async () => ({ granted: true, via: "purchased" })),
+    reportAccess: jest.fn(async () => ({ granted: false, via: null, priceYuan: 29, includedVoiceMinutes: 30 })),
+  };
+  const svc = new PaipanReportService(prisma, gateway, knowledge, commerce);
   prisma.paipanRecord.findUnique.mockResolvedValue({ id: "rec-1", userId: "u1", paipanType: "BAZI", resultData: chartA });
-  return { svc, prisma, gateway, knowledge, store, voiceQuota };
+  return { svc, prisma, gateway, knowledge, store, commerce };
 }
 
 const modelJson = (extra: Record<string, unknown> = {}) =>
@@ -183,24 +187,23 @@ describe("PaipanReportService", () => {
     expect(gateway.chat).not.toHaveBeenCalled();
   });
 
-  it("报告生成后发放附带的语音时长，幂等键绑报告 id（重算不重复发放）", async () => {
-    const { svc, gateway, voiceQuota } = setup();
-    gateway.chat.mockResolvedValue({ content: modelJson(), model: "m1", usage: {} });
-    const res = await svc.generateReport("u1", "rec-1");
-
-    expect(voiceQuota.grantForReport).toHaveBeenCalledWith("u1", res.id);
-    // 幂等由 voice-quota 侧按 `report:<id>` 保证，这里确认每次生成都带同一个报告 id
-    await svc.generateReport("u1", "rec-1", "general", { regenerate: true });
-    const ids = voiceQuota.grantForReport.mock.calls.map((c: any[]) => c[1]);
-    expect(new Set(ids).size).toBe(1);
+  it("付费门禁：未购买且非会员时在任何模型调用与复用之前拒绝", async () => {
+    const { svc, gateway, commerce } = setup();
+    commerce.assertReportAccess.mockRejectedValueOnce(new Error("这份报告需购买（29 元，含 30 分钟 AI 语音对话）或开通小卜AI会员后生成"));
+    await expect(svc.generateReport("u1", "rec-1", "career")).rejects.toThrow("需购买");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "career");
+    expect(gateway.chat).not.toHaveBeenCalled();
   });
 
-  it("发放额度失败不影响报告：报告已生成好，不能因为记额度出错把它一起丢掉", async () => {
-    const { svc, gateway, voiceQuota } = setup();
+  it("门禁按归一后的报告类型判断；别人的盘先报无权，不泄露价格信息", async () => {
+    const { svc, gateway, commerce, prisma } = setup();
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "m1", usage: {} });
-    voiceQuota.grantForReport.mockRejectedValueOnce(new Error("账户锁冲突"));
-    const res = await svc.generateReport("u1", "rec-1");
-    expect(res.content.sections.length).toBeGreaterThan(0);
+    await svc.generateReport("u1", "rec-1", "不存在的类型");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "general");
+    prisma.paipanRecord.findUnique.mockResolvedValueOnce({ id: "rec-2", userId: "u2", paipanType: "BAZI", resultData: chartA });
+    await expect(svc.reportAccess("u1", "rec-2", "general")).rejects.toThrow("无权");
+    const access = await svc.reportAccess("u1", "rec-1", "love");
+    expect(access).toMatchObject({ recordId: "rec-1", reportType: "love", granted: false, priceYuan: 29 });
   });
 
   it("推演页数据：如实反映校时、取格与依据命中，且不调模型", async () => {

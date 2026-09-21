@@ -16,6 +16,7 @@ import { isStocklessOrderType } from "./shop-order-types.constants";
 import { HuifuService } from "../huifu/huifu.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { reverseVoiceTopupOrderInTx } from "../voice/voice-topup";
+import { reverseXiaobuOrderVoiceInTx } from "../voice/xiaobu-commerce";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -215,6 +216,8 @@ export class ShopRefundService {
       if (order.type === "PRACTITIONER_PRO") await this.rebuildPractitionerMembershipAfterRefund(tx, order.userId);
       // 语音时长充值：扣回本单发放的时长（最多扣到可用余额，已用部分记流水待人工核对）
       if (order.type === "VOICE_MINUTES") await reverseVoiceTopupOrderInTx(tx, order);
+      // 小卜报告/会员：权益已由上面 revokeSourceWithTx 撤销，这里冲正本单赠送的语音
+      if (order.type === "XIAOBU_REPORT" || order.type === "XIAOBU_MEMBER") await reverseXiaobuOrderVoiceInTx(tx, order);
       return true;
     });
     if (!changed) {

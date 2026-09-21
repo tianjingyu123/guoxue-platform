@@ -126,10 +126,11 @@ export class OrderCenterController {
   ) {
     const results: any[] = [];
 
-    // Order 表的 12 种真实类型（与 schema OrderType 枚举一致），type 筛选参数支持直接传真实枚举值
+    // Order 表的真实类型（与 schema OrderType 枚举一致），type 筛选参数支持直接传真实枚举值
     const ORDER_TYPE_VALUES = new Set([
       "MEMBER", "COURSE", "PRODUCT", "CIRCLE_JOIN", "CIRCLE_RENEW", "STATION_MASTER",
       "OPERATOR", "BOT_SERVICE", "PAIPAN", "LIVESTREAM", "BUNDLE", "PRACTITIONER_PRO", "VOICE_MINUTES",
+      "XIAOBU_REPORT", "XIAOBU_MEMBER",
     ]);
     // 查 Order 表的条件：不筛/兼容旧值 SHOP(=Order 表全部)/真实枚举值。
     // MEMBER 例外：会员购买支付成功时 Order(type=MEMBER) 与 MemberPurchase 双写，
