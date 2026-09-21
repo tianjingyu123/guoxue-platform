@@ -24,10 +24,13 @@ function compilePagesSource(source, appPlus) {
     const [, kind, expression] = directive
     if (kind === 'ifdef' || kind === 'ifndef') {
       const symbol = expression.trim()
-      if (symbol !== 'APP-PLUS') {
+      if (!['APP-PLUS', 'H5'].includes(symbol)) {
         throw new Error(`pages.json 含导航审计尚未支持的条件编译标识：${symbol}`)
       }
-      const condition = kind === 'ifdef' ? appPlus : !appPlus
+      // 本审计只生成 App 与非 App 两份路由；H5 专属分支不属于微信/原生
+      // 页面注册集合，在两份配置中都按未激活处理，避免误把 H5 条件行拼入小程序路由。
+      const symbolEnabled = symbol === 'APP-PLUS' ? appPlus : false
+      const condition = kind === 'ifdef' ? symbolEnabled : !symbolEnabled
       stack.push({ parentActive: active, condition, hasElse: false })
       active = active && condition
       continue
