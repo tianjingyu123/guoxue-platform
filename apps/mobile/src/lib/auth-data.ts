@@ -143,6 +143,21 @@ export const authApi = {
     }
   },
 
+  /** 小程序手机号一键登录：必须由用户点击原生 getPhoneNumber 按钮触发。 */
+  async miniPhoneLogin(wxCode: string, phoneCode: string): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/mini-phone', {
+        wxCode,
+        phoneCode,
+        clientKey: getWechatClientKey(),
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '手机号快捷登录失败' }
+    }
+  },
+
   /** 将当前已登录手机号账号与微信身份绑定，后续可一键进入排盘。 */
   async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<{ success: boolean; message: string }> {
     try {

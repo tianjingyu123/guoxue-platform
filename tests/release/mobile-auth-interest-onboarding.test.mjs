@@ -194,7 +194,9 @@ test('回跳拒绝外链/未知路由/登录环/编码路径绕行，保留受�
 
 test('四种成功登录、注册、欢迎和兴趣页接入统一账号旅程', () => {
   const login = read('apps/mobile/src/pkg-auth/login/index.vue')
-  assert.equal((login.match(/await goAfterLogin\(\)/g) || []).length, 4)
+  // 密码/短信、H5微信、小程序或App微信、Apple、小程序手机号授权均走统一回跳。
+  assert.equal((login.match(/await goAfterLogin\(\)/g) || []).length, 5)
+  assert.match(login, /handleMiniPhoneLogin[\s\S]*await goAfterLogin\(\)/)
   assert.match(login, /async function goAfterLogin\(\)\s*\{\s*await continueAfterLogin\(\)/)
   const register = read('apps/mobile/src/pkg-auth/register/index.vue')
   assert.match(register, /clearAuthSession\(\{ preserveLoginRedirect: true \}\)/)

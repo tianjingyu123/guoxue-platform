@@ -34,7 +34,7 @@
         <text>{{ preferWechatLogin ? '使用验证码或密码登录' : '使用微信快捷登录' }}</text>
       </view>
       <!-- 登录方式：手机验证码 + 密码 -->
-      <view v-show="!preferWechatLogin" class="tabs" role="tablist" aria-label="选择登录方式">
+      <view v-if="!preferWechatLogin" class="tabs" role="tablist" aria-label="选择登录方式">
         <view
           class="tab"
           :class="{ active: loginType === 'phone' }"
@@ -62,7 +62,7 @@
       <!-- 登录表单 -->
       <view class="form">
         <!-- 手机号 -->
-        <view v-show="!preferWechatLogin" class="input-wrap">
+        <view v-if="!preferWechatLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="phone" :size="20" color="#999999" />
           </view>
@@ -152,39 +152,6 @@
           >忘记密码？</text>
         </view>
 
-        <!-- 协议勾选 -->
-        <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
-        <view
-          class="terms-row"
-          role="checkbox"
-          :aria-checked="agreedTerms ? 'true' : 'false'"
-          tabindex="0"
-          @tap="agreedTerms = !agreedTerms"
-          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
-        >
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
-            <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
-          </view>
-          <view class="terms-text">
-            <text class="terms-normal">我已阅读并同意</text>
-            <text
-              class="terms-link"
-              role="link"
-              tabindex="0"
-              @tap.stop="navigateTo('/legal/user-agreement')"
-              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/user-agreement'))"
-            >《用户服务协议》</text>
-            <text class="terms-normal">和</text>
-            <text
-              class="terms-link"
-              role="link"
-              tabindex="0"
-              @tap.stop="navigateTo('/legal/privacy-policy')"
-              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/privacy-policy'))"
-            >《隐私政策》</text>
-          </view>
-        </view>
-
         <!-- 登录按钮 -->
         <view
           class="submit-btn"
@@ -272,6 +239,58 @@
       </view>
     </view>
 
+    <!-- 小程序进入鉴权页即展示快捷授权；微信规定手机号系统弹窗必须由按钮点击触发。 -->
+    <!-- #ifdef MP-WEIXIN -->
+    <view v-if="showMiniQuickSheet" class="mini-auth-mask" role="dialog" aria-label="手机号快捷登录">
+      <view class="mini-auth-card">
+        <view class="mini-auth-logo"><image class="mini-auth-logo-image" :src="logoSrc" mode="aspectFill" /></view>
+        <text class="mini-auth-title">快速登录热卜国学</text>
+        <text class="mini-auth-desc">确认微信绑定手机号后即可继续</text>
+        <view class="mini-auth-terms" role="checkbox" :aria-checked="agreedTerms ? 'true' : 'false'" @tap="agreedTerms = !agreedTerms">
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
+            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
+          </view>
+          <view class="terms-text">
+            <text class="terms-normal">我已阅读并同意</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
+            <text class="terms-normal">和</text>
+            <text class="terms-link" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+          </view>
+        </view>
+
+        <!-- 协议勾选 -->
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreedTerms ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreedTerms = !agreedTerms"
+          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
+        >
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
+            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
+          </view>
+          <view class="terms-text">
+            <text class="terms-normal">我已阅读并同意</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
+            <text class="terms-normal">和</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+          </view>
+        </view>
+        <button
+          class="mini-phone-button"
+          :class="{ 'mini-phone-button-disabled': !agreedTerms || isLoading }"
+          open-type="getPhoneNumber"
+          :disabled="!agreedTerms || isLoading"
+          @getphonenumber="handleMiniPhoneLogin"
+        >{{ isLoading ? '登录中...' : '手机号一键登录' }}</button>
+        <view class="mini-auth-other" role="button" tabindex="0" @tap="showMiniQuickSheet = false">
+          <text>使用其他登录方式</text>
+        </view>
+      </view>
+    </view>
+    <!-- #endif -->
+
     <!-- H5 微信 OAuth 必须由可见用户操作触发，避免微信拦截异步脚本外跳后白屏。 -->
     <view v-if="h5WechatAuthorizationUrl" class="wechat-auth-mask">
       <view class="wechat-auth-card" @tap.stop>
@@ -342,6 +361,8 @@ const h5WechatAuthorizationUrl = ref('')
 // App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
 const showWechatLogin = ref(false)
 const showAppleLogin = ref(false)
+const isMiniProgram = ref(false)
+const showMiniQuickSheet = ref(false)
 
 onLoad((query) => {
   paipanEntry.value = String(query?.paipan || '') === '1'
@@ -353,6 +374,8 @@ showWechatLogin.value = true
 // #endif
 // #ifdef MP-WEIXIN
 showWechatLogin.value = true
+isMiniProgram.value = true
+showMiniQuickSheet.value = true
 // #endif
 
 // #ifdef APP-PLUS
@@ -527,7 +550,7 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
   isLoading.value = true
   error.value = ''
   try {
-    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: true })
+    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: !paipanEntry.value })
     const loginData = res.data
     if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
@@ -658,7 +681,6 @@ async function requestWechatLoginCode(): Promise<string> {
 }
 
 async function bindCurrentWechatIdentity(): Promise<boolean> {
-  // #if defined(MP-WEIXIN) || defined(APP-PLUS)
   try {
     const wxCode = await requestWechatLoginCode()
     let channel: 'miniprogram' | 'app' = 'miniprogram'
@@ -668,12 +690,6 @@ async function bindCurrentWechatIdentity(): Promise<boolean> {
     const result = await authApi.bindWechat(wxCode, channel)
     return result.success
   } catch { return false }
-  // #endif
-  // #ifndef MP-WEIXIN
-  // #ifndef APP-PLUS
-  return false
-  // #endif
-  // #endif
 }
 
 // @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
@@ -689,7 +705,6 @@ async function handleThirdParty(_type: 'wechat') {
     return
   }
   // #endif
-  // #if defined(MP-WEIXIN) || defined(APP-PLUS)
   isLoading.value = true
   error.value = ''
   try {
@@ -719,8 +734,40 @@ async function handleThirdParty(_type: 'wechat') {
   } finally {
     isLoading.value = false
   }
-  // #endif
 }
+
+// #ifdef MP-WEIXIN
+async function handleMiniPhoneLogin(event: { detail?: { code?: string; errMsg?: string } }) {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  const phoneCode = String(event?.detail?.code || '')
+  if (!phoneCode) {
+    const cancelled = /deny|cancel/u.test(String(event?.detail?.errMsg || ''))
+    uni.showToast({ title: cancelled ? '已取消手机号授权' : '未获取到手机号授权，请重试', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const wxCode = await requestWechatLoginCode()
+    const res = await authApi.miniPhoneLogin(wxCode, phoneCode)
+    const loginData = res.data
+    if (!res.success || !loginData?.token) throw new Error(res.message || '手机号快捷登录失败')
+    clearAuthSession({ preserveLoginRedirect: true })
+    setToken(loginData.token)
+    setRefreshToken(loginData.refreshToken || '')
+    setUserInfo(loginData.user)
+    await goAfterLogin()
+  } catch (e) {
+    error.value = (e as Error)?.message || '手机号快捷登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+// #endif
 
 // #ifdef APP-PLUS
 interface AppleFullName {
@@ -781,13 +828,6 @@ function goForgot() {
 function goRegister() {
   navigateTo('/register')
 }
-function browseAsGuest() {
-  try { uni.removeStorageSync('login:redirect') } catch { /* 清理失败不阻断返回公开页面 */ }
-  // 登录页可能由 401 使用 reLaunch 打开；redirectTo 在部分 iOS WebView 栈上首次点击无响应。
-  // 游客退出鉴权流只做一次 reLaunch，直接建立稳定的公开首页根栈。
-  uni.reLaunch({ url: '/pages/index/index' })
-}
-
 // #ifdef H5
 // 历史缓存会保留旧授权弹层；仅恢复旧页时处理，不干扰首次 OAuth 回调。
 function restoreLoginPage(event: PageTransitionEvent) {
@@ -801,6 +841,13 @@ function restoreLoginPage(event: PageTransitionEvent) {
 }
 onMounted(() => window.addEventListener('pageshow', restoreLoginPage))
 // #endif
+function browseAsGuest() {
+  try { uni.removeStorageSync('login:redirect') } catch { /* 清理失败不阻断返回公开页面 */ }
+  // 登录页可能由 401 使用 reLaunch 打开；redirectTo 在部分 iOS WebView 栈上首次点击无响应。
+  // 游客退出鉴权流只做一次 reLaunch，直接建立稳定的公开首页根栈。
+  uni.reLaunch({ url: '/pages/index/index' })
+}
+
 onUnmounted(() => {
   if (timer) clearInterval(timer)
   // #ifdef H5
@@ -1022,7 +1069,8 @@ onUnmounted(() => {
   width: 40rpx;
   height: 40rpx;
   border-radius: 8rpx;
-  border: 4rpx solid #999999;
+  border: 4rpx solid #5f554d;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1030,8 +1078,8 @@ onUnmounted(() => {
   margin-top: 4rpx;
 }
 .checkbox-checked {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: #c41e3a;
+  border-color: #c41e3a;
 }
 .terms-text {
   flex: 1;
@@ -1055,10 +1103,12 @@ onUnmounted(() => {
   width: 100%;
   height: 96rpx;
   border-radius: 24rpx;
-  background: var(--brand);
+  background: #c41e3a;
+  box-shadow: 0 12rpx 28rpx rgba(196, 30, 58, 0.22);
 }
 .submit-btn-disabled {
-  opacity: 0.5;
+  background: #ead3d8;
+  box-shadow: none;
 }
 .submit-text {
   font-size: 32rpx;
@@ -1097,7 +1147,54 @@ onUnmounted(() => {
 
 /* 第三方 */
 .third-party {
-  margin-top: 80rpx;
+  margin-top: 32rpx;
+}
+
+.mini-auth-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(34, 27, 23, 0.42);
+}
+.mini-auth-card {
+  width: 100%;
+  padding: 48rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 36rpx 36rpx 0 0;
+  background: #fffdf9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mini-auth-logo { width: 104rpx; height: 104rpx; border-radius: 22rpx; overflow: hidden; }
+.mini-auth-logo-image { width: 100%; height: 100%; }
+.mini-auth-title { margin-top: 24rpx; color: #2c211a; font-size: 36rpx; font-weight: 700; }
+.mini-auth-desc { margin-top: 10rpx; color: #80756d; font-size: 26rpx; }
+.mini-auth-terms { width: 100%; margin-top: 32rpx; padding: 12rpx 0; display: flex; gap: 16rpx; }
+.mini-phone-button {
+  width: 100%;
+  height: 96rpx;
+  margin: 24rpx 0 0;
+  border: 0;
+  border-radius: 24rpx;
+  color: #ffffff;
+  background: #07c160;
+  font-size: 31rpx;
+  font-weight: 600;
+  line-height: 96rpx;
+}
+.mini-phone-button::after { border: 0; }
+.mini-phone-button-disabled { color: #7c8580; background: #e9eeeb; }
+.mini-auth-other {
+  min-height: 80rpx;
+  padding-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6d5f55;
+  font-size: 27rpx;
 }
 .divider {
   display: flex;
