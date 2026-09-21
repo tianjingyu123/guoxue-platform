@@ -73,16 +73,24 @@ export class RedisService implements OnModuleDestroy {
   private async getConn(): Promise<Redis | null> {
     if (!this.client) return null;
     if (this.connected) return this.client;
+    // 首次连接进行中：并发调用共享同一连接结果，避免在连上之前被误判为不可用而降级到进程内内存（会让分布式锁失效）
+    if (this.connecting) return this.connecting;
     if (this.triedConnect) return null;
     this.triedConnect = true;
-    try {
-      await this.client.connect();
-      this.connected = true;
-      return this.client;
-    } catch (err) {
-      this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`, err);
-      return null;
-    }
+    const client = this.client;
+    this.connecting = (async () => {
+      try {
+        await client.connect();
+        this.connected = true;
+        return client;
+      } catch (err) {
+        this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`, err);
+        return null;
+      } finally {
+        this.connecting = null;
+      }
+    })();
+    return this.connecting;
   }
 
   async get(key: string): Promise<string | null> {
@@ -149,6 +157,21 @@ export class RedisService implements OnModuleDestroy {
     }
     this.memory.set(key, { value, expiry: Date.now() + ttlSeconds * 1000 });
     return true;
+  }
+
+  /** 仅当值等于 expected 时删除（锁持有者校验释放），返回是否删除 */
+  async compareAndDelete(key: string, expected: string): Promise<boolean> {
+    const conn = await this.getConn();
+    if (conn) {
+      const lua = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+      return Number(await conn.eval(lua, 1, key, expected)) === 1;
+    }
+    const entry = this.memory.get(key);
+    if (entry && entry.value === expected) {
+      this.memory.delete(key);
+      return true;
+    }
+    return false;
   }
 
   async del(key: string): Promise<void> {

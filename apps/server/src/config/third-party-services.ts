@@ -236,6 +236,27 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("sk", "签名 SK", "TENCENT_MAP_SK", true, "创建Key时若开启了『签名校验』，填对应SK；否则留空"),
     ],
   },
+  {
+    key: "volcengine_tts",
+    label: "火山引擎 TTS（有声读书专用）",
+    category: "语音服务",
+    note: "火山引擎语音合成服务，用于有声读书语音智能体场景。在火山引擎控制台开通语音技术服务并获取密钥。",
+    fields: [
+      S("accessKey", "AccessKey ID", "VOLCENGINE_ACCESS_KEY", false, "火山引擎控制台→用户信息→密钥管理→AccessKey ID"),
+      S("secretKey", "SecretKey", "VOLCENGINE_SECRET_KEY", true, "火山引擎控制台→用户信息→密钥管理→SecretKey"),
+      S("appId", "应用 AppID", "VOLCENGINE_TTS_APP_ID", false, "语音技术控制台→应用管理→创建应用后获得的 AppID"),
+      S("cluster", "集群标识", "VOLCENGINE_TTS_CLUSTER", false, "一般使用默认值 volcano_tts，特殊情况下由技术支持提供", "volcano_tts"),
+    ],
+  },
+  {
+    key: "tencent_tts",
+    label: "腾讯云 TTS（通用场景）",
+    category: "语音服务",
+    note: "腾讯云语音合成服务（TextToVoice），用于通用语音合成场景。复用上方『腾讯云(通用)』的 SecretId/SecretKey，无需单独填写密钥。",
+    fields: [
+      S("region", "服务地域", "TENCENT_TTS_REGION", false, "默认 ap-guangzhou，一般不需要修改", "ap-guangzhou"),
+    ],
+  },
   // ───────── 微信 ─────────
   {
     key: "wechat_official", label: "微信公众号", category: "微信",

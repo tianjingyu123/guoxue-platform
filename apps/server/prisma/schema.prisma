@@ -2019,6 +2019,9 @@ model CoupleChart {
   initiatorId       String // 发起方 userId
   partnerId         String? // 被邀请方 userId（授权后填）
   status            String   @default("PENDING_INVITE") // PENDING_INVITE | AUTHORIZED | REJECTED | EXPIRED
+  // 合盘场景：marriage(婚恋) | partnership(合作) | family(亲子家人) | colleague(同事上下级) | friend(朋友)
+  // 同一张关系盘，换个场景看的东西与措辞都不同——把合作伙伴讲成「感情和睦」是笑话
+  scene             String   @default("marriage")
   initiatorRecordId String // 发起方自己的 BAZI 盘 id（裸 String，无 FK）
   partnerRecordId   String? // 对方授权时提供的 BAZI 盘 id（裸 String，无 FK）
   inviteToken       String // 邀请链接令牌（随机 32 位 hex）·唯一约束见 @@unique
@@ -3575,8 +3578,35 @@ model ClassicChapter {
   bookmarks          Bookmark[]
   annotations        ClassicAnnotation[]
   ClassicReadingNote ClassicReadingNote[]
+  segments           ClassicSegment[]
 
   @@index([bookId, sortOrder])
+}
+
+// 古籍段落：稳定 ID 持久化，支持笔记/注疏锚定和版本演进
+model ClassicSegment {
+  id               String    @id @default(uuid())
+  chapterId        String
+  sortOrder        Int // 段落在章节中的顺序（从 0 开始）
+  content          String    @db.Text // 当前版本的段落内容
+  contentHash      String // 内容哈希，用于检测重复和变更
+  originalContent  String    @db.Text // 原始底本内容（首次切分时的快照，不随整理版变化）
+  startCharOffset  Int // 段落在原始章节 content 中的起始字符偏移（用于旧锚点映射）
+  endCharOffset    Int // 段落在原始章节 content 中的结束字符偏移
+  versionTag       String?   @default("v1") // 版本标签：v1（原貌）、v2（标点）、v3（简体）等
+  processingStatus String    @default("raw") // raw/punctuated/simplified/translated
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  chapter     ClassicChapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  notes       ClassicReadingNote[]
+  annotations ClassicAnnotation[]
+
+  @@unique([chapterId, sortOrder])
+  @@index([chapterId])
+  @@index([contentHash])
+  @@index([chapterId, versionTag])
 }
 
 model ClassicCommentary {
@@ -3686,8 +3716,9 @@ model ClassicAnnotation {
   id        String   @id @default(uuid())
   bookId    String
   chapterId String?
+  segmentId String? // 段落锚点（迁移后优先使用，兼容旧数据的 startPos/endPos）
   type      String   @default("注疏") // 注疏/夹注/眉批/校勘记
-  startPos  Int // 正文中标注起始位置（字符偏移）
+  startPos  Int // 正文中标注起始位置（字符偏移，旧数据兼容）
   endPos    Int // 正文中标注结束位置
   content   String   @db.Text // 注疏内容
   author    String? // 注者
@@ -3696,9 +3727,11 @@ model ClassicAnnotation {
 
   book    ClassicBook     @relation(fields: [bookId], references: [id], onDelete: Cascade)
   chapter ClassicChapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  segment ClassicSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
 
   @@index([bookId])
   @@index([chapterId])
+  @@index([segmentId])
   @@index([bookId, startPos])
 }
 
@@ -3707,20 +3740,393 @@ model ClassicReadingNote {
   userId       String
   bookId       String
   chapterId    String
+  segmentId    String? // 段落锚点（迁移后优先使用，兼容旧数据的 position）
   content      String   @db.Text
-  position     Int?
+  position     Int? // 旧字符偏移（兼容旧数据）
   originalText String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book    ClassicBook    @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  chapter ClassicChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    ClassicBook     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter ClassicChapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  segment ClassicSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, bookId])
   @@index([chapterId])
+  @@index([segmentId])
   @@index([userId, chapterId, position])
+}
+
+// ─────────────────────────────────────────────────
+// 派生资产持久化（S04/S05：文本/音频派生资产底座）
+// ─────────────────────────────────────────────────
+
+// 文本派生资产：标点、简体、翻译等文本处理结果的持久化
+model TextDerivedAsset {
+  id                  String    @id @default(uuid())
+  assetKey            String    @unique // 全部身份字段规范化哈希（无上下文记为 none），并发去重依据
+  sourceType          String // classic_segment/article_paragraph/course_transcript 等
+  sourceId            String // 源内容的 ID（如 ClassicSegment.id）
+  contentHash         String // 源内容哈希（检测内容变更）
+  contextHash         String? // 上下文哈希（相同段落来自不同上下文不得混用翻译）
+  processingType      String // punctuation/simplified/translation/annotation
+  strategy            String? // 处理策略名称（如 ai_punctuation_v1）
+  modelPolicy         String? // 模型路由策略（网关场景+路由版本），参与身份
+  model               String? // 实际调用返回的模型名（记录用，不参与身份）
+  promptVersion       String? // 提示词版本（用于区分同模型不同提示）
+  language            String    @default("zh-CN") // 目标语言
+  qualityVersion      String? // 质量发布版本（如 v1.0，用于按需升级）
+  result              String    @db.Text // 处理结果文本
+  resultHash          String // 结果哈希（去重）
+  processingStatus    String    @default("processing") // processing/completed/failed
+  errorMessage        String?
+  processingStartedAt DateTime?
+  processingEndedAt   DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([sourceType, sourceId])
+  @@index([contentHash])
+  @@index([resultHash])
+  @@index([processingStatus])
+  @@index([qualityVersion])
+}
+
+// 音频资产：TTS 合成音频的持久化（支持跨用户复用）
+model AudioAsset {
+  id                 String    @id @default(uuid())
+  assetKey           String    @unique // 全部身份字段的规范化哈希（实际供应商/音色/版本/参数），并发去重依据
+  sourceType         String // classic_segment/translation/article_paragraph 等
+  sourceId           String // 源文本资产的 ID（如 ClassicSegment.id 或 TextDerivedAsset.id）
+  textVersion        String // 确切文本版本哈希（不同版本不得复用音频）
+  textType           String // original/vernacular（原文/白话）
+  ttsProvider        String // 实际合成供应商 volcengine/tencent/edge
+  requestedProvider  String? // 请求时期望的供应商（发生降级时与 ttsProvider 不同）
+  voiceId            String // 实际供应商下的音色标识（如 101001 / zh-CN-XiaoxiaoNeural）
+  voiceVersion       String? // 音色版本（供应商升级音色后的版本号）
+  pronunciationDict  String? // 发音词典版本（专业词发音校正）
+  pauseStrategy      String? // 停顿策略（如 natural/dramatic）
+  audioFormat        String    @default("mp3") // mp3/wav/opus
+  synthesisParams    Json? // 合成参数（rate/emotion/intensity 等）
+  storageKey         String // COS 对象键（用于删除和访问）
+  storageUrl         String // 音频访问 URL
+  durationMs         Int? // 音频时长（毫秒）
+  fileSize           Int? // 文件大小（字节）
+  contentHash        String // 音频内容哈希（完整性校验）
+  synthesisStatus    String    @default("synthesizing") // synthesizing/completed/failed
+  isPlayable         Boolean   @default(false) // COS 上传验证成功后才置 true
+  errorMessage       String?
+  synthesisStartedAt DateTime?
+  synthesisEndedAt   DateTime?
+  uploadedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([sourceType, sourceId])
+  @@index([textVersion])
+  @@index([storageKey])
+  @@index([synthesisStatus])
+  @@index([isPlayable])
+  @@index([ttsProvider, voiceId])
+}
+
+// AI 用量计量表：token 消耗、cost 记录（S10 前置）
+/// 小卜 · 报告问答记录（按用户+报告隔离；服务端读取历史，不信任客户端传入的历史；用户可清空）
+model ReportDialogueTurn {
+  id          String   @id @default(uuid())
+  reportId    String
+  userId      String
+  role        String // user / assistant
+  content     String   @db.Text
+  sectionId   String?
+  evidenceIds String[] @default([])
+  mode        String? // answer / out_of_report / crisis_referral / error
+  model       String?
+  channel     String   @default("text") // text / voice
+  createdAt   DateTime @default(now())
+
+  @@index([reportId, userId, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// 小卜语音角色（圈主申请 / 平台运营）：角色名、性格、提示词、标准音色；平台审核通过后发布，版本快照可回滚
+model VoiceAgentProfile {
+  id             String    @id @default(uuid())
+  ownerType      String // circle / platform
+  ownerId        String // circleId；平台角色为 platform
+  name           String
+  persona        String    @db.Text // 性格与说话风格
+  prompt         String    @db.Text // 角色提示词（不含知识库内容，知识通过受控检索提供）
+  voiceId        String // 平台开放的标准音色标识（未取得商业音色列表前由平台人工维护）
+  tier           String    @default("lite") // lite / standard，需平台开放
+  status         String    @default("DRAFT") // DRAFT / PENDING_REVIEW / APPROVED / REJECTED / DISABLED
+  draftVersion   Int       @default(1) // 当前草稿版本号，每次审核通过后 +1
+  activeVersion  Int? // 已发布版本号；停用或未发布为空
+  riskFlags      String[]  @default([]) // 提交时的规则检查提示（如“付费化解”“保证灵验”）
+  // 圈主自己提供的服务（如“张老师八字详批”“每周答疑”）：成员问到相关需求时，助理优先引导到这里，
+  // 而不是把人推去平台其他老师——助理由圈主付费供养，立场必须站在圈主一边。
+  ownerServices  String[]  @default([])
+  reviewNote     String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  submittedBy    String?
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  versions VoiceAgentProfileVersion[]
+
+  @@unique([ownerType, ownerId])
+  @@index([status])
+}
+
+/// 语音角色已审核版本快照（发布、回滚依据）
+model VoiceAgentProfileVersion {
+  id         String   @id @default(uuid())
+  profileId  String
+  version    Int
+  name       String
+  persona    String   @db.Text
+  prompt     String   @db.Text
+  voiceId    String
+  tier       String
+  approvedBy String
+  approvedAt DateTime @default(now())
+
+  profile VoiceAgentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, version])
+}
+
+/// 用户称呼（2026-09-18）。
+/// 有些昵称不适合当面叫（系统默认名、账号 ID、自嘲自贬、带广告），
+/// 助理判断出不合适时主动商量一次并记住。
+/// 单独建表的理由：要记的不只是称呼，还有**问过没有**——只问一次，
+/// 用户没答也要留痕，否则下次对话又问一遍。
+model UserPreferredName {
+  userId    String    @id
+  name      String?
+  source    String? // asked=用户自己说的 / nickname=从昵称采用
+  askedAt   DateTime? // 有值即表示问过，不论答没答
+  updatedAt DateTime  @updatedAt
+}
+
+/// 广场智能体试聊用量（2026-09-18）。
+/// 规则：每个智能体每人试聊 3 分钟，最多试聊 5 个——按「人 × 智能体」计量，
+/// 换一个智能体还能再试，同一个不能反复试；试满之后引导付费（2 元/分钟）。
+/// 不并进 VoiceQuotaAccount：试聊是一次性体验配额，不该和用户买来的时长共用一个池子。
+model VoiceTrialUsage {
+  id          String   @id @default(uuid())
+  userId      String
+  agentId     String
+  usedSeconds Int      @default(0)
+  sessions    Int      @default(0)
+  firstAt     DateTime @default(now())
+  lastAt      DateTime @default(now())
+
+  @@unique([userId, agentId])
+  @@index([userId])
+}
+
+/// 小卜语音额度账户（秒）。ownerType=user 为用户个人额度，circle 为圈主预付给本圈成员使用的技术额度。
+model VoiceQuotaAccount {
+  id              String   @id @default(uuid())
+  ownerType       String // user / circle
+  ownerId         String
+  balanceSeconds  Int      @default(0) // 可用余额（已扣除已结算用量，未扣除预留）
+  reservedSeconds Int      @default(0) // 进行中会话的预留
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([ownerType, ownerId])
+}
+
+/// 小卜语音会话：开始时预留额度，结束时按供应商用量（暂缺时按估算并标注待对账）结算
+model VoiceSession {
+  id                String    @id @default(uuid())
+  userId            String
+  accountId         String? // 免费体验期可不关联账户
+  scene             String // report_dialogue / classic_companion / circle_assistant / plaza
+  contextType       String? // paipan_report / classic_segment / circle
+  contextId         String?
+  tier              String    @default("lite") // lite / standard
+  status            String    @default("reserved") // reserved / ended / failed
+  reservedSeconds   Int       @default(0)
+  maxSeconds        Int // 本次会话时长上限（额度与单次上限取小）
+  usedSeconds       Int? // 结算用量
+  usageSource       String? // vendor=供应商用量 / estimate=客户端估算（待对账）
+  providerSessionId String?
+  supplierCostMicro BigInt? // 供应商成本（百万分之一元）
+  priceRuleVersion  String? // 结算时使用的费率配置版本
+  endReason         String? // user_hangup / idle_timeout / quota_exhausted / error
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+
+  @@index([userId, startedAt])
+  @@index([accountId])
+  @@index([status])
+}
+
+/// 语音额度流水：每条带幂等键，重复到达的发放/结算/退款只记一次
+model VoiceQuotaLedger {
+  id             String   @id @default(uuid())
+  accountId      String
+  sessionId      String?
+  type           String // grant / consume / refund / adjust
+  seconds        Int // 正数增加余额，负数扣减
+  balanceAfter   Int
+  idempotencyKey String   @unique
+  note           String?
+  operatorId     String?
+  createdAt      DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([sessionId])
+}
+
+/// 排盘报告知识库（小卜 AI）：人工精选的门派理论与指定古籍原文出处。
+/// 报告只从 status=APPROVED 的条目取依据，不直接检索整个古籍库（范围过大、质量参差会拉低报告质量）。
+model PaipanReportKnowledge {
+  id               String    @id @default(uuid())
+  paipanType       String    @default("bazi") // bazi/ziwei…
+  school           String? // 门派 id（如 ziping/mangpai/xinpai）；null=各派通用的基础理论
+  kind             String // school_theory=门派理论要点 / classic_excerpt=公版古籍原文 / knowledge_point=知识要点（自行重述，来源可追溯）
+  topic            String // 格局/用神/十神/日主/月令/神煞/大运流年 等
+  tags             String[]  @default([]) // 与盘面信号匹配的标签，如 偏财格、庚、寅、天乙贵人
+  title            String
+  content          String    @db.Text // 理论要点或古籍原文（原文须与底本一致）
+  bookTitle        String? // 古籍书名（kind=classic_excerpt 时必填）
+  chapterTitle     String?
+  classicBookId    String? // 可选：关联古籍库，用于“读原书”跳转
+  classicChapterId String?
+  // ── 来源与可引用性（2026-09-17）──
+  // 著作权保护表达而非思想：命理的理论、规则、方法本身不受保护，用自己的话重述后入库是安全的；
+  // 但逐字复制他人（含网络文章、现代著作、点校本）的表达，即使注明来源也不免责。
+  // 因此：只有公版古籍白文（sourceKind=classic_public）才允许 quotable=true 并按“原文”展示；
+  // 其余来源一律以“知识要点”呈现，必须是重述（restated=true），并记录来源供审核追溯。
+  // ── 议题归组与立场（2026-09-18）──
+  // 报告是「各派观点汇总 + 梳理 + 主线引导」，不是条目罗列：
+  // debateKey 把讲同一件事的条目（不论哪派）聚成一组，报告才说得清共识与分歧在哪；
+  // stance 说明这条在该议题里的位置，platform_line 就是我们给用户的那条主线。
+  debateKey        String? // 议题键，如「bazi:偏财格:取用」；留空表示不参与观点对照
+  stance           String    @default("mainstream") // consensus/mainstream/alternative/minority/platform_line
+  sourceKind       String    @default("classic_public") // classic_public=公版古籍 / modern_work=现代著作 / web=网络资料 / oral=口传流派 / platform_expert=平台专家撰写
+  sourceRefs       Json?     // 来源线索数组 [{label,url?,note?}]，供审核追溯，不对外展示
+  restated         Boolean   @default(false) // 是否为自行重述（非逐字摘录）
+  quotable         Boolean   @default(false) // 是否可作为“原文”展示并跳转读原书
+  status           String    @default("DRAFT") // DRAFT/APPROVED/RETIRED；只有 APPROVED 可被报告引用
+  version          Int       @default(1)
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([paipanType, status])
+  @@index([paipanType, school, status])
+  @@index([topic])
+  @@index([debateKey])
+  @@index([paipanType, stance])
+}
+
+/// 排盘报告的应验回访（2026-09-19）
+///
+/// 为什么要单独一张表：报告本身存在 AiAnalysisRecord（analysisContent 全文），
+/// 缺的只有「后来到底怎么样了」。把这一环补上，每一次排盘 + 一次回访就是一条案例，
+/// 这是案例库唯一能持续长大的来源——网上流传的案例绝大多数只有盘面与结论，
+/// 中间的推理链恰恰是省略的，靠抄是抄不出一套能训练模型的东西的。
+///
+/// 三条设计原则，都是有来由的：
+///
+/// 1. **报告在前、结果在后**。案例的全部效力建立在「断语写下时结果尚未发生」。
+///    所以 reportedAt 取自报告记录、outcomeAt 是回访时间，且强制 outcomeAt > reportedAt。
+///    做不到这一点的所谓案例，就是术数圈最常见的**事后追认**——先知道结果，
+///    再回头到盘上找理由，这种东西什么也证明不了。
+///
+/// 2. **必须收未命中**。verdict 允许 MISS，而且 MISS 的案例价值往往高于 HIT——
+///    它能指出取象在哪一步偏了。只留说对的，知识库就变成自我强化，
+///    任何准确率数字也随之失去意义。所以本表**不允许按 verdict 过滤后统计准确率**，
+///    统计必须以「同期全部回访」为分母。
+///
+/// 3. **原始反馈不是案例**。lesson（可迁移规律）必须由人来写、经审核，
+///    这一步跳不过去——反馈只是素材，把它变成能教给模型的判断模式是另一回事。
+model PaipanCaseFeedback {
+  id             String  @id @default(uuid())
+  userId         String
+  paipanRecordId String
+  /// 对应的报告（AiAnalysisRecord.id）；报告被删则置空，反馈本身仍有统计价值
+  analysisId     String?
+  paipanType     String // qimen-yin / bazi / liuyao …
+  /// 所问之事，脱敏后存
+  matter         String  @default("")
+
+  /// 报告生成时间——与 outcomeAt 的先后是本条记录有效性的唯一凭据
+  reportedAt DateTime
+  outcomeAt  DateTime @default(now())
+
+  /// HIT=基本应验 / PARTIAL=部分对 / MISS=没对上 / UNKNOWN=还看不出来
+  verdict    String
+  /// 实际发生了什么（用户自述，脱敏）
+  outcome    String  @db.Text
+  /// 哪几条说对了 / 哪几条说错了——逐条对照比一个总评有用得多
+  whichRight String? @db.Text
+  whichWrong String? @db.Text
+
+  /// 回访是主动推送的还是用户自发的。自发反馈有明显选择偏差（多半是特别准或特别不准才来说），
+  /// 统计时要分开算，不能混在一起。
+  channel String @default("prompted") // prompted=回访推送 / voluntary=用户自发
+
+  // ── 审核：反馈 → 案例 ──
+  status     String    @default("PENDING") // PENDING / APPROVED / REJECTED
+  /// 可迁移规律：从这一例能抽出什么可复用的判断模式。**必须人工撰写**，
+  /// 这一段才是能教给模型的东西，没有它这条记录只是轶事。
+  lesson     String?   @db.Text
+  reviewNote String?
+  reviewedBy String?
+  reviewedAt DateTime?
+
+  /// 脱敏与授权，沿用 BaziCase 的口径
+  desensitized Boolean @default(true)
+  consent      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([paipanType, status])
+  @@index([paipanType, verdict, outcomeAt])
+  @@index([paipanRecordId])
+  @@index([userId, createdAt])
+  @@index([status, outcomeAt])
+}
+
+model AiUsageRecord {
+  id               String   @id @default(uuid())
+  userId           String? // 用户 ID（系统级调用可为空）
+  scene            String // 场景：classic_translation/circle_assistant/paipan_report 等
+  relatedType      String? // 关联对象类型：classic_segment/circle/paipan_report
+  relatedId        String? // 关联对象 ID
+  provider         String // ai_gateway/tencent_tts/xiaozhi
+  model            String? // 模型名称（如 claude-fable-5）
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  cachedTokens     Int      @default(0) // 缓存命中的 token 数
+  cost             Decimal  @default(0) @db.Decimal(10, 6) // 实际费用（元）
+  requestId        String? // 外部请求 ID（用于对账）
+  idempotencyKey   String?  @unique // 幂等键（如 供应商:用量单号）；重复到达的同一用量不重复记账
+  isStreaming      Boolean  @default(false) // 是否流式调用
+  durationMs       Int? // 请求耗时（毫秒）
+  errorMessage     String? // 失败原因
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([scene])
+  @@index([provider, model])
+  @@index([createdAt])
+  @@index([relatedType, relatedId])
 }
 
 // 古籍馆·策划书单（运营内容，bookIds 为 ClassicBook id 数组，无外键便于灵活编排）
