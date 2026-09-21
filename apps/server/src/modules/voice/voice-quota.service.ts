@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -355,6 +356,8 @@ export class VoiceQuotaService {
     contextId?: string;
     tier?: VoiceTier;
     account?: { ownerType: "user" | "circle"; ownerId: string };
+    /** 会话编排层附加字段（供应商、关联 ID、幂等键、上下文摘要等），不参与额度计算 */
+    extra?: Omit<Prisma.VoiceSessionUncheckedCreateInput, "userId" | "scene" | "maxSeconds">;
   }) {
     const cfg = await this.getConfig();
     const tier = input.tier ?? "lite";
@@ -362,6 +365,7 @@ export class VoiceQuotaService {
     if (!cfg.chargeUsers) {
       return this.prisma.voiceSession.create({
         data: {
+          ...(input.extra || {}),
           userId: input.userId,
           scene: input.scene,
           contextType: input.contextType,
@@ -395,6 +399,7 @@ export class VoiceQuotaService {
       }
       return tx.voiceSession.create({
         data: {
+          ...(input.extra || {}),
           userId: input.userId,
           accountId: account.id,
           scene: input.scene,
@@ -421,33 +426,70 @@ export class VoiceQuotaService {
     endReason: string;
     providerSessionId?: string;
   }) {
+    return this.finalizeSession({
+      sessionId: input.sessionId,
+      usedSeconds: input.usedSeconds,
+      usageSource: input.usageSource,
+      usageState: input.usageSource === "vendor" ? "vendor" : "estimated",
+      endReason: input.endReason,
+      providerSessionId: input.providerSessionId,
+      status: "ended",
+    });
+  }
+
+  /**
+   * 收尾会话（幂等、单事务）：结束 / 失败 / 取消都走这里。
+   *
+   * - usedSeconds 为 null 表示**用量未知**：只释放预留、不扣额度、不记成本，usageState 记 unknown，
+   *   交由对账处理——绝不填 0 冒充「没用」。
+   * - 只从 fromStatuses 列出的状态转出（条件更新），并发的两次结束只有一次生效。
+   * - mock 用量照常走流水以便测试，但 note 明确标注「模拟供应商，非真实计费」。
+   */
+  async finalizeSession(input: {
+    sessionId: string;
+    usedSeconds: number | null;
+    usageSource: "vendor" | "estimate" | "mock" | null;
+    usageState: "none" | "pending" | "vendor" | "estimated" | "unknown" | "mock";
+    endReason: string;
+    status: "ended" | "failed" | "cancelled" | "ending";
+    providerSessionId?: string;
+    technicalOutcome?: string | null;
+    answerCompleteness?: string | null;
+    fromStatuses?: string[];
+  }) {
     const cfg = await this.getConfig();
-    const used = Math.max(0, Math.floor(input.usedSeconds));
+    const from = input.fromStatuses ?? ["reserved", "active", "ending"];
+    const used = input.usedSeconds == null ? null : Math.max(0, Math.floor(input.usedSeconds));
 
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.voiceSession.findUniqueOrThrow({ where: { id: input.sessionId } });
-      if (session.status !== "reserved") {
+      if (!from.includes(session.status)) {
         return { session, duplicated: true };
       }
       const tier = (session.tier === "standard" ? "standard" : "lite") as VoiceTier;
+      const closing = input.status !== "ending";
       const closed = await tx.voiceSession.updateMany({
-        where: { id: session.id, status: "reserved" },
+        where: { id: session.id, status: session.status },
         data: {
-          status: "ended",
+          status: input.status,
           usedSeconds: used,
           usageSource: input.usageSource,
+          usageState: input.usageState,
           endReason: input.endReason,
-          providerSessionId: input.providerSessionId,
-          supplierCostMicro: this.supplierCostMicro(used, tier, cfg),
-          endedAt: new Date(),
+          ...(input.providerSessionId ? { providerSessionId: input.providerSessionId } : {}),
+          ...(input.technicalOutcome !== undefined ? { technicalOutcome: input.technicalOutcome } : {}),
+          ...(input.answerCompleteness !== undefined ? { answerCompleteness: input.answerCompleteness } : {}),
+          supplierCostMicro: used == null || input.usageSource === "mock" ? null : this.supplierCostMicro(used, tier, cfg),
+          ...(closing ? { endedAt: new Date() } : {}),
         },
       });
       if (closed.count !== 1) {
         return { session: await tx.voiceSession.findUniqueOrThrow({ where: { id: session.id } }), duplicated: true };
       }
 
-      if (session.accountId && session.reservedSeconds > 0) {
-        const consume = Math.min(used, session.reservedSeconds);
+      // 「结束中」只是等回调，不动额度；真正收尾时再扣/释放
+      if (closing && session.accountId && session.reservedSeconds > 0) {
+        const consume = used == null ? 0 : Math.min(used, session.reservedSeconds);
         const account = await tx.voiceQuotaAccount.update({
           where: { id: session.accountId },
           data: {
@@ -455,20 +497,26 @@ export class VoiceQuotaService {
             balanceSeconds: { decrement: consume },
           },
         });
-        await tx.voiceQuotaLedger.create({
-          data: {
-            accountId: session.accountId,
-            sessionId: session.id,
-            type: "consume",
-            seconds: -consume,
-            balanceAfter: account.balanceSeconds,
-            idempotencyKey: `voice-session-consume:${session.id}`,
-            note: [
-              input.usageSource === "estimate" ? "按客户端估算结算，待供应商用量对账" : "按供应商用量结算",
-              used > session.reservedSeconds ? `超出预留 ${used - session.reservedSeconds} 秒未扣，待对账` : "",
-            ].filter(Boolean).join("；"),
-          },
-        });
+        if (consume > 0) {
+          await tx.voiceQuotaLedger.create({
+            data: {
+              accountId: session.accountId,
+              sessionId: session.id,
+              type: "consume",
+              seconds: -consume,
+              balanceAfter: account.balanceSeconds,
+              idempotencyKey: `voice-session-consume:${session.id}`,
+              note: [
+                input.usageSource === "mock"
+                  ? "模拟供应商用量，非真实计费"
+                  : input.usageSource === "estimate"
+                    ? "按客户端估算结算，待供应商用量对账"
+                    : "按供应商用量结算",
+                used != null && used > session.reservedSeconds ? `超出预留 ${used - session.reservedSeconds} 秒未扣，待对账` : "",
+              ].filter(Boolean).join("；"),
+            },
+          });
+        }
       }
       return { session: await tx.voiceSession.findUniqueOrThrow({ where: { id: session.id } }), duplicated: false };
     });
