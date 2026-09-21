@@ -987,21 +987,25 @@ async function r20() {
       decision: "adjust", revenueRecordId: pick.id,
       note: `经核对，被退订单对应入圈那一笔收益 ${pick.id}，按该笔追回圈主分成`,
     });
-    check("R20 确需调整：按指定收益行冲正",
-      r.status === "manual_adjusted" && Math.abs(r.ownerRecalled - Number(pick.ownerShare)) < 0.01 &&
+    const expectedRatio = 150 / 199;
+    const expectedOwnerRecalled = Math.round(Number(pick.ownerShare) * expectedRatio * 100) / 100;
+    const expectedRevenueRecalled = Math.round(Number(pick.amount) * expectedRatio * 100) / 100;
+    check("R20 确需调整：按指定收益行及实际退款比例冲正",
+      r.status === "manual_adjusted" && Math.abs(r.ownerRecalled - expectedOwnerRecalled) < 0.01 &&
+        Math.abs(r.refundRatio - expectedRatio) < 0.000001 &&
         r.revenueRecordId === pick.id,
       JSON.stringify(r));
     const rows = await prisma.circleRevenueRecord.findMany({
       where: { circleId: f.circle, type: "circle_join_refund" },
     });
-    check("R20 确需调整：恰写一条冲正行，金额以认定行为准（对该行净为零）",
-      rows.length === 1 && Math.abs(Number(rows[0].amount) + Number(pick.amount)) < 0.01 &&
-        Math.abs(Number(rows[0].ownerShare) + Number(pick.ownerShare)) < 0.01,
+    check("R20 确需调整：恰写一条按实际退款比例计算的冲正行",
+      rows.length === 1 && Math.abs(Number(rows[0].amount) + expectedRevenueRecalled) < 0.01 &&
+        Math.abs(Number(rows[0].ownerShare) + expectedOwnerRecalled) < 0.01,
       JSON.stringify(rows.map((x) => ({ amount: x.amount, ownerShare: x.ownerShare }))));
     const req = (await prisma.$queryRawUnsafe(
       `SELECT "ownerRecalled" FROM "CircleRefundRequest" WHERE "id"=$1`, rid))[0];
     check("R20 确需调整：退款申请的圈主追回金额被回填（转人工时是 0）",
-      Math.abs(Number(req.ownerRecalled) - Number(pick.ownerShare)) < 0.01, `ownerRecalled=${req.ownerRecalled}`);
+      Math.abs(Number(req.ownerRecalled) - expectedOwnerRecalled) < 0.01, `ownerRecalled=${req.ownerRecalled}`);
     adjusted = { rid, recallId: recall.id, pick, circleId: f.circle };
   }
 

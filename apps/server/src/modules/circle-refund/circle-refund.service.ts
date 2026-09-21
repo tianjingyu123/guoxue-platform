@@ -647,9 +647,9 @@ export class CircleRefundService {
 
       const refund = (
         await tx.$queryRawUnsafe<any[]>(
-          `SELECT q."id",q."circleId",q."userId",q."orderId",q."paidAmount",
+          `SELECT q."id",q."circleId",q."userId",q."orderId",q."paidAmount",q."actualRefund",
                   c."ownerId",o."userId" AS "orderUserId",o."targetId" AS "orderTargetId",
-                  o."type"::text AS "orderType"
+                  o."type"::text AS "orderType",COALESCE(o."payAmount",o."amount") AS "orderPaidAmount"
            FROM "CircleRefundRequest" q
            JOIN "Circle" c ON c."id" = q."circleId"
            LEFT JOIN "Order" o ON o."id" = q."orderId"
@@ -714,13 +714,31 @@ export class CircleRefundService {
         );
       }
 
-      // ④ 按**人工认定的那一行自身的金额**冲正，账面对该行净为零。
-      //    与自动 `exact` 档同一口径：那一档要求收益行金额与已付金额相等，因此两者本就一致；
-      //    这里没有相等这个前提（金额对不上恰恰是转人工的原因之一），所以必须以认定行为准，
-      //    否则会留下差额且无人知道。
-      const ownerRecalled = Number(revenue.ownerShare);
-      if (!Number.isFinite(ownerRecalled) || ownerRecalled <= 0 || ownerRecalled > Number(revenue.amount)) {
+      // ④ 部分退款按「实际退款额 / 原订单实付额」同比例冲正。
+      //    订单实付额来自已核验的原订单，不采用可能正处于金额异常待核对状态的申请快照。
+      const originalOwnerShare = Number(revenue.ownerShare);
+      const originalRevenueAmount = Number(revenue.amount);
+      const actualRefund = Number(refund.actualRefund);
+      const orderPaidAmount = Number(refund.orderPaidAmount);
+      if (
+        !Number.isFinite(originalOwnerShare) || originalOwnerShare <= 0 ||
+        !Number.isFinite(originalRevenueAmount) || originalRevenueAmount <= 0 ||
+        originalOwnerShare > originalRevenueAmount
+      ) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "指定收益行的圈主分成金额异常，禁止在线冲正");
+      }
+      if (
+        !Number.isFinite(actualRefund) || actualRefund <= 0 ||
+        !Number.isFinite(orderPaidAmount) || orderPaidAmount <= 0 ||
+        actualRefund > orderPaidAmount
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "实际退款额或原订单实付额异常，禁止在线冲正");
+      }
+      const refundRatio = actualRefund / orderPaidAmount;
+      const ownerRecalled = round2(originalOwnerShare * refundRatio);
+      const revenueAmountRecalled = round2(originalRevenueAmount * refundRatio);
+      if (ownerRecalled <= 0 || revenueAmountRecalled <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的冲正金额为零，禁止在线冲正");
       }
       const previousReversals = await tx.circleRevenueRecord.count({
         where: { type: "circle_join_refund", orderId: refund.orderId },
@@ -734,7 +752,7 @@ export class CircleRefundService {
           type: "circle_join_refund",
           sourceId: locked.sourceId,
           orderId: refund.orderId ?? null,
-          amount: -Number(revenue.amount),
+          amount: -revenueAmountRecalled,
           platformFee: 0,
           ownerShare: -ownerRecalled,
           splitRate: 0,
@@ -753,12 +771,14 @@ export class CircleRefundService {
       );
       this.logger.log(
         `追回待办结案（已冲正）recall=${recallId} refund=${refund.id} 收益行=${revenue.id} ` +
-          `圈主分成追回=${ownerRecalled} by=${operatorId}`,
+          `退款比例=${refundRatio.toFixed(6)} 圈主分成追回=${ownerRecalled} by=${operatorId}`,
       );
       return {
         id: recallId,
         status: RESOLVED_STATUS.adjust,
         ownerRecalled,
+        refundRatio,
+        revenueAmountRecalled,
         revenueRecordId: revenue.id,
       };
     });

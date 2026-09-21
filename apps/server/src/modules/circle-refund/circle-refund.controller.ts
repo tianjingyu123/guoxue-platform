@@ -84,7 +84,7 @@ export class CircleRefundController {
 
   @Get("admin-manual-recalls")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({
     summary: "待人工核对的圈主分成追回（只读）",
     description:
@@ -104,12 +104,13 @@ export class CircleRefundController {
   @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "圈主分成追回人工结案", targetType: "COMMISSION_RECALL" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({
     summary: "人工结案一条待办（无需调整 / 按指定收益行冲正）",
     description:
-      "两种结论：no_change（核实后无需调整，不动资金）、adjust（确需调整，按人工指定的 revenueRecordId 冲正）。" +
-      "系统不挑选收益行，只校验指定的那一行确属本笔退款。核对依据必填。重复提交会被拒绝。",
+      "财务人员或超级管理员任意一人可结案，无需双人复核。两种结论：no_change（核实后无需调整，不动资金）、" +
+      "adjust（确需调整，按人工指定的 revenueRecordId 及实际退款比例冲正）。系统不挑选收益行，只校验指定行归属；" +
+      "核对依据必填，累计冲正不得超过原圈主收益，重复提交会被拒绝。",
   })
   @ApiBearerAuth()
   resolveManualRecall(
