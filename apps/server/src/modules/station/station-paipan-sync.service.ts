@@ -27,7 +27,7 @@ export class StationPaipanSyncService {
     return { mode: this.runtime.getMode() };
   }
 
-  async getUserEntry(userId: string, client: "app" | "h5" = "app"): Promise<LegacyPaipanEntry> {
+  async getUserEntry(userId: string, client: "app" | "h5" | "mini" = "app"): Promise<LegacyPaipanEntry> {
     return this.getSignedUserEntry(userId, "tool", client);
   }
 
@@ -175,7 +175,7 @@ export class StationPaipanSyncService {
   private async getSignedUserEntry(
     userId: string,
     target: "tool" | "my",
-    client: "app" | "h5" = "app",
+    client: "app" | "h5" | "mini" = "app",
   ): Promise<LegacyPaipanEntry> {
     if (this.runtime.isNative()) return { mode: "native", url: null, attributionReady: true };
     const user = await this.prisma.user.findUnique({
@@ -186,6 +186,14 @@ export class StationPaipanSyncService {
     // 微信 H5 使用第三方网页入口，不能按是否绑定手机错误选择 App 接口。
     // 无手机号的普通工具交由旧站授权，不伪造手机号签名。
     // 个人中心及推荐人开通仍保留原手机号要求。
+    if (target === "tool" && client === "mini") {
+      const url = this.parseHttpsUrl(
+        process.env.PAIPAN_MINI_H5_BASE ||
+          "https://www.yrydai.cn/guide.php?mod=index&act=guoxue",
+        "PAIPAN_MINI_H5_BASE",
+      );
+      return { mode: "legacy", url: url.toString(), attributionReady: false };
+    }
     if (target === "tool" && (client === "h5" || (!user.phoneEnc && !user.phone))) {
       const url = this.parseHttpsUrl(
         process.env.PAIPAN_REFERRAL_BASE || "https://www.yrydai.com/p1.php",

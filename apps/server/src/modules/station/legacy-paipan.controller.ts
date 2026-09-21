@@ -28,7 +28,8 @@ export class LegacyPaipanController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取已登录用户排盘入口：手机号签名或旧站网页授权" })
   getEntry(@Req() req: Request, @Query("client") client?: string) {
-    return this.service.getUserEntry(req.user.id, client === "h5" ? "h5" : "app");
+    const targetClient = client === "h5" || client === "mini" ? client : "app";
+    return this.service.getUserEntry(req.user.id, targetClient);
   }
 
   @Get("account")

@@ -53,6 +53,15 @@ describe("StationPaipanSyncService", () => {
     expect(prisma.station.update).not.toHaveBeenCalled();
   });
 
+  it("小程序入口使用第三方提供的小程序专用地址", async () => {
+    const result = await service.getUserEntry("user-1", "mini");
+    expect(result).toEqual({
+      mode: "legacy",
+      url: "https://www.yrydai.cn/guide.php?mod=index&act=guoxue",
+      attributionReady: false,
+    });
+  });
+
   it("个人中心使用 go=my 且不擅自追加 v", async () => {
     prisma.user.findUnique.mockResolvedValue({
       phone: "13000000000",

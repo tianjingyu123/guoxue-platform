@@ -66,5 +66,8 @@ export function legacyToolEntryPath(): string {
   // #ifdef H5
   path += "?client=h5";
   // #endif
+  // #ifdef MP-WEIXIN
+  path += "?client=mini";
+  // #endif
   return path;
 }
