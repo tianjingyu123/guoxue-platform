@@ -92,7 +92,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       {
         // 机器人/人工分离：古籍库由 AI 数字员工采集维护，人工只做运营视图
         title: "古籍（🤖AI维护）",
-        children: [M("/classics"), M("/classics/commentaries")],
+        children: [M("/classics"), M("/classics/commentaries"), M("/classics/translations", "白话译文复核", "human")],
       },
       {
         title: "互动社区",

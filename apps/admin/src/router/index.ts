@@ -122,6 +122,13 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
+      // === 小卜 · 白话译文人工复核 ===
+      {
+        path: "classics/translations",
+        name: "ClassicTranslationReview",
+        component: () => import("@/views/classics/ClassicTranslationReview.vue"),
+        meta: { title: "白话译文复核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 社区 ===
       {
         path: "circles",

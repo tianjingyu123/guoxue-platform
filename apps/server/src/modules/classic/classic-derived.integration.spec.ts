@@ -4,6 +4,7 @@ import { ClassicSegmentService } from "./classic-segment.service";
 import { TextDerivedAssetService } from "./text-derived-asset.service";
 import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { ClassicService } from "./classic.service";
+import { ClassicTranslationReviewService } from "./classic-translation-review.service";
 
 /**
  * 古籍派生资产真实库验证（默认跳过）：XIAOBU_IT_DATABASE_URL=<隔离库>
@@ -117,5 +118,48 @@ run("古籍派生资产 · 真实库", () => {
     const st = await classic.segmentTranslationStatus(target.id);
     expect(st.status).toBe("expired");
     expect(st.result).toBeNull();
+
+    // 后台复核列表：旧译文仍在待复核里，但标记原文已修订
+    const review = new ClassicTranslationReviewService(prisma as any, textAssets);
+    const listed = (await review.list({ review: "pending", sourceType: "classic_segment", pageSize: 50 })).rows.find((r) => r.sourceId === target.id);
+    expect(listed).toMatchObject({ stale: true, bookTitle: `${tag}-周易` });
+  });
+
+  it("译文人工复核：改译通过 → 读者看到改后译文；旧版本号拒绝；驳回 → 下线、重新生成后回到待复核", async () => {
+    const review = new ClassicTranslationReviewService(prisma as any, textAssets);
+    const segs = await segments.getSegmentsForChapter(chapterId);
+    const target = segs[2];
+    await classic.translateSegment(target.id, "u-it");
+
+    const pending = (await review.list({ review: "pending", sourceType: "classic_segment", pageSize: 50 })).rows;
+    const row = pending.find((r) => r.sourceId === target.id)!;
+    expect(row).toMatchObject({ stale: false, original: target.content, translation: expect.stringMatching(/桩译文/), reviewStatus: "none" });
+
+    // 改译并通过
+    await review.approve(row.id, "op-it", { resultHash: row.resultHash, edit: { translation: "人工校订的译文", notes: ["注一"] } });
+    const st = await classic.segmentTranslationStatus(target.id);
+    expect(st).toMatchObject({ status: "success", reviewStatus: "approved" });
+    expect(st.result).toMatchObject({ translation: "人工校订的译文", notes: ["注一"], original: "x" }); // 其余字段保留
+    const approved = (await review.list({ review: "approved", pageSize: 50 })).rows.find((r) => r.id === row.id)!;
+    expect(approved).toMatchObject({ reviewedBy: "op-it", translation: "人工校订的译文" });
+
+    // 旧版本号（改译前的 resultHash）再操作一律拒绝
+    await expect(review.reject(row.id, "op-it", { resultHash: row.resultHash, note: "x" })).rejects.toThrow(/重新生成或修改/);
+    await expect(review.reject(row.id, "op-it", { resultHash: approved.resultHash, note: "  " })).rejects.toThrow(/驳回原因/);
+
+    // 驳回：读者侧不再返回译文，查已有译文也查不到
+    await review.reject(row.id, "op-it", { resultHash: approved.resultHash, note: "释义有误" });
+    const off = await classic.segmentTranslationStatus(target.id);
+    expect(off).toMatchObject({ status: "failed", reviewStatus: "rejected", result: null });
+    const rejected = (await review.list({ review: "rejected", pageSize: 50 })).rows.find((r) => r.id === row.id)!;
+    expect(rejected.reviewNote).toBe("人工复核驳回：释义有误");
+    await expect(review.approve(row.id, "op-it", { resultHash: approved.resultHash })).rejects.toThrow(/不是已生成状态/);
+
+    // 读者再次请求：重新调模型生成，复核状态清回待复核
+    gatewayCalls.length = 0;
+    await classic.translateSegment(target.id, "u-it");
+    expect(gatewayCalls).toHaveLength(1);
+    const again = await prisma.textDerivedAsset.findUniqueOrThrow({ where: { id: row.id } });
+    expect(again).toMatchObject({ processingStatus: "completed", reviewStatus: "none", reviewedBy: null, reviewedAt: null });
   });
 });
