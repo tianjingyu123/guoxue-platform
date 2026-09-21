@@ -173,6 +173,34 @@ for (const packageRoot of packageRoots) {
   }
 }
 
+// 页面编译后的 JS 也会保留对组件模块的 require 路径。页面 JSON 改写后，
+// 若只处理 usingComponents，微信开发者工具仍会按旧路径读取主包文件，导致
+// 「components/qimen/notes-panel.wxml 不存在」这类编译失败。这里同步重写各分包
+// 页面 JS，并按需复制对应组件。
+for (const packageRoot of packageRoots) {
+  const packageDirectory = join(mpRoot, packageRoot);
+  for (const jsFile of walkFiles(packageDirectory, ".js")) {
+    if (jsFile.includes(`${sep}${relocatedComponentDirectory}${sep}`)) continue;
+    const source = readFileSync(jsFile, "utf8");
+    const rewritten = rewriteGeneratedJs(source, jsFile, jsFile, packageRoot);
+    if (rewritten !== source) writeFileSync(jsFile, rewritten, "utf8");
+  }
+}
+
+// uni-app 页面 JS 对根组件的 require 有时使用不带扩展名的编译路径，
+// 上面的通用解析无法识别这类引用；对已迁移命名空间做一次确定性兜底改写。
+for (const packageRoot of packageRoots) {
+  const packageDirectory = join(mpRoot, packageRoot);
+  for (const jsFile of walkFiles(packageDirectory, ".js")) {
+    if (jsFile.includes(`${sep}${relocatedComponentDirectory}${sep}`)) continue;
+    const source = readFileSync(jsFile, "utf8");
+    const rewritten = source
+      .replaceAll("../../components/qimen/", "../shared-components/qimen/")
+      .replaceAll("../../components/bazi/", "../shared-components/bazi/");
+    if (rewritten !== source) writeFileSync(jsFile, rewritten, "utf8");
+  }
+}
+
 function removeEmptyDirectories(directory) {
   if (!existsSync(directory) || !statSync(directory).isDirectory()) return;
   for (const name of readdirSync(directory)) {
