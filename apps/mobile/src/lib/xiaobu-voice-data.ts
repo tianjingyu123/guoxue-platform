@@ -5,7 +5,7 @@
  * 商业 API 未到位时，后端返回 available=false 与「暂未开放」；页面据此显示未开放态，不做假通话。
  * 模拟供应商（仅测试环境）返回 isMock=true，页面必须标注「模拟会话，非真实语音」。
  */
-import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost } from '@/utils/request'
 
 export type VoiceScene = 'plaza' | 'circle_assistant' | 'classic_companion' | 'report_dialogue' | 'content_guide'
 
@@ -145,8 +145,9 @@ export const xiaobuVoiceApi = {
   feedback(id: string, satisfaction: 'satisfied' | 'neutral' | 'unsatisfied'): Promise<VoiceSessionView> {
     return apiPost(`/voice/sessions/${encodeURIComponent(id)}/feedback`, { satisfaction })
   },
+  /** 分页接口：服务端响应拦截器会把分页结构拆成 data + pagination，必须用 apiGetPaged 读 */
   list(page = 1): Promise<{ total: number; page: number; pageSize: number; items: VoiceSessionView[] }> {
-    return apiGet(`/voice/sessions?page=${page}&pageSize=20`)
+    return apiGetPaged<VoiceSessionView>(`/voice/sessions?page=${page}&pageSize=20`)
   },
   devices(): Promise<VoiceDeviceView[]> {
     return apiGet('/voice/devices')

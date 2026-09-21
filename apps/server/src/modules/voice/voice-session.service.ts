@@ -426,7 +426,8 @@ export class VoiceSessionService {
   /** 用户满意度：只记录用户主动反馈，不从时长或行为推断 */
   async feedback(userId: string, sessionId: string, satisfaction: "satisfied" | "neutral" | "unsatisfied") {
     const s = await this.ownSession(userId, sessionId);
-    if (!["ended", "failed", "cancelled"].includes(s.status)) {
+    // 用户挂断后（ending：等供应商回传时长）即可评价；评价与用量收尾互不影响
+    if (!["ending", "ended", "failed", "cancelled"].includes(s.status)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "通话结束后才能评价");
     }
     const updated = await this.prisma.voiceSession.update({ where: { id: s.id }, data: { userSatisfaction: satisfaction } });
