@@ -1,0 +1,2654 @@
+{
+ "version": "variant-map-1",
+ "note": "变体 -> 标准繁体；归一后再走 OpenCC 繁简转换。生成脚本 apps/server/scripts/build-variant-map.py",
+ "sources": {
+  "opencc": "OpenCC ver.1.1.9 (Apache-2.0)",
+  "unihan": "Unicode Unihan Database (Unicode License v3)",
+  "sha256": {
+   "TSCharacters.txt": "6b5a0a799bea2bb22c001f635eaa3fc2904310f0c08addbff275477a80ecf09a",
+   "JPVariants.txt": "db09543db11ffd42a2556070f3d0a8e2c0168726463bd5f8d530f3e54a5afab8",
+   "JPShinjitaiCharacters.txt": "0078ee41ff026f1cf05e4382e835baa9349f46ad32cd7fcc83baf736a4ff9b09",
+   "TWVariants.txt": "30e6f8395edbfdd74e293fd8b9c62105d787c849fbb208d2a7832eac696734d7",
+   "HKVariants.txt": "c3c93c35885902ba2b12a3235a7761b00fb2b027f36aa8314db2f6b6ad51d374",
+   "Unihan_Variants.txt": "4ccfd34b08ac7b9c14353f6668ba43e3796d85c4cdce7952b635be16015aafa2",
+   "Unihan_OtherMappings.txt": "fc7bbb8f923fa1e922a4d421aa15387d1c68250cc5e7619bdf81f575ab38472b"
+  }
+ },
+ "excluded": {
+  "糸": "說文部首（mì，細絲），不是「絲」的日本新字体",
+  "睪": "獨立字（yì，伺視），不是「睾」",
+  "枱": "古籍中多為「耜」的異體，不是「檯」",
+  "県": "古籍中多為「懸」，不是「縣」",
+  "寉": "多為「鶴」，Unihan 給的「隺」不合古籍用法",
+  "豊": "真實數據兩義並存：豐（歲豊、豊州）與 禮器之豊（說文「从示从豊」）",
+  "遯": "卦名（天山遯），同「乾」按原字保留"
+ },
+ "entries": {
+  "㑹": {
+   "to": "會",
+   "src": [
+    "manual"
+   ]
+  },
+  "㓂": {
+   "to": "寇",
+   "src": [
+    "manual"
+   ]
+  },
+  "㓜": {
+   "to": "幼",
+   "src": [
+    "manual"
+   ]
+  },
+  "㕔": {
+   "to": "廳",
+   "src": [
+    "manual"
+   ]
+  },
+  "㕘": {
+   "to": "參",
+   "src": [
+    "manual"
+   ]
+  },
+  "㝠": {
+   "to": "冥",
+   "src": [
+    "manual"
+   ]
+  },
+  "㝷": {
+   "to": "尋",
+   "src": [
+    "manual"
+   ]
+  },
+  "㡬": {
+   "to": "幾",
+   "src": [
+    "manual"
+   ]
+  },
+  "㢘": {
+   "to": "廉",
+   "src": [
+    "manual"
+   ]
+  },
+  "㣲": {
+   "to": "微",
+   "src": [
+    "manual"
+   ]
+  },
+  "㦸": {
+   "to": "戟",
+   "src": [
+    "manual"
+   ]
+  },
+  "㧞": {
+   "to": "拔",
+   "src": [
+    "manual"
+   ]
+  },
+  "㨗": {
+   "to": "捷",
+   "src": [
+    "manual"
+   ]
+  },
+  "㪚": {
+   "to": "散",
+   "src": [
+    "manual"
+   ]
+  },
+  "㫁": {
+   "to": "斷",
+   "src": [
+    "manual"
+   ]
+  },
+  "㫖": {
+   "to": "旨",
+   "src": [
+    "manual"
+   ]
+  },
+  "㱕": {
+   "to": "歸",
+   "src": [
+    "manual"
+   ]
+  },
+  "㳺": {
+   "to": "游",
+   "src": [
+    "manual"
+   ]
+  },
+  "㸃": {
+   "to": "點",
+   "src": [
+    "manual"
+   ]
+  },
+  "㸔": {
+   "to": "看",
+   "src": [
+    "manual"
+   ]
+  },
+  "䇿": {
+   "to": "策",
+   "src": [
+    "manual"
+   ]
+  },
+  "䏻": {
+   "to": "能",
+   "src": [
+    "manual"
+   ]
+  },
+  "䑓": {
+   "to": "臺",
+   "src": [
+    "manual"
+   ]
+  },
+  "䑕": {
+   "to": "鼠",
+   "src": [
+    "manual"
+   ]
+  },
+  "䕃": {
+   "to": "蔭",
+   "src": [
+    "manual"
+   ]
+  },
+  "䕫": {
+   "to": "夔",
+   "src": [
+    "manual"
+   ]
+  },
+  "䕶": {
+   "to": "護",
+   "src": [
+    "manual"
+   ]
+  },
+  "䖍": {
+   "to": "虔",
+   "src": [
+    "manual"
+   ]
+  },
+  "䖏": {
+   "to": "處",
+   "src": [
+    "manual"
+   ]
+  },
+  "䘏": {
+   "to": "恤",
+   "src": [
+    "manual"
+   ]
+  },
+  "䘮": {
+   "to": "喪",
+   "src": [
+    "manual"
+   ]
+  },
+  "䝉": {
+   "to": "蒙",
+   "src": [
+    "manual"
+   ]
+  },
+  "䟦": {
+   "to": "跋",
+   "src": [
+    "manual"
+   ]
+  },
+  "䟽": {
+   "to": "疏",
+   "src": [
+    "manual"
+   ]
+  },
+  "䧟": {
+   "to": "陷",
+   "src": [
+    "manual"
+   ]
+  },
+  "䭾": {
+   "to": "馱",
+   "src": [
+    "manual"
+   ]
+  },
+  "丗": {
+   "to": "世",
+   "src": [
+    "manual"
+   ]
+  },
+  "両": {
+   "to": "兩",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "乆": {
+   "to": "久",
+   "src": [
+    "manual"
+   ]
+  },
+  "乗": {
+   "to": "乘",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "亀": {
+   "to": "龜",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "亜": {
+   "to": "亞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "亷": {
+   "to": "廉",
+   "src": [
+    "manual"
+   ]
+  },
+  "仏": {
+   "to": "佛",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "仮": {
+   "to": "假",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "伝": {
+   "to": "傳",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "価": {
+   "to": "價",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "倂": {
+   "to": "併",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "倣": {
+   "to": "仿",
+   "src": [
+    "manual"
+   ]
+  },
+  "値": {
+   "to": "值",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "倹": {
+   "to": "儉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "偹": {
+   "to": "備",
+   "src": [
+    "manual"
+   ]
+  },
+  "僣": {
+   "to": "僭",
+   "src": [
+    "manual"
+   ]
+  },
+  "兊": {
+   "to": "兌",
+   "src": [
+    "manual"
+   ]
+  },
+  "兎": {
+   "to": "兔",
+   "src": [
+    "manual"
+   ]
+  },
+  "児": {
+   "to": "兒",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "円": {
+   "to": "圓",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "冐": {
+   "to": "冒",
+   "src": [
+    "manual"
+   ]
+  },
+  "冝": {
+   "to": "宜",
+   "src": [
+    "manual"
+   ]
+  },
+  "冦": {
+   "to": "寇",
+   "src": [
+    "manual"
+   ]
+  },
+  "冩": {
+   "to": "寫",
+   "src": [
+    "manual"
+   ]
+  },
+  "凖": {
+   "to": "準",
+   "src": [
+    "manual"
+   ]
+  },
+  "凢": {
+   "to": "凡",
+   "src": [
+    "manual"
+   ]
+  },
+  "処": {
+   "to": "處",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "刋": {
+   "to": "刊",
+   "src": [
+    "manual"
+   ]
+  },
+  "刼": {
+   "to": "劫",
+   "src": [
+    "manual"
+   ]
+  },
+  "剣": {
+   "to": "劍",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "剤": {
+   "to": "劑",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "剰": {
+   "to": "剩",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "劒": {
+   "to": "劍",
+   "src": [
+    "manual"
+   ]
+  },
+  "労": {
+   "to": "勞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "効": {
+   "to": "效",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "勅": {
+   "to": "敕",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "勦": {
+   "to": "剿",
+   "src": [
+    "manual"
+   ]
+  },
+  "勧": {
+   "to": "勸",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "勲": {
+   "to": "勳",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "単": {
+   "to": "單",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "厐": {
+   "to": "龐",
+   "src": [
+    "manual"
+   ]
+  },
+  "厯": {
+   "to": "歷",
+   "src": [
+    "manual"
+   ]
+  },
+  "厰": {
+   "to": "廠",
+   "src": [
+    "manual"
+   ]
+  },
+  "厳": {
+   "to": "嚴",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "叅": {
+   "to": "參",
+   "src": [
+    "manual"
+   ]
+  },
+  "収": {
+   "to": "收",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "呉": {
+   "to": "吳",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "呌": {
+   "to": "叫",
+   "src": [
+    "manual"
+   ]
+  },
+  "呪": {
+   "to": "咒",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "唖": {
+   "to": "啞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "営": {
+   "to": "營",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "噉": {
+   "to": "啖",
+   "src": [
+    "manual"
+   ]
+  },
+  "噐": {
+   "to": "器",
+   "src": [
+    "manual"
+   ]
+  },
+  "噛": {
+   "to": "嚙",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "囘": {
+   "to": "回",
+   "src": [
+    "manual"
+   ]
+  },
+  "団": {
+   "to": "團",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "囬": {
+   "to": "回",
+   "src": [
+    "manual"
+   ]
+  },
+  "囲": {
+   "to": "圍",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "図": {
+   "to": "圖",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "圏": {
+   "to": "圈",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "圗": {
+   "to": "圖",
+   "src": [
+    "manual"
+   ]
+  },
+  "圧": {
+   "to": "壓",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "塁": {
+   "to": "壘",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "塟": {
+   "to": "葬",
+   "src": [
+    "manual"
+   ]
+  },
+  "塡": {
+   "to": "填",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "塩": {
+   "to": "鹽",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "塲": {
+   "to": "場",
+   "src": [
+    "manual"
+   ]
+  },
+  "増": {
+   "to": "增",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "壊": {
+   "to": "壞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "壌": {
+   "to": "壤",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "壱": {
+   "to": "壹",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "売": {
+   "to": "賣",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "壻": {
+   "to": "婿",
+   "src": [
+    "manual"
+   ]
+  },
+  "夀": {
+   "to": "壽",
+   "src": [
+    "manual"
+   ]
+  },
+  "変": {
+   "to": "變",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "夘": {
+   "to": "卯",
+   "src": [
+    "manual"
+   ]
+  },
+  "夣": {
+   "to": "夢",
+   "src": [
+    "manual"
+   ]
+  },
+  "奨": {
+   "to": "奬",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "妬": {
+   "to": "妒",
+   "src": [
+    "manual"
+   ]
+  },
+  "姪": {
+   "to": "侄",
+   "src": [
+    "manual"
+   ]
+  },
+  "娯": {
+   "to": "娛",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "婬": {
+   "to": "淫",
+   "src": [
+    "manual"
+   ]
+  },
+  "媿": {
+   "to": "愧",
+   "src": [
+    "manual"
+   ]
+  },
+  "嬢": {
+   "to": "孃",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "実": {
+   "to": "實",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "宻": {
+   "to": "密",
+   "src": [
+    "manual"
+   ]
+  },
+  "寃": {
+   "to": "冤",
+   "src": [
+    "manual"
+   ]
+  },
+  "寕": {
+   "to": "寧",
+   "src": [
+    "manual"
+   ]
+  },
+  "寖": {
+   "to": "浸",
+   "src": [
+    "manual"
+   ]
+  },
+  "寛": {
+   "to": "寬",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "寜": {
+   "to": "寧",
+   "src": [
+    "manual"
+   ]
+  },
+  "寳": {
+   "to": "寶",
+   "src": [
+    "manual"
+   ]
+  },
+  "対": {
+   "to": "對",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "専": {
+   "to": "專",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "尅": {
+   "to": "剋",
+   "src": [
+    "manual"
+   ]
+  },
+  "岀": {
+   "to": "出",
+   "src": [
+    "manual"
+   ]
+  },
+  "峩": {
+   "to": "峨",
+   "src": [
+    "manual"
+   ]
+  },
+  "巌": {
+   "to": "巖",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "巣": {
+   "to": "巢",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "巻": {
+   "to": "卷",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "帯": {
+   "to": "帶",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "帰": {
+   "to": "歸",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "帲": {
+   "to": "帡",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "庁": {
+   "to": "廳",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "広": {
+   "to": "廣",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "庻": {
+   "to": "庶",
+   "src": [
+    "manual"
+   ]
+  },
+  "廃": {
+   "to": "廢",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "廵": {
+   "to": "巡",
+   "src": [
+    "manual"
+   ]
+  },
+  "廹": {
+   "to": "迫",
+   "src": [
+    "manual"
+   ]
+  },
+  "廻": {
+   "to": "迴",
+   "src": [
+    "manual"
+   ]
+  },
+  "廼": {
+   "to": "乃",
+   "src": [
+    "manual"
+   ]
+  },
+  "弐": {
+   "to": "貳",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "弾": {
+   "to": "彈",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "彚": {
+   "to": "彙",
+   "src": [
+    "manual"
+   ]
+  },
+  "彛": {
+   "to": "彝",
+   "src": [
+    "manual"
+   ]
+  },
+  "徃": {
+   "to": "往",
+   "src": [
+    "manual"
+   ]
+  },
+  "従": {
+   "to": "從",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "徧": {
+   "to": "遍",
+   "src": [
+    "manual"
+   ]
+  },
+  "徳": {
+   "to": "德",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "徴": {
+   "to": "徵",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "応": {
+   "to": "應",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "恊": {
+   "to": "協",
+   "src": [
+    "manual"
+   ]
+  },
+  "恱": {
+   "to": "悅",
+   "src": [
+    "manual"
+   ]
+  },
+  "恵": {
+   "to": "惠",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "悩": {
+   "to": "惱",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "悪": {
+   "to": "惡",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "悮": {
+   "to": "誤",
+   "src": [
+    "manual"
+   ]
+  },
+  "愼": {
+   "to": "慎",
+   "src": [
+    "manual"
+   ]
+  },
+  "慙": {
+   "to": "慚",
+   "src": [
+    "manual"
+   ]
+  },
+  "慿": {
+   "to": "憑",
+   "src": [
+    "manual"
+   ]
+  },
+  "憍": {
+   "to": "驕",
+   "src": [
+    "manual"
+   ]
+  },
+  "懃": {
+   "to": "勤",
+   "src": [
+    "manual"
+   ]
+  },
+  "懐": {
+   "to": "懷",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "戦": {
+   "to": "戰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "戯": {
+   "to": "戲",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "戸": {
+   "to": "戶",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "戻": {
+   "to": "戾",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "払": {
+   "to": "拂",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "扵": {
+   "to": "於",
+   "src": [
+    "manual"
+   ]
+  },
+  "抜": {
+   "to": "拔",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "択": {
+   "to": "擇",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "拏": {
+   "to": "拿",
+   "src": [
+    "manual"
+   ]
+  },
+  "拝": {
+   "to": "拜",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "拠": {
+   "to": "據",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "拡": {
+   "to": "擴",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "挙": {
+   "to": "舉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "挿": {
+   "to": "插",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "捜": {
+   "to": "搜",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "掲": {
+   "to": "揭",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "掻": {
+   "to": "搔",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "揷": {
+   "to": "插",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "揺": {
+   "to": "搖",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "摂": {
+   "to": "攝",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "撃": {
+   "to": "擊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "撹": {
+   "to": "攪",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "攷": {
+   "to": "考",
+   "src": [
+    "manual"
+   ]
+  },
+  "敍": {
+   "to": "敘",
+   "src": [
+    "opencc:HKVariants.txt"
+   ]
+  },
+  "斉": {
+   "to": "齊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "斎": {
+   "to": "齋",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "昬": {
+   "to": "昏",
+   "src": [
+    "manual"
+   ]
+  },
+  "昻": {
+   "to": "昂",
+   "src": [
+    "manual"
+   ]
+  },
+  "晩": {
+   "to": "晚",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "暁": {
+   "to": "曉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "暦": {
+   "to": "曆",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "曁": {
+   "to": "暨",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "曽": {
+   "to": "曾",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "朶": {
+   "to": "朵",
+   "src": [
+    "manual"
+   ]
+  },
+  "栁": {
+   "to": "柳",
+   "src": [
+    "manual"
+   ]
+  },
+  "栄": {
+   "to": "榮",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "栢": {
+   "to": "柏",
+   "src": [
+    "manual"
+   ]
+  },
+  "桜": {
+   "to": "櫻",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "桞": {
+   "to": "柳",
+   "src": [
+    "manual"
+   ]
+  },
+  "桟": {
+   "to": "棧",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "検": {
+   "to": "檢",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "楡": {
+   "to": "榆",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "楽": {
+   "to": "樂",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "槀": {
+   "to": "槁",
+   "src": [
+    "manual"
+   ]
+  },
+  "槖": {
+   "to": "橐",
+   "src": [
+    "manual"
+   ]
+  },
+  "様": {
+   "to": "樣",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "槩": {
+   "to": "概",
+   "src": [
+    "manual"
+   ]
+  },
+  "権": {
+   "to": "權",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "欝": {
+   "to": "鬱",
+   "src": [
+    "manual"
+   ]
+  },
+  "欵": {
+   "to": "款",
+   "src": [
+    "manual"
+   ]
+  },
+  "歓": {
+   "to": "歡",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "歛": {
+   "to": "斂",
+   "src": [
+    "manual"
+   ]
+  },
+  "歩": {
+   "to": "步",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "歯": {
+   "to": "齒",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "歳": {
+   "to": "歲",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "歴": {
+   "to": "歷",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "毎": {
+   "to": "每",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "毘": {
+   "to": "毗",
+   "src": [
+    "manual"
+   ]
+  },
+  "気": {
+   "to": "氣",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "氷": {
+   "to": "冰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "汚": {
+   "to": "污",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "沢": {
+   "to": "澤",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "浄": {
+   "to": "淨",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "涙": {
+   "to": "淚",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "淸": {
+   "to": "清",
+   "src": [
+    "manual"
+   ]
+  },
+  "渇": {
+   "to": "渴",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "済": {
+   "to": "濟",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "渉": {
+   "to": "涉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "渋": {
+   "to": "澀",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "渓": {
+   "to": "溪",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "満": {
+   "to": "滿",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "溌": {
+   "to": "潑",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "滝": {
+   "to": "瀧",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "澁": {
+   "to": "澀",
+   "src": [
+    "manual"
+   ]
+  },
+  "濇": {
+   "to": "澀",
+   "src": [
+    "manual"
+   ]
+  },
+  "濵": {
+   "to": "濱",
+   "src": [
+    "manual"
+   ]
+  },
+  "濶": {
+   "to": "闊",
+   "src": [
+    "manual"
+   ]
+  },
+  "瀬": {
+   "to": "瀨",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "焔": {
+   "to": "焰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "焼": {
+   "to": "燒",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "煑": {
+   "to": "煮",
+   "src": [
+    "manual"
+   ]
+  },
+  "煖": {
+   "to": "暖",
+   "src": [
+    "manual"
+   ]
+  },
+  "熈": {
+   "to": "熙",
+   "src": [
+    "manual"
+   ]
+  },
+  "牋": {
+   "to": "箋",
+   "src": [
+    "manual"
+   ]
+  },
+  "牕": {
+   "to": "窗",
+   "src": [
+    "manual"
+   ]
+  },
+  "犂": {
+   "to": "犁",
+   "src": [
+    "manual"
+   ]
+  },
+  "犠": {
+   "to": "犧",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "狥": {
+   "to": "徇",
+   "src": [
+    "manual"
+   ]
+  },
+  "猟": {
+   "to": "獵",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "獣": {
+   "to": "獸",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "玅": {
+   "to": "妙",
+   "src": [
+    "manual"
+   ]
+  },
+  "瓌": {
+   "to": "瑰",
+   "src": [
+    "manual"
+   ]
+  },
+  "甞": {
+   "to": "嘗",
+   "src": [
+    "manual"
+   ]
+  },
+  "畆": {
+   "to": "畝",
+   "src": [
+    "manual"
+   ]
+  },
+  "畧": {
+   "to": "略",
+   "src": [
+    "manual"
+   ]
+  },
+  "畨": {
+   "to": "番",
+   "src": [
+    "manual"
+   ]
+  },
+  "畱": {
+   "to": "留",
+   "src": [
+    "manual"
+   ]
+  },
+  "畳": {
+   "to": "疊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "疎": {
+   "to": "疏",
+   "src": [
+    "manual"
+   ]
+  },
+  "痩": {
+   "to": "瘦",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "痺": {
+   "to": "痹",
+   "src": [
+    "opencc:JPVariants.txt",
+    "opencc:TWVariants.txt"
+   ]
+  },
+  "発": {
+   "to": "發",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "皐": {
+   "to": "皋",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "皷": {
+   "to": "鼓",
+   "src": [
+    "manual"
+   ]
+  },
+  "眀": {
+   "to": "明",
+   "src": [
+    "manual"
+   ]
+  },
+  "砕": {
+   "to": "碎",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "砲": {
+   "to": "炮",
+   "src": [
+    "manual"
+   ]
+  },
+  "硏": {
+   "to": "研",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "稲": {
+   "to": "稻",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "穂": {
+   "to": "穗",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "穏": {
+   "to": "穩",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "穣": {
+   "to": "穰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "窓": {
+   "to": "窗",
+   "src": [
+    "manual"
+   ]
+  },
+  "窻": {
+   "to": "窗",
+   "src": [
+    "manual"
+   ]
+  },
+  "竃": {
+   "to": "竈",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "竒": {
+   "to": "奇",
+   "src": [
+    "manual"
+   ]
+  },
+  "竜": {
+   "to": "龍",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "竝": {
+   "to": "並",
+   "src": [
+    "manual"
+   ]
+  },
+  "筭": {
+   "to": "算",
+   "src": [
+    "manual"
+   ]
+  },
+  "簒": {
+   "to": "篡",
+   "src": [
+    "manual"
+   ]
+  },
+  "簷": {
+   "to": "檐",
+   "src": [
+    "opencc:TWVariants.txt"
+   ]
+  },
+  "籖": {
+   "to": "籤",
+   "src": [
+    "manual"
+   ]
+  },
+  "粋": {
+   "to": "粹",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "粛": {
+   "to": "肅",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "粧": {
+   "to": "妝",
+   "src": [
+    "opencc:HKVariants.txt",
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "糓": {
+   "to": "穀",
+   "src": [
+    "manual"
+   ]
+  },
+  "糭": {
+   "to": "糉",
+   "src": [
+    "opencc:HKVariants.txt"
+   ]
+  },
+  "経": {
+   "to": "經",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "絵": {
+   "to": "繪",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "継": {
+   "to": "繼",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "続": {
+   "to": "續",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "総": {
+   "to": "總",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "緖": {
+   "to": "緒",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "緫": {
+   "to": "總",
+   "src": [
+    "manual"
+   ]
+  },
+  "縁": {
+   "to": "緣",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "縄": {
+   "to": "繩",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "縦": {
+   "to": "縱",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "繊": {
+   "to": "纖",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "繋": {
+   "to": "繫",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "繍": {
+   "to": "繡",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "纎": {
+   "to": "纖",
+   "src": [
+    "manual"
+   ]
+  },
+  "纒": {
+   "to": "纏",
+   "src": [
+    "manual"
+   ]
+  },
+  "羙": {
+   "to": "美",
+   "src": [
+    "manual"
+   ]
+  },
+  "羮": {
+   "to": "羹",
+   "src": [
+    "manual"
+   ]
+  },
+  "聡": {
+   "to": "聰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "聨": {
+   "to": "聯",
+   "src": [
+    "manual"
+   ]
+  },
+  "聴": {
+   "to": "聽",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "聼": {
+   "to": "聽",
+   "src": [
+    "manual"
+   ]
+  },
+  "胷": {
+   "to": "胸",
+   "src": [
+    "manual"
+   ]
+  },
+  "脇": {
+   "to": "脅",
+   "src": [
+    "manual"
+   ]
+  },
+  "脳": {
+   "to": "腦",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "腁": {
+   "to": "胼",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "臓": {
+   "to": "臟",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "臯": {
+   "to": "皋",
+   "src": [
+    "manual"
+   ]
+  },
+  "舎": {
+   "to": "舍",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "舗": {
+   "to": "鋪",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "舩": {
+   "to": "船",
+   "src": [
+    "manual"
+   ]
+  },
+  "艸": {
+   "to": "草",
+   "src": [
+    "manual"
+   ]
+  },
+  "苿": {
+   "to": "茉",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "茍": {
+   "to": "苟",
+   "src": [
+    "manual"
+   ]
+  },
+  "茘": {
+   "to": "荔",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "荅": {
+   "to": "答",
+   "src": [
+    "manual"
+   ]
+  },
+  "荘": {
+   "to": "莊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "葢": {
+   "to": "蓋",
+   "src": [
+    "manual"
+   ]
+  },
+  "蔲": {
+   "to": "蔻",
+   "src": [
+    "manual"
+   ]
+  },
+  "蔵": {
+   "to": "藏",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "薫": {
+   "to": "薰",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "薬": {
+   "to": "藥",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "蘓": {
+   "to": "蘇",
+   "src": [
+    "manual"
+   ]
+  },
+  "虗": {
+   "to": "虛",
+   "src": [
+    "manual"
+   ]
+  },
+  "蛍": {
+   "to": "螢",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "蝋": {
+   "to": "蠟",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "蠧": {
+   "to": "蠹",
+   "src": [
+    "manual"
+   ]
+  },
+  "衂": {
+   "to": "衄",
+   "src": [
+    "manual"
+   ]
+  },
+  "衇": {
+   "to": "脈",
+   "src": [
+    "manual"
+   ]
+  },
+  "衞": {
+   "to": "衛",
+   "src": [
+    "opencc:HKVariants.txt"
+   ]
+  },
+  "覇": {
+   "to": "霸",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "覔": {
+   "to": "覓",
+   "src": [
+    "manual"
+   ]
+  },
+  "覚": {
+   "to": "覺",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "覧": {
+   "to": "覽",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "覩": {
+   "to": "睹",
+   "src": [
+    "manual"
+   ]
+  },
+  "観": {
+   "to": "觀",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "觧": {
+   "to": "解",
+   "src": [
+    "manual"
+   ]
+  },
+  "訳": {
+   "to": "譯",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "読": {
+   "to": "讀",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "諌": {
+   "to": "諫",
+   "src": [
+    "manual"
+   ]
+  },
+  "譲": {
+   "to": "讓",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "讐": {
+   "to": "讎",
+   "src": [
+    "manual"
+   ]
+  },
+  "賔": {
+   "to": "賓",
+   "src": [
+    "manual"
+   ]
+  },
+  "賛": {
+   "to": "贊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "趂": {
+   "to": "趁",
+   "src": [
+    "manual"
+   ]
+  },
+  "跥": {
+   "to": "跺",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "踈": {
+   "to": "疏",
+   "src": [
+    "manual"
+   ]
+  },
+  "躱": {
+   "to": "躲",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "転": {
+   "to": "轉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "軰": {
+   "to": "輩",
+   "src": [
+    "manual"
+   ]
+  },
+  "軽": {
+   "to": "輕",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "輌": {
+   "to": "輛",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "輙": {
+   "to": "輒",
+   "src": [
+    "manual"
+   ]
+  },
+  "辺": {
+   "to": "邊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "逈": {
+   "to": "迥",
+   "src": [
+    "manual"
+   ]
+  },
+  "逓": {
+   "to": "遞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "逰": {
+   "to": "遊",
+   "src": [
+    "manual"
+   ]
+  },
+  "逹": {
+   "to": "達",
+   "src": [
+    "manual"
+   ]
+  },
+  "逺": {
+   "to": "遠",
+   "src": [
+    "manual"
+   ]
+  },
+  "遅": {
+   "to": "遲",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "遶": {
+   "to": "繞",
+   "src": [
+    "manual"
+   ]
+  },
+  "邉": {
+   "to": "邊",
+   "src": [
+    "manual"
+   ]
+  },
+  "郞": {
+   "to": "郎",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "郷": {
+   "to": "鄉",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "鄕": {
+   "to": "鄉",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "酔": {
+   "to": "醉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "醗": {
+   "to": "醱",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "醤": {
+   "to": "醬",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "醸": {
+   "to": "釀",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "釈": {
+   "to": "釋",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鉄": {
+   "to": "鐵",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "銭": {
+   "to": "錢",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鋳": {
+   "to": "鑄",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "錬": {
+   "to": "鍊",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鐡": {
+   "to": "鐵",
+   "src": [
+    "manual"
+   ]
+  },
+  "関": {
+   "to": "關",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "闗": {
+   "to": "關",
+   "src": [
+    "manual"
+   ]
+  },
+  "闘": {
+   "to": "鬥",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "陁": {
+   "to": "陀",
+   "src": [
+    "manual"
+   ]
+  },
+  "陥": {
+   "to": "陷",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "険": {
+   "to": "險",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "隂": {
+   "to": "陰",
+   "src": [
+    "manual"
+   ]
+  },
+  "隄": {
+   "to": "堤",
+   "src": [
+    "manual"
+   ]
+  },
+  "隠": {
+   "to": "隱",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "隣": {
+   "to": "鄰",
+   "src": [
+    "manual"
+   ]
+  },
+  "隷": {
+   "to": "隸",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "雑": {
+   "to": "雜",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "霊": {
+   "to": "靈",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "靑": {
+   "to": "青",
+   "src": [
+    "manual"
+   ]
+  },
+  "靣": {
+   "to": "面",
+   "src": [
+    "manual"
+   ]
+  },
+  "頥": {
+   "to": "頤",
+   "src": [
+    "manual"
+   ]
+  },
+  "頼": {
+   "to": "賴",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "顕": {
+   "to": "顯",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "颕": {
+   "to": "穎",
+   "src": [
+    "manual"
+   ]
+  },
+  "飬": {
+   "to": "養",
+   "src": [
+    "manual"
+   ]
+  },
+  "飮": {
+   "to": "飲",
+   "src": [
+    "unihan:kZVariant"
+   ]
+  },
+  "駅": {
+   "to": "驛",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "駆": {
+   "to": "驅",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "騐": {
+   "to": "驗",
+   "src": [
+    "manual"
+   ]
+  },
+  "騒": {
+   "to": "騷",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "験": {
+   "to": "驗",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "髄": {
+   "to": "髓",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "髙": {
+   "to": "高",
+   "src": [
+    "manual"
+   ]
+  },
+  "髪": {
+   "to": "髮",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鬬": {
+   "to": "鬥",
+   "src": [
+    "manual"
+   ]
+  },
+  "鬭": {
+   "to": "鬥",
+   "src": [
+    "manual"
+   ]
+  },
+  "鳯": {
+   "to": "鳳",
+   "src": [
+    "manual"
+   ]
+  },
+  "鴈": {
+   "to": "雁",
+   "src": [
+    "manual"
+   ]
+  },
+  "鴎": {
+   "to": "鷗",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鶏": {
+   "to": "雞",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鹸": {
+   "to": "鹼",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "麁": {
+   "to": "粗",
+   "src": [
+    "manual"
+   ]
+  },
+  "麄": {
+   "to": "粗",
+   "src": [
+    "manual"
+   ]
+  },
+  "麤": {
+   "to": "粗",
+   "src": [
+    "manual"
+   ]
+  },
+  "麺": {
+   "to": "麪",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "黒": {
+   "to": "黑",
+   "src": [
+    "opencc:JPVariants.txt",
+    "unihan:kZVariant"
+   ]
+  },
+  "黙": {
+   "to": "默",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鼈": {
+   "to": "鱉",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  },
+  "鼔": {
+   "to": "鼓",
+   "src": [
+    "manual"
+   ]
+  },
+  "齢": {
+   "to": "齡",
+   "src": [
+    "opencc:JPVariants.txt"
+   ]
+  }
+ }
+}

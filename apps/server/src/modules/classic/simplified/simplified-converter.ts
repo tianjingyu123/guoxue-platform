@@ -1,4 +1,5 @@
 import dict from "./opencc-ts-1.1.9.json";
+import variantMap from "./variant-map-1.json";
 
 /**
  * 古籍简体阅读版转换（S03）：确定性、可复核、不改底本。
@@ -7,6 +8,11 @@ import dict from "./opencc-ts-1.1.9.json";
  * 以数据文件形式入库，不新增 npm 依赖（锁文件由多个窗口共用，避免单写者冲突）。
  *
  * 规则（按优先级）：
+ * 0. 异体字先归一到标准繁体（variant-map-1.json：OpenCC 地区/日本变体表反向 + Unihan kZVariant 自动收录，
+ *    外加按真实数据高频残留人工核定的一批，如 隂→陰、逺→遠、扵→於、徳→德、増→增）；
+ *    规范字、本身是独立古汉字的（糸、睪、豊…）、卦名（遯）一律不动，生成规则见 scripts/build-variant-map.py。
+ *    归一后再走下面的规则，所以「宫商角徴羽」先成「徵」再被词组表保护；
+ *    OpenCC 字表本身产出的个别非规范字（頴→颕）在输出侧再归一一次
  * 1. 词组优先（最长匹配）：如「乾隆」「乾坤」按词组转换，不拆字
  * 2. 平台保留字：多候选字里有古籍/易学专义的，**保留原字**并记录位置待复核，不盲目替换
  *    - 乾：OpenCC 词组表已含乾卦/乾元/乾道/乾坤等 26 条，但词组之外的单字「乾」
@@ -19,7 +25,7 @@ import dict from "./opencc-ts-1.1.9.json";
  * 5. 字表里没有的字（罕见字、私用区字、符号）一律不动
  */
 
-export const SIMPLIFIED_POLICY_VERSION = "t2s-opencc-1.1.9-policy-1";
+export const SIMPLIFIED_POLICY_VERSION = "t2s-opencc-1.1.9-policy-2"; // policy-2：加入异体字归一
 
 /** 平台保留：遇到这些字（且不在已匹配词组内）时保留原字 */
 export const KEEP_ORIGINAL: Record<string, string> = {
@@ -45,6 +51,14 @@ for (const [k, v] of Object.entries(D.chars)) {
   // 码点与 UTF-16 长度都相等才收：段落偏移用的是 JS 字符串下标
   if (target && Array.from(k).length === 1 && Array.from(target).length === 1 && k.length === target.length) CHAR_MAP.set(k, target);
 }
+type VariantMap = { version: string; entries: Record<string, { to: string; src: string[] }> };
+const V = variantMap as unknown as VariantMap;
+const VARIANT = new Map<string, string>();
+for (const [k, e] of Object.entries(V.entries)) {
+  // 同样只收码点与 UTF-16 长度都相等的
+  if (Array.from(k).length === 1 && Array.from(e.to).length === 1 && k.length === e.to.length) VARIANT.set(k, e.to);
+}
+
 const AMBIGUOUS = new Set(Object.entries(D.chars).filter(([, v]) => v.length > 1).map(([k]) => k));
 
 const PHRASES = new Map<string, string[]>();
@@ -64,15 +78,23 @@ export interface SimplifiedResult {
   /** 保留原字待复核的位置（码点下标） */
   keptAmbiguous: Array<{ index: number; char: string; reason: string }>;
   changedCount: number;
+  /** 其中经异体字归一的字数 */
+  variantCount: number;
   policyVersion: string;
   dictVersion: string;
 }
 
 export function toSimplified(input: string): SimplifiedResult {
-  const src = Array.from(input);
+  const orig = Array.from(input);
+  // 先把异体字归一到标准繁体，后续词组/保留/单字规则都在归一后的字上判断
+  let variantCount = 0;
+  const src = orig.map((c) => {
+    const t = VARIANT.get(c);
+    if (t) variantCount++;
+    return t ?? c;
+  });
   const out: string[] = new Array(src.length);
   const kept: SimplifiedResult["keptAmbiguous"] = [];
-  let changed = 0;
 
   let i = 0;
   while (i < src.length) {
@@ -81,10 +103,7 @@ export function toSimplified(input: string): SimplifiedResult {
       const key = src.slice(i, i + len).join("");
       const hit = PHRASES.get(key);
       if (hit) {
-        for (let j = 0; j < len; j++) {
-          out[i + j] = hit[j];
-          if (hit[j] !== src[i + j]) changed++;
-        }
+        for (let j = 0; j < len; j++) out[i + j] = hit[j];
         i += len;
         matched = true;
         break;
@@ -96,30 +115,44 @@ export function toSimplified(input: string): SimplifiedResult {
     const fixed = FIXED_TARGET[ch];
     if (fixed && fixed.to.length === ch.length) {
       out[i] = fixed.to;
-      changed++;
     } else if (KEEP_ORIGINAL[ch]) {
       out[i] = ch;
       kept.push({ index: i, char: ch, reason: KEEP_ORIGINAL[ch] });
     } else {
-      const t = CHAR_MAP.get(ch);
-      out[i] = t ?? ch;
-      if (t && t !== ch) changed++;
+      out[i] = CHAR_MAP.get(ch) ?? ch;
     }
     i++;
   }
+  // OpenCC 字表本身会产出个别非规范字（如 頴→颕），输出侧再归一一次
+  for (let j = 0; j < out.length; j++) {
+    const t = VARIANT.get(out[j]);
+    if (t) {
+      out[j] = CHAR_MAP.get(t) ?? t;
+      if (src[j] === orig[j]) variantCount++;
+    }
+  }
   const text = out.join("");
+  let changed = 0;
+  for (let j = 0; j < orig.length; j++) if (out[j] !== orig[j]) changed++;
   return {
     text,
-    sameLength: Array.from(text).length === src.length && text.length === input.length,
+    sameLength: Array.from(text).length === orig.length && text.length === input.length,
     keptAmbiguous: kept,
     changedCount: changed,
+    variantCount,
     policyVersion: SIMPLIFIED_POLICY_VERSION,
     dictVersion: D.version,
   };
 }
 
 /** 词典完整性：入库文件的来源校验和，供测试与运维核对 */
-export const SIMPLIFIED_DICT_META = { version: D.version, sha256: D.sha256, ambiguousChars: AMBIGUOUS.size };
+export const SIMPLIFIED_DICT_META = {
+  version: D.version,
+  sha256: D.sha256,
+  ambiguousChars: AMBIGUOUS.size,
+  variantVersion: V.version,
+  variantEntries: VARIANT.size,
+};
 
 /**
  * 把简体版上的码点区间映射回原文：等长转换下就是同一区间，

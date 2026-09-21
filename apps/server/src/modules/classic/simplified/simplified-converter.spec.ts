@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { KEEP_ORIGINAL, SIMPLIFIED_DICT_META, mapRangeToOriginal, toSimplified } from "./simplified-converter";
 import dict from "./opencc-ts-1.1.9.json";
+import variantMap from "./variant-map-1.json";
 
 describe("古籍简体阅读版转换", () => {
   it("卦名「乾」不被改成「干」；词组「乾隆」「乾坤」「乾元」按词组处理；「乾淨」按词组转「干净」", () => {
@@ -87,5 +88,65 @@ describe("古籍简体阅读版转换", () => {
     const lic = fs.readFileSync(path.join(__dirname, "OPENCC-LICENSE.txt"), "utf8");
     expect(lic).toMatch(/Apache License/);
     expect(createHash("sha256").update(JSON.stringify((dict as any).chars)).digest("hex")).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  describe("异体字归一（variant-map-1）", () => {
+    const V = variantMap as any;
+    const entries = Object.entries(V.entries) as [string, { to: string; src: string[] }][];
+    const tsChars = (dict as any).chars as Record<string, string[]>;
+
+    it("真实数据高频异体：先归一到标准繁体再转简体", () => {
+      expect(toSimplified("隂陽之氣，徳髙望重，逺近咸寕").text).toBe("阴阳之气，德高望重，远近咸宁");
+      expect(toSimplified("増損扵古厯，葢有由矣").text).toBe("增损于古历，盖有由矣");
+      const r = toSimplified("呉王毎歳巡郷");
+      expect(r.text).toBe("吴王每岁巡乡");
+      expect(r.variantCount).toBe(4); // 呉 毎 歳 郷
+      expect(r.changedCount).toBe(4); // 改动字数按最终结果与原字比较，王、巡 不变
+    });
+
+    it("归一在词组规则之前：「宫商角徴羽」的日本新字体「徴」也按五音保留为「徵」", () => {
+      expect(toSimplified("宮商角徴羽").text).toBe("宫商角徵羽");
+      expect(toSimplified("徴召").text).toBe("征召");
+    });
+
+    it("排除项与卦名不动：糸、睪、豊、遯 原样；规范字不被归一", () => {
+      expect(toSimplified("糸睪豊遯").text).toBe("糸睪豊遯");
+      for (const k of Object.keys(V.excluded)) expect(V.entries[k]).toBeUndefined();
+      // 规范字本身（如 余、台、芸、弁）从不作为变体键
+      for (const c of "余台芸弁欠缶虫予") expect(V.entries[c]).toBeUndefined();
+    });
+
+    it("全表枚举：每条等长、无链式、键不在繁简字表里、归一后结果与「目标字」转换一致", () => {
+      expect(entries.length).toBe(SIMPLIFIED_DICT_META.variantEntries);
+      for (const [k, e] of entries) {
+        expect(k.length).toBe(1);
+        expect(e.to.length).toBe(1);
+        expect(Array.from(k)).toHaveLength(1);
+        expect(V.entries[e.to]).toBeUndefined(); // 不链式
+        expect(tsChars[k]).toBeUndefined(); // 已由字表处理的不重复收
+        expect(e.src.length).toBeGreaterThan(0);
+        const r = toSimplified(k);
+        expect(r.text).toBe(toSimplified(e.to).text);
+        expect(r.text).not.toBe(k);
+        expect(r.variantCount).toBe(1);
+        expect(r.sameLength).toBe(true);
+      }
+    });
+
+    it("全字表/词组表枚举：OpenCC 的任何输出都不再含异体键（頴 经字表成「颕」后再归一为「颖」）", () => {
+      expect(toSimplified("頴川").text).toBe("颖川");
+      for (const k of [...Object.keys(tsChars), ...Object.keys((dict as any).phrases)]) {
+        for (const c of Array.from(toSimplified(k).text)) expect(V.entries[c]).toBeUndefined();
+      }
+    });
+
+    it("来源可核对：记录了 OpenCC 与 Unihan 数据文件校验和", () => {
+      expect(V.version).toBe(SIMPLIFIED_DICT_META.variantVersion);
+      for (const fn of ["TSCharacters.txt", "JPVariants.txt", "Unihan_Variants.txt", "Unihan_OtherMappings.txt"]) {
+        expect(V.sources.sha256[fn]).toMatch(/^[0-9a-f]{64}$/);
+      }
+      // 与繁简字表是同一份 OpenCC 数据
+      expect(V.sources.sha256["TSCharacters.txt"]).toBe(SIMPLIFIED_DICT_META.sha256["TSCharacters.txt"]);
+    });
   });
 });
