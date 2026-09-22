@@ -61,6 +61,23 @@ export interface VoiceDeviceView {
   voiceReady: boolean
   disabledReason: string | null
   updatedAt: string
+  /** 终端状态：设备平时不保持长连接，只有开机和对话时联系服务器，所以只有「最近联网」，没有实时在线 */
+  terminal?: { lastSeenAt: string | null; firmwareVersion: string | null; talking: boolean }
+}
+
+/** 「3 分钟前」「今天 14:05」「9月20日」：最近联网时间的口语化显示 */
+export function seenAgo(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return '还没有联网记录'
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return '还没有联网记录'
+  const diff = Math.max(0, now - t)
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  const d = new Date(t)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const sameDay = new Date(now).toDateString() === d.toDateString()
+  if (sameDay) return `今天 ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export interface DeviceHandoffView {

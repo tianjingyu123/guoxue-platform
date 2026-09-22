@@ -106,6 +106,37 @@ export class VoiceDeviceService {
     }
   }
 
+  /**
+   * 批量登记（出厂/入库）：每行一个序列号或 MAC，逐条登记、逐条回报结果，单条失败不影响其它。
+   * 回报里只给行号与末 4 位，不回显完整序列号。
+   */
+  async registerBatch(adminId: string, input: { serials: string[]; productSku: string; circleId?: string | null; agentProfileId?: string | null }) {
+    const lines = (input.serials || []).map((s) => String(s || "").trim()).filter(Boolean);
+    if (!lines.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "没有可登记的序列号");
+    if (lines.length > 500) throw new BusinessException(ErrorCode.BAD_REQUEST, "单次最多登记 500 台");
+    const seen = new Set<string>();
+    const results: { line: number; serialHint: string; ok: boolean; deviceId?: string; error?: string }[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const norm = normalizeDeviceSerial(lines[i]) ?? lines[i];
+      const hint = norm.slice(-4).toUpperCase();
+      if (seen.has(norm)) {
+        results.push({ line: i + 1, serialHint: hint, ok: false, error: "本批重复" });
+        continue;
+      }
+      seen.add(norm);
+      try {
+        const d = await this.register(adminId, { serial: lines[i], productSku: input.productSku, circleId: input.circleId, agentProfileId: input.agentProfileId });
+        results.push({ line: i + 1, serialHint: hint, ok: true, deviceId: d.id });
+      } catch (e: any) {
+        // 圈子不存在属于整批参数错误，直接中止
+        if (/圈子不存在/.test(e?.message || "")) throw e;
+        results.push({ line: i + 1, serialHint: hint, ok: false, error: e?.message || "登记失败" });
+      }
+    }
+    this.logger.log(`批量登记设备 by=${adminId} 共 ${lines.length} 行 成功 ${results.filter((r) => r.ok).length}`);
+    return { total: lines.length, succeeded: results.filter((r) => r.ok).length, results };
+  }
+
   /** 生成一次性绑定码（印在二维码里）。只对未绑定设备；明文只返回这一次 */
   async issueBindCode(deviceId: string) {
     const code = newCode();

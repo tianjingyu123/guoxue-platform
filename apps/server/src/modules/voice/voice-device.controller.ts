@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Optional, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from "class-validator";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -10,6 +10,7 @@ import { StrictThrottleGuard, ThrottleGuard } from "../../common/throttle.guard"
 import { VoiceDeviceService } from "./voice-device.service";
 import { VoiceSessionService } from "./voice-session.service";
 import { HANDOFF_SCENES, VoiceDeviceHandoffService } from "./voice-device-handoff.service";
+import { XiaozhiLinkService } from "./xiaozhi/xiaozhi-link.service";
 
 /** 场景接续：在 App 里选好场景，让硬件接着聊 */
 export class DeviceHandoffDto {
@@ -35,6 +36,12 @@ export class RegisterDeviceDto {
   @IsOptional() @IsString() @MaxLength(64) circleId?: string;
   @IsOptional() @IsString() @MaxLength(64) agentProfileId?: string;
 }
+export class RegisterDeviceBatchDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500) @IsString({ each: true }) @MaxLength(64, { each: true }) serials: string[];
+  @IsString() @MinLength(1) @MaxLength(64) productSku: string;
+  @IsOptional() @IsString() @MaxLength(64) circleId?: string;
+  @IsOptional() @IsString() @MaxLength(64) agentProfileId?: string;
+}
 export class DisableDeviceDto {
   @IsString() @MinLength(1) @MaxLength(200) reason: string;
 }
@@ -55,12 +62,16 @@ export class VoiceDeviceController {
     private readonly devices: VoiceDeviceService,
     private readonly sessions: VoiceSessionService,
     private readonly handoff: VoiceDeviceHandoffService,
+    @Optional() private readonly link?: XiaozhiLinkService,
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "我的设备" })
-  mine(@Req() req: Request) {
-    return this.devices.myDevices((req as any).user.id);
+  @ApiOperation({ summary: "我的设备（含最近联网时间、固件版本、是否正在对话）" })
+  async mine(@Req() req: Request) {
+    const rows = await this.devices.myDevices((req as any).user.id);
+    // 设备平时不保持长连接：只给「最近联网」与「对话中」，不伪造实时在线；状态查询失败不影响列表
+    const st = await this.link?.terminalStatus(rows.map((r) => r.id)).catch(() => ({}) as Record<string, never>);
+    return rows.map((r) => ({ ...r, terminal: st?.[r.id] ?? { lastSeenAt: null, firmwareVersion: null, talking: false } }));
   }
 
   @Post("bind")
@@ -150,6 +161,14 @@ export class VoiceDeviceAdminController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   register(@Req() req: Request, @Body() dto: RegisterDeviceDto) {
     return this.devices.register((req as any).user.id, dto);
+  }
+
+  @Post("batch")
+  @HttpCode(200)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量登记（出厂/入库，每行一个序列号或 MAC，最多 500 台，逐条回报）" })
+  registerBatch(@Req() req: Request, @Body() dto: RegisterDeviceBatchDto) {
+    return this.devices.registerBatch((req as any).user.id, dto);
   }
 
   @Post(":id/bind-code")

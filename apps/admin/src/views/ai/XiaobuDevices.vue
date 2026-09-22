@@ -11,6 +11,43 @@
       <el-button v-if="canWrite" type="primary" size="small" @click="registerOpen = true">登记设备</el-button>
     </div>
 
+    <el-card v-if="canWrite" shadow="never" data-testid="terminal-overview">
+      <template #header>
+        <div class="card-head">
+          <span>运行概况</span>
+          <el-button size="small" link type="primary" @click="loadOverview">刷新</el-button>
+        </div>
+      </template>
+      <p class="muted" style="margin:0 0 10px">
+        设备平时不保持长连接，只在开机检查和对话时联系服务器，所以这里看「近 24 小时/7 天联网过」而不是「实时在线」。
+        计数按北京时间自然日，只计次数、不记设备与用户。
+      </p>
+      <div v-if="overview" class="ov-grid">
+        <div class="ov-item"><div class="ov-num">{{ overview.ledger.bound ?? 0 }}</div><div class="muted">已绑定</div></div>
+        <div class="ov-item"><div class="ov-num">{{ overview.ledger.unbound ?? 0 }}</div><div class="muted">未绑定</div></div>
+        <div class="ov-item"><div class="ov-num">{{ overview.ledger.disabled ?? 0 }}</div><div class="muted">已停用</div></div>
+        <div class="ov-item"><div class="ov-num">{{ overview.seen.last24h }}</div><div class="muted">近 24 小时联网</div></div>
+        <div class="ov-item"><div class="ov-num">{{ overview.seen.last7d }}</div><div class="muted">近 7 天联网</div></div>
+        <div class="ov-item"><div class="ov-num">{{ overview.talkingNow }}</div><div class="muted">正在对话</div></div>
+        <div class="ov-item"><div class="ov-num" :class="{ bad: overview.seen.unregistered > 0 }">{{ overview.seen.unregistered }}</div><div class="muted">上报但未登记</div></div>
+      </div>
+      <div v-if="overview && Object.keys(overview.firmware).length" class="ov-fw">
+        <span class="muted">固件分布（已登记）：</span>
+        <el-tag v-for="(n, k) in overview.firmware" :key="k" size="small" type="info" style="margin:0 6px 6px 0">{{ k }} × {{ n }}</el-tag>
+      </div>
+      <el-table v-if="overview" :data="overview.days" size="small" border style="margin-top:8px">
+        <el-table-column label="日期" width="100"><template #default="{ row }">{{ row.day.slice(4, 6) }}-{{ row.day.slice(6) }}</template></el-table-column>
+        <el-table-column label="开机检查" width="90"><template #default="{ row }">{{ row.counts.ota ?? 0 }}</template></el-table-column>
+        <el-table-column label="对话连接" width="90"><template #default="{ row }">{{ row.counts.ws_open ?? 0 }}</template></el-table-column>
+        <el-table-column label="鉴权失败" width="90"><template #default="{ row }"><span :class="{ bad: (row.counts.auth_fail ?? 0) > 0 }">{{ row.counts.auth_fail ?? 0 }}</span></template></el-table-column>
+        <el-table-column label="结束原因" min-width="320">
+          <template #default="{ row }">
+            <span v-for="(n, k) in endReasons(row.counts)" :key="k" class="reason" :class="{ bad: BAD_END.includes(String(k)) }">{{ END_TEXT[k] || k }} {{ n }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-card shadow="never">
       <el-form inline size="small" @submit.prevent>
         <el-form-item label="状态">
@@ -116,16 +153,32 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="registerOpen" title="登记设备" width="460px">
+    <el-dialog v-model="registerOpen" title="登记设备" width="560px">
+      <el-radio-group v-model="registerMode" size="small" style="margin-bottom:12px">
+        <el-radio-button value="single">单台</el-radio-button>
+        <el-radio-button value="batch">批量（出厂/入库）</el-radio-button>
+      </el-radio-group>
       <el-form label-width="90px" size="small" @submit.prevent>
-        <el-form-item label="序列号"><el-input v-model="form.serial" maxlength="64" placeholder="设备铭牌序列号；小智协议终端填 MAC（带不带冒号均可）" /></el-form-item>
+        <el-form-item v-if="registerMode === 'single'" label="序列号"><el-input v-model="form.serial" maxlength="64" placeholder="设备铭牌序列号；小智协议终端填 MAC（带不带冒号均可）" /></el-form-item>
+        <el-form-item v-else label="序列号">
+          <el-input v-model="batchText" type="textarea" :rows="8" data-testid="batch-serials" placeholder="每行一个 MAC 或序列号，最多 500 行；也可直接粘贴 CSV（取每行第一列，表头行自动跳过）" />
+          <div class="muted">识别到 {{ batchSerials.length }} 行</div>
+        </el-form-item>
         <el-form-item label="SKU"><el-input v-model="form.productSku" maxlength="64" placeholder="公版硬件型号" /></el-form-item>
         <el-form-item label="所属圈子"><el-input v-model="form.circleId" maxlength="64" placeholder="可选：圈主产品对应的圈子 ID" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button size="small" @click="registerOpen = false">取消</el-button>
-        <el-button size="small" type="primary" :loading="saving" @click="register">登记</el-button>
+        <el-button size="small" type="primary" :loading="saving" data-testid="register-submit" @click="registerMode === 'single' ? register() : registerBatch()">登记</el-button>
       </template>
+      <div v-if="batchResult" class="batch-result" data-testid="batch-result">
+        <p>共 {{ batchResult.total }} 行，成功 {{ batchResult.succeeded }}，失败 {{ batchResult.total - batchResult.succeeded }}</p>
+        <el-table v-if="batchResult.results.some((r) => !r.ok)" :data="batchResult.results.filter((r) => !r.ok)" size="small" border max-height="200">
+          <el-table-column prop="line" label="行" width="60" />
+          <el-table-column prop="serialHint" label="末四位" width="80" />
+          <el-table-column prop="error" label="原因" />
+        </el-table>
+      </div>
     </el-dialog>
 
     <el-dialog v-model="codeOpen" title="一次性绑定码" width="420px">
@@ -136,9 +189,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { xiaobuOpsApi, type AdminDevice, type FirmwareRelease, type XiaozhiTerminal } from "@/api/xiaobu-ops";
+import { xiaobuOpsApi, type AdminDevice, type BatchRegisterResult, type FirmwareRelease, type TerminalOverview, type XiaozhiTerminal } from "@/api/xiaobu-ops";
 import { useAuthStore } from "@/store/auth";
 
 const STATUS: Record<string, string> = { unbound: "未绑定", bound: "已绑定", transfer_pending: "转赠中", disabled: "已停用" };
@@ -155,6 +208,41 @@ const filter = reactive({ status: "", circleId: "" });
 const registerOpen = ref(false);
 const saving = ref(false);
 const form = reactive({ serial: "", productSku: "", circleId: "" });
+const registerMode = ref<"single" | "batch">("single");
+const batchText = ref("");
+const batchResult = ref<BatchRegisterResult | null>(null);
+/** 每行一个；CSV 取第一列；跳过明显的表头行 */
+const batchSerials = computed(() =>
+  batchText.value
+    .split(/\r?\n/)
+    .map((l) => l.split(/[,\t;]/)[0].trim().replace(/^"|"$/g, ""))
+    .filter((l) => l && !/^(mac|serial|序列号|设备号|sn)$/i.test(l)),
+);
+const overview = ref<TerminalOverview | null>(null);
+const END_TEXT: Record<string, string> = {
+  "end:device_hangup": "设备挂断",
+  "end:device_disconnect": "断线",
+  "end:idle_timeout": "无语音超时",
+  "end:session_limit": "时长到",
+  "end:provider_unavailable": "服务未开放",
+  "end:session_rejected": "开会话被拒",
+  "end:relay_failed": "中继失败",
+  "end:provider_error": "服务出错",
+  "end:hello_timeout": "握手超时",
+  "end:replaced_by_new_connection": "被新连接顶替",
+};
+/** 需要关注的结束原因 */
+const BAD_END = ["end:device_disconnect", "end:relay_failed", "end:provider_error", "end:hello_timeout", "end:session_rejected"];
+function endReasons(counts: Record<string, number>) {
+  return Object.fromEntries(Object.entries(counts).filter(([k]) => k.startsWith("end:")));
+}
+async function loadOverview() {
+  try {
+    overview.value = await xiaobuOpsApi.terminalOverview();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "运行概况加载失败"));
+  }
+}
 const codeOpen = ref(false);
 const code = ref<{ bindCode: string; expiresAt: string } | null>(null);
 const terminals = ref<XiaozhiTerminal[]>([]);
@@ -200,6 +288,39 @@ async function register() {
     load(1);
   } catch (e) {
     ElMessage.error(errMsg(e, "登记失败"));
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function registerBatch() {
+  const serials = batchSerials.value;
+  if (!serials.length || !form.productSku.trim()) {
+    ElMessage.warning("请粘贴序列号并填写 SKU");
+    return;
+  }
+  if (serials.length > 500) {
+    ElMessage.warning("单次最多 500 行，请分批");
+    return;
+  }
+  saving.value = true;
+  batchResult.value = null;
+  try {
+    const r = await xiaobuOpsApi.registerDeviceBatch({ serials, productSku: form.productSku.trim(), circleId: form.circleId.trim() || undefined });
+    batchResult.value = r;
+    if (r.succeeded === r.total) {
+      ElMessage.success(`已登记 ${r.succeeded} 台`);
+      batchText.value = "";
+    } else {
+      ElMessage.warning(`成功 ${r.succeeded} 台，失败 ${r.total - r.succeeded} 行，见下方明细`);
+      // 只留下失败的行，方便修正后重新提交
+      const failed = new Set(r.results.filter((x) => !x.ok).map((x) => x.line));
+      batchText.value = serials.filter((_, i) => failed.has(i + 1)).join("\n");
+    }
+    load(1);
+    loadOverview();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "批量登记失败"));
   } finally {
     saving.value = false;
   }
@@ -356,13 +477,18 @@ async function registerTerminal(row: XiaozhiTerminal) {
   }
 }
 
-onMounted(() => {
-  load(1);
-  if (canWrite.value) {
+onMounted(() => load(1));
+// 角色可能在页面挂载后才从登录信息里载入：权限就绪时再拉运营数据
+watch(
+  canWrite,
+  (ok) => {
+    if (!ok) return;
+    loadOverview();
     loadTerminals();
     loadFirmware();
-  }
-});
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -374,4 +500,10 @@ onMounted(() => {
 .muted { color: var(--color-text-secondary, #909399); font-size: 12px; line-height: 1.6; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
 .bad { color: #c41e3a; font-weight: 600; }
+.ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.ov-item { padding: 10px 12px; border-radius: 8px; background: var(--el-fill-color-light, #f5f7fa); }
+.ov-num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ov-fw { margin-top: 10px; }
+.reason { margin-right: 12px; white-space: nowrap; }
+.batch-result { margin-top: 12px; font-size: 13px; }
 </style>

@@ -9,8 +9,9 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
-import { xiaobuVoiceApi, type DeviceHandoffView, type VoiceDeviceView } from '@/lib/xiaobu-voice-data'
+import { goBack, navigateTo } from '@/utils/router'
+import { seenAgo, xiaobuVoiceApi, type DeviceHandoffView, type VoiceDeviceView } from '@/lib/xiaobu-voice-data'
+import { aiReportApi, type MyVoiceQuota } from '@/lib/paipan/ai-report-data'
 
 const devices = ref<VoiceDeviceView[]>([])
 const loading = ref(true)
@@ -24,6 +25,8 @@ const STATUS: Record<string, string> = {
 }
 
 const handoffs = ref<Record<string, DeviceHandoffView>>({})
+/** 语音时长余额：设备对话扣的也是这里（绑定圈子的设备先扣圈子账户） */
+const quota = ref<MyVoiceQuota | null>(null)
 
 async function clearHandoff(d: VoiceDeviceView) {
   await run(() => xiaobuVoiceApi.clearDeviceHandoff(d.id), '已恢复普通对话')
@@ -34,6 +37,9 @@ async function load() {
   error.value = ''
   try {
     devices.value = await xiaobuVoiceApi.devices()
+    if (devices.value.some((d) => d.status === 'bound')) {
+      quota.value = await aiReportApi.myVoiceQuota().catch(() => null)
+    }
     // 各设备当前的接续场景（在 App 里选好、硬件接着聊）
     const pairs = await Promise.all(
       devices.value.filter((d) => d.status === 'bound').map(async (d) => [d.id, await xiaobuVoiceApi.getDeviceHandoff(d.id).catch(() => null)] as const),
@@ -144,6 +150,17 @@ onShow(load)
       <text class="hint">把转赠码发给对方，24 小时内有效。对方接收后，这台设备和你的语音记录将与你无关。</text>
     </view>
 
+    <view v-if="!loading && quota && devices.some((d) => d.status === 'bound')" class="card quota" data-testid="device-quota">
+      <view class="row-between">
+        <text class="label">语音时长</text>
+        <text v-if="quota.charging" class="link" data-testid="device-topup" @tap="navigateTo('/pkg-agent/agent/xiaobu-voice-topup')">充值时长 ›</text>
+      </view>
+      <text v-if="quota.charging" class="hint" :class="{ low: quota.availableMinutes < 5 }">
+        还剩 {{ quota.availableMinutes }} 分钟{{ quota.availableMinutes < 5 ? '，快用完了，硬件对话会提前提醒' : '' }}
+      </text>
+      <text v-else class="hint">体验期暂不扣时长，每次最多聊 {{ Math.round(quota.freeSessionMaxSeconds / 60) }} 分钟。</text>
+    </view>
+
     <view v-if="loading" class="state"><text class="hint">加载中…</text></view>
     <view v-else-if="error" class="state">
       <text class="state-text">{{ error }}</text>
@@ -160,6 +177,12 @@ onShow(load)
           <text class="status">{{ STATUS[d.status] || d.status }}</text>
         </view>
         <text class="hint" data-testid="device-voice-state">{{ d.voiceReady ? '语音可用' : '语音待开通：商业固件与语音服务接通后即可对话' }}</text>
+        <view v-if="d.status === 'bound'" class="terminal" data-testid="device-terminal">
+          <text v-if="d.terminal?.talking" class="talking">● 正在对话</text>
+          <text class="hint">最近联网：{{ seenAgo(d.terminal?.lastSeenAt) }}</text>
+          <text v-if="d.terminal?.firmwareVersion" class="hint">固件 {{ d.terminal.firmwareVersion }}</text>
+        </view>
+        <text v-if="d.status === 'bound' && !d.terminal?.lastSeenAt" class="hint">设备开机并连上 WiFi 后会自动联网；按一下设备按键即可说话。</text>
         <text v-if="d.status === 'disabled' && d.disabledReason" class="hint">停用原因：{{ d.disabledReason }}</text>
         <view v-if="handoffs[d.id]" class="handoff-row" data-testid="device-handoff">
           <text class="hint">正在接着聊：{{ handoffs[d.id].displayTopic }}（按设备按键即可继续）</text>
@@ -198,6 +221,9 @@ onShow(load)
 .hint { font-size: 23rpx; line-height: 1.6; color: var(--text-soft); }
 .handoff-row { display: flex; flex-direction: column; gap: 6rpx; padding: 14rpx 18rpx; border-radius: 14rpx; background: #f6f1e9; }
 .link { font-size: 24rpx; color: #C41E3A; }
+.low { color: #C41E3A; }
+.terminal { display: flex; flex-wrap: wrap; gap: 8rpx 24rpx; align-items: center; }
+.talking { font-size: 23rpx; color: #2e7d32; font-weight: 600; }
 .list { padding: 12rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .item { padding: 24rpx; background: var(--card); border-radius: 20rpx; display: flex; flex-direction: column; gap: 14rpx; }
 .name { font-size: 28rpx; font-weight: 600; color: var(--text-ink); }

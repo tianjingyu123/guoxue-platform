@@ -95,6 +95,7 @@ export class XiaozhiLinkService {
     const serialHash = this.devices.serialHash(serial);
     const d = await this.prisma.voiceDevice.findUnique({ where: { serialHash } });
     await this.recordSeen(serialHash, serial, info, d);
+    await this.stat("ota");
 
     // 固件：只对已登记、未停用的设备按发布与灰度决定；其余原样回报当前版本（设备不会升级）
     const firmware =
@@ -221,6 +222,89 @@ export class XiaozhiLinkService {
     } catch (e: any) {
       this.logger.warn(`记录小智终端信息失败：${e?.message || e}`);
     }
+  }
+
+  // ───────── 终端状态与运行统计 ─────────
+
+  /**
+   * 运行计数（按北京时间自然日，保留 8 天）：ota / auth_fail / ws_open / end:<原因>。
+   * 只计数，不记录设备或用户标识；计数失败不影响业务。
+   */
+  async stat(metric: string) {
+    try {
+      const day = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10).replace(/-/g, "");
+      await this.redis.incrWithTtl(`xz:stat:${day}:${metric}`, 8 * 86400);
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  /**
+   * 对话中标记：会话打开时置上（带过期兜底），断开时清掉。
+   * 值为连接号，只清自己置的标记——同一设备新连接顶掉旧连接时，旧连接的收尾不会误清新标记。
+   */
+  async markTalking(deviceId: string, connId: string, on: boolean, ttlSeconds = 3600) {
+    try {
+      if (on) {
+        await this.redis.set(`xz:talking:${deviceId}`, connId, ttlSeconds);
+        await this.redis.zadd("xz:talking:index", Date.now() + ttlSeconds * 1000, deviceId);
+      } else if (await this.redis.compareAndDelete(`xz:talking:${deviceId}`, connId)) {
+        await this.redis.zrem("xz:talking:index", deviceId);
+      }
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  /**
+   * 用户侧设备状态（诚实口径）：这类固件平时不保持长连接，只在开机和对话时联系服务器，
+   * 所以只给「最近联网时间」「固件版本」「是否正在对话」，不伪造实时在线。
+   */
+  async terminalStatus(deviceIds: string[]) {
+    if (!deviceIds.length) return {} as Record<string, { lastSeenAt: string | null; firmwareVersion: string | null; talking: boolean }>;
+    const rows = await this.prisma.voiceDevice.findMany({ where: { id: { in: deviceIds } }, select: { id: true, serialHash: true } });
+    const seen = await this.redis.mgetJson<SeenRecord>(rows.map((r) => `xz:seen:${r.serialHash.slice(0, 24)}`));
+    const out: Record<string, { lastSeenAt: string | null; firmwareVersion: string | null; talking: boolean }> = {};
+    for (let i = 0; i < rows.length; i++) {
+      const talking = !!(await this.redis.get(`xz:talking:${rows[i].id}`).catch(() => null));
+      out[rows[i].id] = { lastSeenAt: seen[i]?.lastSeenAt ?? null, firmwareVersion: seen[i]?.info?.firmwareVersion ?? null, talking };
+    }
+    return out;
+  }
+
+  /** 后台运行概况：台账分布、近 24 小时/7 天联网、正在对话、固件版本分布、近 7 天运行计数 */
+  async overview() {
+    const now = Date.now();
+    const byStatus = await this.prisma.voiceDevice.groupBy({ by: ["status"], _count: { _all: true } });
+    const ids = await this.redis.zrevrange("xz:seen:index", 0, 999);
+    const recs = (await this.redis.mgetJson<SeenRecord>(ids.map((id) => `xz:seen:${id}`))).filter(Boolean) as SeenRecord[];
+    const within = (ms: number) => recs.filter((r) => now - new Date(r.lastSeenAt).getTime() <= ms);
+    const firmware: Record<string, number> = {};
+    for (const r of recs.filter((x) => x.registered)) {
+      const k = `${r.info.boardName || r.info.boardType || "未知板型"} ${r.info.firmwareVersion || "?"}`;
+      firmware[k] = (firmware[k] || 0) + 1;
+    }
+    // 过期的对话标记从索引里清掉后再计数
+    await this.redis.zremrangebyscore("xz:talking:index", 0, now).catch(() => 0);
+    const talking = await this.redis.zcard("xz:talking:index").catch(() => 0);
+    const days: { day: string; counts: Record<string, number> }[] = [];
+    const metrics = ["ota", "auth_fail", "ws_open", "end:device_hangup", "end:device_disconnect", "end:idle_timeout", "end:session_limit", "end:provider_unavailable", "end:session_rejected", "end:relay_failed", "end:provider_error", "end:hello_timeout", "end:replaced_by_new_connection"];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(now + 8 * 3600_000 - i * 86400_000).toISOString().slice(0, 10).replace(/-/g, "");
+      const counts: Record<string, number> = {};
+      for (const m of metrics) {
+        const v = Number(await this.redis.get(`xz:stat:${day}:${m}`).catch(() => null)) || 0;
+        if (v) counts[m] = v;
+      }
+      days.push({ day, counts });
+    }
+    return {
+      ledger: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])),
+      seen: { last24h: within(86400_000).length, last7d: within(7 * 86400_000).length, unregistered: recs.filter((r) => !r.registered).length },
+      talkingNow: talking,
+      firmware,
+      days,
+    };
   }
 
   /** 后台：最近上报过的终端（不含明文 MAC） */

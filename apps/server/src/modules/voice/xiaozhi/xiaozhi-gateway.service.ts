@@ -23,6 +23,21 @@ export interface XiaozhiDeps {
   provider: VoiceProvider;
   prisma: PrismaService;
   logger: Logger;
+  /** 对话中标记与运行计数（可缺省：单元测试直接构造连接时不需要） */
+  link?: Pick<XiaozhiLinkService, "markTalking" | "stat">;
+}
+
+/** 提前提醒：会话剩余多少秒时提醒一次 */
+const LIMIT_WARN_SECONDS = 30;
+/** 按余额开出的会话不超过这么长时，开场提醒余额 */
+const LOW_BALANCE_SECONDS = 5 * 60;
+
+/** 把额度类报错换成对硬件用户友好的说法（设备上只能看/听，没法点按钮） */
+export function friendlyDeviceMessage(raw: string | undefined) {
+  const m = raw || "";
+  if (/额度不足/.test(m)) return "语音时长用完啦，请在热卜 App「我的硬件」里充值后再来找我。";
+  if (/被其他通话使用/.test(m)) return "你的另一台设备正在通话，请先结束那边再试。";
+  return `暂时无法开始：${m || "请稍后再试"}`;
 }
 
 /**
@@ -86,7 +101,11 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
       this.logger.warn(`小智终端握手鉴权超时/失败：${e?.message || e}`);
       return rejectUpgrade(socket, 503, "service busy");
     }
-    if (!auth) return rejectUpgrade(socket, 401, "unauthorized");
+    if (!auth) {
+      void this.link.stat("auth_fail");
+      return rejectUpgrade(socket, 401, "unauthorized");
+    }
+    void this.link.stat("ws_open");
     const ws = acceptUpgrade(req, socket, head);
     if (!ws) return;
 
@@ -98,6 +117,7 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
       provider: this.provider,
       prisma: this.prisma,
       logger: this.logger,
+      link: this.link,
     });
     this.connections.set(auth.deviceId, conn);
     conn.onClosed(() => {
@@ -123,7 +143,9 @@ export class XiaozhiConnection {
   private helloTimer: NodeJS.Timeout | null;
   private idleTimer: NodeJS.Timeout | null = null;
   private limitTimer: NodeJS.Timeout | null = null;
+  private warnTimer: NodeJS.Timeout | null = null;
   private openedAt = 0;
+  private talkingMarked = false;
   private idleMs = 60_000;
   private lastTouch = 0;
   private closedListeners: (() => void)[] = [];
@@ -204,7 +226,7 @@ export class XiaozhiConnection {
         allowPendingVendorForMockRelay: true,
       });
     } catch (e: any) {
-      return this.helloThenAlert(`暂时无法开始：${e?.message || "请稍后再试"}`, "session_rejected");
+      return this.helloThenAlert(friendlyDeviceMessage(e?.message), "session_rejected");
     }
     if (!started?.available) {
       return this.helloThenAlert(started?.userMessage || "语音服务暂未开放", "provider_unavailable");
@@ -239,11 +261,33 @@ export class XiaozhiConnection {
       transport: "websocket",
       audio_params: { format: "opus", sample_rate: d.sampleRate, channels: d.channels, frame_duration: d.frameDurationMs },
     });
-    const { idleTimeoutSeconds } = await this.deps.quota.getConfig();
-    this.idleMs = Math.max(15, idleTimeoutSeconds || 60) * 1000;
+    const cfg = await this.deps.quota.getConfig();
+    this.idleMs = Math.max(15, cfg.idleTimeoutSeconds || 60) * 1000;
     this.touch(true);
+    if (this.deps.link) {
+      this.talkingMarked = true;
+      void this.deps.link.markTalking(this.auth.deviceId, this.id, true, this.maxSeconds + 120);
+    }
+    // 按余额开出的会话（比单次上限短）说明余额快用完了：开场提醒一次，结束语也按「时长用完」说
+    const byBalance = !!cfg.chargeUsers && this.maxSeconds < cfg.sessionMaxSeconds;
+    if (byBalance && this.maxSeconds <= LOW_BALANCE_SECONDS) {
+      this.send({ type: "alert", status: "小卜", message: `语音时长只剩约 ${Math.max(1, Math.round(this.maxSeconds / 60))} 分钟，可在热卜 App 充值。`, emotion: "neutral" });
+    }
+    // 结束前提醒一次，避免话说到一半被切断
+    if (this.maxSeconds > LIMIT_WARN_SECONDS * 2) {
+      this.warnTimer = setTimeout(() => {
+        if (this.state !== "open") return;
+        this.send({
+          type: "alert",
+          status: "小卜",
+          message: byBalance ? `语音时长还剩 ${LIMIT_WARN_SECONDS} 秒，可在热卜 App 充值。` : `本次通话还剩 ${LIMIT_WARN_SECONDS} 秒。`,
+          emotion: "neutral",
+        });
+      }, (this.maxSeconds - LIMIT_WARN_SECONDS) * 1000);
+    }
     // 单次会话上限（未开始计费时为免费体验上限）：到点提示并结束
-    this.limitTimer = setTimeout(() => this.endWithAlert("本次通话时长已到，唤醒我可以继续。", "session_limit"), this.maxSeconds * 1000);
+    const endText = byBalance ? "语音时长用完啦，请在热卜 App 充值后再来找我。" : "本次通话时长已到，按一下按键可以继续。";
+    this.limitTimer = setTimeout(() => this.endWithAlert(endText, "session_limit"), this.maxSeconds * 1000);
   }
 
   /** 让设备先完成握手再看到提示，否则设备只会显示「连接失败」 */
@@ -329,7 +373,9 @@ export class XiaozhiConnection {
     if (this.finished) return;
     this.finished = true;
     this.state = "closed";
-    for (const t of [this.helloTimer, this.idleTimer, this.limitTimer]) if (t) clearTimeout(t);
+    for (const t of [this.helloTimer, this.idleTimer, this.limitTimer, this.warnTimer]) if (t) clearTimeout(t);
+    if (this.talkingMarked) void this.deps.link?.markTalking(this.auth.deviceId, this.id, false);
+    void this.deps.link?.stat(`end:${reason}`);
     try {
       this.stream?.close(reason);
     } catch {

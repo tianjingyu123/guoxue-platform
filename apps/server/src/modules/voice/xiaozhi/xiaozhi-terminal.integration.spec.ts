@@ -242,6 +242,115 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     b.ws.close();
   });
 
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("设备状态：对话中标记（新连接顶替旧连接不误清）、最近联网与固件版本；后台运行概况计数", async () => {
+    await device("bad-token").catch(() => undefined); // 鉴权失败计数
+    const token = (await ota() as any).websocket.token;
+    const a = await device(token);
+    hello(a.ws);
+    await waitFor(() => a.texts.some((t) => t.type === "hello"));
+    let st = await link.terminalStatus([deviceId]);
+    expect(st[deviceId]).toMatchObject({ talking: true, firmwareVersion: "1.9.2" });
+    expect(st[deviceId].lastSeenAt).toBeTruthy();
+    const aClosed = new Promise((r) => a.ws.once("close", r));
+    const b = await device(token);
+    await aClosed;
+    hello(b.ws);
+    await waitFor(() => b.texts.some((t) => t.type === "hello"));
+    await sleep(300); // 等旧连接收尾跑完
+    expect((await link.terminalStatus([deviceId]))[deviceId].talking).toBe(true);
+    const bClosed = new Promise((r) => b.ws.once("close", r));
+    b.ws.close(1000, "bye");
+    await bClosed;
+    await sleep(300);
+    st = await link.terminalStatus([deviceId]);
+    expect(st[deviceId].talking).toBe(false);
+    const o = await link.overview();
+    expect(o.talkingNow).toBe(0);
+    expect(o.seen.last24h).toBeGreaterThanOrEqual(1);
+    expect(o.ledger.bound).toBeGreaterThanOrEqual(1);
+    expect(Object.keys(o.firmware).some((k) => k.includes("1.9.2"))).toBe(true);
+    const today = o.days[0].counts;
+    expect(today.ota).toBeGreaterThan(0);
+    expect(today.auth_fail).toBeGreaterThanOrEqual(1);
+    expect(today.ws_open).toBeGreaterThanOrEqual(2);
+    expect(today["end:replaced_by_new_connection"]).toBeGreaterThanOrEqual(1);
+    expect(today["end:device_hangup"]).toBeGreaterThanOrEqual(1);
+    // 概况与状态里都不出现明文 MAC
+    expect(JSON.stringify(o) + JSON.stringify(st)).not.toMatch(/a1:?b2:?c3:?d4/i);
+  });
+
+  it("额度提醒：额度不足给友好提示；按余额开出的短会话开场提醒余额、结束前 30 秒提醒、到点按「时长用完」结束", async () => {
+    const quota = new VoiceQuotaService(prisma as any, { getConfig: async () => ({ configValue: JSON.stringify({ chargeUsers: true }) }) } as any);
+    const orig = { quota: (gateway as any).quota, sessions: (gateway as any).sessions };
+    (gateway as any).quota = quota;
+    (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
+    try {
+      const token = (await ota() as any).websocket.token;
+      const d0 = await device(token);
+      const c0 = new Promise((r) => d0.ws.once("close", r));
+      hello(d0.ws);
+      await c0;
+      expect(d0.texts.map((t) => t.type)).toEqual(["hello", "alert"]);
+      expect(d0.texts[1].message).toMatch(/时长用完.*充值/);
+      expect(d0.texts[1].message).not.toMatch(/暂时无法开始/);
+
+      await quota.grant({ ownerType: "user", ownerId: alice, seconds: 90, idempotencyKey: `${tag}-g90` });
+      const d = await device(token);
+      hello(d.ws);
+      await waitFor(() => d.texts.some((t) => t.type === "alert"));
+      expect(d.texts.map((t) => t.type)).toEqual(["hello", "alert"]);
+      expect(d.texts[1].message).toMatch(/只剩约 \d+ 分钟.*充值/);
+      const conn = (gateway as any).connections.get(deviceId);
+      expect(conn.warnTimer._idleTimeout).toBe(60_000); // 90 秒会话，第 60 秒提醒
+      conn.warnTimer._onTimeout();
+      await waitFor(() => d.texts.filter((t) => t.type === "alert").length === 2);
+      expect(d.texts.filter((t) => t.type === "alert")[1].message).toMatch(/还剩 30 秒.*充值/);
+      const closed = new Promise((r) => d.ws.once("close", r));
+      conn.limitTimer._onTimeout();
+      await closed;
+      expect(d.texts.filter((t) => t.type === "alert").pop().message).toMatch(/时长用完/);
+    } finally {
+      (gateway as any).quota = orig.quota;
+      (gateway as any).sessions = orig.sessions;
+    }
+  });
+
+  it("未计费的体验会话：结束前 30 秒提醒不提充值", async () => {
+    const token = (await ota() as any).websocket.token;
+    const d = await device(token);
+    hello(d.ws);
+    await waitFor(() => d.texts.some((t) => t.type === "hello"));
+    expect(d.texts.some((t) => t.type === "alert")).toBe(false); // 不收费时不报余额
+    const conn = (gateway as any).connections.get(deviceId);
+    expect(conn.warnTimer._idleTimeout).toBe(150_000); // 缺省体验上限 180 秒
+    conn.warnTimer._onTimeout();
+    await waitFor(() => d.texts.some((t) => t.type === "alert"));
+    expect(d.texts.find((t) => t.type === "alert").message).toBe("本次通话还剩 30 秒。");
+    d.ws.close();
+  });
+
+  it("批量登记：逐条回报；已登记、本批重复（不同写法的同一 MAC）、格式错误各自失败，不影响其它；只回显末 4 位", async () => {
+    const r = await devices.registerBatch("it-admin", {
+      productSku: `${tag}-sku`,
+      serials: [MAC, "10-20-30-40-50-01", "102030405001", "bad serial!", "10:20:30:40:50:02", ""],
+    });
+    expect(r.total).toBe(5);
+    expect(r.succeeded).toBe(2);
+    expect(r.results.map((x) => [x.line, x.serialHint, x.ok])).toEqual([
+      [1, "E5F6", false],
+      [2, "5001", true],
+      [3, "5001", false],
+      [4, expect.any(String), false],
+      [5, "5002", true],
+    ]);
+    expect(r.results[0].error).toMatch(/已登记/);
+    expect(r.results[2].error).toBe("本批重复");
+    expect(JSON.stringify(r)).not.toMatch(/102030405001|10:20:30/);
+    await expect(devices.registerBatch("it-admin", { productSku: `${tag}-sku`, serials: [] })).rejects.toThrow(/没有可登记/);
+  });
+
   it("换主人：转赠给新用户后旧令牌 401；新主人重新取令牌可用，且看不到旧主人的设备历史", async () => {
     const oldToken = (await ota() as any).websocket.token;
     const { transferCode } = await devices.initiateTransfer(alice, deviceId);

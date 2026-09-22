@@ -39,6 +39,21 @@ export interface ProviderStatus {
   userRefStable: boolean;
 }
 
+export interface BatchRegisterResult {
+  total: number;
+  succeeded: number;
+  results: { line: number; serialHint: string; ok: boolean; deviceId?: string; error?: string }[];
+}
+
+export interface TerminalOverview {
+  ledger: Record<string, number>;
+  seen: { last24h: number; last7d: number; unregistered: number };
+  talkingNow: number;
+  connectionsThisInstance: number;
+  firmware: Record<string, number>;
+  days: { day: string; counts: Record<string, number> }[];
+}
+
 export interface FirmwareRelease {
   id: string;
   boardName: string;
@@ -136,6 +151,16 @@ export const xiaobuOpsApi = {
   async registerDevice(body: { serial: string; productSku: string; circleId?: string }) {
     const { data } = await api.post("/admin/xiaobu/devices", body);
     return data as AdminDevice;
+  },
+  /** 批量登记（出厂/入库）：每行一个序列号或 MAC，逐条回报；回报只含行号与末 4 位 */
+  async registerDeviceBatch(body: { serials: string[]; productSku: string; circleId?: string }) {
+    const { data } = await api.post("/admin/xiaobu/devices/batch", body, { timeout: 120000 });
+    return data as BatchRegisterResult;
+  },
+  /** 终端运行概况 */
+  async terminalOverview() {
+    const { data } = await api.get("/admin/xiaobu/terminals/overview");
+    return data as TerminalOverview;
   },
   async bindCode(id: string) {
     const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/bind-code`);

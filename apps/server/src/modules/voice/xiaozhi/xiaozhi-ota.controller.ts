@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Optional, Param, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from "@nestjs/swagger";
 import { IsOptional, IsString, Matches, MaxLength, MinLength } from "class-validator";
 import { Request, Response } from "express";
@@ -8,6 +8,7 @@ import { RolesGuard } from "../../../common/roles.guard";
 import { Roles } from "../../../common/roles.decorator";
 import { StrictThrottleGuard } from "../../../common/throttle.guard";
 import { XiaozhiLinkService } from "./xiaozhi-link.service";
+import { XiaozhiGatewayService } from "./xiaozhi-gateway.service";
 
 /**
  * 小智协议终端 · OTA 与激活（设备直接访问，无用户登录态；返回固件认识的原始 JSON，不做统一包装）
@@ -80,7 +81,17 @@ export class RegisterSeenDto {
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 @ApiBearerAuth()
 export class XiaozhiTerminalAdminController {
-  constructor(private readonly link: XiaozhiLinkService) {}
+  constructor(
+    private readonly link: XiaozhiLinkService,
+    @Optional() private readonly gateway?: XiaozhiGatewayService,
+  ) {}
+
+  @Get("overview")
+  @ApiOperation({ summary: "运行概况：台账分布、近 24h/7d 联网、正在对话、固件版本分布、近 7 天连接与鉴权失败计数" })
+  async overview() {
+    // 本进程的实时连接数；多实例部署时以 talkingNow（Redis 汇总）为准
+    return { ...(await this.link.overview()), connectionsThisInstance: this.gateway?.activeCount() ?? 0 };
+  }
 
   @Get()
   @ApiOperation({ summary: "最近上报的小智协议终端（不含明文 MAC）" })
