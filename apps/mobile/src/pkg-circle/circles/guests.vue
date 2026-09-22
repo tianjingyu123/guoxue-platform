@@ -2,7 +2,7 @@
 /**
  * 圈子「嘉宾管理」页（真连后端，去除原型臆想功能）
  *
- * 数据：circleGuestsApi.list() —— GET /circle-backend/guests（后端自动取当前圈主/管理员的圈子，不传 circleId）。
+ * 数据：circleGuestsApi.list(circleId) —— 显式读取当前圈子的嘉宾。
  * 写操作：
  *  - 设分账比例 PUT /circle-backend/guests/:userId/share-rate（saving 防重复，0-100 校验）
  *  - 移除嘉宾   DELETE /circles/:circleId/members/:userId（acting 防重复，需 circleId；拿不到则隐藏该操作）
@@ -22,9 +22,9 @@ import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
-// onLoad 取 circleId（仅用于「移除嘉宾」端点；列表接口不需要）。拿不到则隐藏移除操作。
+// 列表、分账修改和移除均使用当前圈子；路由参数就绪后才读取。
 const circleId = ref('')
-onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
+onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string; void loadGuests() })
 const canRemove = computed(() => !!circleId.value)
 
 function openInvite() {
@@ -44,14 +44,13 @@ async function loadGuests() {
   loading.value = true
   errMsg.value = ''
   try {
-    guests.value = await circleGuestsApi.list()
+    guests.value = await circleGuestsApi.list(circleId.value)
   } catch (e) {
     errMsg.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
-loadGuests()
 
 // ─── 搜索 ───
 const searchQuery = ref('')
@@ -89,7 +88,7 @@ async function saveShareRate() {
   }
   saving.value = true
   try {
-    await circleGuestsApi.setShareRate(g.userId, rate)
+    await circleGuestsApi.setShareRate(g.userId, rate, circleId.value)
     uni.showToast({ title: '分账比例已更新', icon: 'none' })
     showEditModal.value = null
     await loadGuests()

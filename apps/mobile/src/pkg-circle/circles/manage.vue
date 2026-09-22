@@ -54,6 +54,7 @@ const roleFilters: { key: RoleFilter; label: string }[] = [
 ]
 const members = ref<ManageMember[]>([])
 const guests = ref<CircleGuest[]>([])
+const guestsError = ref(false)
 const membersLoading = ref(false)
 const membersError = ref(false)
 const memberSearch = ref('')
@@ -146,12 +147,14 @@ async function loadOverview(fillForm = false) {
 }
 
 async function loadMembers() {
+  if (membersLoading.value) return
   membersLoading.value = true
   membersError.value = false
+  guestsError.value = false
   try {
     const [ms, gs] = await Promise.all([
       circleManageApi.getMembers(circleId.value),
-      circleGuestsApi.list().catch(() => [] as CircleGuest[]),
+      circleGuestsApi.list(circleId.value).catch(() => { guestsError.value = true; return [] as CircleGuest[] }),
     ])
     members.value = ms
     guests.value = gs
@@ -264,7 +267,7 @@ async function onShareRateChange(g: CircleGuest, e: { detail: { value: number } 
   if (savingRateUserId.value) return
   savingRateUserId.value = g.userId
   try {
-    await circleGuestsApi.setShareRate(g.userId, rate)
+    await circleGuestsApi.setShareRate(g.userId, rate, circleId.value)
     g.shareRate = rate
     uni.showToast({ title: `分账比例已设为 ${rate}%`, icon: 'none' })
   } catch (err) {
@@ -536,6 +539,7 @@ onLoad((q) => {
             </view>
           </view>
 
+          <view v-if="guestsError" class="state-view" role="button" aria-label="重试嘉宾信息" @tap="loadMembers"><text class="state-desc">嘉宾分账信息暂时无法读取，点此重试</text></view>
           <!-- 嘉宾分账（真实 shareRate/totalEarned·slider 真连 PUT share-rate） -->
           <template v-if="guests.length">
             <text class="section-label">嘉宾分账</text>

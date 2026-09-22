@@ -2,8 +2,8 @@
  * 圈子「嘉宾管理」API 层（真连后端，无 mock）
  *
  * 后端端点（前缀 /api/v1，apiGet/apiPut/apiDelete 已自动加 token + 剥信封）：
- *  - GET  /circle-backend/guests                    嘉宾列表（不传 circleId，后端自动取当前登录用户作为圈主/管理员的圈子）
- *  - PUT  /circle-backend/guests/:userId/share-rate 设置分账比例 body {shareRate:0-100}
+ *  - GET  /circle-backend/guests?circleId=...       当前圈子的嘉宾列表
+ *  - PUT  /circle-backend/guests/:userId/share-rate 设置分账比例 body {shareRate:0-100,circleId}
  *  - DELETE /circles/:circleId/members/:userId      移除成员（需要 circleId）
  *
  * 字段口径以后端 circle-backend.controller.ts getGuests 与 prisma schema 为准：
@@ -61,11 +61,12 @@ function adaptGuest(g: RawGuest): CircleGuest {
 
 export const circleGuestsApi = {
   /**
-   * 嘉宾列表（后端自动取当前用户作为圈主/管理员的圈子，不接受 circleId 参数）。
+   * 嘉宾列表显式绑定当前圈子，后端校验本圈管理权限。
    * 失败抛错，由页面捕获走 error 态（不返回假数据）。
    */
-  list: async (): Promise<CircleGuest[]> => {
-    const res = await apiGet<RawGuestsResp>('/circle-backend/guests')
+  list: async (circleId: string): Promise<CircleGuest[]> => {
+    if (!circleId) throw new Error('请从对应圈子的管理页进入')
+    const res = await apiGet<RawGuestsResp>(`/circle-backend/guests?circleId=${encodeURIComponent(circleId)}`)
     const arr = Array.isArray(res) ? res : (res?.data ?? res?.guests ?? [])
     return arr.map(adaptGuest)
   },
@@ -75,8 +76,10 @@ export const circleGuestsApi = {
    * @param userId 嘉宾用户ID
    * @param shareRate 0-100 的百分比数字
    */
-  setShareRate: (userId: string, shareRate: number): Promise<{ success: boolean }> =>
-    apiPut<{ success: boolean }>(`/circle-backend/guests/${userId}/share-rate`, { shareRate }),
+  setShareRate: (userId: string, shareRate: number, circleId: string): Promise<{ success: boolean }> => {
+    if (!circleId) return Promise.reject(new Error('请从对应圈子的管理页进入'))
+    return apiPut<{ success: boolean }>(`/circle-backend/guests/${encodeURIComponent(userId)}/share-rate`, { shareRate, circleId })
+  },
 
   /**
    * 移除嘉宾（从圈子移除该成员）。需要 circleId。

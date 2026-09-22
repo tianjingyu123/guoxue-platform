@@ -33,8 +33,7 @@ export class CircleBackendController {
   }
 
   /**
-   * 圈子定位：管理角色且显式传 circleId 时按该圈操作（跳过 getMyCircle）；
-   * 否则回落原逻辑（取调用者自己是圈主/管理员的圈子）——C 端行为零变化。
+   * 显式圈子必须校验本圈管理身份；旧客户端仅在身份唯一时允许省略。
    */
   private async resolveCircle(req: Request, circleId?: string) {
     if (circleId && this.isPlatformAdmin(req)) {
@@ -42,8 +41,21 @@ export class CircleBackendController {
       if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
       return circle;
     }
-    const { circle } = await this.getMyCircle(req.user.id);
-    return circle;
+    if (circleId) {
+      const membership = await this.prisma.circleMember.findFirst({
+        where: { circleId, userId: req.user.id, role: { in: ["OWNER", "ADMIN"] } },
+        include: { circle: true },
+      });
+      if (!membership) throw new BusinessException(ErrorCode.FORBIDDEN, "你没有该圈子的管理权限");
+      return membership.circle;
+    }
+    const memberships = await this.prisma.circleMember.findMany({
+      where: { userId: req.user.id, role: { in: ["OWNER", "ADMIN"] } },
+      include: { circle: true }, take: 2,
+    });
+    if (!memberships.length) throw new BusinessException(ErrorCode.FORBIDDEN, "你不是任何圈子的圈主或管理员");
+    if (memberships.length > 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "请明确选择需要管理的圈子");
+    return memberships[0].circle;
   }
 
   @Get("overview")
@@ -98,7 +110,7 @@ export class CircleBackendController {
 
   @Get("guests")
   @ApiOperation({ summary: "嘉宾列表（含分账比例）" })
-  @ApiQuery({ name: "circleId", required: false, description: "管理角色（SUPER_ADMIN/OPERATION_ADMIN）跨圈查看时传入" })
+  @ApiQuery({ name: "circleId", required: false, description: "目标圈子ID；多圈管理时必须传入，并校验本圈管理权限" })
   @ApiResponse({ status: 200, description: "成功" })
   async getGuests(@Req() req: Request, @Query("circleId") circleId?: string) {
     const circle = await this.resolveCircle(req, circleId);

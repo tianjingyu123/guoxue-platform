@@ -50,7 +50,7 @@ async function load() {
     dirty.value = false
     // 嘉宾分账（独立降级·不阻塞矩阵）
     circleGuestsApi
-      .list()
+      .list(circleId.value)
       .then((gs) => { guests.value = gs; guestsFailed.value = false })
       .catch(() => { guestsFailed.value = true })
   } catch (e) {

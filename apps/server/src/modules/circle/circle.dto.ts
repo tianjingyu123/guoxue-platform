@@ -349,7 +349,7 @@ export class SetGuestShareRateDto {
   @Max(100)
   shareRate: number;
 
-  @ApiPropertyOptional({ description: "圈子ID（SUPER_ADMIN/OPERATION_ADMIN 跨圈操作时传入；圈主本人无需传）" })
+  @ApiPropertyOptional({ description: "目标圈子ID；圈主和管理员须具有本圈权限，多圈管理时必须传入" })
   @IsString()
   @IsOptional()
   circleId?: string;
