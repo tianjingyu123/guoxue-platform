@@ -31,6 +31,8 @@ import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
 import { postDetailApi } from '@/pkg-circle/lib/post-detail-data'
 import { gotoReport } from '@/lib/report-data'
 import { growthApi } from '@/lib/circle-growth-data'
+import { shopApi } from '@/lib/shop-data'
+import { apiPost } from '@/utils/request'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { buildH5Url } from '@/utils/share'
 import { withRef } from '@/utils/referral'
@@ -58,6 +60,10 @@ const applied = ref(false)
 const membershipChecking = ref(false)
 const membershipError = ref(false)
 const paidAwaitingAccess = ref(false)
+const paymentOrderId = ref('')
+const paymentRecoveryError = ref('')
+const recoveringPayment = ref(false)
+const recoveryConfirmed = ref(false)
 // 年费圈会员到期信息（用于续费提醒·2026-07-14 接线：此前 getJoinStatus 的 expireAt 被丢弃，
 // 导致续费页 circles/renew 全项目零入口——年费圈到期了成员根本找不到地方续费）
 const memberExpireAt = ref<string | null>(null)
@@ -91,7 +97,7 @@ const liveNow = computed(() => lives.value.find((l) => l.status === 'live'))
 const joinButtonText = computed(() => {
   if (membershipChecking.value) return '正在确认成员状态…'
   if (joining.value) return '正在处理…'
-  if (paidAwaitingAccess.value) return '刷新入圈权益'
+  if (paidAwaitingAccess.value) return recoveringPayment.value ? '正在确认入圈权益…' : '重新确认入圈权益'
   if (membershipError.value) return '状态未确认 · 重试'
   if (memberExpired.value) return '续费后继续交流'
   const c = circle.value
@@ -182,7 +188,8 @@ onLoad((q) => {
   if (q?.id) circleId.value = q.id
   // 回跳标记仅用于防止重复下单，不作为支付或成员资格凭据。
   paidAwaitingAccess.value = q?.paymentSuccess === '1'
-  loadData()
+  paymentOrderId.value = paidAwaitingAccess.value ? String(q?.paymentOrderId || '') : ''
+  void loadData().then(() => { if (paidAwaitingAccess.value && paymentOrderId.value) void recoverCircleAccess() })
   // 发帖页发布成功广播 → 立即重拉（配合后端 createPost 缓存失效，新帖即时可见）
   uni.$on('circle:refresh', onCircleRefresh)
 })
@@ -202,6 +209,32 @@ let dataLoading = false
 function refresh() {
   if (dataLoading || Date.now() - lastLoadAt < 1000) return
   loadData()
+}
+
+/** 支付结果来自服务端订单；只为本人已付且目标一致的订单补做业务确认。 */
+async function recoverCircleAccess() {
+  if (recoveringPayment.value || !paidAwaitingAccess.value || !paymentOrderId.value || !isLoggedIn()) return
+  recoveringPayment.value = true
+  paymentRecoveryError.value = ''
+  try {
+    const state = await shopApi.getOrderPayState(paymentOrderId.value, true)
+    if (!state.paid || state.targetId !== circleId.value || !['CIRCLE_JOIN', 'CIRCLE_RENEW'].includes(state.type || '')) {
+      throw new Error('订单状态尚未确认，请稍后重试')
+    }
+    if (state.status === 'PAID') {
+      try {
+        const path = state.type === 'CIRCLE_RENEW' ? 'renew' : 'join'
+        await apiPost(`/circles/${encodeURIComponent(circleId.value)}/${path}/confirm`, { orderId: paymentOrderId.value })
+      } catch (e) {
+        if (!(state.type === 'CIRCLE_JOIN' && String((e as Error)?.message || '').includes('已是圈子成员'))) throw e
+      }
+    }
+    recoveryConfirmed.value = true
+    await loadData()
+    if (paidAwaitingAccess.value) paymentRecoveryError.value = '付款已记录，权益仍在确认中。请稍后重试，勿重复付款。'
+  } catch (e) {
+    paymentRecoveryError.value = (e as Error)?.message || '暂时无法确认入圈权益，请稍后重试，勿重复付款。'
+  } finally { recoveringPayment.value = false }
 }
 
 const { toAppMessage, toTimeline, openPoster } = useShare()
@@ -273,7 +306,11 @@ async function loadData() {
       memberExpireAt.value = st.value.expireAt
       memberExpired.value = st.value.expired
       if (circle.value) circle.value.myRole = st.value.role
-      if (st.value.joined && !st.value.expired) paidAwaitingAccess.value = false
+      if (st.value.joined && !st.value.expired && (!paymentOrderId.value || recoveryConfirmed.value)) {
+        paidAwaitingAccess.value = false
+        paymentOrderId.value = ''
+        recoveryConfirmed.value = false
+      }
     }
     if (membershipError.value && circle.value) circle.value.myRole = null
     if (isJoined.value) applied.value = false
@@ -293,7 +330,8 @@ async function loadData() {
 
 function handleJoin() {
   if (joining.value || membershipChecking.value) return
-  if (membershipError.value || paidAwaitingAccess.value) { void loadData(); return }
+  if (paidAwaitingAccess.value) { void (paymentOrderId.value ? recoverCircleAccess() : loadData()); return }
+  if (membershipError.value) { void loadData(); return }
   if (memberExpired.value) { navigateTo(`/pkg-circle/circles/renew?id=${encodeURIComponent(circleId.value)}`); return }
   if (applied.value) { navigateTo('/pkg-circle/circles/my-join-requests'); return }
   if (isJoined.value) return
@@ -728,7 +766,7 @@ function openResource(id: string) {
 
     <!-- C. 底部：仅游客保留加入通栏（转化关键）；已加入无底栏，改右下角 FAB（董事长反馈：发帖按钮不占底部） -->
     <view v-if="!isJoined || memberExpired || membershipError || membershipChecking || paidAwaitingAccess" class="bottombar">
-      <text v-if="paidAwaitingAccess" class="membership-notice" role="status">正在核对入圈权益，请先刷新结果，勿重复付款。</text>
+      <text v-if="paidAwaitingAccess" class="membership-notice" role="status">{{ paymentRecoveryError || '正在核对入圈权益，请勿重复付款。' }}</text>
       <view class="btn-join" role="button" tabindex="0" :aria-label="joinButtonText" :aria-disabled="joining || membershipChecking" @tap="handleJoin" @keydown.enter="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
     </view>
 

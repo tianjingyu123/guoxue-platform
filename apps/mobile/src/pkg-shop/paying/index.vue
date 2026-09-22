@@ -558,7 +558,7 @@ async function settleCircleIfNeeded(st: { type?: string; targetId?: string }) {
 function paidBusinessTarget(st: { type?: string; targetId?: string }): string {
   const targetId = String(st.targetId || '').trim()
   if (targetId && (st.type === 'CIRCLE_JOIN' || st.type === 'CIRCLE_RENEW')) {
-    return `/circles/${encodeURIComponent(targetId)}?paymentSuccess=1`
+    return `/circles/${encodeURIComponent(targetId)}?paymentSuccess=1&paymentOrderId=${encodeURIComponent(orderId.value)}`
   }
   if (targetId && st.type === 'COURSE') return `/courses/${encodeURIComponent(targetId)}?paymentSuccess=1`
   if (st.type === 'MEMBER') return '/vip?paymentSuccess=1'

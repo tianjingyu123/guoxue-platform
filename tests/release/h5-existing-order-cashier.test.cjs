@@ -469,8 +469,8 @@ test('真实微信轮询：收银返回只是有限直读提示，订单PAID后�
 
 test('圈子付款成功直接进入圈子，不经过通用成功页',async()=>{
   const paths=[]
-  const target=realFunction('pkg-shop/paying/index.vue','paidBusinessTarget','APP-PLUS',{})
-  assert.equal(target({id:'order-one',type:'CIRCLE_JOIN',targetId:'circle-one'}),'/circles/circle-one?paymentSuccess=1')
+  const target=realFunction('pkg-shop/paying/index.vue','paidBusinessTarget','APP-PLUS',{orderId:{value:'order-one'}})
+  assert.equal(target({id:'order-one',type:'CIRCLE_JOIN',targetId:'circle-one'}),'/circles/circle-one?paymentSuccess=1&paymentOrderId=order-one')
   assert.equal(target({id:'order-one',type:'COURSE',targetId:'course-one'}),'/courses/course-one?paymentSuccess=1')
   assert.equal(target({id:'order-one',type:'MEMBER',targetId:'vip-one'}),'/vip?paymentSuccess=1')
 })
