@@ -70,7 +70,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
     icon-color="#C41E3A"
     icon-bg="rgba(196,30,58,0.1)"
     welcome="你好，我是本圈的圈主助理。圈子内容、国学知识都可以问我～"
-    scene-hint="我会优先从本圈内容、圈规和课程中帮你找答案"
+    scene-hint="优先参考已入库的本圈知识；未命中时补充通用知识"
     :quick-prompts="['这个圈子主要讲什么？', '推荐一些入门内容', '帮我解释一个概念']"
     :resolve-stream="resolveStream"
   />

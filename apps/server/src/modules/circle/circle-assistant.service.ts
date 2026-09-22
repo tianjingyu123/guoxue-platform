@@ -46,7 +46,7 @@ export class CircleAssistantService {
     history?: AiMessage[],
   ): Promise<AssistantReply> {
     await this.assertActiveMember(circleId, userId);
-    this.logger.log(`圈主助理提问 [circle=${circleId}]: ${question.slice(0, 100)}`);
+    this.logger.log(`圈主助理提问 [circle=${circleId}]`);
     return this.rag.askCircle(question, circleId, userId, history);
   }
 
@@ -58,7 +58,7 @@ export class CircleAssistantService {
     history?: AiMessage[],
   ): AsyncIterable<string> {
     await this.assertActiveMember(circleId, userId);
-    this.logger.log(`圈主助理流式提问 [circle=${circleId}]: ${question.slice(0, 100)}`);
+    this.logger.log(`圈主助理流式提问 [circle=${circleId}]`);
     yield* this.rag.askCircleStream(question, circleId, userId, history);
   }
 }
