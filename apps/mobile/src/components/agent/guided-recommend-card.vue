@@ -33,10 +33,24 @@ const commerceMeta = computed(() => {
   if (props.item.type === 'agent' && data.value.isFree) return '免费使用'
   return price > 0 ? `¥${price}` : '免费'
 })
+
+function activateOnKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  emit('tap', props.item)
+}
 </script>
 
 <template>
-  <view class="guide-card" :class="`guide-card--${meta.tone}`" @tap="emit('tap', item)">
+  <view
+    class="guide-card"
+    :class="`guide-card--${meta.tone}`"
+    role="button"
+    tabindex="0"
+    :aria-label="`${meta.label}：${title}，${meta.action}`"
+    @tap="emit('tap', item)"
+    @keydown="activateOnKeyboard"
+  >
     <view class="guide-visual">
       <image v-if="cover" class="guide-cover" :src="cover" mode="aspectFill" lazy-load />
       <view v-else class="guide-icon">
