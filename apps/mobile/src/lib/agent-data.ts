@@ -164,6 +164,8 @@ export interface HistoryItem {
   agentName: string
   agentAvatar: string
   agentType: string
+  /** 后端真实能力标记：是否支持实时语音 */
+  voiceEnabled?: boolean
   lastMessage: string
   time: string
   timeGroup: string
@@ -212,7 +214,7 @@ function shortTime(iso?: string): string {
 interface RawBot { id?: string | number; name?: string; intro?: string; type?: string; price?: number | string; dailyLimit?: number | string; voiceEnabled?: boolean }
 interface RawChatResp { content?: string; conversationId?: string; disclaimer?: string; recommendation?: Recommendation }
 interface RawChatHistoryMsg { role?: string; content?: string; time?: string }
-interface RawConversation { botConfigId?: string; conversationId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
+interface RawConversation { botConfigId?: string; conversationId?: string; botName?: string; botAvatar?: string; botType?: string; voiceEnabled?: boolean; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
 /** 兼容数组 / 分页信封返回 */
 function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
@@ -344,6 +346,7 @@ export const agentApi = {
       agentName: c.botName || '智能体',
       agentAvatar: c.botAvatar || '',
       agentType: c.botType || '',
+      voiceEnabled: c.voiceEnabled === true,
       lastMessage: c.lastMessage || c.lastQuery || '',
       time: shortTime(c.lastTime),
       timeGroup: timeGroupOf(c.lastTime),

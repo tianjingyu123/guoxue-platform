@@ -4,6 +4,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { agentApi, historyGroups, type HistoryItem } from '@/lib/agent-data'
+import { track } from '@/composables/useTrack'
 
 const loading = ref(true)
 const error = ref('')
@@ -38,6 +39,11 @@ function groupItems(group: string) {
 function openChat(item: HistoryItem) {
   // 带 botConfigId + conversationId 进入对话页续聊（后端按 conversationId 续接 Coze 会话）
   navigateTo(`/agent/${item.botConfigId}?conversationId=${encodeURIComponent(item.conversationId)}`)
+}
+
+function openVoice(item: HistoryItem) {
+  track.custom('agent_voice_entry_click', { agentId: item.botConfigId, source: 'history' })
+  navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(item.botConfigId)}`)
 }
 </script>
 
@@ -87,9 +93,19 @@ function openChat(item: HistoryItem) {
                     <text class="agent-name">{{ item.agentName }}</text>
                     <text class="type-badge" :class="item.isFree ? 'badge-free' : 'badge-paid'">{{ item.agentType }}</text>
                   </view>
-                  <text class="last-msg">{{ item.lastMessage }}</text>
-                </view>
+                <text class="last-msg">{{ item.lastMessage }}</text>
+              </view>
                 <text class="row-time">{{ item.time }}</text>
+                <view
+                  v-if="item.voiceEnabled"
+                  class="row-voice"
+                  role="button"
+                  tabindex="0"
+                  aria-label="开始语音通话"
+                  @tap.stop="openVoice(item)"
+                >
+                  <AppIcon name="phone" :size="28" color="#2b8a82" />
+                </view>
               </view>
             </view>
           </template>
@@ -154,6 +170,17 @@ function openChat(item: HistoryItem) {
 .badge-paid { background: rgba(196,30,58,0.1); color: var(--brand); }
 .last-msg { font-size: 24rpx; color: #999; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .row-time { flex-shrink: 0; font-size: 22rpx; color: #999; align-self: flex-start; }
+.row-voice {
+  width: 54rpx;
+  height: 54rpx;
+  flex: 0 0 54rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18rpx;
+  background: rgba(43, 138, 130, .10);
+  border: 1rpx solid rgba(43, 138, 130, .16);
+}
 
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 48rpx; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: rgba(201,169,110,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
