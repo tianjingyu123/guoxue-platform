@@ -55,6 +55,8 @@ export interface AgentConversation {
   agentName: string
   agentAvatar: string
   agentCategory: string
+  /** 智能体是否支持实时语音（由后端真实能力标记） */
+  voiceEnabled?: boolean
   lastMessage: string
   lastTime: string
   messageCount: number
@@ -121,7 +123,7 @@ function formatConvTime(iso?: string): string {
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
 interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
 interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string; chatCount?: number; userCount?: number }
-interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
+interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; voiceEnabled?: boolean; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
 /** 兼容数组 / 分页信封返回 */
 function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
@@ -195,6 +197,7 @@ export const agentsSquareApi = {
       agentName: c.botName || '智能体',
       agentAvatar: c.botAvatar || '',
       agentCategory: botTypeLabel(c.botType || ''),
+      voiceEnabled: c.voiceEnabled === true,
       lastMessage: c.lastMessage || c.lastQuery || '',
       lastTime: formatConvTime(c.lastTime),
       messageCount: Number(c.messageCount) || 0,

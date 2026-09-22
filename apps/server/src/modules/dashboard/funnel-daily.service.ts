@@ -10,7 +10,7 @@ const DAY_MS = 86_400_000;
 /**
  * 核心转化漏斗日聚合（D-T1·设计真源 docs/design/数据运营引擎-看板漏斗标签周报-20260705.md §二）
  *
- * 六条漏斗（distinct 用户口径·当日窗口）：
+ * 七条漏斗（distinct 用户口径·当日窗口）：
  * - F1_activation  注册 → 当日首次排盘 → 次日回访（cohort=注册日；step3 依赖 D+1 数据，
  *   每日 cron 同时重算 昨日+前日 两天，前日行幂等修正为完整值）
  * - F2_member      会员页曝光(member_page_view) → 支付点击(member_pay_click) → 会员购买(MemberPurchase)
@@ -18,6 +18,7 @@ const DAY_MS = 86_400_000;
  * - F4_practitioner 工具使用(PaipanRecord) → B端入口曝光 → 认证申请(TeacherCertification) → 出佣(LedgerEntry)
  * - F5_customer_service 提问 → 问题已处理 → 推荐展示 → 推荐点击 → 点击后支付
  * - F6_agent_discovery 智能体推荐曝光 → 推荐点击（仅统计事件，不记录对话正文）
+ * - F7_agent_voice 语音通话开始 → 通话结束 → 通话失败/阻断（仅统计生命周期，不记录语音内容）
  *
  * 事件源最小化：仅 member_page_view / member_pay_click / buy_click 三个前端新埋点，
  * 其余全部复用现有表与 page_view 的 path（勿再加埋点）。
@@ -220,6 +221,18 @@ export class FunnelDailyService {
     await this.upsertSteps(date, "F6_agent_discovery", [
       ["agent_discovery_view", discoveryViews],
       ["agent_discovery_click", discoveryClicks],
+    ]);
+
+    // ── F7 语音通话生命周期（仅统计登录用户，不记录音频、字幕或出生资料） ──
+    const [voiceStarted, voiceEnded, voiceFailed] = await Promise.all([
+      this.distinctEventUsers("agent_voice_started", range),
+      this.distinctEventUsers("agent_voice_ended", range),
+      this.distinctEventUsersAny(["agent_voice_failed", "agent_voice_blocked"], range),
+    ]);
+    await this.upsertSteps(date, "F7_agent_voice", [
+      ["agent_voice_started", voiceStarted],
+      ["agent_voice_ended", voiceEnded],
+      ["agent_voice_failed", voiceFailed],
     ]);
   }
 

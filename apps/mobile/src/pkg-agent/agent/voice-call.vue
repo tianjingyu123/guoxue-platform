@@ -219,6 +219,20 @@ onUnmounted(() => {
           <text class="call-summary-desc">{{ callSummaryHint }}</text>
         </view>
       </view>
+      <view v-else-if="state === 'ready'" class="preflight-card">
+        <view class="preflight-head">
+          <view class="preflight-icon"><AppIcon name="sparkles" :size="28" color="#2b8a82" /></view>
+          <view class="preflight-copy">
+            <text class="preflight-title">通话前说明</text>
+            <text class="preflight-sub">准备好后直接点击下方按钮，进入自然对话</text>
+          </view>
+        </view>
+        <view class="preflight-list">
+          <view class="preflight-item"><view class="preflight-dot" /><text>麦克风只在通话期间启用，结束后立即释放</text></view>
+          <view class="preflight-item"><view class="preflight-dot" /><text>你可以随时打断，也可以切回文字继续追问</text></view>
+          <view class="preflight-item"><view class="preflight-dot" /><text>通话字幕仅用于本次对话展示，不展示给其他用户</text></view>
+        </view>
+      </view>
       <view v-else-if="error" class="readiness-card">
         <view class="readiness-icon"><AppIcon name="shield-check" :size="34" color="#8d6d2f" /></view>
         <view class="readiness-copy">
@@ -329,6 +343,25 @@ onUnmounted(() => {
   border-radius: 28rpx; background: rgba(255,255,255,.82); border: 1rpx solid rgba(59,79,99,.09);
   box-shadow: 0 18rpx 50rpx rgba(47,67,84,.08);
 }
+.preflight-card {
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 30rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 26rpx;
+  background: rgba(255,255,255,.84);
+  border: 1rpx solid rgba(43,138,130,.14);
+  box-shadow: 0 18rpx 50rpx rgba(47,67,84,.07);
+}
+.preflight-head { display: flex; align-items: center; gap: 16rpx; }
+.preflight-icon { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: rgba(43,138,130,.10); }
+.preflight-copy { min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.preflight-title { font-size: 26rpx; font-weight: 800; color: #25364d; }
+.preflight-sub { font-size: 20rpx; color: #7a8995; }
+.preflight-list { display: flex; flex-direction: column; gap: 12rpx; margin-top: 20rpx; }
+.preflight-item { display: flex; align-items: flex-start; gap: 10rpx; color: #536579; font-size: 21rpx; line-height: 1.5; }
+.preflight-dot { width: 10rpx; height: 10rpx; flex: 0 0 10rpx; margin-top: 11rpx; border-radius: 50%; background: #2b8a82; box-shadow: 0 0 0 5rpx rgba(43,138,130,.10); }
 .caption-card { display: flex; flex-direction: column; gap: 10rpx; }
 .caption-speaker { color: #257267; font-size: 21rpx; font-weight: 800; }
 .caption-text { color: #314158; font-size: 26rpx; line-height: 1.65; }

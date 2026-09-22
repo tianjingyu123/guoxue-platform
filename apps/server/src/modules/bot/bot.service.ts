@@ -673,7 +673,7 @@ export class BotService {
     const bots = botIds.length
       ? await this.prisma.botConfig.findMany({
           where: { id: { in: botIds } },
-          select: { id: true, name: true, avatar: true, type: true },
+          select: { id: true, name: true, avatar: true, type: true, voiceEnabled: true },
         })
       : [];
     const botMap = new Map(bots.map((b) => [b.id, b]));
@@ -686,6 +686,7 @@ export class BotService {
         botName: bot?.name ?? "智能体",
         botAvatar: bot?.avatar ?? "",
         botType: bot?.type ?? "",
+        voiceEnabled: bot?.voiceEnabled === true,
         lastQuery: c.lastQuery,
         lastMessage: c.lastResponse,
         lastTime: c.lastTime,

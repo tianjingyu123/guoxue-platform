@@ -203,6 +203,17 @@
                 </view>
                 <text class="recent-msg">{{ recentMessageSummary(c.lastMessage) }}</text>
               </view>
+              <view
+                v-if="c.voiceEnabled"
+                class="recent-voice"
+                role="button"
+                tabindex="0"
+                aria-label="开始语音通话"
+                @tap.stop="openRecentVoice(c)"
+                @keydown.stop="activateOnKeyboard($event, () => openRecentVoice(c))"
+              >
+                <app-icon name="phone" :size="28" color="#2b8a82" />
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -503,6 +514,10 @@ function openBot(id: string) {
 /** 续聊：带 conversationId 进入对话页（与 /agents/history 行为一致） */
 function resumeConv(c: AgentConversation) {
   navigateTo(`/agent/${c.botConfigId}?conversationId=${encodeURIComponent(c.conversationId)}`)
+}
+
+function openRecentVoice(c: AgentConversation) {
+  navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(c.botConfigId)}`)
 }
 
 // 浏览器 SpeechRecognition 实例，uni 类型无定义，保留 any
@@ -888,6 +903,17 @@ function goBack() {
   -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.recent-voice {
+  width: 54rpx;
+  height: 54rpx;
+  flex: 0 0 54rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18rpx;
+  background: rgba(43, 138, 130, .10);
+  border: 1rpx solid rgba(43, 138, 130, .16);
 }
 .recent-time {
   flex-shrink: 0;
