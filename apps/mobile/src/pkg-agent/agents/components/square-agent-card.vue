@@ -6,7 +6,7 @@ import { formatCount, type SquareBot } from '@/lib/agents-square-data'
 import { agentThemeStyle, resolveAgentTheme } from '@/lib/agent-experience'
 
 const props = defineProps<{ bot: SquareBot }>()
-const emit = defineEmits<{ select: [id: string] }>()
+const emit = defineEmits<{ select: [id: string]; voice: [id: string] }>()
 
 const theme = computed(() => resolveAgentTheme(props.bot.category))
 const cardStyle = computed(() => agentThemeStyle(props.bot.category))
@@ -19,6 +19,12 @@ function selectByKeyboard(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
   emit('select', props.bot.id)
+}
+
+function voiceByKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  emit('voice', props.bot.id)
 }
 </script>
 
@@ -77,6 +83,18 @@ function selectByKeyboard(event: KeyboardEvent) {
           <text class="action-text">开始学习</text>
           <app-icon name="arrow-up-right" :size="22" :color="theme.ink" />
         </view>
+      </view>
+      <view
+        v-if="bot.voiceEnabled"
+        class="voice-quick"
+        role="button"
+        tabindex="0"
+        aria-label="开始语音通话"
+        @tap.stop="emit('voice', bot.id)"
+        @keydown.stop="voiceByKeyboard"
+      >
+        <app-icon name="phone" :size="22" color="#2b8a82" />
+        <text>直接语音通话</text>
       </view>
     </view>
   </view>
@@ -304,6 +322,20 @@ function selectByKeyboard(event: KeyboardEvent) {
 }
 .foot-meta { min-width: 0; display: flex; align-items: center; gap: 10rpx; }
 .voice-mark { display: inline-flex; align-items: center; gap: 3rpx; flex-shrink: 0; padding: 3rpx 8rpx; border-radius: 999rpx; background: rgba(49,95,122,.09); color: #315f7a; font-size: 18rpx; }
+.voice-quick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-height: 56rpx;
+  margin-top: 12rpx;
+  border-radius: 16rpx;
+  color: #2b8a82;
+  background: rgba(43, 138, 130, .08);
+  border: 1rpx solid rgba(43, 138, 130, .15);
+  font-size: 21rpx;
+  font-weight: 700;
+}
 .action {
   flex-shrink: 0;
   display: flex;

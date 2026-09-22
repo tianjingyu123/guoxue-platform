@@ -110,6 +110,7 @@
           :key="bot.id"
           :bot="bot"
           @select="openBot"
+          @voice="openVoiceCall"
         />
       </view>
       <view v-else class="empty-block" role="status" aria-live="polite"><text class="empty-txt">没有找到相关智能体，试试直接问智玄助手</text></view>
@@ -337,8 +338,9 @@
           <square-agent-card
             v-for="bot in group.bots"
             :key="bot.id"
-            :bot="bot"
-            @select="openBot"
+          :bot="bot"
+          @select="openBot"
+          @voice="openVoiceCall"
           />
         </view>
       </view>
@@ -509,6 +511,10 @@ const searchedBots = computed(() => {
 
 function openBot(id: string) {
   navigateTo('/agent/' + id)
+}
+
+function openVoiceCall(id: string) {
+  navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(id)}`)
 }
 
 /** 续聊：带 conversationId 进入对话页（与 /agents/history 行为一致） */
