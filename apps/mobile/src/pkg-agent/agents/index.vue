@@ -302,6 +302,17 @@
         </view>
       </view>
 
+      <view class="voice-filter section-px" aria-label="智能体能力筛选">
+        <text class="voice-filter-label">按能力找</text>
+        <view class="voice-filter-chip" :class="{ active: !voiceOnly }" @tap="voiceOnly = false">
+          <text>全部智能体</text>
+        </view>
+        <view class="voice-filter-chip voice-filter-chip--voice" :class="{ active: voiceOnly }" @tap="voiceOnly = true">
+          <app-icon name="phone" :size="22" color="currentColor" /><text>支持语音</text>
+          <text class="voice-filter-count">{{ voiceBots.length }}</text>
+        </view>
+      </view>
+
       <!-- ④ 分类分区陈列（按 category 分组·双列卡） -->
       <view v-for="group in categoryGroups" :key="group.name" class="section-px section-mt">
         <view class="sec-head">
@@ -321,8 +332,8 @@
         </view>
       </view>
 
-      <view v-if="!hotBots.length" class="empty-block" role="status" aria-live="polite">
-        <text class="empty-txt">广场智能体正在上架中，先和智玄助手聊聊吧</text>
+      <view v-if="!filteredBots.length" class="empty-block" role="status" aria-live="polite">
+        <text class="empty-txt">{{ voiceOnly ? '暂时没有可语音通话的智能体，先和智玄助手聊聊吧' : '广场智能体正在上架中，先和智玄助手聊聊吧' }}</text>
       </view>
 
       <!-- 客服属于平台工具，不占用首屏的学习内容位置 -->
@@ -380,6 +391,7 @@ const error = ref('')
 const statusBarHeight = ref(0)
 const searchQuery = ref('')
 const isListening = ref(false)
+const voiceOnly = ref(false)
 
 const voiceSupported = ref(false)
 
@@ -464,7 +476,7 @@ const topRanking = computed(() => ranking.value.slice(0, 5))
 /** 分类分区：按 categoryName 分组（数据里有什么分类用什么），组内保持后端排序 */
 const categoryGroups = computed(() => {
   const map = new Map<string, { key: string; bots: SquareBot[] }>()
-  for (const b of hotBots.value) {
+  for (const b of filteredBots.value) {
     const key = b.categoryName || '综合助手'
     if (!map.has(key)) map.set(key, { key: b.category, bots: [] })
     map.get(key)!.bots.push(b)
@@ -472,11 +484,14 @@ const categoryGroups = computed(() => {
   return Array.from(map.entries()).map(([name, group]) => ({ name, ...group }))
 })
 
+const voiceBots = computed(() => hotBots.value.filter((b) => b.voiceEnabled))
+const filteredBots = computed(() => voiceOnly.value ? voiceBots.value : hotBots.value)
+
 /** 搜索过滤（名称/简介） */
 const searchedBots = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return []
-  return hotBots.value.filter(
+  return filteredBots.value.filter(
     (b) => b.name.toLowerCase().includes(q) || (b.description || '').toLowerCase().includes(q),
   )
 })
@@ -626,6 +641,12 @@ function goBack() {
 
 /* 通用区块 */
 .section-px { padding-left: 32rpx; padding-right: 32rpx; }
+.voice-filter { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; }
+.voice-filter-label { margin-right: 2rpx; font-size: 21rpx; color: #8a91a0; }
+.voice-filter-chip { height: 54rpx; padding: 0 18rpx; display: inline-flex; align-items: center; gap: 6rpx; border: 1rpx solid rgba(91,108,154,.16); border-radius: 999rpx; background: #fff; color: #737b8d; font-size: 21rpx; }
+.voice-filter-chip.active { border-color: rgba(91,108,154,.34); background: #f2f4ff; color: #4f5ca5; font-weight: 700; }
+.voice-filter-chip--voice.active { border-color: rgba(49,95,122,.32); background: #eef7fa; color: #315f7a; }
+.voice-filter-count { min-width: 26rpx; padding: 2rpx 6rpx; border-radius: 999rpx; background: rgba(49,95,122,.12); font-size: 18rpx; text-align: center; }
 .section-mt { margin-top: 44rpx; }
 .sec-head {
   display: flex; align-items: center; justify-content: space-between;
