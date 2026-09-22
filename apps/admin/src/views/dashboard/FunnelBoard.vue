@@ -217,9 +217,10 @@ const STEP_LABELS: Record<string, string> = {
   cs_attributed_paid: "点击后支付",
   agent_discovery_view: "推荐曝光",
   agent_discovery_click: "推荐点击",
+  agent_voice_view: "语音页曝光",
   agent_voice_started: "开始通话",
   agent_voice_ended: "正常结束",
-  agent_voice_failed: "失败或阻断",
+  agent_voice_next_click: "继续下一步",
 };
 
 interface DayRow { date: string; steps: Array<{ step: number; stepKey: string; count: number }> }

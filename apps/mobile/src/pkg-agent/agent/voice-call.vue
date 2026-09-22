@@ -78,6 +78,7 @@ async function loadAgent() {
       error.value = '该智能体当前为图文服务，尚未开放实时语音。'
       return
     }
+    track.custom('agent_voice_view', { agentId: agentId.value })
     runtimeAvailable.value = voiceRuntimeReady()
     state.value = runtimeAvailable.value ? 'ready' : 'blocked'
     if (!runtimeAvailable.value) {
@@ -151,6 +152,16 @@ function openTextChat() {
   navigateTo(`/agent/${agentId.value}`)
 }
 
+function continueWithText() {
+  track.custom('agent_voice_next_click', { agentId: agentId.value, target: 'text_chat' })
+  openTextChat()
+}
+
+function explorePlatform() {
+  track.custom('agent_voice_next_click', { agentId: agentId.value, target: 'discover' })
+  navigateTo('/discover')
+}
+
 onLoad((query) => {
   agentId.value = String(query?.id || '')
   if (!agentId.value) {
@@ -217,6 +228,10 @@ onUnmounted(() => {
         <view class="call-summary-copy">
           <text class="call-summary-title">本次通话已结束</text>
           <text class="call-summary-desc">{{ callSummaryHint }}</text>
+          <view class="call-next-actions">
+            <view class="call-next primary" @tap="continueWithText"><text>继续文字追问</text></view>
+            <view class="call-next" @tap="explorePlatform"><text>发现更多内容</text></view>
+          </view>
         </view>
       </view>
       <view v-else-if="state === 'ready'" class="preflight-card">
@@ -260,6 +275,10 @@ onUnmounted(() => {
         <view class="start-btn" :class="{ disabled: !runtimeAvailable || state === 'loading' }" @tap="startCall">
           <AppIcon name="phone" :size="38" color="#fff" />
           <text>{{ state === 'ended' ? '再次通话' : (runtimeAvailable ? '开始语音通话' : '等待实时服务开通') }}</text>
+        </view>
+        <view v-if="state === 'blocked' || state === 'error'" class="text-fallback" @tap="continueWithText">
+          <AppIcon name="message-circle" :size="26" color="#49627b" />
+          <text>先用文字继续咨询</text>
         </view>
         <view v-if="state === 'error'" class="retry-link" @tap="loadAgent"><text>重新检查</text></view>
       </view>
@@ -373,9 +392,12 @@ onUnmounted(() => {
 .readiness-desc { font-size: 22rpx; line-height: 1.6; color: #7c756a; }
 .call-summary-card { z-index: 1; width: 100%; box-sizing: border-box; margin-top: 30rpx; padding: 22rpx 24rpx; display: flex; gap: 20rpx; align-items: center; border-radius: 24rpx; background: rgba(255,255,255,.82); border: 1rpx solid rgba(59,79,99,.09); box-shadow: 0 18rpx 50rpx rgba(47,67,84,.08); }
 .call-summary-icon { width: 54rpx; height: 54rpx; flex-shrink: 0; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, #49627b, #2b8a82); }
-.call-summary-copy { min-width: 0; }
+.call-summary-copy { flex: 1; min-width: 0; }
 .call-summary-title { display: block; font-size: 26rpx; font-weight: 700; color: #25364d; }
 .call-summary-desc { display: block; margin-top: 6rpx; font-size: 21rpx; line-height: 1.45; color: #69798a; }
+.call-next-actions { display: flex; gap: 12rpx; margin-top: 18rpx; }
+.call-next { min-height: 54rpx; padding: 0 18rpx; display: flex; align-items: center; justify-content: center; border-radius: 999rpx; border: 1rpx solid rgba(73,98,123,.16); color: #49627b; background: rgba(73,98,123,.06); font-size: 21rpx; font-weight: 700; }
+.call-next.primary { color: #fff; border-color: transparent; background: linear-gradient(120deg, #2b8a82, #526cbf); }
 .voice-actions { padding: 20rpx 34rpx 34rpx; }
 .privacy-line { min-height: 42rpx; display: flex; justify-content: center; align-items: center; gap: 9rpx; color: #77869a; font-size: 20rpx; }
 .start-btn {
@@ -386,6 +408,7 @@ onUnmounted(() => {
   box-shadow: 0 18rpx 44rpx rgba(72,92,157,.24);
 }
 .start-btn.disabled { background: linear-gradient(100deg, #8c9da5, #8e91ac); box-shadow: none; }
+.text-fallback { min-height: 62rpx; margin-top: 14rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; color: #49627b; font-size: 23rpx; font-weight: 700; }
 .retry-link { padding: 22rpx; text-align: center; color: #546b8c; font-size: 23rpx; }
 .call-controls { display: flex; justify-content: center; align-items: flex-start; gap: 68rpx; }
 .round-action { display: flex; flex-direction: column; align-items: center; gap: 12rpx; color: #526277; font-size: 22rpx; }

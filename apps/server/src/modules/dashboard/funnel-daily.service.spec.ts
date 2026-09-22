@@ -52,8 +52,8 @@ describe("FunnelDailyService", () => {
   it("aggregateCron 经 runExclusive('funnel-daily') 互斥，且重算昨日+前日两天（F1 次日回访幂等修正）", async () => {
     await svc.aggregateCron();
     expect(mockRedis.runExclusive).toHaveBeenCalledWith("funnel-daily", 600, expect.any(Function));
-    // 7 漏斗 × (3+3+3+4+5+2+3)=23 步骤 × 2 天 = 46 次 upsert
-    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(46);
+    // 7 漏斗 × (3+3+3+4+5+2+4)=24 步骤 × 2 天 = 48 次 upsert
+    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(48);
   });
 
   it("非法日期抛业务异常", async () => {
@@ -177,13 +177,14 @@ describe("FunnelDailyService", () => {
     ]);
   });
 
-  it("F7 语音通话：开始、结束与失败/阻断按用户去重", async () => {
+  it("F7 语音通话：曝光、开始、结束与后续承接按用户去重", async () => {
     mockPrisma.trackEvent.findMany.mockImplementation(async (args: any) => {
       const action = args?.where?.action;
       const actions = action?.in || [action];
+      if (actions.includes("agent_voice_view")) return [{ userId: "u1" }, { userId: "u2" }, { userId: "u3" }];
       if (actions.includes("agent_voice_started")) return [{ userId: "u1" }, { userId: "u2" }];
       if (actions.includes("agent_voice_ended")) return [{ userId: "u1" }];
-      if (actions.includes("agent_voice_failed")) return [{ userId: "u3" }];
+      if (actions.includes("agent_voice_next_click")) return [{ userId: "u1" }];
       return [];
     });
 
@@ -192,9 +193,10 @@ describe("FunnelDailyService", () => {
     const f7 = mockPrisma.funnelDaily.upsert.mock.calls
       .map((c) => c[0].create).filter((r) => r.funnel === "F7_agent_voice");
     expect(f7).toEqual([
-      expect.objectContaining({ step: 1, stepKey: "agent_voice_started", count: 2 }),
-      expect.objectContaining({ step: 2, stepKey: "agent_voice_ended", count: 1 }),
-      expect.objectContaining({ step: 3, stepKey: "agent_voice_failed", count: 1 }),
+      expect.objectContaining({ step: 1, stepKey: "agent_voice_view", count: 3 }),
+      expect.objectContaining({ step: 2, stepKey: "agent_voice_started", count: 2 }),
+      expect.objectContaining({ step: 3, stepKey: "agent_voice_ended", count: 1 }),
+      expect.objectContaining({ step: 4, stepKey: "agent_voice_next_click", count: 1 }),
     ]);
   });
 

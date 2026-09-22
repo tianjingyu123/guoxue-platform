@@ -18,7 +18,7 @@ const DAY_MS = 86_400_000;
  * - F4_practitioner 工具使用(PaipanRecord) → B端入口曝光 → 认证申请(TeacherCertification) → 出佣(LedgerEntry)
  * - F5_customer_service 提问 → 问题已处理 → 推荐展示 → 推荐点击 → 点击后支付
  * - F6_agent_discovery 智能体推荐曝光 → 推荐点击（仅统计事件，不记录对话正文）
- * - F7_agent_voice 语音通话开始 → 通话结束 → 通话失败/阻断（仅统计生命周期，不记录语音内容）
+ * - F7_agent_voice 语音页曝光 → 通话开始 → 通话结束 → 后续承接（仅统计生命周期，不记录语音内容）
  *
  * 事件源最小化：仅 member_page_view / member_pay_click / buy_click 三个前端新埋点，
  * 其余全部复用现有表与 page_view 的 path（勿再加埋点）。
@@ -224,15 +224,17 @@ export class FunnelDailyService {
     ]);
 
     // ── F7 语音通话生命周期（仅统计登录用户，不记录音频、字幕或出生资料） ──
-    const [voiceStarted, voiceEnded, voiceFailed] = await Promise.all([
+    const [voiceViewed, voiceStarted, voiceEnded, voiceNext] = await Promise.all([
+      this.distinctEventUsers("agent_voice_view", range),
       this.distinctEventUsers("agent_voice_started", range),
       this.distinctEventUsers("agent_voice_ended", range),
-      this.distinctEventUsersAny(["agent_voice_failed", "agent_voice_blocked"], range),
+      this.distinctEventUsers("agent_voice_next_click", range),
     ]);
     await this.upsertSteps(date, "F7_agent_voice", [
+      ["agent_voice_view", voiceViewed],
       ["agent_voice_started", voiceStarted],
       ["agent_voice_ended", voiceEnded],
-      ["agent_voice_failed", voiceFailed],
+      ["agent_voice_next_click", voiceNext],
     ]);
   }
 
