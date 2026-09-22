@@ -19,6 +19,8 @@ export interface SquareBot {
   category: string
   categoryName: string
   isFree: boolean
+  /** 后端标记该智能体是否支持实时语音通话 */
+  voiceEnabled?: boolean
   price?: number
   /** 头像底色 */
   bgColor: string
@@ -117,7 +119,7 @@ function formatConvTime(iso?: string): string {
 }
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
-interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; createdAt?: string }
+interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
 interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string; chatCount?: number; userCount?: number }
 interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
@@ -139,6 +141,7 @@ function mapSquareBot(b: RawBot, i: number): SquareBot {
     category: type,
     categoryName: botTypeLabel(type),
     isFree: b.isFree !== false && (price == null || price === 0),
+    voiceEnabled: b.voiceEnabled === true,
     price,
     bgColor: CATEGORY_COLOR[type] || PALETTE[i % PALETTE.length],
     isNew: isWithin7Days(b.createdAt),

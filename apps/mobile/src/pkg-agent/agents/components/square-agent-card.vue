@@ -69,7 +69,10 @@ function selectByKeyboard(event: KeyboardEvent) {
       <text class="name">{{ bot.name }}</text>
       <text class="desc">{{ bot.description || '点击进入，开始智能对话' }}</text>
       <view class="foot">
-        <text class="usage">{{ usageText }}</text>
+        <view class="foot-meta">
+          <text class="usage">{{ usageText }}</text>
+          <text v-if="bot.voiceEnabled" class="voice-mark"><app-icon name="phone" :size="18" color="#315f7a" />语音</text>
+        </view>
         <view class="action">
           <text class="action-text">开始学习</text>
           <app-icon name="arrow-up-right" :size="22" :color="theme.ink" />
@@ -299,6 +302,8 @@ function selectByKeyboard(event: KeyboardEvent) {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.foot-meta { min-width: 0; display: flex; align-items: center; gap: 10rpx; }
+.voice-mark { display: inline-flex; align-items: center; gap: 3rpx; flex-shrink: 0; padding: 3rpx 8rpx; border-radius: 999rpx; background: rgba(49,95,122,.09); color: #315f7a; font-size: 18rpx; }
 .action {
   flex-shrink: 0;
   display: flex;
