@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { Type } from "class-transformer";
@@ -9,6 +9,16 @@ import { Roles } from "../../common/roles.decorator";
 import { StrictThrottleGuard, ThrottleGuard } from "../../common/throttle.guard";
 import { VoiceDeviceService } from "./voice-device.service";
 import { VoiceSessionService } from "./voice-session.service";
+import { HANDOFF_SCENES, VoiceDeviceHandoffService } from "./voice-device-handoff.service";
+
+/** 场景接续：在 App 里选好场景，让硬件接着聊 */
+export class DeviceHandoffDto {
+  @IsIn(HANDOFF_SCENES as unknown as string[]) scene: "report_dialogue" | "classic_companion" | "circle_assistant" | "plaza" | "content_guide";
+  @IsOptional() @IsString() @MaxLength(64) contextId?: string;
+  @IsOptional() @IsString() @MaxLength(32) sectionId?: string;
+  @IsOptional() @IsString() @MaxLength(500) selectedText?: string;
+  @IsOptional() @IsIn(["explain", "ask"]) intent?: "explain" | "ask";
+}
 
 export class BindDeviceDto {
   @IsString() @MinLength(10) @MaxLength(40) bindCode: string;
@@ -44,6 +54,7 @@ export class VoiceDeviceController {
   constructor(
     private readonly devices: VoiceDeviceService,
     private readonly sessions: VoiceSessionService,
+    private readonly handoff: VoiceDeviceHandoffService,
   ) {}
 
   @Get()
@@ -86,6 +97,25 @@ export class VoiceDeviceController {
   @HttpCode(200)
   cancelTransfer(@Req() req: Request, @Param("id") id: string) {
     return this.devices.cancelTransfer((req as any).user.id, id);
+  }
+
+  @Put(":id/handoff")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "在硬件上继续：把当前场景（报告/古籍/圈子…）交给这台设备，2 小时内按键即接着聊" })
+  setHandoff(@Req() req: Request, @Param("id") id: string, @Body() dto: DeviceHandoffDto) {
+    return this.handoff.set((req as any).user.id, id, dto);
+  }
+
+  @Get(":id/handoff")
+  @ApiOperation({ summary: "这台设备当前的接续场景" })
+  getHandoff(@Req() req: Request, @Param("id") id: string) {
+    return this.handoff.get((req as any).user.id, id);
+  }
+
+  @Delete(":id/handoff")
+  @ApiOperation({ summary: "清除接续场景（回到普通硬件对话）" })
+  clearHandoff(@Req() req: Request, @Param("id") id: string) {
+    return this.handoff.clear((req as any).user.id, id);
   }
 
   @Get(":id/history")

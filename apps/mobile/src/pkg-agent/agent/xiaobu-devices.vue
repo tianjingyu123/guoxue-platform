@@ -10,7 +10,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { xiaobuVoiceApi, type VoiceDeviceView } from '@/lib/xiaobu-voice-data'
+import { xiaobuVoiceApi, type DeviceHandoffView, type VoiceDeviceView } from '@/lib/xiaobu-voice-data'
 
 const devices = ref<VoiceDeviceView[]>([])
 const loading = ref(true)
@@ -23,11 +23,22 @@ const STATUS: Record<string, string> = {
   bound: '已绑定', transfer_pending: '转赠中', disabled: '已停用', unbound: '未绑定',
 }
 
+const handoffs = ref<Record<string, DeviceHandoffView>>({})
+
+async function clearHandoff(d: VoiceDeviceView) {
+  await run(() => xiaobuVoiceApi.clearDeviceHandoff(d.id), '已恢复普通对话')
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   try {
     devices.value = await xiaobuVoiceApi.devices()
+    // 各设备当前的接续场景（在 App 里选好、硬件接着聊）
+    const pairs = await Promise.all(
+      devices.value.filter((d) => d.status === 'bound').map(async (d) => [d.id, await xiaobuVoiceApi.getDeviceHandoff(d.id).catch(() => null)] as const),
+    )
+    handoffs.value = Object.fromEntries(pairs.filter(([, h]) => !!h)) as Record<string, DeviceHandoffView>
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -150,6 +161,10 @@ onShow(load)
         </view>
         <text class="hint" data-testid="device-voice-state">{{ d.voiceReady ? '语音可用' : '语音待开通：商业固件与语音服务接通后即可对话' }}</text>
         <text v-if="d.status === 'disabled' && d.disabledReason" class="hint">停用原因：{{ d.disabledReason }}</text>
+        <view v-if="handoffs[d.id]" class="handoff-row" data-testid="device-handoff">
+          <text class="hint">正在接着聊：{{ handoffs[d.id].displayTopic }}（按设备按键即可继续）</text>
+          <text class="link" @tap="clearHandoff(d)">恢复普通对话</text>
+        </view>
         <view v-if="d.status === 'bound'" class="row">
           <view class="btn" @tap="transfer(d)"><text class="btn-text">转赠</text></view>
           <view class="btn" @tap="unbind(d)"><text class="btn-text">解绑</text></view>
@@ -181,6 +196,8 @@ onShow(load)
 .state { padding: 100rpx 48rpx; display: flex; flex-direction: column; align-items: center; gap: 20rpx; }
 .state-text { font-size: 28rpx; color: var(--text-ink); }
 .hint { font-size: 23rpx; line-height: 1.6; color: var(--text-soft); }
+.handoff-row { display: flex; flex-direction: column; gap: 6rpx; padding: 14rpx 18rpx; border-radius: 14rpx; background: #f6f1e9; }
+.link { font-size: 24rpx; color: #C41E3A; }
 .list { padding: 12rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .item { padding: 24rpx; background: var(--card); border-radius: 20rpx; display: flex; flex-direction: column; gap: 14rpx; }
 .name { font-size: 28rpx; font-weight: 600; color: var(--text-ink); }

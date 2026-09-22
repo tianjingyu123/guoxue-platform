@@ -10,6 +10,8 @@ import { DEFAULT_VOICE_BILLING, VoiceQuotaService } from "./voice-quota.service"
 import { VoiceContextBuilder } from "./voice-context.builder";
 import { VoiceSessionService } from "./voice-session.service";
 import { VoiceDeviceService } from "./voice-device.service";
+import { VoiceDeviceHandoffService } from "./voice-device-handoff.service";
+import { RedisService } from "../../redis/redis.service";
 import { VoiceProviderCallbackController, VoiceSessionController } from "./voice-session.controller";
 import { VoiceDeviceAdminController, VoiceDeviceController } from "./voice-device.controller";
 import { VoiceAdminController } from "./voice-admin.controller";
@@ -53,6 +55,8 @@ async function makeApp(prisma: PrismaClient, provider: any, chargeUsers = true):
       VoiceContextBuilder,
       VoiceDeviceService,
       VoiceSessionService,
+      VoiceDeviceHandoffService,
+      RedisService,
     ],
   })
     .overrideGuard(JwtAuthGuard).useValue(new HeaderAuthGuard())

@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable, Logger } from "@nestjs/common";
+import { HttpStatus, Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { createHash, createHmac, randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
@@ -6,6 +6,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { VoiceQuotaService } from "./voice-quota.service";
 import { VoiceContextBuilder, VoiceContextRequest, digestContext } from "./voice-context.builder";
 import { VoiceDeviceService } from "./voice-device.service";
+import { VoiceDeviceHandoffService } from "./voice-device-handoff.service";
 import {
   ProviderProbeResult,
   VOICE_PROVIDER,
@@ -77,6 +78,8 @@ export class VoiceSessionService {
     private readonly contexts: VoiceContextBuilder,
     @Inject(VOICE_PROVIDER) private readonly provider: VoiceProvider,
     private readonly devices: VoiceDeviceService,
+    /** 场景接续（App 里选好场景，硬件接着聊）；可选只为兼容以五参数构造本服务的测试 */
+    @Optional() private readonly handoff?: VoiceDeviceHandoffService,
   ) {
     const configured = process.env.XIAOBU_USER_REF_SECRET;
     this.userRefStable = !!configured && configured.length >= 32;
@@ -191,6 +194,17 @@ export class VoiceSessionService {
     const mockRelay = opts.allowPendingVendorForMockRelay === true && this.provider.isMock;
     if (d.activationState !== "activated" && !mockRelay) {
       return { available: false as const, userMessage: "设备待开通：商业固件与语音服务接通后即可使用。", isMock: this.provider.isMock };
+    }
+    // 场景接续：App 里选好的场景（报告/古籍/圈子…）在开会话时按用户身份重新校验，失效则清掉、回到普通硬件对话
+    const h = await this.handoff?.current(userId, d);
+    if (h) {
+      try {
+        const resolved = await this.contexts.resolve(userId, h.request);
+        // 计费主体按场景（报告=本人、圈子=圈子账户不足转本人），会话仍挂在设备与绑定代次上
+        return this.startResolved(userId, h.request.scene, clientRequestId, { ...resolved, device: { id: d.id, bindingVersion: d.bindingVersion } });
+      } catch (e: any) {
+        await this.handoff!.drop(d.id, e?.message || "resolve_failed");
+      }
     }
     const context = {
       scene: "device" as const,

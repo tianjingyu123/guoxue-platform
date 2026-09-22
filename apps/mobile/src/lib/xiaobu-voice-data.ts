@@ -5,7 +5,7 @@
  * 商业 API 未到位时，后端返回 available=false 与「暂未开放」；页面据此显示未开放态，不做假通话。
  * 模拟供应商（仅测试环境）返回 isMock=true，页面必须标注「模拟会话，非真实语音」。
  */
-import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost } from '@/utils/request'
+import { apiDelete, apiGet, apiGetOptionalAuth, apiGetPaged, apiPost, apiPut } from '@/utils/request'
 
 export type VoiceScene = 'plaza' | 'circle_assistant' | 'classic_companion' | 'report_dialogue' | 'content_guide'
 
@@ -61,6 +61,14 @@ export interface VoiceDeviceView {
   voiceReady: boolean
   disabledReason: string | null
   updatedAt: string
+}
+
+export interface DeviceHandoffView {
+  deviceId: string
+  scene: VoiceScene
+  displayTopic: string
+  setAt: string
+  expiresAt: string
 }
 
 /** 客户端请求号：一次「开始」点击生成一次，重试复用，防止重复建会话 */
@@ -198,6 +206,16 @@ export const xiaobuVoiceApi = {
   },
   bindDevice(bindCode: string): Promise<VoiceDeviceView> {
     return apiPost('/voice/devices/bind', { bindCode })
+  },
+  /** 场景接续：把当前场景交给硬件，2 小时内按设备按键即接着聊 */
+  setDeviceHandoff(id: string, body: { scene: VoiceScene; contextId?: string; sectionId?: string; intent?: 'explain' | 'ask' }): Promise<DeviceHandoffView> {
+    return apiPut(`/voice/devices/${encodeURIComponent(id)}/handoff`, body)
+  },
+  getDeviceHandoff(id: string): Promise<DeviceHandoffView | null> {
+    return apiGet(`/voice/devices/${encodeURIComponent(id)}/handoff`)
+  },
+  clearDeviceHandoff(id: string): Promise<{ cleared: boolean }> {
+    return apiDelete(`/voice/devices/${encodeURIComponent(id)}/handoff`)
   },
   /** 小智协议终端：输入设备开机播报的数字激活码完成绑定 */
   activateDevice(activationCode: string): Promise<VoiceDeviceView> {

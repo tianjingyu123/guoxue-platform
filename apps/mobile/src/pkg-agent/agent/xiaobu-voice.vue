@@ -19,6 +19,8 @@ import {
   newClientRequestId,
   uiStateOfSession,
   xiaobuVoiceApi,
+  type DeviceHandoffView,
+  type VoiceDeviceView,
   type VoiceScene,
   type VoiceSessionView,
   type VoiceUiState,
@@ -226,6 +228,65 @@ function releaseOnLeave() {
   }
 }
 
+/**
+ * 场景接续：把当前场景（报告/古籍/圈子…）交给已绑定的小卜硬件，2 小时内按设备按键就接着聊。
+ * 权限由服务端按本人身份校验（设置时一次、硬件开聊时再一次）。
+ */
+const HANDOFF_SCENES: VoiceScene[] = ['report_dialogue', 'classic_companion', 'circle_assistant', 'plaza', 'content_guide']
+const devices = ref<VoiceDeviceView[]>([])
+const handoffDone = ref<(DeviceHandoffView & { serialHint: string }) | null>(null)
+const handoffBusy = ref(false)
+const canHandoff = computed(() => HANDOFF_SCENES.includes(scene.value) && devices.value.length > 0)
+
+async function loadDevices() {
+  try {
+    devices.value = (await xiaobuVoiceApi.devices()).filter((d) => d.status === 'bound' || d.status === 'transfer_pending')
+  } catch {
+    devices.value = [] // 没登录或没有设备：不显示入口
+  }
+}
+
+function pickDevice(): Promise<VoiceDeviceView | null> {
+  if (devices.value.length === 1) return Promise.resolve(devices.value[0])
+  return new Promise((resolve) => {
+    uni.showActionSheet({
+      itemList: devices.value.map((d) => `小卜硬件 …${d.serialHint}`),
+      success: (r) => resolve(devices.value[r.tapIndex] || null),
+      fail: () => resolve(null),
+    })
+  })
+}
+
+async function handoffToDevice() {
+  if (handoffBusy.value) return
+  const d = await pickDevice()
+  if (!d) return
+  handoffBusy.value = true
+  try {
+    const v = await xiaobuVoiceApi.setDeviceHandoff(d.id, {
+      scene: scene.value,
+      contextId: contextId.value || undefined,
+      sectionId: sectionId.value || undefined,
+      intent: (intent.value || undefined) as 'explain' | 'ask' | undefined,
+    })
+    handoffDone.value = { ...v, serialHint: d.serialHint }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '没能交给硬件，请稍后再试', icon: 'none' })
+  } finally {
+    handoffBusy.value = false
+  }
+}
+
+async function cancelHandoff() {
+  if (!handoffDone.value) return
+  try {
+    await xiaobuVoiceApi.clearDeviceHandoff(handoffDone.value.deviceId)
+    handoffDone.value = null
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '取消失败', icon: 'none' })
+  }
+}
+
 onLoad((q) => {
   const query = (q || {}) as Record<string, string>
   scene.value = (query.scene as VoiceScene) || 'plaza'
@@ -235,6 +296,7 @@ onLoad((q) => {
   fallback.value = query.fallback ? decodeURIComponent(query.fallback) : ''
   title.value = SCENE_TITLE[scene.value] || '小卜语音'
   loadCapability()
+  loadDevices()
 })
 onUnload(releaseOnLeave)
 onUnmounted(stopTimer)
@@ -306,6 +368,21 @@ onUnmounted(stopTimer)
         </view>
         <text v-else class="hint">谢谢反馈</text>
       </view>
+
+      <!-- 场景接续：在小卜硬件上接着聊 -->
+      <view v-if="canHandoff" class="card handoff" data-testid="voice-handoff">
+        <template v-if="handoffDone">
+          <text class="card-text">已交给小卜硬件 …{{ handoffDone.serialHint }}：{{ handoffDone.displayTopic }}</text>
+          <text class="hint">按一下设备上的按键就能接着聊，2 小时内有效；换个话题再点一次即可。</text>
+          <view class="btn" data-testid="voice-handoff-cancel" @tap="cancelHandoff"><text class="btn-text">取消，设备恢复普通对话</text></view>
+        </template>
+        <template v-else>
+          <text class="card-text">想用小卜硬件接着聊这个话题？</text>
+          <view class="btn" :class="{ disabled: handoffBusy }" data-testid="voice-handoff-set" @tap="handoffToDevice">
+            <text class="btn-text">{{ handoffBusy ? '正在交给硬件…' : '在小卜硬件上继续' }}</text>
+          </view>
+        </template>
+      </view>
     </view>
   </view>
 </template>
@@ -335,6 +412,8 @@ onUnmounted(stopTimer)
 .row { display: flex; gap: 16rpx; }
 .btn { flex: 1; min-height: 88rpx; border-radius: 999rpx; border: 2rpx solid var(--border, rgba(0,0,0,0.12)); display: flex; align-items: center; justify-content: center; }
 .btn-primary { background: #C41E3A; border-color: #C41E3A; }
+.btn.disabled { opacity: 0.5; }
+.handoff { background: #f6f1e9; }
 .btn-danger { background: #8e1a2e; border-color: #8e1a2e; }
 .btn-text { font-size: 28rpx; color: var(--text-ink); }
 .btn-text-primary { font-size: 28rpx; color: #ffffff; }

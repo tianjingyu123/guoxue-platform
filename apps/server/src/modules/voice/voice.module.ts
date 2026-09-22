@@ -18,6 +18,7 @@ import { VoiceDeviceAdminController, VoiceDeviceController } from "./voice-devic
 import { VOICE_PROVIDER } from "./provider/voice-provider.types";
 import { createVoiceProvider } from "./provider/voice-provider.registry";
 import { XiaozhiLinkService } from "./xiaozhi/xiaozhi-link.service";
+import { VoiceDeviceHandoffService } from "./voice-device-handoff.service";
 import { XiaozhiGatewayService } from "./xiaozhi/xiaozhi-gateway.service";
 import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminController } from "./xiaozhi/xiaozhi-ota.controller";
 
@@ -58,6 +59,7 @@ import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminCo
     VoiceSessionService,
     VoiceSessionSweeperTask,
     XiaozhiLinkService,
+    VoiceDeviceHandoffService,
     XiaozhiGatewayService,
     { provide: VOICE_PROVIDER, useFactory: () => createVoiceProvider() },
   ],
