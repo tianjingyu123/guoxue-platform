@@ -2,7 +2,7 @@
 /**
  * 续费圈子 — V0 circle-renew.html 还原·降级版（2026-07-10 新建）
  * 结构：到期提醒卡 → 一/两年续费方案 → 续费规则 → 到期后将暂停 → 保留说明 → 吸底续费栏。
- * 数据：circleDetailApi.detail + getJoinStatus（到期时间）+ renewPrepare/renewConfirm（现金订单双段）。
+ * 数据：detail + 严格 getJoinStatus + renewPrepare；统一收银页确认付款、兑现续费并回到圈子。
  * 董事长拍板 2026-07-10：续费与入圈一样只能人民币（微信/支付宝）——建 CIRCLE_RENEW 订单→拉起聚合支付→确认顺延。
  * #33 年度报告：GET annual-report 真实聚合 →「你的这一年」卡（有数据才渲染·失败不渲染）。
  * #34 老成员折扣：GET renew/quote 真实报价 → 折扣开启时原价划线+折后价（默认关闭无任何变化·不硬编码折扣文案）。
@@ -11,10 +11,10 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, redirectTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { formatPrice } from '@/utils/format'
 import { circleDetailApi, type CircleDetail, type RenewQuote, type CircleAnnualReport } from '@/lib/circle-detail-data'
-import { purchaseApi, type PayChannel } from '@/lib/purchase-data'
 
 const circleId = ref('')
 const circle = ref<CircleDetail | null>(null)
@@ -23,7 +23,9 @@ const joined = ref(false)
 const isLoading = ref(true)
 const error = ref('')
 const submitting = ref(false)
-const renewed = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+// 创建成功后复用同一订单，导航失败或快速点击都不重复建单。
+const pendingOrder = ref<{ id: string; amount: number; method: 'wechat' | 'alipay' } | null>(null)
 type RenewYears = 1 | 2
 interface RenewPlan {
   years: RenewYears
@@ -106,7 +108,7 @@ async function loadData() {
   try {
     const [c, st] = await Promise.all([
       circleDetailApi.detail(circleId.value),
-      circleDetailApi.getJoinStatus(circleId.value),
+      circleDetailApi.getJoinStatus(circleId.value, false, { throwOnError: true }),
     ])
     circle.value = c
     expireAt.value = st.expireAt
@@ -125,41 +127,45 @@ async function loadData() {
 }
 
 /** 支付方式（拍板：续费只能人民币·微信/支付宝） */
-const payMethod = ref<'wechat' | 'alipay'>('wechat')
+let defaultPayMethod: 'wechat' | 'alipay' = 'wechat'
+// #ifdef APP-PLUS
+if (uni.getSystemInfoSync().platform === 'android') defaultPayMethod = 'alipay'
+// #endif
+// #ifdef H5
+if (!navigator.userAgent.toLowerCase().includes('micromessenger')) defaultPayMethod = 'alipay'
+// #endif
+const payMethod = ref<'wechat' | 'alipay'>(defaultPayMethod)
 const PAY_METHODS = [
   { id: 'wechat' as const, name: '微信支付', badge: '微', color: '#07C160' },
   { id: 'alipay' as const, name: '支付宝', badge: '支', color: '#1677FF' },
 ]
+// 小程序只能展示其可实际拉起的支付方式。
+// #ifdef MP-WEIXIN
+PAY_METHODS.splice(1)
+// #endif
+function selectPlan(years: RenewYears) {
+  if (!submitting.value && !pendingOrder.value) selectedYears.value = years
+}
+function selectPayMethod(method: 'wechat' | 'alipay') {
+  if (!submitting.value && !pendingOrder.value) payMethod.value = method
+}
 
 async function doRenew() {
-  if (submitting.value || !circle.value) return
+  if (submitting.value || !circle.value || !joined.value || circle.value.type !== 'YEARLY' || isLoading.value || error.value) return
   submitting.value = true
   try {
-    // ① 创建现金续费订单
-    const prep = await circleDetailApi.renewPrepare(
-      circleId.value,
-      payMethod.value === 'alipay' ? 'ALIPAY' : 'WECHAT',
-      selectedYears.value,
-    )
-    const orderId = prep?.orderId
-    if (!orderId) throw new Error(prep?.message || '下单失败，请重试')
-    // ② 拉起聚合支付（无支付环境时静默失败，订单可在订单中心继续支付）
-    try {
-      const pay = await purchaseApi.payByChannel(orderId, payMethod.value as PayChannel)
-      const jumpUrl = pay?.h5Url || pay?.payUrl
-      // #ifdef H5
-      if (jumpUrl) { window.location.href = jumpUrl; return }
-      // #endif
-    } catch { /* 无支付环境，止于下单 */ }
-    // ③ 尝试确认续费（已支付则顺延；未支付提示去订单中心）
-    try {
-      const r = await circleDetailApi.renewConfirm(circleId.value, orderId)
-      if (r?.newExpireAt) expireAt.value = r.newExpireAt
-      renewed.value = true
-      uni.showToast({ title: `续费成功，有效期已顺延${selectedYears.value === 2 ? '两年' : '一年'}`, icon: 'none' })
-    } catch {
-      uni.showToast({ title: '订单已提交，支付完成后有效期自动顺延', icon: 'none' })
+    if (!pendingOrder.value) {
+      const method = payMethod.value
+      const amount = payPrice.value
+      const prep = await circleDetailApi.renewPrepare(
+        circleId.value, method === 'alipay' ? 'ALIPAY' : 'WECHAT', selectedYears.value,
+      )
+      if (!prep?.orderId) throw new Error(prep?.message || '下单失败，请重试')
+      pendingOrder.value = { id: prep.orderId, amount: prep.priceYuan ?? amount, method }
     }
+    const order = pendingOrder.value
+    // 所有端共用收银页；确认到账、续费权益和回到圈子由同一链路处理。
+    redirectTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=${order.method}&amount=${order.amount}`)
   } catch (e) {
     const x = e as { message?: string; data?: { message?: string } }
     uni.showToast({ title: x?.message || x?.data?.message || '续费失败，请重试', icon: 'none' })
@@ -177,8 +183,8 @@ onLoad((q) => {
 <template>
   <view class="rn-page">
     <!-- 顶栏 -->
-    <view class="rn-topbar">
-      <view class="rn-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="rn-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="rn-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="rn-title">续费圈子</text>
     </view>
 
@@ -253,8 +259,9 @@ onLoad((q) => {
           v-for="plan in plans"
           :key="plan.years"
           class="rn-plan-option"
+          role="radio" tabindex="0" :aria-checked="selectedYears === plan.years" :aria-disabled="submitting || !!pendingOrder"
           :class="{ active: selectedYears === plan.years }"
-          @tap="selectedYears = plan.years"
+          @tap="selectPlan(plan.years)" @keydown.enter="selectPlan(plan.years)"
         >
           <view v-if="plan.years === 2" class="rn-plan-ribbon">
             <text class="rn-plan-ribbon-t">两年省心</text>
@@ -284,7 +291,8 @@ onLoad((q) => {
       <view class="rn-plan-card">
         <view
           v-for="m in PAY_METHODS" :key="m.id"
-          class="rn-pay-row" @tap="payMethod = m.id"
+          class="rn-pay-row" role="radio" tabindex="0" :aria-checked="payMethod === m.id" :aria-disabled="submitting || !!pendingOrder"
+          @tap="selectPayMethod(m.id)" @keydown.enter="selectPayMethod(m.id)"
         >
           <view class="rn-pay-badge" :style="{ background: m.color }"><text class="rn-pay-badge-t">{{ m.badge }}</text></view>
           <text class="rn-pay-name">{{ m.name }}</text>
@@ -321,8 +329,8 @@ onLoad((q) => {
           <text v-if="selectedYears === 2" class="rn-bar-average">约 ¥{{ formatPrice(averageYearPrice) }}/年</text>
           <text v-if="hasDiscount" class="rn-bar-was">¥{{ formatPrice(selectedPlan.originalPrice) }}</text>
         </view>
-        <view class="rn-bar-btn" :class="{ disabled: submitting || renewed }" @tap="doRenew">
-          <text class="rn-bar-btn-t">{{ submitting ? '处理中…' : renewed ? '已续费' : `续费${selectedYears === 2 ? '两年' : '一年'}` }}</text>
+        <view class="rn-bar-btn" role="button" tabindex="0" :aria-disabled="submitting" :class="{ disabled: submitting }" @tap="doRenew" @keydown.enter="doRenew">
+          <text class="rn-bar-btn-t">{{ submitting ? '正在准备支付…' : pendingOrder ? '继续支付' : `续费${selectedYears === 2 ? '两年' : '一年'}` }}</text>
         </view>
       </view>
     </template>
@@ -330,7 +338,7 @@ onLoad((q) => {
 </template>
 
 <style scoped lang="scss">
-.rn-page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: 216rpx; }
+.rn-page { min-height: 100vh; background: var(--circle-canvas, #f5f5f7); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; padding-bottom: calc(216rpx + env(safe-area-inset-bottom)); --brand: var(--circle-accent, #2b6f68); --brand-soft: #e9f1ef; --gold: var(--circle-ink, #1d1d1f); --text-primary: var(--circle-ink, #1d1d1f); --bg-card: #fff; }
 
 /* 顶栏 */
 .rn-topbar {
@@ -338,10 +346,10 @@ onLoad((q) => {
   display: flex; align-items: center; gap: 20rpx;
   padding: 24rpx 32rpx;
   padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
-  background: rgba(250, 248, 245, 0.88); backdrop-filter: blur(24rpx);
+  background: var(--circle-canvas, #f5f5f7);
 }
 .rn-back {
-  width: 64rpx; height: 64rpx; border-radius: 999rpx;
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
@@ -418,13 +426,13 @@ onLoad((q) => {
 }
 .rn-plan-option + .rn-plan-option { margin-top: 6rpx; }
 .rn-plan-option.active {
-  border-color: rgba(196, 30, 58, 0.34);
-  background: linear-gradient(105deg, rgba(196, 30, 58, 0.055), rgba(201, 169, 110, 0.08));
+  border-color: var(--circle-accent, #2b6f68);
+  background: #f1f6f4;
 }
 .rn-plan-ribbon {
   position: absolute; top: -2rpx; right: 24rpx;
   padding: 5rpx 16rpx 7rpx; border-radius: 0 0 14rpx 14rpx;
-  background: #8f6f36;
+  background: var(--circle-accent, #2b6f68);
 }
 .rn-plan-ribbon-t { font-size: 19rpx; font-weight: 600; letter-spacing: 1rpx; color: #fff; }
 .rn-radio {
@@ -478,7 +486,7 @@ onLoad((q) => {
 .rn-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
   padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  background: #fff;
   border-top: 1rpx solid var(--separator, #ede7dd);
   display: flex; align-items: center; justify-content: space-between; gap: 24rpx;
 }
@@ -488,7 +496,7 @@ onLoad((q) => {
 .rn-bar-average { width: 100%; font-size: 20rpx; color: #8f6f36; margin-top: 2rpx; }
 .rn-bar-was { font-size: 24rpx; color: var(--text-tertiary, #999); text-decoration: line-through; margin-left: 12rpx; }
 .rn-bar-btn {
-  height: 88rpx; padding: 0 68rpx; border-radius: 44rpx;
+  min-height: 44px; height: 88rpx; padding: 0 48rpx; border-radius: 24rpx; flex-shrink: 0;
   background: var(--brand, #c41e3a);
   display: flex; align-items: center; justify-content: center;
 }

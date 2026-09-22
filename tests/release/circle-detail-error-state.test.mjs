@@ -17,11 +17,29 @@ function createApi(apiGet) {
     exports,
     require(name) {
       assert.equal(name, '@/utils/request')
-      return { apiGet }
+      return { apiGet, apiGetOptionalAuth: apiGet }
     },
   })
   return exports.circleDetailApi
 }
+
+test('成员状态失败必须可区分未知与未加入，旧调用保留兼容', async () => {
+  const failure = new Error('模拟网络失败')
+  const api = createApi(async () => { throw failure })
+  for (const optional of [false, true]) {
+    await assert.rejects(api.getJoinStatus('qa', optional, { throwOnError: true }), e => e === failure)
+  }
+  assert.equal((await api.getJoinStatus('qa')).joined, false)
+})
+
+test('严格成员状态拒绝缺失字段，允许明确未加入和已过期', async () => {
+  await assert.rejects(createApi(async () => ({})).getJoinStatus('qa', true, { throwOnError: true }))
+  for (const joined of [true, false]) {
+    const result = await createApi(async () => ({ joined, expired: true })).getJoinStatus('qa', true, { throwOnError: true })
+    assert.equal(result.joined, joined)
+    assert.equal(result.expired, true)
+  }
+})
 
 for (const method of ['posts', 'courses', 'postedArticles']) {
   test(`${method} 请求失败可传递给详情页，默认调用仍兼容空列表降级`, async () => {

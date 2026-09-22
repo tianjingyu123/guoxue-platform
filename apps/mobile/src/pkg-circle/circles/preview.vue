@@ -2,16 +2,17 @@
 /**
  * 圈子预览页（转化关键页）— V0 circle-join-preview.html + circle-join-confirm-sheet.html 还原（2026-07-10）
  * 结构：透明顶栏 → 封面 → 身份区(名称/简介/数据) → 圈主行 → 圈主的话(intro 降级) → 权益清单 → 内容抢先看(精华2条+锁) → 底部加入通栏(三方式)
- * 加入三方式（circle-join-modes.html）：免费直接加入 / 免费需审批提交申请 / 付费走确认弹层→支付。
+ * 加入三方式：免费确认入圈 / 提交审批 / 付费直接打开统一购买组件，说明和规则放在页面内。
  * 数据：circleDetailApi.detail + getJoinStatus + posts（真连）；付费支付复用 PurchaseSheet（bizType=CIRCLE）。
  * 降级（后端缺）：圈主的话图文块→description/announcement 文本；权益清单→通用四项；本周更新数/圈主头衔副行→隐藏；申请理由输入→后端 join 无 message 字段不做。
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, redirectTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { getToken } from '@/utils/storage'
 import { formatPrice } from '@/utils/format'
 import { track } from '@/composables/useTrack'
@@ -29,14 +30,58 @@ const error = ref('')
 const isJoined = ref(false)
 const applied = ref(false)
 const joining = ref(false)
+const membershipChecking = ref(false)
+const membershipError = ref(false)
+const memberExpired = ref(false)
+const paidAwaitingAccess = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const introExpanded = ref(false)
-const showConfirmSheet = ref(false)
 const showPurchase = ref(false)
 // 邀请码（C1 链路兑换口）：分享链接 ?code= 自动填入，或点「有邀请码？」手动输入；join 时随请求携带
 const inviteCode = ref('')
 const showCodeInput = ref(false)
 
 const isLoggedIn = () => !!getToken()
+const joinLabel = computed(() => {
+  if (membershipChecking.value) return '正在确认成员状态…'
+  if (joining.value) return '正在处理…'
+  if (paidAwaitingAccess.value) return '已支付 · 刷新权益'
+  if (membershipError.value) return '状态未确认 · 重试'
+  if (memberExpired.value) return '续费后继续交流'
+  if (isJoined.value) return '进入圈子'
+  if (applied.value) return '查看申请进度'
+  return joinMode.value === 'paid' ? '加入圈子' : joinMode.value === 'approval' ? '申请加入' : '免费加入'
+})
+
+async function checkMembership() {
+  if (membershipChecking.value) return false
+  membershipChecking.value = true
+  membershipError.value = false
+  try {
+    if (!isLoggedIn()) {
+      isJoined.value = false
+      applied.value = false
+      memberExpired.value = false
+      return true
+    }
+    const st = await circleDetailApi.getJoinStatus(circleId.value, true, { throwOnError: true })
+    isJoined.value = st.joined
+    memberExpired.value = st.expired
+    applied.value = false
+    if (!st.joined && circle.value?.needApproval) {
+      const reqs = await growthApi.myJoinRequests(true)
+      applied.value = reqs.some(r => r.status === 'PENDING' && String(r.circleId) === circleId.value)
+    }
+    if (st.joined && !st.expired && paidAwaitingAccess.value) {
+      paidAwaitingAccess.value = false
+      enterCircle()
+    }
+    return true
+  } catch {
+    membershipError.value = true
+    return false
+  } finally { membershipChecking.value = false }
+}
 
 /** 加入方式：免费 / 免费需审批 / 付费 */
 const joinMode = computed<'free' | 'approval' | 'paid'>(() => {
@@ -63,6 +108,7 @@ const introShown = computed(() => {
 })
 
 async function loadData() {
+  if (membershipChecking.value) return
   isLoading.value = true
   error.value = ''
   try {
@@ -75,17 +121,7 @@ async function loadData() {
     // 抢先看：精华优先，不足补最新帖，最多 2 条（真数据）
     const essence = p.data.filter((x) => x.isEssence)
     previewPosts.value = [...essence, ...p.data.filter((x) => !x.isEssence)].slice(0, 2)
-    if (isLoggedIn()) {
-      const st = await circleDetailApi.getJoinStatus(circleId.value, true)
-      isJoined.value = st.joined
-      // 待审核态跨会话回填（与详情页同口径）：有本圈 PENDING 申请 → 按钮持久「申请已提交 · 查看进度」
-      if (!st.joined) {
-        try {
-          const reqs = await growthApi.myJoinRequests(true)
-          applied.value = reqs.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
-        } catch { /* 拉取失败保持会话内状态 */ }
-      }
-    }
+    await checkMembership()
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -95,18 +131,21 @@ async function loadData() {
 
 function requireLogin(): boolean {
   if (isLoggedIn()) return true
-  uni.showToast({ title: '请先登录', icon: 'none' })
-  setTimeout(() => navigateTo('/pkg-auth/login/index'), 600)
+  try { uni.setStorageSync('login:redirect', `/pkg-circle/circles/preview?id=${encodeURIComponent(circleId.value)}&code=${encodeURIComponent(inviteCode.value)}`) } catch { /* 登录仍可继续 */ }
+  navigateTo('/pkg-auth/login/index')
   return false
 }
 
 /** 底部主按钮 */
 function handleJoin() {
+  if (membershipChecking.value || joining.value) return
+  if (membershipError.value || paidAwaitingAccess.value) { void checkMembership(); return }
+  if (memberExpired.value) { navigateTo(`/pkg-circle/circles/renew?id=${encodeURIComponent(circleId.value)}`); return }
   if (isJoined.value) { enterCircle(); return }
   if (applied.value) { navigateTo('/pkg-circle/circles/my-join-requests'); return }
   if (joining.value || !circle.value) return
   if (!requireLogin()) return
-  if (joinMode.value === 'paid') { showConfirmSheet.value = true; return }
+  if (joinMode.value === 'paid') { showPurchase.value = true; return }
   doFreeJoin()
 }
 
@@ -116,12 +155,17 @@ async function doFreeJoin() {
   joining.value = true
   try {
     const r = await circleDetailApi.join(circleId.value, inviteCode.value.trim() || undefined)
-    if (joinMode.value === 'approval' || r?.status === 'pending') {
+    if (r?.success === false) throw new Error(r.message || '加入失败，请重试')
+    if (String(r?.status).toLowerCase() === 'pending') {
       applied.value = true
       uni.showToast({ title: r?.message || '申请已提交，等待圈主审核', icon: 'none' })
     } else {
-      isJoined.value = true
-      uni.showToast({ title: `欢迎加入「${circle.value?.name || '圈子'}」`, icon: 'none' })
+      await checkMembership()
+      if (isJoined.value && !memberExpired.value) enterCircle()
+      else if (!membershipError.value && !applied.value) {
+        membershipError.value = true
+        uni.showToast({ title: '正在确认加入结果，请稍后刷新', icon: 'none' })
+      }
     }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '加入失败，请重试', icon: 'none' })
@@ -130,21 +174,14 @@ async function doFreeJoin() {
   }
 }
 
-/** 付费确认弹层 → 拉起支付 */
-function confirmPaidJoin() {
-  showConfirmSheet.value = false
-  showPurchase.value = true
-}
 async function onPurchased() {
   showPurchase.value = false
+  paidAwaitingAccess.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
-  const st = await circleDetailApi.getJoinStatus(circleId.value)
-  isJoined.value = st.joined
-  if (st.joined) uni.showToast({ title: `欢迎加入「${circle.value?.name || '圈子'}」`, icon: 'none' })
-  else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
+  await checkMembership()
 }
 
-function enterCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
+function enterCircle() { redirectTo(`/pkg-circle/circles/detail?id=${encodeURIComponent(circleId.value)}`) }
 function openOwner() { if (circle.value?.owner.id) navigateTo(`/pkg-circle/user/profile?id=${circle.value.owner.id}`) }
 function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`) }
 function fmt(n: number) { return n.toLocaleString() }
@@ -155,6 +192,7 @@ onLoad((q) => {
   if (q?.code) inviteCode.value = String(q.code)
   loadData()
 })
+onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
 </script>
 
 <template>
@@ -173,9 +211,10 @@ onLoad((q) => {
 
   <view v-else class="jp-page has-bar">
     <!-- 顶栏：透明浮层 -->
-    <view class="jp-topbar">
-      <view class="jp-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <view class="jp-icon-btn" @tap="openShare"><app-icon name="share-2" :size="30" color="#2C2C2C" /></view>
+    <view class="jp-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="jp-icon-btn" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="jp-nav-title">了解圈子</text>
+      <view class="jp-icon-btn" role="button" tabindex="0" aria-label="分享圈子" @tap="openShare" @keydown.enter="openShare"><app-icon name="share-2" :size="30" color="#2C2C2C" /></view>
     </view>
 
     <!-- 封面与身份 -->
@@ -260,6 +299,7 @@ onLoad((q) => {
 
     <!-- 底部通栏：三方式分流（同一组件切换文案与流程） -->
     <view class="jp-join-bar">
+      <text v-if="paidAwaitingAccess || membershipError" class="jp-status" role="status">{{ paidAwaitingAccess ? '支付已确认，成员权益正在同步，请勿重复付款。' : '暂时无法确认成员状态，重试后再继续。' }}</text>
       <view class="jp-join-price">
         <template v-if="isJoined"><text class="jp-free">已加入</text></template>
         <template v-else-if="joinMode === 'paid'">
@@ -271,50 +311,20 @@ onLoad((q) => {
       </view>
       <view
         class="jp-join-btn"
-        :class="{ secondary: joinMode === 'approval' && !isJoined, disabled: joining }"
+        role="button" tabindex="0" :aria-label="joinLabel" :aria-disabled="joining || membershipChecking"
+        :class="{ secondary: joinMode === 'approval' && !isJoined, disabled: joining || membershipChecking }"
         @tap="handleJoin"
+        @keydown.enter="handleJoin"
       >
         <text class="jp-join-btn-t">
-          {{ joining ? '正在处理…' : isJoined ? '进入圈子' : applied ? '申请已提交 · 查看进度' : joinMode === 'paid' ? '加入圈子' : joinMode === 'approval' ? '申请加入' : '免费加入' }}
+          {{ joinLabel }}
         </text>
       </view>
     </view>
 
-    <!-- 付费加入 · 权益确认弹层（V0 circle-join-confirm-sheet） -->
-    <view v-if="showConfirmSheet" class="jp-overlay" @tap="showConfirmSheet = false">
-      <view class="jp-sheet" @tap.stop>
-        <view class="jp-sheet-handle" />
-        <view class="jp-sheet-head">
-          <view class="jp-sheet-cover">
-            <smart-cover class="jp-sheet-cover-img" :src="circle.cover" :title="circle.name" type="circle" />
-          </view>
-          <view class="jp-sheet-main">
-            <text class="jp-sheet-name">{{ circle.name }}</text>
-            <text class="jp-sheet-sub">{{ circle.type === 'YEARLY' ? '年费会员 · 自加入日起 365 天' : '一次付费 · 长期有效' }}</text>
-          </view>
-          <view class="jp-sheet-price">
-            <text class="jp-sheet-price-num">¥{{ formatPrice(circle.price) }}</text>
-            <text v-if="circle.type === 'YEARLY'" class="jp-sheet-price-unit">/ 年</text>
-          </view>
-        </view>
-
-        <view class="jp-sheet-benefits">
-          <view v-for="(b, i) in memberBenefits" :key="i" class="jp-sheet-benefit">
-            <view class="jp-sheet-benefit-icon"><app-icon :name="b.icon" :size="30" color="#C9A96E" /></view>
-            <view class="jp-benefit-main">
-              <text class="jp-sheet-benefit-title">{{ b.title }}</text>
-              <text class="jp-sheet-benefit-desc">{{ b.desc }}</text>
-            </view>
-          </view>
-        </view>
-
-        <text class="jp-terms">虚拟内容服务一经使用不支持无理由退款，退款按实际使用天数扣费并收取 20% 手续费。支付即代表同意《圈子会员服务协议》。</text>
-
-        <view class="jp-sheet-actions">
-          <view class="jp-sheet-btn cancel" @tap="showConfirmSheet = false"><text class="jp-sheet-btn-t cancel">再想想</text></view>
-          <view class="jp-sheet-btn primary" @tap="confirmPaidJoin"><text class="jp-sheet-btn-t primary">立即加入 ¥{{ formatPrice(circle.price) }}</text></view>
-        </view>
-      </view>
+    <view v-if="joinMode === 'paid' && !isJoined" class="jp-payment-note">
+      <text class="jp-payment-period">{{ circle.type === 'YEARLY' ? '年费会员 · 自加入日起 365 天' : '一次付费 · 长期有效' }}</text>
+      <text class="jp-terms">虚拟内容服务一经使用不支持无理由退款，退款按实际使用天数扣费并收取 20% 手续费。支付即代表同意《圈子会员服务协议》。</text>
     </view>
 
     <!-- 支付弹窗（复用通用购买组件·真下单链路） -->
@@ -328,8 +338,10 @@ onLoad((q) => {
 </template>
 
 <style scoped lang="scss">
-.jp-page { min-height: 100vh; background: var(--bg-page, #faf8f5); }
-.jp-page.has-bar { padding-bottom: 184rpx; }
+.jp-page { min-height: 100vh; background: var(--circle-canvas, #f5f5f7); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; --brand: var(--circle-accent, #2b6f68); --brand-soft: #e9f1ef; --gold: var(--circle-accent, #2b6f68); --text-primary: var(--circle-ink, #1d1d1f); --bg-card: #fff; }
+.jp-page.has-bar { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
+.jp-payment-note { margin: 32rpx 40rpx; }
+.jp-payment-period { display: block; font-size: 26rpx; color: var(--circle-ink); }
 
 /* 骨架 */
 .jp-skel-cover { height: 296rpx; margin: 96rpx 32rpx 0; border-radius: 36rpx; background: #ede7dd; }
@@ -349,10 +361,11 @@ onLoad((q) => {
   display: flex; align-items: center; justify-content: space-between;
   padding: 24rpx 32rpx;
   padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
-  background: rgba(250, 248, 245, 0.88); backdrop-filter: blur(24rpx);
+  background: var(--circle-canvas, #f5f5f7);
 }
+.jp-nav-title { font-size: 30rpx; font-weight: 600; color: var(--circle-ink); }
 .jp-icon-btn {
-  width: 64rpx; height: 64rpx; border-radius: 999rpx;
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
@@ -450,16 +463,17 @@ onLoad((q) => {
 .jp-join-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
   padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  background: var(--circle-surface, #fff);
   border-top: 1rpx solid var(--separator, #ede7dd);
-  display: flex; align-items: center; justify-content: space-between; gap: 24rpx;
+  display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 24rpx;
 }
+.jp-status { flex-basis: 100%; font-size: 24rpx; color: var(--circle-secondary, #6e6e73); line-height: 1.5; }
 .jp-join-price { flex-shrink: 0; display: flex; align-items: baseline; }
 .jp-price-num { font-size: 40rpx; font-weight: 700; color: var(--gold, #c9a96e); }
 .jp-price-unit { font-size: 24rpx; color: var(--text-tertiary, #999); }
 .jp-free { font-size: 28rpx; color: var(--text-secondary, #6e6e73); font-weight: 500; }
 .jp-join-btn {
-  flex: 1; height: 88rpx; border-radius: 44rpx; max-width: 420rpx;
+  flex: 1; min-height: 44px; height: 88rpx; border-radius: 24rpx; max-width: 420rpx;
   background: var(--brand, #c41e3a);
   display: flex; align-items: center; justify-content: center;
 }
@@ -469,47 +483,5 @@ onLoad((q) => {
 .jp-join-btn-t { font-size: 30rpx; font-weight: 600; letter-spacing: 2rpx; color: #fff; }
 .jp-join-btn.secondary .jp-join-btn-t { color: var(--brand, #c41e3a); }
 
-/* 付费确认弹层 */
-.jp-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(44, 44, 44, 0.4); display: flex; flex-direction: column; justify-content: flex-end; }
-.jp-sheet {
-  background: var(--bg-page, #faf8f5);
-  border-radius: 44rpx 44rpx 0 0;
-  padding: 20rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
-  box-shadow: 0 -16rpx 64rpx rgba(44, 44, 44, 0.12);
-}
-.jp-sheet-handle { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: var(--separator, #ede7dd); margin: 0 auto 28rpx; }
-.jp-sheet-head { display: flex; align-items: center; gap: 24rpx; }
-.jp-sheet-cover { width: 104rpx; height: 104rpx; border-radius: 24rpx; overflow: hidden; flex-shrink: 0; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
-.jp-sheet-cover-img { width: 104rpx; height: 104rpx; }
-.jp-sheet-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.jp-sheet-name { font-size: 32rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
-.jp-sheet-sub { font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
-.jp-sheet-price { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; }
-.jp-sheet-price-num { font-size: 44rpx; font-weight: 700; color: var(--gold, #c9a96e); }
-.jp-sheet-price-unit { font-size: 24rpx; color: var(--text-tertiary, #999); }
-.jp-sheet-benefits {
-  margin-top: 32rpx; background: var(--bg-card, #fff);
-  border-radius: 28rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
-}
-.jp-sheet-benefit { display: flex; align-items: flex-start; gap: 22rpx; padding: 24rpx 28rpx; }
-.jp-sheet-benefit + .jp-sheet-benefit { border-top: 1rpx solid var(--separator, #ede7dd); }
-.jp-sheet-benefit-icon {
-  width: 60rpx; height: 60rpx; border-radius: 18rpx; flex-shrink: 0;
-  background: var(--bg-warm, #f8f4ec);
-  display: flex; align-items: center; justify-content: center;
-}
-.jp-sheet-benefit-title { font-size: 27rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.jp-sheet-benefit-desc { font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; line-height: 1.5; }
-.jp-terms { display: block; margin: 24rpx 8rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999); line-height: 1.6; }
-.jp-sheet-actions { display: flex; gap: 24rpx; margin-top: 28rpx; }
-.jp-sheet-btn {
-  flex: 1; height: 92rpx; border-radius: 46rpx;
-  display: flex; align-items: center; justify-content: center;
-}
-.jp-sheet-btn.cancel { background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
-.jp-sheet-btn.primary { background: var(--brand, #c41e3a); }
-.jp-sheet-btn:active { opacity: 0.88; }
-.jp-sheet-btn-t { font-size: 30rpx; font-weight: 600; }
-.jp-sheet-btn-t.cancel { color: var(--text-secondary, #6e6e73); }
-.jp-sheet-btn-t.primary { color: #fff; letter-spacing: 1rpx; }
+.jp-terms { display: block; margin-top: 16rpx; font-size: 24rpx; color: var(--circle-secondary, #6e6e73); line-height: 1.6; }
 </style>

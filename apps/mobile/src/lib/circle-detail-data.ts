@@ -385,13 +385,14 @@ export const circleDetailApi = {
    * 查询当前用户入圈状态 — GET /circles/:id/join/status（需登录，权威判断是否已加入 / 角色）。
    * ⚠️ 详情端点 GET /circles/:id 未挂 JwtAuthGuard，req.user 恒空 → membership 恒 null →
    *    detail.isJoined 恒 false、myRole 恒 null。故登录态下须单独查此鉴权端点覆盖真实加入态。
-   * 失败返回 { joined:false }（不阻断页面渲染）。
+   * 涉及加入、支付和续费的页面必须开启 throwOnError，不能将未知状态当作未加入。
    */
-  getJoinStatus: async (id: string, optionalAuth = false): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
+  getJoinStatus: async (id: string, optionalAuth = false, options: { throwOnError?: boolean } = {}): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
     try {
       const path = `/circles/${id}/join/status`
       type JoinStatus = { joined?: boolean; role?: string; expired?: boolean; joinedAt?: string; expireAt?: string | null }
       const r = optionalAuth ? await apiGetOptionalAuth<JoinStatus>(path) : await apiGet<JoinStatus>(path)
+      if (options.throwOnError && typeof r?.joined !== 'boolean') throw new Error('成员状态暂不可用')
       return {
         joined: !!r?.joined,
         role: (r?.role as CircleMemberRole) ?? null,
@@ -399,7 +400,8 @@ export const circleDetailApi = {
         joinedAt: r?.joinedAt ? String(r.joinedAt) : null,
         expireAt: r?.expireAt ? String(r.expireAt) : null,
       }
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return { joined: false, role: null, expired: false, joinedAt: null, expireAt: null }
     }
   },

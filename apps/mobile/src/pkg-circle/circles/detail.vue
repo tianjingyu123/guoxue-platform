@@ -21,7 +21,7 @@ import { VOICE } from '@/lib/voice'
 import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
-  circleDetailApi, memberBenefits,
+  circleDetailApi,
   type CircleDetail, type CirclePost, type CircleMember, type CircleArticle, type CircleCourse, type CircleLive, type CircleProduct,
 } from '@/lib/circle-detail-data'
 import { track } from '@/composables/useTrack'
@@ -55,13 +55,16 @@ const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
 const applied = ref(false)
+const membershipChecking = ref(false)
+const membershipError = ref(false)
+const paidAwaitingAccess = ref(false)
 // 年费圈会员到期信息（用于续费提醒·2026-07-14 接线：此前 getJoinStatus 的 expireAt 被丢弃，
 // 导致续费页 circles/renew 全项目零入口——年费圈到期了成员根本找不到地方续费）
 const memberExpireAt = ref<string | null>(null)
 const memberExpired = ref(false)
 /** 续费提醒：仅年费圈已加入成员·已过期或 15 天内到期时露出 */
 const renewInfo = computed(() => {
-  if (!isJoined.value || circle.value?.type !== 'YEARLY' || !memberExpireAt.value) return null
+  if ((!isJoined.value && !memberExpired.value) || paidAwaitingAccess.value || membershipError.value || circle.value?.type !== 'YEARLY' || !memberExpireAt.value) return null
   const days = Math.ceil((new Date(memberExpireAt.value).getTime() - Date.now()) / 86400000)
   if (!memberExpired.value && days > 15) return null
   return {
@@ -75,7 +78,6 @@ const canCreate = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(circle.v
 const canManage = computed(() => ['OWNER', 'ADMIN'].includes(circle.value?.myRole || ''))
 const isLoggedIn = () => !!getToken()
 const likedPosts = ref<Set<string>>(new Set())
-const showBenefits = ref(false)
 const showPurchase = ref(false)
 const showPublish = ref(false)
 const showShare = ref(false)
@@ -87,6 +89,11 @@ const liveNow = computed(() => lives.value.find((l) => l.status === 'live'))
 
 /** 底部加入按钮文案 */
 const joinButtonText = computed(() => {
+  if (membershipChecking.value) return '正在确认成员状态…'
+  if (joining.value) return '正在处理…'
+  if (paidAwaitingAccess.value) return '刷新入圈权益'
+  if (membershipError.value) return '状态未确认 · 重试'
+  if (memberExpired.value) return '续费后继续交流'
   const c = circle.value
   if (!c) return '加入圈子'
   if (isJoined.value) return '已加入'
@@ -173,6 +180,8 @@ function goAskExpert(e: ConsultExpert) {
 
 onLoad((q) => {
   if (q?.id) circleId.value = q.id
+  // 回跳标记仅用于防止重复下单，不作为支付或成员资格凭据。
+  paidAwaitingAccess.value = q?.paymentSuccess === '1'
   loadData()
   // 发帖页发布成功广播 → 立即重拉（配合后端 createPost 缓存失效，新帖即时可见）
   uni.$on('circle:refresh', onCircleRefresh)
@@ -221,6 +230,7 @@ onShareTimeline(() => toTimeline({
 async function loadData() {
   if (dataLoading) return
   dataLoading = true
+  membershipChecking.value = true
   // 返回时更新数据，保留已呈现的阅读页面与栏目。
   isLoading.value = !circle.value
   lastLoadAt = Date.now()
@@ -239,7 +249,7 @@ async function loadData() {
       circleDetailApi.lives(circleId.value),
       circleDetailApi.products(circleId.value),
       circleDetailApi.postedArticles(circleId.value, { throwOnError: true }),
-      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true) : Promise.reject(new Error('未登录')),
+      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true, { throwOnError: true }) : Promise.reject(new Error('未登录')),
       // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
       isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
     ])
@@ -251,12 +261,22 @@ async function loadData() {
     lives.value = lvs.status === 'fulfilled' ? lvs.value : []
     circleProducts.value = prds.status === 'fulfilled' ? prds.value : []
     postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
+    membershipError.value = isLoggedIn() && (st.status === 'rejected' || (st.status === 'fulfilled' && !st.value.joined && c.needApproval && jr.status === 'rejected'))
+    if (!isLoggedIn()) {
+      isJoined.value = false
+      applied.value = false
+      memberExpired.value = false
+      circle.value.myRole = null
+    }
     if (st.status === 'fulfilled') {
       isJoined.value = st.value.joined
       memberExpireAt.value = st.value.expireAt
       memberExpired.value = st.value.expired
       if (circle.value) circle.value.myRole = st.value.role
+      if (st.value.joined && !st.value.expired) paidAwaitingAccess.value = false
     }
+    if (membershipError.value && circle.value) circle.value.myRole = null
+    if (isJoined.value) applied.value = false
     // 待审核态回填：未加入且有本圈 PENDING 申请 → 按钮持久展示「审核中 · 查看进度」；拉取失败保持会话内状态
     if (jr.status === 'fulfilled' && !isJoined.value) {
       applied.value = jr.value.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
@@ -266,62 +286,52 @@ async function loadData() {
     error.value = '加载失败，请重试'
   } finally {
     dataLoading = false
+    membershipChecking.value = false
     isLoading.value = false
   }
 }
 
 function handleJoin() {
+  if (joining.value || membershipChecking.value) return
+  if (membershipError.value || paidAwaitingAccess.value) { void loadData(); return }
+  if (memberExpired.value) { navigateTo(`/pkg-circle/circles/renew?id=${encodeURIComponent(circleId.value)}`); return }
   if (applied.value) { navigateTo('/pkg-circle/circles/my-join-requests'); return }
   if (isJoined.value) return
   if (!isLoggedIn()) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
-    setTimeout(() => navigateTo('/pkg-auth/login/index'), 600)
+    try { uni.setStorageSync('login:redirect', `/pkg-circle/circles/detail?id=${encodeURIComponent(circleId.value)}`) } catch { /* 登录仍可继续 */ }
+    navigateTo('/pkg-auth/login/index')
     return
   }
   const c = circle.value
   if (!c) return
   if (c.type === 'FREE') doJoin()
-  else showBenefits.value = true
+  else showPurchase.value = true
 }
 const joining = ref(false)
 async function doJoin() {
   const c = circle.value
-  if (!c || joining.value) return
-  if (c.needApproval) {
-    joining.value = true
-    try {
-      const r = await circleDetailApi.join(circleId.value)
+  if (!c || joining.value || membershipError.value || membershipChecking.value) return
+  joining.value = true
+  try {
+    const r = await circleDetailApi.join(circleId.value)
+    if (r?.success === false) throw new Error(r.message || '加入失败，请重试')
+    if (String(r?.status).toLowerCase() === 'pending') {
       applied.value = true
       uni.showToast({ title: r?.message || '申请已提交，等待圈主审核', icon: 'none' })
-    } catch {
-      uni.showToast({ title: '申请提交失败，请重试', icon: 'none' })
-    } finally { joining.value = false }
-    return
-  }
-  // 本地即时置已加入（乐观），成功后重拉解锁成员态内容；失败回滚
-  isJoined.value = true
-  circleDetailApi.join(circleId.value)
-    .then(() => { lastLoadAt = 0; refresh() })
-    .catch(() => {
-      isJoined.value = false
-      uni.showToast({ title: '加入失败，请重试', icon: 'none' })
-    })
+    } else {
+      // 等服务端确认成员身份后解锁内容，避免乐观授权和重复提交。
+      await loadData()
+      if (!isJoined.value && !applied.value) membershipError.value = true
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '加入失败，请重试', icon: 'none' })
+  } finally { joining.value = false }
 }
-function confirmJoin() { showBenefits.value = false; showPurchase.value = true }
 async function onPurchased() {
   showPurchase.value = false
+  paidAwaitingAccess.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
-  const st = await circleDetailApi.getJoinStatus(circleId.value)
-  isJoined.value = st.joined
-  memberExpireAt.value = st.expireAt
-  memberExpired.value = st.expired
-  if (circle.value) circle.value.myRole = st.role
-  if (st.joined) {
-    uni.showToast({ title: '加入成功', icon: 'success' })
-    // 付费加入成功即时重拉：解锁成员态内容
-    lastLoadAt = 0
-    refresh()
-  } else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
+  await loadData()
 }
 // 详情流内点赞：乐观更新 + 真调后端（照 post.vue toggleLike 范式）。
 // 此前只改本地 Set 不发请求，刷新全部回滚——流内点赞从未落库。
@@ -717,8 +727,9 @@ function openResource(id: string) {
     </scroll-view>
 
     <!-- C. 底部：仅游客保留加入通栏（转化关键）；已加入无底栏，改右下角 FAB（董事长反馈：发帖按钮不占底部） -->
-    <view v-if="!isJoined" class="bottombar">
-      <view class="btn-join" @tap="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
+    <view v-if="!isJoined || memberExpired || membershipError || membershipChecking || paidAwaitingAccess" class="bottombar">
+      <text v-if="paidAwaitingAccess" class="membership-notice" role="status">正在核对入圈权益，请先刷新结果，勿重复付款。</text>
+      <view class="btn-join" role="button" tabindex="0" :aria-label="joinButtonText" :aria-disabled="joining || membershipChecking" @tap="handleJoin" @keydown.enter="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
     </view>
 
     <!-- 已加入：悬浮创作按钮（朱红圆形+笔图标·滚动时半透明） -->
@@ -797,29 +808,6 @@ function openResource(id: string) {
       @close="showPurchase = false" @paid="onPurchased"
     />
 
-    <!-- 会员权益弹窗 -->
-    <view v-if="showBenefits" class="mask" @tap="showBenefits = false">
-      <view class="sheet" @tap.stop>
-        <view class="sheet-head">
-          <view class="sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
-          <text class="sheet-title">加入「{{ circle.name }}」</text>
-          <text class="sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + formatPrice(circle.price) + '/年' : '¥' + formatPrice(circle.price) }}，解锁以下专属权益</text>
-        </view>
-        <view class="benefits">
-          <view v-for="(b, i) in memberBenefits" :key="i" class="benefit">
-            <view class="benefit-icon"><app-icon :name="b.icon" :size="28" color="#C41E3A" /></view>
-            <view class="benefit-main">
-              <text class="benefit-title">{{ b.title }}</text>
-              <text class="benefit-desc">{{ b.desc }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="sheet-actions">
-          <view class="sheet-btn cancel" @tap="showBenefits = false"><text class="sheet-btn-txt cancel">再想想</text></view>
-          <view class="sheet-btn confirm" @tap="confirmJoin"><text class="sheet-btn-txt confirm">立即加入</text></view>
-        </view>
-      </view>
-    </view>
     <content-share-sheet
       :visible="showShare"
       kind="circle"
@@ -847,7 +835,7 @@ function openResource(id: string) {
 </template>
 
 <style scoped lang="scss">
-.cd-page { height: 100vh; background: var(--circle-canvas); display: flex; flex-direction: column; }
+.cd-page { height: 100vh; background: var(--circle-canvas); display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
 
 /* 顶部导航 */
 .nav {
@@ -1016,13 +1004,14 @@ function openResource(id: string) {
 /* C. 底部（仅游客加入通栏） */
 .bottombar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-  display: flex; align-items: center; gap: 20rpx;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 20rpx;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20rpx);
   border-top: 1rpx solid var(--circle-border-soft);
 }
 .btn-join { flex: 1; height: 88rpx; border-radius: 44rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; }
 .btn-join-txt { font-size: 30rpx; color: #fff; font-weight: 600; }
+.membership-notice { flex-basis: 100%; font-size: 24rpx; color: var(--circle-secondary); line-height: 1.5; }
 
 /* 悬浮创作按钮（FAB·朱红圆形+笔图标·滚动半透明） */
 .fab {
