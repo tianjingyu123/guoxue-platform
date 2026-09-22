@@ -214,8 +214,8 @@ export class FunnelDailyService {
 
     // ── F6 智能体平台探索（仅统计推荐卡行为，不记录对话正文） ──
     const [discoveryViews, discoveryClicks] = await Promise.all([
-      this.distinctEventUsers("agent_discovery_view", range),
-      this.distinctEventUsers("agent_discovery_click", range),
+      this.distinctEventUsersAny(["agent_discovery_view", "agent_recommend_view"], range),
+      this.distinctEventUsersAny(["agent_discovery_click", "agent_recommend_click"], range),
     ]);
     await this.upsertSteps(date, "F6_agent_discovery", [
       ["agent_discovery_view", discoveryViews],
@@ -226,6 +226,14 @@ export class FunnelDailyService {
   private async distinctEventUsers(action: string, range: { gte: Date; lt: Date }): Promise<number> {
     const rows = await this.prisma.trackEvent.findMany({
       where: { action, userId: { not: null }, createdAt: range },
+      select: { userId: true }, distinct: ["userId"],
+    });
+    return rows.length;
+  }
+
+  private async distinctEventUsersAny(actions: string[], range: { gte: Date; lt: Date }): Promise<number> {
+    const rows = await this.prisma.trackEvent.findMany({
+      where: { action: { in: actions }, userId: { not: null }, createdAt: range },
       select: { userId: true }, distinct: ["userId"],
     });
     return rows.length;

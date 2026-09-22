@@ -161,8 +161,9 @@ describe("FunnelDailyService", () => {
   it("F6 智能体探索：曝光与点击按用户去重", async () => {
     mockPrisma.trackEvent.findMany.mockImplementation(async (args: any) => {
       const action = args?.where?.action;
-      if (action === "agent_discovery_view") return [{ userId: "u1" }, { userId: "u2" }];
-      if (action === "agent_discovery_click") return [{ userId: "u1" }];
+      const actions = action?.in || [action];
+      if (actions.includes("agent_discovery_view")) return [{ userId: "u1" }, { userId: "u2" }];
+      if (actions.includes("agent_discovery_click")) return [{ userId: "u1" }];
       return [];
     });
 

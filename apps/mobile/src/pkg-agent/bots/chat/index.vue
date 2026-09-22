@@ -162,7 +162,7 @@
  * 非 H5 端降级原非流式接口 + 逐字动效（展示动效，非伪造内容）。
  * 用户上滑阅读时暂停自动滚底，回到底部恢复跟随。
  */
-import { ref, getCurrentInstance, onMounted } from 'vue'
+import { ref, getCurrentInstance, onMounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
@@ -195,12 +195,28 @@ const scrollTop = ref(0)
 const loading = ref(true)
 const error = ref('')
 const conversationId = ref('')
+const reportedRecommendationViews = new Set<string>()
 
 const botDetail = ref({
   name: '智能体',
   avatar: '',
   welcomeMessage: '',
 })
+
+function reportRecommendationView(recommendation: Recommendation | undefined) {
+  if (!recommendation?.items?.length) return
+  const key = recommendation.items.map((item) => `${item.type}:${item.data?.id || ''}`).join('|')
+  if (!key || reportedRecommendationViews.has(key)) return
+  nextTick(() => {
+    if (reportedRecommendationViews.has(key)) return
+    reportedRecommendationViews.add(key)
+    track.custom('agent_recommend_view', {
+      entry: 'bot_chat',
+      botId: botId.value,
+      itemIds: recommendation.items.map((item) => String(item.data?.id || '')).filter(Boolean),
+    })
+  })
+}
 
 onLoad((opts) => {
   if (opts?.id) botId.value = String(opts.id)
@@ -324,6 +340,7 @@ async function handleSend() {
       if (done) {
         done.disclaimer = res?.disclaimer
         done.recommendation = res?.recommendation || undefined
+        reportRecommendationView(done.recommendation)
       }
     }
   } catch (e) {
@@ -363,6 +380,7 @@ async function sendViaStream(text: string, aiId: string): Promise<void> {
         if (m) {
           m.disclaimer = meta.disclaimer
           m.recommendation = (meta.recommendation as Recommendation | undefined) || undefined
+          reportRecommendationView(m.recommendation)
         }
       },
     },
