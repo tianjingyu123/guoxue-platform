@@ -6,7 +6,7 @@
  * 非 H5 端降级非流式 /circles/:id/assistant/ask。
  * 维护多轮 history 供后端联邦检索上下文。
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
 import { assistantApi, type AssistantHistory } from '@/lib/circle-assistant-data'
@@ -16,10 +16,14 @@ import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 const circleId = ref('')
 const title = ref('圈主助理')
 const history = ref<AssistantHistory>([])
+const backTarget = computed(() => circleId.value ? `/pkg-circle/circles/detail?id=${encodeURIComponent(circleId.value)}` : '/circles')
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = q.circleId
-  if (q?.name) title.value = decodeURIComponent(q.name) + ' · 圈主助理'
+  if (q?.name) {
+    try { title.value = decodeURIComponent(q.name) + ' · 圈主助理' }
+    catch { title.value = '圈主助理' }
+  }
 })
 
 function pushHistory(text: string, answer: string) {
@@ -61,6 +65,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
 <template>
   <simple-chat
     :title="title"
+    :back-target="backTarget"
     icon-name="sparkles"
     icon-color="#C41E3A"
     icon-bg="rgba(196,30,58,0.1)"

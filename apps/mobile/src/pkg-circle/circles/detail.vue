@@ -459,7 +459,25 @@ function openMembers() { navigateTo(`/pkg-circle/circles/members?id=${circleId.v
 // 公告页只消费 circleId（announcements.vue onLoad 仅读 q.circleId）；此前硬编码 id=1 是无效死参，去掉
 function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
-function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
+const assistantEntryStatus = computed(() => {
+  if (membershipChecking.value) return '正在确认成员状态'
+  if (paidAwaitingAccess.value) return '付款确认后可用'
+  if (membershipError.value) return '成员状态待确认'
+  if (memberExpired.value) return '续费后可用'
+  if (applied.value) return '审核通过后可用'
+  return isLoggedIn() && isJoined.value ? '圈内专属' : '加入后可用'
+})
+const assistantEntryHint = computed(() => isLoggedIn() && isJoined.value && !memberExpired.value && !membershipError.value && !paidAwaitingAccess.value
+  ? '圈子内容和学习问题，都可以从这里提问'
+  : '先完成入圈，即可向本圈助理提问')
+function openAssistant() {
+  if (membershipChecking.value) { uni.showToast({ title: '正在确认成员状态，请稍候', icon: 'none' }); return }
+  if (paidAwaitingAccess.value || membershipError.value || memberExpired.value || applied.value || !isLoggedIn() || !isJoined.value) {
+    handleJoin()
+    return
+  }
+  navigateTo(`/pkg-circle/circles/assistant?circleId=${encodeURIComponent(circleId.value)}&name=${encodeURIComponent(circle.value?.name || '')}`)
+}
 function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
 // 课程与好物先展示本圈接口已返回的资源，选中后直达对应详情。
 function openLive(id: string) { navigateTo(`/live/${id}`) }
@@ -538,9 +556,9 @@ function openResource(id: string) {
             <view class="assistant-entry-copy">
               <view class="assistant-entry-title-row">
                 <text class="assistant-entry-title">问问圈主助理</text>
-                <text class="assistant-entry-badge">圈内专属</text>
+                <text class="assistant-entry-badge">{{ assistantEntryStatus }}</text>
               </view>
-              <text class="assistant-entry-sub">圈子内容和学习问题，都可以从这里提问</text>
+              <text class="assistant-entry-sub">{{ assistantEntryHint }}</text>
 
             </view>
             <app-icon name="chevron-right" :size="26" color="var(--circle-accent)" />

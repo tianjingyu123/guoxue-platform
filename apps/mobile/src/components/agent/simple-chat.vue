@@ -16,7 +16,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import RichMessage from '@/components/agent/rich-message.vue'
 import AgentAnswerCard from '@/components/agent/cards/agent-answer-card.vue'
 import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { nowTime, type RecommendItem, type Recommendation } from '@/lib/agent-data'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
 import { resolveAgentReferral } from '@/lib/agent-routing'
@@ -63,6 +63,8 @@ const props = defineProps<{
   quickPrompts: string[]
   /** 当前智能体在本场景能完成的事情，作为进入对话后的方向提示。 */
   sceneHint?: string
+  /** 独立打开对话页时的场景返回目标；正常页面栈仍返回上一页。 */
+  backTarget?: string
   /** 智能体专业模板键；GUIDE / SERVICE / 各领域 type */
   experienceKey?: string
   /** 用于生成专属题签与跨专业路由 */
@@ -333,6 +335,14 @@ function openQuotaCenter() {
   navigateTo('/vip')
 }
 
+function backToScene() {
+  if (props.backTarget && getCurrentPages().length <= 1) {
+    reLaunch(props.backTarget)
+    return
+  }
+  goBack()
+}
+
 function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
@@ -344,7 +354,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
   <view class="page" :style="chatPageStyle">
     <!-- 头部 -->
     <view class="header">
-      <view class="back" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack()" @keydown="activateOnKeyboard($event, goBack)"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <view class="back" role="button" tabindex="0" aria-label="返回上一页" @tap="backToScene" @keydown="activateOnKeyboard($event, backToScene)"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
         <text class="head-title">{{ title }}</text>
