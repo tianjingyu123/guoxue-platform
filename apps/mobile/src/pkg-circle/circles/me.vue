@@ -5,7 +5,9 @@
  * 结构：身份区 → 圈主后台入口(仅圈主/管理员) → 我的圈子横滑 → 我的内容入口 → 圈子事务(收藏/加入申请/退款) → 边界说明
  * 数据：getMyCircles(带角色) + getMyStats + myRefunds；无聚合统计的项做成纯入口，不编数字（数据流铁律）
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -13,12 +15,17 @@ import { circleApi, isExpertRole, type MyCircle, type MyCircleStats } from '@/li
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 
 const loading = ref(true)
+const refreshing = ref(false)
+const failures = ref<string[]>([])
+const statsReady = ref(false)
+const circlesReady = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const myCircles = ref<MyCircle[]>([])
 const stats = ref<MyCircleStats>({ joinedCount: 0, postCount: 0, likeReceived: 0 })
 const refunds = ref<RefundRequestItem[]>([])
 
 // 圈主/管理员的圈子（有则显示圈主后台入口）
-const ownerCircle = computed(() => myCircles.value.find((c) => c.role === 'owner' || c.role === 'admin'))
+const ownerCircles = computed(() => myCircles.value.filter((c) => c.role === 'owner' || c.role === 'admin'))
 /**
  * 达人资格（可自助配置咨询价格）：后端白名单 OWNER/PARTNER/GUEST。
  * 必须看 rawRole —— role 的三档归并会把 GUEST 压成 member，用它会漏掉嘉宾达人。
@@ -35,30 +42,35 @@ const refundNote = computed(() => {
 })
 
 async function load() {
-  loading.value = true
+  if (refreshing.value) return
+  refreshing.value = true
   const [cRes, sRes, rRes] = await Promise.allSettled([
     circleApi.getMyCircles(),
-    circleApi.getMyStats(),
-    refundApi.myRefunds(),
+    circleApi.getMyStats(false, { throwOnError: true }),
+    refundApi.myRefunds({ throwOnError: true }),
   ])
+  failures.value = [cRes, sRes, rRes].flatMap((result, index) => result.status === 'rejected' ? [['圈子列表', '内容统计', '售后状态'][index]] : [])
+  circlesReady.value = cRes.status === 'fulfilled'
+  statsReady.value = sRes.status === 'fulfilled'
   myCircles.value = cRes.status === 'fulfilled' ? cRes.value : []
   if (sRes.status === 'fulfilled') stats.value = sRes.value
   refunds.value = rRes.status === 'fulfilled' ? rRes.value : []
   loading.value = false
+  refreshing.value = false
 }
 
 function go(url: string) { navigateTo(url) }
 function roleLabel(r: MyCircle['role']) { return r === 'owner' ? '圈主' : r === 'admin' ? '管理员' : '成员' }
 
-onMounted(load)
+onShow(load)
 </script>
 
 <template>
   <view class="page">
     <!-- 导航栏 -->
-    <view class="navbar">
-      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <text class="nav-title">圈子·我的</text>
+    <view class="navbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="nav-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="nav-title">我的圈子事务</text>
     </view>
 
     <scroll-view scroll-y class="body">
@@ -67,19 +79,24 @@ onMounted(load)
         <view class="profile-avatar"><app-icon name="user" :size="56" color="#999999" /></view>
         <view class="profile-info">
           <text class="profile-name">我的圈子</text>
-          <text class="profile-sub">加入 {{ stats.joinedCount }} 个圈子 · 创建 {{ createdCount }} 个</text>
+          <text v-if="statsReady && circlesReady" class="profile-sub">加入 {{ stats.joinedCount }} 个圈子 · 创建 {{ createdCount }} 个</text>
+          <text v-else class="profile-sub">{{ loading ? '正在读取你的圈子…' : '圈子与内容统计暂未完整确认' }}</text>
         </view>
       </view>
 
-      <!-- 圈主后台入口：仅圈主/管理员可见 -->
-      <view v-if="ownerCircle" class="owner-card" @tap="go(`/pkg-circle/circles/dashboard?id=${ownerCircle.id}`)">
+      <view v-if="failures.length" class="load-notice" role="status">
+        <text>{{ failures.join('、') }}暂时无法读取，其他入口仍可使用。</text>
+        <view class="retry-button" role="button" tabindex="0" aria-label="重试圈子事务" @tap="load" @keydown.enter="load">{{ refreshing ? '更新中…' : '重试' }}</view>
+      </view>
+      <view v-if="ownerCircles.length" class="section-head management-heading"><text class="section-title">我管理的圈子</text></view>
+      <view v-for="ownerCircle in ownerCircles" :key="ownerCircle.id" class="owner-card" role="button" :aria-label="`管理${ownerCircle.name}`" @tap="go(`/pkg-circle/circles/dashboard?id=${ownerCircle.id}`)">
         <view class="owner-icon"><app-icon name="crown" :size="34" color="#C9A96E" /></view>
         <view class="owner-body">
           <view class="owner-title">
-            <text class="owner-title-txt">圈主后台</text>
+            <text class="owner-title-txt">{{ ownerCircle.name }}</text>
             <text class="owner-badge">{{ roleLabel(ownerCircle.role) }}</text>
           </view>
-          <text class="owner-sub">{{ ownerCircle.name }}</text>
+          <text class="owner-sub">查看待办与管理事务</text>
         </view>
         <app-icon name="chevron-right" :size="30" color="#999999" />
       </view>
@@ -128,7 +145,7 @@ onMounted(load)
         <view class="section-head"><text class="section-title">我的内容</text></view>
         <view class="content-grid">
           <view class="content-cell" @tap="go('/pkg-circle/my-circles/index')">
-            <text class="content-num">{{ stats.postCount }}</text>
+            <text class="content-num">{{ statsReady ? stats.postCount : '—' }}</text>
             <text class="content-label">帖子</text>
           </view>
           <view class="content-cell" @tap="go('/pkg-circle/circles/my-questions')">
@@ -201,7 +218,10 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
+.page { height: 100vh; background: var(--circle-canvas, #f5f5f7); display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; }
+.load-notice { margin: 24rpx 40rpx; padding: 24rpx; border-radius: 20rpx; background: #fff; color: var(--circle-secondary); font-size: 26rpx; }
+.retry-button { min-height: 44px; display: flex; align-items: center; color: var(--circle-accent); }
+.management-heading { margin-top: 36rpx; }
 
 /* 导航栏 */
 .navbar {
@@ -211,11 +231,11 @@ onMounted(load)
   padding-top: calc(var(--status-bar-height, 0px) + 16rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
 }
-.nav-back { width: 88rpx; height: 88rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.nav-back { width: 88rpx; height: 88rpx; min-width: 44px; min-height: 44px; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .nav-back:active { background: var(--separator, #ede7dd); }
 .nav-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
-.body { flex: 1; }
+.body { flex: 1; height: 0; min-height: 0; }
 
 /* 身份区 */
 .profile { display: flex; align-items: center; gap: 24rpx; padding: 24rpx 40rpx 8rpx; }
@@ -230,8 +250,8 @@ onMounted(load)
 
 /* 圈主后台入口·金色点缀 */
 .owner-card {
-  margin: 32rpx 40rpx 0; display: flex; align-items: center; gap: 20rpx;
-  background: var(--bg-warm, #f8f4ec); border: 1rpx solid rgba(201, 169, 110, 0.35);
+  margin: 16rpx 40rpx 0; display: flex; align-items: center; gap: 20rpx;
+  background: #fff; border: 1rpx solid var(--circle-border-soft);
   border-radius: 32rpx; padding: 26rpx 28rpx;
 }
 .owner-card:active { transform: scale(0.99); }
@@ -242,7 +262,7 @@ onMounted(load)
 }
 .owner-body { flex: 1; min-width: 0; }
 .owner-title { display: flex; align-items: center; gap: 12rpx; }
-.owner-title-txt { font-size: 28rpx; font-weight: 650; color: var(--text-primary, #2c2c2c); }
+.owner-title-txt { font-size: 28rpx; font-weight: 650; color: var(--text-primary, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .owner-badge { font-size: 18rpx; color: var(--gold, #c9a96e); font-weight: 600; border: 1rpx solid var(--gold, #c9a96e); border-radius: 6rpx; padding: 0 8rpx; line-height: 28rpx; }
 .owner-sub { display: block; font-size: 24rpx; color: var(--text-secondary, #6e6e73); margin-top: 2rpx; }
 
@@ -297,7 +317,7 @@ onMounted(load)
 .boundary { margin-top: 56rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
 .boundary-link { display: flex; align-items: center; gap: 6rpx; }
 .boundary-link-txt { font-size: 26rpx; color: var(--text-tertiary, #999); }
-.boundary-note { font-size: 22rpx; color: var(--text-tertiary, #999); opacity: 0.75; }
+.boundary-note { font-size: 22rpx; color: var(--circle-secondary); padding: 0 40rpx; text-align: center; }
 
 .safe-bottom { height: 60rpx; }
 </style>

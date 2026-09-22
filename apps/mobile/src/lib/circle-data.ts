@@ -393,7 +393,7 @@ export const circleApi = {
     }
   },
   /** 我的圈子数据汇总（已加入/发帖/获赞，真实聚合；失败返回全 0 占位） */
-  getMyStats: async (optionalAuth = false): Promise<MyCircleStats> => {
+  getMyStats: async (optionalAuth = false, options: { throwOnError?: boolean } = {}): Promise<MyCircleStats> => {
     try {
       const res = optionalAuth
         ? await apiGetOptionalAuth<RawMyStats>('/circles/my-stats')
@@ -403,7 +403,8 @@ export const circleApi = {
         postCount: Number(res?.postCount) || 0,
         likeReceived: Number(res?.likeReceived) || 0,
       }
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return { joinedCount: 0, postCount: 0, likeReceived: 0 }
     }
   },

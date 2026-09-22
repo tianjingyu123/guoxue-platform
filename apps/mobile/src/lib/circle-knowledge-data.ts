@@ -71,10 +71,10 @@ export const knowledgeApi = {
     } catch { return [] }
   },
   /** 待审核候选 — GET /circles/:id/knowledge/candidates */
-  candidates: async (circleId: string): Promise<KnowledgeItem[]> => {
+  candidates: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<KnowledgeItem[]> => {
     try {
       return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?pageSize=50`)).map(adapt)
-    } catch { return [] }
+    } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 确认候选入库 */
   confirm: (circleId: string, id: string) =>

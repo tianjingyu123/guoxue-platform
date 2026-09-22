@@ -10,7 +10,8 @@
  *      空态起步四步中"写圈主的话"依赖 circle_intro 后端缺→降级为三步。
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -29,6 +30,11 @@ import { inviteApi } from '@/lib/circle-invite-data'
 const circleId = ref('')
 const loading = ref(true)
 const error = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+const refreshing = ref(false)
+const failedTodos = ref<string[]>([])
+const trendFailed = ref(false)
+const starterFailed = ref(false)
 
 const overview = ref<CircleDashboardOverview | null>(null)
 const trendDays = ref<DashboardTrendPoint[]>([])
@@ -115,21 +121,27 @@ function waitDays(iso: string): number {
 }
 
 async function load() {
-  loading.value = true
+  if (refreshing.value) return
+  refreshing.value = true
+  loading.value = !overview.value
   error.value = false
   try {
     // 概览是页面主体，失败走 error 态
     overview.value = await dashboardApi.circleOverview(circleId.value)
 
-    // 其余区块并行拉取，单块失败降级为空（不阻塞主体）
+    // 单块失败明确展示未确认，不将查询失败当作暂无待办。
     const [trendRes, joinRes, refundRes, pqRes, candRes] = await Promise.allSettled([
       dashboardApi.trends(circleId.value),
       growthApi.joinRequests(circleId.value),
-      refundApi.ownerPending(),
+      refundApi.ownerPending({ throwOnError: true }),
       dashboardApi.pendingQuestions(circleId.value),
-      knowledgeApi.candidates(circleId.value),
+      knowledgeApi.candidates(circleId.value, { throwOnError: true }),
     ])
+    failedTodos.value = [joinRes, refundRes, pqRes, candRes].flatMap((result, index) => result.status === 'rejected' ? [['加入申请', '退款申请', '付费提问', '知识库候选'][index]] : [])
+    trendFailed.value = trendRes.status === 'rejected'
     trendDays.value = trendRes.status === 'fulfilled' ? fillTrendDays(trendRes.value, 30) : []
+    joinPending.value = 0
+    joinOldestDays.value = 0
     if (joinRes.status === 'fulfilled') {
       const pend = joinRes.value.filter((r) => r.status === 'PENDING')
       joinPending.value = pend.length
@@ -146,15 +158,17 @@ async function load() {
     if (overview.value.memberCount <= 1) {
       const [mo, codes] = await Promise.allSettled([
         circleManageApi.getOverview(circleId.value),
-        inviteApi.listCodes(circleId.value),
+        inviteApi.listCodes(circleId.value, { throwOnError: true }),
       ])
       manageOv.value = mo.status === 'fulfilled' ? mo.value : null
       hasInviteCode.value = codes.status === 'fulfilled' && codes.value.length > 0
+      starterFailed.value = mo.status === 'rejected' || codes.status === 'rejected'
     }
   } catch {
     error.value = true
   } finally {
     loading.value = false
+    refreshing.value = false
   }
 }
 
@@ -169,14 +183,15 @@ onLoad((q) => {
   if (circleId.value) load()
   else { loading.value = false; error.value = true }
 })
+onShow(() => { if (overview.value && !refreshing.value) void load() })
 </script>
 
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <text class="topbar-title">管理后台</text>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="back-btn" role="button" tabindex="0" aria-label="返回圈子" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="topbar-title">圈子管理</text>
       <text v-if="overview?.name" class="circle-name">{{ overview.name }}</text>
     </view>
 
@@ -198,75 +213,8 @@ onLoad((q) => {
     </view>
 
     <scroll-view v-else scroll-y class="body">
-      <!-- ═══ 空态：新圈冷启动 ═══ -->
-      <template v-if="isEmptyCircle">
-        <view class="metrics">
-          <view class="metric">
-            <text class="metric-label">成员总数</text>
-            <text class="metric-num">{{ overview.memberCount }}</text>
-            <text class="metric-delta down">只有你自己，从邀请开始</text>
-          </view>
-          <view class="metric">
-            <text class="metric-label">本月收入</text>
-            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
-            <text class="metric-delta down">开启付费后开始累计</text>
-          </view>
-        </view>
-
-        <text class="section-label">待办</text>
-        <view class="todo-empty">
-          <view class="todo-empty-icon"><app-icon name="check" :size="40" color="#5B8A5E" /></view>
-          <text class="todo-empty-title">暂无待办</text>
-          <text class="todo-empty-desc">有加入申请、退款、付费提问需要处理时会在这里提醒你</text>
-        </view>
-
-        <text class="section-label">圈子起步 · 完成 {{ starterDone }} / {{ starterSteps.length }}</text>
-        <view class="starter">
-          <view v-for="(s, i) in starterSteps" :key="s.title" class="starter-row">
-            <view class="step-dot" :class="{ done: s.done }">
-              <app-icon v-if="s.done" name="check" :size="22" color="#FFFFFF" />
-              <text v-else class="step-num">{{ i + 1 }}</text>
-            </view>
-            <view class="starter-main">
-              <text class="starter-title" :class="{ done: s.done }">{{ s.title }}</text>
-              <text class="starter-desc">{{ s.desc }}</text>
-            </view>
-            <view v-if="!s.done" class="starter-go" @tap="go(s.url)"><text class="starter-go-txt">{{ s.goLabel }}</text></view>
-          </view>
-        </view>
-
-        <text class="section-label">近 30 天趋势</text>
-        <view class="trend-empty">
-          <text class="trend-empty-txt">成员和收入数据积累后，这里会出现趋势图</text>
-        </view>
-      </template>
-
-      <!-- ═══ 正常态 ═══ -->
-      <template v-else>
-        <!-- 健康度指标 2×2（仅后端真实字段：无同比/7日活跃/内容分项 → 降级口径） -->
-        <view class="metrics">
-          <view class="metric">
-            <text class="metric-label">成员总数</text>
-            <text class="metric-num">{{ overview.memberCount.toLocaleString() }}</text>
-            <text class="metric-delta">本月 +{{ overview.newMembers }}</text>
-          </view>
-          <view class="metric">
-            <text class="metric-label">本月收入</text>
-            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
-            <text class="metric-delta down">入圈费口径</text>
-          </view>
-          <view class="metric">
-            <text class="metric-label">本月互动率</text>
-            <text class="metric-num">{{ overview.interactionRate }}</text>
-            <text class="metric-delta down">发帖+评论+点赞 / 成员</text>
-          </view>
-          <view class="metric">
-            <text class="metric-label">本月新帖</text>
-            <text class="metric-num">{{ overview.monthPosts }}</text>
-            <text class="metric-delta down">评论 {{ overview.monthComments }} · 点赞 {{ overview.monthLikes }}</text>
-          </view>
-        </view>
-
+      <view class="refresh-row"><text class="refresh-state">{{ refreshing ? '正在更新待办…' : '先处理待办，再查看经营情况' }}</text><view class="refresh-button" role="button" tabindex="0" aria-label="刷新管理概览" :aria-disabled="refreshing" @tap="load" @keydown.enter="load">刷新</view></view>
+      <view v-if="failedTodos.length" class="load-notice" role="status">{{ failedTodos.join('、') }}暂时无法确认，请刷新重试。下方保留本次已查询到的待办。</view>
         <!-- 待办区 -->
         <text class="section-label">待办 · 需要你处理</text>
         <view v-if="todoCount > 0" class="todos">
@@ -307,10 +255,74 @@ onLoad((q) => {
             <app-icon name="chevron-right" :size="28" color="#999999" />
           </view>
         </view>
-        <view v-else class="todo-empty">
+        <view v-else-if="!failedTodos.length" class="todo-empty">
           <view class="todo-empty-icon"><app-icon name="check" :size="40" color="#5B8A5E" /></view>
           <text class="todo-empty-title">暂无待办</text>
           <text class="todo-empty-desc">有加入申请、退款、付费提问需要处理时会在这里提醒你</text>
+        </view>
+
+
+      <!-- ═══ 空态：新圈冷启动 ═══ -->
+      <template v-if="isEmptyCircle">
+        <view class="metrics">
+          <view class="metric">
+            <text class="metric-label">成员总数</text>
+            <text class="metric-num">{{ overview.memberCount }}</text>
+            <text class="metric-delta down">只有你自己，从邀请开始</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月收入</text>
+            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
+            <text class="metric-delta down">开启付费后开始累计</text>
+          </view>
+        </view>
+
+        <text class="section-label">圈子起步<template v-if="!starterFailed"> · 完成 {{ starterDone }} / {{ starterSteps.length }}</template></text>
+        <view v-if="starterFailed" class="load-notice">起步进度暂未确认，请刷新后查看。</view>
+        <view v-else class="starter">
+          <view v-for="(s, i) in starterSteps" :key="s.title" class="starter-row">
+            <view class="step-dot" :class="{ done: s.done }">
+              <app-icon v-if="s.done" name="check" :size="22" color="#FFFFFF" />
+              <text v-else class="step-num">{{ i + 1 }}</text>
+            </view>
+            <view class="starter-main">
+              <text class="starter-title" :class="{ done: s.done }">{{ s.title }}</text>
+              <text class="starter-desc">{{ s.desc }}</text>
+            </view>
+            <view v-if="!s.done" class="starter-go" @tap="go(s.url)"><text class="starter-go-txt">{{ s.goLabel }}</text></view>
+          </view>
+        </view>
+
+        <text class="section-label">近 30 天趋势</text>
+        <view class="trend-empty">
+          <text class="trend-empty-txt">{{ trendFailed ? '趋势暂时无法加载，请刷新重试' : '成员和收入数据积累后，这里会出现趋势图' }}</text>
+        </view>
+      </template>
+
+      <!-- ═══ 正常态 ═══ -->
+      <template v-else>
+        <!-- 健康度指标 2×2（仅后端真实字段：无同比/7日活跃/内容分项 → 降级口径） -->
+        <view class="metrics">
+          <view class="metric">
+            <text class="metric-label">成员总数</text>
+            <text class="metric-num">{{ overview.memberCount.toLocaleString() }}</text>
+            <text class="metric-delta">本月 +{{ overview.newMembers }}</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月收入</text>
+            <text class="metric-num gold">¥{{ fmtMoney(overview.monthRevenue) }}</text>
+            <text class="metric-delta down">入圈费口径</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月互动率</text>
+            <text class="metric-num">{{ overview.interactionRate }}</text>
+            <text class="metric-delta down">发帖+评论+点赞 / 成员</text>
+          </view>
+          <view class="metric">
+            <text class="metric-label">本月新帖</text>
+            <text class="metric-num">{{ overview.monthPosts }}</text>
+            <text class="metric-delta down">评论 {{ overview.monthComments }} · 点赞 {{ overview.monthLikes }}</text>
+          </view>
         </view>
 
         <!-- 近 30 天趋势（柱状·双指标切换） -->
@@ -342,8 +354,10 @@ onLoad((q) => {
               <text class="trend-foot-txt">{{ trendAxis.end }}</text>
             </view>
           </view>
-          <view v-else class="trend-none"><text class="trend-empty-txt">成员和收入数据积累后，这里会出现趋势图</text></view>
+          <view v-else class="trend-none"><text class="trend-empty-txt">{{ trendFailed ? '趋势暂时无法加载，请刷新重试' : '成员和收入数据积累后，这里会出现趋势图' }}</text></view>
         </view>
+
+      </template>
 
         <!-- 管理分区 2×3 -->
         <text class="section-label">管理分区</text>
@@ -407,15 +421,17 @@ onLoad((q) => {
             </view>
           </view>
         </view>
-      </template>
-
       <view class="safe-bottom" />
     </scroll-view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
+.page { height: 100vh; background: var(--circle-canvas, #f5f5f7); display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.load-notice { margin: 16rpx 32rpx; padding: 24rpx; background: #fff; border: 1rpx solid var(--circle-border-soft); border-radius: 18rpx; font-size: 26rpx; color: var(--circle-secondary); }
+.refresh-row { margin: 20rpx 32rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.refresh-state { font-size: 24rpx; color: var(--circle-secondary); }
+.refresh-button { min-height: 44px; display: flex; align-items: center; padding: 0 24rpx; color: var(--circle-accent); font-size: 26rpx; }
 
 /* 顶栏 */
 .topbar {
@@ -425,11 +441,11 @@ onLoad((q) => {
   padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
 }
-.back-btn { display: flex; align-items: center; }
-.topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
-.circle-name { font-size: 24rpx; color: var(--text-tertiary, #999999); }
+.back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; white-space: nowrap; }
+.circle-name { max-width: 30%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 24rpx; color: var(--circle-secondary); }
 
-.body { flex: 1; }
+.body { flex: 1; min-height: 0; height: 0; }
 
 /* 指标 2×2 */
 .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; margin: 16rpx 32rpx 0; }

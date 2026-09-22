@@ -6,7 +6,9 @@
  * 数据：growthApi.myJoinRequests（真连 GET /circles/my-join-requests）。
  * 降级（后端缺）：撤回申请无端点→不做撤回按钮；「查看推荐圈子」→跳圈子首页发现。
  */
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -15,9 +17,13 @@ import { growthApi, type MyJoinRequestItem } from '@/lib/circle-growth-data'
 const loading = ref(true)
 const error = ref('')
 const list = ref<MyJoinRequestItem[]>([])
+const menuSafeRight = getMiniProgramMenuSafeRight()
+let refreshing = false
 
 async function load() {
-  loading.value = true
+  if (refreshing) return
+  refreshing = true
+  loading.value = !list.value.length
   error.value = ''
   try {
     list.value = await growthApi.myJoinRequests()
@@ -25,6 +31,7 @@ async function load() {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+    refreshing = false
   }
 }
 
@@ -62,14 +69,14 @@ function reapply(r: MyJoinRequestItem) {
 }
 function discover() { navigateTo('/pages/circles/index') }
 
-onMounted(load)
+onShow(load)
 </script>
 
 <template>
   <view class="jr-page">
     <!-- 顶栏 -->
-    <view class="jr-topbar">
-      <view class="jr-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="jr-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="jr-back" role="button" tabindex="0" aria-label="返回" style="min-width:44px;min-height:44px" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="jr-title">我的加入申请</text>
     </view>
 

@@ -65,12 +65,12 @@ function adaptCode(c: RawInviteCode): InviteCodeItem {
 
 export const inviteApi = {
   /** 我的邀请码列表 — GET /circles/:id/invite-codes */
-  listCodes: async (circleId: string): Promise<InviteCodeItem[]> => {
+  listCodes: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<InviteCodeItem[]> => {
     try {
       const res = await apiGet<RawInviteCodeResp>(`/circles/${circleId}/invite-codes`)
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.codes ?? [])
       return arr.map(adaptCode)
-    } catch { return [] }
+    } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 邀请统计（总邀请人数）— GET /circles/:id/invitation-stats */
   getTotalInvited: async (circleId: string): Promise<number> => {

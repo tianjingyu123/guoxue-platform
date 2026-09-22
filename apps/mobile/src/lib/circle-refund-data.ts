@@ -135,12 +135,12 @@ export const refundApi = {
   apply: (circleId: string, reason?: string) =>
     apiPost(`/circle-refund/apply/${circleId}`, { reason }),
   /** 我的退款申请 — GET /circle-refund/my */
-  myRefunds: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch { return [] }
+  myRefunds: async (options: { throwOnError?: boolean } = {}): Promise<RefundRequestItem[]> => {
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 圈主待审退款 — GET /circle-refund/owner-pending */
-  ownerPending: async (): Promise<RefundRequestItem[]> => {
-    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/owner-pending')).map(adaptItem) } catch { return [] }
+  ownerPending: async (options: { throwOnError?: boolean } = {}): Promise<RefundRequestItem[]> => {
+    try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/owner-pending')).map(adaptItem) } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 圈主审核 — POST /circle-refund/:id/owner-review */
   ownerReview: (id: string, approve: boolean, rejectReason?: string) =>
