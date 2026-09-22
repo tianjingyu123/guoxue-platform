@@ -6,6 +6,7 @@ import { ShopRefundService } from "../shop/shop-refund.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { DEFAULT_VOICE_BILLING, VoiceQuotaService } from "./voice-quota.service";
 import { CIRCLE_VOICE_REVENUE_TYPE } from "./voice-topup";
+import { acquireGlobalConfigLock } from "./voice-it-lock";
 
 /**
  * 圈内语音时长充值 · 圈主与平台五五分成（决策人 2026-09-21）· 真实库验证（默认跳过）：
@@ -53,6 +54,12 @@ run("圈内语音时长充值五五分成 · 真实库", () => {
     return order;
   }
 
+  // 与其他改全局配置的套件串行（见 voice-it-lock.ts）；等锁可能要等另一个套件跑完
+  let releaseLock: (() => Promise<void>) | null = null;
+  beforeAll(async () => {
+    releaseLock = await acquireGlobalConfigLock(dbUrl!);
+  }, 300_000);
+
   beforeAll(async () => {
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
     await setBilling(true);
@@ -98,6 +105,11 @@ run("圈内语音时长充值五五分成 · 真实库", () => {
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await prisma.configSystem.deleteMany({ where: { configKey: "voice_billing_config" } });
     await prisma.$disconnect();
+  });
+
+  // 放锁放在收尾之后：收尾会删全局配置，删完再让下一个套件开始
+  afterAll(async () => {
+    await releaseLock?.();
   });
 
   it("成员在圈内充值：付款后记圈主收益 50% 与平台抽成 50%；回调重放只记一次", async () => {

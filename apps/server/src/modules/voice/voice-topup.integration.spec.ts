@@ -4,6 +4,7 @@ import { ShopOrderService } from "../shop/shop-order.service";
 import { ShopPaymentService } from "../shop/shop-payment.service";
 import { DEFAULT_VOICE_BILLING } from "./voice-quota.service";
 import { reverseVoiceTopupOrderInTx, topupIdempotencyKey } from "./voice-topup";
+import { acquireGlobalConfigLock } from "./voice-it-lock";
 
 /**
  * 语音时长充值 · 真实库验证（默认跳过）：XIAOBU_IT_DATABASE_URL=<已执行 manual_add_voice_minutes_order_type 的隔离库>
@@ -29,6 +30,12 @@ run("语音时长充值 · 真实库", () => {
     });
   }
 
+  // 与其他改全局配置的套件串行（见 voice-it-lock.ts）；等锁可能要等另一个套件跑完
+  let releaseLock: (() => Promise<void>) | null = null;
+  beforeAll(async () => {
+    releaseLock = await acquireGlobalConfigLock(dbUrl!);
+  }, 300_000);
+
   beforeAll(async () => {
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
     await prisma.user.create({ data: { id: userId, nickname: "充值测试" } });
@@ -52,6 +59,11 @@ run("语音时长充值 · 真实库", () => {
     await prisma.user.deleteMany({ where: { id: userId } });
     await prisma.configSystem.deleteMany({ where: { configKey: "voice_billing_config" } });
     await prisma.$disconnect();
+  });
+
+  // 放锁放在收尾之后：收尾会删全局配置，删完再让下一个套件开始
+  afterAll(async () => {
+    await releaseLock?.();
   });
 
   it("语音尚未开始计费（默认 chargeUsers=false）时拒绝下单：服务没开放不先收钱", async () => {

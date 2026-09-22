@@ -351,6 +351,110 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     await expect(devices.registerBatch("it-admin", { productSku: `${tag}-sku`, serials: [] })).rejects.toThrow(/没有可登记/);
   });
 
+  const CID = "11111111-2222-3333-4444-555555555555";
+  const EVIL = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+  const otaAs = (mac: string, clientId: string | null, ip?: string) =>
+    link.handleOta({ "device-id": mac, ...(clientId ? { "client-id": clientId } : {}), "user-agent": "bread/1.9.2" }, otaBody, base.replace("http://", ""), ip);
+
+  it("防冒充：已绑定设备只认「MAC + 设备 ID」——换设备 ID 或不带设备 ID 拿不到令牌与固件，不顶掉真设备的令牌", async () => {
+    const good: any = await ota();
+    expect(good.websocket.token).toBeTruthy();
+    const dev = await prisma.voiceDevice.findUniqueOrThrow({ where: { id: deviceId } });
+    expect(dev.terminalIdHash).toBeTruthy(); // 首次联网已锁定
+    expect(dev.terminalPinSource).toBe("first_contact");
+    for (const cid of [EVIL, null]) {
+      const r: any = await otaAs(MAC, cid);
+      expect(r.websocket.token).toBe("");
+      expect(r.activation.message).toMatch(/认证未通过/);
+      expect(r.activation.code).toBeUndefined();
+      expect(r.firmware.url).toBe("");
+    }
+    // App 侧看到「身份不符」提示
+    expect((await link.terminalStatus([deviceId]))[deviceId].identityMismatch).toBe(true);
+    // 冒充请求没有作废真设备的令牌
+    const d = await device(good.websocket.token);
+    hello(d.ws);
+    await waitFor(() => d.texts.some((t) => t.type === "hello"));
+    d.ws.close();
+    await sleep(200);
+    // 真设备再联网：提示清除
+    await ota();
+    expect((await link.terminalStatus([deviceId]))[deviceId].identityMismatch).toBe(false);
+    expect((await link.overview()).days[0].counts.identity_mismatch).toBeGreaterThanOrEqual(2);
+  });
+
+  it("令牌与设备 ID 绑定：截获令牌后换设备 ID 或不带设备 ID 连接一律 401", async () => {
+    const token = (await ota() as any).websocket.token;
+    for (const headers of [{ "Client-Id": EVIL }, {}] as Record<string, string>[]) {
+      await expect(
+        connectWs(`${base.replace("http", "ws")}${XIAOZHI_WS_PATH}`, { Authorization: `Bearer ${token}`, "Protocol-Version": "1", "Device-Id": MAC, ...headers }),
+      ).rejects.toThrow();
+    }
+    const ok = await device(token);
+    ok.ws.close();
+  });
+
+  it("防抢激活：出厂预置设备 ID 的未绑定设备，别的设备 ID 拿不到激活码；真设备拿到", async () => {
+    const mac = "02:00:00:00:0b:01";
+    const factoryId = "0b0b0b0b-1111-4222-8333-444444444444";
+    const reg = await devices.register("it-admin", { serial: mac, productSku: `${tag}-sku`, clientId: factoryId.toUpperCase() });
+    expect(reg).toMatchObject({ terminalPinned: true, terminalPinSource: "factory" });
+    const evil: any = await otaAs(mac, EVIL);
+    expect(evil.activation.code).toBeUndefined();
+    expect(evil.activation.message).toMatch(/认证未通过/);
+    const real: any = await otaAs(mac, factoryId);
+    expect(real.activation.code).toMatch(/^\d{6}$/);
+    await expect(devices.register("it-admin", { serial: "02:00:00:00:0b:02", productSku: `${tag}-sku`, clientId: "not-a-uuid" })).rejects.toThrow(/设备 ID 格式/);
+  });
+
+  it("重新认证：只有机主能重置；重置后旧令牌作废，设备（恢复出厂后新 ID）下次联网重新锁定；每小时限 3 次", async () => {
+    const oldToken = (await ota() as any).websocket.token;
+    await expect(link.resetTerminalIdentity(deviceId, { userId: bob })).rejects.toThrow(/设备不存在/);
+    const r = await link.resetTerminalIdentity(deviceId, { userId: alice });
+    expect(r.message).toMatch(/断电重开/);
+    expect((await prisma.voiceDevice.findUniqueOrThrow({ where: { id: deviceId } })).terminalIdHash).toBeNull();
+    expect(await link.verifyConnection(`Bearer ${oldToken}`, MAC, CID)).toBeNull();
+    // 设备恢复出厂后换了新 ID：重新锁定新 ID，旧 ID 反而不认
+    const NEW = "12121212-3434-4565-8787-909090909090";
+    const again: any = await otaAs(MAC, NEW);
+    expect(again.websocket.token).toBeTruthy();
+    expect(await link.verifyConnection(`Bearer ${again.websocket.token}`, MAC, NEW)).not.toBeNull();
+    expect((await otaAs(MAC, CID) as any).websocket.token).toBe("");
+    // 恢复成原 ID（后续用例用它），并验证限频
+    await link.resetTerminalIdentity(deviceId, { adminId: "it-admin" });
+    expect((await ota() as any).websocket.token).toBeTruthy();
+    await link.resetTerminalIdentity(deviceId, { userId: alice });
+    await expect(link.resetTerminalIdentity(deviceId, { userId: alice })).rejects.toThrow(/频繁/);
+    expect((await ota() as any).websocket.token).toBeTruthy(); // 第 3 次重置后原 ID 重新锁定
+  });
+
+  it("OTA 防刷：同一出口 IP 每分钟超过上限即拒绝并计数，别的 IP 不受影响", async () => {
+    process.env.XIAOZHI_OTA_PER_IP_PER_MIN = "3";
+    try {
+      const ip = `10.9.${Date.now() % 250}.7`;
+      for (let i = 0; i < 3; i++) await otaAs(MAC, CID, ip);
+      await expect(otaAs(MAC, CID, ip)).rejects.toThrow(/频繁/);
+      await otaAs(MAC, CID, "10.9.0.8"); // 别的 IP 不受影响
+      expect((await link.overview()).days[0].counts.ota_throttled).toBeGreaterThanOrEqual(1);
+    } finally {
+      delete process.env.XIAOZHI_OTA_PER_IP_PER_MIN;
+    }
+  });
+
+  it("批量登记带设备 ID（「MAC,设备ID」两列）：登记即锁定；设备 ID 格式错逐条报错；不回显设备 ID", async () => {
+    const r = await devices.registerBatch("it-admin", {
+      productSku: `${tag}-sku`,
+      serials: ["02:00:00:00:0c:01,0c0c0c0c-1111-4222-8333-444444444444", "02:00:00:00:0c:02\tbad-id", "02:00:00:00:0c:03"],
+    });
+    expect(r.results.map((x) => x.ok)).toEqual([true, false, true]);
+    expect(r.results[1].error).toMatch(/设备 ID 格式/);
+    const rows = await prisma.voiceDevice.findMany({ where: { id: { in: [r.results[0].deviceId!, r.results[2].deviceId!] } } });
+    const byId = Object.fromEntries(rows.map((x) => [x.id, x]));
+    expect(byId[r.results[0].deviceId!].terminalPinSource).toBe("factory");
+    expect(byId[r.results[2].deviceId!].terminalIdHash).toBeNull();
+    expect(JSON.stringify(r)).not.toMatch(/0c0c0c0c/);
+  });
+
   it("换主人：转赠给新用户后旧令牌 401；新主人重新取令牌可用，且看不到旧主人的设备历史", async () => {
     const oldToken = (await ota() as any).websocket.token;
     const { transferCode } = await devices.initiateTransfer(alice, deviceId);

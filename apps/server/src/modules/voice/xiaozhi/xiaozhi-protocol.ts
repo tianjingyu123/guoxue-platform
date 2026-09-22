@@ -95,6 +95,15 @@ export function normalizeDeviceSerial(raw: string | undefined | null): string | 
   return null;
 }
 
+/**
+ * 设备私有 ID（固件请求头 Client-Id）：开源固件首次开机生成的 UUID v4，存 NVS `board/uuid`，出厂可预写。
+ * 统一小写；不是 UUID 格式的一律视为缺失。
+ */
+export function normalizeClientId(raw: string | undefined | null): string | null {
+  const s = String(raw || "").trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s) ? s : null;
+}
+
 /** 用户要读出来/输进 App 的激活码：纯数字、固定位数（设备逐位播报） */
 export function isActivationCode(code: string, length: number) {
   return new RegExp(`^\\d{${length}}$`).test(code);

@@ -24,7 +24,7 @@ export class XiaozhiOtaController {
   @SkipFormat()
   @ApiOperation({ summary: "设备 OTA 检查（下发激活码或连接地址与令牌；不推送固件）" })
   ota(@Req() req: Request, @Body() body: unknown) {
-    return this.link.handleOta(req.headers as Record<string, unknown>, body, req.headers.host);
+    return this.link.handleOta(req.headers as Record<string, unknown>, body, req.headers.host, req.ip);
   }
 
   /** 固件在没有系统信息时会用 GET 检查 */
@@ -32,7 +32,7 @@ export class XiaozhiOtaController {
   @SkipFormat()
   @ApiOperation({ summary: "设备 OTA 检查（GET）" })
   otaGet(@Req() req: Request) {
-    return this.link.handleOta(req.headers as Record<string, unknown>, {}, req.headers.host);
+    return this.link.handleOta(req.headers as Record<string, unknown>, {}, req.headers.host, req.ip);
   }
 
   @Post("activate")
@@ -64,6 +64,14 @@ export class XiaozhiActivateController {
   @ApiOperation({ summary: "输入设备播报的激活码完成绑定" })
   activate(@Req() req: Request, @Body() dto: ActivateDeviceDto) {
     return this.link.bindByActivationCode((req as any).user.id, dto.activationCode);
+  }
+
+  @Post(":id/terminal-reset")
+  @HttpCode(200)
+  @UseGuards(StrictThrottleGuard)
+  @ApiOperation({ summary: "重新认证设备（恢复出厂/换主板后设备 ID 变化）：清除身份锁定，设备下次联网重新锁定" })
+  resetIdentity(@Req() req: Request, @Param("id") id: string) {
+    return this.link.resetTerminalIdentity(id, { userId: (req as any).user.id });
   }
 }
 

@@ -62,7 +62,7 @@ export interface VoiceDeviceView {
   disabledReason: string | null
   updatedAt: string
   /** 终端状态：设备平时不保持长连接，只有开机和对话时联系服务器，所以只有「最近联网」，没有实时在线 */
-  terminal?: { lastSeenAt: string | null; firmwareVersion: string | null; talking: boolean }
+  terminal?: { lastSeenAt: string | null; firmwareVersion: string | null; talking: boolean; identityMismatch?: boolean }
 }
 
 /** 「3 分钟前」「今天 14:05」「9月20日」：最近联网时间的口语化显示 */
@@ -237,6 +237,10 @@ export const xiaobuVoiceApi = {
   /** 小智协议终端：输入设备开机播报的数字激活码完成绑定 */
   activateDevice(activationCode: string): Promise<VoiceDeviceView> {
     return apiPost('/voice/devices/activate', { activationCode })
+  },
+  /** 重新认证：设备恢复出厂/换主板后设备 ID 变了，清除身份锁定，设备下次联网重新锁定 */
+  resetDeviceIdentity(id: string): Promise<{ ok: boolean; message: string }> {
+    return apiPost(`/voice/devices/${encodeURIComponent(id)}/terminal-reset`, {})
   },
   unbindDevice(id: string): Promise<VoiceDeviceView> {
     return apiPost(`/voice/devices/${encodeURIComponent(id)}/unbind`, {})

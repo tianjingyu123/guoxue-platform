@@ -94,7 +94,7 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
     let auth: Auth | null = null;
     try {
       auth = await Promise.race([
-        this.link.verifyConnection(req.headers.authorization, headerOf(req, "device-id")),
+        this.link.verifyConnection(req.headers.authorization, headerOf(req, "device-id"), headerOf(req, "client-id")),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("auth timeout")), AUTH_TIMEOUT_MS)),
       ]);
     } catch (e: any) {

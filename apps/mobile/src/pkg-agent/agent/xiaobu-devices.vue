@@ -93,6 +93,17 @@ function accept() {
   run(() => xiaobuVoiceApi.acceptTransfer(c), '已接收设备').then(() => { code.value = '' })
 }
 
+function resetIdentity(d: VoiceDeviceView) {
+  uni.showModal({
+    title: '重新认证设备',
+    content: '设备恢复出厂或维修换过主板后需要重新认证。如果你没有做过这些操作，可能有人在冒充你的设备，请联系客服。确定重新认证？',
+    success: (r) => {
+      if (!r.confirm) return
+      run(() => xiaobuVoiceApi.resetDeviceIdentity(d.id), '已重置，请把设备断电重开')
+    },
+  })
+}
+
 function unbind(d: VoiceDeviceView) {
   uni.showModal({
     title: '解绑设备',
@@ -183,6 +194,10 @@ onShow(load)
           <text v-if="d.terminal?.firmwareVersion" class="hint">固件 {{ d.terminal.firmwareVersion }}</text>
         </view>
         <text v-if="d.status === 'bound' && !d.terminal?.lastSeenAt" class="hint">设备开机并连上 WiFi 后会自动联网；按一下设备按键即可说话。</text>
+        <view v-if="d.status === 'bound' && d.terminal?.identityMismatch" class="handoff-row warn-row" data-testid="device-identity-mismatch">
+          <text class="hint">设备最近一次联网认证未通过。如果刚恢复出厂或维修过，请重新认证；如果没有，可能有人在冒充这台设备，请联系客服。</text>
+          <text class="link" data-testid="device-identity-reset" @tap="resetIdentity(d)">重新认证</text>
+        </view>
         <text v-if="d.status === 'disabled' && d.disabledReason" class="hint">停用原因：{{ d.disabledReason }}</text>
         <view v-if="handoffs[d.id]" class="handoff-row" data-testid="device-handoff">
           <text class="hint">正在接着聊：{{ handoffs[d.id].displayTopic }}（按设备按键即可继续）</text>
@@ -222,6 +237,7 @@ onShow(load)
 .handoff-row { display: flex; flex-direction: column; gap: 6rpx; padding: 14rpx 18rpx; border-radius: 14rpx; background: #f6f1e9; }
 .link { font-size: 24rpx; color: #C41E3A; }
 .low { color: #C41E3A; }
+.warn-row { background: #fdf3dc; }
 .terminal { display: flex; flex-wrap: wrap; gap: 8rpx 24rpx; align-items: center; }
 .talking { font-size: 23rpx; color: #2e7d32; font-weight: 600; }
 .list { padding: 12rpx 24rpx; display: flex; flex-direction: column; gap: 16rpx; }

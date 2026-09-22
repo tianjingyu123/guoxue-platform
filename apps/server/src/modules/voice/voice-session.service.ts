@@ -592,14 +592,17 @@ export class VoiceSessionService {
    * - reserved 卡住 → 失败并释放预留
    * - active 超过上限 + 宽限 → 请求供应商结束
    * - ending 等回调超时 → 按估算/未知收尾
+   *
+   * scope 只供测试隔离用（限定用户 ID 前缀），避免并行的测试套件互相清掉对方进行中的会话；定时任务不传。
    */
-  async sweep(now = new Date()) {
+  async sweep(now = new Date(), scope?: { userIdPrefix?: string }) {
     const cfg = await this.quota.getConfig();
+    const who = scope?.userIdPrefix ? { userId: { startsWith: scope.userIdPrefix } } : {};
     const grace = cfg.pricing.graceSeconds * 1000;
     let released = 0, ended = 0, finalized = 0;
 
     const stuck = await this.prisma.voiceSession.findMany({
-      where: { status: "reserved", startedAt: { lt: new Date(now.getTime() - RESERVED_STALE_MS) } },
+      where: { ...who, status: "reserved", startedAt: { lt: new Date(now.getTime() - RESERVED_STALE_MS) } },
       take: 100,
     });
     for (const s of stuck) {
@@ -612,7 +615,7 @@ export class VoiceSessionService {
 
     // 切换过供应商时（如测试环境的模拟会话遗留），旧供应商的会话不能拿去调用当前供应商：直接按用量未知收尾
     const orphans = await this.prisma.voiceSession.findMany({
-      where: { status: { in: ["active", "ending"] }, provider: { not: this.provider.id } },
+      where: { ...who, status: { in: ["active", "ending"] }, provider: { not: this.provider.id } },
       take: 200,
     });
     for (const s of orphans) {
@@ -628,7 +631,7 @@ export class VoiceSessionService {
     // - 空闲：最近一次用户输入后 idleTimeoutSeconds 没有新输入（决策人 2026-09-21：1 分钟），服务端多给 15 秒让客户端先挂
     // - 上限：超过单次时长上限 + 宽限
     const idleMs = cfg.idleTimeoutSeconds * 1000 + IDLE_SWEEP_GRACE_MS;
-    const actives = await this.prisma.voiceSession.findMany({ where: { status: "active", provider: this.provider.id }, take: 200 });
+    const actives = await this.prisma.voiceSession.findMany({ where: { ...who, status: "active", provider: this.provider.id }, take: 200 });
     for (const s of actives) {
       const began = (s.issuedAt ?? s.startedAt).getTime();
       const maxDeadline = began + s.maxSeconds * 1000 + grace;
@@ -649,7 +652,7 @@ export class VoiceSessionService {
     }
 
     const endings = await this.prisma.voiceSession.findMany({
-      where: { status: "ending", provider: this.provider.id, lastEventAt: { lt: new Date(now.getTime() - CALLBACK_WAIT_MS) } },
+      where: { ...who, status: "ending", provider: this.provider.id, lastEventAt: { lt: new Date(now.getTime() - CALLBACK_WAIT_MS) } },
       take: 200,
     });
     for (const s of endings) {

@@ -40,6 +40,8 @@
         <el-table-column label="开机检查" width="90"><template #default="{ row }">{{ row.counts.ota ?? 0 }}</template></el-table-column>
         <el-table-column label="对话连接" width="90"><template #default="{ row }">{{ row.counts.ws_open ?? 0 }}</template></el-table-column>
         <el-table-column label="鉴权失败" width="90"><template #default="{ row }"><span :class="{ bad: (row.counts.auth_fail ?? 0) > 0 }">{{ row.counts.auth_fail ?? 0 }}</span></template></el-table-column>
+        <el-table-column label="身份不符" width="90"><template #default="{ row }"><span :class="{ bad: (row.counts.identity_mismatch ?? 0) > 0 }">{{ row.counts.identity_mismatch ?? 0 }}</span></template></el-table-column>
+        <el-table-column label="限流" width="70"><template #default="{ row }"><span :class="{ bad: (row.counts.ota_throttled ?? 0) > 0 }">{{ row.counts.ota_throttled ?? 0 }}</span></template></el-table-column>
         <el-table-column label="结束原因" min-width="320">
           <template #default="{ row }">
             <span v-for="(n, k) in endReasons(row.counts)" :key="k" class="reason" :class="{ bad: BAD_END.includes(String(k)) }">{{ END_TEXT[k] || k }} {{ n }}</span>
@@ -70,10 +72,18 @@
         <el-table-column label="语音" width="110">
           <template #default="{ row }"><el-tag :type="row.voiceReady ? 'success' : 'info'" size="small">{{ row.voiceReady ? '可用' : '待开通' }}</el-tag></template>
         </el-table-column>
+        <el-table-column label="设备身份" width="110">
+          <template #default="{ row }">
+            <el-tooltip :content="row.terminalPinned ? (row.terminalPinSource === 'factory' ? '出厂预置设备 ID，登记即锁定' : '首次联网时锁定') : '未锁定：下次联网时锁定（未绑定设备有被抢先激活的风险，量产请出厂预置）'" placement="top">
+              <el-tag :type="row.terminalPinned ? 'success' : 'warning'" size="small">{{ row.terminalPinned ? (row.terminalPinSource === 'factory' ? '出厂锁定' : '已锁定') : '未锁定' }}</el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column prop="disabledReason" label="停用原因" min-width="140" />
-        <el-table-column v-if="canWrite" label="操作" width="200" fixed="right">
+        <el-table-column v-if="canWrite" label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'unbound'" link type="primary" size="small" @click="issueCode(row)">生成绑定码</el-button>
+            <el-button v-if="row.terminalPinned" link type="warning" size="small" @click="resetIdentity(row)">重置身份</el-button>
             <el-button v-if="row.status !== 'disabled'" link type="danger" size="small" @click="disable(row)">停用</el-button>
             <el-button v-else link type="primary" size="small" @click="enable(row)">恢复</el-button>
           </template>
@@ -160,8 +170,9 @@
       </el-radio-group>
       <el-form label-width="90px" size="small" @submit.prevent>
         <el-form-item v-if="registerMode === 'single'" label="序列号"><el-input v-model="form.serial" maxlength="64" placeholder="设备铭牌序列号；小智协议终端填 MAC（带不带冒号均可）" /></el-form-item>
+        <el-form-item v-if="registerMode === 'single'" label="设备 ID"><el-input v-model="form.clientId" maxlength="64" placeholder="可选：出厂写入的设备 ID（UUID），填了即锁定身份，防止被抢先激活" /></el-form-item>
         <el-form-item v-else label="序列号">
-          <el-input v-model="batchText" type="textarea" :rows="8" data-testid="batch-serials" placeholder="每行一个 MAC 或序列号，最多 500 行；也可直接粘贴 CSV（取每行第一列，表头行自动跳过）" />
+          <el-input v-model="batchText" type="textarea" :rows="8" data-testid="batch-serials" placeholder="每行「MAC,设备ID」（设备 ID 为出厂写入的 UUID，可省略但建议带上），最多 500 行；可直接粘贴出厂清单 CSV，表头行自动跳过" />
           <div class="muted">识别到 {{ batchSerials.length }} 行</div>
         </el-form-item>
         <el-form-item label="SKU"><el-input v-model="form.productSku" maxlength="64" placeholder="公版硬件型号" /></el-form-item>
@@ -207,16 +218,16 @@ const loading = ref(false);
 const filter = reactive({ status: "", circleId: "" });
 const registerOpen = ref(false);
 const saving = ref(false);
-const form = reactive({ serial: "", productSku: "", circleId: "" });
+const form = reactive({ serial: "", clientId: "", productSku: "", circleId: "" });
 const registerMode = ref<"single" | "batch">("single");
 const batchText = ref("");
 const batchResult = ref<BatchRegisterResult | null>(null);
-/** 每行一个；CSV 取第一列；跳过明显的表头行 */
+/** 每行「MAC[,设备ID]」；CSV 取前两列；跳过明显的表头行 */
 const batchSerials = computed(() =>
   batchText.value
     .split(/\r?\n/)
-    .map((l) => l.split(/[,\t;]/)[0].trim().replace(/^"|"$/g, ""))
-    .filter((l) => l && !/^(mac|serial|序列号|设备号|sn)$/i.test(l)),
+    .map((l) => l.split(/[,\t;]/).slice(0, 2).map((c) => c.trim().replace(/^"|"$/g, "")).filter(Boolean).join(","))
+    .filter((l) => l && !/^(mac|serial|序列号|设备号|sn)(,|$)/i.test(l)),
 );
 const overview = ref<TerminalOverview | null>(null);
 const END_TEXT: Record<string, string> = {
@@ -281,10 +292,16 @@ async function register() {
   }
   saving.value = true;
   try {
-    await xiaobuOpsApi.registerDevice({ serial: form.serial.trim(), productSku: form.productSku.trim(), circleId: form.circleId.trim() || undefined });
+    await xiaobuOpsApi.registerDevice({
+      serial: form.serial.trim(),
+      productSku: form.productSku.trim(),
+      circleId: form.circleId.trim() || undefined,
+      clientId: form.clientId.trim() || undefined,
+    });
     ElMessage.success("已登记");
     registerOpen.value = false;
     form.serial = "";
+    form.clientId = "";
     load(1);
   } catch (e) {
     ElMessage.error(errMsg(e, "登记失败"));
@@ -351,6 +368,25 @@ async function disable(row: AdminDevice) {
     load(page.value);
   } catch (e) {
     ElMessage.error(errMsg(e, "停用失败"));
+  }
+}
+
+async function resetIdentity(row: AdminDevice) {
+  try {
+    await ElMessageBox.confirm(
+      `重置 …${row.serialHint} 的设备身份：现有连接立即失效，设备下次联网时按新的设备 ID 重新锁定。请先核实是机主本人且设备确实恢复出厂或换过主板。`,
+      "重置设备身份",
+      { type: "warning" },
+    );
+  } catch {
+    return;
+  }
+  try {
+    const r = await xiaobuOpsApi.resetDeviceIdentity(row.id);
+    ElMessage.success(r.message || "已重置");
+    load(page.value);
+  } catch (e) {
+    ElMessage.error(errMsg(e, "重置失败"));
   }
 }
 

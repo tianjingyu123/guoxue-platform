@@ -32,12 +32,14 @@ export class StartDeviceSessionDto {
 }
 export class RegisterDeviceDto {
   @IsString() @MinLength(6) @MaxLength(64) serial: string;
+  /** 出厂预置的设备 ID（NVS board/uuid）；填了即登记时锁定设备身份 */
+  @IsOptional() @IsString() @MaxLength(64) clientId?: string;
   @IsString() @MinLength(1) @MaxLength(64) productSku: string;
   @IsOptional() @IsString() @MaxLength(64) circleId?: string;
   @IsOptional() @IsString() @MaxLength(64) agentProfileId?: string;
 }
 export class RegisterDeviceBatchDto {
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500) @IsString({ each: true }) @MaxLength(64, { each: true }) serials: string[];
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500) @IsString({ each: true }) @MaxLength(120, { each: true }) serials: string[];
   @IsString() @MinLength(1) @MaxLength(64) productSku: string;
   @IsOptional() @IsString() @MaxLength(64) circleId?: string;
   @IsOptional() @IsString() @MaxLength(64) agentProfileId?: string;
@@ -149,7 +151,10 @@ export class VoiceDeviceController {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class VoiceDeviceAdminController {
-  constructor(private readonly devices: VoiceDeviceService) {}
+  constructor(
+    private readonly devices: VoiceDeviceService,
+    @Optional() private readonly link?: XiaozhiLinkService,
+  ) {}
 
   @Get()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
@@ -169,6 +174,15 @@ export class VoiceDeviceAdminController {
   @ApiOperation({ summary: "批量登记（出厂/入库，每行一个序列号或 MAC，最多 500 台，逐条回报）" })
   registerBatch(@Req() req: Request, @Body() dto: RegisterDeviceBatchDto) {
     return this.devices.registerBatch((req as any).user.id, dto);
+  }
+
+  @Post(":id/terminal-reset")
+  @HttpCode(200)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "重置设备身份（客服核实机主后操作；设备恢复出厂/换主板后用）" })
+  resetIdentity(@Req() req: Request, @Param("id") id: string) {
+    if (!this.link) throw new Error("小智协议终端未启用");
+    return this.link.resetTerminalIdentity(id, { adminId: (req as any).user.id });
   }
 
   @Post(":id/bind-code")

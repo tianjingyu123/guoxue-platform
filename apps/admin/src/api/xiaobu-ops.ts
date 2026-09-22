@@ -128,6 +128,9 @@ export interface AdminDevice {
   voiceReady: boolean;
   disabledReason: string | null;
   currentUserMasked: string | null;
+  /** 设备身份是否已锁定（出厂预置 factory / 首次联网 first_contact） */
+  terminalPinned?: boolean;
+  terminalPinSource?: string | null;
   updatedAt: string;
 }
 
@@ -148,7 +151,7 @@ export const xiaobuOpsApi = {
     const { data } = await api.get("/admin/xiaobu/devices", { params });
     return data as { total: number; page: number; pageSize: number; items: AdminDevice[] };
   },
-  async registerDevice(body: { serial: string; productSku: string; circleId?: string }) {
+  async registerDevice(body: { serial: string; productSku: string; circleId?: string; clientId?: string }) {
     const { data } = await api.post("/admin/xiaobu/devices", body);
     return data as AdminDevice;
   },
@@ -204,6 +207,11 @@ export const xiaobuOpsApi = {
   async registerTerminal(seenId: string, body: { productSku: string; circleId?: string }) {
     const { data } = await api.post(`/admin/xiaobu/terminals/${encodeURIComponent(seenId)}/register`, body);
     return data as AdminDevice;
+  },
+  /** 重置设备身份（客服核实机主后操作） */
+  async resetDeviceIdentity(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/terminal-reset`);
+    return data as { ok: boolean; message: string };
   },
   async enableDevice(id: string) {
     const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/enable`);

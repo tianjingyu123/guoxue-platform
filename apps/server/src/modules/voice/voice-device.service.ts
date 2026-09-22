@@ -3,7 +3,7 @@ import { createHash, createHmac, randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { normalizeDeviceSerial } from "./xiaozhi/xiaozhi-protocol";
+import { normalizeClientId, normalizeDeviceSerial } from "./xiaozhi/xiaozhi-protocol";
 
 /**
  * 圈主 IP 硬件设备台账与绑定状态机（S09）
@@ -58,6 +58,11 @@ export class VoiceDeviceService {
     return createHmac("sha256", this.pepper()).update(serial.trim().toUpperCase(), "utf8").digest("hex");
   }
 
+  /** 设备私有 ID 的哈希（与序列号哈希分域，不能互相比对） */
+  terminalIdHash(clientId: string): string {
+    return createHmac("sha256", this.pepper()).update(`xz-client:${clientId.trim().toLowerCase()}`, "utf8").digest("hex");
+  }
+
   /** 对外视图：不含任何哈希与码 */
   view(d: any) {
     return {
@@ -72,17 +77,26 @@ export class VoiceDeviceService {
       /** 商业固件与 API 未接通前恒为 false：页面显示「待开通」 */
       voiceReady: d.activationState === "activated" && d.status === "bound",
       disabledReason: d.disabledReason ?? null,
+      /** 设备身份是否已锁定（出厂预置或首次联网），不返回哈希本身 */
+      terminalPinned: !!d.terminalIdHash,
+      terminalPinSource: d.terminalPinSource ?? null,
       updatedAt: d.updatedAt,
     };
   }
 
   // ───────── 平台侧 ─────────
 
-  async register(adminId: string, input: { serial: string; productSku: string; circleId?: string | null; agentProfileId?: string | null }) {
+  async register(adminId: string, input: { serial: string; productSku: string; circleId?: string | null; agentProfileId?: string | null; clientId?: string | null }) {
     // 小智协议终端以 MAC 作序列号：带冒号/横线的 MAC 统一规范为 12 位大写十六进制，与 OTA 上报的 Device-Id 一致
     const serial = normalizeDeviceSerial(input.serial) ?? (input.serial || "").trim();
     if (serial.length < 6 || serial.length > 64 || !/^[A-Za-z0-9_-]+$/.test(serial)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "序列号格式不正确");
+    }
+    // 出厂预置的设备私有 ID（NVS board/uuid）：登记时即锁定身份，杜绝「拿 MAC 抢先激活」
+    let clientId: string | null = null;
+    if (input.clientId) {
+      clientId = normalizeClientId(input.clientId);
+      if (!clientId) throw new BusinessException(ErrorCode.BAD_REQUEST, "设备 ID 格式不正确（应为 UUID）");
     }
     if (input.circleId) {
       const c = await this.prisma.circle.findUnique({ where: { id: input.circleId }, select: { id: true, deletedAt: true } });
@@ -97,6 +111,7 @@ export class VoiceDeviceService {
           circleId: input.circleId ?? null,
           agentProfileId: input.agentProfileId ?? null,
           createdBy: adminId,
+          ...(clientId ? { terminalIdHash: this.terminalIdHash(clientId), terminalPinnedAt: new Date(), terminalPinSource: "factory" } : {}),
         },
       });
       return this.view(d);
@@ -107,8 +122,9 @@ export class VoiceDeviceService {
   }
 
   /**
-   * 批量登记（出厂/入库）：每行一个序列号或 MAC，逐条登记、逐条回报结果，单条失败不影响其它。
-   * 回报里只给行号与末 4 位，不回显完整序列号。
+   * 批量登记（出厂/入库）：每行「MAC[,设备ID]」，逐条登记、逐条回报结果，单条失败不影响其它。
+   * 设备 ID 是出厂写进 NVS 的 board/uuid，带上即登记时锁定身份（推荐）。
+   * 回报里只给行号与末 4 位，不回显完整序列号与设备 ID。
    */
   async registerBatch(adminId: string, input: { serials: string[]; productSku: string; circleId?: string | null; agentProfileId?: string | null }) {
     const lines = (input.serials || []).map((s) => String(s || "").trim()).filter(Boolean);
@@ -117,7 +133,8 @@ export class VoiceDeviceService {
     const seen = new Set<string>();
     const results: { line: number; serialHint: string; ok: boolean; deviceId?: string; error?: string }[] = [];
     for (let i = 0; i < lines.length; i++) {
-      const norm = normalizeDeviceSerial(lines[i]) ?? lines[i];
+      const [rawSerial, rawClientId] = lines[i].split(/[,\t;]/).map((x) => x.trim().replace(/^"|"$/g, ""));
+      const norm = normalizeDeviceSerial(rawSerial) ?? rawSerial;
       const hint = norm.slice(-4).toUpperCase();
       if (seen.has(norm)) {
         results.push({ line: i + 1, serialHint: hint, ok: false, error: "本批重复" });
@@ -125,7 +142,7 @@ export class VoiceDeviceService {
       }
       seen.add(norm);
       try {
-        const d = await this.register(adminId, { serial: lines[i], productSku: input.productSku, circleId: input.circleId, agentProfileId: input.agentProfileId });
+        const d = await this.register(adminId, { serial: rawSerial, clientId: rawClientId || null, productSku: input.productSku, circleId: input.circleId, agentProfileId: input.agentProfileId });
         results.push({ line: i + 1, serialHint: hint, ok: true, deviceId: d.id });
       } catch (e: any) {
         // 圈子不存在属于整批参数错误，直接中止

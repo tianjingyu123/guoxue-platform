@@ -203,7 +203,7 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
     await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
     const s: any = await svc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: reqId("sweep") });
     const future = new Date(Date.now() + 3600_000);
-    await svc.sweep(future);
+    await svc.sweep(future, { userIdPrefix: prefix });
     const swept = await prisma.voiceSession.findUniqueOrThrow({ where: { id: s.session.id } });
     expect(swept).toMatchObject({ status: "ended", endReason: "idle_timeout", usageState: "unknown" });
     const endAttempts = await prisma.voiceProviderAttempt.findMany({ where: { sessionId: s.session.id, operation: "end" } });
@@ -224,19 +224,19 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
 
     // 70 秒无输入：客户端已该挂断，服务端还在 15 秒宽限内，不动
     await back(70);
-    await svc.sweep(new Date());
+    await svc.sweep(new Date(), { userIdPrefix: prefix });
     expect((await prisma.voiceSession.findUniqueOrThrow({ where: { id } })).status).toBe("active");
 
     // 80 秒前的最后输入，但刚刚又说了一句 → 计时刷新，不结束
     await back(80);
     const touched = await svc.recordInput(user, id);
     expect(touched).toMatchObject({ status: "active", idleTimeoutSeconds: 60 });
-    await svc.sweep(new Date());
+    await svc.sweep(new Date(), { userIdPrefix: prefix });
     expect((await prisma.voiceSession.findUniqueOrThrow({ where: { id } })).status).toBe("active");
 
     // 80 秒没有新输入 → 按 idle_timeout 结束，并请求供应商停止
     await back(80);
-    await svc.sweep(new Date());
+    await svc.sweep(new Date(), { userIdPrefix: prefix });
     const ended = await prisma.voiceSession.findUniqueOrThrow({ where: { id } });
     expect(ended).toMatchObject({ status: "ended", endReason: "idle_timeout" });
     expect(await prisma.voiceProviderAttempt.count({ where: { sessionId: id, operation: "end" } })).toBe(1);
@@ -261,7 +261,7 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
     // 模拟「一直在说话」：最近输入永远是当下；超过单次上限后按 max_duration 结束
     const future = new Date(Date.now() + 3600_000);
     await prisma.voiceSession.update({ where: { id: s.session.id }, data: { lastInputAt: future } });
-    await svc.sweep(future);
+    await svc.sweep(future, { userIdPrefix: prefix });
     const ended = await prisma.voiceSession.findUniqueOrThrow({ where: { id: s.session.id } });
     expect(ended).toMatchObject({ status: "ended", endReason: "max_duration" });
   });
@@ -281,7 +281,7 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
     await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
     const s: any = await mockSvc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: reqId("switch") });
     const { svc: unavailSvc } = build(new UnavailableXiaozhiProvider());
-    await unavailSvc.sweep();
+    await unavailSvc.sweep(undefined, { userIdPrefix: prefix });
     expect(await prisma.voiceSession.findUniqueOrThrow({ where: { id: s.session.id } })).toMatchObject({
       status: "ended", endReason: "provider_switched", usageState: "unknown", usedSeconds: null,
     });

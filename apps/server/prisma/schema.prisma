@@ -4067,6 +4067,11 @@ model VoiceDevice {
   providerDeviceRef String? // 商业平台设备标识；商业 API 未接通前为空
   activationState   String    @default("pending_vendor") // pending_vendor / activated（须真实供应商确认）
   disabledReason    String?
+  /// 设备私有身份：HMAC(Client-Id, XIAOBU_DEVICE_PEPPER)。MAC 可被嗅探、同批连号，只认 MAC 会被冒充；
+  /// 出厂预置（factory）或首次联网锁定（first_contact），机主/后台可重置后由设备下次联网重新锁定
+  terminalIdHash    String?
+  terminalPinnedAt  DateTime?
+  terminalPinSource String? // factory / first_contact
   createdBy         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

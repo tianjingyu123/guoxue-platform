@@ -6,6 +6,7 @@ import { ShopRefundService } from "../shop/shop-refund.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { XiaobuCommerceService } from "./xiaobu-commerce.service";
 import { memberVoiceKey, monthKey, reportTargetId, xiaobuMemberStatus } from "./xiaobu-commerce";
+import { acquireGlobalConfigLock } from "./voice-it-lock";
 
 /**
  * 报告单独购买与小卜AI会员 · 真实库验证（默认跳过）：
@@ -37,6 +38,12 @@ run("小卜报告购买与AI会员 · 真实库", () => {
     await prisma.$transaction(async (tx) => { await payment.runPaidPostProcessors(order as any, tx); });
     return order;
   }
+
+  // 与其他改全局配置的套件串行（见 voice-it-lock.ts）；等锁可能要等另一个套件跑完
+  let releaseLock: (() => Promise<void>) | null = null;
+  beforeAll(async () => {
+    releaseLock = await acquireGlobalConfigLock(dbUrl!);
+  }, 300_000);
 
   beforeAll(async () => {
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
@@ -71,6 +78,11 @@ run("小卜报告购买与AI会员 · 真实库", () => {
     await prisma.paipanRecord.deleteMany({ where: { userId: { in: ids } } });
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await prisma.$disconnect();
+  });
+
+  // 放锁放在收尾之后：收尾会删全局配置，删完再让下一个套件开始
+  afterAll(async () => {
+    await releaseLock?.();
   });
 
   it("报告：未购买时无权生成；下单价格按服务端 29 元，前端金额无效；别人的盘、非法类型拒绝", async () => {
