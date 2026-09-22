@@ -12,7 +12,7 @@
     ><text class="retry-text">重试</text></view>
   </view>
   <view v-else class="square">
-    <!-- 顶部搜索区（红色，sticky） -->
+    <!-- 顶部搜索区（中性玻璃层，sticky） -->
     <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="topbar-inner">
         <view class="tb-row">
@@ -25,11 +25,11 @@
               @tap="goBack"
               @keydown="activateOnKeyboard($event, goBack)"
             >
-              <app-icon name="arrow-left" :size="40" color="#ffffff" />
+              <app-icon name="arrow-left" :size="40" color="#1d1d1f" />
             </view>
             <text class="tb-title" role="heading" aria-level="1">智能体广场</text>
             <view class="tb-badge">
-              <app-icon name="zap" :size="22" color="rgba(255,255,255,0.9)" />
+              <app-icon name="zap" :size="22" color="#2b8a82" />
               <text class="tb-badge-txt">{{ hotBots.length + 1 }}个在线</text>
             </view>
           </view>
@@ -41,7 +41,7 @@
             @tap="navigateTo('/agents/history')"
             @keydown="activateOnKeyboard($event, () => navigateTo('/agents/history'))"
           >
-            <app-icon name="clock" :size="28" color="rgba(255,255,255,0.8)" />
+            <app-icon name="clock" :size="28" color="#6e6e73" />
             <text class="tb-history-txt">对话记录</text>
           </view>
         </view>
@@ -389,6 +389,7 @@ import SquareAgentCard from './components/square-agent-card.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { track } from '@/composables/useTrack'
 import { agentThemeStyle, resolveAgentTheme } from '@/lib/agent-experience'
 import {
   agentsSquareApi,
@@ -514,6 +515,7 @@ function openBot(id: string) {
 }
 
 function openVoiceCall(id: string) {
+  track.custom('agent_voice_entry_click', { agentId: id, source: 'agents_square' })
   navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(id)}`)
 }
 
@@ -523,6 +525,7 @@ function resumeConv(c: AgentConversation) {
 }
 
 function openRecentVoice(c: AgentConversation) {
+  track.custom('agent_voice_entry_click', { agentId: c.botConfigId, source: 'agents_recent' })
   navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(c.botConfigId)}`)
 }
 
@@ -585,7 +588,7 @@ function goBack() {
 
 .square {
   min-height: 100vh;
-  background: var(--bg-paper, #faf8f5);
+  background: var(--agent-canvas, #f5f5f7);
   padding-bottom: 48rpx;
 }
 
@@ -594,7 +597,9 @@ function goBack() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: linear-gradient(180deg, var(--brand) 0%, #a01530 100%);
+  background: rgba(245,245,247,.92);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  backdrop-filter: blur(24rpx);
 }
 .topbar-inner { padding: 16rpx 32rpx 28rpx; }
 .tb-row {
@@ -609,34 +614,35 @@ function goBack() {
   display: flex; align-items: center; justify-content: center;
   margin-left: -12rpx;
 }
-.tb-title { font-size: 40rpx; font-weight: 700; color: #ffffff; }
+.tb-title { font-size: 38rpx; font-weight: 700; color: var(--agent-ink, #1d1d1f); }
 .tb-badge {
   display: flex; align-items: center; gap: 6rpx;
   padding: 2rpx 16rpx;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--agent-accent-soft, rgba(43,138,130,.10));
   border-radius: 999rpx;
 }
-.tb-badge-txt { font-size: 22rpx; color: rgba(255, 255, 255, 0.9); }
+.tb-badge-txt { font-size: 22rpx; color: var(--agent-accent, #2b8a82); }
 .tb-history { display: flex; align-items: center; gap: 6rpx; }
-.tb-history-txt { font-size: 24rpx; color: rgba(255, 255, 255, 0.8); }
+.tb-history-txt { font-size: 24rpx; color: var(--agent-secondary, #6e6e73); }
 
 /* 搜索框 */
 .search-box {
   position: relative;
   display: flex; align-items: center;
-  background: #ffffff;
-  border-radius: 24rpx;
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
   padding: 18rpx 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
 }
-.search-input { flex: 1; margin-left: 16rpx; font-size: 28rpx; color: #333333; }
+.search-input { flex: 1; margin-left: 16rpx; font-size: 28rpx; color: var(--agent-ink, #1d1d1f); }
 .search-ph { color: #999999; }
 .search-clear { padding: 8rpx; }
 .search-divider { width: 2rpx; height: 40rpx; background: #e5e5e5; margin: 0 16rpx; }
 .voice-btn {
   position: relative;
   width: 56rpx; height: 56rpx; border-radius: 999rpx;
-  background: #f5f0e8;
+  background: var(--agent-accent-soft, rgba(43,138,130,.10));
   display: flex; align-items: center; justify-content: center;
 }
 .voice-btn::before {
@@ -665,7 +671,7 @@ function goBack() {
 .voice-filter { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; }
 .voice-filter-label { margin-right: 2rpx; font-size: 21rpx; color: #8a91a0; }
 .voice-filter-chip { height: 54rpx; padding: 0 18rpx; display: inline-flex; align-items: center; gap: 6rpx; border: 1rpx solid rgba(91,108,154,.16); border-radius: 999rpx; background: #fff; color: #737b8d; font-size: 21rpx; }
-.voice-filter-chip.active { border-color: rgba(91,108,154,.34); background: #f2f4ff; color: #4f5ca5; font-weight: 700; }
+.voice-filter-chip.active { border-color: rgba(43,138,130,.34); background: var(--agent-accent-soft, rgba(43,138,130,.10)); color: var(--agent-accent, #2b8a82); font-weight: 700; }
 .voice-filter-chip--voice.active { border-color: rgba(49,95,122,.32); background: #eef7fa; color: #315f7a; }
 .voice-filter-count { min-width: 26rpx; padding: 2rpx 6rpx; border-radius: 999rpx; background: rgba(49,95,122,.12); font-size: 18rpx; text-align: center; }
 .section-mt { margin-top: 44rpx; }

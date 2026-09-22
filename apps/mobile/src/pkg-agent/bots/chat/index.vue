@@ -15,7 +15,7 @@
       <!-- 顶部导航 -->
       <view class="nav-bar">
         <view class="nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#fff" />
+          <app-icon name="arrow-left" :size="40" color="#1d1d1f" />
         </view>
         <view class="nav-bot">
           <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
@@ -27,7 +27,7 @@
         </view>
         <view class="nav-actions">
           <view class="nav-btn" @tap="toggleMenu">
-            <app-icon name="more-vertical" :size="38" color="#fff" />
+            <app-icon name="more-vertical" :size="38" color="#1d1d1f" />
           </view>
         </view>
       </view>
@@ -495,7 +495,7 @@ function openRecommend(item: RecommendItem) {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #faf8f5;
+  background: var(--agent-canvas, #f5f5f7);
 }
 
 /* 加载/错误态 */
@@ -535,7 +535,9 @@ function openRecommend(item: RecommendItem) {
 /* 顶栏 */
 .nav-bar {
   height: 96rpx;
-  background: linear-gradient(90deg, var(--brand), #e8544e);
+  background: rgba(245,245,247,.94);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  backdrop-filter: blur(24rpx);
   display: flex;
   align-items: center;
   padding: 0 16rpx;
@@ -561,14 +563,14 @@ function openRecommend(item: RecommendItem) {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  border: 2rpx solid rgba(255, 255, 255, 0.3);
+  border: 2rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
 }
 .nav-avatar-fb {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: var(--agent-accent-soft, rgba(43,138,130,.10));
+  color: var(--agent-accent, #2b8a82);
   font-size: 26rpx;
 }
 .nav-info {
@@ -578,7 +580,7 @@ function openRecommend(item: RecommendItem) {
   flex-direction: column;
 }
 .nav-name {
-  color: #fff;
+  color: var(--agent-ink, #1d1d1f);
   font-size: 28rpx;
   font-weight: 500;
   overflow: hidden;
@@ -586,7 +588,7 @@ function openRecommend(item: RecommendItem) {
   white-space: nowrap;
 }
 .nav-status {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--agent-secondary, #6e6e73);
   font-size: 22rpx;
 }
 .nav-actions {
@@ -605,9 +607,10 @@ function openRecommend(item: RecommendItem) {
   top: 96rpx;
   right: 16rpx;
   width: 280rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-md, 18rpx);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
   padding: 8rpx 0;
 }
 .menu-item {
@@ -655,15 +658,15 @@ function openRecommend(item: RecommendItem) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--brand);
-  color: #fff;
+  background: var(--agent-accent-soft, rgba(43,138,130,.10));
+  color: var(--agent-accent, #2b8a82);
   font-size: 26rpx;
 }
 .msg-avatar-user {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #c9a96e;
+  background: rgba(201,169,110,.16);
   color: #fff;
   font-size: 26rpx;
 }
@@ -675,20 +678,21 @@ function openRecommend(item: RecommendItem) {
 }
 .bubble {
   padding: 20rpx 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
   display: inline-block;
   text-align: left;
 }
 .bubble-bot {
-  background: #fff;
-  color: #444;
-  border-radius: 24rpx;
+  background: var(--agent-surface, #fff);
+  color: var(--agent-ink, #1d1d1f);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
   border-top-left-radius: 4rpx;
 }
 .bubble-user {
   background: var(--brand);
   color: #fff;
-  border-radius: 24rpx;
+  border-radius: var(--agent-radius-lg, 24rpx);
   border-top-right-radius: 4rpx;
 }
 .bubble-text {
@@ -720,10 +724,10 @@ function openRecommend(item: RecommendItem) {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  background: #fff;
-  border-top: 1rpx solid #f0f0f0;
-  padding: 20rpx 24rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(245,245,247,.96);
+  border-top: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  padding: 10rpx 24rpx;
+  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
   flex-shrink: 0;
 }
 .input-wrap {
@@ -734,18 +738,18 @@ function openRecommend(item: RecommendItem) {
 }
 .chat-input {
   flex: 1;
-  height: 72rpx;
-  background: #f7f7f7;
-  border: 1rpx solid #e5e5e5;
-  border-radius: 16rpx;
+  height: 76rpx;
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border, rgba(60,60,67,.18));
+  border-radius: var(--agent-radius-lg, 24rpx);
   padding: 0 24rpx;
   font-size: 28rpx;
 }
 .send-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 76rpx;
+  height: 76rpx;
   background: var(--brand);
-  border-radius: 16rpx;
+  border-radius: var(--agent-radius-lg, 24rpx);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -755,7 +759,7 @@ function openRecommend(item: RecommendItem) {
   opacity: 0.4;
 }
 /* 场景提示保持轻量，避免抢占对话空间 */
-.scene-hint { display: flex; align-items: center; gap: 10rpx; padding: 12rpx 24rpx; background: #fffaf2; border-bottom: 1rpx solid rgba(201,169,110,.18); }
+.scene-hint { display: flex; align-items: center; gap: 10rpx; padding: 12rpx 24rpx; background: var(--agent-surface, #fff); border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10)); }
 .scene-hint-dot { width: 12rpx; height: 12rpx; flex-shrink: 0; border-radius: 50%; background: #c9a96e; box-shadow: 0 0 0 6rpx rgba(201,169,110,.14); }
 .scene-hint-text { font-size: 21rpx; color: #8d7354; }
 /* AI 风险免责声明（每条 AI 回复下方小字） */

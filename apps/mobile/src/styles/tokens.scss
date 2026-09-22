@@ -178,6 +178,30 @@ page {
   --indigo: #2d5a87;
   --indigo-light: #e8f0f5;
 }
+
+/* ============================================================
+   对话体验令牌 · 2026-09-22
+   以系统级清晰层级为目标，保留热卜品牌色作为动作色。
+   对话类页面优先引用本层，避免各页面重复创造视觉语言。
+   ============================================================ */
+:root,
+page {
+  --agent-canvas: #f5f5f7;
+  --agent-surface: #ffffff;
+  --agent-surface-soft: #f8f8fa;
+  --agent-ink: #1d1d1f;
+  --agent-secondary: #6e6e73;
+  --agent-tertiary: #8e8e93;
+  --agent-border: rgba(60, 60, 67, 0.18);
+  --agent-border-soft: rgba(60, 60, 67, 0.10);
+  --agent-accent: #2b8a82;
+  --agent-accent-soft: rgba(43, 138, 130, 0.10);
+  --agent-radius-sm: 12rpx;
+  --agent-radius-md: 18rpx;
+  --agent-radius-lg: 24rpx;
+  --agent-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
+  --agent-ease: cubic-bezier(.22, 1, .36, 1);
+}
 /* ⚠️ 五行色深色覆盖同样暂时禁用（原因见上方语义令牌深色段说明）：先锁浅色，待暗色专项重构。
 
 @media (prefers-color-scheme: dark) {

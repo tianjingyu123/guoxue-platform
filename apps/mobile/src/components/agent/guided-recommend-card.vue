@@ -60,34 +60,37 @@ const commerceMeta = computed(() => {
 
 <style scoped lang="scss">
 .guide-card {
-  --guide-color: #35536f;
+  --guide-color: var(--agent-accent, #2b8a82);
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 18rpx;
   min-width: 0;
-  padding: 18rpx;
-  border: 1rpx solid rgba(53, 83, 111, 0.16);
-  border-radius: 18rpx;
-  background: #f7f9fa;
-  box-shadow: 0 8rpx 22rpx rgba(33, 48, 63, 0.05);
+  min-height: 112rpx;
+  padding: 16rpx;
+  border: 1rpx solid var(--agent-border-soft, rgba(60, 60, 67, 0.10));
+  border-radius: var(--agent-radius-md, 18rpx);
+  background: var(--agent-surface, #fff);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31, 35, 41, .06));
+  transition: transform 180ms var(--agent-ease, ease), box-shadow 180ms var(--agent-ease, ease);
 }
 
-.guide-card--classic { --guide-color: #775634; background: #faf7f1; border-color: rgba(119, 86, 52, 0.18); }
-.guide-card--media { --guide-color: #4e5e83; background: #f6f7fb; border-color: rgba(78, 94, 131, 0.17); }
-.guide-card--live { --guide-color: #ae2944; background: #fcf5f6; border-color: rgba(174, 41, 68, 0.16); }
-.guide-card--agent { --guide-color: #5d62aa; background: #f5f6ff; border-color: rgba(93, 98, 170, 0.18); }
-.guide-card--tool { --guide-color: #27776f; background: #f2f8f7; border-color: rgba(39, 119, 111, 0.17); }
-.guide-card--course { --guide-color: #845331; background: #faf7f3; border-color: rgba(132, 83, 49, 0.16); }
-.guide-card--circle { --guide-color: #39755f; background: #f4f8f6; border-color: rgba(57, 117, 95, 0.16); }
-.guide-card--product { --guide-color: #925f2d; background: #fbf7f1; border-color: rgba(146, 95, 45, 0.17); }
+.guide-card:active { transform: scale(.985); box-shadow: 0 4rpx 16rpx rgba(31, 35, 41, 0.04); }
+.guide-card--classic { --guide-color: #7a5a36; }
+.guide-card--media { --guide-color: #5868a4; }
+.guide-card--live { --guide-color: #b3314d; }
+.guide-card--agent { --guide-color: #5c63a9; }
+.guide-card--tool { --guide-color: #2b8a82; }
+.guide-card--course { --guide-color: #94633b; }
+.guide-card--circle { --guide-color: #39755f; }
+.guide-card--product { --guide-color: #986633; }
 
 .guide-visual {
-  width: 76rpx;
-  height: 76rpx;
+  width: 80rpx;
+  height: 80rpx;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--agent-radius-sm, 12rpx);
+  background: var(--agent-accent-soft, rgba(43, 138, 130, .10));
   color: var(--guide-color);
 }
 
@@ -96,22 +99,23 @@ const commerceMeta = computed(() => {
 
 .guide-copy { flex: 1; min-width: 0; }
 .guide-kicker { display: flex; align-items: center; gap: 10rpx; margin-bottom: 4rpx; }
-.guide-label { font-size: 19rpx; font-weight: 700; letter-spacing: 1rpx; color: var(--guide-color); }
-.guide-commerce { font-size: 18rpx; color: #8e8278; }
-.guide-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27rpx; font-weight: 700; color: #252c32; }
-.guide-description { display: block; margin-top: 5rpx; font-size: 21rpx; line-height: 1.4; color: #7c858d; @include line-clamp(2); }
+.guide-label { font-size: 20rpx; font-weight: 600; letter-spacing: .5rpx; color: var(--guide-color); }
+.guide-commerce { font-size: 19rpx; color: var(--agent-secondary, #6e6e73); }
+.guide-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 28rpx; font-weight: 600; color: var(--agent-ink, #1d1d1f); }
+.guide-description { display: block; margin-top: 5rpx; font-size: 22rpx; line-height: 1.45; color: var(--agent-secondary, #6e6e73); @include line-clamp(2); }
 
 .guide-action {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   color: var(--guide-color);
+  min-height: 88rpx;
 }
-.guide-action__text { max-width: 64rpx; font-size: 20rpx; line-height: 1.25; font-weight: 700; text-align: right; }
-.guide-action__arrow { font-size: 34rpx; line-height: 1; transition: transform 180ms ease; }
+.guide-action__text { max-width: 76rpx; font-size: 21rpx; line-height: 1.25; font-weight: 600; text-align: right; }
+.guide-action__arrow { margin-left: 4rpx; font-size: 34rpx; line-height: 1; transition: transform 180ms var(--agent-ease, ease); }
 .guide-card:active .guide-action__arrow { transform: translateX(4rpx); }
 
 @media (prefers-reduced-motion: reduce) {
-  .guide-action__arrow { transition: none; }
+  .guide-card, .guide-action__arrow { transition: none; }
 }
 </style>
