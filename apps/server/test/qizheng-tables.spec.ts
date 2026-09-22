@@ -267,45 +267,61 @@ describe("七政四余 · 恩用仇难（五行生克）", () => {
   });
 });
 
-// ─── 大限年数覆盖 ───
-describe("七政四余 · 大限年数覆盖", () => {
+// ─── 大限：行限顺序与年数（★51）───
+describe("七政四余 · 大限行限顺序与年数（★51）", () => {
   /**
-   * 2026-09-20 决定（决策人授权本方自行判断）：
-   * 命宫走童限（年数随命度到日度的弧长而变，非定数），量天尺的固定年数本该覆盖其余 **11 宫**，
-   * 而 DAXIAN_YEARS 只有 **10 个**——相貌宫年数缺失。
-   * 原注释写作「相-」，读起来像「相貌宫不入大限」的约定；但大限逆布十二宫，
-   * 福德之后本该接相貌再回命宫，所以这是数据没收全，不是约定。
-   * 未收录前不臆造数字，改为在结果里如实标出覆盖边界（daxianNote），不让列表静默断掉。
+   * 依据：运限歌诀「命宫十五貌宫十，福德妻宫十一详，官禄十五最高位，迁移止有八年粮，
+   * 疾厄七兮共六六，财帛兄弟五年强，田宅子孙并奴仆，四年之半定毫芒」；大限「由命宫开始顺行」。
+   * 十二宫按地支逆布，地支顺行时命宫之后依次：相貌 福德 官禄 迁移 疾厄 妻妾 奴仆 男女 田宅 兄弟 财帛。
+   *
+   * ★51（2026-09-22）：原代码把同一串年数按宫名顺序（地支逆行）安在 财帛→兄弟→…→福德，
+   * 宫名与宫位整体反向，并误以为缺的是相貌宫（实缺财帛 5 年）。年数序列本身一直是对的。
    */
-  const ENGINE = fs.readFileSync(
-    path.join(ROOT, "apps/server/src/modules/paipan/engine/qizheng-engine.ts"), "utf8",
-  );
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { computeQizheng } = require("../src/modules/paipan/engine/qizheng-engine");
+  const ORDER = ["相貌", "福德", "官禄", "迁移", "疾厄", "妻妾", "奴仆", "男女", "田宅", "兄弟", "财帛"];
+  const YEARS = [10, 11, 15, 8, 7, 11, 4, 5, 4, 5, 5]; // 奴男田各 4½，整年排作 4/5/4
+  const SAMPLES = [
+    { year: 1990, month: 3, day: 5, hour: 9, minute: 0, gender: "男" },
+    { year: 1988, month: 6, day: 15, hour: 8, minute: 20, gender: "女" },
+    { year: 2026, month: 7, day: 3, hour: 21, minute: 45, gender: "男" },
+    { year: 1975, month: 12, day: 1, hour: 0, minute: 30, gender: "女" },
+  ];
 
-  it("DAXIAN_YEARS 恰 10 项、合计 80 年（改动年数表必须同步改说明）", () => {
-    const m = /const DAXIAN_YEARS = \[([^\]]+)\]/.exec(ENGINE);
-    expect(m).not.toBeNull();
-    const ys = m![1].split(",").map((x) => Number(x.trim()));
-    expect(ys).toHaveLength(10);
-    expect(ys.reduce((a, b) => a + b, 0)).toBe(80);
+  it("出限后按歌诀顺序走满其余十一宫，年数逐宫对上", () => {
+    for (const inp of SAMPLES) {
+      const r = computeQizheng(inp);
+      const steps = r.daxian.slice(1);
+      expect(r.daxian[0].house).toBe("命宫（童限）");
+      expect(steps.map((d: any) => d.house).join()).toBe(ORDER.join());
+      expect(steps.map((d: any) => d.years).join()).toBe(YEARS.join());
+    }
   });
 
-  it("缺口必须如实写明，不得退回「相-」那种看着像约定的写法", () => {
-    expect(ENGINE).toMatch(/相貌宫年数缺失/);
-    expect(ENGINE).toMatch(/daxianNote/);
-    // 结果里必须真的产出这句说明，且带上覆盖到的岁数
-    expect(ENGINE).toMatch(/本表排至 \$\{endAge\} 岁/);
-    expect(ENGINE).toMatch(/相貌宫的量天尺年数尚未收录/);
+  it("每段大限的宫位地支与盘面该宫一致，且按地支顺行（反证：原逆行写法在这里不成立）", () => {
+    for (const inp of SAMPLES) {
+      const r = computeQizheng(inp);
+      const houseAt = new Map(r.palaces.map((p: any) => [p.zhi, p.house]));
+      for (const d of r.daxian.slice(1)) expect(houseAt.get(d.palaceZhi)).toBe(d.house);
+      const ZHI = "子丑寅卯辰巳午未申酉戌亥";
+      const zs = r.daxian.map((d: any) => ZHI.indexOf(d.palaceZhi));
+      for (let i = 1; i < zs.length; i++) expect((zs[i] - zs[i - 1] + 12) % 12).toBe(1);
+    }
   });
 
-  it("反证：说明句依赖真实末段年龄，不是写死的常量", () => {
-    // endAge 由末段 startAge + years - 1 算出，必须出现这两个字段的引用
-    expect(ENGINE).toMatch(/last\.startAge \+ last\.years - 1/);
+  it("年段首尾相接，十二宫走完（不再缺一宫、不再止于童限+80）", () => {
+    const r = computeQizheng(SAMPLES[0]);
+    expect(r.daxian).toHaveLength(12);
+    for (let i = 1; i < r.daxian.length; i++) {
+      expect(r.daxian[i].startYear).toBe(r.daxian[i - 1].endYear);
+      expect(r.daxian[i].startAge).toBe(r.daxian[i - 1].startAge + r.daxian[i - 1].years);
+    }
+    expect(r.daxianNote).toMatch(/顺行十二宫/);
+    expect(r.daxianNote).not.toMatch(/尚未收录/);
   });
 
-  it("结果页必须把这句说明渲染出来（否则等于没说）", () => {
-    const VUE = fs.readFileSync(
-      path.join(ROOT, "apps/mobile/src/pkg-paipan/qizheng/result.vue"), "utf8",
-    );
+  it("结果页仍渲染这句说明", () => {
+    const VUE = fs.readFileSync(path.join(ROOT, "apps/mobile/src/pkg-paipan/qizheng/result.vue"), "utf8");
     expect(VUE).toMatch(/natal\.daxianNote/);
   });
 });

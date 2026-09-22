@@ -15,8 +15,8 @@
  * - 二十八宿＝距星宿钤（Hipparcos J2000 黄经 + 岁差修正至生时，即「回归今宿」）
  * - 立命＝果老日躔起时法（太阳宫起生时支顺移至寅安命，命度照搬日躔度），
  *   安身＝昼生随日度、夜生随月度；真上升点仅作参考注记
- * - 童限＝命度顺行至太阳度，七度折一年；大限＝出限后顺行十二宫，
- *   年数表：财10 兄11 田15 男8 奴7 妻11 疾4 迁5 官4 福5（果老量天尺）
+ * - 童限＝命度顺行至太阳度，七度折一年；大限＝出限后按地支顺行十二宫（命→相貌→福德→官禄→…→财帛），
+ *   年数依运限歌诀：貌10 福11 官15 迁8 疾7 妻11 奴4½ 男4½ 田4½ 兄5 财5（整年排法取 4/5/4）
  * - 化曜＝十干横取（甲年禄起火），并配十神
  * - 恩用仇难＝度主五行生克（生我恩/我生用/克我难/我克仇）
  */
@@ -113,7 +113,7 @@ export interface QizhengResult {
   huayaoTable: { yao: string; star: string; shishen: string }[]
   tongxian: { years: number; months: number; days: number; endDate: string; note: string }
   daxian: DaxianStep[]
-  /** 大限覆盖边界说明（相貌宫年数未收录，列表不静默断掉） */
+  /** 大限覆盖说明（排到的岁数与年数依据） */
   daxianNote: string
   patterns: StarPattern[]
   notes: string[]
@@ -162,16 +162,20 @@ const PALACE_LORD: Record<string, string> = {
 const HOUSES = ["命宫", "财帛", "兄弟", "田宅", "男女", "奴仆", "妻妾", "疾厄", "迁移", "官禄", "福德", "相貌"]
 
 /**
- * 大限年数（果老量天尺，自财帛起）：财10 兄11 田15 男8 奴7 妻11 疾4 迁5 官4 福5
+ * 大限年数，依出限后的行限顺序排列：相貌 福德 官禄 迁移 疾厄 妻妾 奴仆 男女 田宅 兄弟 财帛。
  *
- * 🔴 2026-09-20：命宫走童限（年数随命度到日度的弧长而变，非定数），
- *    量天尺的固定年数本该覆盖其余 **11 宫**，而本表只有 **10 个**——**相貌宫年数缺失**。
- *    这不是「相貌宫不入大限」的约定，是数据没收全：大限逆布十二宫，福德之后本该接相貌再回命宫。
- *    后果：大限只排 11 段，覆盖到「童限 + 80」岁。童限取值随生时支落在 {0,5,9,…,48} 十二档，
- *    最坏一档（童限 0）**大限止于 80 岁**，此后无限可看。
- *    未收录年数前不臆造数字，改为在结果里如实标出覆盖边界（见 daxianNote），不让列表静默断掉。
+ * 依据：七政运限歌诀「命宫十五貌宫十，福德妻宫十一详，官禄十五最高位，迁移止有八年粮，
+ * 疾厄七兮共六六，财帛兄弟五年强，田宅子孙并奴仆，四年之半定毫芒」；
+ * 大限「由命宫开始顺行」（杰赫星命《七政四餘-運限法》）。十二宫按地支逆布，
+ * 故按地支顺行时命宫之后依次是相貌、福德、官禄……最后财帛。
+ * 奴仆/男女/田宅各 4 年半，本引擎按整年排为 4/5/4（三宫合 13，与原表一致，未改动已校准的整年口径）。
+ *
+ * 🔴 ★51（2026-09-22）：原表注释写「自财帛起：财10 兄11 田15…」，代码也按宫名顺序（地支逆行）
+ *    把第一段 10 年安在财帛宫——而这串数恰是歌诀自相貌起的顺序（貌10 福11 官15 迁8 疾7 妻11…），
+ *    说明年数序列本身对（故与竞品逐年校准「大限年份一致」），错的是**每段大限所落的宫名与宫位整体反向**；
+ *    真正缺的也不是相貌宫，而是走到最后的**财帛宫 5 年**。现已按地支顺行、补足财帛。
  */
-const DAXIAN_YEARS = [10, 11, 15, 8, 7, 11, 4, 5, 4, 5]
+const DAXIAN_YEARS = [10, 11, 15, 8, 7, 11, 4, 5, 4, 5, 5]
 
 /**
  * 二十八宿距星 J2000 黄经（由 Hipparcos 星表实测生成，scripts/gen-xiu-boundaries.ts）
@@ -644,7 +648,7 @@ export function computeQizheng(input: QizhengInput): QizhengResult {
   const endD = new Date(endDateMs)
   const tongxianEnd = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, "0")}-${String(endD.getUTCDate()).padStart(2, "0")}`
 
-  // 大限：出限后自财帛宫起（顺 HOUSES 序），量天尺年数
+  // 大限：出限后按地支顺行（命宫之后依次相貌、福德、官禄……财帛），年数依运限歌诀
   const daxian: DaxianStep[] = []
   {
     // 命宫限（含童限）
@@ -660,8 +664,9 @@ export function computeQizheng(input: QizhengInput): QizhengResult {
     let cursorYear = input.year + mingLimitYears
     let cursorAge = mingLimitYears + 1
     for (let i = 0; i < DAXIAN_YEARS.length; i++) {
-      const house = HOUSES[i + 1] // 财帛起
-      const palaceZhi = ZHI[(mingIdx - (i + 1) + 24) % 12]
+      // 第 i 段落在命宫地支 +(i+1) 处；十二宫按地支逆布（宫序 k 在 命宫地支−k），故该处宫序为 11−i
+      const house = HOUSES[11 - i]
+      const palaceZhi = ZHI[(mingIdx + i + 1) % 12]
       const years = DAXIAN_YEARS[i]
       daxian.push({ house, palaceZhi, startYear: cursorYear, endYear: cursorYear + years, startAge: cursorAge, years })
       cursorYear += years
@@ -728,7 +733,7 @@ export function computeQizheng(input: QizhengInput): QizhengResult {
     daxianNote: (() => {
       const last = daxian[daxian.length - 1]
       const endAge = last.startAge + last.years - 1
-      return `本表排至 ${endAge} 岁（${last.endYear} 年）。十二宫中相貌宫的量天尺年数尚未收录，故只排 ${daxian.length} 段。`
+      return `大限依运限歌诀自命宫顺行十二宫，本表排至 ${endAge} 岁（${last.endYear} 年）。奴仆、男女、田宅三宫各四年半，按整年排作 4、5、4 年。`
     })(),
     patterns,
     notes,
