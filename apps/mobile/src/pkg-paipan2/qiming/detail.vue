@@ -12,7 +12,7 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { analyzeName } from '@/pkg-paipan2/lib/xingming-engine'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import type { NameDetail } from '@/pkg-paipan2/lib/qiming-data'
 import NameDetailSections from './name-detail-sections.vue'
 import { isQimingFavorite, toggleQimingFavorite } from './store'
@@ -54,13 +54,25 @@ onLoad((opts: Record<string, string> = {}) => {
   }
   fullName.value = name
   gender.value = opts.gender === '女' ? '女' : '男'
-  try {
-    detail.value = analyzeName({ fullName: name, gender: gender.value })
-    favorite.value = isQimingFavorite(name)
-  } catch {
-    errMsg.value = '解析失败，请返回重试。'
-  }
+  favorite.value = isQimingFavorite(name)
+  compute()
 })
+
+/** 服务端请求失败（可「重新推演」） */
+const netError = ref(false)
+/** 详批 = 不带生辰的姓名解析（服务端 xingming），与原 analyzeName({ fullName, gender }) 等价 */
+async function compute() {
+  errMsg.value = ''
+  netError.value = false
+  try {
+    const r = await computePaipan<{ detail: NameDetail }>('xingming', { name: fullName.value, gender: gender.value })
+    detail.value = r.detail
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    errMsg.value = netError.value ? '推演服务暂时不可用，请稍后重试' : '解析失败，请返回重试。'
+  }
+}
 
 const c = computed(() => detail.value?.candidate ?? null)
 
@@ -109,8 +121,8 @@ function onBack() {
     <!-- 错误态 -->
     <view v-if="!detail || !c" class="error-wrap">
       <text class="error-text">{{ errMsg || '推演中…' }}</text>
-      <view v-if="errMsg" class="error-btn" @tap="onBack">
-        <text class="error-btn-text">返回</text>
+      <view v-if="errMsg" class="error-btn" @tap="netError ? compute() : onBack()">
+        <text class="error-btn-text">{{ netError ? '重新推演' : '返回' }}</text>
       </view>
     </view>
 

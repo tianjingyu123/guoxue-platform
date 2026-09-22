@@ -15,7 +15,7 @@ import SchoolAnalysis from '../components/school-analysis.vue'
 import SimilarCases from '../components/similar-cases.vue'
 import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { baziApi } from '@/lib/bazi-result-data'
-import { saveBaziHistory } from './bazi-history'
+import { saveBaziHistory, groupBaziHistory } from './bazi-history'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
@@ -29,6 +29,10 @@ const error = ref('')
 const baziResult = ref<any>(null)
 // 已保存的排盘记录 id（从历史等入口带入时回显该盘师父点评）
 const recordIdFromQuery = ref('')
+// 入口页采集的「分组」与「保存」开关（此前只采集不传，选了不生效）。
+// save=false 时这张盘不落任何档：既不写本地记录，也不向后端建记录。
+const groupFromQuery = ref('')
+const shouldSave = ref(true)
 
 const userInput = reactive({
   name: '', gender: '男',
@@ -91,7 +95,16 @@ const myPillars = computed(() => {
  * 未登录只写本地（不弹登录打断排盘），已登录才同步落库；
  * 落库失败也不打断（本地记录已在，用户无感），只是拿不到 serverId。
  */
+/** 落档并套用入口页选的分组（「全部」是选择器默认值，等同未分组，不写） */
+function saveWithGroup(item: Parameters<typeof saveBaziHistory>[0]) {
+  const rec = saveBaziHistory(item)
+  const g = groupFromQuery.value
+  if (g && g !== '全部' && rec?.id) groupBaziHistory([rec.id], g)
+}
+
 async function saveRecord(result: any) {
+  // 入口页关掉「保存」就整张盘不落档：本地记录与后端记录都不写
+  if (!shouldSave.value) return
   const sz = result?.siZhu || {}
   const params = {
     name: userInput.name || '未命名',
@@ -109,7 +122,7 @@ async function saveRecord(result: any) {
 
   // 从历史/记录页带 id 进来的，本就是后端已有的盘，不必重复落库
   if (recordIdFromQuery.value) {
-    saveBaziHistory({ ...params, serverId: recordIdFromQuery.value })
+    saveWithGroup({ ...params, serverId: recordIdFromQuery.value })
     return
   }
 
@@ -134,7 +147,7 @@ async function saveRecord(result: any) {
     }
   }
 
-  saveBaziHistory({ ...params, serverId })
+  saveWithGroup({ ...params, serverId })
 }
 
 onLoad((q: Record<string, string> = {}) => {
@@ -152,6 +165,8 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.city) userInput.city = decodeURIComponent(q.city)
   if (q.district) userInput.district = decodeURIComponent(q.district)
   // 时间校正选项（input-form 传 'true'/'false' 字符串；缺省保持默认）
+  if (q.group) groupFromQuery.value = decodeURIComponent(q.group)
+  if (q.save !== undefined) shouldSave.value = q.save !== 'false'
   if (q.trueSolar !== undefined) calcOpts.trueSolar = q.trueSolar === 'true'
   if (q.earlyZi !== undefined) calcOpts.earlyZi = q.earlyZi === 'true'
   if (q.dst !== undefined) calcOpts.dst = q.dst === 'true'
@@ -394,7 +409,7 @@ function onShare() {
 .hdr-actions { display: flex; align-items: center; gap: 8rpx; }
 .hdr-act { padding: 8rpx; }
 .tabs { display: flex; }
-.tab { flex: 1; padding: 20rpx 0; text-align: center; border-bottom: 4rpx solid transparent; }
+.tab { flex: 1; padding: 12rpx 0; text-align: center; border-bottom: 4rpx solid transparent; }
 .tab-on { border-bottom-color: var(--brand); }
 .tab-text { font-size: 28rpx; font-weight: 500; color: var(--text-soft); }
 .tab-text-on { color: var(--brand); }

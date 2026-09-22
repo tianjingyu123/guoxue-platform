@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
  * 阴盘奇门·结果页（自 V0 app/yinpan/result/page.tsx 还原）
- * onLoad 解析 payload 后本地调 qimen-engine 重算（阴盘=转盘拆补，中宫寄坤2），无后端依赖。
+ * onLoad 解析 payload 后请服务端排盘（POST /paipan/engine/yinpan；阴盘=转盘拆补，中宫寄坤2；2026-09-21 第 4 步迁移）。
  * 结构：盘面信息表 → 用神快速定位 → 主盘（外圈+九宫）→ 颜色说明 → 功能开关（移星换斗/
  * 天门地户/长生/上下局/年月日时神将）→ 移星换斗8盘 → 宫位详解弹层 → 底部工具条。
  * AI 解析区块按合规要求砍除。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
@@ -14,14 +14,11 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  computeQimen,
-  PALACE_NAMES,
-  type QimenResult,
-} from '@/pkg-paipan/lib/qimen-engine'
+import { PALACE_NAMES, type QimenResult } from '@/pkg-paipan/lib/qimen-consts'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { trueSolarTime } from '@/lib/paipan/ganzhi'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
-import { lunarText } from '@/pkg-paipan/lib/bazi-engine'
+import { lunarText } from '@/pkg-paipan/lib/bazi-display'
 import {
   type PalaceData,
   type ShenjiangMode,
@@ -89,8 +86,8 @@ onLoad((q: Record<string, string> = {}) => {
     // 入参指定局 → 初始化局数覆盖
     const m = params.value.customJu.match(/(阳遁|阴遁)(\d)局/)
     if (m) juOverride.value = { isYang: m[1] === '阳遁', num: parseInt(m[2] || '1', 10) }
-    // 记入本地排盘记录（index 排盘与深链进入均覆盖）
-    if (qr.value) saveYinpanHistory(params.value, `${panTypeLabel.value}·${juLabel.value}`)
+    // 记入本地排盘记录（index 排盘与深链进入均覆盖）：首盘取回后写入
+    pendingHistory = true
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
@@ -104,22 +101,42 @@ const baseDate = computed(() => {
   return p.trueSolar ? trueSolarTime(d, p.lng) : d
 })
 
-const qr = computed<QimenResult | null>(() => {
-  const d = baseDate.value
-  if (!d) return null
+/**
+ * 起局走服务端（第 4 步：算法只在服务端）。时刻（含真太阳时）或局数覆盖变化即重取；
+ * 连点「上局/下局」时只认最后一次请求。取回前沿用上一盘，避免整页闪白。
+ */
+const qr = ref<QimenResult | null>(null)
+const qrLoading = ref(false)
+let qrSeq = 0
+let pendingHistory = false
+async function fetchQr() {
+  const p = params.value
+  if (!p) return
+  const ov = juOverride.value
+  const seq = ++qrSeq
+  qrLoading.value = true
   try {
-    const ov = juOverride.value
-    const overrideLabel = ov ? `${ov.isYang ? '阳遁' : '阴遁'}${ov.num}局` : undefined
-    return computeQimen(d, {
-      panMethod: 'zhuan',
-      startMethod: overrideLabel ? 'custom' : 'chaibu',
-      customJu: overrideLabel,
-      anganMethod: 'zhishi',
+    const r = await computePaipan<QimenResult>('yinpan', {
+      year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute,
+      trueSolar: p.trueSolar, lng: p.lng,
+      juLabel: ov ? `${ov.isYang ? '阳遁' : '阴遁'}${ov.num}局` : undefined,
     })
-  } catch {
-    return null
+    if (seq !== qrSeq) return
+    qr.value = r
+    if (pendingHistory && params.value) {
+      pendingHistory = false
+      saveYinpanHistory(params.value, `${panTypeLabel.value}·${juLabel.value}`)
+    }
+  } catch (e) {
+    if (seq !== qrSeq) return
+    const msg = (e as Error)?.message || ''
+    if (!qr.value) loadError.value = msg.startsWith('参数') ? '排盘参数无效' : '排盘服务暂时不可用，请稍后重试'
+    else uni.showToast({ title: '排盘服务暂时不可用，请稍后重试', icon: 'none' })
+  } finally {
+    if (seq === qrSeq) qrLoading.value = false
   }
-})
+}
+watch([params, juOverride], fetchQr, { deep: true })
 
 const palaces = computed<Record<number, PalaceData>>(() => (qr.value ? toYinpanVM(qr.value) : {}))
 
@@ -272,7 +289,8 @@ function goInput() {
     <tool-header :title="hdrTitle" @share="handleShare" />
 
     <!-- 参数错误态 -->
-    <param-error v-if="loadError || !qr" :text="loadError || '排盘计算失败，请重新排盘'" action-text="重新排盘" @action="goInput" />
+    <param-error v-if="loadError" :text="loadError" action-text="重新排盘" @action="goInput" />
+    <view v-else-if="!qr" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <!-- 主体 -->
     <scroll-view v-else scroll-y class="body">
@@ -475,6 +493,9 @@ $serif: Georgia, 'Songti SC', serif;
 .bottom-space { height: 120rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* ── 信息表 ── */
 .card {

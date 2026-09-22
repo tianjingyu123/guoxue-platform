@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 大六壬·结果页（自 V0 app/daliuren/result/page.tsx 还原）
- * onLoad 解析 payload 后本地调排盘引擎重算（@/pkg-paipan/lib/daliuren-engine），无后端依赖。
+ * onLoad 解析 payload 后交服务端起课（POST /paipan/engine/daliuren，算法只在服务端）；翻时辰同样走服务端。
  * 结构：课式信息表 → 三传 → 四课 → 天地盘（4×4 外圈 + 中宫课式）→ 上一时/下一时 → 课体格局 → 合规声明。
  */
 import { ref, computed } from 'vue'
@@ -11,7 +11,8 @@ import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { computeLiuren, SHENJIANG_NAME, type LiurenResult } from '@/pkg-paipan/lib/daliuren-engine'
+import { SHENJIANG_NAME, type LiurenResult } from '@/pkg-paipan/lib/daliuren-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveDaliurenHistory, type DaliurenParams } from './daliuren-history'
 import { aiReportApi } from '@/lib/paipan/ai-report-data'
 import { getToken } from '@/utils/storage'
@@ -101,23 +102,26 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-function recompute() {
+/** 服务端起课；翻时辰时只认最后一次请求（连点「上/下一时辰」不会被旧响应覆盖） */
+const computing = ref(false)
+let reqSeq = 0
+async function recompute(): Promise<void> {
   const p = params.value
   if (!p) return
+  const seq = ++reqSeq
+  computing.value = true
   try {
-    const d = new Date(p.year, p.month - 1, p.day, p.hour, p.minute)
-    d.setHours(d.getHours() + hourOffset.value * 2)
-    r.value = computeLiuren(d, {
-      jiangMethod: p.jiangMethod,
-      guirenMethod: p.guirenMethod,
-      guishenType: p.guishenType,
-      shehaiType: p.shehaiType,
-      birthYear: p.birthYear || undefined,
-      gender: p.gender,
-    })
-  } catch {
-    r.value = null
-    loadError.value = '排盘计算失败，请重新起课'
+    const res = await computePaipan<LiurenResult>('daliuren', { ...p, hourOffset: hourOffset.value })
+    if (seq !== reqSeq) return
+    r.value = res
+    loadError.value = ''
+  } catch (e) {
+    if (seq !== reqSeq) return
+    const msg = (e as Error)?.message || ''
+    if (!r.value) loadError.value = msg.startsWith('参数') ? '起课参数无效' : '起课服务暂时不可用，请稍后重试'
+    else uni.showToast({ title: '起课服务暂时不可用，请稍后重试', icon: 'none' })
+  } finally {
+    if (seq === reqSeq) computing.value = false
   }
 }
 
@@ -141,15 +145,17 @@ onLoad((q: Record<string, string> = {}) => {
       guishenType: p.guishenType === 'day' || p.guishenType === 'night' ? p.guishenType : 'auto',
       shehaiType: p.shehaiType === 'shenqian' ? 'shenqian' : 'mengzhongji',
     }
-    recompute()
-    // 记入本地排盘记录（index 起课与深链进入均覆盖）
-    if (r.value) {
-      const res = r.value
-      saveDaliurenHistory(
-        params.value,
-        `${res.sizhu.day.gan}${res.sizhu.day.zhi}日 ${res.yuejiang.zhi}将${res.sizhu.hour.zhi}时`,
-      )
-    }
+    const first = params.value
+    recompute().then(() => {
+      // 记入本地排盘记录（index 起课与深链进入均覆盖）
+      if (r.value && params.value === first) {
+        const res = r.value
+        saveDaliurenHistory(
+          first,
+          `${res.sizhu.day.gan}${res.sizhu.day.zhi}日 ${res.yuejiang.zhi}将${res.sizhu.hour.zhi}时`,
+        )
+      }
+    })
   } catch (e) {
     loadError.value = (e as Error)?.message || '起课参数无效'
   }
@@ -223,6 +229,7 @@ function onShare() {
 
     <!-- 参数错误态 -->
     <param-error v-if="loadError" :text="loadError" action-text="重新起课" @action="goInput" />
+    <view v-else-if="computing && !r" class="engine-loading"><text class="engine-loading-text">正在起课…</text></view>
 
     <!-- 主体 -->
     <scroll-view v-else-if="r" scroll-y class="body">
@@ -530,4 +537,7 @@ $serif: Georgia, 'Songti SC', serif;
 .keshu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
 .keshu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
 .keshu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
+/* 服务端起课加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 </style>

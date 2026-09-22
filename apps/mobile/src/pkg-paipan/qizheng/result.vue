@@ -1,14 +1,14 @@
 <script setup lang="ts">
 /**
  * 七政四余·结果页（自 V0 app/qizheng/result/page.tsx 还原）
- * onLoad 解析 payload 后本地重算（@/pkg-paipan/lib/qizheng-engine，VSOP87 实测天度），无后端依赖。
+ * onLoad 解析 payload 后交服务端排盘（POST /paipan/engine/qizheng，VSOP87 实测天度；算法与天文库只在服务端）。
  * 结构：命主信息条 → 星盘（canvas 多环）→ 盘面控制（本命/流年 + 日期/小时步进）
  *       → 四页签（四柱 / 化曜 / 相位 / 星格）→ 方法说明。
  *
  * 农历：入口页可能传农历生辰（isLunar），引擎入参恒为公历，故此处先转换再排盘。
  * 取舍：分享收口到顶栏（复制盘面摘要）；进入即自动存本地历史（改名原位覆盖）。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
@@ -17,8 +17,9 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { cityLongitude, cityLatitude } from '@/pkg-paipan/lib/bazi-engine'
-import { computeQizheng } from '@/pkg-paipan/lib/qizheng-engine'
+import { cityLongitude, cityLatitude } from '@/pkg-paipan/lib/bazi-display'
+import type { QizhengResult } from '@/pkg-paipan/lib/qizheng-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { Lunar } from '@/pkg-paipan/lib/lunar/index.js'
 import ChartWheel from './components/chart-wheel.vue'
 import StarTable from './components/star-table.vue'
@@ -50,32 +51,61 @@ function fmtTime(t: ViewTime): string {
   return `${t.year}-${pad(t.month)}-${pad(t.day)} ${pad(t.hour)}:${pad(t.minute)}`
 }
 
+/** 服务端排盘（第 4 步：算法与天文库只在服务端）；城市经纬度仍在本地查表后传入 */
+function engineInput(t: ViewTime) {
+  const p = params.value!
+  return { ...t, gender: p.gender, longitude: cityLongitude(p.city), latitude: cityLatitude(p.city) }
+}
+
 /** 本命盘（恒以出生时刻排） */
-const natal = computed(() => {
+const natal = ref<QizhengResult | null>(null)
+/** 流年推盘（流年模式下随步进重取；取回前沿用上一张，避免闪白） */
+const annual = ref<QizhengResult | null>(null)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数错误：可「重新排盘」） */
+const netError = ref(false)
+
+async function fetchNatal() {
   const p = params.value
   const b = birth.value
-  if (!p || !b) return null
-  return computeQizheng({
-    ...b,
-    gender: p.gender,
-    longitude: cityLongitude(p.city),
-    latitude: cityLatitude(p.city),
-  })
-})
+  if (!p || !b) return
+  loading.value = true
+  netError.value = false
+  loadError.value = ''
+  try {
+    const r = await computePaipan<QizhengResult>('qizheng', engineInput(b))
+    natal.value = r
+    saveQizhengHistory(
+      p,
+      `立命${r.ming.zhi}宫${r.ming.mansion}宿 · 恩${r.enYongChouNan.en}用${r.enYongChouNan.yong}`,
+    )
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    loadError.value = netError.value ? '排盘服务暂时不可用，请稍后重试' : '排盘参数无效'
+  } finally {
+    loading.value = false
+  }
+}
+
+let annualSeq = 0
+watch([mode, viewTime], async () => {
+  const t = viewTime.value
+  if (mode.value !== 'annual' || !t || !params.value) return
+  const seq = ++annualSeq
+  try {
+    const r = await computePaipan<QizhengResult>('qizheng', engineInput(t))
+    if (seq === annualSeq) annual.value = r
+  } catch {
+    if (seq === annualSeq) uni.showToast({ title: '排盘服务暂时不可用，请稍后重试', icon: 'none' })
+  }
+}, { deep: true })
 
 /** 当前展示盘（本命 or 流年推盘） */
 const result = computed(() => {
-  const p = params.value
-  if (!p) return null
+  if (!params.value) return null
   if (mode.value === 'natal') return natal.value
-  const t = viewTime.value
-  if (!t) return natal.value
-  return computeQizheng({
-    ...t,
-    gender: p.gender,
-    longitude: cityLongitude(p.city),
-    latitude: cityLatitude(p.city),
-  })
+  return annual.value ?? natal.value
 })
 
 /** 报告摘要：命宫/身宫（引擎算的） */
@@ -130,16 +160,7 @@ onLoad((q: Record<string, string> = {}) => {
     birth.value = b
     viewTime.value = { ...b }
 
-    const r = computeQizheng({
-      ...b,
-      gender: p.gender,
-      longitude: cityLongitude(p.city),
-      latitude: cityLatitude(p.city),
-    })
-    saveQizhengHistory(
-      p,
-      `立命${r.ming.zhi}宫${r.ming.mansion}宿 · 恩${r.enYongChouNan.en}用${r.enYongChouNan.yong}`,
-    )
+    fetchNatal()
   } catch (e) {
     loadError.value = (e as Error).message || '排盘参数无效'
   }
@@ -195,7 +216,8 @@ function onShare() {
     <tool-header title="七政四余星盘" back-href="/paipan/qizheng" share @share="onShare" />
 
     <!-- 错误态 -->
-    <param-error v-if="loadError" :text="loadError" action-text="返回排盘" @action="navigateTo('/paipan/qizheng')" />
+    <param-error v-if="loadError" :text="loadError" :action-text="netError ? '重新排盘' : '返回排盘'" @action="netError ? fetchNatal() : navigateTo('/paipan/qizheng')" />
+    <view v-else-if="loading && !natal" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <scroll-view v-else-if="result && params && birth" scroll-y class="body">
       <view class="body-inner">
@@ -315,6 +337,7 @@ function onShare() {
                 <text class="dx-years">{{ d.startYear }}-{{ d.endYear }}</text>
               </view>
             </view>
+            <text class="dx-note">{{ natal.daxianNote }}</text>
           </paper-card>
         </template>
 
@@ -453,6 +476,9 @@ $serif: Georgia, 'Songti SC', serif;
 .body-inner { padding: 0 0 48rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 命主信息 */
 .meta { padding: 20rpx 32rpx; border-bottom: 1rpx solid var(--line); }
@@ -552,6 +578,7 @@ $serif: Georgia, 'Songti SC', serif;
 .dx-house { font-size: 22rpx; font-weight: 500; color: var(--text-ink); }
 .dx-zhi { font-size: 20rpx; color: var(--text-soft); margin-left: 6rpx; }
 .dx-years { font-size: 20rpx; color: var(--text-soft); }
+.dx-note { display: block; margin-top: 16rpx; font-size: 20rpx; line-height: 1.6; color: var(--text-soft); }
 
 /* 化曜 */
 .hy-grid { margin-top: 20rpx; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; }

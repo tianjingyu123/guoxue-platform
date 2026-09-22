@@ -1,0 +1,16 @@
+{
+ "tool": "zidian-text",
+ "tz": "Asia/Shanghai",
+ "mode": "groups",
+ "source": "迁移前前端引擎 + 前端结果页原映射（apps/mobile/src/pkg-paipan/zidian-text）",
+ "generatedAt": "2026-09-21",
+ "calls": 885,
+ "groups": 5,
+ "byGroup": {
+  "single": "ad203c4151281f3b",
+  "triple": "9e979e1d6ca9e2ce",
+  "eight": "400b7fbf466915ba",
+  "remote": "f2fb27df1cc4b9f2",
+  "edge": "87146b019ddf4c1b"
+ }
+}

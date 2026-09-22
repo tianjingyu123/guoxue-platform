@@ -249,6 +249,12 @@ export interface LifeNumberResult {
 export function lifeNumber(raw: string): LifeNumberResult | null {
   const digits = raw.replace(/\D/g, "")
   if (digits.length === 0) return null
+  // 🔴 2026-09-21：全零串的数字和恒为 0，而 LIFE_NUMBERS 只有 1–9 与 11/22/33，
+  //    `LIFE_NUMBERS[0]` 是 undefined。结果页直接取 `result.life.info.title`、
+  //    `.info.positives.join()`，没有可选链，一旦 info 为空必然报错。
+  //    「000」「京A00000」这类输入在校验层是放行的（车牌 京A00000 真实存在），
+  //    所以这里必须自己挡住，不能只依赖 extractDigits。
+  if (!/[1-9]/.test(digits)) return null
   const steps: string[] = []
   const cur = digits.split("").map(Number)
   let sum = cur.reduce((a, b) => a + b, 0)
@@ -288,5 +294,8 @@ export function extractDigits(kind: InputKind, raw: string): { ok: boolean; digi
     if (digits.length < 2) return { ok: false, digits, error: "至少需要 2 位数字" }
     if (digits.length > 20) return { ok: false, digits, error: "最多支持 20 位数字" }
   }
+  // 全零串既算不出八星磁场（0 无磁场、逐位跳过），也算不出生命灵数（数字和为 0，无对应灵数），
+  // 在此统一挡住并说明，而不是让结果页拿到一份空壳
+  if (!/[1-9]/.test(digits)) return { ok: false, digits, error: "数字不能全为 0，请输入包含 1–9 的数字" }
   return { ok: true, digits }
 }

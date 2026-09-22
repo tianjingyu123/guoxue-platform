@@ -109,26 +109,9 @@ export const TRIGRAM_LINES: Record<string, [boolean, boolean, boolean]> = {
   坤: [false, false, false],
 }
 
-// ─── 穿山七十二龙（60甲子 + 每卦界缝空亡，共72格）───
-const TIANGAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
-const DIZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
-/** 72 龙：每 5° 一格，八卦交界处为空亡（空），其余顺布六十甲子。 */
-export const CHUANSHAN_72: string[] = (() => {
-  const out: string[] = []
-  let jiazi = 0
-  for (let i = 0; i < 72; i++) {
-    // 每 9 格（45°=一卦）的首格为界缝空亡
-    if (i % 9 === 0) {
-      out.push("空")
-    } else {
-      const gan = TIANGAN[jiazi % 10]
-      const zhi = DIZHI[jiazi % 12]
-      out.push(gan + zhi)
-      jiazi++
-    }
-  }
-  return out
-})()
+// ─── 穿山七十二龙 ───
+// 已迁至共享包单一真源：见 ./luopan-rings.ts（转发 @guoxue/shared/paipan/luopan-rings）
+// 原先此处为程序化生成，只得 8 个空亡（应 12）、64 个甲子格（应 60），末四格是前四格副本。
 
 // ─── 三合三针偏移 ───
 /** 正针（地盘）=0°基准；人盘中针逆偏 7.5°；天盘缝针顺偏 7.5° */

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 八字合盘·结果页（自 V0 app/hepan/result/page.tsx 还原）
- * onLoad 解析 payload 后本地重算（@/pkg-paipan/lib/hepan-engine），无后端依赖。
+ * onLoad 解析 payload 后交服务端合盘（POST /paipan/engine/hepan，算法只在服务端）。
  * 结构：双柱对照 → 两造合冲害标签 → 契合总分环 + 五维分项条 → 总评 → 综合判词
  *       → 五维契合雷达（canvas）→ 五行互补对照 → 相合亮点 / 相处提醒 → 古籍论合
  *       → 经营建议 → 分项详批弹层 → 合规声明。
@@ -21,7 +21,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { renderToCanvas } from '@/utils/canvas/adapter'
 import { HEPAN_SCENES, type HepanAspect } from '@/pkg-paipan/lib/hepan-data'
-import { computeHepan } from '@/pkg-paipan/lib/hepan-engine'
+import type { HepanResult } from '@/pkg-paipan/lib/hepan-data'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveHepanHistory, type HepanParams } from './hepan-history'
 
 const PILLAR_LABELS = ['年柱', '月柱', '日柱', '时柱']
@@ -36,11 +37,31 @@ const loadError = ref('')
 const params = ref<HepanParams | null>(null)
 const detailAspect = ref<HepanAspect | null>(null)
 
-const result = computed(() => {
+/** 合盘结果（服务端） */
+const result = ref<HepanResult | null>(null)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数错误：可「重新合盘」） */
+const netError = ref(false)
+
+async function compute() {
   const p = params.value
-  if (!p) return null
-  return computeHepan(p.scene, p.a, p.b)
-})
+  if (!p) return
+  loading.value = true
+  netError.value = false
+  loadError.value = ''
+  try {
+    const r = await computePaipan<HepanResult>('hepan', { scene: p.scene, a: p.a, b: p.b })
+    result.value = r
+    const grade = r.totalScore >= 85 ? '上上之配' : r.totalScore >= 75 ? '上乘之配' : r.totalScore >= 62 ? '中上之配' : r.totalScore >= 50 ? '中平之配' : '须多经营之配'
+    saveHepanHistory(p, `${grade} · ${r.totalScore}分`)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    loadError.value = netError.value ? '合盘服务暂时不可用，请稍后重试' : '合盘参数无效'
+  } finally {
+    loading.value = false
+  }
+}
 
 const scene = computed(() => HEPAN_SCENES.find((s) => s.key === params.value?.scene) ?? HEPAN_SCENES[0])
 
@@ -97,9 +118,7 @@ onLoad((q: Record<string, string> = {}) => {
       b: normPerson(raw.b, '乙方'),
     }
     params.value = p
-    const r = computeHepan(p.scene, p.a, p.b)
-    const grade = r.totalScore >= 85 ? '上上之配' : r.totalScore >= 75 ? '上乘之配' : r.totalScore >= 62 ? '中上之配' : r.totalScore >= 50 ? '中平之配' : '须多经营之配'
-    saveHepanHistory(p, `${grade} · ${r.totalScore}分`)
+    compute()
   } catch (e) {
     loadError.value = (e as Error).message || '合盘参数无效'
   }
@@ -216,7 +235,8 @@ function onShare() {
     <tool-header title="八字合盘" back-href="/paipan/hepan" share @share="onShare" />
 
     <!-- 错误态 -->
-    <param-error v-if="loadError" :text="loadError" action-text="返回合盘" @action="navigateTo('/paipan/hepan')" />
+    <param-error v-if="loadError" :text="loadError" :action-text="netError ? '重新合盘' : '返回合盘'" @action="netError ? compute() : navigateTo('/paipan/hepan')" />
+    <view v-else-if="loading && !result" class="engine-loading"><text class="engine-loading-text">正在合盘…</text></view>
 
     <scroll-view v-else-if="result" scroll-y class="body">
       <view class="body-inner">
@@ -470,6 +490,9 @@ $serif: Georgia, 'Songti SC', serif;
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端合盘加载态 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 场景横幅 */
 .banner {

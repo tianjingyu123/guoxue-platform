@@ -4,8 +4,8 @@
  * 内容：先天宫/取数/地支 → 干支组合断语 → 门+干组合 → 天/地盘干单象。
  */
 import { computed } from 'vue'
-import { PALACE_NAMES } from '@/pkg-paipan/lib/qimen-engine'
-import { PALACE_DIZHI } from '@/pkg-paipan/lib/qimen-engine'
+import { PALACE_NAMES } from '@/pkg-paipan/lib/qimen-consts'
+import { PALACE_DIZHI } from '@/pkg-paipan/lib/qimen-consts'
 import AppIcon from '@/components/common/app-icon.vue'
 import {
   type PalaceData,

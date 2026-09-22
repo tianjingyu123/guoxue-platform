@@ -2,7 +2,7 @@
 /**
  * 八字合盘·入口页（自 V0 app/hepan/page.tsx 还原）
  * 表单：合盘场景（婚恋/合伙/亲子/朋友）+ 甲乙双方（姓名 / 性别 / 生辰）。
- * 合盘后跳结果页本地重算（lib/hepan-engine，零后端依赖）；记录本地存储（key: rebu:hepan-history，上限 50）。
+ * 合盘后跳结果页，由服务端排盘（POST /paipan/engine/hepan，2026-09-21 第 4 步迁移）；记录本地存储（key: rebu:hepan-history，上限 50）。
  *
  * 取舍：
  * 1. V0 采集「出生地区」但引擎 buildPerson 固定传 useTrueSolar:false，city 不参与任何计算——
@@ -281,7 +281,7 @@ function handleSubmit() {
 <style scoped lang="scss">
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; }
-.body-inner { padding: 24rpx 32rpx 48rpx; display: flex; flex-direction: column; gap: 28rpx; }
+.body-inner { padding: 20rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .sec { display: flex; flex-direction: column; gap: 20rpx; }
 
 /* 场景 2×2 */
@@ -305,7 +305,7 @@ function handleSubmit() {
 .scene-desc { display: block; margin-top: 8rpx; font-size: 20rpx; color: var(--text-soft); line-height: 1.4; }
 
 /* 表单行 */
-.row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 30rpx 32rpx; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 20rpx 32rpx; }
 .row-bd { border-bottom: 1rpx solid var(--line); }
 .row-tap:active { background: rgba(0, 0, 0, 0.02); }
 .row-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink); flex-shrink: 0; }

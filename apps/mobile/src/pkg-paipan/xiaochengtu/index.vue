@@ -15,7 +15,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { HEX_NAMES } from '@/pkg-paipan/lib/meihua-data'
-import type { XctCastMethod, ZhongGongMethod } from '@/pkg-paipan/lib/xiaochengtu-engine'
+import type { XctCastMethod, ZhongGongMethod } from '@/pkg-paipan/lib/xiaochengtu-types'
 import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 const GUA_OPTIONS = ['乾', '兑', '离', '震', '巽', '坎', '艮', '坤']
@@ -219,6 +219,12 @@ function handleSubmit() {
   } else if (method.value === 'yao') {
     // 摇卦成象在本页完成（真随机），随 payload 传递，历史记录可复现
     params.lines = randomBools(6).map((v) => (v ? '1' : '0')).join('')
+    params.dong = randInt(6)
+  } else if (method.value === 'auto') {
+    // ★47：自动起卦同样在本页定下上下卦与动爻、随 payload 传递 ——
+    // 此前结果页每次打开都重新随机，从排盘记录重开会变成另一卦
+    params.u = randInt(8)
+    params.l = randInt(8)
     params.dong = randInt(6)
   }
   navigateTo(`/pkg-paipan/xiaochengtu/result?payload=${encodeURIComponent(JSON.stringify(params))}`)

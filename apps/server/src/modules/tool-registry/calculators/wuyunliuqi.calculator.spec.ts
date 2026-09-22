@@ -33,7 +33,7 @@ import { calculateWuYunLiuQi } from "./wuyunliuqi.calculator";
  * · 内部不变量：三之气≡司天、终之气≡在泉、客气六步不重复、太少交替；
  * · 外部定数：运气同化的年份数是《素问》给死的——天符12、岁会8、太乙天符4、
  *   同天符6、同岁会6，本测试按甲子一轮 60 年逐年点名比对；
- * · 交叉验证：修完后与前端 `pkg-paipan/lib/wuyunliuqi-engine.ts` 的判定逻辑
+ * · 交叉验证：修完后与`modules/paipan/engine/wuyunliuqi-engine.ts`（原前端引擎，2026-09-21 迁入服务端） 的判定逻辑
  *   逐条对照一致（前端这几处本来就是对的，是第 6 次「后端错·前端对」）。
  */
 

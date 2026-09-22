@@ -13,7 +13,7 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { SHENGXIAO } from '@/pkg-paipan/lib/chuanren-engine'
+import { SHENGXIAO } from '@/pkg-paipan/lib/chuanren-types'
 import {
   loadChuanrenHistory,
   clearChuanrenHistory,
@@ -131,7 +131,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header :title="hdrTitle" subtitle="奇门 · 大六壬 双盘合参" share share-title="奇门穿壬排盘" />
+    <tool-header :title="hdrTitle" subtitle="奇门 · 大六壬 双盘合参 · 拆补定局" share share-title="奇门穿壬排盘" />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

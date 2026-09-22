@@ -87,13 +87,14 @@ function openRecord(r: LijichiHistoryItem) {
       :share-title="hdrTitle"
       help
       @help="showHelp = true"
-    >
-      <template #actions>
-        <view class="th-history-btn" @tap="openHistory">
-          <app-icon name="history" :size="36" color="var(--text-ink)" />
-        </view>
-      </template>
-    </tool-header>
+    />
+    <!--
+      顶栏原有**两个外观相同的历史图标**：`history-href` 自带一个（跳历史页），
+      #actions 插槽又放了一个（开底部弹层），加上 help 的 (i) 与分享，共四个图标，
+      其中两个长得一样、行为却不同。已移除插槽里的重复按钮。
+      （注释称独立历史页「砍成内嵌弹层」，但 pages.json 中 pkg-paipan/lijichi/history/index
+       仍然存在，故 history-href 不是死链，保留它为标准入口。）
+    -->
 
     <scroll-view scroll-y class="body">
       <view class="inner">

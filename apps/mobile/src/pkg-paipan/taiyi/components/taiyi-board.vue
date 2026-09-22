@@ -9,7 +9,7 @@
  *       多槽宫（8/4/2/6 宫各占三槽）的落宫星统一显示在四维角格（V0 显示在首槽，角格更宽裕）。
  */
 import { computed } from 'vue'
-import { GOD16, SLOT16, SLOT_PALACE, type TaiyiResult } from '@/pkg-paipan/lib/taiyi-engine'
+import { GOD16, SLOT16, SLOT_PALACE, type TaiyiResult } from '@/pkg-paipan/lib/taiyi-types'
 
 const props = defineProps<{ r: TaiyiResult }>()
 

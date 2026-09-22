@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 飞宫小奇门·结果页——自 V0 app/feigong/result/page.tsx 还原
- * onLoad 解析 payload 本地重算：盘局信息表 / 九宫盘（点宫看象意）/ 宫位象意面板 / 白话总断。
+ * onLoad 解析 payload 交服务端排盘（POST /paipan/engine/feigong，算法只在服务端）：盘局信息表 / 九宫盘（点宫看象意）/ 宫位象意面板 / 白话总断。
  * 取舍：AI 深断区块本批砍掉；随机起局按入口页落定之数重算（展示口径仍标「随机」），
  *       起局成功自动写入本地排盘记录（key: rebu:feigong-history）。
  *       V0 九宫格 aspect-square 触 X5 红线，改固定 min-height。
@@ -14,13 +14,13 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import {
-  paiFeigong,
   type FeigongResult,
   GAN_XIANGYI,
   MEN_XIANGYI,
   HUANGDAO_XIANGYI,
   JIANCHU_XIANGYI,
-} from '@/pkg-paipan/lib/feigong-engine'
+} from '@/pkg-paipan/lib/feigong-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveFeigongHistory, type FeigongParams } from './feigong-history'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -57,6 +57,10 @@ const PILLAR_LABELS = ['年柱', '月柱', '日柱', '时柱']
 const q = ref<FeigongParams | null>(null)
 const r = ref<FeigongResult | null>(null)
 const invalid = ref(false)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数失效：前者可「重新排盘」） */
+const netError = ref('')
+let pending: FeigongParams | null = null
 const selected = ref<number | null>(null)
 
 onLoad((opts: Record<string, string> = {}) => {
@@ -73,21 +77,32 @@ onLoad((opts: Record<string, string> = {}) => {
     const d = new Date(params.year, params.month - 1, params.day, params.hour, params.minute)
     if (Number.isNaN(d.getTime()) || !params.year) throw new Error('bad date')
     if (params.m !== 'hour' && !(Number.isFinite(params.n) && (params.n as number) >= 1)) throw new Error('bad number')
-    // 随机在入口页已落定为数，此处按报数口径重算，保证重开一致
-    const res = paiFeigong({
-      date: d,
-      method: params.m === 'hour' ? 'hour' : 'number',
-      reportNumber: params.n,
-    })
-    // 展示口径仍按原起法
-    if (params.m === 'random') res.methodLabel = `随机起局（${params.n}）`
-    r.value = res
-    q.value = params
-    saveFeigongHistory(params, `青龙落${res.qinglongZhi} · ${res.methodLabel.slice(0, 4)}`)
+    // 随机在入口页已落定为数；服务端按报数口径重算并把展示标签改回「随机起局（n）」，保证重开一致
+    pending = params
+    compute()
   } catch {
     invalid.value = true
   }
 })
+
+async function compute() {
+  const params = pending
+  if (!params) return
+  loading.value = true
+  netError.value = ''
+  try {
+    const res = await computePaipan<FeigongResult>('feigong', { ...params })
+    r.value = res
+    q.value = params
+    saveFeigongHistory(params, `青龙落${res.qinglongZhi} · ${res.methodLabel.slice(0, 4)}`)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = '排盘服务暂时不可用，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 // ─── 宫位象意面板 ───
 const detailRows = computed(() => {
@@ -143,6 +158,8 @@ function goInput() {
 
     <!-- 参数错误态 -->
     <param-error v-if="invalid" text="排盘参数缺失或已失效" action-text="重新起局" @action="goInput" />
+    <param-error v-else-if="netError" :text="netError" action-text="重新排盘" @action="compute" />
+    <view v-else-if="loading" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <scroll-view v-else-if="r" scroll-y class="body">
       <view class="body-inner">
@@ -272,6 +289,9 @@ $serif: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
 }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 通用卡片 */
 .card {

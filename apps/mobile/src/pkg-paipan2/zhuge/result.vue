@@ -15,13 +15,15 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import {
-  paiZhuge, cnSignNumber, zhugeVerdict, type ZhugeResult,
-} from '@/pkg-paipan2/lib/zhuge-engine'
+import { cnSignNumber, type ZhugeResult } from '@/pkg-paipan2/lib/zhuge-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveZhugeHistory } from './history'
 
 const result = ref<ZhugeResult | null>(null)
 const errMsg = ref('')
+/** 服务端不可用（区别于生僻字/参数错：前者「重新推演」，后者「返回起卦」） */
+const netError = ref(false)
+let lastInput = ''
 
 onLoad((opts: Record<string, string> = {}) => {
   const w = opts.input ? decodeURIComponent(opts.input) : ''
@@ -29,15 +31,27 @@ onLoad((opts: Record<string, string> = {}) => {
     errMsg.value = '参数无效，请重新输入三个汉字。'
     return
   }
+  lastInput = w
+  compute()
+})
+
+/** 服务端起卦：签文库与算法只在服务端 */
+async function compute() {
+  errMsg.value = ''
+  netError.value = false
   try {
-    const r = paiZhuge(w)
+    const r = await computePaipan<ZhugeResult>('zhuge', { input: lastInput })
     result.value = r
     saveZhugeHistory({ input: r.input, signNumber: r.signNumber, luck: r.sign.luck })
   } catch (e) {
-    errMsg.value = e instanceof Error ? e.message : '起卦失败，请重新输入三个汉字。'
+    const msg = e instanceof Error ? e.message : ''
+    // 生僻字/非三字等由服务端以原文返回（「…不在康熙字典库中，请换字再测」）；其余按服务不可用处理
+    const isInputError = /康熙字典|三个汉字|参数/.test(msg)
+    netError.value = !isInputError
+    errMsg.value = isInputError ? msg : '推演服务暂时不可用，请稍后重试'
     uni.showToast({ title: errMsg.value, icon: 'none' })
   }
-})
+}
 
 /** 签等配色：上=朱砂吉、下=弱化、中=琥珀 */
 const luckColor = computed(() => {
@@ -57,7 +71,7 @@ function normalizeGua(gua: string): string {
 const guaLine = computed(() =>
   result.value ? `${result.value.sign.gong} ${normalizeGua(result.value.sign.gua)}` : '')
 
-const verdicts = computed(() => (result.value ? zhugeVerdict(result.value) : []))
+const verdicts = computed(() => result.value?.verdict ?? [])
 
 function retry() {
   navigateTo('/pkg-paipan2/zhuge/index')
@@ -105,10 +119,10 @@ function onBack() {
       <view
         v-if="errMsg"
         class="error-btn"
-        @tap="retry"
+        @tap="netError ? compute() : retry()"
       >
         <text class="error-btn-text">
-          返回起卦
+          {{ netError ? '重新推演' : '返回起卦' }}
         </text>
       </view>
     </view>

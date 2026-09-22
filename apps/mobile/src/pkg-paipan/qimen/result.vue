@@ -9,7 +9,7 @@ import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
-import { computeQimenLocal } from '@/pkg-paipan/lib/qimen-adapter'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveQimenHistory } from './qimen-history'
 import { BRAND } from '@/lib/brand'
 
@@ -65,19 +65,22 @@ function buildInput(): QimenInput {
 }
 
 /**
+ * 起局（2026-09-21 第 4 步）：计算迁至服务端 POST /paipan/engine/qimen（即原前端 qimen-adapter + shared 奇门引擎，84/84 黄金测试），
+ * 前端不再包含奇门算法；并修了 ★48（飞宫方式此前未传引擎）。
  * 本地重算（2026-07-14 去伪存真）：改用 pkg-paipan/lib/qimen-engine（84/84 黄金测试）。
  * 此前走 qimenApi.calculate → 后端 qimen.calculator 只有转盘法，飞盘被错误委托给阴盘引擎
  * （阴盘是另一流派，以月柱推局），导致选「飞盘」时拿到的是阴盘。
  */
-function load() {
+async function load() {
   loading.value = true
   errMsg.value = ''
   serverRecordId.value = ''
   try {
-    result.value = computeQimenLocal(buildInput())
+    result.value = await computePaipan<QimenResult>('qimen', { ...buildInput() })
     saveRecord(result.value)
   } catch (e) {
-    errMsg.value = (e as Error)?.message || '排盘失败，请检查起局参数'
+    const msg = (e as Error)?.message || ''
+    errMsg.value = msg.startsWith('参数') ? '起局参数无效，请检查后重试' : '排盘服务暂时不可用，请稍后重试'
   } finally {
     loading.value = false
   }

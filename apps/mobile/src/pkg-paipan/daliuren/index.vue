@@ -318,11 +318,12 @@ $serif: Georgia, 'Songti SC', serif;
 
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; }
-.body-inner { padding: 24rpx 32rpx 48rpx; display: flex; flex-direction: column; gap: 28rpx; }
+/* 行距按八字输入页同一尺度收紧：只砍留白，不动字号与选项按钮点击区 */
+.body-inner { padding: 20rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
 /* 表单行 */
-.row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 30rpx 32rpx; }
-.row-col { display: flex; flex-direction: column; gap: 14rpx; padding: 30rpx 32rpx; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 20rpx 32rpx; }
+.row-col { display: flex; flex-direction: column; gap: 12rpx; padding: 20rpx 32rpx; }
 .row-line { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; }
 .row-bd { border-bottom: 1rpx solid var(--line); }
 .row-tap:active { background: rgba(0, 0, 0, 0.02); }

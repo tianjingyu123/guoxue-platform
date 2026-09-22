@@ -16,7 +16,7 @@
  */
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { renderToCanvas } from '@/utils/canvas/adapter'
-import type { QizhengResult } from '@/pkg-paipan/lib/qizheng-engine'
+import type { QizhengResult } from '@/pkg-paipan/lib/qizheng-types'
 
 const props = defineProps<{ result: QizhengResult; highlightYear?: number }>()
 

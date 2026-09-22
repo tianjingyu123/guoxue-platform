@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
  * 阴盘命理奇门·结果页（自 V0 app/yinpan-mingli/result/page.tsx 还原）
- * onLoad 解析 payload 后本地重算：qimen-engine（出生时间数理起局 mingliJu，可手调/指定局覆盖）
+ * onLoad 解析 payload 后请服务端排盘（POST /paipan/engine/yinpan-mingli，2026-09-21 第 4 步迁移）：奇门（出生时间数理起局 mingliJu，可手调/指定局覆盖）
  * + bazi-engine（大运/流年）。结构：命主信息表 → 主盘 → 颜色说明 → 大运（展开流年，点干支
  * 落宫联动高亮）→ 流年 → 功能开关 → 移星换斗8盘 → 宫位详解 → 底部工具条。AI 区块砍除。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
@@ -14,14 +14,9 @@ import NotesPanel from '@/components/bazi/notes-panel.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  computeQimen,
-  mingliJu,
-  PALACE_NAMES,
-  PALACE_DIZHI,
-  type QimenResult,
-} from '@/pkg-paipan/lib/qimen-engine'
-import { computeBazi, lunarText, type BaziData } from '@/pkg-paipan/lib/bazi-engine'
+import { PALACE_NAMES, PALACE_DIZHI, type QimenResult } from '@/pkg-paipan/lib/qimen-consts'
+import { lunarText, type BaziData } from '@/pkg-paipan/lib/bazi-display'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { trueSolarTime } from '@/lib/paipan/ganzhi'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
@@ -103,8 +98,8 @@ onLoad((q: Record<string, string> = {}) => {
       lat: Number(p.lat) || 38.93,
       lng: Number(p.lng) || 115.42,
     }
-    // 记入本地排盘记录
-    if (qr.value) saveMingliHistory(params.value, juLabel.value)
+    // 记入本地排盘记录：首盘取回后写入
+    pendingHistory = true
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效'
   }
@@ -118,42 +113,39 @@ const birthDate = computed(() => {
   return p.trueSolar ? trueSolarTime(raw, p.lng) : raw
 })
 
-const qr = computed<QimenResult | null>(() => {
-  const d = birthDate.value
+/**
+ * 起局与八字走服务端（第 4 步：算法只在服务端）。出生时刻或局数覆盖变化即重取；
+ * 连点「上局/下局」只认最后一次请求，取回前沿用上一盘。
+ */
+const qr = ref<QimenResult | null>(null)
+const bz = ref<BaziData | null>(null)
+let qrSeq = 0
+let pendingHistory = false
+async function fetchChart() {
   const p = params.value
-  if (!d || !p) return null
+  if (!p) return
+  const ov = juOverride.value
+  const seq = ++qrSeq
   try {
-    // 命理奇门：数理起局（农历年支+月+日+时支 mod 9），可被指定局/手调局覆盖
-    const auto = mingliJu(d)
-    const ov = juOverride.value
-    const overrideLabel =
-      (ov && `${ov.isYang ? '阳遁' : '阴遁'}${ov.num}局`) ||
-      p.customJu ||
-      `${auto.isYang ? '阳遁' : '阴遁'}${auto.num}局`
-    return computeQimen(d, {
-      panMethod: 'zhuan',
-      startMethod: 'custom',
-      customJu: overrideLabel,
-      anganMethod: 'zhishi',
+    const r = await computePaipan<{ qimen: QimenResult | null; bazi: BaziData | null }>('yinpan-mingli', {
+      ...p, juLabel: ov ? `${ov.isYang ? '阳遁' : '阴遁'}${ov.num}局` : undefined,
     })
-  } catch {
-    return null
+    if (seq !== qrSeq) return
+    qr.value = r.qimen
+    bz.value = r.bazi
+    if (!r.qimen) loadError.value = '排盘计算失败，请重新排盘'
+    else if (pendingHistory && params.value) {
+      pendingHistory = false
+      saveMingliHistory(params.value, juLabel.value)
+    }
+  } catch (e) {
+    if (seq !== qrSeq) return
+    const msg = (e as Error)?.message || ''
+    if (!qr.value) loadError.value = msg.startsWith('参数') ? '排盘参数无效' : '排盘服务暂时不可用，请稍后重试'
+    else uni.showToast({ title: '排盘服务暂时不可用，请稍后重试', icon: 'none' })
   }
-})
-
-const bz = computed<BaziData | null>(() => {
-  const p = params.value
-  if (!p) return null
-  try {
-    return computeBazi({
-      name: p.name, gender: p.gender,
-      year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute,
-      useTrueSolar: p.trueSolar, earlyZi: p.earlyZi,
-    })
-  } catch {
-    return null
-  }
-})
+}
+watch([params, juOverride], fetchChart, { deep: true })
 
 const palaces = computed<Record<number, PalaceData>>(() => (qr.value ? toYinpanVM(qr.value) : {}))
 
@@ -318,7 +310,8 @@ function goInput() {
     <tool-header :title="hdrTitle" @share="handleShare" />
 
     <!-- 参数错误态 -->
-    <param-error v-if="loadError || !qr" :text="loadError || '排盘计算失败，请重新排盘'" action-text="重新排盘" @action="goInput" />
+    <param-error v-if="loadError" :text="loadError" action-text="重新排盘" @action="goInput" />
+    <view v-else-if="!qr" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <!-- 主体 -->
     <scroll-view v-else scroll-y class="body">
@@ -561,6 +554,9 @@ $serif: Georgia, 'Songti SC', serif;
 .bottom-space { height: 120rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 五行色 */
 .wx-mu { color: #059669; }

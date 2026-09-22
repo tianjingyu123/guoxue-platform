@@ -13,7 +13,8 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { generateNames, type QimingInput, type QimingOutput } from '@/pkg-paipan2/lib/qiming-engine'
+import type { QimingInput, QimingOutput } from '@/pkg-paipan2/lib/qiming-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import type { NameCandidate } from '@/pkg-paipan2/lib/qiming-data'
 import { saveQimingHistory, loadQimingFavorites, toggleQimingFavorite } from './store'
 
@@ -38,6 +39,24 @@ const DUP_LABEL: Record<string, string> = { low: '罕见', mid: '适中', high: 
 const result = ref<QimingOutput | null>(null)
 const errMsg = ref('')
 const input = ref<QimingInput | null>(null)
+/** 服务端请求失败（区别于参数无效：可「重新推演」） */
+const netError = ref(false)
+let pendingPayload: Record<string, string> | null = null
+
+/** 起名在服务端（第 4 步：算法与字库只在服务端）；payload 原样交服务端做同样的归一化 */
+async function compute() {
+  const p = pendingPayload
+  if (!p) return
+  errMsg.value = ''
+  netError.value = false
+  try {
+    result.value = await computePaipan<QimingOutput>('qiming', p)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    errMsg.value = netError.value ? '推演服务暂时不可用，请稍后重试' : '参数无效，请返回重新填写。'
+  }
+}
 const gender = ref<'男' | '女'>('男')
 const surname = ref('')
 
@@ -70,7 +89,8 @@ onLoad((opts: Record<string, string> = {}) => {
       blockChars: p.blockChars || undefined,
     }
     input.value = qi
-    result.value = generateNames(qi)
+    pendingPayload = p
+    compute()
     favNames.value = new Set(loadQimingFavorites().map((x) => x.name))
     saveQimingHistory({
       surname: qi.surname,
@@ -83,6 +103,7 @@ onLoad((opts: Record<string, string> = {}) => {
       fixChar: qi.fixChar,
       fixPosition: qi.fixPosition,
       blockChars: qi.blockChars,
+      seed: p.seed || undefined,
     })
   } catch {
     errMsg.value = '参数解析失败，请返回重新填写。'
@@ -99,7 +120,9 @@ const wuxingFilter = ref<string | null>(null)
 const filtered = computed<NameCandidate[]>(() => {
   const list = result.value?.candidates ?? []
   if (!wuxingFilter.value) return list
-  return list.filter((c) => c.chars.slice(1).some((ch) => ch.wuxing === wuxingFilter.value))
+  // 服务端按姓氏逐字输出（复姓占两位），名字部分从姓氏之后开始
+  const n = [...surname.value].length || 1
+  return list.filter((c) => c.chars.slice(n).some((ch) => ch.wuxing === wuxingFilter.value))
 })
 
 function toggleFilter(w: string) {
@@ -149,8 +172,8 @@ function retry() {
     <!-- 错误态 -->
     <view v-if="!result || !profile" class="error-wrap">
       <text class="error-text">{{ errMsg || '推演中…' }}</text>
-      <view v-if="errMsg" class="error-btn" @tap="retry">
-        <text class="error-btn-text">返回重填</text>
+      <view v-if="errMsg" class="error-btn" @tap="netError ? compute() : retry()">
+        <text class="error-btn-text">{{ netError ? '重新推演' : '返回重填' }}</text>
       </view>
     </view>
 

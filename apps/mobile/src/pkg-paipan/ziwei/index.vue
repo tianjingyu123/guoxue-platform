@@ -12,7 +12,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
-import { cityLongitude } from '@/pkg-paipan/lib/bazi-engine'
+import { cityLongitude } from '@/pkg-paipan/lib/bazi-display'
 import { loadZiweiHistory, clearZiweiHistory, shichenLabel, type ZiweiHistoryItem } from './ziwei-history'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -296,10 +296,11 @@ function handleSubmit() {
 <style scoped lang="scss">
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; }
-.body-inner { padding: 32rpx; display: flex; flex-direction: column; gap: 28rpx; }
+/* 间距按八字输入页同一尺度收紧（28rpx→20rpx）：只砍行距，不动字号、不动时辰网格 */
+.body-inner { padding: 24rpx 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
 /* 表单行 */
-.row { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 32rpx; }
 .row-bd { border-bottom: 1rpx solid var(--line); }
 .row-tap:active { background: rgba(0, 0, 0, 0.02); }
 .row-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
@@ -324,7 +325,7 @@ function handleSubmit() {
 .gtext-on { color: var(--brand); }
 
 /* 时辰 */
-.shichen-block { padding: 28rpx 32rpx; border-bottom: 1rpx solid var(--line); }
+.shichen-block { padding: 20rpx 32rpx; border-bottom: 1rpx solid var(--line); }
 .shichen-head { margin-bottom: 20rpx; }
 .shichen-cur { margin-left: auto; font-size: 26rpx; color: var(--brand); font-weight: 600; }
 .shichen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; }

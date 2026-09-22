@@ -1,0 +1,16 @@
+{
+ "tool": "xingming",
+ "tz": "Asia/Shanghai",
+ "mode": "groups",
+ "source": "迁移前前端引擎 + 前端结果页原映射（apps/mobile/src/pkg-paipan/xingming）",
+ "generatedAt": "2026-09-21",
+ "calls": 32552,
+ "groups": 5,
+ "byGroup": {
+  "single": "df0df1f9746ded9a",
+  "double": "695a31fb1da2d8d7",
+  "compound": "c870166b7f49b5c1",
+  "birth": "db44ad696772d530",
+  "birth-edge": "96e09935e8dc4bdd"
+ }
+}

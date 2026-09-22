@@ -26,7 +26,7 @@ import { ErrorCode } from "../../../common/error-codes";
  *    那串乘数没有任何依据，与奇门穿壬「七十二局表」是同一类下标算术。
  *    **签文是典籍原文、不可再生**，拼出来的读着像也不是那一签。
  *
- * 真正的 384 签原文在 `apps/mobile/src/pkg-paipan2/lib/data/zhuge-signs.json`
+ * 真正的 384 签原文在 `apps/server/src/modules/paipan/engine/data/zhuge-signs.json`（2026-09-21 自前端迁入）
  * （384 条齐全、无空条目，前端一直用它）。迁不迁进 shared 留给决策人：
  * 那份数据含第三方网站的解签正文（版权待确认），且有两处质量问题
  * （`gong` 出现第 9 个值「竞宫」，八宫只该有八个；`gua` 字段被截断如「乾变大有(乾九五」）。
@@ -148,7 +148,7 @@ const CLASSICAL_OVERRIDES: Record<number, QianWen> = {
  * 例如第 5 签，真本「春雷惊百虫，蛰户开々，云腾雨施，快活如意」，
  * 生成的是「春雷震，夏风巽。卧龙起，猛虎啸。风云会合，救济苍生」。
  *
- * **真正的 384 签原文仓库里有**：`apps/mobile/src/pkg-paipan2/lib/data/zhuge-signs.json`
+ * **真正的 384 签原文仓库里有**：`apps/server/src/modules/paipan/engine/data/zhuge-signs.json`（2026-09-21 自前端迁入）
  * （384 条齐全、无空条目，前端一直用的就是它）。
  * 正解是把它迁进 `packages/shared` 做单一真源，再让本文件读——
  * 那涉及数据放置与打包体积，留给决策人定。在此之前**宁可不出签，也不发假签**。
@@ -210,7 +210,7 @@ export function calculateZhuGe(input: Record<string, unknown>): ZhuGeResult {
    * 实测 10648 组报数只覆盖 64 个签号（范围 3–66）。
    * 这不是精度问题——三分之二以上的签文写了也没人看得到。
    *
-   * 正法见前端 `pkg-paipan2/lib/zhuge-engine.ts`：
+   * 正法见`modules/paipan/engine/zhuge-engine.ts`（原前端引擎，2026-09-21 迁入服务端）：
    * 「三字 → 康熙笔画 → 各取个位组三位数 → 超 384 循环减 384」。
    * 各位取 0–9，组成 0–999，归化后可覆盖 1–384 全部签号。
    * 这是**第 9 次「前端对·后端错」**。

@@ -4,6 +4,8 @@
 
 import { Solar } from '@/pkg-paipan/lib/lunar/index.js'
 import { GANS, ZHIS, fourPillars, kongWang } from '@/lib/paipan/ganzhi'
+// 掐指推算（computeXiaoliuren）只在服务端运行（2026-09-21 第 4 步，POST /paipan/engine/xiaoliuren）。
+// 本文件只留展示要用的四柱/农历/旬空与文案表，**不要把推算搬回前端**。
 
 export const TIANGAN = GANS as readonly string[]
 export const DIZHI = ZHIS as readonly string[]
@@ -33,12 +35,6 @@ export const ZHI_WX: Record<string, string> = {
 export const WX_STAR: Record<string, string> = { 木: '辅', 火: '英', 土: '芮', 金: '柱', 水: '蓬' }
 
 // 六神
-const LIUSHEN_DAOJIA = ['青龙', '朱雀', '螣蛇', '白虎', '玄武', '勾陈']
-const LIUSHEN_JIANGSHI = ['青龙', '朱雀', '勾陈', '螣蛇', '白虎', '玄武']
-// 日干起六神：甲乙青龙 丙丁朱雀 戊勾陈 己螣蛇 庚辛白虎 壬癸玄武
-const DAY_GAN_SHEN: Record<string, string> = {
-  甲: '青龙', 乙: '青龙', 丙: '朱雀', 丁: '朱雀', 戊: '勾陈', 己: '螣蛇', 庚: '白虎', 辛: '白虎', 壬: '玄武', 癸: '玄武',
-}
 
 // ─── 宫位详解 ───
 export const PALACE_INFO: Record<string, { meta: string; jue: string }> = {
@@ -150,16 +146,6 @@ export function jiaziIndex(gi: number, zi: number): number {
   return 0
 }
 
-/** 五行生克 → 六亲（me=日干五行，other=宫支五行） */
-export function liuqin(me: string, other: string): string {
-  if (me === other) return '兄弟'
-  const sheng: Record<string, string> = { 木: '火', 火: '土', 土: '金', 金: '水', 水: '木' }
-  if (sheng[other] === me) return '父母'
-  if (sheng[me] === other) return '子孙'
-  const ke: Record<string, string> = { 木: '土', 土: '水', 水: '火', 火: '金', 金: '木' }
-  if (ke[other] === me) return '官鬼'
-  return '妻财'
-}
 
 // ─── 排盘核心 ───
 export interface PalaceResult {
@@ -180,70 +166,6 @@ export interface PaipanResult {
   hourPalace: number
 }
 
-export function paiPan(opts: {
-  school: string
-  lunarMonth: number
-  lunarDay: number
-  hourNum: number
-  numbers: number[] | null
-  sizhu: SizhuLite
-}): PaipanResult {
-  const { school, lunarMonth, lunarDay, hourNum, numbers, sizhu } = opts
-  // 月/日/时 落宫
-  let n1 = lunarMonth
-  let n2 = lunarDay
-  let n3 = hourNum
-  if (numbers && numbers.length > 0) {
-    n1 = numbers[0]
-    n2 = numbers[1] ?? numbers[0]
-    n3 = numbers[2] ?? numbers[numbers.length - 1]
-  }
-  const monthPalace = (n1 - 1) % 6
-  const dayPalace = (monthPalace + n2 - 1) % 6
-  const hourPalace = (dayPalace + n3 - 1) % 6
-
-  // 干支：时柱定于时宫，按宫序每宫 +2 位六十甲子
-  const hourGZ = jiaziIndex(sizhu.hour.gi, sizhu.hour.zi)
-  const ganzhi: { g: string; z: string }[] = new Array(6)
-  for (let d = 0; d < 6; d++) {
-    const idx = (hourGZ + 2 * d) % 60
-    ganzhi[(hourPalace + d) % 6] = { g: TIANGAN[idx % 10], z: DIZHI[idx % 12] }
-  }
-
-  // 六神
-  const shen: string[] = new Array(6)
-  if (school === 'daojia') {
-    // 道家：青龙起日宫，顺行
-    for (let d = 0; d < 6; d++) shen[(dayPalace + d) % 6] = LIUSHEN_DAOJIA[d]
-  } else {
-    // 江氏：日干定首神。江氏起大安，江氏2（活六神）起时宫
-    const first = DAY_GAN_SHEN[sizhu.day.g]
-    const startIdx = LIUSHEN_JIANGSHI.indexOf(first)
-    const anchor = school === 'jiangshi2' ? hourPalace : 0
-    for (let d = 0; d < 6; d++) shen[(anchor + d) % 6] = LIUSHEN_JIANGSHI[(startIdx + d) % 6]
-  }
-
-  // 日柱旬空
-  const dayKong = getKong(sizhu.day.gi, sizhu.day.zi)
-  const meWx = GAN_WX[sizhu.day.g]
-
-  const palaces: PalaceResult[] = PALACES.map((name, i) => {
-    const gz = ganzhi[i]
-    const zhiWx = ZHI_WX[gz.z]
-    const isKongZhi = dayKong.includes(gz.z)
-    const star = isKongZhi ? '任空' : `${WX_STAR[zhiWx]}${zhiWx}`
-    let qin = liuqin(meWx, zhiWx)
-    if (gz.g === sizhu.day.g) qin = '兄弟'
-    if (i === hourPalace) qin = '自身'
-    const markers: string[] = []
-    if (i === monthPalace) markers.push('月')
-    if (i === dayPalace) markers.push('日')
-    if (i === hourPalace) markers.push('时')
-    return { name, liushen: shen[i], star, starKong: isKongZhi, gan: gz.g, zhi: gz.z, qin, markers }
-  })
-
-  return { palaces, monthPalace, dayPalace, hourPalace }
-}
 
 // ─── 农历（lunar-typescript 真历法，多端一致；替代 V0 的 Intl 方案——小程序端无 Intl） ───
 const CN_DAY = ['', '初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十', '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十']

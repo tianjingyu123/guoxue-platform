@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 梅花易数结果页——自 V0 app/meihua/result/page.tsx 还原
- * onLoad 解析 payload（起卦输入）本地重算：四柱/农历/节气/神煞 + 本互变错综五卦 + 体用生克 + 卦辞断语。
+ * onLoad 解析 payload（起卦输入）；卦象交服务端计算（POST /paipan/engine/meihua，算法只在服务端），四柱/农历/节气本地展示：四柱/农历/节气/神煞 + 本互变错综五卦 + 体用生克 + 卦辞断语。
  * V0 的「AI解析」按钮本批砍掉（不接假数据）；笔记复用 QimenNotesPanel；保存写本地存储。
  */
 import { ref, computed } from 'vue'
@@ -31,6 +31,11 @@ import {
   getCeShu,
   type TiyongRelation,
 } from '@/pkg-paipan/lib/meihua-data'
+import type { Hexagram } from '@guoxue/shared/paipan/meihua-engine'
+import { computePaipan } from '@/lib/paipan/engine-client'
+
+/** 引擎结果类型（import type 推导，编译时擦除，不把 shared 推算代码打进包） */
+type MeihuaResult = ReturnType<typeof import('@guoxue/shared/paipan/meihua-engine').computeMeihua>
 
 const YAO_LABEL = ['初', '二', '三', '四', '五', '上']
 
@@ -57,6 +62,10 @@ const q = ref({
 })
 const ready = ref(false)
 const invalid = ref(false)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数失效：前者可「重新起卦」重试） */
+const netError = ref(false)
+let rawPayload: Record<string, unknown> | null = null
 
 onLoad((opts: Record<string, string> = {}) => {
   try {
@@ -76,11 +85,29 @@ onLoad((opts: Record<string, string> = {}) => {
       movingParam: p.moving === undefined || p.moving === null ? '' : String(p.moving),
     }
     matterText.value = q.value.matter
-    ready.value = true
+    rawPayload = p
+    compute()
   } catch {
     invalid.value = true
   }
 })
+
+/** payload 原样交服务端（服务端做同样的归一化与农历换算）；拿到结果才进入展示 */
+async function compute() {
+  if (!rawPayload) return
+  loading.value = true
+  netError.value = false
+  try {
+    engine.value = await computePaipan<MeihuaResult>('meihua', rawPayload)
+    ready.value = true
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 function onBack() {
   const pages = getCurrentPages()
@@ -124,114 +151,16 @@ const shensha = computed(() => {
   ]
 })
 
-// ─── 卦象计算（口径同 V0） ───
-// lines: 自下而上6爻，true=阳
-interface Hexagram { upper: number; lower: number; lines: boolean[]; name: string; palace: string }
+// ─── 卦象计算：算法真源在 @guoxue/shared/paipan/meihua-engine，本页只做展示 ───
 
-function trigramFromLines(lines: boolean[]): number {
-  for (let n = 1; n <= 8; n++) {
-    const bl = BAGUA_LINES[BAGUA_NAMES[n]]
-    if (bl[0] === lines[0] && bl[1] === lines[1] && bl[2] === lines[2]) return n
-  }
-  return 1
-}
-function hexFromTrigrams(upper: number, lower: number): Hexagram {
-  const lines = [...BAGUA_LINES[BAGUA_NAMES[lower]], ...BAGUA_LINES[BAGUA_NAMES[upper]]]
-  const name = HEX_NAMES[upper][lower]
-  return { upper, lower, lines, name, palace: getPalace(name) }
-}
-function hexFromLines(lines: boolean[]): Hexagram {
-  const lower = trigramFromLines(lines.slice(0, 3))
-  const upper = trigramFromLines(lines.slice(3, 6))
-  const name = HEX_NAMES[upper][lower]
-  return { upper, lower, lines, name, palace: getPalace(name) }
-}
-const mod = (n: number, m: number) => {
-  const r = n % m
-  return r === 0 ? m : r
-}
+// 起卦与五卦、体用：调用共用引擎（packages/shared/src/paipan/meihua-engine.ts）
+// 农历由本页的 lunar 库算出后显式传入，保证服务端报告重算时与这里完全一致
+/** 服务端卦象结果；以下派生量只在 ready（已取到结果）后被模板/操作读取 */
+const engine = ref<MeihuaResult | null>(null)
 
-const gua = computed<{ ben: Hexagram; moving: number; formula: string }>(() => {
-  const { mode, numbers, plusHour, yaosParam, movingParam } = q.value
-  const yearZhiNum = ZHIS.indexOf(sizhu.value.year.zhi) + 1
-  const hourZhiNum = ZHIS.indexOf(sizhu.value.hour.zhi) + 1
-
-  if (mode === 'manual' && yaosParam.length === 6) {
-    // 参数自上而下 → 转自下而上
-    const topDown = yaosParam.split('').map((c) => c === '1')
-    const lines = [...topDown].reverse()
-    const movingIdx = movingParam !== '' ? Number(movingParam) : -1
-    // movingParam 是自上而下索引(0=上爻) → 转为自下而上爻位1~6
-    const moving = movingIdx >= 0 ? 6 - movingIdx : 0
-    return { ben: hexFromLines(lines), moving, formula: '手动指定' }
-  }
-
-  if (mode === 'number1' && numbers) {
-    const digits = numbers.replace(/\D/g, '').split('').map(Number)
-    if (digits.length > 0) {
-      const half = Math.floor(digits.length / 2)
-      const front = digits.slice(0, half)
-      const back = digits.slice(half)
-      const frontSum = front.reduce((a, b) => a + b, 0) || back.reduce((a, b) => a + b, 0)
-      const backSum = back.reduce((a, b) => a + b, 0)
-      const upper = mod(frontSum, 8)
-      const lower = mod(backSum, 8)
-      let dongSum = frontSum + backSum
-      if (plusHour) dongSum += hourZhiNum
-      const moving = mod(dongSum, 6)
-      return { ben: hexFromTrigrams(upper, lower), moving, formula: `数字起卦1 (${numbers})${plusHour ? '+时辰' : ''}` }
-    }
-  }
-
-  if (mode === 'number2' && /^\d{3}$/.test(numbers)) {
-    const [d1, d2, d3] = numbers.split('').map(Number)
-    const upper = mod(d1 === 0 ? 8 : d1, 8)
-    const lower = mod(d2 === 0 ? 8 : d2, 8)
-    let dong = d3
-    if (plusHour) dong += hourZhiNum
-    const moving = mod(dong === 0 ? 6 : dong, 6)
-    return { ben: hexFromTrigrams(upper, lower), moving, formula: `数字起卦2 (${numbers})${plusHour ? '+时辰' : ''}` }
-  }
-
-  if (mode === 'auto') {
-    // 以时间参数为种子的伪随机，保证同一链接结果一致
-    let s = q.value.year * 10000 + q.value.month * 100 + q.value.day + q.value.hour * 60 + q.value.minute
-    const rand = () => {
-      s = (s * 9301 + 49297) % 233280
-      return s / 233280
-    }
-    const upper = Math.floor(rand() * 8) + 1
-    const lower = Math.floor(rand() * 8) + 1
-    const moving = Math.floor(rand() * 6) + 1
-    return { ben: hexFromTrigrams(upper, lower), moving, formula: '自动起卦' }
-  }
-
-  // 默认时间起卦（月日数为农历）
-  const upperSum = yearZhiNum + lunar.value.m + lunar.value.d
-  const lowerSum = upperSum + hourZhiNum
-  const upper = mod(upperSum, 8)
-  const lower = mod(lowerSum, 8)
-  const moving = mod(lowerSum, 6)
-  return {
-    ben: hexFromTrigrams(upper, lower),
-    moving,
-    formula: `时间起卦 (${yearZhiNum}+${lunar.value.m}+${lunar.value.d}+${hourZhiNum})`,
-  }
-})
-
-const ben = computed(() => gua.value.ben)
-const moving = computed(() => gua.value.moving)
-
-// 五卦：互（234为下/345为上）、变（动爻翻转）、错（全爻取反）、综（上下颠倒）
-const hexes = computed(() => {
-  const b = ben.value
-  const hu = hexFromLines([b.lines[1], b.lines[2], b.lines[3], b.lines[2], b.lines[3], b.lines[4]])
-  const bianLines = b.lines.map((l, i) => (moving.value === i + 1 ? !l : l))
-  const bian = hexFromLines(bianLines)
-  const cuo = hexFromLines(b.lines.map((l) => !l))
-  const zong = hexFromLines([...b.lines].reverse())
-  return { hu, bian, cuo, zong }
-})
+const ben = computed(() => engine.value!.ben)
+const moving = computed(() => engine.value!.moving)
+const hexes = computed(() => ({ hu: engine.value!.hu, bian: engine.value!.bian, cuo: engine.value!.cuo, zong: engine.value!.zong }))
 
 const hexColumns = computed<{ label: string; hex: Hexagram; red?: boolean; showMoving?: boolean }[]>(() => [
   { label: '本卦', hex: ben.value, showMoving: true },
@@ -241,22 +170,11 @@ const hexColumns = computed<{ label: string; hex: Hexagram; red?: boolean; showM
   { label: '综卦', hex: hexes.value.zong },
 ])
 
-// 体用：动爻在下卦(1~3) → 下卦为用、上卦为体；否则相反
-const tiyong = computed(() => {
-  const movingInLower = moving.value >= 1 && moving.value <= 3
-  const tiTri = movingInLower ? ben.value.upper : ben.value.lower
-  const yongTri = movingInLower ? ben.value.lower : ben.value.upper
-  const tiName = BAGUA_NAMES[tiTri]
-  const yongName = BAGUA_NAMES[yongTri]
-  const tiWx = BAGUA_WX[tiName]
-  const yongWx = BAGUA_WX[yongName]
-  const relation = getTiyongRelation(tiWx, yongWx)
-  return { movingInLower, tiName, yongName, tiWx, yongWx, relation }
-})
+const tiyong = computed(() => engine.value!.tiyong)
 
 const judge = computed(() => TIYONG_JUDGE[tiyong.value.relation])
 const judgeGood = computed(() => judge.value.level.includes('吉') && !judge.value.level.includes('凶'))
-const ceShu = computed(() => getCeShu(ben.value.lines))
+const ceShu = computed(() => engine.value!.ceShu)
 const movingText = computed(() => (moving.value >= 1 ? `动爻在${YAO_LABEL[moving.value - 1]}爻` : '无动爻'))
 
 // 生成卦书：卦象由共用引擎按同一参数重算，页面与报告必然一致，故只传参数
@@ -370,6 +288,14 @@ function handleShare() {
       </view>
     </view>
 
+    <view v-else-if="netError" class="err">
+      <text class="err-text">起卦服务暂时不可用，请稍后重试</text>
+      <view class="err-btn" @tap="compute">
+        <text class="err-btn-text">重新起卦</text>
+      </view>
+    </view>
+    <view v-else-if="loading" class="err"><text class="err-text">正在起卦…</text></view>
+
     <scroll-view v-else-if="ready" scroll-y class="body">
       <view class="body-inner">
         <!-- 信息表 -->
@@ -400,7 +326,7 @@ function handleShare() {
           </view>
           <view class="tr">
             <text class="td-label">卦式</text>
-            <view class="td-value"><text class="td-text">【{{ gua.formula }}】</text></view>
+            <view class="td-value"><text class="td-text">【{{ engine.formula }}】</text></view>
           </view>
           <view class="tr">
             <text class="td-label">节气</text>

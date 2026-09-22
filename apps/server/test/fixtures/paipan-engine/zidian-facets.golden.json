@@ -1,0 +1,12 @@
+{
+ "tool": "zidian-facets",
+ "tz": "Asia/Shanghai",
+ "mode": "groups",
+ "source": "服务端引擎（2026-09-21 起名字库扩充后重新生成：字库 159→1046 宜字、复姓逐字、同字限 2、定字放行可字、出处仅手写；此前为迁移前前端引擎，迁移一致性已于 09-21 验证）",
+ "generatedAt": "2026-09-21",
+ "calls": 1,
+ "groups": 1,
+ "byGroup": {
+  "facets": "f5b0499d93965b0c"
+ }
+}

@@ -18,6 +18,8 @@ export interface QimingParams {
   fixChar?: string
   fixPosition?: 'middle' | 'last'
   blockChars?: string
+  /** 抽样种子（2026-09-21 起每次起名生成，重开记录时原样带上以复现同一批名字） */
+  seed?: string
   dateText: string
 }
 
