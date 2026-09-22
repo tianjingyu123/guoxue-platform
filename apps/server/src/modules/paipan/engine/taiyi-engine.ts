@@ -17,8 +17,8 @@
  *   文昌（阴遁）= 吕申起顺行、艮巽重留（18 步一循环）
  *   计神（阴遁）= 申起逆数至时支
  *   始击 = 计神加于和德，天目下临之辰所在十六神位
- *   主算 = 天目宫与太乙宫之间（两端不计）顺行诸宫洛书数之和
- *   客算 = 始击宫与太乙宫之间（两端不计）顺行诸宫洛书数之和
+ *   主算/客算/定算 = 自文昌/始击/定目起，顺行逐宫累加太乙九宫数至太乙前一宫（★26，见 suanFrom）
+ *   定目 = 盘式主支之合神移至主支，文昌随之同移
  *   大将 = 算去十位取个位（0 作 9 论）；参将 = 大将宫 × 3 去十位
  *   值使 = 积时 mod 240 每 30 时一门，序[休生伤杜景死惊开]（经黄金基准校准）
  */
@@ -44,14 +44,27 @@ export const GOD16: Record<string, string> = {
   酉: "太簇", 戌: "阴主", 乾: "阴德", 亥: "大义",
 }
 
-/** 槽位 → 洛书宫数（坎1 艮8 震3 巽4 离9 坤2 兑7 乾6） */
+/**
+ * 槽位 → 太乙九宫数（一乾 二离 三艮 四震 五中 六兑 七坤 八坎 九巽）
+ *
+ * ★26（2026-09-22）：原表按**洛书**（坎1 艮8 震3 巽4 离9 坤2 兑7 乾6）配方位。
+ * 《太乙金镜式经》立成明写「太乙在一宫**乾**」，太乙九宫与洛书沿环的数序相同、整体差一格（45°），
+ * 所以太乙行宫/文昌序列/对宫/相邻这些「只看数」的逻辑一直对，错的是「数 ↔ 方位」：
+ * 文昌、始击落哪一宫，三算从哪一宫数起，盘面把星画在哪个方位，都偏了一格。
+ */
 export const SLOT_PALACE: Record<string, number> = {
-  子: 1, 丑: 8, 艮: 8, 寅: 8, 卯: 3, 辰: 4, 巽: 4, 巳: 4,
-  午: 9, 未: 2, 坤: 2, 申: 2, 酉: 7, 戌: 6, 乾: 6, 亥: 6,
+  子: 8, 丑: 3, 艮: 3, 寅: 3, 卯: 4, 辰: 9, 巽: 9, 巳: 9,
+  午: 2, 未: 7, 坤: 7, 申: 7, 酉: 6, 戌: 1, 乾: 1, 亥: 1,
 }
 
-/** 顺行宫环（自坎起）：主客算按此序取两宫之间的洛书数 */
-const PALACE_RING = [1, 8, 3, 4, 9, 2, 7, 6]
+/** 顺行宫环（自坎起，太乙九宫数；与原洛书环数序相同，仅起点转一格） */
+const PALACE_RING = [8, 3, 4, 9, 2, 7, 6, 1]
+
+/** 正宫槽位（八卦正位）；其余八槽为间辰 */
+const ZHENG_SLOTS = new Set(["子", "艮", "卯", "巽", "午", "坤", "酉", "乾"])
+
+/** 地支六合 */
+const LIUHE: Record<string, string> = { 子: "丑", 丑: "子", 寅: "亥", 亥: "寅", 卯: "戌", 戌: "卯", 辰: "酉", 酉: "辰", 巳: "申", 申: "巳", 午: "未", 未: "午" }
 
 /** 太乙行宫序 */
 const TAIYI_SEQ_YANG = [1, 2, 3, 4, 6, 7, 8, 9]
@@ -92,6 +105,8 @@ export interface TaiyiResult {
   taiyiPalace: number
   wenchang: { god: string; slot: string; palace: number }
   shiji: { god: string; slot: string; palace: number }
+  /** 定目（定算的起点）：盘式主支之合神移至主支，文昌随之同移所临（★26） */
+  dingmu: { god: string; slot: string; palace: number }
   jiShen: string
   zhuSuan: number
   keSuan: number
@@ -285,14 +300,16 @@ export function paiTaiyi(input: {
   const wcSlot = (Object.keys(GOD16) as string[]).find((k) => GOD16[k] === wcGod)!
   const wenchang = { god: wcGod, slot: wcSlot, palace: SLOT_PALACE[wcSlot] }
 
-  /* --- 计神（阳遁寅起顺数，阴遁申起逆数；以盘式主支为引） --- */
+  /* --- 计神（阳遁寅起、阴遁申起，皆逆数；以盘式主支为引） --- */
+  // ★26（2026-09-22）：原阳遁写作「寅起顺数」(2 + 支序)。金镜立成阳局计神随局逐一递减（寅 丑 子 亥 …），
+  // 与阴局（申 未 午 …）同为逆行；原写法只在主支为子/午时碰巧相同，其余阳遁盘计神、始击、客算皆错。
   const drivingZhi =
     panShi === "hour" ? pillars.time[1]
     : panShi === "day" ? pillars.day[1]
     : panShi === "month" ? pillars.month[1]
     : pillars.year[1]
   const dzIdx = ZHI.indexOf(drivingZhi)
-  const jiShenIdx = isYin ? (8 - dzIdx + 12) % 12 : (2 + dzIdx) % 12
+  const jiShenIdx = isYin ? (8 - dzIdx + 12) % 12 : (2 - dzIdx + 12) % 12
   const jiShen = ZHI[jiShenIdx]
 
   /* --- 始击（计神加和德，天目下临之辰） --- */
@@ -303,27 +320,44 @@ export function paiTaiyi(input: {
   const sjSlot = SLOT16[sjSlotIdx]
   const shiji = { god: GOD16[sjSlot], slot: sjSlot, palace: SLOT_PALACE[sjSlot] }
 
-  /* --- 主算 / 客算 / 定算（两宫之间顺行洛书数之和，两端不计） --- */
-  // 🔴 2026-09-21（★42）原实现有两处让「两端不计」名存实亡：
-  //   a. **同宫时 fi === ti，`while (i !== ti)` 会绕满一整圈**，得 40 − 该宫数
-  //      （实测 32/34/36/38），而非「其间无宫 ⇒ 0」。占主算 11.7%、客算 14.1%。
-  //   b. `sum === 0 ? PALACE_RING[ti] : sum` 这条兜底把**相邻**时合法的 0 换成终点宫数。
-  //      而文件头明写「大将 = 算去十位取个位（**0 作 9 论**）」，`jiangGong(0)` 也确实返回 9 ——
-  //      说明算值为 0 本就是预期内的合法情形；兜底一加，那条规则就成了**永不执行的死代码**。
-  //      占主算 14.2%、客算 15.9%。
-  // 合计约 26%(主) / 30%(客) 的盘受影响。改为如实返回 0，交给 jiangGong 按「0 作 9 论」处理。
-  const suanBetween = (fromPalace: number, toPalace: number): number => {
-    const fi = PALACE_RING.indexOf(fromPalace)
-    const ti = PALACE_RING.indexOf(toPalace)
-    if (fi < 0 || ti < 0) return 0   // 落中 5 宫，环上无位
-    if (fi === ti) return 0          // 同宫：其间无宫
-    let sum = 0
-    for (let i = (fi + 1) % 8; i !== ti; i = (i + 1) % 8) sum += PALACE_RING[i]
-    return sum                       // 相邻时自然为 0
+  /* --- 主算 / 客算 / 定算 --- */
+  // ★26（2026-09-22）三处改正，依据《太乙金镜式经》（四库本）「阳局/阴局天目地目计神主客大小将立成」144 局：
+  //   1. 宫数用太乙九宫（见 SLOT_PALACE），不是洛书；
+  //   2. 起点在**正宫**计本宫数（若即太乙宫，只计本宫）；在**间辰**计 1，再自顺行下一正宫起；
+  //      逐宫累加，至太乙前一宫止。原「两端不计」的写法与立成表主算仅 67/144、客算 55/144 相符；
+  //      新规则主算 138/144、客算 139/144，其余 11 处 6 处恰差 10（刻本「二十/三十」之讹的典型样子），
+  //      另与书中 6 条行文例句、竞品 4 个日太乙样本、文件头时太乙黄金基准（25/9/34）全部吻合；
+  //   3. 定算自**定目**起算（盘式主支之合神移至主支，文昌随之同移所临），不是「主算 + 客算」。
+  //      原写法只在文件头那个黄金样本上碰巧成立（25 + 9 = 34），竞品 4 例（15/13/36/13）无一满足。
+  //   （★42 修过的「同宫绕满一圈」「相邻兜底」两处在新规则下自然不再存在。）
+  const nextZheng = (slotIdx: number): number => {
+    for (let k = 1; k <= 16; k++) if (ZHENG_SLOTS.has(SLOT16[(slotIdx + k) % 16])) return (slotIdx + k) % 16
+    return slotIdx
   }
-  const zhuSuan = suanBetween(wenchang.palace, taiyiPalace)
-  const keSuan = suanBetween(shiji.palace, taiyiPalace)
-  const dingSuan = zhuSuan + keSuan
+  const suanFrom = (fromSlot: string): number => {
+    let idx = SLOT16.indexOf(fromSlot as (typeof SLOT16)[number])
+    let total: number
+    if (ZHENG_SLOTS.has(fromSlot)) {
+      total = SLOT_PALACE[fromSlot]
+      if (total === taiyiPalace) return total
+    } else {
+      total = 1
+    }
+    idx = nextZheng(idx)
+    while (SLOT_PALACE[SLOT16[idx]] !== taiyiPalace) {
+      total += SLOT_PALACE[SLOT16[idx]]
+      idx = nextZheng(idx)
+    }
+    return total
+  }
+  // 定目：主支之合神移至主支（十六槽上移了几格），文昌随之同移几格
+  const heShen = LIUHE[drivingZhi]
+  const moveSteps = SLOT16.indexOf(drivingZhi as (typeof SLOT16)[number]) - SLOT16.indexOf(heShen as (typeof SLOT16)[number])
+  const dmSlot = SLOT16[(((tmSlotIdx + moveSteps) % 16) + 16) % 16]
+  const dingmu = { god: GOD16[dmSlot], slot: dmSlot, palace: SLOT_PALACE[dmSlot] }
+  const zhuSuan = suanFrom(wenchang.slot)
+  const keSuan = suanFrom(shiji.slot)
+  const dingSuan = suanFrom(dingmu.slot)
 
   /* --- 八将 --- */
   const jiangGong = (suan: number): number => {
@@ -546,6 +580,7 @@ export function paiTaiyi(input: {
     taiyiPalace,
     wenchang,
     shiji,
+    dingmu,
     jiShen,
     zhuSuan,
     keSuan,

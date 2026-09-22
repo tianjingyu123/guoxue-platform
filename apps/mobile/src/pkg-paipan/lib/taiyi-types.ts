@@ -19,10 +19,10 @@ export const GOD16: Record<string, string> = {
   酉: "太簇", 戌: "阴主", 乾: "阴德", 亥: "大义",
 }
 
-/** 槽位 → 洛书宫数（坎1 艮8 震3 巽4 离9 坤2 兑7 乾6） */
+/** 槽位 → 太乙九宫数（一乾 二离 三艮 四震 五中 六兑 七坤 八坎 九巽；★26 起不再用洛书，与服务端引擎一致） */
 export const SLOT_PALACE: Record<string, number> = {
-  子: 1, 丑: 8, 艮: 8, 寅: 8, 卯: 3, 辰: 4, 巽: 4, 巳: 4,
-  午: 9, 未: 2, 坤: 2, 申: 2, 酉: 7, 戌: 6, 乾: 6, 亥: 6,
+  子: 8, 丑: 3, 艮: 3, 寅: 3, 卯: 4, 辰: 9, 巽: 9, 巳: 9,
+  午: 2, 未: 7, 坤: 7, 申: 7, 酉: 6, 戌: 1, 乾: 1, 亥: 1,
 }
 
 
@@ -43,6 +43,8 @@ export interface TaiyiResult {
   taiyiPalace: number
   wenchang: { god: string; slot: string; palace: number }
   shiji: { god: string; slot: string; palace: number }
+  /** 定目（定算的起点） */
+  dingmu?: { god: string; slot: string; palace: number }
   jiShen: string
   zhuSuan: number
   keSuan: number

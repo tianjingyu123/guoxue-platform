@@ -1,8 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
+import { PaipanEngineService } from "../src/modules/paipan/engine/paipan-engine.service";
 
 /**
- * 太乙神数·积日偏移与主客算（★41 / ★42，2026-09-21）
+ * 太乙神数·积日偏移与主客定三算（★41 / ★42 / ★26）
  *
  * ══ ★41：「+180 对时太乙零影响」漏了一个模数 ══
  *
@@ -24,34 +25,30 @@ import * as path from "path";
  * 这没法两全 —— 竞品自己那两个基准就矛盾（时太乙页反推 jiRi = 585315，日太乙页要求再 +180 天）。
  * 取舍：**盘面量（局数/五福/值使/干支）全对 优先于 中间数值显示一致**。
  *
- * ══ ★42：`suanBetween` 两处让「两端不计」名存实亡 ══
+ * ══ ★42（2026-09-21，已被 ★26 取代）══
  *
- *     return sum === 0 ? PALACE_RING[ti] : sum // 同宫或相邻兜底
+ * 当时修的是 `suanBetween`「两端不计」实现里的两处 bug（同宫绕满一圈、相邻被兜底成终点宫数）。
+ * 但「两端不计」这条规则本身没有出处 —— ★26 查了典籍才发现规则就是错的，函数已整体删除。
  *
- *   a. **同宫时 `fi === ti`，`while (i !== ti)` 绕满一整圈**，得 40 − 该宫数（实测 32/34/36/38），
- *      根本走不到那条兜底 —— 注释说的「同宫…兜底」从来没发生过。占主算 11.7%、客算 14.1%。
- *   b. 兜底把**相邻**时合法的 0 换成终点宫数。而文件头明写
- *      「大将 = 算去十位取个位（**0 作 9 论**）」，`jiangGong(0)` 也确实返回 9 ——
- *      算值为 0 本就是预期内的合法情形，兜底一加那条规则就成了**永不执行的死代码**。
- *      占主算 14.2%、客算 15.9%。
+ * ══ ★26（2026-09-22）：三算整套按《太乙金镜式经》重做 ══
  *
- * 合计约 26%(主) / 30%(客) 的盘受影响。已改为如实返回 0，交给 `jiangGong` 按「0 作 9 论」处理。
- * 修后全枚举 496 盘中算值为 0 出现 273 次，大将均得 9 —— 这条规则从死代码变回活的。
+ * 对照《太乙金镜式经》（四库本，维基文库，公有领域）144 局立成表与卷内算例，归纳出四处根因：
+ *   1. 宫数是**太乙九宫**（一乾 二离 三艮 四震 五中 六兑 七坤 八坎 九巽），不是洛书；
+ *   2. 起点在正宫计本宫数、在间辰计 1，再顺行逐正宫相加，至太乙宫前止（起点即太乙宫则只计本宫）；
+ *   3. 阳遁计神方向原来反了；
+ *   4. 定算自**定目**起算（盘式主支之合神移至主支，文昌随之同移所临），不是主算 + 客算。
+ * 新规则下：立成主算 138/144、客算 139/144 吻合（余下为刻本差异，多处恰差 10）；
+ * 竞品日太乙 4 例、黄金基准时太乙 1 例的主/客/定三算全部复现（修前 5 例全错）。
+ * 「0 作 9 论」在新规则下不再触发（算值恒 ≥ 1），`jiangGong` 保留该分支作防御。
  *
- * ══ 运行时部分 ══
- *
- * `artifacts/paipan-compare-20260919/taiyi-full-verify.mts`：
- * 十六神槽位四维插位、四正宫 1 槽/四维宫 3 槽、对槽洛书数和为 10、
- * 方位环与八门跟飞宫跨文件一致、太乙阴序恰为阳序逆序、
- * 文昌 18 步去重成一整圈且重留于注释所说的维位、阴阳起点相距半圈、
- * 主客算独立复算、大将/参将公式、黄金基准 9 项逐项复现。
+ * 立成表抽取：artifacts/paipan-compare-20260919/taiyi-src/parse-licheng.py → fixtures/taiyi-jinjing-licheng.json
  */
 
 const ROOT = path.resolve(__dirname, "../../..");
 const SRC = fs.readFileSync(
   path.join(ROOT, "apps/server/src/modules/paipan/engine/taiyi-engine.ts"), "utf8",
 );
-const PALACE_RING = [1, 8, 3, 4, 9, 2, 7, 6];
+
 
 describe("太乙 · 积日偏移（★41）", () => {
   it("反证：偏移常量解析得到（读不到会让下面全变空跑）", () => {
@@ -101,69 +98,127 @@ describe("太乙 · 积日偏移（★41）", () => {
   });
 });
 
-describe("太乙 · 主客算（★42）", () => {
-  /** 独立实现：两宫之间顺行诸宫洛书数之和，两端不计 */
-  function between(from: number, to: number): number {
-    const fi = PALACE_RING.indexOf(from), ti = PALACE_RING.indexOf(to);
-    if (fi < 0 || ti < 0) return 0;
+describe("太乙 · 主客定三算（★26，取代 ★42 的「两端不计」）", () => {
+  const svc = new PaipanEngineService();
+  type R = { dunType: string; juNumber: number; taiyiPalace: number; jiShen: string; zhuSuan: number; keSuan: number; dingSuan: number };
+  const run = (b: Record<string, unknown>) => svc.run("taiyi", { minute: 0, ...b }) as unknown as R;
+  const trio = (r: R) => `${r.zhuSuan}/${r.keSuan}/${r.dingSuan}`;
+  const LICHENG = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/taiyi-jinjing-licheng.json"), "utf8"));
+
+  /** 太乙九宫：槽位 → 宫数；独立于引擎再写一遍 */
+  const SLOT16 = ["子", "丑", "艮", "寅", "卯", "辰", "巽", "巳", "午", "未", "坤", "申", "酉", "戌", "乾", "亥"];
+  const NUM: Record<string, number> = { 子: 8, 丑: 3, 艮: 3, 寅: 3, 卯: 4, 辰: 9, 巽: 9, 巳: 9, 午: 2, 未: 7, 坤: 7, 申: 7, 酉: 6, 戌: 1, 乾: 1, 亥: 1 };
+  const ZHENG = new Set(["子", "艮", "卯", "巽", "午", "坤", "酉", "乾"]);
+  const GOD: Record<string, string> = { 子: "地主", 丑: "阳德", 艮: "和德", 寅: "吕申", 卯: "高丛", 辰: "太阳", 巽: "大炅", 巳: "大神", 午: "大威", 未: "天道", 坤: "大武", 申: "武德", 酉: "太簇", 戌: "阴主", 乾: "阴德", 亥: "大义" };
+  const SLOT_OF: Record<string, string> = Object.fromEntries(Object.entries(GOD).map(([k, v]) => [v, k]));
+
+  /** 金镜规则独立实现：正宫计本宫数 / 间辰计 1，顺行逐正宫相加至太乙宫前 */
+  function suanJJ(from: string, taiyi: number): number {
+    let i = SLOT16.indexOf(from);
+    const next = () => { do i = (i + 1) % 16; while (!ZHENG.has(SLOT16[i])); };
+    let total: number;
+    if (ZHENG.has(from)) { total = NUM[from]; if (total === taiyi) return total; } else total = 1;
+    next();
+    while (NUM[SLOT16[i]] !== taiyi) { total += NUM[SLOT16[i]]; next(); }
+    return total;
+  }
+
+  /** 修前规则：洛书宫数 + 两端不计（仅用于反证判据有区分力） */
+  const LUOSHU_OF_SLOT: Record<string, number> = { 子: 1, 丑: 8, 艮: 8, 寅: 8, 卯: 3, 辰: 4, 巽: 4, 巳: 4, 午: 9, 未: 2, 坤: 2, 申: 2, 酉: 7, 戌: 6, 乾: 6, 亥: 6 };
+  const RING_OLD = [1, 8, 3, 4, 9, 2, 7, 6];
+  function oldBetween(from: number, to: number): number {
+    const fi = RING_OLD.indexOf(from), ti = RING_OLD.indexOf(to);
     if (fi === ti) return 0;
     let sum = 0;
-    for (let i = (fi + 1) % 8; i !== ti; i = (i + 1) % 8) sum += PALACE_RING[i];
+    for (let i = (fi + 1) % 8; i !== ti; i = (i + 1) % 8) sum += RING_OLD[i];
     return sum;
   }
-  /** 修前的实现（用于证明判据真能抓到它） */
-  function buggy(from: number, to: number): number {
-    const fi = PALACE_RING.indexOf(from), ti = PALACE_RING.indexOf(to);
-    let sum = 0;
-    let i = (fi + 1) % 8;
-    while (i !== ti) { sum += PALACE_RING[i]; i = (i + 1) % 8; }
-    return sum === 0 ? PALACE_RING[ti] : sum;
-  }
 
-  it("同宫与相邻，其间无宫 ⇒ 和为 0", () => {
-    for (const p of PALACE_RING) expect(`同宫${p}:${between(p, p)}`).toBe(`同宫${p}:0`);
-    for (let i = 0; i < 8; i++) {
-      const a = PALACE_RING[i], b = PALACE_RING[(i + 1) % 8];
-      expect(`相邻${a}→${b}:${between(a, b)}`).toBe(`相邻${a}→${b}:0`);
+  it("黄金基准时太乙 2026-07-03 21:45（值数法）：阴遁 36 局，三算 25/9/34", () => {
+    const r = run({ year: 2026, month: 7, day: 3, hour: 21, minute: 45, panShi: "hour", suanFa: "zhijin" });
+    expect(`${r.dunType}${r.juNumber} 宫${r.taiyiPalace} 计${r.jiShen} ${trio(r)}`).toBe("阴遁36 宫6 计酉 25/9/34");
+  });
+
+  it("竞品日太乙 4 例的主/客/定三算全部复现（★26 修前 4 例全错），三种算法一致", () => {
+    const cases: [number, number, string][] = [
+      [9, 20, "30/4/15"], [9, 23, "7/13/13"], [10, 28, "25/27/36"], [12, 4, "7/13/13"],
+    ];
+    for (const suanFa of ["tongzong", "zhijin", "jinjing"]) {
+      const got = cases.map(([m, d]) => `${suanFa} ${m}-${d}:${trio(run({ year: 2026, month: m, day: d, hour: 12, panShi: "day", suanFa }))}`);
+      expect(got).toEqual(cases.map(([m, d, w]) => `${suanFa} ${m}-${d}:${w}`));
     }
   });
 
-  it("隔一宫时恰为中间那一宫的洛书数（两端不计的直接推论）", () => {
-    for (let i = 0; i < 8; i++) {
-      const a = PALACE_RING[i], mid = PALACE_RING[(i + 1) % 8], b = PALACE_RING[(i + 2) % 8];
-      expect(`${a}→${b}:${between(a, b)}`).toBe(`${a}→${b}:${mid}`);
-    }
+  it("反证：定算不再恒等于主算 + 客算（修前恒满足，那正是错处）", () => {
+    const r = run({ year: 2026, month: 9, day: 20, hour: 12, panShi: "day", suanFa: "tongzong" });
+    expect(r.dingSuan).not.toBe(r.zhuSuan + r.keSuan);
   });
 
-  it("绕满一圈的和恒为 40 − 起点（八宫洛书数之和 = 40）", () => {
-    expect(PALACE_RING.reduce((a, b) => a + b, 0)).toBe(40);
-    for (let i = 0; i < 8; i++) {
-      const a = PALACE_RING[i], last = PALACE_RING[(i + 7) % 8];
-      expect(`${a}→${last}:${between(a, last)}`).toBe(`${a}→${last}:${40 - a - last}`);
+  /**
+   * 立成表每局给出太乙宫、天目（主算起点）、主算、客目、客算、计神。
+   * 扫一段时太乙逐盘对照：主算只依赖局，全对照；客算依赖计神，仅在计神与立成相同时对照。
+   * 立成是刻本，个别数目有误，所以断言的是**不符的局恰为已知那几局**，而不是 100% —— 新增任何不符都会失败。
+   */
+  it("引擎对《太乙金镜式经》144 局立成表：覆盖全部 144 局，不符的局恰为已知刻本差异", () => {
+    const zhuBad = new Set<string>(), keBad = new Set<string>(), seen = new Set<string>(), keSeen = new Set<string>();
+    // 1 月（阳遁）与 7 月（阴遁）各 15 天 × 12 时辰；时太乙每时进一局，180 盘即绕满 72 局
+    for (const [mon, d] of [0, 6].flatMap((m) => Array.from({ length: 15 }, (_, i) => [m, i] as const))) {
+      for (let h = 0; h < 24; h += 2) {
+        const dt = new Date(Date.UTC(2026, mon, 1 + d));
+        const r = run({ year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate(), hour: h, panShi: "hour", suanFa: "tongzong" });
+        const yin = r.dunType === "阴遁";
+        const t = (yin ? LICHENG.yin : LICHENG.yang)[r.juNumber - 1];
+        const key = `${yin ? "yin" : "yang"}${r.juNumber}`;
+        expect(`${key}:宫${r.taiyiPalace}`).toBe(`${key}:宫${t.taiyi}`);
+        seen.add(key);
+        if (r.zhuSuan !== t.zhu) zhuBad.add(key);
+        if (r.jiShen === t.jishen) { keSeen.add(key); if (r.keSuan !== t.ke) keBad.add(key); }
+      }
     }
+    expect(seen.size).toBe(144);
+    expect([...zhuBad].sort()).toEqual([...ZHU_KNOWN].sort());
+    expect([...keBad].filter((k) => !KE_KNOWN.includes(k))).toEqual([]);
+    expect(keSeen.size).toBeGreaterThan(40);
   });
 
-  it("★42 复现：修前实现在同宫时绕满一圈得 40−宫数，在相邻时被兜底成终点宫数", () => {
-    for (const p of PALACE_RING) expect(`同宫${p}:${buggy(p, p)}`).toBe(`同宫${p}:${40 - p}`);
-    for (let i = 0; i < 8; i++) {
-      const a = PALACE_RING[i], b = PALACE_RING[(i + 1) % 8];
-      expect(`相邻${a}→${b}:${buggy(a, b)}`).toBe(`相邻${a}→${b}:${b}`);
+  it("独立实现对立成表：主算 ≥ 138/144、客算 ≥ 139/144；修前规则仅 67/144（判据有区分力）", () => {
+    let z = 0, k = 0, zOld = 0;
+    for (const key of ["yang", "yin"]) {
+      for (const r of LICHENG[key]) {
+        const tm = SLOT_OF[r.tianmu], km = SLOT_OF[r.kemu];
+        if (suanJJ(tm, r.taiyi) === r.zhu) z++;
+        if (suanJJ(km, r.taiyi) === r.ke) k++;
+        if (oldBetween(LUOSHU_OF_SLOT[tm], r.taiyi) === r.zhu) zOld++;
+      }
     }
+    expect(z).toBeGreaterThanOrEqual(138);
+    expect(k).toBeGreaterThanOrEqual(139);
+    expect(zOld).toBe(67);   // 修前规则只对 67/144（实测），与新规则 138 拉开 71 局
   });
 
-  it("「0 作 9 论」必须是活代码：jiangGong(0) = 9", () => {
+  it("金镜规则的三种起点：间辰计 1、正宫计本宫数、起点即太乙宫只计本宫", () => {
+    expect(suanJJ("申", 1)).toBe(1 + 6);                       // 阳一局天目武德(申)，立成主算 7
+    expect(suanJJ("乾", 1)).toBe(1);                           // 起点即太乙宫
+    expect(suanJJ("子", 1)).toBe(8 + 3 + 4 + 9 + 2 + 7 + 6);   // 正宫起，绕至乾前
+    expect(LICHENG.yang[0]).toMatchObject({ ju: 1, taiyi: 1, tianmu: "武德", zhu: 7 });
+  });
+
+  it("「0 作 9 论」保留为防御分支；新规则下算值恒 ≥ 1（全枚举 16 槽 × 8 宫）", () => {
     const fn = /const jiangGong = \(suan: number\): number => \{([\s\S]*?)\n  \}/.exec(SRC)!;
     expect(fn[1]).toMatch(/if \(g === 0\)/);
-    // 按源码逻辑重算 jiangGong(0)
-    const g0 = (() => { let g = 0 % 10; if (g === 0) g = 0 % 9 === 0 ? 9 : 0 % 9; return g; })();
-    expect(g0).toBe(9);
+    for (const s of SLOT16) for (const p of [1, 2, 3, 4, 6, 7, 8, 9]) expect(suanJJ(s, p)).toBeGreaterThanOrEqual(1);
   });
 
-  it("实现必须保留同宫早返回、且不得再出现 sum===0 兜底（只查代码，注释里引用旧写法不算）", () => {
+  it("源码：宫环为太乙九宫、「两端不计」实现已删除、定算自定目起算", () => {
     const code = SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).toMatch(/if \(fi === ti\) return 0/);
-    // 反证：注释里确实还留着旧写法，说明剥注释这步真的生效了
-    expect(SRC).toMatch(/sum === 0 \? PALACE_RING\[ti\] : sum/);
-    expect(code).not.toMatch(/sum === 0 \? PALACE_RING\[ti\] : sum/);
+    expect(code).toMatch(/const PALACE_RING = \[8, 3, 4, 9, 2, 7, 6, 1\]/);
+    expect(code).not.toMatch(/suanBetween/);
+    expect(code).toMatch(/const dingSuan = suanFrom\(dingmu\.slot\)/);
   });
 });
+
+/** 引擎与立成表不符的局（刻本差异，多处恰差 10；由上面的扫描实测得出，新增任何一局都会失败） */
+const ZHU_KNOWN: string[] = ["yang39", "yang50", "yin25", "yin26", "yin27", "yin70"];
+// 客算：yin43/44 为立成「客目」与我们的始击推法不同（起点就不同）；yin11/15/46 为数目差异。
+// 两份清单合起来恰为 check-suan.py 独立实现对立成表得出的 11 局，与引擎扫描互证。
+const KE_KNOWN: string[] = ["yin11", "yin15", "yin43", "yin44", "yin46"];
