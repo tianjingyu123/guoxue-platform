@@ -13,6 +13,7 @@
  */
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -37,6 +38,7 @@ const tabTitle: Record<TabType, string> = { members: '成员管理', posts: '内
 
 const circleId = ref('')
 const activeTab = ref<TabType>('members')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 // ─── 概览（settings 初值 + 成员数） ───
 const overview = ref<CircleOverview | null>(null)
@@ -103,6 +105,19 @@ const uploadingCover = ref(false)
 const announcementInput = ref('')
 const latestAnnouncement = ref<{ content: string; createdAt: string } | null>(null)
 const sendingAnnouncement = ref(false)
+const settingsReady = ref(false)
+const savedSettings = ref('')
+const announcementError = ref(false)
+const settingsDirty = computed(() => settingsReady.value && JSON.stringify(form) !== savedSettings.value)
+
+function leavePage() {
+  if (savingSettings.value || uploadingCover.value || sendingAnnouncement.value) {
+    uni.showToast({ title: '操作进行中，请稍候', icon: 'none' })
+    return
+  }
+  if (!settingsDirty.value && !announcementInput.value.trim()) { goBack(); return }
+  uni.showModal({ title: '还有未保存的内容', content: '圈子设置或公告尚未保存，离开后将丢失。', confirmText: '离开', cancelText: '继续编辑', success: r => { if (r.confirm) goBack() } })
+}
 
 /** 当前加入方式（映射后端 type + needApproval） */
 const joinMode = computed<'free' | 'approval' | 'paid'>(() => {
@@ -115,10 +130,10 @@ const isPaidCircle = computed(() => circleType.value === 'PAID' || circleType.va
 const confirmState = ref<{ type: 'removeMember' | 'deletePost'; id: string; userId?: string; name: string } | null>(null)
 
 // ─── 加载 ───
-async function loadOverview() {
-  try {
+async function loadOverview(fillForm = false) {
     const ov = await circleManageApi.getOverview(circleId.value)
     overview.value = ov
+    if (!fillForm) return
     form.name = ov.name
     form.intro = ov.intro
     form.cover = ov.cover
@@ -126,7 +141,8 @@ async function loadOverview() {
     form.price = ov.price
     form.needApproval = ov.needApproval
     circleType.value = ov.type
-  } catch { /* settings tab 会再触发并展示 error */ }
+    savedSettings.value = JSON.stringify(form)
+    settingsReady.value = true
 }
 
 async function loadMembers() {
@@ -159,12 +175,12 @@ async function loadPosts() {
 }
 
 async function loadSettings() {
+  if (settingsLoading.value) return
   settingsLoading.value = true
   settingsError.value = false
   try {
-    await loadOverview()
-    if (!overview.value) throw new Error('load failed')
-    latestAnnouncement.value = await circleManageApi.getLatestAnnouncement(circleId.value).catch(() => null)
+    await loadOverview(true)
+    await loadAnnouncement()
   } catch {
     settingsError.value = true
   } finally {
@@ -172,12 +188,18 @@ async function loadSettings() {
   }
 }
 
+async function loadAnnouncement() {
+  announcementError.value = false
+  try { latestAnnouncement.value = await circleManageApi.getLatestAnnouncement(circleId.value) }
+  catch { announcementError.value = true }
+}
+
 function switchTab(t: TabType) {
   activeTab.value = t
   openMenuId.value = null
   if (t === 'members' && !members.value.length && !membersLoading.value) loadMembers()
   if (t === 'posts' && !posts.value.length && !postsLoading.value) loadPosts()
-  if (t === 'settings' && !settingsLoading.value) loadSettings()
+  if (t === 'settings' && !settingsReady.value && !settingsLoading.value) loadSettings()
 }
 
 // ─── 成员写操作 ───
@@ -354,21 +376,23 @@ function pickJoinMode(mode: 'free' | 'approval' | 'paid') {
 }
 
 async function saveSettings() {
-  if (savingSettings.value) return
+  if (savingSettings.value || uploadingCover.value || !settingsReady.value) return
   if (!form.name.trim()) {
     uni.showToast({ title: '请输入圈子名称', icon: 'none' })
     return
   }
   savingSettings.value = true
+  const submittedSnapshot = JSON.stringify(form)
   try {
     await circleManageApi.saveSettings(circleId.value, {
       name: form.name.trim(),
       intro: form.intro.trim(),
       cover: form.cover || undefined,
-      tags: form.tags,
+      tags: [...form.tags],
       price: isPaidCircle.value ? form.price : undefined,
       needApproval: form.needApproval,
     })
+    savedSettings.value = submittedSnapshot
     uni.showToast({ title: '已保存', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
@@ -388,8 +412,8 @@ async function sendAnnouncement() {
   try {
     await circleManageApi.saveAnnouncement(circleId.value, content)
     uni.showToast({ title: '公告已发布', icon: 'success' })
-    announcementInput.value = ''
-    latestAnnouncement.value = await circleManageApi.getLatestAnnouncement(circleId.value).catch(() => null)
+    if (announcementInput.value.trim() === content) announcementInput.value = ''
+    await loadAnnouncement()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
   } finally {
@@ -415,7 +439,8 @@ onLoad((q) => {
   circleId.value = q?.id || q?.circleId || ''
   const t = q?.tab as TabType | undefined
   if (t && ['members', 'posts', 'settings'].includes(t)) activeTab.value = t
-  loadOverview()
+  if (!circleId.value) { membersError.value = true; postsError.value = true; settingsError.value = true; return }
+  if (activeTab.value !== 'settings') void loadOverview().catch(() => { overview.value = null })
   switchTab(activeTab.value)
 })
 </script>
@@ -423,8 +448,8 @@ onLoad((q) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="back-btn" role="button" tabindex="0" aria-label="返回管理概览" @tap="leavePage" @keydown.enter="leavePage"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">{{ tabTitle[activeTab] }}</text>
       <text v-if="activeTab === 'members' && overview" class="topbar-count">共 {{ overview.memberCount.toLocaleString() }} 人</text>
     </view>
@@ -434,6 +459,7 @@ onLoad((q) => {
       <view
         v-for="t in tabs" :key="t.key"
         class="seg-item" :class="{ active: activeTab === t.key }"
+        role="tab" :aria-selected="activeTab === t.key" tabindex="0" @keydown.enter="switchTab(t.key)"
         @tap="switchTab(t.key)"
       >
         <text class="seg-txt">{{ t.label }}</text>
@@ -685,7 +711,7 @@ onLoad((q) => {
             <view class="notice-box">
               <textarea
                 v-model="announcementInput" class="notice-input" auto-height
-                placeholder="发布新公告，全体成员将收到通知…" placeholder-class="ph" maxlength="500"
+                placeholder="写下需要成员了解的新公告…" placeholder-class="ph" maxlength="500"
               />
               <view class="notice-actions">
                 <text class="notice-hint">公告显示在圈子详情头部，仅保留最新一条</text>
@@ -694,7 +720,8 @@ onLoad((q) => {
                 </view>
               </view>
             </view>
-            <view v-if="latestAnnouncement" class="notice-history">
+            <view v-if="announcementError" class="notice-history" role="button" aria-label="重试读取公告" @tap="loadAnnouncement"><text class="notice-item">最新公告暂时无法读取，点此重试。已输入内容会保留。</text></view>
+            <view v-else-if="latestAnnouncement" class="notice-history">
               <text class="notice-item">「{{ latestAnnouncement.content }}」
                 <text v-if="latestAnnouncement.createdAt" class="notice-date"> · {{ fmtAnnDate(latestAnnouncement.createdAt) }}</text>
               </text>
@@ -702,8 +729,9 @@ onLoad((q) => {
           </view>
 
           <!-- 保存 -->
-          <view class="save-btn" :class="{ saving: savingSettings }" @tap="saveSettings">
-            <text class="save-btn-txt">{{ savingSettings ? '保存中…' : '保存修改' }}</text>
+          <text class="save-hint" role="status">{{ settingsDirty ? '有尚未保存的修改' : '当前设置没有待保存修改' }}</text>
+          <view class="save-btn" role="button" aria-label="保存圈子设置" :aria-disabled="savingSettings || uploadingCover" :class="{ saving: savingSettings || uploadingCover }" @tap="saveSettings">
+            <text class="save-btn-txt">{{ uploadingCover ? '封面上传中…' : savingSettings ? '保存中…' : '保存修改' }}</text>
           </view>
           <text class="save-hint">价格与加入方式的修改仅对新成员生效，不影响已加入成员</text>
         </template>
@@ -731,7 +759,7 @@ onLoad((q) => {
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
+.page { height: 100vh; background: var(--circle-canvas, #f5f5f7); display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; }
 
 /* 顶栏 */
 .topbar {
@@ -741,14 +769,14 @@ onLoad((q) => {
   padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
 }
-.back-btn { display: flex; align-items: center; }
+.back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
 .topbar-count { font-size: 24rpx; color: var(--text-tertiary, #999999); }
 
 /* 分区切换 */
 .seg { display: flex; gap: 16rpx; padding: 8rpx 32rpx 0; }
 .seg-item {
-  flex: 1; height: 68rpx; border-radius: 34rpx;
+  flex: 1; min-height: 44px; border-radius: 20rpx;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card, #ffffff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
@@ -756,7 +784,7 @@ onLoad((q) => {
 .seg-txt { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
 .seg-item.active .seg-txt { color: #ffffff; font-weight: 500; }
 
-.body { flex: 1; }
+.body { flex: 1; height: 0; min-height: 0; }
 
 /* 搜索 */
 .search {
