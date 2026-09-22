@@ -216,7 +216,15 @@ export class CircleMembershipService {
       if (!order || order.status !== "PAID") {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
       }
-      member = await this.createMembership(circleId, userId, expireAt, dto.referrerId);
+      // 订单完结、成员创建和成员数增加必须同事务；重试或并发确认不能重复建成员。
+      member = await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.order.updateMany({
+          where: { id: order.id, userId, targetId: circleId, type: "CIRCLE_JOIN", status: "PAID" },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        if (claimed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "该入圈订单已确认或状态已变化");
+        return this.createMembershipTx(circleId, userId, expireAt, dto.referrerId, tx);
+      });
     } else {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供支付方式或订单号");
     }
@@ -235,20 +243,10 @@ export class CircleMembershipService {
       );
     }
 
-    // 更新订单状态
-    if (dto.orderNo || dto.orderId) {
-      await this.prisma.order.updateMany({
-        where: {
-          OR: [
-            { id: dto.orderId || "" },
-            { id: dto.orderNo || "" },
-          ],
-          type: "CIRCLE_JOIN",
-          userId,
-          status: "PAID",
-        },
-        data: { status: "COMPLETED", completedAt: new Date() },
-      });
+    if (dto.referrerId && this.commissionService) {
+      this.commissionService.recordCircleRevenue(circleId, "circle_join_referral", member.id, 0).catch(
+        (err) => this.logger.warn("记录推荐收益失败", err),
+      );
     }
 
     return member;
