@@ -360,8 +360,7 @@ export const agentApi = {
     try {
       const raw = await apiGetOptionalAuth<{ items?: Array<Record<string, any>> }>('/discover/recommendations?page=1&pageSize=6')
       const items = (raw?.items || []).map((item) => ({
-        type: (item.type === 'course' || item.type === 'circle' || item.type === 'product' || item.type === 'article'
-          ? item.type : 'article') as RecommendItem['type'],
+        type: ({ content: 'article', course: 'course', product: 'product', classic: 'classic', bot: 'agent' } as Record<string, RecommendItem['type']>)[item.type] || 'article',
         data: {
           id: item.id,
           title: item.title || item.name || '平台内容',
