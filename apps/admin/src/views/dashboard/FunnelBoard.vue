@@ -184,13 +184,14 @@ import PageHeader from "@/components/PageHeader.vue";
 import { funnelApi } from "@/api";
 import echarts from "@/utils/echarts";
 
-/** 五条漏斗定义（与后端 FunnelDailyService 对齐） */
+/** 六条漏斗定义（与后端 FunnelDailyService 对齐） */
 const FUNNELS = [
   { key: "F1_activation", label: "F1 新用户激活" },
   { key: "F2_member", label: "F2 会员转化" },
   { key: "F3_commerce", label: "F3 电商转化" },
   { key: "F4_practitioner", label: "F4 从业者转化" },
   { key: "F5_customer_service", label: "F5 客服服务与成交" },
+  { key: "F6_agent_discovery", label: "F6 智能体平台探索" },
 ];
 
 /** 步骤键 → 中文（与后端 upsertSteps 的 stepKey 一一对应） */
@@ -213,6 +214,8 @@ const STEP_LABELS: Record<string, string> = {
   cs_recommend_offered: "相关建议展示",
   cs_recommend_clicked: "点击下一步",
   cs_attributed_paid: "点击后支付",
+  agent_discovery_view: "推荐曝光",
+  agent_discovery_click: "推荐点击",
 };
 
 interface DayRow { date: string; steps: Array<{ step: number; stepKey: string; count: number }> }
