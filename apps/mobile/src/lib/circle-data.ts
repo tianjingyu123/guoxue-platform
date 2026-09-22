@@ -301,7 +301,7 @@ export const circleApi = {
       throw e
     }
   },
-  my: async (optionalAuth = false): Promise<Circle[]> => {
+  my: async (optionalAuth = false, options: { throwOnError?: boolean } = {}): Promise<Circle[]> => {
     try {
       // 后端 /circles/my 返回 CircleMember[]（圈子信息嵌套在 .circle）——此前直接当圈子适配导致
       // 首页「我的圈子」横滑卡无名字无封面、点击 id 错跳加载失败（董事长 2026-07-11 真机反馈根因）
@@ -315,8 +315,9 @@ export const circleApi = {
           return { ...adaptCircle(c as RawCircle), isJoined: true }
         })
         .filter((c) => !!c.id)
-    } catch {
-      return [] // 拉取失败诚实空态，不给假数据
+    } catch (error) {
+      if (options.throwOnError) throw error
+      return [] // 兼容其他调用点；分区入口使用抛错模式区分失败与空列表。
     }
   },
   /**

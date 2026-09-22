@@ -2,7 +2,7 @@
   <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav-bar">
+    <view class="nav-bar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
       <view class="nav-btn" @tap="goBack">
         <AppIcon name="arrow-left" :size="20" color="#2C2C2C" />
       </view>
@@ -34,21 +34,21 @@
         <view class="overview-roles">
           <view class="role-stat">
             <view class="role-stat-top">
-              <AppIcon name="crown" :size="16" color="#FDE047" />
+              <AppIcon name="crown" :size="16" color="#826329" />
               <text class="role-stat-num">{{ roleCounts.owner }}</text>
             </view>
             <text class="role-stat-label">圈主</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
-              <AppIcon name="shield" :size="16" color="#93C5FD" />
+              <AppIcon name="shield" :size="16" color="#2465AD" />
               <text class="role-stat-num">{{ roleCounts.admin }}</text>
             </view>
             <text class="role-stat-label">管理员</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
-              <AppIcon name="user" :size="16" color="#86EFAC" />
+              <AppIcon name="user" :size="16" color="#2B6F68" />
               <text class="role-stat-num">{{ roleCounts.member }}</text>
             </view>
             <text class="role-stat-label">成员</text>
@@ -71,7 +71,7 @@
 
       <!-- 筛选 Tab -->
       <scroll-view scroll-x class="filter-scroll">
-        <view class="filter-row">
+        <view class="filter-row" role="tablist" aria-label="按圈子身份筛选">
           <view
             v-for="tab in filterTabs"
             :key="tab.id"
@@ -191,11 +191,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, type MyCircle, type MyCircleRole } from '@/lib/circle-data'
 
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref(false)
 const myCircles = ref<MyCircle[]>([])
@@ -221,7 +224,7 @@ async function load() {
     loading.value = false
   }
 }
-onMounted(load)
+onShow(load)
 
 // 已加入总数（列表长度，权威口径）
 const totalCircles = computed(() => myCircles.value.length)
@@ -273,8 +276,8 @@ function roleColor(role: MyCircleRole) {
 <style scoped>
 .page {
   /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
-  height: 100vh;
-  background: #faf8f5;
+  height: calc(100vh - var(--status-bar-height, 0px));
+  background: var(--circle-canvas);
   display: flex;
   flex-direction: column;
 }
@@ -316,7 +319,8 @@ function roleColor(role: MyCircleRole) {
   margin: 24rpx;
   padding: 32rpx;
   border-radius: 32rpx;
-  background: linear-gradient(135deg, var(--brand), #a01530);
+  background: var(--circle-surface);
+  border: 1rpx solid var(--circle-border-soft);
 }
 .overview-head {
   display: flex;
@@ -327,7 +331,7 @@ function roleColor(role: MyCircleRole) {
 .overview-title {
   font-size: 30rpx;
   font-weight: 500;
-  color: #fff;
+  color: var(--circle-ink);
 }
 .overview-detail {
   display: flex;
@@ -335,7 +339,7 @@ function roleColor(role: MyCircleRole) {
 }
 .overview-detail-text {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--circle-secondary);
 }
 .overview-stats {
   display: flex;
@@ -349,18 +353,18 @@ function roleColor(role: MyCircleRole) {
 .stat-num {
   font-size: 44rpx;
   font-weight: 700;
-  color: #fff;
+  color: var(--circle-ink);
 }
 .stat-label {
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--circle-secondary);
   margin-top: 4rpx;
 }
 .overview-roles {
   display: flex;
   margin-top: 32rpx;
   padding-top: 24rpx;
-  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+  border-top: 1rpx solid var(--circle-border-soft);
 }
 .role-stat {
   flex: 1;
@@ -376,11 +380,11 @@ function roleColor(role: MyCircleRole) {
 .role-stat-num {
   font-size: 28rpx;
   font-weight: 500;
-  color: #fff;
+  color: var(--circle-ink);
 }
 .role-stat-label {
   font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--circle-secondary);
   margin-top: 4rpx;
 }
 .search-wrap {
@@ -413,6 +417,8 @@ function roleColor(role: MyCircleRole) {
   gap: 16rpx;
 }
 .filter-chip {
+  min-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 8rpx;
@@ -597,8 +603,8 @@ function roleColor(role: MyCircleRole) {
   color: #bbb;
 }
 .manage-btn {
-  width: 56rpx;
-  height: 56rpx;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 16rpx;
   background: #f5f0e8;
   display: flex;

@@ -4,7 +4,7 @@
  * 结构：导航 → 身份区(成员头像入口+管理入口) → 公告 → AI助理入口 → 增值内容带(门控点亮) → Tab(动态/精华/文章) → 动态流
  * 门控：增值模块 v-if="xxx.length" 天然实现——未开通(无数据)=不存在，开通=融入。核心互动(帖子)恒为主体。
  * 底部：游客=加入通栏（转化关键）/ 已加入=无底栏，右下角 FAB 悬浮创作按钮 → 自定义发布 Sheet（V0 publish-sheet 稿）
- * 退出入口已移至「圈子·我的」(me.vue) 圈子卡 ···；管理入口移至身份区（仅圈主/管理员可见）
+ * 助理位于身份区；圈内资源通过抽屉承接；退出在圈子个人中心，管理入口按角色显示。
  * 数据层沿用原实现（circleDetailApi 全套 + 角色/加入/审批/付费/弹窗逻辑），不改后端契约。
  */
 import { ref, computed, nextTick } from 'vue'
@@ -34,9 +34,12 @@ import { growthApi } from '@/lib/circle-growth-data'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { buildH5Url } from '@/utils/share'
 import { withRef } from '@/utils/referral'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const circleId = ref('1')
 const { safeTop } = useAppSafeArea()
+const menuSafeRight = getMiniProgramMenuSafeRight()
+const resourcePanel = ref<'courses' | 'products' | null>(null)
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
 const members = ref<CircleMember[]>([])
@@ -186,8 +189,9 @@ function onCircleRefresh(id?: string) {
 }
 // 防抖重拉：加载中或 1 秒内已拉过则跳过
 let lastLoadAt = 0
+let dataLoading = false
 function refresh() {
-  if (isLoading.value || Date.now() - lastLoadAt < 1000) return
+  if (dataLoading || Date.now() - lastLoadAt < 1000) return
   loadData()
 }
 
@@ -215,14 +219,17 @@ onShareTimeline(() => toTimeline({
 }))
 
 async function loadData() {
-  isLoading.value = true
+  if (dataLoading) return
+  dataLoading = true
+  // 返回时更新数据，保留已呈现的阅读页面与栏目。
+  isLoading.value = !circle.value
   lastLoadAt = Date.now()
   error.value = ''
   try {
     // 主请求（圈子本体）失败才整页报错；子模块各自降级为空——防单个子接口抖动拖垮整页（董事长 2026-07-11 真机反馈修复）
     const c = await circleDetailApi.detail(circleId.value)
-    circle.value = c
-    isJoined.value = c.isJoined
+    if (!circle.value) isJoined.value = c.isJoined
+    circle.value = { ...c, myRole: circle.value?.myRole || c.myRole }
 
     const [p, m, arts, crs, lvs, prds, pas, st, jr] = await Promise.allSettled([
       circleDetailApi.posts(circleId.value, { throwOnError: true }),
@@ -258,6 +265,7 @@ async function loadData() {
   } catch {
     error.value = '加载失败，请重试'
   } finally {
+    dataLoading = false
     isLoading.value = false
   }
 }
@@ -405,18 +413,21 @@ function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?circ
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
 function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
 function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
-// 增值带跳转（此前课堂/橱窗都误跳全平台活动页 activities——无课无货还跨圈）：
-// 课堂→课程首页（pkg-course/home 不收 circleId 过滤参数·圈内课程聚合页后端待建，先跳真实课程板块）
-// 橱窗→商城首页（圈内商品聚合页不存在，跳商城比错跳活动页诚实；计数来自 ?circleId= 圈内接口，口径不符记后端配合项）
+// 课程与好物先展示本圈接口已返回的资源，选中后直达对应详情。
 function openLive(id: string) { navigateTo(`/live/${id}`) }
-function openCourses() { navigateTo('/pkg-course/home/index') }
-function openShowcase() { navigateTo('/pkg-mall/home/index') }
+function openCourses() { resourcePanel.value = 'courses' }
+function openShowcase() { resourcePanel.value = 'products' }
+function openResource(id: string) {
+  const route = resourcePanel.value === 'courses' ? '/pkg-course/detail/index' : '/pkg-mall/product/detail'
+  resourcePanel.value = null
+  navigateTo(`${route}?id=${encodeURIComponent(id)}`)
+}
 </script>
 
 <template>
   <view class="cd-page" v-if="!isLoading && !error && circle">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: safeTop + 'px' }">
+    <view class="nav" :style="{ paddingTop: safeTop + 'px', paddingRight: menuSafeRight ? menuSafeRight + 'px' : undefined }">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">{{ circle.name }}</text>
       <view class="nav-action" @tap="openShare"><app-icon name="share-2" :size="34" color="#6E6E73" /></view>
@@ -473,8 +484,20 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
             <app-icon name="chevron-right" :size="22" color="#C41E3A" />
           </view>
 
-          <!-- 董事长 #25：圈主助理 → 右下角智能客服式浮层（见页面底部 assistant-fab）；
-               达人咨询 → 「问答」内容分类 tab（见下）·两者不再占用身份区卡片 -->
+          <!-- 圈主助理放进身份区：用户不依赖悬浮球也能理解能力并直接进入。 -->
+          <view class="assistant-entry" role="link" tabindex="0" aria-label="向圈主助理提问" @tap="openAssistant" @keydown="activateOnKeyboard($event, openAssistant)">
+            <view class="assistant-entry-orb"><app-icon name="sparkles" :size="30" color="#ffffff" /></view>
+            <view class="assistant-entry-copy">
+              <view class="assistant-entry-title-row">
+                <text class="assistant-entry-title">问问圈主助理</text>
+                <text class="assistant-entry-badge">圈内专属</text>
+              </view>
+              <text class="assistant-entry-sub">圈子内容和学习问题，都可以从这里提问</text>
+
+            </view>
+            <app-icon name="chevron-right" :size="26" color="var(--circle-accent)" />
+          </view>
+
         </view>
       </view>
 
@@ -535,10 +558,10 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           class="tab-search"
           role="link"
           tabindex="0"
-          aria-label="搜索圈内内容"
+          aria-label="搜索圈子"
           @tap="navigateTo('/pkg-circle/circles/search')"
           @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-circle/circles/search'))"
-        ><app-icon name="search" :size="32" color="#999999" decorative /></view>
+        ><app-icon name="search" :size="32" color="#6E6E73" decorative /></view>
       </view>
 
       <!-- 动态 Tab：核心互动为主体，增值内容(课程/短视频/文章)以同一卡片语言穿插 -->
@@ -550,8 +573,8 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
         />
 
         <!-- 圈内课程卡（门控·融入流） -->
-        <view v-if="courses.length" class="inline-card course-card" @tap="openCourses">
-          <image lazy-load :src="courses[0].cover" class="course-cover" mode="aspectFill" />
+        <view v-if="courses.length" class="inline-card course-card" @tap="navigateTo(`/pkg-course/detail/index?id=${encodeURIComponent(courses[0].id)}`)">
+          <smart-cover :src="courses[0].cover" :title="courses[0].title" type="circle" class="course-cover" />
           <view class="course-main">
             <text class="course-kind">课程</text>
             <text class="course-title">{{ courses[0].title }}</text>
@@ -699,15 +722,25 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
     </view>
 
     <!-- 已加入：悬浮创作按钮（朱红圆形+笔图标·滚动时半透明） -->
-    <view v-else class="fab" :class="{ dim: fabDim }" @tap="openCreate">
-      <app-icon name="pen-line" :size="44" color="#ffffff" />
+    <view v-else class="fab" :class="{ dim: fabDim }" role="button" tabindex="0" :aria-label="canCreate ? '发布内容' : '发动态'" @tap="openCreate" @keydown="activateOnKeyboard($event, openCreate)">
+      <app-icon name="pen-line" :size="36" color="#ffffff" /><text class="fab-label">{{ canCreate ? '发布' : '发动态' }}</text>
     </view>
 
-    <!-- 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角，点击进圈子专属 AI 对话。
-         错层于发帖 FAB / 加入通栏之上（isJoined 时抬更高避开 FAB） -->
-    <view class="assistant-fab" :class="{ raised: isJoined, dim: fabDim }" @tap="openAssistant">
-      <view class="assistant-orb"><app-icon name="sparkles" :size="34" color="#ffffff" /></view>
-      <view class="assistant-tag"><text class="assistant-tag-txt">助理</text></view>
+    <!-- 圈内资源只展开本圈已返回的内容，避免把用户带到全平台列表。 -->
+    <view v-if="resourcePanel" class="mask" @tap="resourcePanel = null">
+      <view class="resource-sheet" role="dialog" aria-modal="true" :aria-label="resourcePanel === 'courses' ? '圈内课程' : '圈内好物'" @tap.stop>
+        <view class="resource-heading">
+          <text>{{ resourcePanel === 'courses' ? '圈内课程' : '圈内好物' }}</text>
+          <view role="button" tabindex="0" aria-label="关闭资源列表" class="resource-close" @tap="resourcePanel = null" @keydown="activateOnKeyboard($event, () => resourcePanel = null)"><text>完成</text></view>
+        </view>
+        <scroll-view scroll-y class="resource-list">
+          <view v-for="item in (resourcePanel === 'courses' ? courses : circleProducts)" :key="item.id" class="resource-item" role="link" tabindex="0" :aria-label="item.title" @tap="openResource(item.id)" @keydown="activateOnKeyboard($event, () => openResource(item.id))">
+            <smart-cover :src="item.cover" :title="item.title" type="circle" class="resource-cover" />
+            <view class="resource-copy"><text class="resource-title">{{ item.title }}</text><text class="resource-price">{{ item.price > 0 ? '¥' + formatPrice(item.price) : '免费' }}</text></view>
+            <app-icon name="chevron-right" :size="28" color="#6E6E73" />
+          </view>
+        </scroll-view>
+      </view>
     </view>
 
     <!-- 发布 Sheet（V0 circle-publish-sheet 稿）：遮罩+圆角面板+grabber+图标卡片 -->
@@ -722,7 +755,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           <view class="pub-icon post"><app-icon name="pen-line" :size="36" color="#C41E3A" /></view>
           <view class="pub-main">
             <text class="pub-name">发动态</text>
-            <text class="pub-desc">图文 · 文件 · 语音，发布后即刻生效</text>
+            <text class="pub-desc">分享文字、图片或文件，按圈规审核后展示</text>
           </view>
           <app-icon name="chevron-right" :size="26" color="#999999" />
         </view>
@@ -747,7 +780,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
           <view class="pub-icon plain"><app-icon name="megaphone" :size="32" color="#6E6E73" /></view>
           <view class="pub-main">
             <text class="pub-name light">发公告</text>
-            <text class="pub-desc">全体成员将收到通知，显示在圈子头部</text>
+            <text class="pub-desc">在圈子头部展示重要消息</text>
           </view>
           <app-icon name="chevron-right" :size="26" color="#999999" />
         </view>
@@ -814,51 +847,54 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 </template>
 
 <style scoped lang="scss">
-.cd-page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
+.cd-page { height: 100vh; background: var(--circle-canvas); display: flex; flex-direction: column; }
 
 /* 顶部导航 */
 .nav {
+  flex-shrink: 0;
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx;
   box-sizing: content-box;
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
+  background: #f5f5f7; backdrop-filter: blur(20rpx);
 }
 .nav-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; margin-left: -16rpx; }
-.nav-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--circle-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-action { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 
-.body { flex: 1; }
+.body { flex: 1; height: 0; min-height: 0; }
 
 /* A. 身份区 */
 .header { padding: 8rpx 32rpx 0; }
-.identity { background: var(--bg-card, #fff); border-radius: 32rpx; padding: 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.identity { background: var(--circle-surface); border-radius: var(--circle-radius-lg); padding: 28rpx; border: 1rpx solid var(--circle-border-soft); }
 .identity-top { display: flex; gap: 24rpx; align-items: flex-start; }
 .identity-cover { width: 112rpx; height: 112rpx; border-radius: 28rpx; flex-shrink: 0; }
 .identity-info { flex: 1; min-width: 0; }
-.identity-name { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.identity-name { display: block; font-size: 34rpx; font-weight: 700; color: var(--circle-ink); }
 .identity-desc { display: -webkit-box; font-size: 25rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* 管理入口（角色专属·小 chip） */
 .manage-chip {
+  min-height: 44px;
   flex-shrink: 0; display: flex; align-items: center; gap: 6rpx;
   padding: 10rpx 18rpx; border-radius: 999rpx;
   background: var(--brand-soft, rgba(196, 30, 58, 0.08));
 }
 .manage-chip:active { opacity: 0.85; }
 .manage-chip-txt { font-size: 23rpx; color: var(--brand, #c41e3a); font-weight: 600; }
-.identity-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--separator, #ede7dd); }
-.meta-stat { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.identity-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 24rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--circle-border-soft); }
+.meta-stat { font-size: 24rpx; color: var(--circle-secondary); }
 /* 成员入口：数字+头像叠排 */
 .meta-members { display: flex; align-items: center; gap: 8rpx; }
+.meta-members, .meta-owner { min-height: 44px; }
 .meta-members:active { opacity: 0.8; }
 .meta-avatars { display: flex; align-items: center; }
 .meta-avatar {
   width: 40rpx; height: 40rpx; border-radius: 999rpx; flex-shrink: 0;
-  border: 2rpx solid var(--bg-card, #fff); box-sizing: border-box;
+  border: 2rpx solid var(--circle-surface); box-sizing: border-box;
   /* 头像缺失/加载失败时兜底暖色圆盘，避免叠排出现空洞 */
   background: var(--gold-soft, rgba(201, 169, 110, 0.25));
 }
 .meta-avatar + .meta-avatar { margin-left: -12rpx; }
-.meta-num { font-size: 26rpx; color: var(--text-primary, #2c2c2c); font-weight: 600; margin-right: 4rpx; }
+.meta-num { font-size: 26rpx; color: var(--circle-ink); font-weight: 600; margin-right: 4rpx; }
 .meta-owner { display: flex; align-items: center; gap: 10rpx; margin-left: auto; }
 .meta-owner-avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; box-shadow: 0 0 0 2rpx var(--gold, #c9a96e); }
 .meta-owner-txt { font-size: 24rpx; color: var(--gold, #c9a96e); }
@@ -880,49 +916,48 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .announce-more { display: flex; align-items: center; gap: 4rpx; margin-top: 12rpx; padding-left: 24rpx; }
 .announce-more-txt { font-size: 24rpx; color: var(--brand, #c41e3a); }
 
-/* AI 助理入口·金色描边 */
-.ai-entry {
-  display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; padding: 22rpx 24rpx;
-  border-radius: 28rpx; background: var(--bg-card, #fff);
-  border: 1rpx solid rgba(201, 169, 110, 0.5);
+/* 圈主助理能力卡：用真实能力说明承接用户，不让悬浮球成为唯一入口。 */
+.assistant-entry {
+  display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 20rpx;
+  border: 1rpx solid rgba(43,111,104,.18); border-radius: var(--circle-radius-md);
+  background: #eef5f3;
 }
-.consult-entry { margin-top: 16rpx; }
-.ai-entry:active { opacity: 0.9; }
-.ai-orb { width: 60rpx; height: 60rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--gold-soft, rgba(201, 169, 110, 0.14)); display: flex; align-items: center; justify-content: center; }
-.ai-text { flex: 1; min-width: 0; }
-.ai-title { display: block; font-size: 27rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.ai-sub { display: block; font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 「去对话」是动作链接非荣誉标识，随品牌朱红（金色纪律纠偏·入口描边/圆底弱金氛围保留） */
-.ai-go { flex-shrink: 0; font-size: 24rpx; color: var(--brand, #c41e3a); font-weight: 500; }
+.assistant-entry:active { transform: scale(.995); background: #eef5f3; }
+.assistant-entry-orb { width: 64rpx; height: 64rpx; flex: 0 0 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: linear-gradient(135deg, #2b8a82, #2b6f68); box-shadow: 0 8rpx 18rpx rgba(43,111,104,.2); }
+.assistant-entry-copy { flex: 1; min-width: 0; }
+.assistant-entry-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10rpx; }
+.assistant-entry-title { font-size: 28rpx; font-weight: 650; color: var(--circle-ink); }
+.assistant-entry-badge { padding: 3rpx 10rpx; border-radius: 999rpx; font-size: var(--fs-caption); color: var(--circle-accent); background: var(--circle-accent-soft); }
+.assistant-entry-sub { display: block; margin-top: 5rpx; overflow: hidden; font-size: 22rpx; line-height: 1.4; color: var(--circle-secondary); white-space: normal; }
 
 /* 增值内容带 */
 .value-strip { width: 100%; white-space: nowrap; margin-top: 24rpx; }
 .value-row { display: inline-flex; gap: 20rpx; padding: 0 32rpx; }
-.live-card { flex-shrink: 0; width: 400rpx; display: inline-flex; gap: 20rpx; align-items: center; background: var(--bg-card, #fff); border-radius: 28rpx; padding: 20rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.live-card { flex-shrink: 0; width: 400rpx; display: inline-flex; gap: 20rpx; align-items: center; background: var(--circle-surface); border-radius: 28rpx; padding: 20rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
 .live-thumb { width: 128rpx; height: 96rpx; border-radius: 16rpx; flex-shrink: 0; }
 .live-info { min-width: 0; flex: 1; }
 .live-badge { display: flex; align-items: center; gap: 8rpx; }
 .live-dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
 .live-badge-txt { font-size: 21rpx; color: var(--brand, #c41e3a); font-weight: 600; }
-.live-name { display: block; font-size: 25rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.live-count { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
-.mini-entry { flex-shrink: 0; width: 256rpx; background: var(--bg-card, #fff); border-radius: 28rpx; padding: 20rpx 24rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.live-name { display: block; font-size: 25rpx; font-weight: 600; color: var(--circle-ink); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-count { display: block; font-size: 22rpx; color: var(--circle-secondary); margin-top: 2rpx; }
+.mini-entry { flex-shrink: 0; width: 256rpx; background: var(--circle-surface); border-radius: 28rpx; padding: 20rpx 24rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
 .mini-head { display: flex; align-items: center; justify-content: space-between; }
-.mini-title { font-size: 25rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.mini-sub { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
+.mini-title { font-size: 25rpx; font-weight: 600; color: var(--circle-ink); }
+.mini-sub { display: block; font-size: 22rpx; color: var(--circle-secondary); margin-top: 4rpx; }
 .mini-thumbs { display: flex; gap: 8rpx; margin-top: 16rpx; }
 .mini-thumb { width: 60rpx; height: 60rpx; border-radius: 12rpx; }
 
 /* B. Tab */
 .tabs {
-  position: sticky; top: 88rpx; z-index: 19;
-  display: flex; align-items: center; gap: 48rpx; padding: 0 40rpx; height: 88rpx; margin-top: 12rpx;
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
-  border-bottom: 1rpx solid var(--separator, #ede7dd);
+  position: sticky; top: 0; z-index: 19;
+  display: flex; align-items: center; gap: 16rpx; padding: 0 24rpx; height: 88rpx; margin-top: 12rpx;
+  background: #f5f5f7; backdrop-filter: blur(20rpx);
+  border-bottom: 1rpx solid var(--circle-border-soft);
 }
 /* tab-group 承接原先直接放在 .tabs 上的横向排布，保持栏目间距与整条高度不变 */
-.tab-group { display: flex; align-items: center; gap: 48rpx; height: 100%; }
-.tab { position: relative; height: 100%; display: flex; align-items: center; }
+.tab-group { display: flex; align-items: center; justify-content: space-between; flex: 1; gap: 12rpx; height: 100%; }
+.tab { position: relative; min-width: 44px; min-height: 44px; height: 100%; display: flex; align-items: center; }
 /* 焦点可见性：全站没有统一的 :focus-visible 样式，键盘用户看不出焦点在哪。
    这里只给本页新增的可聚焦控件补，不动全局。 */
 .tab:focus-visible,
@@ -934,30 +969,30 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
   border-radius: 8rpx;
 }
 .tab-txt { font-size: 30rpx; color: var(--text-secondary, #6e6e73); }
-.tab-txt.on { color: var(--text-primary, #2c2c2c); font-weight: 600; }
+.tab-txt.on { color: var(--circle-ink); font-weight: 600; }
 .tab-line { position: absolute; left: 50%; bottom: 12rpx; transform: translateX(-50%); width: 36rpx; height: 6rpx; border-radius: 3rpx; background: var(--brand, #c41e3a); }
-.tab-search { margin-left: auto; display: flex; align-items: center; }
+.tab-search { margin-left: auto; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 
 /* 动态流 */
 .feed { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
 /* 到底提示改用全局 .scroll-end（signature.scss 卷尾墨线） */
 
 /* 内联卡片（课程/文章） */
-.inline-card { background: var(--bg-card, #fff); border-radius: 32rpx; padding: 28rpx 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.inline-card { background: var(--circle-surface); border-radius: 32rpx; padding: 28rpx 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
 .course-card { display: flex; gap: 24rpx; }
 .course-cover { width: 232rpx; height: 148rpx; border-radius: 20rpx; flex-shrink: 0; }
 .course-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.course-kind { font-size: 22rpx; color: var(--text-tertiary, #999); letter-spacing: 2rpx; }
-.course-title { font-size: 29rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 6rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.course-kind { font-size: 22rpx; color: var(--circle-secondary); letter-spacing: 2rpx; }
+.course-title { font-size: 29rpx; font-weight: 700; color: var(--circle-ink); margin-top: 6rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .course-meta { display: flex; align-items: center; gap: 16rpx; margin-top: auto; padding-top: 12rpx; }
 /* 价格=交易信息走品牌朱红（金色纪律：金只留给会员/成就/精华/认证/圈主/评分/收藏选中） */
 .course-price { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
-.course-teacher { font-size: 23rpx; color: var(--text-tertiary, #999); }
+.course-teacher { font-size: 23rpx; color: var(--circle-secondary); }
 .article-card { display: flex; gap: 24rpx; align-items: stretch; }
 .article-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.article-kind { font-size: 22rpx; color: var(--text-tertiary, #999); letter-spacing: 2rpx; }
-.article-title { font-size: 30rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 8rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.article-byline { margin-top: auto; padding-top: 12rpx; font-size: 22rpx; color: var(--text-tertiary, #999); }
+.article-kind { font-size: 22rpx; color: var(--circle-secondary); letter-spacing: 2rpx; }
+.article-title { font-size: 30rpx; font-weight: 700; color: var(--circle-ink); margin-top: 8rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.article-byline { margin-top: auto; padding-top: 12rpx; font-size: 22rpx; color: var(--circle-secondary); }
 .article-cover { width: 176rpx; height: 176rpx; border-radius: 20rpx; flex-shrink: 0; align-self: center; }
 
 /* 空态 */
@@ -984,7 +1019,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
   display: flex; align-items: center; gap: 20rpx;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20rpx);
-  border-top: 1rpx solid var(--separator, #ede7dd);
+  border-top: 1rpx solid var(--circle-border-soft);
 }
 .btn-join { flex: 1; height: 88rpx; border-radius: 44rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; }
 .btn-join-txt { font-size: 30rpx; color: #fff; font-weight: 600; }
@@ -992,37 +1027,14 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 /* 悬浮创作按钮（FAB·朱红圆形+笔图标·滚动半透明） */
 .fab {
   position: fixed; right: 32rpx; bottom: calc(64rpx + env(safe-area-inset-bottom)); z-index: 30;
-  width: 108rpx; height: 108rpx; border-radius: 999rpx;
+  min-width: 44px; min-height: 44px; height: 96rpx; padding: 0 28rpx; gap: 10rpx; border-radius: 999rpx;
   background: var(--brand, #c41e3a);
   box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.35);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.25s ease;
 }
-.fab.dim { opacity: 0.5; }
+.fab.dim { opacity: 0.85; }
 .fab:active { transform: scale(0.95); }
-
-/* 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角。
-   未加入=在加入通栏上方；已加入(raised)=错层于发帖 FAB 之上 */
-.assistant-fab {
-  position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: 31;
-  display: flex; flex-direction: column; align-items: center;
-  transition: opacity 0.25s ease;
-}
-.assistant-fab.raised { bottom: calc(200rpx + env(safe-area-inset-bottom)); }
-.assistant-fab.dim { opacity: 0.5; }
-.assistant-fab:active { transform: scale(0.95); }
-.assistant-orb {
-  width: 96rpx; height: 96rpx; border-radius: 999rpx;
-  background: linear-gradient(135deg, #d4af37, #c9a96e 55%, #b8860b);
-  box-shadow: 0 8rpx 24rpx rgba(201, 169, 110, 0.45);
-  display: flex; align-items: center; justify-content: center;
-}
-.assistant-tag {
-  margin-top: -14rpx; padding: 2rpx 14rpx; border-radius: 999rpx;
-  background: #ffffff; border: 1rpx solid var(--separator, #ede7dd);
-  box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.12);
-}
-.assistant-tag-txt { font-size: 20rpx; color: #8a6d3b; font-weight: 600; line-height: 1.4; }
 
 /* 问答 Tab（达人付费问答） */
 /* 托管担保条随盾牌一并离金归朱（浅朱底+中性文字，同处纠偏保持整条协调） */
@@ -1040,12 +1052,12 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .qa-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; }
 .qa-main { flex: 1; min-width: 0; }
 .qa-name-line { display: flex; align-items: center; gap: 12rpx; }
-.qa-name { font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.qa-name { font-size: 30rpx; font-weight: 600; color: var(--circle-ink); }
 .qa-role {
   padding: 2rpx 12rpx; border-radius: 8rpx; font-size: 20rpx;
   color: #8a6d3b; background: rgba(201, 169, 110, 0.15);
 }
-.qa-price { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.qa-price { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--circle-secondary); }
 .qa-ask-btn {
   flex-shrink: 0; padding: 14rpx 36rpx; border-radius: 999rpx;
   background: var(--brand, #c41e3a);
@@ -1053,23 +1065,23 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .qa-ask-txt { font-size: 26rpx; color: #ffffff; font-weight: 600; }
 .qa-links { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 20rpx 0 8rpx; }
 .qa-link { font-size: 26rpx; color: #8a6d3b; }
-.qa-link-sep { font-size: 22rpx; color: var(--separator, #ede7dd); }
+.qa-link-sep { font-size: 22rpx; color: var(--circle-border-soft); }
 
 /* 发布 Sheet（V0 circle-publish-sheet 稿） */
 .pub-mask { position: fixed; inset: 0; z-index: 100; background: rgba(44, 44, 44, 0.35); display: flex; align-items: flex-end; }
 .pub-sheet {
-  width: 100%; background: var(--bg-page, #faf8f5);
+  width: 100%; background: var(--circle-canvas);
   border-radius: 36rpx 36rpx 0 0;
   padding: 16rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
   box-shadow: 0 -16rpx 64rpx rgba(44, 44, 44, 0.12);
 }
-.pub-grabber { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: var(--separator, #ede7dd); margin: 8rpx auto 28rpx; }
-.pub-title { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
-.pub-sub { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin: 4rpx 0 28rpx; }
+.pub-grabber { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: var(--circle-border-soft); margin: 8rpx auto 28rpx; }
+.pub-title { display: block; font-size: 34rpx; font-weight: 700; color: var(--circle-ink); }
+.pub-sub { display: block; font-size: 24rpx; color: var(--circle-secondary); margin: 4rpx 0 28rpx; }
 .pub-post {
   display: flex; align-items: center; gap: 24rpx;
   padding: 32rpx; border-radius: 36rpx;
-  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  background: var(--circle-surface); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
 .pub-post:active { opacity: 0.9; }
 .pub-icon {
@@ -1080,23 +1092,23 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .pub-icon.gold { width: 80rpx; height: 80rpx; background: var(--bg-warm, #f8f4ec); }
 .pub-icon.plain { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: var(--bg-warm, #f8f4ec); }
 .pub-main { flex: 1; min-width: 0; }
-.pub-name { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.pub-name { display: block; font-size: 30rpx; font-weight: 600; color: var(--circle-ink); }
 .pub-name.light { font-weight: 500; font-size: 28rpx; }
-.pub-desc { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pub-label { display: block; margin: 32rpx 4rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
-.pub-group { background: var(--bg-card, #fff); border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.pub-desc { display: block; font-size: 24rpx; color: var(--circle-secondary); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-label { display: block; margin: 32rpx 4rpx 16rpx; font-size: 24rpx; color: var(--circle-secondary); }
+.pub-group { background: var(--circle-surface); border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
 .pub-row { display: flex; align-items: center; gap: 24rpx; padding: 28rpx 32rpx; }
-.pub-row + .pub-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.pub-row + .pub-row { border-top: 1rpx solid var(--circle-border-soft); }
 .pub-row:active { background: var(--bg-warm, #f8f4ec); }
 .pub-manage {
   display: flex; align-items: center; gap: 20rpx; margin-top: 24rpx;
-  padding: 26rpx 32rpx; background: var(--bg-card, #fff);
+  padding: 26rpx 32rpx; background: var(--circle-surface);
   border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
 .pub-manage:active { background: var(--bg-warm, #f8f4ec); }
 .pub-cancel {
   margin-top: 24rpx; padding: 28rpx; border-radius: 36rpx;
-  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  background: var(--circle-surface); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
   display: flex; align-items: center; justify-content: center;
 }
 .pub-cancel:active { background: var(--bg-warm, #f8f4ec); }
@@ -1104,30 +1116,44 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
 /* 弹窗 */
 .mask { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; }
-.sheet { width: 100%; background: var(--bg-card, #fff); border-radius: 40rpx 40rpx 0 0; padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); }
+.sheet { width: 100%; background: var(--circle-surface); border-radius: 40rpx 40rpx 0 0; padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); }
 .sheet-head { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
 .sheet-icon { width: 96rpx; height: 96rpx; border-radius: 999rpx; background: linear-gradient(135deg, var(--brand, #c41e3a), #a01530); display: flex; align-items: center; justify-content: center; }
-.sheet-title { font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 8rpx; }
+.sheet-title { font-size: 34rpx; font-weight: 700; color: var(--circle-ink); margin-top: 8rpx; }
 .sheet-sub { font-size: 24rpx; color: var(--text-secondary, #6e6e73); text-align: center; }
 .benefits { display: flex; flex-direction: column; gap: 20rpx; margin: 32rpx 0; }
 .benefit { display: flex; align-items: center; gap: 20rpx; }
 .benefit-icon { width: 64rpx; height: 64rpx; border-radius: 18rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.benefit-title { display: block; font-size: 27rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
-.benefit-desc { display: block; font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.benefit-title { display: block; font-size: 27rpx; font-weight: 500; color: var(--circle-ink); }
+.benefit-desc { display: block; font-size: 23rpx; color: var(--circle-secondary); margin-top: 2rpx; }
 .sheet-actions { display: flex; gap: 20rpx; }
 .sheet-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; }
-.sheet-btn.cancel { background: var(--bg-page, #faf8f5); }
+.sheet-btn.cancel { background: var(--circle-canvas); }
 .sheet-btn.confirm { background: var(--brand, #c41e3a); }
 .sheet-btn-txt { font-size: 29rpx; font-weight: 600; }
 .sheet-btn-txt.cancel { color: var(--text-secondary, #6e6e73); }
 .sheet-btn-txt.confirm { color: #fff; }
 
 /* 骨架/错误 */
-.cd-skeleton { min-height: 100vh; background: var(--bg-page, #faf8f5); padding: 120rpx 32rpx; }
+.cd-skeleton { min-height: 100vh; background: var(--circle-canvas); padding: 120rpx 32rpx; }
 .sk-header { height: 200rpx; background: #f2efea; border-radius: 32rpx; margin-bottom: 24rpx; }
 .sk-card { height: 180rpx; background: #f2efea; border-radius: 32rpx; margin-bottom: 24rpx; }
 .cd-err { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
-.cd-err-txt { font-size: 28rpx; color: var(--text-tertiary, #999); }
+.cd-err-txt { font-size: 28rpx; color: var(--circle-secondary); }
 .cd-err-retry { padding: 20rpx 64rpx; background: var(--brand, #c41e3a); border-radius: 24rpx; }
 .cd-err-retry-t { font-size: 28rpx; color: #fff; }
+
+/* 圈内资源抽屉保留圈子上下文。 */
+.resource-sheet { width: 100%; box-sizing: border-box; padding: 24rpx 24rpx calc(24rpx + env(safe-area-inset-bottom)); background: var(--circle-surface); border-radius: 32rpx 32rpx 0 0; }
+.resource-heading { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-title); font-weight: 600; }
+.resource-close { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; font-size: var(--fs-body-sm); color: var(--circle-accent); }
+.resource-list { max-height: 60vh; height: 50vh; }
+.resource-item { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 0; border-bottom: 1rpx solid var(--circle-border-soft); }
+.resource-cover { width: 128rpx; height: 96rpx; flex-shrink: 0; border-radius: 12rpx; overflow: hidden; }
+.resource-copy { flex: 1; min-width: 0; }
+.resource-title { display: block; font-size: var(--fs-body); font-weight: 600; }
+.resource-price { display: block; margin-top: 8rpx; font-size: var(--fs-body-sm); color: var(--circle-secondary); }
+.fab-label { font-size: var(--fs-body-sm); color: #fff; font-weight: 600; }
+[role="button"]:focus-visible, [role="link"]:focus-visible { outline: 2px solid var(--circle-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .assistant-entry, .fab { transition: none; transform: none; } }
 </style>

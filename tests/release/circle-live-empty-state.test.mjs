@@ -123,7 +123,7 @@ test('圈子详情：栏目标签可键盘操作，触发返回推荐后焦点�
   assert.ok(backCalls.length >= 6, '三个栏目空态的 tap 与 keydown 都要走带收焦点的处理')
 
   // 搜索入口此前是无名可点 view
-  assert.match(source, /class="tab-search"[\s\S]{0,200}?aria-label="搜索圈内内容"/u)
+  assert.match(source, /class="tab-search"[\s\S]{0,200}?aria-label="搜索圈子"/u)
 
   // 焦点轮廓用物理 px：4rpx 在 320 宽机型上只算到 1px
   const focusBlock = source.match(/:focus-visible[\s\S]{0,300}?\}/u)?.[0] ?? ''

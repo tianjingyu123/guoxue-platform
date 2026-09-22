@@ -1,8 +1,6 @@
 <script setup lang="ts">
 /**
- * 圈子首页（圈子广场）— V0「两段式一屏」重构（2026-07-10）
- * 结构：我的圈子(横滑·回访) + 发现圈子(分类+推荐列表) + 动态(已加入圈子聚合)
- * 顶栏：标题 + 搜索 + 创建 + 「圈子·我的」头像入口（板块门户 4.3）
+ * 圈子入口：回访、发现、动态三个分区，数据与既有路由复用。
  * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
  */
 import { computed, nextTick, ref, onMounted } from 'vue'
@@ -24,6 +22,15 @@ import { growthApi } from '@/lib/circle-growth-data'
 // 微信原生胶囊覆盖顶栏时，按真实左边界给操作区留出可点击空间。
 const menuSafeRight = getMiniProgramMenuSafeRight()
 
+const hubTabs = [{ id: 'mine', label: '我的圈子' }, { id: 'discover', label: '发现圈子' }, { id: 'activity', label: '圈内动态' }] as const
+type HubTab = typeof hubTabs[number]['id']
+const activeHub = ref<HubTab>(getToken() ? 'mine' : 'discover')
+const sessionReady = ref(!!getToken())
+const extrasLoading = ref(true)
+const extrasFailed = ref(false)
+const activityFailed = ref(false)
+let extrasSeq = 0
+function selectHub(id: HubTab) { activeHub.value = id }
 const category = ref('')
 const circles = ref<Circle[]>([])
 const myCircles = ref<Circle[]>([])
@@ -121,13 +128,20 @@ async function loadCircles(silent = false) {
 /** 我的圈子 + 动态 + 统计（与分类无关，首屏加载一次；各自空数据走空态） */
 async function loadExtras() {
   // 圈子广场是公共获客页：游客只拉公开动态，不能让可选“我的”接口 401 劫持整页去登录。
+  const seq = ++extrasSeq
   const hasSession = !!getToken()
+  sessionReady.value = hasSession
+  extrasLoading.value = true
+  extrasFailed.value = false
+  activityFailed.value = false
   const [myRes, statsRes, jrRes] = await Promise.allSettled([
-    hasSession ? circleApi.my(true) : Promise.resolve([]),
+    hasSession ? circleApi.my(true, { throwOnError: true }) : Promise.resolve([]),
     hasSession ? circleApi.getMyStats(true) : Promise.resolve(myStats.value),
     // 我的入圈申请（真连 GET /circles/my-join-requests）：待审核圈子回填「审核中」标；未登录不发请求
     hasSession ? growthApi.myJoinRequests(true) : Promise.resolve([]),
   ])
+  if (seq !== extrasSeq) return
+  extrasFailed.value = myRes.status === 'rejected'
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
   joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))
   discoverBatch.value = 0
@@ -135,7 +149,7 @@ async function loadExtras() {
   if (hasSession && myCircles.value.length) {
     const postResults = await Promise.allSettled(
       myCircles.value.slice(0, MINE_PREVIEW_LIMIT).map(async (circle) => {
-        const result = await circleDetailApi.posts(String(circle.id))
+        const result = await circleDetailApi.posts(String(circle.id), { throwOnError: true })
         return result.data.slice(0, 2).map((post): HotPost & { createdAt: string } => ({
           id: post.id,
           circleId: String(circle.id),
@@ -151,6 +165,8 @@ async function loadExtras() {
         }))
       }),
     )
+    if (seq !== extrasSeq) return
+    activityFailed.value = postResults.some((result) => result.status === 'rejected')
     hotPosts.value = postResults
       .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
@@ -158,6 +174,7 @@ async function loadExtras() {
   } else {
     hotPosts.value = []
   }
+  extrasLoading.value = false
   if (statsRes.status === 'fulfilled') myStats.value = statsRes.value
   // 拉取失败保持上次结果（不误清标记）；成功则全量刷新
   if (jrRes.status === 'fulfilled') {
@@ -187,6 +204,7 @@ async function onCategoryKeydown(event: KeyboardEvent, id: string) {
   const nextIndex = (currentIndex + direction + circleCategories.length) % circleCategories.length
   selectCategory(circleCategories[nextIndex].id)
   await nextTick()
+  if (typeof document === 'undefined') return
   const tabs = document.querySelectorAll<HTMLElement>('.cat-chip[role="tab"]')
   tabs[nextIndex]?.focus()
 }
@@ -208,6 +226,7 @@ function nextDiscoverBatch() {
 function go(url: string) { navigateTo(url) }
 // 未加入 → 购买/加入引导页 preview（转化关键·付费圈走确认支付）；已加入 → 圈子详情
 function openCircle(c: Circle) {
+  if (pendingIds.value.has(String(c.id))) { go('/pkg-circle/circles/my-join-requests'); return }
   if (c.isJoined) navigateTo(`/pkg-circle/circles/detail?id=${c.id}`)
   else navigateTo(`/pkg-circle/circles/preview?id=${c.id}`)
 }
@@ -250,53 +269,46 @@ onShow(() => {
     <app-network-bar />
     <customer-service-fab />
 
-    <!-- 顶栏：标题 + 搜索 + 创建 + 圈子·我的入口 -->
-    <view class="topbar">
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
       <text class="title" role="heading" aria-level="1">圈子</text>
-      <view
-        class="actions"
-        role="navigation"
-        aria-label="圈子广场快捷操作"
-        :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined"
-      >
-        <view
-          class="icon-btn"
-          role="link"
-          tabindex="0"
-          aria-label="搜索圈子"
-          @tap="go('/pkg-circle/circles/search')"
-          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/search'))"
-        >
-          <app-icon name="search" :size="36" color="#2C2C2C" />
-        </view>
-        <view
-          class="create-btn"
-          role="link"
-          tabindex="0"
-          aria-label="创建圈子"
-          @tap="go('/pkg-circle/circles/create')"
-          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/create'))"
-        >
-          <app-icon name="plus" :size="28" color="#ffffff" />
-          <text class="create-btn-txt">创建</text>
-        </view>
-        <!-- 「圈子·我的」板块门户入口（非全局个人中心） -->
-        <view
-          class="me-entry"
-          role="link"
-          tabindex="0"
-          aria-label="打开我的圈子"
-          @tap="go('/pkg-circle/circles/me')"
-          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))"
-        >
-          <app-icon name="user" :size="34" color="#666666" />
+      <view class="actions">
+        <view class="me-entry" role="link" tabindex="0" aria-label="圈子个人中心"
+          @tap="go('/pkg-circle/circles/me')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))">
+          <app-icon name="user" :size="36" color="#1D1D1F" />
         </view>
       </view>
     </view>
-
+    <view class="hub-nav" role="tablist" aria-label="圈子浏览区域">
+      <view v-for="tab in hubTabs" :key="tab.id" class="hub-tab" :class="{ selected: activeHub === tab.id }"
+        role="tab" :aria-selected="activeHub === tab.id" tabindex="0"
+        @tap="selectHub(tab.id)" @keydown="activateOnKeyboard($event, () => selectHub(tab.id))">
+        <text>{{ tab.label }}</text>
+      </view>
+    </view>
     <scroll-view scroll-y class="body" aria-label="圈子广场内容">
+      <view class="search-entry" role="link" tabindex="0" aria-label="搜索圈子"
+        @tap="go('/pkg-circle/circles/search')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/search'))">
+        <app-icon name="search" :size="32" color="#6E6E73" /><text>搜索圈子</text>
+      </view>
+      <view v-if="activeHub !== 'discover' && extrasLoading" class="state-panel" role="status">
+        <text class="state-title">正在更新你的圈子</text>
+      </view>
+      <view v-else-if="activeHub !== 'discover' && extrasFailed" class="state-panel" role="alert">
+        <text class="state-title">暂时无法加载你的圈子</text>
+        <view class="empty-action" role="button" tabindex="0" @tap="loadExtras" @keydown="activateOnKeyboard($event, loadExtras)"><text class="empty-action-txt">重新加载</text></view>
+      </view>
+      <view v-else-if="activeHub !== 'discover' && !myCircles.length" class="state-panel" role="status">
+        <app-icon name="users" :size="64" color="#2B6F68" />
+        <text class="state-title">{{ sessionReady ? '从一个感兴趣的圈子开始' : '登录后，继续你的圈内交流' }}</text>
+        <text class="state-desc">{{ sessionReady ? '先看看公开介绍，再决定是否加入。' : '已加入的圈子和圈内动态会展示在这里。' }}</text>
+        <view class="empty-action" role="button" tabindex="0"
+          @tap="sessionReady ? selectHub('discover') : go('/pkg-auth/login/index')"
+          @keydown="activateOnKeyboard($event, () => sessionReady ? selectHub('discover') : go('/pkg-auth/login/index'))">
+          <text class="empty-action-txt">{{ sessionReady ? '发现圈子' : '去登录' }}</text>
+        </view>
+      </view>
       <!-- ════ 区① 我的圈子 · 私域书斋 ════ -->
-      <view v-if="myCircles.length" class="section mine-section" aria-label="我的圈子">
+      <view v-if="activeHub === 'mine' && myCircles.length && !extrasFailed" class="section mine-section" aria-label="我的圈子">
         <view class="mine-shell">
           <view class="mine-shell-head">
             <view class="mine-heading">
@@ -304,7 +316,7 @@ onShow(() => {
                 <text class="mine-title">我的圈子</text>
                 <text class="mine-count">{{ myCircles.length }} 个已加入</text>
               </view>
-                <text class="mine-subtitle">常逛的圈子，轻点即可进入</text>
+                <text class="mine-subtitle">选择一个圈子，继续交流</text>
             </view>
             <view
               class="mine-more"
@@ -315,7 +327,7 @@ onShow(() => {
               @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))"
             >
               <text class="mine-more-txt">全部</text>
-              <app-icon name="chevron-right" :size="22" color="#64766E" />
+              <app-icon name="chevron-right" :size="22" color="#2B6F68" />
             </view>
           </view>
           <scroll-view scroll-x class="mine-scroll">
@@ -342,7 +354,7 @@ onShow(() => {
                     <text class="mine-members">{{ formatMembers(c.members) }} 圈友</text>
                     <view class="mine-enter">
                       <text class="mine-enter-txt">进入</text>
-                      <app-icon name="chevron-right" :size="20" color="#64766E" />
+                      <app-icon name="chevron-right" :size="20" color="#2B6F68" />
                     </view>
                   </view>
                 </view>
@@ -353,8 +365,8 @@ onShow(() => {
       </view>
 
       <!-- ════ 区② 发现圈子 ════ -->
-      <view class="section">
-        <view class="sec-head"><text class="sec-title">发现圈子</text></view>
+      <view v-show="activeHub === 'discover'" class="section">
+        <view class="sec-head"><view><text class="sec-title">找到你的同好</text><text class="section-desc">先了解内容与加入方式</text></view></view>
         <!-- 分类筛选 -->
         <scroll-view scroll-x class="cat-scroll">
           <view class="cat-row" role="tablist" aria-label="发现圈子分类">
@@ -404,7 +416,6 @@ onShow(() => {
               <view v-if="c.rank" class="card-rank"><text class="card-rank-txt">热门 {{ c.rank }}</text></view>
             </view>
             <view class="card-body">
-              <text class="card-kicker">{{ c.todayActive && c.todayActive > 0 ? '今日正在发生' : `${c.category || '国学'} · 圈子门帖` }}</text>
               <view class="card-head">
                 <text class="card-title">{{ c.name }}</text>
                 <view v-if="pendingIds.has(String(c.id))" class="tag-pending"><text class="tag-pending-txt">审核中</text></view>
@@ -412,7 +423,7 @@ onShow(() => {
               <text class="card-desc">{{ c.description }}</text>
               <view class="card-signals">
                 <view class="card-signal">
-                  <app-icon name="users" :size="20" color="#7C6852" />
+                  <app-icon name="users" :size="20" color="#6E6E73" />
                   <text class="card-signal-txt">{{ formatMembers(c.members) }} 圈友</text>
                 </view>
                 <view v-if="c.posts > 0" class="card-signal">
@@ -432,7 +443,7 @@ onShow(() => {
                   <text v-else class="card-price free">免费加入</text>
                 </view>
                 <view class="card-cta" :class="{ pending: pendingIds.has(String(c.id)) }">
-                  <text class="card-cta-txt">{{ pendingIds.has(String(c.id)) ? '查看申请' : '看看圈里' }}</text>
+                  <text class="card-cta-txt">{{ pendingIds.has(String(c.id)) ? '查看申请' : '了解圈子' }}</text>
                   <app-icon name="chevron-right" :size="21" color="#FFFFFF" />
                 </view>
               </view>
@@ -491,13 +502,13 @@ onShow(() => {
       </view>
 
       <!-- ════ 区③ 动态 · 已加入圈子聚合 ════ -->
-      <view v-if="hotPosts.length" class="section activity-section" aria-label="来自已加入圈子的最新动态">
+      <view v-if="activeHub === 'activity' && hotPosts.length && !extrasFailed" class="section activity-section" aria-label="来自已加入圈子的最新动态">
         <view class="sec-head activity-head">
           <view class="sec-title-wrap">
             <text class="sec-title">圈内新鲜事</text>
             <text class="sec-sub">来自你加入的圈子</text>
           </view>
-          <view class="activity-mark"><view class="activity-mark-dot" /><text class="activity-mark-txt">持续更新</text></view>
+          <text class="sec-sub">最近动态</text>
         </view>
         <view class="feed-list activity-shell">
           <view
@@ -529,8 +540,8 @@ onShow(() => {
               </view>
               <text class="feed-text">{{ post.content }}</text>
               <view class="feed-foot">
-                <view class="feed-stat"><app-icon name="heart" :size="20" color="#A18D79" /><text>{{ post.likes || 0 }}</text></view>
-                <view class="feed-stat"><app-icon name="message-circle" :size="20" color="#A18D79" /><text>{{ post.comments || 0 }}</text></view>
+                <view class="feed-stat"><app-icon name="heart" :size="20" color="#6E6E73" /><text>{{ post.likes || 0 }}</text></view>
+                <view class="feed-stat"><app-icon name="message-circle" :size="20" color="#6E6E73" /><text>{{ post.comments || 0 }}</text></view>
                 <text class="feed-open">展开阅读</text>
               </view>
             </view>
@@ -540,6 +551,16 @@ onShow(() => {
         </view>
       </view>
 
+      <view v-if="activeHub === 'activity' && !extrasLoading && !extrasFailed && myCircles.length && (!hotPosts.length || activityFailed)" class="state-panel" :role="activityFailed ? 'alert' : 'status'">
+        <text class="state-title">{{ activityFailed ? '部分圈内动态加载失败' : '最近还没有动态' }}</text>
+        <text class="state-desc">当前展示前 {{ MINE_PREVIEW_LIMIT }} 个圈子的近期动态，更多内容可进入圈子查看。</text>
+        <view class="empty-action" role="button" tabindex="0" @tap="activityFailed ? loadExtras() : selectHub('mine')" @keydown="activateOnKeyboard($event, () => activityFailed ? loadExtras() : selectHub('mine'))">
+          <text class="empty-action-txt">{{ activityFailed ? '重新加载' : '去我的圈子' }}</text>
+        </view>
+      </view>
+      <view v-if="activeHub === 'mine'" class="create-row" role="link" tabindex="0" @tap="go('/pkg-circle/circles/create')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/create'))">
+        <app-icon name="plus" :size="32" color="#2B6F68" /><text>创建圈子</text><app-icon name="chevron-right" :size="24" color="#6E6E73" />
+      </view>
       <view class="bottom-spacer" />
     </scroll-view>
 
@@ -548,409 +569,105 @@ onShow(() => {
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
-
-/* 顶栏 */
-.topbar {
-  position: sticky; top: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20rpx 32rpx 12rpx;
-  padding-top: calc(var(--status-bar-height, 0px) + 20rpx);
-  background: rgba(250, 248, 245, 0.92);
-  backdrop-filter: blur(20rpx);
-}
-/* 微信小程序右上角原生胶囊会覆盖页面顶栏。把操作区整体下移到胶囊下方，
- * 保证搜索、创建和「我的圈子」都能点击；其他端保持原有紧凑布局。 */
-/* #ifdef MP-WEIXIN */
-.topbar {
-  padding-top: calc(var(--status-bar-height, 0px) + 96rpx);
-}
-/* #endif */
-.title { font-size: 44rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); letter-spacing: 1rpx; }
-.actions { display: flex; align-items: center; gap: 14rpx; }
-/* 搜索入口：常显浅底衬+88rpx 触达区 */
-.icon-btn { position: relative; width: 88rpx; height: 88rpx; border-radius: 999rpx; background: rgba(0, 0, 0, 0.04); display: flex; align-items: center; justify-content: center; }
-.icon-btn:active { background: var(--separator, #ede7dd); }
-/* 创建=关键动作·朱红实底 */
-.create-btn {
-  display: flex; align-items: center; gap: 6rpx;
-  height: 60rpx; padding: 0 24rpx; border-radius: 30rpx;
-  background: var(--brand, #c41e3a);
-}
-.create-btn-txt { font-size: 26rpx; color: #fff; font-weight: 500; }
-.create-btn:active { opacity: 0.85; }
-/* 圈子·我的入口 */
-.me-entry {
-  width: 88rpx; height: 88rpx; border-radius: 999rpx;
-  display: flex; align-items: center; justify-content: center;
-  background: #fff; box-shadow: 0 0 0 2rpx var(--separator, #ede7dd);
-}
-.me-entry:active { opacity: 0.8; }
-
-.body { flex: 1; }
-.section { margin-top: 40rpx; }
-.bottom-spacer { height: 180rpx; }
-
-/* 分区标题 */
-.sec-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 32rpx; margin-bottom: 20rpx; }
-.sec-title { font-size: 34rpx; font-weight: 650; color: var(--text-primary, #2c2c2c); }
-.sec-title-wrap { display: flex; align-items: baseline; gap: 14rpx; }
-.sec-sub { font-size: 22rpx; color: var(--text-tertiary, #999); }
-.sec-more { display: flex; align-items: center; gap: 2rpx; }
-.sec-more-txt { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
-
-/* 区① 我的圈子：浅色册页。背景退后，让每张圈子封面成为视觉主体。 */
-.mine-section { margin-top: 20rpx; }
-.mine-shell {
-  position: relative;
-  margin: 0 24rpx;
-  overflow: hidden;
-  border: 1rpx solid #dbe4df;
-  border-radius: 36rpx;
-  background:
-    radial-gradient(circle at 92% 4%, rgba(111, 143, 129, 0.12), transparent 34%),
-    linear-gradient(125deg, #f1f5f2 0%, #faf8f3 100%);
-  box-shadow: 0 12rpx 28rpx rgba(52, 72, 63, 0.08);
-}
-.mine-shell::before {
-  content: '';
-  position: absolute;
-  top: 18rpx;
-  right: 26rpx;
-  width: 90rpx;
-  height: 90rpx;
-  border: 1rpx solid rgba(88, 117, 103, 0.12);
-  border-radius: 999rpx;
-  box-shadow: inset 0 0 0 12rpx rgba(88, 117, 103, 0.025);
-  pointer-events: none;
-}
-.mine-shell-head {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 26rpx 26rpx 20rpx;
-}
-.mine-heading { min-width: 0; }
-.mine-title-row { display: flex; align-items: center; gap: 14rpx; }
-.mine-title { font-size: 34rpx; font-weight: 650; color: #263a32; letter-spacing: 1rpx; }
-.mine-count {
-  padding: 4rpx 12rpx;
-  border: 1rpx solid rgba(84, 117, 102, 0.18);
-  border-radius: 999rpx;
-  font-size: 19rpx;
-  color: #60766c;
-  background: rgba(255, 255, 255, 0.72);
-}
-.mine-subtitle { display: block; margin-top: 7rpx; font-size: 22rpx; color: #7c8c85; }
-.mine-more { position: relative; z-index: 1; display: flex; align-items: center; padding-top: 6rpx; }
-.mine-more-txt { font-size: 22rpx; color: #64766e; }
-.mine-scroll { position: relative; z-index: 1; width: 100%; white-space: nowrap; }
-.mine-row { display: inline-flex; gap: 16rpx; padding: 0 24rpx 28rpx; }
-.mine-card {
-  width: 232rpx;
-  height: 258rpx;
-  box-sizing: border-box;
-  display: inline-flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1rpx solid rgba(78, 101, 91, 0.18);
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10rpx 22rpx rgba(38, 58, 49, 0.14);
-  vertical-align: top;
-}
-.mine-cover-wrap {
-  position: relative;
-  flex: 0 0 174rpx;
-  width: 100%;
-  height: 174rpx;
-  overflow: hidden;
-  background: #e9edea;
-}
+.page { height: 100vh; display: flex; flex-direction: column; background: var(--circle-canvas); color: var(--circle-ink); }
+.topbar { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: calc(var(--status-bar-height, 0px) + 16rpx) 32rpx 8rpx; background: var(--circle-canvas); }
+.title { font-size: var(--fs-display); font-weight: 700; letter-spacing: -1rpx; }
+.actions { display: flex; align-items: center; }
+.me-entry { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 50%; background: var(--circle-surface); }
+.hub-nav { display: flex; flex-shrink: 0; margin: 8rpx 24rpx 16rpx; padding: 4rpx; background: #e9e9ed; border-radius: 20rpx; }
+.hub-tab { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 16rpx; color: var(--circle-secondary); font-size: var(--fs-body-sm); }
+.hub-tab.selected { color: var(--circle-ink); font-weight: 600; background: var(--circle-surface); box-shadow: 0 2rpx 6rpx rgba(0,0,0,.08); }
+.body { flex: 1; height: 0; min-height: 0; }
+.search-entry { margin: 0 24rpx; padding: 0 24rpx; min-height: 44px; display: flex; align-items: center; gap: 12rpx; background: #e9e9ed; border-radius: 18rpx; color: var(--circle-secondary); font-size: var(--fs-body-sm); }
+.section { margin-top: 32rpx; }
+.sec-head, .mine-shell-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; padding: 0 28rpx; gap: 16rpx; }
+.sec-title, .mine-title { display: block; font-size: var(--fs-title); font-weight: 650; }
+.section-desc, .mine-subtitle { display: block; font-size: var(--fs-body-sm); color: var(--circle-secondary); margin-top: 8rpx; }
+.mine-title-row { display: flex; align-items: baseline; gap: 12rpx; flex-wrap: wrap; }
+.mine-count, .sec-sub { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.mine-more { display: flex; align-items: center; min-height: 44px; flex-shrink: 0; }
+.mine-more-txt { font-size: var(--fs-body-sm); color: var(--circle-accent); }
+.mine-row { display: flex; flex-direction: column; padding: 0 24rpx; gap: 12rpx; }
+.mine-card { display: flex; align-items: center; gap: 20rpx; padding: 20rpx; background: var(--circle-surface); border-radius: var(--circle-radius-lg); white-space: normal; }
+.mine-cover-wrap { position: relative; flex: 0 0 136rpx; height: 136rpx; border-radius: 20rpx; overflow: hidden; }
 .mine-cover { width: 100%; height: 100%; }
-.mine-badge {
-  position: absolute;
-  top: 12rpx;
-  left: 12rpx;
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  padding: 5rpx 10rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  border-radius: 999rpx;
-  background: rgba(28, 23, 19, 0.62);
-  backdrop-filter: blur(8rpx);
-}
-.mine-badge-dot { width: 8rpx; height: 8rpx; border-radius: 999rpx; background: #e9c477; }
-.mine-badge-txt { font-size: 18rpx; font-weight: 600; color: #fff4da; line-height: 1.2; }
-.mine-card-copy {
-  box-sizing: border-box;
-  flex: 1;
-  min-width: 0;
-  padding: 12rpx 14rpx 13rpx;
-  border-top: 1rpx solid rgba(78, 101, 91, 0.1);
-}
-.mine-name {
-  display: block;
-  overflow: hidden;
-  font-size: 27rpx;
-  font-weight: 650;
-  color: #263a32;
-  line-height: 1.3;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.mine-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; margin-top: 7rpx; }
-.mine-members {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 19rpx;
-  color: #7c8c85;
-}
-.mine-enter { display: flex; align-items: center; flex: 0 0 auto; }
-.mine-enter-txt { font-size: 20rpx; font-weight: 600; color: #53685f; }
-
-/* 区② 发现圈子 */
-.cat-scroll { width: 100%; white-space: nowrap; }
-.cat-row { display: inline-flex; gap: 16rpx; padding: 0 32rpx 24rpx; }
-.cat-chip {
-  flex-shrink: 0; height: 60rpx; padding: 0 30rpx; border-radius: 30rpx;
-  display: flex; align-items: center;
-  background: var(--bg-card, #fff); border: 1rpx solid var(--separator, #ede7dd);
-}
-.cat-chip.on { background: var(--text-primary, #2c2c2c); border-color: var(--text-primary, #2c2c2c); }
-.cat-text { font-size: 26rpx; color: var(--text-secondary, #6e6e73); white-space: nowrap; }
-.cat-text.on { color: #fff; font-weight: 500; }
-
-.discover-list { display: flex; flex-direction: column; gap: 18rpx; padding: 0 32rpx; }
-.circle-card {
-  position: relative;
-  display: flex;
-  gap: 20rpx;
-  align-items: flex-start;
-  padding: 18rpx;
-  overflow: hidden;
-  border: 1rpx solid #e7ddce;
-  border-radius: 30rpx;
-  background:
-    linear-gradient(90deg, rgba(249, 245, 238, 0.78) 0, rgba(255, 255, 255, 0) 45%),
-    #fff;
-  box-shadow: 0 9rpx 28rpx rgba(77, 57, 35, 0.07);
-  transition: transform 0.15s ease-out;
-}
-.circle-card::after {
-  content: '';
-  position: absolute;
-  top: 14rpx;
-  right: 14rpx;
-  bottom: 14rpx;
-  left: 14rpx;
-  border: 1rpx solid rgba(167, 124, 71, 0.08);
-  border-radius: 22rpx;
-  pointer-events: none;
-}
-.circle-card:active { transform: scale(0.99); }
-/* 圈子封面统一 4:3：信息密度更适合广场列表，也能兼容照片、插画与品牌图。 */
-.card-cover {
-  position: relative;
-  z-index: 1;
-  width: 216rpx;
-  height: 162rpx;
-  overflow: hidden;
-  flex: 0 0 216rpx;
-  border: 1rpx solid rgba(112, 80, 46, 0.2);
-  border-radius: 22rpx;
-  background: #f2efea;
-  box-shadow: 0 8rpx 18rpx rgba(61, 43, 27, 0.12);
-}
+.mine-badge { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; background: rgba(0,0,0,.7); padding: 4rpx; }
+.mine-badge-txt { font-size: var(--fs-caption); color: #fff; }
+.mine-card-copy { flex: 1; min-width: 0; }
+.mine-name { display: block; font-size: var(--fs-title); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mine-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; gap: 8rpx; }
+.mine-members { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.mine-enter { display: flex; align-items: center; min-height: 44px; }
+.mine-enter-txt { font-size: var(--fs-body-sm); color: var(--circle-accent); }
+.cat-scroll { white-space: nowrap; }
+.cat-row { display: inline-flex; gap: 12rpx; padding: 0 24rpx 24rpx; }
+.cat-chip { display: flex; align-items: center; flex-shrink: 0; min-height: 44px; padding: 0 28rpx; border-radius: 999rpx; background: var(--circle-surface); }
+.cat-chip.on { background: var(--circle-ink); }
+.cat-text { font-size: var(--fs-body-sm); color: var(--circle-secondary); }
+.cat-text.on { color: #fff; font-weight: 600; }
+.discover-list { display: flex; flex-direction: column; gap: 24rpx; padding: 0 24rpx; }
+.circle-card { overflow: hidden; background: var(--circle-surface); border-radius: var(--circle-radius-lg); }
+.card-cover { position: relative; height: 256rpx; overflow: hidden; background: #e9e9ed; }
 .card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.card-cover-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(29, 22, 17, 0.04), transparent 52%, rgba(29, 22, 17, 0.38)); }
-.card-category {
-  position: absolute;
-  top: 12rpx;
-  left: 12rpx;
-  max-width: 118rpx;
-  padding: 5rpx 10rpx;
-  overflow: hidden;
-  border: 1rpx solid rgba(255, 255, 255, 0.22);
-  border-radius: 8rpx;
-  background: rgba(35, 27, 21, 0.66);
-  font-size: 18rpx;
-  color: #fff7e8;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.card-rank { position: absolute; right: 10rpx; bottom: 10rpx; padding: 5rpx 9rpx; border-radius: 8rpx; background: #c41e3a; }
-.card-rank-txt { font-size: 18rpx; font-weight: 650; color: #fff; }
-.card-body { position: relative; z-index: 1; flex: 1; min-width: 0; min-height: 212rpx; align-self: stretch; display: flex; flex-direction: column; }
-.card-kicker { font-size: 19rpx; font-weight: 650; color: #9b6a2f; letter-spacing: 2rpx; }
-.card-head { display: flex; align-items: center; gap: 10rpx; margin-top: 5rpx; }
-.card-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 31rpx;
-  font-weight: 650;
-  color: var(--text-primary, #2c2c2c);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-/* 已加入·轻标签 */
-.tag-joined { flex-shrink: 0; padding: 4rpx 13rpx; border-radius: 999rpx; background: #efe9df; }
-.tag-joined-txt { font-size: 19rpx; color: #7e6c58; }
-/* 审核中·轻标签（待圈主审批的入圈申请） */
-.tag-pending { flex-shrink: 0; padding: 4rpx 13rpx; border-radius: 999rpx; background: rgba(201, 169, 110, 0.16); }
-.tag-pending-txt { font-size: 19rpx; color: #9b6a2f; }
-.card-desc {
-  display: -webkit-box;
-  margin-top: 9rpx;
-  overflow: hidden;
-  font-size: 27rpx;
-  color: #68615a;
-  line-height: 1.5;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.card-signals { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }
-.card-signal {
-  display: flex;
-  align-items: center;
-  gap: 5rpx;
-  padding: 5rpx 9rpx;
-  border-radius: 8rpx;
-  background: #f4f0e9;
-}
-.card-signal.active { background: rgba(196, 30, 58, 0.08); }
-.card-signal-txt { font-size: 19rpx; color: #766a5d; line-height: 1.2; }
-.signal-live-dot { width: 8rpx; height: 8rpx; border-radius: 999rpx; background: #c41e3a; }
-.card-foot {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12rpx;
-  margin-top: auto;
-  padding-top: 13rpx;
-  border-top: 1rpx solid rgba(143, 111, 74, 0.12);
-}
-.card-price-wrap { min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
-.card-price-label { font-size: 17rpx; color: #aaa095; }
-.card-price { font-size: 25rpx; font-weight: 700; color: #a66a24; line-height: 1.2; }
-.card-price-unit { font-size: 19rpx; font-weight: 500; }
-.card-price.free { font-size: 23rpx; color: #9a6324; }
-.card-price.joined { font-size: 22rpx; color: #756451; }
-.card-cta {
-  height: 52rpx;
-  padding: 0 16rpx 0 20rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  background: #c41e3a;
-  box-shadow: 0 6rpx 12rpx rgba(196, 30, 58, 0.18);
-}
-.card-cta.joined { background: #eee7dd; box-shadow: none; }
-.card-cta.pending { background: #9b7a4c; }
-.card-cta-txt { font-size: 21rpx; font-weight: 650; color: #fff; }
-.card-cta.joined .card-cta-txt { color: #705a43; }
-
-.discover-pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 18rpx;
-  padding: 6rpx 0 2rpx;
-}
-.discover-pager-count {
-  min-width: 54rpx;
-  font-size: 20rpx;
-  color: #a09588;
-  text-align: right;
-}
-.discover-pager-btn {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  height: 58rpx;
-  padding: 0 24rpx;
-  border: 1rpx solid #dfd3c3;
-  border-radius: 999rpx;
-  background: #fffdf9;
-  box-shadow: 0 5rpx 14rpx rgba(90, 67, 43, 0.06);
-}
-.discover-pager-txt { font-size: 23rpx; font-weight: 600; color: #7a5634; }
-
-/* 骨架 */
-.sk-card { display: flex; gap: 24rpx; background: var(--bg-card, #fff); border-radius: 32rpx; padding: 24rpx; }
-.sk-cover { width: 216rpx; height: 162rpx; border-radius: 22rpx; background: #f2efea; flex-shrink: 0; }
-.sk-body { flex: 1; padding-top: 12rpx; }
-.sk-line { height: 28rpx; background: #f2efea; border-radius: 8rpx; margin-bottom: 16rpx; }
-.sk-line.w3 { width: 70%; }
+.card-cover-shade { position: absolute; inset: 0; background: linear-gradient(transparent 35%, rgba(0,0,0,.45)); }
+.card-category { position: absolute; bottom: 18rpx; left: 24rpx; color: #fff; font-size: var(--fs-caption); }
+.card-rank { position: absolute; right: 20rpx; bottom: 18rpx; color: #fff; font-size: var(--fs-caption); }
+.card-body { padding: 24rpx; }
+.card-head { display: flex; align-items: center; gap: 12rpx; }
+.card-title { flex: 1; font-size: var(--fs-title-lg); font-weight: 650; min-width: 0; }
+.card-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 12rpx; font-size: var(--fs-body); line-height: 1.6; color: var(--circle-secondary); }
+.card-signals { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
+.card-signal { display: flex; align-items: center; gap: 6rpx; }
+.card-signal-txt { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.signal-live-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: var(--circle-accent); }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding-top: 20rpx; margin-top: 20rpx; border-top: 1rpx solid var(--circle-border-soft); }
+.card-price-wrap { display: flex; flex-direction: column; gap: 4rpx; }
+.card-price-label { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.card-price { font-size: var(--fs-body); font-weight: 600; color: var(--circle-ink); }
+.card-price-unit { font-size: var(--fs-caption); font-weight: 400; }
+.card-cta { display: flex; align-items: center; gap: 8rpx; min-height: 44px; padding: 0 24rpx; border-radius: 999rpx; background: var(--circle-accent); flex-shrink: 0; }
+.card-cta-txt { color: #fff; font-size: var(--fs-body-sm); font-weight: 600; }
+.tag-pending { background: #fff4dd; padding: 6rpx 12rpx; border-radius: 12rpx; }
+.tag-pending-txt { font-size: var(--fs-caption); color: #795510; }
+.discover-pager { display: flex; align-items: center; justify-content: center; gap: 16rpx; }
+.discover-pager-count { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.discover-pager-btn { display: flex; align-items: center; gap: 10rpx; min-height: 44px; padding: 0 24rpx; }
+.discover-pager-txt { font-size: var(--fs-body-sm); color: var(--circle-accent); }
+.sk-card { background: var(--circle-surface); border-radius: 24rpx; overflow: hidden; }
+.sk-cover { height: 256rpx; background: #e5e5ea; }
+.sk-body { padding: 24rpx; }
+.sk-line { background: #e5e5ea; height: 24rpx; margin-bottom: 16rpx; width: 70%; border-radius: 8rpx; }
 .sk-line.w2 { width: 45%; }
-
-/* 空态 */
-.empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; }
-.empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: var(--separator, #f5f0e8); display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }
-/* 空态正文：原 --text-tertiary(#999) 在 #faf8f5 底上仅 2.68:1（axe-core color-contrast serious），
-   空态只剩这一句话，改用 --text-secondary(#6e6e73) ≈4.7:1。 */
-.empty-text { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
-/* 空态出口按钮：沿用平台既有 empty-action 胶囊（朱红实底 / 描边次按钮），
-   高度锁 44px（触达区下限用物理 px，rpx 在 320 宽机型上会缩到 37.5px），
-   不用原生 button 元素以免继承默认字色与 ::after 边框。 */
-.empty-actions { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; }
-.empty-action {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 44px; padding: 0 40rpx; border-radius: 999rpx;
-  background: var(--brand, #c41e3a);
-}
-.empty-action.ghost { background: transparent; border: 2rpx solid var(--brand, #c41e3a); }
-.empty-action:active { opacity: 0.85; }
-.empty-action-txt { font-size: 28rpx; line-height: 1.4; color: #ffffff; font-weight: 500; }
-.empty-action-txt.ghost { color: var(--brand, #c41e3a); }
-
-/* 区③ 圈内新鲜事：用“动态手账”卡片承接内容，和上方获客卡形成明显层级。 */
-.activity-section { margin-top: 44rpx; }
-.activity-head { align-items: center; margin-bottom: 16rpx; }
-.activity-mark { display: flex; align-items: center; gap: 7rpx; }
-.activity-mark-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: #c41e3a; box-shadow: 0 0 0 7rpx rgba(196, 30, 58, 0.08); }
-.activity-mark-txt { font-size: 20rpx; color: #9b8170; }
-.activity-shell {
-  margin: 0 24rpx;
-  padding: 4rpx 18rpx;
-  overflow: hidden;
-  border: 1rpx solid #e6ddd2;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 10rpx 28rpx rgba(76, 55, 35, 0.06);
-}
-.feed-item { position: relative; display: flex; gap: 16rpx; padding: 24rpx 4rpx; border-bottom: 1rpx solid #eee7de; }
-.feed-item:last-child { border-bottom: none; }
-.feed-author-col { position: relative; display: flex; flex: 0 0 68rpx; justify-content: center; }
-.feed-avatar { position: relative; z-index: 1; width: 64rpx; height: 64rpx; border-radius: 20rpx; flex-shrink: 0; box-shadow: 0 4rpx 10rpx rgba(72, 48, 26, 0.12); }
-.feed-rail { position: absolute; top: 68rpx; bottom: -26rpx; left: 50%; width: 1rpx; background: #eadfd3; }
-.feed-item:last-child .feed-rail { display: none; }
+.state-panel, .empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 72rpx 32rpx; text-align: center; }
+.state-title { font-size: var(--fs-title); font-weight: 600; }
+.state-desc, .empty-text { font-size: var(--fs-body-sm); color: var(--circle-secondary); line-height: 1.6; }
+.empty-icon { margin-bottom: 12rpx; }
+.empty-actions { display: flex; gap: 16rpx; margin-top: 16rpx; flex-wrap: wrap; justify-content: center; }
+.empty-action { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 32rpx; border-radius: 999rpx; background: var(--circle-accent); }
+.empty-action-txt { font-size: var(--fs-body-sm); color: #fff; }
+.empty-action.ghost { background: var(--circle-surface); border: 1rpx solid var(--circle-border); }
+.empty-action-txt.ghost { color: var(--circle-accent); }
+.activity-head { align-items: flex-start; }
+.sec-title-wrap { display: flex; flex-direction: column; gap: 8rpx; }
+.activity-shell { margin: 0 24rpx; background: var(--circle-surface); border-radius: 24rpx; padding: 0 24rpx; }
+.feed-item { display: flex; gap: 16rpx; padding: 28rpx 0; border-bottom: 1rpx solid var(--circle-border-soft); }
+.feed-item:last-child { border-bottom: 0; }
+.feed-author-col { flex: 0 0 64rpx; }
+.feed-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; }
 .feed-body { flex: 1; min-width: 0; }
-.feed-source { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
-.feed-circle {
-  max-width: 220rpx;
-  padding: 4rpx 10rpx;
-  overflow: hidden;
-  border-radius: 999rpx;
-  background: #f1eee8;
-  font-size: 21rpx;
-  color: #6e5843;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.feed-author, .feed-time { font-size: 21rpx; color: #9b9187; }
-.tag-featured { font-size: 18rpx; color: #a87432; font-weight: 600; border: 1rpx solid #d7b57f; border-radius: 6rpx; padding: 0 8rpx; line-height: 28rpx; }
-.feed-text { display: -webkit-box; margin-top: 12rpx; overflow: hidden; font-size: 28rpx; color: #302b27; line-height: 1.55; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.feed-foot { display: flex; align-items: center; gap: 20rpx; margin-top: 13rpx; }
-.feed-stat { display: flex; align-items: center; gap: 5rpx; font-size: 20rpx; color: #a18d79; }
-.feed-open { margin-left: auto; font-size: 21rpx; font-weight: 600; color: #8a5f35; }
-.feed-thumb { width: 116rpx; height: 87rpx; border-radius: 18rpx; flex-shrink: 0; align-self: center; box-shadow: 0 4rpx 10rpx rgba(72, 48, 26, 0.08); }
+.feed-source { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; }
+.feed-circle { font-size: var(--fs-body-sm); font-weight: 600; color: var(--circle-accent); }
+.feed-author, .feed-time { font-size: var(--fs-caption); color: var(--circle-secondary); }
+.tag-featured { font-size: var(--fs-caption); color: var(--brand); }
+.feed-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 10rpx; font-size: var(--fs-body); line-height: 1.6; }
+.feed-foot { display: flex; gap: 16rpx; align-items: center; margin-top: 16rpx; }
+.feed-stat { display: flex; align-items: center; gap: 6rpx; font-size: var(--fs-caption); color: var(--circle-secondary); }
+.feed-open { margin-left: auto; font-size: var(--fs-caption); color: var(--circle-accent); }
+.feed-thumb { width: 96rpx; height: 96rpx; border-radius: 12rpx; flex-shrink: 0; align-self: center; }
+.create-row { margin: 24rpx; display: flex; align-items: center; gap: 12rpx; min-height: 44px; padding: 12rpx 24rpx; border-radius: 18rpx; background: var(--circle-surface); color: var(--circle-accent); font-size: var(--fs-body-sm); }
+.create-row text { flex: 1; }
+.bottom-spacer { height: calc(160rpx + env(safe-area-inset-bottom)); }
+[role="button"]:focus-visible, [role="link"]:focus-visible, [role="tab"]:focus-visible { outline: 2px solid var(--circle-accent); outline-offset: 2px; }
+.mine-card:active, .circle-card:active, .feed-item:active { opacity: .8; }
+@media (min-width: 768px) { .body { width: 760px; align-self: center; } .topbar, .hub-nav { width: 712px; align-self: center; box-sizing: border-box; } }
 </style>

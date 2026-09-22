@@ -202,6 +202,29 @@ page {
   --agent-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
   --agent-ease: cubic-bezier(.22, 1, .36, 1);
 }
+
+/* ============================================================
+   圈子体验令牌 · 苹果级信息层级批 · 2026-09-22
+   圈子页面只引用这一层，不改变平台既有品牌动作色、权限和业务语义。
+   ============================================================ */
+:root,
+page {
+  --circle-canvas: #f5f5f7;
+  --circle-surface: #ffffff;
+  --circle-surface-soft: #f8f8fa;
+  --circle-ink: #1d1d1f;
+  --circle-secondary: #6e6e73;
+  --circle-tertiary: #8e8e93;
+  --circle-border: rgba(60, 60, 67, 0.18);
+  --circle-border-soft: rgba(60, 60, 67, 0.10);
+  --circle-accent: #2b6f68;
+  --circle-accent-soft: rgba(43, 111, 104, 0.10);
+  --circle-radius-sm: 12rpx;
+  --circle-radius-md: 18rpx;
+  --circle-radius-lg: 24rpx;
+  --circle-shadow: 0 8rpx 28rpx rgba(31, 35, 41, 0.06);
+  --circle-ease: cubic-bezier(.22, 1, .36, 1);
+}
 /* ⚠️ 五行色深色覆盖同样暂时禁用（原因见上方语义令牌深色段说明）：先锁浅色，待暗色专项重构。
 
 @media (prefers-color-scheme: dark) {
