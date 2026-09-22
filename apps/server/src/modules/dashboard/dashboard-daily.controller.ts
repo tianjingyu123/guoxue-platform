@@ -22,7 +22,7 @@ export class DashboardDailyController {
 
   @Get("funnels/daily")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "转化漏斗近 N 日序列（F1_activation/F2_member/F3_commerce/F4_practitioner/F5_customer_service·D-T1·注意 /dashboard/funnel 是旧版单漏斗勿混）" })
+  @ApiOperation({ summary: "转化漏斗近 N 日序列（含 F6_agent_discovery 智能体平台探索·D-T1·注意 /dashboard/funnel 是旧版单漏斗勿混）" })
   @ApiQuery({ name: "funnel", required: true, description: "漏斗键" })
   @ApiQuery({ name: "days", required: false, type: Number })
   @ApiResponse({ status: 200, description: "成功" })

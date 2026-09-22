@@ -52,8 +52,8 @@ describe("FunnelDailyService", () => {
   it("aggregateCron 经 runExclusive('funnel-daily') 互斥，且重算昨日+前日两天（F1 次日回访幂等修正）", async () => {
     await svc.aggregateCron();
     expect(mockRedis.runExclusive).toHaveBeenCalledWith("funnel-daily", 600, expect.any(Function));
-    // 5 漏斗 × (3+3+3+4+5)=18 步骤 × 2 天 = 36 次 upsert
-    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(36);
+    // 6 漏斗 × (3+3+3+4+5+2)=20 步骤 × 2 天 = 40 次 upsert
+    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(40);
   });
 
   it("非法日期抛业务异常", async () => {
