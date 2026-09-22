@@ -73,12 +73,12 @@ export const inviteApi = {
     } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 邀请统计（总邀请人数）— GET /circles/:id/invitation-stats */
-  getTotalInvited: async (circleId: string): Promise<number> => {
+  getTotalInvited: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<number> => {
     try {
       const res = await apiGet<RawInviteStatsResp>(`/circles/${circleId}/invitation-stats`)
       const d = res?.data ?? res
       return Number(d?.total) || 0
-    } catch { return 0 }
+    } catch (error) { if (options.throwOnError) throw error; return 0 }
   },
   /** 邀请统计（人数 + 最近记录）— GET /circles/:id/invitation-stats（后端返回 {total, records[≤20]}）；错误上抛供页面三态 */
   getStats: async (circleId: string): Promise<{ total: number; records: InviteRecord[] }> => {

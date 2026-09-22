@@ -58,4 +58,15 @@ describe('嘉宾分账圈子边界', () => {
     db.circle.findUnique.mockResolvedValue(null);
     await expect(controller.getGuests(admin, 'missing')).rejects.toThrow();
   });
+  it('收益聚合仅查询明确选择的圈子，越权时不执行聚合', async () => {
+    db.circleGuestEarning.aggregate = jest.fn().mockResolvedValue({ _sum: { amount: 100, earned: 30 }, _count: 1 });
+    db.circleMember.findFirst.mockResolvedValue({ circle: { id: 'b' } });
+    const result = await controller.getRevenue(req, '2026-09', 'b');
+    expect(result.circleId).toBe('b');
+    for (const [query] of db.circleGuestEarning.aggregate.mock.calls) expect(query.where.circleId).toBe('b');
+    db.circleGuestEarning.aggregate.mockClear();
+    db.circleMember.findFirst.mockResolvedValue(null);
+    await expect(controller.getRevenue(req, '2026-09', 'other')).rejects.toThrow();
+    expect(db.circleGuestEarning.aggregate).not.toHaveBeenCalled();
+  });
 });

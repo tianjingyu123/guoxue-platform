@@ -236,9 +236,10 @@ export const dashboardApi = {
     }
   },
 
-  /** 收益概览（不传 circleId） */
-  async revenue(): Promise<DashboardRevenue> {
-    const raw = await apiGet<RawRevenue>('/circle-backend/revenue')
+  /** 收益概览绑定当前圈子，禁止猜测多圈管理目标。 */
+  async revenue(circleId: string): Promise<DashboardRevenue> {
+    if (!circleId) throw new Error('请从对应圈子的管理页查看收益')
+    const raw = await apiGet<RawRevenue>(`/circle-backend/revenue?circleId=${encodeURIComponent(circleId)}`)
     return {
       totalAmount: num(raw?.totalAmount),
       totalGuestPayouts: num(raw?.totalGuestPayouts),

@@ -12,6 +12,7 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
@@ -25,6 +26,11 @@ import { inviteApi, type InviteCodeItem } from '@/lib/circle-invite-data'
 const circleId = ref('')
 const loading = ref(true)
 const error = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+const breakdownFailed = ref(false)
+const codesFailed = ref(false)
+const invitedFailed = ref(false)
+let fetching = false
 
 const revenue = ref<DashboardRevenue | null>(null)
 const breakdown = ref<RevenueBreakdownItem[]>([])
@@ -61,24 +67,31 @@ function codeStatusLabel(c: InviteCodeItem) {
 }
 
 async function load() {
+  if (fetching) return
+  if (!circleId.value) { loading.value = false; error.value = true; return }
+  fetching = true
   loading.value = true
   error.value = false
   try {
     // 收益总卡是页面主体，失败走 error 态
-    revenue.value = await dashboardApi.revenue()
+    revenue.value = await dashboardApi.revenue(circleId.value)
     // 其余区块并行拉取，单块失败降级为空
     const [bRes, cRes, iRes] = await Promise.allSettled([
       dashboardApi.revenueBreakdown(circleId.value),
-      inviteApi.listCodes(circleId.value),
-      inviteApi.getTotalInvited(circleId.value),
+      inviteApi.listCodes(circleId.value, { throwOnError: true }),
+      inviteApi.getTotalInvited(circleId.value, { throwOnError: true }),
     ])
     breakdown.value = bRes.status === 'fulfilled' ? bRes.value : []
     codes.value = cRes.status === 'fulfilled' ? cRes.value : []
     totalInvited.value = iRes.status === 'fulfilled' ? iRes.value : 0
+    breakdownFailed.value = bRes.status === 'rejected'
+    codesFailed.value = cRes.status === 'rejected'
+    invitedFailed.value = iRes.status === 'rejected'
   } catch {
     error.value = true
   } finally {
     loading.value = false
+    fetching = false
   }
 }
 
@@ -88,7 +101,9 @@ async function generate() {
   try {
     await inviteApi.generate(circleId.value, 1)
     uni.showToast({ title: '邀请码已生成', icon: 'success' })
-    codes.value = await inviteApi.listCodes(circleId.value)
+    // 生成成功后的读取失败不能被说成生成失败，以免诱发再次生成。
+    try { codes.value = await inviteApi.listCodes(circleId.value, { throwOnError: true }); codesFailed.value = false }
+    catch { codesFailed.value = true }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '生成失败', icon: 'none' })
   } finally {
@@ -112,8 +127,8 @@ onLoad((q) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="back-btn" role="button" aria-label="返回圈子管理" style="min-width:44px;min-height:44px" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">收益</text>
     </view>
 
@@ -136,13 +151,14 @@ onLoad((q) => {
           </view>
           <view class="hero-col with-divider">
             <text class="hero-label">累计收入</text>
-            <text class="hero-num plain">¥{{ money(breakdownTotal) }}</text>
+            <text class="hero-num plain">{{ breakdownFailed ? '暂未确认' : `¥${money(breakdownTotal)}` }}</text>
             <text class="hero-sub">本月成交 {{ revenue.totalTransactions }} 笔</text>
           </view>
         </view>
       </view>
 
       <!-- 收入构成（后端 breakdown 为全期口径 → 如实标"累计"） -->
+      <view v-if="breakdownFailed || codesFailed || invitedFailed" class="empty-card" role="button" aria-label="重试收益附属数据" @tap="load"><text class="empty-txt">{{ [breakdownFailed ? '收入构成' : '', codesFailed ? '邀请码' : '', invitedFailed ? '邀请人数' : ''].filter(Boolean).join('、') }}暂时无法读取，点此重试</text></view>
       <template v-if="mixSegs.length">
         <text class="section-label">累计收入构成</text>
         <view class="mix-card">
@@ -161,7 +177,7 @@ onLoad((q) => {
           </view>
         </view>
       </template>
-      <template v-else>
+      <template v-else-if="!breakdownFailed">
         <text class="section-label">收入构成</text>
         <view class="empty-card">
           <text class="empty-txt">还没有收入记录。开启付费入圈、发布课程或上架商品后，收入构成会在这里展示</text>
@@ -171,12 +187,12 @@ onLoad((q) => {
       <!-- 邀请码 -->
       <text class="section-label">邀请码</text>
       <view class="invite-stats">
-        <view class="invite-stat"><text class="invite-n">{{ codes.length }}</text><text class="invite-t">总数</text></view>
-        <view class="invite-stat"><text class="invite-n">{{ usedCodes }}</text><text class="invite-t">已使用</text></view>
-        <view class="invite-stat"><text class="invite-n">{{ openCodes }}</text><text class="invite-t">待使用</text></view>
-        <view class="invite-stat"><text class="invite-n">{{ totalInvited }}</text><text class="invite-t">邀请人数</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ codesFailed ? '—' : codes.length }}</text><text class="invite-t">总数</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ codesFailed ? '—' : usedCodes }}</text><text class="invite-t">已使用</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ codesFailed ? '—' : openCodes }}</text><text class="invite-t">待使用</text></view>
+        <view class="invite-stat"><text class="invite-n">{{ invitedFailed ? '—' : totalInvited }}</text><text class="invite-t">邀请人数</text></view>
       </view>
-      <view v-if="codes.length" class="invite-list">
+      <view v-if="!codesFailed && codes.length" class="invite-list">
         <view v-for="c in codes" :key="c.id" class="invite-row">
           <view class="invite-main">
             <text class="invite-code">{{ c.code }}</text>
