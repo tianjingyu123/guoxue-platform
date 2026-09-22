@@ -31,6 +31,10 @@
           </view>
         </view>
       </view>
+      <view class="scene-hint">
+        <view class="scene-hint-dot" />
+        <text class="scene-hint-text">先解决你的问题，再为你找到相关内容和服务</text>
+      </view>
 
       <!-- 下拉菜单 -->
       <view v-if="menuOpen" class="menu-mask" @tap="menuOpen = false">
@@ -166,6 +170,7 @@ import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import type { Recommendation, RecommendItem } from '@/lib/agent-data'
+import { track } from '@/composables/useTrack'
 
 interface ChatMessage {
   id: string
@@ -447,6 +452,12 @@ function declineReco(msg: ChatMessage) {
 }
 // 推荐卡片点击 → 跳转对应板块
 function openRecommend(item: RecommendItem) {
+  track.custom('agent_recommend_click', {
+    entry: 'bot_chat',
+    botId: botId.value,
+    type: item.type,
+    itemId: String(item.data?.id || ''),
+  })
   if (item.data?.href) navigateTo(item.data.href)
   else if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
@@ -725,6 +736,10 @@ function openRecommend(item: RecommendItem) {
 .send-btn-disabled {
   opacity: 0.4;
 }
+/* 场景提示保持轻量，避免抢占对话空间 */
+.scene-hint { display: flex; align-items: center; gap: 10rpx; padding: 12rpx 24rpx; background: #fffaf2; border-bottom: 1rpx solid rgba(201,169,110,.18); }
+.scene-hint-dot { width: 12rpx; height: 12rpx; flex-shrink: 0; border-radius: 50%; background: #c9a96e; box-shadow: 0 0 0 6rpx rgba(201,169,110,.14); }
+.scene-hint-text { font-size: 21rpx; color: #8d7354; }
 /* AI 风险免责声明（每条 AI 回复下方小字） */
 .ai-disclaimer { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.4; color: #bbb; }
 
