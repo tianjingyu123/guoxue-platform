@@ -120,6 +120,23 @@
           </view>
         </view>
 
+        <view v-if="messages.length && !isLoading" class="cp-next-steps">
+          <view class="cp-next-head">
+            <text class="cp-next-kicker">顺着这次共读继续</text>
+            <text class="cp-next-title">把理解变成下一步</text>
+          </view>
+          <view class="cp-next-actions">
+            <view class="cp-next-action cp-next-action--book" @tap="goClassics">
+              <app-icon name="book-open" :size="26" color="#8a5d2f" />
+              <text>继续读古籍</text>
+            </view>
+            <view class="cp-next-action cp-next-action--agent" @tap="goAgents">
+              <app-icon name="sparkles" :size="26" color="#315f7a" />
+              <text>找专业智能体</text>
+            </view>
+          </view>
+        </view>
+
         <view id="cp-bottom" class="cp-bottom-anchor" />
       </view>
     </scroll-view>
@@ -202,6 +219,8 @@ async function loadQuota() {
 }
 
 function goVip() { navigateTo('/vip') }
+function goClassics() { navigateTo('/pkg-classics/home/index') }
+function goAgents() { navigateTo('/agents') }
 
 // —— E3 带记忆：进页恢复本书共读历史（跨章节/跨登录续聊）——
 const memoryRestored = ref(false)
@@ -514,6 +533,16 @@ function copyMsg(content: string) {
 .cp-upsell-desc { font-size: 22rpx; color: #8A8478; line-height: 1.6; margin-top: 8rpx; display: block; }
 .cp-upsell-btn { padding: 14rpx 28rpx; border-radius: 999rpx; background: #C9A96E; flex-shrink: 0; }
 .cp-upsell-btn-txt { font-size: 24rpx; color: #FFFFFF; }
+
+/* 共读完成后的自然承接，不强迫用户购买或离开当前场景。 */
+.cp-next-steps { padding: 24rpx; border: 2rpx solid rgba(49,95,122,.14); border-radius: 24rpx; background: linear-gradient(145deg, #fbfaf6, #f7fafb); }
+.cp-next-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16rpx; }
+.cp-next-kicker { font-size: 20rpx; letter-spacing: 2rpx; color: #8a7a70; }
+.cp-next-title { font-size: 26rpx; font-weight: 700; color: #2f3540; }
+.cp-next-actions { display: flex; gap: 14rpx; margin-top: 18rpx; }
+.cp-next-action { flex: 1; min-width: 0; height: 72rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-radius: 16rpx; font-size: 23rpx; font-weight: 700; }
+.cp-next-action--book { color: #8a5d2f; background: rgba(138,93,47,.09); }
+.cp-next-action--agent { color: #315f7a; background: rgba(49,95,122,.09); }
 
 /* 消息区域 */
 .cp-body {
