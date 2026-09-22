@@ -17,6 +17,7 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { apiGet, apiPost } from '@/utils/request'
 import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 
 /** AI 师徒流派（后端 BAZI_SCHOOL_IDS；缺省=通用分析） */
 const SCHOOLS = [
@@ -64,6 +65,7 @@ async function analyze() {
       90000, // AI 生成慢，给足超时
     )
     result.value = res
+    track.custom('paipan_ai_analysis_completed', { school: school.value || 'general' })
   } catch (e: any) {
     // 会员额度/限流的话术由后端给，原样透出，不自己编
     uni.showModal({
@@ -105,8 +107,14 @@ const resultLead = computed(() => {
 })
 const resultPoints = computed(() => resultText.value.split(/\n+/u).map((x) => x.trim()).filter(Boolean).slice(1, 4))
 
-function openHistory() { navigateTo('/paipan/bazi/history') }
-function openAgents() { navigateTo('/agents') }
+function openHistory() {
+  track.custom('paipan_ai_next_click', { target: 'history' })
+  navigateTo('/paipan/bazi/history')
+}
+function openAgents() {
+  track.custom('paipan_ai_next_click', { target: 'agents' })
+  navigateTo('/agents')
+}
 </script>
 
 <template>
