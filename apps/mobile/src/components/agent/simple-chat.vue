@@ -610,7 +610,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 .tip {
   flex-shrink: 0;
   font-size: 22rpx; color: #aaa; text-align: center;
-  padding: 8rpx 24rpx calc(var(--chat-safe-bottom, 0px) + 16rpx);
+  padding: 8rpx 24rpx 16rpx;
   background: rgba(245,245,247,.96);
   box-sizing: border-box;
 }
