@@ -2,16 +2,16 @@
   <view class="editor-page">
     <!-- 顶部导航 -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-inner">
-        <view class="nav-back" @tap="goBack">
+      <view class="nav-inner" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+        <view class="nav-back" role="button" tabindex="0" aria-label="返回圈子" @tap="goBack" @keydown.enter="goBack">
           <app-icon name="arrow-left" :size="20" color="#1a1a1a" />
         </view>
         <view class="nav-actions">
-          <view class="btn-draft" :class="{ disabled: saving }" @tap="handleSaveDraft">
+          <view class="btn-draft" role="button" tabindex="0" aria-label="保存草稿" :aria-disabled="busy" :class="{ disabled: busy }" @tap="handleSaveDraft" @keydown.enter="handleSaveDraft">
             <app-icon :name="saving ? 'loader-2' : 'save'" :size="16" color="#8a8a8a" :class="{ spin: saving }" />
             <text class="btn-draft-text">草稿</text>
           </view>
-          <view class="btn-publish" :class="{ disabled: publishing || !content.trim() }" @tap="handlePublish">
+          <view class="btn-publish" role="button" tabindex="0" aria-label="发布内容" :aria-disabled="busy || !content.trim()" :class="{ disabled: busy || !content.trim() }" @tap="handlePublish" @keydown.enter="handlePublish">
             <app-icon :name="publishing ? 'loader-2' : 'send'" :size="16" color="#fff" :class="{ spin: publishing }" />
             <text class="btn-publish-text">发布</text>
           </view>
@@ -35,6 +35,7 @@
     </view>
 
     <!-- 编辑区 -->
+    <view class="writing-context"><text class="writing-context-title">{{ selectedCircleData?.name || '圈内创作' }}</text><text class="writing-status" role="status">{{ draftStatus || '写下你的发现，与圈内同好交流' }}</text></view>
     <view class="edit-area">
       <input
         v-if="type === 'article'"
@@ -59,6 +60,8 @@
         :placeholder="type === 'post' ? '分享你的想法...' : '开始写作...'"
         placeholder-class="ph"
         auto-height
+        :maxlength="-1"
+        :disabled="saving || publishing"
         @blur="onContentCursor"
         @input="onContentCursor"
       />
@@ -434,11 +437,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { ref, computed, onMounted, watch } from 'vue'
+import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
 import { uploadImage, uploadDocument } from '@/utils/request'
 import { composeArticleHtml, decomposeArticleHtml } from '@/utils/rich-content'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, redirectTo } from '@/utils/router'
+import { getUserInfo } from '@/utils/storage'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { VOICE } from '@/lib/voice'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
@@ -449,6 +454,8 @@ import CreationAssistDrawer from '@/pkg-circle/components/creation-assist-drawer
 interface CircleItem { id: string; name: string; cover: string }
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
+const draftStatus = ref('')
 
 const type = ref<'post' | 'article'>('post')
 const title = ref('')
@@ -503,8 +510,12 @@ const typesetting = ref(false)   // AI 一键排版进行中（禁重复点）
 
 // 续编：从草稿箱带 draftId 进来，加载草稿全文续写；保存回写同一草稿（updateDraft），发布走 publishDraft
 const editingDraftId = ref<string | null>(null)
+const hasEditorContent = computed(() => !!(content.value.trim() || title.value.trim() || excerpt.value.trim() || cover.value || images.value.length || articleImages.value.length || attachments.value.length))
 // 本地草稿兜底 storage key（防误触返回丢失长内容·纯前端·成功提交后清）
-const LOCAL_DRAFT_KEY = 'draft:circle-editor'
+let localDraftKey = ''
+let draftTimer: ReturnType<typeof setTimeout> | undefined
+let exitTimer: ReturnType<typeof setTimeout> | undefined
+let restoringDraft = false
 // 已成功提交/发布，onUnload 不再回写本地缓存
 let submittedClean = false
 
@@ -512,20 +523,26 @@ let submittedClean = false
 const myRole = ref<string | null>(null)
 const roleLoaded = ref(false)
 const canPublishArticle = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(myRole.value || ''))
+let roleRequest = 0
 
 async function refreshRole(circleId: string | null) {
+  const request = ++roleRequest
   roleLoaded.value = false
   myRole.value = null
   if (!circleId) { roleLoaded.value = true; return }
   try {
-    const s = await circleDetailApi.getJoinStatus(circleId)
+    const s = await circleDetailApi.getJoinStatus(circleId, false, { throwOnError: true })
+    if (request !== roleRequest) return
     myRole.value = s.role
+    if (type.value === 'article' && !canPublishArticle.value) type.value = 'post'
   } catch {
+    if (request !== roleRequest) return
     myRole.value = null
+    draftStatus.value = '暂时无法确认创作权限，请保留草稿后重试'
   } finally {
+    if (request !== roleRequest) return
     roleLoaded.value = true
     // 已知不是管理员却停在文章模式时，回退到发帖
-    if (type.value === 'article' && !canPublishArticle.value) type.value = 'post'
   }
 }
 
@@ -536,6 +553,9 @@ const aiPanelTitle = computed(() => {
 })
 
 onLoad((opts) => {
+  const userId = getUserInfo<{ id?: string | number }>()?.id
+  // 不迁移旧的无归属缓存，避免将另一账号/圈子的内容误恢复。
+  localDraftKey = userId ? `draft:circle-editor:${encodeURIComponent(String(userId))}:${encodeURIComponent(opts?.circleId || 'unassigned')}:${encodeURIComponent(opts?.draftId || 'new')}` : ''
   if (opts?.draftId) {
     // 续编模式：加载后端草稿全文，忽略本地缓存
     loadDraft(opts.draftId)
@@ -554,6 +574,7 @@ onLoad((opts) => {
 
 /** 续编：拉草稿全文（草稿也是 article，GET /articles/:id 可取），填充表单并回写模式 */
 async function loadDraft(draftId: string) {
+  restoringDraft = true
   editingDraftId.value = draftId
   type.value = 'article'
   uni.showLoading({ title: '加载中' })
@@ -571,9 +592,12 @@ async function loadDraft(draftId: string) {
     selectedTopics.value = Array.isArray(d.tags) ? d.tags.slice(0, 3) : []
     if (d.circleId) {
       selectedCircle.value = d.circleId
-      refreshRole(d.circleId)
+      await refreshRole(d.circleId)
     }
+    restoringDraft = false
+    restoreLocalDraft(true)
   } catch (e) {
+    restoringDraft = false
     uni.showToast({ title: (e as Error)?.message || '草稿加载失败', icon: 'none' })
   } finally {
     uni.hideLoading()
@@ -581,9 +605,10 @@ async function loadDraft(draftId: string) {
 }
 
 /** 本地兜底草稿：读缓存 → 若有内容且当前为空则询问恢复 */
-function restoreLocalDraft() {
+function restoreLocalDraft(replaceCloud = false) {
+  if (!localDraftKey) return
   try {
-    const raw = uni.getStorageSync(LOCAL_DRAFT_KEY)
+    const raw = uni.getStorageSync(localDraftKey)
     if (!raw) return
     // 缓存结构由本页写入，字段与表单一一对应
     const c = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
@@ -591,15 +616,19 @@ function restoreLocalDraft() {
       images?: string[]; articleImages?: string[]
       attachments?: { name: string; size: number; url: string }[]
       selectedCircle?: string | null; selectedTopics?: string[]
+      linkedProducts?: ProductLibraryItem[]
     }
-    if (!c || (!c.content?.trim() && !c.title?.trim())) { uni.removeStorageSync(LOCAL_DRAFT_KEY); return }
-    if (content.value.trim() || title.value.trim()) return // 当前已有内容，不覆盖
+    if (!c || !(c.content?.trim() || c.title?.trim() || c.excerpt?.trim() || c.cover || c.images?.length || c.articleImages?.length || c.attachments?.length)) { uni.removeStorageSync(localDraftKey); return }
+    if (!replaceCloud && (content.value.trim() || title.value.trim())) return
+    if (circleLocked.value && c.selectedCircle !== selectedCircle.value) return
+    restoringDraft = true
     uni.showModal({
       title: '恢复未完成的内容',
       content: '检测到上次未发布的草稿，是否恢复继续编辑？',
       confirmText: '恢复',
       cancelText: '不用了',
       success: (r) => {
+        restoringDraft = false
         if (r.confirm) {
           type.value = c.type === 'article' ? 'article' : 'post'
           title.value = c.title || ''
@@ -612,28 +641,34 @@ function restoreLocalDraft() {
           articleImages.value = Array.isArray(c.articleImages) ? c.articleImages : []
           attachments.value = Array.isArray(c.attachments) ? c.attachments : []
           selectedTopics.value = Array.isArray(c.selectedTopics) ? c.selectedTopics : []
+          linkedProducts.value = Array.isArray(c.linkedProducts) ? c.linkedProducts.slice(0, 3) : []
           if (c.selectedCircle) { selectedCircle.value = c.selectedCircle; refreshRole(c.selectedCircle) }
         } else {
-          uni.removeStorageSync(LOCAL_DRAFT_KEY)
+          uni.removeStorageSync(localDraftKey)
         }
       },
+      fail: () => { restoringDraft = false },
     })
   } catch {
     // 缓存解析失败：清掉脏数据，不阻断
-    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+    try { uni.removeStorageSync(localDraftKey) } catch { /* noop */ }
   }
 }
 
 function clearLocalDraft() {
-  try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+  if (draftTimer) clearTimeout(draftTimer)
+  if (localDraftKey) try { uni.removeStorageSync(localDraftKey) } catch { /* noop */ }
 }
 
 // 切页/退出时兜底：有内容且非刚提交，则把关键字段存本地（防误触返回丢失长内容）
-onUnload(() => {
+function persistLocalDraft() {
+  if (draftTimer) clearTimeout(draftTimer)
+  if (restoringDraft) return false
+  if (!localDraftKey) { if (hasEditorContent.value) draftStatus.value = '暂不能保存草稿，请保留页面'; return false }
   if (submittedClean) { clearLocalDraft(); return }
-  if (!content.value.trim() && !title.value.trim()) { clearLocalDraft(); return }
+  if (!hasEditorContent.value) { clearLocalDraft(); return }
   try {
-    uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({
+    uni.setStorageSync(localDraftKey, JSON.stringify({
       type: type.value,
       title: title.value,
       content: content.value,
@@ -646,8 +681,21 @@ onUnload(() => {
       attachments: attachments.value,
       selectedCircle: selectedCircle.value,
       selectedTopics: selectedTopics.value,
+      linkedProducts: linkedProducts.value,
     }))
-  } catch { /* 存储失败静默，不影响退出 */ }
+    draftStatus.value = '草稿已保存到本机'
+    return true
+  } catch { draftStatus.value = '本机保存失败，请保留页面重试'; return false }
+}
+watch([type, title, content, cover, excerpt, articleLayout, visibility, images, articleImages, attachments, selectedCircle, selectedTopics, linkedProducts], () => {
+  if (submittedClean || restoringDraft) return
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(persistLocalDraft, 600)
+}, { deep: true })
+onHide(persistLocalDraft)
+onUnload(() => {
+  persistLocalDraft()
+  if (exitTimer) clearTimeout(exitTimer)
 })
 
 onMounted(() => {
@@ -680,7 +728,19 @@ async function loadTags() {
   }
 }
 
-function goBack() { navigateBack() }
+function leaveEditor() {
+  if (getCurrentPages().length > 1) navigateBack()
+  else if (selectedCircle.value) redirectTo(`/pkg-circle/circles/detail?id=${encodeURIComponent(selectedCircle.value)}`)
+  else navigateBack()
+}
+function goBack() {
+  if (saving.value || publishing.value) return
+  if (hasEditorContent.value && !submittedClean && !persistLocalDraft()) {
+    uni.showModal({ title: '草稿尚未保存', content: '本机暂时无法保存，返回会丢失本次编辑。', confirmText: '继续编辑', cancelText: '放弃并返回', success: r => { if (r.cancel) leaveEditor() } })
+    return
+  }
+  leaveEditor()
+}
 
 /** 选图后立即上传 COS，images 存真实 URL（此前直接存本地临时路径，发布后图片失效） */
 function handleImageUpload() {
@@ -775,6 +835,7 @@ function removeArticleImage(i: number) {
 
 /** 文章封面手动上传（封面必选后不能只留 AI 生成一条路——生图服务未配置时会把发文章堵死） */
 const coverUploading = ref(false)
+const busy = computed(() => saving.value || publishing.value || imgUploading.value || fileUploading.value || coverUploading.value || typesetting.value || aiLoading.value)
 function handleCoverUpload() {
   if (coverUploading.value) return
   uni.chooseImage({
@@ -1016,7 +1077,13 @@ function buildExcerpt(source: string): string {
 }
 
 async function handleSaveDraft() {
-  if (saving.value) return
+  if (busy.value || submittedClean) return
+  if (type.value === 'post') {
+    if (!hasEditorContent.value) { uni.showToast({ title: '先写下一点内容', icon: 'none' }); return }
+    const saved = persistLocalDraft()
+    uni.showToast({ title: saved ? '草稿已保存到本机' : '保存失败，请继续保留页面', icon: 'none' })
+    return
+  }
   if (!validateBase()) return
   if (type.value === 'article' && !canPublishArticle.value) { uni.showToast({ title: '仅圈主/合伙人/管理员可发文章', icon: 'none' }); return }
   saving.value = true
@@ -1067,7 +1134,7 @@ async function handleSaveDraft() {
 }
 
 async function handlePublish() {
-  if (publishing.value) return
+  if (busy.value || submittedClean) return
   if (!validateBase()) return
   if (type.value === 'article' && !canPublishArticle.value) { uni.showToast({ title: '仅圈主/合伙人/管理员可发文章', icon: 'none' }); return }
   if (type.value === 'article' && !title.value.trim()) { uni.showToast({ title: '请输入文章标题', icon: 'none' }); return }
@@ -1126,10 +1193,10 @@ async function handlePublish() {
     else uni.showToast({ title: VOICE.TOAST_PUBLISHED, icon: 'success' })
     // 广播圈子详情页立即刷新（配合后端 createPost 缓存失效，新帖即时可见·董事长反馈）
     uni.$emit('circle:refresh', selectedCircle.value)
-    setTimeout(() => navigateBack(), 600)
+    exitTimer = setTimeout(leaveEditor, 600)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '发布失败', icon: 'none' })
-  } finally { publishing.value = false }
+  } finally { if (!submittedClean) publishing.value = false }
 }
 </script>
 
@@ -1139,7 +1206,11 @@ async function handlePublish() {
   background: #fff;
   display: flex;
   flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
+.writing-context { padding: 28rpx 32rpx 0; display: flex; flex-direction: column; gap: 8rpx; }
+.writing-context-title { font-size: 32rpx; font-weight: 600; color: var(--circle-ink, #1d1d1f); }
+.writing-status { font-size: 24rpx; color: var(--circle-secondary, #6e6e73); }
 
 /* 顶部导航 */
 .nav {
@@ -1156,9 +1227,10 @@ async function handlePublish() {
   padding: 0 32rpx;
   height: 112rpx;
 }
-.nav-back { padding: 16rpx; margin-left: -16rpx; }
+.nav-back { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .nav-actions { display: flex; align-items: center; gap: 16rpx; }
 .btn-draft {
+  min-height: 44px; box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8rpx;
@@ -1166,6 +1238,7 @@ async function handlePublish() {
 }
 .btn-draft-text { font-size: 26rpx; color: #8a8a8a; }
 .btn-publish {
+  min-height: 44px; box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8rpx;

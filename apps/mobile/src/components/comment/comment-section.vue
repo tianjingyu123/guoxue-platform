@@ -68,9 +68,14 @@ watch(
 
 function dismissInput() {
   if (sending.value) return
-  replyTo.value = null
   inputVisible.value = false
 }
+// 收起只隐藏，不丢输入和回复对象；换到另一篇内容时才清空，避免串帖。
+watch(() => [props.targetType, props.targetId], () => {
+  replyTo.value = null
+  inputRef.value?.clear()
+  inputVisible.value = !props.deferredInput
+})
 
 async function onReply(p: { target: CommentItem; rootId: string }) {
   if (!getToken()) {
@@ -147,7 +152,7 @@ defineExpose({
     <!-- 垫片：给 fixed 输入条让位（含安全区）；页面自带底垫时传 no-pad 关掉 -->
     <view v-if="!noPad && inputVisible" class="csec__pad" />
     <comment-input-bar
-      v-if="inputVisible"
+      v-show="inputVisible"
       ref="inputRef"
       :theme="theme"
       :reply-to="replyTo"

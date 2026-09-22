@@ -17,6 +17,7 @@ import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken, getUserInfo } from '@/utils/storage'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   postDetailApi, parseMarkdown,
   type PostDetail, type MdBlock,
@@ -26,6 +27,7 @@ import { circleDetailApi, type CircleMemberRole } from '@/lib/circle-detail-data
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const postId = ref('')
 const post = ref<PostDetail | null>(null)
 const mdBlocks = ref<MdBlock[]>([])
@@ -337,10 +339,10 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 <template>
   <view class="pd">
     <!-- 顶栏：sticky 毛玻璃（V0 .topbar） -->
-    <view class="pd-topbar">
-      <view class="pd-top-btn pd-top-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="pd-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : {}">
+      <view class="pd-top-btn pd-top-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="pd-top-title">帖子详情</text>
-      <view class="pd-top-btn pd-top-menu" @tap="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
+      <view class="pd-top-btn pd-top-menu" role="button" tabindex="0" aria-label="帖子操作" :aria-expanded="showMenu" @tap="showMenu = !showMenu" @keydown.enter="showMenu = !showMenu"><app-icon name="more-horizontal" :size="40" color="#6E6E73" /></view>
     </view>
 
     <!-- ⋯ 菜单（V0 gov-menu 浮层）：圈主/管理员=治理三项；普通成员=举报 -->
@@ -482,7 +484,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
           <app-icon name="heart" :size="36" :color="isLiked ? '#C41E3A' : '#6e6e73'" :fill="isLiked" />
           <text class="pd-action-t" :class="{ liked: isLiked }">{{ likes ? fmt(likes) : '点赞' }}</text>
         </view>
-        <view class="pd-action" hover-class="pd-press" @tap="scrollToComments">
+        <view class="pd-action" role="button" tabindex="0" aria-label="写评论" hover-class="pd-press" @tap="scrollToComments" @keydown.enter="scrollToComments">
           <app-icon name="message-circle" :size="36" color="#6e6e73" />
           <text class="pd-action-t">{{ post.comments ? fmt(post.comments) : '评论' }}</text>
         </view>
@@ -501,6 +503,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
         <text class="pd-comments-head">评论 {{ post.comments }}</text>
         <comment-section
           ref="commentSectionRef"
+          deferred-input
           target-type="POST"
           :target-id="postId"
           :author-id="post.author.id"
@@ -512,14 +515,14 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 </template>
 
 <style scoped lang="scss">
-.pd { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page, #faf8f5); }
+.pd { display: flex; flex-direction: column; height: 100vh; background: var(--circle-surface, #fff); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
 
 /* 顶栏：sticky 毛玻璃 */
 .pd-topbar {
   display: flex; align-items: center; gap: 20rpx; flex-shrink: 0;
   padding: 24rpx 32rpx;
   padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
-  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  background: var(--circle-surface, #fff);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
   position: relative; z-index: 20;
 }
