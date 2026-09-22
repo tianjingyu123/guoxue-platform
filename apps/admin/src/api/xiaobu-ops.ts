@@ -39,6 +39,22 @@ export interface ProviderStatus {
   userRefStable: boolean;
 }
 
+export interface FirmwareRelease {
+  id: string;
+  boardName: string;
+  version: string;
+  projectName: string;
+  chipName: string;
+  size: number;
+  sha256: string;
+  notes: string | null;
+  status: "draft" | "active" | "paused" | "archived";
+  rolloutPercent: number;
+  activatedAt: string | null;
+  createdAt: string;
+  stats?: { offered: number; succeeded: number; failed: number };
+}
+
 export interface XiaozhiTerminal {
   seenId: string;
   serialHint: string;
@@ -128,6 +144,32 @@ export const xiaobuOpsApi = {
   async disableDevice(id: string, reason: string) {
     const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/disable`, { reason });
     return data as AdminDevice;
+  },
+  /** 固件在线升级：发布列表（含推送成功/失败统计） */
+  async firmwareList() {
+    const { data } = await api.get("/admin/xiaobu/firmware");
+    return (Array.isArray(data) ? data : []) as FirmwareRelease[];
+  },
+  /** 上传固件（版本号由服务端从镜像读出） */
+  async firmwareUpload(file: File, boardName: string, notes?: string) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("boardName", boardName);
+    if (notes) fd.append("notes", notes);
+    const { data } = await api.post("/admin/xiaobu/firmware", fd, { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 });
+    return data as FirmwareRelease;
+  },
+  async firmwareRollout(id: string, percent: number) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/rollout`, { percent });
+    return data as FirmwareRelease;
+  },
+  async firmwarePause(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/pause`);
+    return data as FirmwareRelease;
+  },
+  async firmwareArchive(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/archive`);
+    return data as FirmwareRelease;
   },
   /** 小智协议终端：最近 OTA 上报的终端（型号/芯片/固件；不含明文 MAC） */
   async terminals() {

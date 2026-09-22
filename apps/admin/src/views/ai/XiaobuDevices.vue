@@ -71,6 +71,51 @@
       </el-table>
     </el-card>
 
+    <el-card v-if="canWrite" shadow="never">
+      <template #header>
+        <div class="card-head">
+          <span>固件发布（在线升级）</span>
+          <el-button size="small" link type="primary" @click="loadFirmware">刷新</el-button>
+        </div>
+      </template>
+      <p class="muted" style="margin:0 0 8px">
+        上传 build 目录下的程序固件（xiaozhi.bin，不是合并镜像），版本号、芯片由系统从固件里读出。按板型发布、按比例灰度：
+        设备开机检查时，只有已登记、在灰度范围内、版本更旧的设备会升级。设备端启动失败会自动退回旧版；同一台推 3 次仍没升上去就停止推送。
+        建议先 1%—10% 观察成功率，再放量；有异常随时暂停。
+      </p>
+      <el-form inline size="small" @submit.prevent>
+        <el-form-item label="板型"><el-input v-model="fwForm.boardName" style="width:200px" placeholder="如 xmini-c3-rebu-test" /></el-form-item>
+        <el-form-item label="说明"><el-input v-model="fwForm.notes" style="width:260px" maxlength="200" placeholder="本次更新内容" /></el-form-item>
+        <el-form-item>
+          <input ref="fwFileInput" type="file" accept=".bin" data-testid="fw-file" @change="onFwFile" />
+        </el-form-item>
+        <el-form-item><el-button type="primary" :loading="fwUploading" data-testid="fw-upload" @click="uploadFirmware">上传</el-button></el-form-item>
+      </el-form>
+      <el-table v-loading="fwLoading" :data="firmware" size="small" border empty-text="暂无固件发布">
+        <el-table-column prop="boardName" label="板型" min-width="150" />
+        <el-table-column prop="version" label="版本" width="90" />
+        <el-table-column prop="chipName" label="芯片" width="90" />
+        <el-table-column label="大小" width="90"><template #default="{ row }">{{ (row.size / 1048576).toFixed(2) }} MB</template></el-table-column>
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'active' ? 'success' : row.status === 'paused' ? 'warning' : 'info'" size="small">{{ FW_STATUS[row.status] }}</el-tag>
+            <span v-if="row.status === 'active'" class="muted"> {{ row.rolloutPercent }}%</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="推送 / 成功 / 失败" width="140">
+          <template #default="{ row }">{{ row.stats?.offered ?? 0 }} / {{ row.stats?.succeeded ?? 0 }} / <span :class="{ bad: (row.stats?.failed ?? 0) > 0 }">{{ row.stats?.failed ?? 0 }}</span></template>
+        </el-table-column>
+        <el-table-column prop="notes" label="说明" min-width="140" />
+        <el-table-column label="操作" width="190" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.status !== 'archived'" link type="primary" size="small" @click="rolloutFirmware(row)">{{ row.status === 'active' ? '调整灰度' : '开始灰度' }}</el-button>
+            <el-button v-if="row.status === 'active'" link type="warning" size="small" @click="pauseFirmware(row)">暂停</el-button>
+            <el-button v-if="row.status !== 'archived' && row.status !== 'active'" link type="danger" size="small" @click="archiveFirmware(row)">归档</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-dialog v-model="registerOpen" title="登记设备" width="460px">
       <el-form label-width="90px" size="small" @submit.prevent>
         <el-form-item label="序列号"><el-input v-model="form.serial" maxlength="64" placeholder="设备铭牌序列号；小智协议终端填 MAC（带不带冒号均可）" /></el-form-item>
@@ -93,7 +138,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { xiaobuOpsApi, type AdminDevice, type XiaozhiTerminal } from "@/api/xiaobu-ops";
+import { xiaobuOpsApi, type AdminDevice, type FirmwareRelease, type XiaozhiTerminal } from "@/api/xiaobu-ops";
 import { useAuthStore } from "@/store/auth";
 
 const STATUS: Record<string, string> = { unbound: "未绑定", bound: "已绑定", transfer_pending: "转赠中", disabled: "已停用" };
@@ -113,6 +158,13 @@ const form = reactive({ serial: "", productSku: "", circleId: "" });
 const codeOpen = ref(false);
 const code = ref<{ bindCode: string; expiresAt: string } | null>(null);
 const terminals = ref<XiaozhiTerminal[]>([]);
+const FW_STATUS: Record<string, string> = { draft: "草稿", active: "推送中", paused: "已暂停", archived: "已归档" };
+const firmware = ref<FirmwareRelease[]>([]);
+const fwLoading = ref(false);
+const fwUploading = ref(false);
+const fwForm = reactive({ boardName: "", notes: "" });
+const fwFile = ref<File | null>(null);
+const fwFileInput = ref<HTMLInputElement | null>(null);
 const terminalsLoading = ref(false);
 
 function errMsg(e: unknown, fallback: string) {
@@ -191,6 +243,87 @@ async function enable(row: AdminDevice) {
   }
 }
 
+function onFwFile(e: Event) {
+  fwFile.value = (e.target as HTMLInputElement).files?.[0] ?? null;
+}
+
+async function loadFirmware() {
+  fwLoading.value = true;
+  try {
+    firmware.value = await xiaobuOpsApi.firmwareList();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "固件列表加载失败"));
+  } finally {
+    fwLoading.value = false;
+  }
+}
+
+async function uploadFirmware() {
+  if (!fwFile.value || !fwForm.boardName.trim()) {
+    ElMessage.warning("请选择固件文件并填写板型");
+    return;
+  }
+  fwUploading.value = true;
+  try {
+    const r = await xiaobuOpsApi.firmwareUpload(fwFile.value, fwForm.boardName.trim(), fwForm.notes.trim() || undefined);
+    ElMessage.success(`已上传：${r.boardName} ${r.version}（草稿，开始灰度后才会推送）`);
+    fwForm.notes = "";
+    fwFile.value = null;
+    if (fwFileInput.value) fwFileInput.value.value = "";
+    loadFirmware();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "上传失败"));
+  } finally {
+    fwUploading.value = false;
+  }
+}
+
+async function rolloutFirmware(row: FirmwareRelease) {
+  let percent = 0;
+  try {
+    const r = await ElMessageBox.prompt(`${row.boardName} ${row.version}：推送给多少比例的设备？（1—100，建议先小比例观察）`, "灰度推送", {
+      inputValue: String(row.status === "active" ? row.rolloutPercent : 10),
+      inputPattern: /^(100|[1-9]\d?)$/,
+      inputErrorMessage: "请输入 1—100 的整数",
+    });
+    percent = Number((r as { value: string }).value);
+  } catch {
+    return;
+  }
+  try {
+    await xiaobuOpsApi.firmwareRollout(row.id, percent);
+    ElMessage.success(`已设为 ${percent}%`);
+    loadFirmware();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "操作失败"));
+  }
+}
+
+async function pauseFirmware(row: FirmwareRelease) {
+  try {
+    await xiaobuOpsApi.firmwarePause(row.id);
+    ElMessage.success("已暂停推送（已升级的设备不受影响）");
+    loadFirmware();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "暂停失败"));
+  }
+}
+
+async function archiveFirmware(row: FirmwareRelease) {
+  try {
+    await ElMessageBox.confirm(`归档后 ${row.boardName} ${row.version} 不再推送、下载链接失效。确定？`, "归档固件", { type: "warning" });
+  } catch {
+    return;
+  }
+  try {
+    await xiaobuOpsApi.firmwareArchive(row.id);
+    ElMessage.success("已归档");
+    loadFirmware();
+  } catch (e) {
+    ElMessage.error(errMsg(e, "归档失败"));
+  }
+}
+
 async function loadTerminals() {
   terminalsLoading.value = true;
   try {
@@ -225,7 +358,10 @@ async function registerTerminal(row: XiaozhiTerminal) {
 
 onMounted(() => {
   load(1);
-  if (canWrite.value) loadTerminals();
+  if (canWrite.value) {
+    loadTerminals();
+    loadFirmware();
+  }
 });
 </script>
 
@@ -237,4 +373,5 @@ onMounted(() => {
 .code { font-size: 22px; font-weight: 700; letter-spacing: 3px; font-variant-numeric: tabular-nums; word-break: break-all; }
 .muted { color: var(--color-text-secondary, #909399); font-size: 12px; line-height: 1.6; }
 .card-head { display: flex; justify-content: space-between; align-items: center; }
+.bad { color: #c41e3a; font-weight: 600; }
 </style>

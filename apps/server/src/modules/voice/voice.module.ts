@@ -19,6 +19,9 @@ import { VOICE_PROVIDER } from "./provider/voice-provider.types";
 import { createVoiceProvider } from "./provider/voice-provider.registry";
 import { XiaozhiLinkService } from "./xiaozhi/xiaozhi-link.service";
 import { VoiceDeviceHandoffService } from "./voice-device-handoff.service";
+import { XiaozhiFirmwareService } from "./xiaozhi/xiaozhi-firmware.service";
+import { XiaozhiFirmwareAdminController, XiaozhiFirmwareDownloadController } from "./xiaozhi/xiaozhi-firmware.controller";
+import { UploadModule } from "../upload/upload.module";
 import { XiaozhiGatewayService } from "./xiaozhi/xiaozhi-gateway.service";
 import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminController } from "./xiaozhi/xiaozhi-ota.controller";
 
@@ -33,7 +36,7 @@ import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminCo
  * 会话、权限、额度、计费仍走本模块的会话编排；语音能力经 VOICE_PROVIDER 的设备中继提供。
  */
 @Module({
-  imports: [SearchModule],
+  imports: [SearchModule, UploadModule],
   controllers: [
     CircleVoiceAgentController,
     AdminVoiceAgentController,
@@ -46,6 +49,8 @@ import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminCo
     XiaozhiOtaController,
     XiaozhiActivateController,
     XiaozhiTerminalAdminController,
+    XiaozhiFirmwareDownloadController,
+    XiaozhiFirmwareAdminController,
   ],
   providers: [
     VoiceQuotaService,
@@ -60,6 +65,7 @@ import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminCo
     VoiceSessionSweeperTask,
     XiaozhiLinkService,
     VoiceDeviceHandoffService,
+    XiaozhiFirmwareService,
     XiaozhiGatewayService,
     { provide: VOICE_PROVIDER, useFactory: () => createVoiceProvider() },
   ],

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { createHash, createHmac, randomBytes, randomInt, randomUUID } from "crypto";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
@@ -6,6 +6,7 @@ import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
 import { VoiceDeviceService } from "../voice-device.service";
 import { isActivationCode, normalizeDeviceSerial, summarizeDeviceInfo } from "./xiaozhi-protocol";
+import { XiaozhiFirmwareService } from "./xiaozhi-firmware.service";
 
 /**
  * 小智协议终端 · 设备身份、激活与连接令牌（「热卜主业务、小智协议终端」）
@@ -55,7 +56,14 @@ export class XiaozhiLinkService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly devices: VoiceDeviceService,
+    /** 固件在线升级（可选注入，兼容只测激活流程的用例） */
+    @Optional() private readonly firmware?: XiaozhiFirmwareService,
   ) {}
+
+  /** 设备访问热卜的 HTTP 根地址（固件下载用）：优先配置，否则按 OTA 请求的 Host 推导 */
+  baseUrl(host?: string) {
+    return (process.env.XIAOZHI_PUBLIC_BASE_URL || `http://${host || "127.0.0.1"}`).replace(/\/+$/, "");
+  }
 
   get codeLength() {
     const n = Number(process.env.XIAOZHI_ACTIVATION_CODE_LENGTH || 6);
@@ -88,10 +96,14 @@ export class XiaozhiLinkService {
     const d = await this.prisma.voiceDevice.findUnique({ where: { serialHash } });
     await this.recordSeen(serialHash, serial, info, d);
 
+    // 固件：只对已登记、未停用的设备按发布与灰度决定；其余原样回报当前版本（设备不会升级）
+    const firmware =
+      d && this.firmware
+        ? await this.firmware.decide(d, info.boardName, info.firmwareVersion, this.baseUrl(host))
+        : { version: info.firmwareVersion || "0.0.0", url: "" };
     const base = {
       server_time: { timestamp: Date.now(), timezone_offset: 480 },
-      // 版本号原样回给设备：热卜不推送任何固件，设备不会因此升级
-      firmware: { version: info.firmwareVersion || "0.0.0", url: "" },
+      firmware,
     };
     const websocket = (token: string) => ({ url: this.wsUrl(host), token, version: 1 });
 

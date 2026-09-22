@@ -4110,6 +4110,48 @@ model VoiceDeviceTransfer {
   @@index([deviceId, status])
 }
 
+/// 小智协议终端固件发布（在线升级通道）：按板型发布、按比例灰度、可暂停
+model VoiceFirmwareRelease {
+  id             String    @id @default(uuid())
+  boardName      String // 目标板型（设备上报的 board.name，如 xmini-c3-rebu-test）
+  version        String // 固件自带版本（从镜像描述里读出，纯数字点分）
+  projectName    String // 固件自带项目名（从镜像描述里读出）
+  chipId         Int // 镜像头里的芯片编号（ESP32-C3=5、S3=9）
+  fileKey        String // 存储对象键
+  sha256         String
+  size           Int
+  notes          String?   @db.Text
+  status         String    @default("draft") // draft / active / paused / archived
+  rolloutPercent Int       @default(0) // 0—100：按设备哈希分桶灰度
+  createdBy      String
+  activatedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  deviceStates VoiceFirmwareDeviceState[]
+
+  @@unique([boardName, version])
+  @@index([boardName, status])
+}
+
+/// 固件推送到单台设备的状态：推送次数、成功/失败（失败后不再推送给该设备）
+model VoiceFirmwareDeviceState {
+  id            String    @id @default(uuid())
+  releaseId     String
+  deviceId      String
+  fromVersion   String
+  offers        Int       @default(0)
+  status        String    @default("offered") // offered / succeeded / failed
+  firstOfferAt  DateTime  @default(now())
+  lastOfferAt   DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  release VoiceFirmwareRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@unique([releaseId, deviceId])
+  @@index([deviceId])
+}
+
 /// 有声读书断点（S05）：按用户 × 章节 × 原文/白话记录最后听到的段落与位置
 model AudioListenProgress {
   id         String   @id @default(uuid())
