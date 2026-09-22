@@ -60,20 +60,22 @@ describe("起名字库 · 数据", () => {
     expect(LEX["曾"][1]).toBe("zēng");
   });
 
-  it("原 158 个手写精选字全部保留为宜，且排在字库最前（手写字义/诗句优先于生成）", () => {
+  it("原手写精选字排在字库最前且均为宜（手写字义/诗句优先于生成；09-22 人工裁定移出「西」）", () => {
     const pool = namingCharPool();
     expect(pool.length).toBeGreaterThanOrEqual(900);
     // 手写 159 字里「垚」是规范表三级字，不在 6500 字标注范围内，但手写字照样保留
-    const first = pool.slice(0, 159).map((p) => p.char);
+    const first = pool.slice(0, 158).map((p) => p.char);
     expect(first.slice(0, 3).join("")).toBe("林森楷");
     expect(first.includes("垚")).toBe(true);
     expect(first.filter((c) => c in LEX && suit(c) !== "宜").join("")).toBe("");
+    expect(pool.some((p) => p.char === "西")).toBe(false); // 字库降为可，候选池不得再有
+    expect(pool.find((p) => p.char === "冠")!.meaning).not.toContain("冠冕堂皇");
     expect(pool.find((p) => p.char === "松")!.poem!.source).toContain("论语");
   });
 
   it("出处只来自手写字；生成字不附自动出处（典籍四字片段脱离语境会意思相反，如「贤不必以」）", () => {
     const pool = namingCharPool();
-    const auto = pool.slice(159).filter((p) => p.poem).map((p) => p.char);
+    const auto = pool.slice(158).filter((p) => p.poem).map((p) => p.char);
     expect(auto.join("")).toBe("");
     expect(pool.find((p) => p.char === "贤")?.poem).toBeUndefined();
   });

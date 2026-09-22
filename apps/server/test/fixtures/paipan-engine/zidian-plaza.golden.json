@@ -2,14 +2,14 @@
  "tool": "zidian-plaza",
  "tz": "Asia/Shanghai",
  "mode": "groups",
- "source": "服务端引擎（2026-09-21 起名字库扩充后重新生成：字库 159→1046 宜字、复姓逐字、同字限 2、定字放行可字、出处仅手写；此前为迁移前前端引擎，迁移一致性已于 09-21 验证）",
- "generatedAt": "2026-09-21",
+ "source": "服务端引擎（2026-09-22 起名字库第二轮精修与手写字纠错后重新生成；此前为迁移前前端引擎，迁移一致性已于 09-21 验证）",
+ "generatedAt": "2026-09-22",
  "calls": 100,
  "groups": 4,
  "byGroup": {
-  "none": "5f94bddff82d24b6",
-  "single": "cb200e10e70d9a57",
-  "combo": "5b8a4c53b9e9dcf6",
-  "combo2": "7415172bc7d90699"
+  "none": "8fe679d7c7efc45b",
+  "single": "b4ab02f35c411a77",
+  "combo": "832d3b39566368f2",
+  "combo2": "e3c436d5c53d27c5"
  }
 }
