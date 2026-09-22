@@ -136,14 +136,15 @@ function goBack() {
 
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--agent-canvas, #f5f5f7);
 }
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #ffffff;
-  border-bottom: 1rpx solid #ececec;
+  background: rgba(245,245,247,.92);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  backdrop-filter: blur(24rpx);
 }
 .tb-inner {
   height: 88rpx;
@@ -163,7 +164,7 @@ function goBack() {
   flex: 1;
   font-size: 34rpx;
   font-weight: 600;
-  color: #2b2b2b;
+  color: var(--agent-ink, #1d1d1f);
   margin-left: 8rpx;
 }
 .tb-placeholder {
@@ -178,9 +179,9 @@ function goBack() {
   gap: 12rpx;
   height: 72rpx;
   padding: 0 24rpx;
-  background: #ffffff;
-  border: 1rpx solid #ececec;
-  border-radius: 999rpx;
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
   margin-bottom: 24rpx;
 }
 .search-input {
@@ -204,7 +205,7 @@ function goBack() {
   flex-shrink: 0;
   padding: 12rpx 28rpx;
   border-radius: 999rpx;
-  background: #ececec;
+  background: rgba(60,60,67,.08);
   color: #2b2b2b;
   font-size: 26rpx;
   font-weight: 500;
@@ -230,9 +231,10 @@ function goBack() {
   gap: 16rpx;
 }
 .faq-card {
-  background: #ffffff;
-  border: 1rpx solid #ececec;
-  border-radius: 24rpx;
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
   overflow: hidden;
 }
 .faq-q {

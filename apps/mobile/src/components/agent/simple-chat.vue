@@ -332,19 +332,25 @@ function reset() {
 function openQuotaCenter() {
   navigateTo('/vip')
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <template>
   <view class="page" :style="chatPageStyle">
     <!-- 头部 -->
     <view class="header">
-      <view class="back" role="button" aria-label="返回上一页" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <view class="back" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack()" @keydown="activateOnKeyboard($event, goBack)"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
         <text class="head-title">{{ title }}</text>
         <text class="head-online">在线</text>
       </view>
-      <view class="refresh" role="button" aria-label="重新开始对话" @tap="reset"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
+      <view class="refresh" role="button" tabindex="0" aria-label="重新开始对话" @tap="reset" @keydown="activateOnKeyboard($event, reset)"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
     </view>
 
     <!-- 场景能力提示：让用户知道当前助手能做什么，也为后续内容分发留出稳定入口。 -->
@@ -430,7 +436,7 @@ function openQuotaCenter() {
           <text class="quota-recovery__title">继续当前对话</text>
           <text class="quota-recovery__desc">恢复 AI 使用权益后，直接回到这里继续提问。</text>
         </view>
-        <view class="quota-recovery__action" @tap="openQuotaCenter"><text>恢复权益</text></view>
+        <view class="quota-recovery__action" role="button" tabindex="0" aria-label="恢复 AI 使用权益" @tap="openQuotaCenter" @keydown="activateOnKeyboard($event, openQuotaCenter)"><text>恢复权益</text></view>
       </view>
     </scroll-view>
 
@@ -451,7 +457,7 @@ function openQuotaCenter() {
         auto-height
         :show-confirm-bar="false"
       />
-      <view class="send-btn" :class="{ disabled: !input.trim() || loading }" @tap="send(input)">
+      <view class="send-btn" :class="{ disabled: !input.trim() || loading }" role="button" tabindex="0" aria-label="发送消息" @tap="send(input)" @keydown="activateOnKeyboard($event, () => send(input))">
         <AppIcon name="send" :size="32" color="#ffffff" />
       </view>
     </view>
@@ -460,7 +466,7 @@ function openQuotaCenter() {
 </template>
 
 <style scoped lang="scss">
-.page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; background: #f7f5f0; }
+.page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; background: var(--agent-canvas, #f5f5f7); }
 
 .header {
   flex-shrink: 0;
@@ -469,8 +475,9 @@ function openQuotaCenter() {
   height: auto;
   padding: calc(var(--chat-safe-top, 0px) + 12rpx) 24rpx 12rpx;
   box-sizing: border-box;
-  background: #fff;
-  border-bottom: 1rpx solid #ececec;
+  background: rgba(245,245,247,.92);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  backdrop-filter: blur(24rpx);
 }
 .back, .refresh {
   width: 80rpx; height: 80rpx; flex-shrink: 0;
@@ -481,7 +488,7 @@ function openQuotaCenter() {
 .back:active, .refresh:active { background: rgba(0, 0, 0, 0.05); }
 .head-info { display: flex; align-items: center; gap: 12rpx; flex: 1; }
 .head-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.head-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; }
+.head-title { font-size: 32rpx; font-weight: 700; color: var(--agent-ink, #1d1d1f); }
 .head-online { font-size: 20rpx; color: #16a34a; background: #f0fdf4; padding: 2rpx 12rpx; border-radius: 999rpx; }
 
 .scene-hint {
@@ -491,8 +498,8 @@ function openQuotaCenter() {
   gap: 12rpx;
   min-height: 54rpx;
   padding: 0 28rpx;
-  background: linear-gradient(90deg, rgba(49, 95, 122, 0.08), rgba(201, 169, 110, 0.08));
-  border-bottom: 1rpx solid rgba(49, 95, 122, 0.08);
+  background: var(--agent-surface, #fff);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
 }
 .scene-hint__pulse {
   width: 12rpx;
@@ -503,11 +510,11 @@ function openQuotaCenter() {
   box-shadow: 0 0 0 6rpx rgba(63, 129, 151, 0.12);
 }
 .scene-hint__text { font-size: 21rpx; line-height: 1.4; color: #536b74; }
-.quota-recovery { display: flex; align-items: center; gap: 18rpx; margin: 0 24rpx 18rpx; padding: 18rpx 20rpx; border-radius: 18rpx; background: linear-gradient(135deg, rgba(201,169,110,.12), rgba(49,95,122,.08)); border: 1rpx solid rgba(201,169,110,.24); }
+.quota-recovery { display: flex; align-items: center; gap: 18rpx; margin: 0 24rpx 18rpx; padding: 18rpx 20rpx; border-radius: var(--agent-radius-md, 18rpx); background: var(--agent-surface, #fff); border: 1rpx solid rgba(201,169,110,.24); box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06)); }
 .quota-recovery__copy { flex: 1; min-width: 0; }
 .quota-recovery__title { display: block; font-size: 24rpx; font-weight: 700; color: #4b4038; }
 .quota-recovery__desc { display: block; margin-top: 4rpx; font-size: 20rpx; line-height: 1.4; color: #81756d; }
-.quota-recovery__action { flex-shrink: 0; padding: 12rpx 18rpx; border-radius: 999rpx; background: #315f7a; color: #fff; font-size: 21rpx; }
+.quota-recovery__action { flex-shrink: 0; min-height: 52rpx; display: flex; align-items: center; padding: 12rpx 18rpx; border-radius: 999rpx; background: var(--agent-accent, #2b8a82); color: #fff; font-size: 21rpx; }
 
 .msg-area { flex: 1; overflow: hidden; }
 .msg-list { padding: 32rpx 24rpx; display: flex; flex-direction: column; gap: 32rpx; }
@@ -519,10 +526,10 @@ function openQuotaCenter() {
 .service-recommend {
   display: flex; flex-direction: column; gap: 12rpx;
   padding: 18rpx;
-  border: 1rpx solid rgba(49, 95, 122, 0.14);
-  border-radius: 22rpx;
-  background: linear-gradient(145deg, rgba(245, 250, 252, 0.98), rgba(250, 248, 242, 0.98));
-  box-shadow: 0 10rpx 28rpx rgba(37, 61, 76, 0.06);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
+  background: var(--agent-surface, #fff);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
 }
 .service-recommend__head { display: flex; align-items: flex-start; gap: 14rpx; }
 .service-recommend__icon {
@@ -543,8 +550,8 @@ function openQuotaCenter() {
 }
 .service-consent__yes { color: #fff; background: #315f7a; }
 .service-consent__no { color: #7d8589; background: rgba(49, 95, 122, 0.07); }
-.bubble { max-width: 80%; border-radius: 24rpx; padding: 20rpx 28rpx; }
-.bubble-ai { background: #fff; border: 1rpx solid #ececec; border-top-left-radius: 6rpx; }
+.bubble { max-width: 80%; border-radius: var(--agent-radius-lg, 24rpx); padding: 20rpx 28rpx; }
+.bubble-ai { background: var(--agent-surface, #fff); border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10)); box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06)); border-top-left-radius: 6rpx; }
 .bubble-user { background: var(--brand); border-top-right-radius: 6rpx; }
 .bubble-text { font-size: 28rpx; line-height: 1.6; white-space: pre-wrap; color: inherit; }
 .bubble-ai .bubble-text { color: #1a1a1a; }
@@ -579,23 +586,24 @@ function openQuotaCenter() {
 .quick-chip {
   flex-shrink: 0; font-size: 24rpx; color: #1a1a1a;
   padding: 12rpx 24rpx; border-radius: 999rpx;
-  border: 1rpx solid #ececec; background: rgba(0, 0, 0, 0.02);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10)); background: var(--agent-surface, #fff);
 }
 
 .input-bar {
   flex-shrink: 0;
   display: flex; align-items: flex-end; gap: 16rpx;
-  padding: 16rpx 24rpx 8rpx;
-  border-top: 1rpx solid #ececec;
-  background: #fff;
+  padding: 10rpx 24rpx calc(10rpx + var(--chat-safe-bottom, 0px));
+  border-top: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  background: rgba(245,245,247,.96);
 }
 .input {
   flex: 1; min-height: 72rpx; max-height: 240rpx;
-  border-radius: 24rpx; background: rgba(0, 0, 0, 0.03);
-  padding: 18rpx 28rpx; font-size: 28rpx; color: #1a1a1a;
+  border-radius: var(--agent-radius-lg, 24rpx); background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border, rgba(60,60,67,.18));
+  padding: 18rpx 28rpx; font-size: 28rpx; color: var(--agent-ink, #1d1d1f);
 }
 .send-btn {
-  width: 80rpx; height: 80rpx; border-radius: 50%; flex-shrink: 0;
+  width: 80rpx; height: 80rpx; border-radius: var(--agent-radius-lg, 24rpx); flex-shrink: 0;
   background: var(--brand); display: flex; align-items: center; justify-content: center;
 }
 .send-btn.disabled { opacity: 0.5; }
@@ -603,7 +611,7 @@ function openQuotaCenter() {
   flex-shrink: 0;
   font-size: 22rpx; color: #aaa; text-align: center;
   padding: 8rpx 24rpx calc(var(--chat-safe-bottom, 0px) + 16rpx);
-  background: #fff;
+  background: rgba(245,245,247,.96);
   box-sizing: border-box;
 }
 </style>

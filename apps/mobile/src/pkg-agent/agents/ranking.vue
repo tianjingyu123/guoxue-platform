@@ -150,14 +150,15 @@ function goBack() {
 
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--agent-canvas, #f5f5f7);
 }
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #ffffff;
-  border-bottom: 1rpx solid #ececec;
+  background: rgba(245,245,247,.92);
+  border-bottom: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  backdrop-filter: blur(24rpx);
 }
 .tb-inner {
   height: 88rpx;
@@ -178,7 +179,7 @@ function goBack() {
   text-align: center;
   font-size: 34rpx;
   font-weight: 600;
-  color: #2b2b2b;
+  color: var(--agent-ink, #1d1d1f);
 }
 .tb-placeholder {
   width: 56rpx;
@@ -199,7 +200,7 @@ function goBack() {
   flex-shrink: 0;
   padding: 12rpx 28rpx;
   border-radius: 999rpx;
-  background: #ececec;
+  background: rgba(60,60,67,.08);
   color: #2b2b2b;
   font-size: 26rpx;
 }
@@ -213,9 +214,10 @@ function goBack() {
   gap: 24rpx;
 }
 .rank-card {
-  background: #ffffff;
-  border: 1rpx solid #ececec;
-  border-radius: 24rpx;
+  background: var(--agent-surface, #fff);
+  border: 1rpx solid var(--agent-border-soft, rgba(60,60,67,.10));
+  border-radius: var(--agent-radius-lg, 24rpx);
+  box-shadow: var(--agent-shadow, 0 8rpx 28rpx rgba(31,35,41,.06));
   padding: 28rpx 24rpx;
 }
 .rc-head {
@@ -291,7 +293,7 @@ function goBack() {
   align-items: center;
   gap: 4rpx;
   padding: 16rpx 8rpx;
-  background: #f7f7f7;
+  background: var(--agent-surface-soft, #f8f8fa);
   border-radius: 12rpx;
 }
 .rc-stat-rating {
