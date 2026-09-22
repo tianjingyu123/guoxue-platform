@@ -174,6 +174,7 @@ import { vipApi } from '@/lib/vip-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
+import { track } from '@/composables/useTrack'
 
 interface CompanionMessage {
   id: string
@@ -206,6 +207,7 @@ const scrollAnchor = ref('')
 // —— AI 额度（书院会员权益①：会员不限量，免费用户每日限次）——
 const quota = ref<{ isMember: boolean; dailyLimit: number; remaining: number } | null>(null)
 const quotaExhausted = ref(false)
+const nextStepsReported = ref(false)
 
 async function loadQuota() {
   if (!getToken()) return // 未登录不打扰，发送时才引导登录
@@ -219,8 +221,19 @@ async function loadQuota() {
 }
 
 function goVip() { navigateTo('/vip') }
-function goClassics() { navigateTo('/pkg-classics/home/index') }
-function goAgents() { navigateTo('/agents') }
+function reportNextStepsView() {
+  if (nextStepsReported.value || !messages.value.length || isLoading.value) return
+  nextStepsReported.value = true
+  track.custom('classics_companion_next_view', { chapterId: chapterId.value })
+}
+function goClassics() {
+  track.custom('classics_companion_next_click', { chapterId: chapterId.value, target: 'classics' })
+  navigateTo('/pkg-classics/home/index')
+}
+function goAgents() {
+  track.custom('classics_companion_next_click', { chapterId: chapterId.value, target: 'agents' })
+  navigateTo('/agents')
+}
 
 // —— E3 带记忆：进页恢复本书共读历史（跨章节/跨登录续聊）——
 const memoryRestored = ref(false)
@@ -383,6 +396,7 @@ async function sendCoreStream(text: string, history: { role: string; content: st
   } finally {
     isLoading.value = false
     scrollToBottom()
+    nextTick(reportNextStepsView)
   }
 }
 
@@ -403,6 +417,7 @@ async function sendCoreFallback(text: string, history: { role: string; content: 
   } finally {
     isLoading.value = false
     scrollToBottom()
+    nextTick(reportNextStepsView)
   }
 }
 
