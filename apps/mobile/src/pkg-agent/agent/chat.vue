@@ -492,6 +492,7 @@ function openCustomerService() {
 }
 
 function openVoiceCall() {
+  track.custom('agent_voice_entry_click', { agentId: agentId.value, source: 'agent_detail' })
   navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(agentId.value)}`)
 }
 
@@ -557,6 +558,16 @@ onUnmounted(() => {
           </view>
         </view>
         <view class="head-actions">
+          <view
+            v-if="agentDetail.voiceEnabled"
+            class="act head-voice"
+            role="button"
+            tabindex="0"
+            aria-label="开始语音通话"
+            @tap="openVoiceCall"
+          >
+            <AppIcon name="phone" :size="32" color="#2b8a82" />
+          </view>
           <view class="menu-wrap">
             <view class="act" @tap="showMenu = !showMenu"><AppIcon name="more-horizontal" :size="34" color="#999" /></view>
             <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
@@ -853,6 +864,7 @@ onUnmounted(() => {
 .status-txt { font-size: 20rpx; color: #69717d; }
 .head-actions { display: flex; align-items: center; gap: 8rpx; }
 .act { padding: 10rpx; }
+.head-voice { width: 54rpx; height: 54rpx; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: rgba(43,138,130,.08); }
 .menu-wrap { position: relative; }
 .menu-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 40; }
 .menu { position: absolute; right: 0; top: 100%; margin-top: 12rpx; width: 280rpx; background: #fff; border: 1rpx solid #ececec; border-radius: 16rpx; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); overflow: hidden; z-index: 50; }
