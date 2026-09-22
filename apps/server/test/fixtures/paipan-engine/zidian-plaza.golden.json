@@ -2,14 +2,14 @@
  "tool": "zidian-plaza",
  "tz": "Asia/Shanghai",
  "mode": "groups",
- "source": "服务端引擎（2026-09-22 起名字库第二轮精修与手写字纠错后重新生成；此前为迁移前前端引擎，迁移一致性已于 09-21 验证）",
+ "source": "服务端引擎（2026-09-22 起名字库第二轮精修、手写纠错与真实人名数据升级后重新生成；此前为迁移前前端引擎，迁移一致性已于 09-21 验证）",
  "generatedAt": "2026-09-22",
  "calls": 100,
  "groups": 4,
  "byGroup": {
   "none": "8fe679d7c7efc45b",
-  "single": "b4ab02f35c411a77",
-  "combo": "832d3b39566368f2",
-  "combo2": "e3c436d5c53d27c5"
+  "single": "5ff8921567594b6e",
+  "combo": "65f496096ace50e5",
+  "combo2": "ed54c5b509f847d8"
  }
 }
