@@ -138,13 +138,49 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     prisma.circleMember.findUnique.mockResolvedValue({ ...MEMBER, expireAt });
     prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 2, payAmount: 547.5, amount: 547.5 });
     const tx = {
-      circleMember: { update: jest.fn().mockResolvedValue({ id: "m1" }) },
-      order: { update: jest.fn().mockResolvedValue({}) },
+      circleMember: { findUnique: jest.fn().mockResolvedValue({ ...MEMBER, expireAt }), update: jest.fn().mockResolvedValue({ id: "m1" }) },
+      order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
 
     const r = await svc.confirmRenew("c1", "u1", { orderId: "o1" });
     const expected = new Date(expireAt.getTime() + 730 * 24 * 60 * 60 * 1000).toISOString();
     expect(r.newExpireAt).toBe(expected);
+    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "o1", status: "PAID", targetId: "c1", userId: "u1" }) }));
+  });
+  it("同一订单并发确认只能认领一次，到期时间只改一次", async () => {
+    const { svc, prisma } = buildMocks();
+    prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
+    prisma.circleMember.findUnique.mockResolvedValue(MEMBER);
+    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 1, payAmount: 100 });
+    let unclaimed = true;
+    const tx = {
+      order: { updateMany: jest.fn().mockImplementation(async () => {
+        if (!unclaimed) return { count: 0 };
+        unclaimed = false;
+        return { count: 1 };
+      }) },
+      circleMember: { findUnique: jest.fn().mockResolvedValue(MEMBER), update: jest.fn().mockResolvedValue({ id: "m1" }) },
+    };
+    prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+    const results = await Promise.allSettled([
+      svc.confirmRenew("c1", "u1", { orderId: "o1" }),
+      svc.confirmRenew("c1", "u1", { orderId: "o1" }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect(tx.circleMember.update).toHaveBeenCalledTimes(1);
+  });
+  it("认领订单后成员更新失败则事务报错，不返回续费成功", async () => {
+    const { svc, prisma } = buildMocks();
+    prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
+    prisma.circleMember.findUnique.mockResolvedValue(MEMBER);
+    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 1, payAmount: 100 });
+    const tx = {
+      order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      circleMember: { findUnique: jest.fn().mockResolvedValue(MEMBER), update: jest.fn().mockRejectedValue(new Error("模拟成员更新失败")) },
+    };
+    prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+    await expect(svc.confirmRenew("c1", "u1", { orderId: "o1" })).rejects.toThrow("模拟成员更新失败");
   });
 });

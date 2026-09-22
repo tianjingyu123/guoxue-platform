@@ -402,25 +402,25 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
     }
 
-    // 顺延到期时间：未过期从原到期时间续算（不损失剩余天数），已过期从现在起算
-    const baseDate = member.expireAt && new Date(member.expireAt) > new Date()
-      ? new Date(member.expireAt)
-      : new Date();
-    // #34 两年档：下单时年数记在 order.quantity（1 或 2），按 365×年数顺延；历史订单 quantity 默认 1 行为不变
-    const years = order.quantity === 2 ? 2 : 1;
-    const newExpireAt = new Date(baseDate.getTime() + years * 365 * 24 * 60 * 60 * 1000);
-
-    // 顺延与订单完结在同一事务，防止重复确认重复顺延
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const m = await tx.circleMember.update({
+    // 先在同一事务内认领已付订单，再读取最新到期时间并顺延；并发请求只能有一个认领成功。
+    const { updated, newExpireAt } = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.order.updateMany({
+        where: { id: order.id, userId, type: "CIRCLE_RENEW", targetId: circleId, status: "PAID" },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "该续费订单已确认或状态已变化");
+      const current = await tx.circleMember.findUnique({ where: { circleId_userId: { circleId, userId } } });
+      if (!current) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
+      const now = new Date();
+      const baseDate = current.expireAt && new Date(current.expireAt) > now ? new Date(current.expireAt) : now;
+      // 两年档按订单 quantity 顺延730天；历史默认一年。
+      const years = order.quantity === 2 ? 2 : 1;
+      const newExpireAt = new Date(baseDate.getTime() + years * 365 * 24 * 60 * 60 * 1000);
+      const updated = await tx.circleMember.update({
         where: { circleId_userId: { circleId, userId } },
         data: { expireAt: newExpireAt },
       });
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: "COMPLETED", completedAt: new Date() },
-      });
-      return m;
+      return { updated, newExpireAt };
     });
 
     // 记录续费收益
