@@ -12,6 +12,7 @@ import {
   type VoiceTranscript,
 } from '@/lib/voice-agent-runtime'
 import { goBack, navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 
 type PageState = 'loading' | 'ready' | 'permission' | 'connecting' | VoiceConversationState | 'blocked' | 'error'
 
@@ -93,6 +94,7 @@ async function startCall() {
   if (!runtimeAvailable.value) {
     state.value = 'blocked'
     error.value = '未检测到实时音频运行时。请完成腾讯 RTC AI 实时对话或 Coze Audio Rooms 客户端 SDK 配置。'
+    track.custom('agent_voice_blocked', { agentId: agentId.value, reason: 'runtime_unavailable' })
     return
   }
   try {
@@ -122,10 +124,12 @@ async function startCall() {
     state.value = 'listening'
     elapsed.value = 0
     startTimer()
+    track.custom('agent_voice_started', { agentId: agentId.value })
   } catch (e) {
     state.value = 'error'
     error.value = (e as Error)?.message || '通话建立失败'
     stopTimer()
+    track.custom('agent_voice_failed', { agentId: agentId.value })
   }
 }
 
@@ -140,6 +144,7 @@ async function endCall() {
   try { await getVoiceAgentRuntime()?.disconnect() } catch { /* 退出优先，不阻塞 UI */ }
   state.value = 'ended'
   stopTimer()
+  track.custom('agent_voice_ended', { agentId: agentId.value, durationSec: elapsed.value, transcriptCount: transcriptCount.value })
 }
 
 function openTextChat() {
