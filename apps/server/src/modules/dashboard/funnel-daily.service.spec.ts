@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
-/** D-T1 漏斗日聚合单测：五漏斗步骤计数/幂等upsert/序列查询/cron互斥 */
+/** D-T1 漏斗日聚合单测：六漏斗步骤计数/幂等upsert/序列查询/cron互斥 */
 
 const mockPrisma = {
   user: { findMany: jest.fn() },
@@ -155,6 +155,24 @@ describe("FunnelDailyService", () => {
       ["cs_recommend_offered", 1],
       ["cs_recommend_clicked", 1],
       ["cs_attributed_paid", 1],
+    ]);
+  });
+
+  it("F6 智能体探索：曝光与点击按用户去重", async () => {
+    mockPrisma.trackEvent.findMany.mockImplementation(async (args: any) => {
+      const action = args?.where?.action;
+      if (action === "agent_discovery_view") return [{ userId: "u1" }, { userId: "u2" }];
+      if (action === "agent_discovery_click") return [{ userId: "u1" }];
+      return [];
+    });
+
+    await svc.rebuildDate("2026-07-01");
+
+    const f6 = mockPrisma.funnelDaily.upsert.mock.calls
+      .map((c) => c[0].create).filter((r) => r.funnel === "F6_agent_discovery");
+    expect(f6).toEqual([
+      expect.objectContaining({ step: 1, stepKey: "agent_discovery_view", count: 2 }),
+      expect.objectContaining({ step: 2, stepKey: "agent_discovery_click", count: 1 }),
     ]);
   });
 
