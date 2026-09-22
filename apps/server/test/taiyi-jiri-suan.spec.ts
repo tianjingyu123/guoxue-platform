@@ -86,7 +86,7 @@ describe("太乙 · 积日偏移（★41）", () => {
   });
 
   it("引擎里对积时取模的地方就是那五处，没有新增（新增了就要回到上面那条逐条验）", () => {
-    const mods = [...SRC.matchAll(/(?:jiShi|zhiShiJi|jiRi)\s*%\s*(\d+)/g)].map((m) => Number(m[1]));
+    const mods = [...SRC.matchAll(/(?:jiShi|zhiShiJi|wuFuJi|jiRi)\s*%\s*(\d+)/g)].map((m) => Number(m[1]));
     expect(new Set(mods)).toEqual(new Set([360, 240, 225]));
     // 干支那两处走 jiaziName(n) 的 (n-1)%60
     expect(SRC).toMatch(/const i = \(\(n - 1\) % 60 \+ 60\) % 60/);
@@ -207,6 +207,21 @@ describe("太乙 · 主客定三算（★26，取代 ★42 的「两端不计」
     const fn = /const jiangGong = \(suan: number\): number => \{([\s\S]*?)\n  \}/.exec(SRC)!;
     expect(fn[1]).toMatch(/if \(g === 0\)/);
     for (const s of SLOT16) for (const p of [1, 2, 3, 4, 6, 7, 8, 9]) expect(suanJJ(s, p)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("五福：乾艮巽坤中（太乙九宫 1/3/9/7/5），金镜开元十二年算例在艮宫第 11 年", () => {
+    expect(SRC).toMatch(/const WUFU_SEQ = \[1, 3, 9, 7, 5\]/);
+    expect(SRC).toMatch(/const WUFU_JINIAN_724 = 13331/);
+    // 原文：积得一万三千三百三十一岁 …… 今开元十二年甲子在辽东（艮）十一年也
+    const r = 13331 % 225;
+    expect([Math.floor(r / 45), r % 45]).toEqual([1, 11]);
+    expect([1, 3, 9, 7, 5][Math.floor(r / 45)]).toBe(NUM["艮"]);
+    // 反证：修前 [6,2,8,4,5] 的第 2 位按太乙九宫是坤(7)… 按洛书也是坤(2)，两种读法都不是艮
+    expect([6, 2, 8, 4, 5][1]).not.toBe(NUM["艮"]);
+    // 引擎：金镜岁太乙 2026 年 = 13331 + 1302 = 14633 → mod 225 = 8 → 第 1 宫（乾 1）入宫第 9 年
+    const y2026 = svc.run("taiyi", { year: 2026, month: 6, day: 1, hour: 12, minute: 0, panShi: "year", suanFa: "jinjing" }) as unknown as { wuFu: number };
+    expect((13331 + 2026 - 724) % 225).toBe(8);
+    expect(y2026.wuFu).toBe(1);
   });
 
   it("源码：宫环为太乙九宫、「两端不计」实现已删除、定算自定目起算", () => {
