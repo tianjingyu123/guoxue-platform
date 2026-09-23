@@ -885,6 +885,29 @@ model Content {
   @@index([categoryLevel2, status])
 }
 
+// AI/搜索统一公开目录的元数据快照。原业务表仍为事实来源；新表默认不对外启用。
+model ContentCatalog {
+  sourceType      String
+  sourceId        String
+  stationId       String?
+  circleId        String?
+  title           String
+  summary         String   @db.Text
+  cover           String?
+  tags            String[] @default([])
+  target          String
+  commercialType  String
+  contentHash     String
+  sourceUpdatedAt DateTime
+  indexedAt       DateTime @default(now())
+  active          Boolean  @default(false)
+
+  @@id([sourceType, sourceId])
+  @@index([stationId, sourceType, active])
+  @@index([circleId, sourceType, active])
+  @@index([sourceType, indexedAt])
+}
+
 // ─────────────────────────────────────────────────
 // 文章系统
 // ─────────────────────────────────────────────────
