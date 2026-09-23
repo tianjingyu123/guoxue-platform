@@ -10,6 +10,8 @@ let certificateAvailable = false
 let questionMode = 'READY'
 let reviewMode = 'READY'
 let userHasReviewed = false
+let teacherCertMode = 'APPROVED'
+let courseCreateCount = 0
 
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -87,6 +89,17 @@ http.createServer((req, res) => {
   } else if (url.pathname === '/__user_has_reviewed') {
     userHasReviewed = url.searchParams.get('enabled') === '1'
     data = { userHasReviewed }
+  } else if (url.pathname === '/api/v1/teacher/certification') {
+    if (teacherCertMode === 'ERROR') { status = 503; data = null }
+    else data = teacherCertMode === 'NONE' ? null : { id: 'cert-1', status: teacherCertMode, userId: 'teacher-1' }
+  } else if (url.pathname === '/__teacher_cert_mode') {
+    teacherCertMode = url.searchParams.get('mode') || 'APPROVED'
+    data = { teacherCertMode }
+  } else if (url.pathname === '/api/v1/courses' && req.method === 'POST') {
+    courseCreateCount++
+    data = { id: `created-course-${courseCreateCount}`, auditStatus: 'APPROVED', visibility: 'PLATFORM' }
+  } else if (url.pathname === '/__course_create_count') {
+    data = { courseCreateCount }
   } else if (url.pathname === '/__review_mode') {
     reviewMode = url.searchParams.get('mode') || 'READY'
     data = { reviewMode }
@@ -132,6 +145,8 @@ http.createServer((req, res) => {
     questionMode = 'READY'
     reviewMode = 'READY'
     userHasReviewed = false
+    teacherCertMode = 'APPROVED'
+    courseCreateCount = 0
     data = { reset: true }
   }
   res.writeHead(status)

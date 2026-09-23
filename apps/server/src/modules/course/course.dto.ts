@@ -42,11 +42,11 @@ export class CreateCourseDto {
   type?: CourseType;
 
   @ApiPropertyOptional({ description: "售价（元），0=免费", default: 0 })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   price?: number;
 
   @ApiPropertyOptional({ description: "原价（元）" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   originalPrice?: number;
 
   @ApiPropertyOptional({ description: "所属分站ID" })
@@ -66,7 +66,7 @@ export class CreateCourseDto {
   categoryLevel2?: string;
 
   @ApiPropertyOptional({ description: "购买后有效期（天），0=永久", default: 0 })
-  @IsOptional() @IsInt()
+  @IsOptional() @IsInt() @Min(0)
   validityDays?: number;
 
   @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
@@ -112,11 +112,11 @@ export class UpdateCourseDto {
   type?: CourseType;
 
   @ApiPropertyOptional({ description: "售价" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   price?: number;
 
   @ApiPropertyOptional({ description: "原价" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   originalPrice?: number;
 
   @ApiPropertyOptional({ description: "标签列表" })
@@ -132,7 +132,7 @@ export class UpdateCourseDto {
   categoryLevel2?: string;
 
   @ApiPropertyOptional({ description: "购买后有效期（天），0=永久" })
-  @IsOptional() @IsInt()
+  @IsOptional() @IsInt() @Min(0)
   validityDays?: number;
 
   @ApiPropertyOptional({ description: "定时发布时间" })

@@ -23,6 +23,15 @@
       </view>
     </view>
 
+    <view v-else-if="certLoadError" class="pc-gate">
+      <AppIcon name="alert-circle" :size="72" color="#C41E3A" />
+      <text class="pc-gate-title serif">暂无法核对讲师资格</text>
+      <text class="pc-gate-desc">请重新核对资格后继续编辑课程</text>
+      <view class="pc-gate-btn" role="button" tabindex="0" aria-label="重新核对讲师资格" @tap="loadCert" @keydown.enter="loadCert" @keydown.space.prevent="loadCert">
+        <text class="pc-gate-btn-txt">重试</text>
+      </view>
+    </view>
+
     <!-- ══ 资格门控：非认证讲师 ══ -->
     <view v-else-if="!isTeacher" class="pc-gate">
       <view class="pc-gate-art">
@@ -47,7 +56,7 @@
       <!-- ── 卡1 封面（16:9 上传位）── -->
       <view class="pc-card">
         <view class="pc-card-head">
-          <text class="pc-card-title">课程封面 <text class="pc-req">*</text></text>
+          <text class="pc-card-title">课程封面</text>
         </view>
         <view class="pc-cover" hover-class="pc-press" @tap="chooseCover">
           <view class="pc-cover-ratio">
@@ -61,7 +70,7 @@
             </view>
           </view>
         </view>
-        <text class="pc-hint">建议尺寸 16:9，JPG/PNG</text>
+        <text class="pc-hint">可选，建议尺寸 16:9，JPG/PNG</text>
       </view>
 
       <!-- ── 卡2 基本信息 ── -->
@@ -82,14 +91,17 @@
           />
         </view>
 
-        <view class="pc-field">
+        <view class="pc-field pc-field--types">
           <text class="pc-field-label">课程类型</text>
           <view class="pc-pills">
             <view
               v-for="(label, i) in typeLabels" :key="i"
               class="pc-pill" :class="{ on: typeIndex === i }"
+              role="button" tabindex="0" :aria-label="label" :aria-pressed="typeIndex === i"
               hover-class="pc-press"
               @tap="typeIndex = i"
+              @keydown.enter="typeIndex = i"
+              @keydown.space.prevent="typeIndex = i"
             >
               <text class="pc-pill-txt" :class="{ on: typeIndex === i }">{{ label }}</text>
             </view>
@@ -180,11 +192,11 @@
           <text class="pc-radio-label">{{ opt.label }}</text>
         </view>
         <view v-if="scope === 'platform'" class="pc-audit-note">
-          <text class="pc-audit-txt">全平台发布需平台审核，审核通过后自动上架</text>
+          <text class="pc-audit-txt">提交后可能继续接受内容审核；展示范围请在课程管理台核对</text>
         </view>
       </view>
 
-      <text class="pc-tail-hint">发布后即可在课程管理台上架并添加章节。</text>
+      <text class="pc-tail-hint">创建后可在课程管理台添加章节并核对课程状态。</text>
     </view>
 
     <!-- ══ 吸底发布按钮 ══ -->
@@ -213,6 +225,7 @@ import { courseApi } from '@/lib/course-data'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
+const certLoadError = ref(false)
 const submitting = ref(false)
 
 const certStatus = ref<CertStatus>('none')
@@ -273,13 +286,14 @@ async function chooseCover() {
 
 async function loadCert() {
   loading.value = true
+  certLoadError.value = false
   try {
     const cert = await teacherApi.getMyCertification()
     certStatus.value = cert
       ? (cert.status === 'APPROVED' ? 'approved' : cert.status === 'PENDING' ? 'pending' : cert.status === 'REJECTED' ? 'rejected' : 'none')
       : 'none'
   } catch (e) {
-    certStatus.value = 'none'
+    certLoadError.value = true
   } finally {
     loading.value = false
   }
@@ -287,6 +301,9 @@ async function loadCert() {
 
 async function onSubmit() {
   if (submitting.value || !form.title.trim()) return
+  if (uploadingCover.value) { uni.showToast({ title: '请等待封面上传完成', icon: 'none' }); return }
+  if (form.price && !/^\d+(\.\d{1,2})?$/.test(form.price)) { uni.showToast({ title: '售价最多保留两位小数', icon: 'none' }); return }
+  if (form.validityDays && !/^\d+$/.test(form.validityDays)) { uni.showToast({ title: '有效期须为非负整数', icon: 'none' }); return }
   submitting.value = true
   try {
     await courseApi.create({
@@ -299,9 +316,8 @@ async function onSubmit() {
       validityDays: form.validityDays ? Number(form.validityDays) : 0,
       visibility: scope.value === 'platform' ? 'PLATFORM' : 'CIRCLE_ONLY',
     })
-    // 审核无感化（20260711 第八节）：发布即可见，机审后台异步完成，无任何审核提示
     clearLocalDraft() // 发布成功，清本地兜底缓存
-    uni.showToast({ title: '发布成功', icon: 'success' })
+    uni.showToast({ title: '课程已创建', icon: 'success' })
     setTimeout(() => goBack(), 800)
   } catch (e) {
     const err = e as { message?: string; errMsg?: string }
@@ -456,6 +472,7 @@ onLoad(() => {
 }
 .pc-field + .pc-field { border-top: 2rpx solid #EDE7DD; }
 .pc-field-col { flex-direction: column; align-items: stretch; gap: 16rpx; }
+.pc-field--types { flex-direction: column; align-items: stretch; gap: 18rpx; }
 .pc-field-main { display: flex; flex-direction: column; gap: 6rpx; }
 .pc-field-label { font-size: 26rpx; color: #999999; flex-shrink: 0; }
 .pc-field-col .pc-field-label { color: #999999; }
@@ -469,7 +486,7 @@ onLoad(() => {
 .pc-ph { color: #999999; }
 
 /* 类型胶囊单选 */
-.pc-pills { display: flex; gap: 16rpx; flex-wrap: wrap; justify-content: flex-end; flex: 1; }
+.pc-pills { display: flex; gap: 12rpx; flex-wrap: wrap; justify-content: flex-start; width: 100%; }
 .pc-pill { padding: 12rpx 28rpx; border-radius: 999rpx; background: #F8F4EC; }
 .pc-pill.on { background: rgba(196,30,58,0.08); }
 .pc-pill-txt { font-size: 26rpx; color: #6E6E73; }
