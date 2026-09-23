@@ -66,7 +66,10 @@ const isIsolatedLocalDb = (() => {
         JwtStrategy,
         { provide: PrismaService, useValue: prisma },
         { provide: RedisService, useValue: { get: async () => null } },
-        { provide: CourseService, useValue: { checkAccess: (userId: string, id: string) => purchase.checkAccess(userId, id) } },
+        { provide: CourseService, useValue: {
+          checkAccess: (userId: string, id: string) => purchase.checkAccess(userId, id),
+          getUserValidCourses: (userId: string) => purchase.getUserValidCourses(userId),
+        } },
         { provide: SystemService, useValue: {} },
         { provide: LiveService, useValue: {} },
       ],
@@ -105,5 +108,24 @@ const isIsolatedLocalDb = (() => {
     await prisma.order.update({ where: { id: newOrderId }, data: { status: "REFUNDED" } });
     const refunded = await request(app.getHttpServer()).get(url).set("Authorization", `Bearer ${buyerToken}`).expect(200);
     expect(refunded.body).toEqual({ hasAccess: false });
+  });
+
+  it("多笔有效续购在有效课程接口只展示最新一条", async () => {
+    const anotherId = `synthetic-access-another-${randomUUID()}`;
+    await prisma.order.update({ where: { id: newOrderId }, data: { status: "PAID" } });
+    await prisma.order.create({ data: {
+      id: anotherId, userId: buyerId, type: "COURSE", targetId: courseId, amount: 15,
+      status: "PAID", paidAt: new Date(Date.now() - 12 * 3600000),
+    } });
+    try {
+      const buyerToken = jwt.sign({ sub: buyerId }, secret, { expiresIn: "5m" });
+      const response = await request(app.getHttpServer()).get("/api/v1/courses/user/valid")
+        .set("Authorization", `Bearer ${buyerToken}`).expect(200);
+      expect(response.body.total).toBe(1);
+      expect(response.body.courses).toHaveLength(1);
+      expect(response.body.courses[0].orderId).toBe(anotherId);
+    } finally {
+      await prisma.order.delete({ where: { id: anotherId } });
+    }
   });
 });

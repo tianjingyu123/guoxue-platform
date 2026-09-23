@@ -1854,8 +1854,14 @@ export const mineApi = {
     // ResponseInterceptor 把后端 {courses,total,page,pageSize} 分页结构重塑为数组，
     // 故 data 运行时是数组而非 {courses}。两种形态都兼容，防止已购课程被丢弃。
     const myList: RawCourseEnrollment[] = Array.isArray(my) ? my : (my?.courses ?? [])
+    const seenCourseIds = new Set<string>()
     const courses: MyCourseItem[] = myList
-      .filter((o: RawCourseEnrollment) => o.course)
+      .filter((o: RawCourseEnrollment) => {
+        const id = String(o.course?.id ?? '')
+        if (!id || seenCourseIds.has(id)) return false
+        seenCourseIds.add(id)
+        return true
+      })
       .map((o: RawCourseEnrollment) => {
         const c = o.course! // filter 已保证 course 非空
         const prog = progressByCourse.get(String(c.id))

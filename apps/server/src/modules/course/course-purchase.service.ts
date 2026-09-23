@@ -242,6 +242,7 @@ export class CoursePurchaseService {
 
     const courseMap = new Map(courses.map((c) => [c.id, c]));
 
+    const seenCourseIds = new Set<string>();
     const validCourses = orders
       .filter((o) => {
         const course = courseMap.get(o.targetId);
@@ -249,6 +250,11 @@ export class CoursePurchaseService {
         if (course.validityDays === 0) return true; // 永久有效
         const expiresAt = new Date(o.paidAt.getTime() + course.validityDays * 86400000);
         return expiresAt > new Date();
+      })
+      .filter((o) => {
+        if (seenCourseIds.has(o.targetId)) return false;
+        seenCourseIds.add(o.targetId);
+        return true;
       })
       .map((o) => {
         const course = courseMap.get(o.targetId)!;
