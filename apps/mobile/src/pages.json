@@ -123,6 +123,12 @@
           }
         },
         {
+          "path": "bazi/ai-report",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "bazi/history/index",
           "style": {
             "navigationStyle": "custom"
@@ -1126,6 +1132,12 @@
           }
         },
         {
+          "path": "circles/voice-agent",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/dashboard",
           "style": {
             "navigationStyle": "custom"
@@ -1346,6 +1358,36 @@
           "style": {
             "navigationStyle": "custom",
             "disableScroll": true
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice-history",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-voice-topup",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-member",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "agent/xiaobu-devices",
+          "style": {
+            "navigationStyle": "custom"
           }
         },
         {

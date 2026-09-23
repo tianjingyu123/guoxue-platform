@@ -9,7 +9,7 @@
  * 对应 shop-order.service.createOrder 的分支：MEMBER / STATION_MASTER / PRACTITIONER_PRO / OPERATOR
  * 走各自定价，唯有 else 分支才是实物 PRODUCT（有 SKU/库存）。
  */
-export const STOCKLESS_ORDER_TYPES = ["MEMBER", "STATION_MASTER", "PRACTITIONER_PRO", "OPERATOR"] as const;
+export const STOCKLESS_ORDER_TYPES = ["MEMBER", "STATION_MASTER", "PRACTITIONER_PRO", "OPERATOR", "VOICE_MINUTES", "XIAOBU_REPORT", "XIAOBU_MEMBER"] as const;
 
 export function isStocklessOrderType(type: string): boolean {
   return (STOCKLESS_ORDER_TYPES as readonly string[]).includes(type);

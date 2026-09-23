@@ -73,6 +73,9 @@ const SUMMARY_EVERY = 24;
 /** 会话恢复时返回给前端的历史条数 */
 const RESTORE_MESSAGES = 50;
 
+/** 伴读模型无产出时的兜底文案（不计 AI 次数） */
+export const COMPANION_EMPTY_ANSWER = "抱歉，我暂时无法回答，请换个角度再问问。";
+
 @Injectable()
 export class ClassicCompanionService {
   private readonly logger = new Logger(ClassicCompanionService.name);
@@ -272,8 +275,7 @@ export class ClassicCompanionService {
       messages,
       options: { temperature: 0.6, maxTokens: 1500 },
     });
-    const answer = result.content?.trim();
-    if (!answer) throw new ServiceUnavailableException("伴读未返回内容，请稍后重试。");
+    const answer = result.content?.trim() || COMPANION_EMPTY_ANSWER;
 
     await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
     // 问过称呼就留痕：用户没答也算问过，否则下次又问一遍

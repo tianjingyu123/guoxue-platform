@@ -1,13 +1,14 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
-import { ClassicService } from "./classic.service";
+import { ClassicService, CLASSIC_QA_EMPTY_ANSWER } from "./classic.service";
 import { ClassicSegmentService } from "./classic-segment.service";
 import { ClassicPunctuationService } from "./classic-punctuation.service";
+import { ClassicSimplifiedService } from "./classic-simplified.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
-import { ClassicCompanionService } from "./classic-companion.service";
+import { ClassicCompanionService, COMPANION_EMPTY_ANSWER } from "./classic-companion.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
@@ -24,6 +25,7 @@ export class ClassicController {
     private svc: ClassicService,
     private segment: ClassicSegmentService,
     private punctuation: ClassicPunctuationService,
+    private simplified: ClassicSimplifiedService,
     private seeder: ClassicLibrarySeeder,
     private daizhigeSeeder: ClassicDaizhigeSeeder,
     private companion: ClassicCompanionService,
@@ -76,6 +78,7 @@ export class ClassicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async getChapterSegments(@Param("id") id: string) {
+    await this.segment.assertChapterPublic(id);
     const segments = await this.segment.getSegmentsForChapter(id);
     if (segments.length === 0) {
       // 首次访问：只按现有 content 原样切分（幂等），不在读请求中写回用户笔记/注疏锚点
@@ -85,17 +88,58 @@ export class ClassicController {
     return segments;
   }
 
-  /** 段落 AI 断句：已有结果（或原文已有足够标点）直接返回，不计次数 */
+  /**
+   * 段落 AI 断句。计次口径（决策人 2026-09-21）：复用已有 AI 结果也扣 AI 次数；
+   * 原文本身已有足够标点、直接返回原文的不是 AI 结果，不扣。
+   */
   @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiBearerAuth()
   @Post("segments/:id/punctuate")
   @ApiOperation({ summary: "按需为段落加标点（AI 草稿，字序严格校验，跨用户复用）" })
   @ApiResponse({ status: 201, description: "返回断句结果（source=original/ai_draft）" })
   async punctuateSegment(@Req() req: Request, @Param("id") id: string) {
+    await this.segment.assertSegmentPublic(id);
     const existing = await this.punctuation.peek(id);
-    if (existing) return existing;
-    await this.memberBenefit.consumeAiQuota(req.user.id);
-    return this.punctuation.punctuate(id, req.user.id);
+    if (existing?.source === "original") return existing;
+    // 生成失败（模型不可用、改字校验不过）退回次数
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => existing ?? this.punctuation.punctuate(id, req.user.id));
+  }
+
+  /** 章节简体阅读版（确定性转换，不改底本；每段带回原文段落 ID、哈希与偏移） */
+  @Get("chapters/:id/simplified")
+  @ApiOperation({ summary: "章节简体阅读版（等长转换，可映射回原文位置）" })
+  async getChapterSimplified(@Param("id") id: string) {
+    return this.simplified.forChapter(id);
+  }
+
+  @Get("segments/:id/simplified")
+  @ApiOperation({ summary: "段落简体阅读版（持久化派生资产）" })
+  async getSegmentSimplified(@Param("id") id: string) {
+    return this.simplified.forSegment(id);
+  }
+
+  /**
+   * 段落译文状态：不生成、不计次，**只返回状态不返回译文正文**
+   * （复用也要扣次数，正文只能经 POST translate 取得，否则这里就成了免费读译文的旁路）
+   */
+  @Get("segments/:id/translation")
+  @ApiOperation({ summary: "段落白话译文状态（绑定段落 ID 与原文版本；不含正文）" })
+  async getSegmentTranslation(@Param("id") id: string) {
+    const { result: _body, ...status } = await this.svc.segmentTranslationStatus(id);
+    return status;
+  }
+
+  /** 段落白话译文：计 AI 次数（复用已有译文也扣）；已有合格译文不再调用模型 */
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiBearerAuth()
+  @Post("segments/:id/translate")
+  @ApiOperation({ summary: "按需生成段落白话译文（跨用户复用；复用也计次，但不再调用模型）" })
+  async translateSegment(@Req() req: Request, @Param("id") id: string) {
+    const st = await this.svc.segmentTranslationStatus(id);
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => {
+      if (st.status === "success") return { segmentId: id, contentHash: st.contentHash, cached: true, ...st.result };
+      return this.svc.translateSegment(id, req.user.id);
+    });
   }
 
   // ── 书籍管理（需管理员） ──
@@ -349,7 +393,12 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async dictionaryLookup(@Req() req: Request, @Body() dto: DictionaryLookupDto) {
-    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.dictionaryLookup(dto.word));
+    // 权益①：会员不限量，免费用户每日限次；模型无产出（无释义也无解释）不计次
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () => this.svc.dictionaryLookup(dto.word),
+      (r: any) => !(r?.meanings?.length) && (!r?.explanation || r.explanation === "暂无解释"),
+    );
   }
 
   // ── 白话翻译 ──
@@ -368,7 +417,13 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async translate(@Req() req: Request, @Body() dto: TranslateDto) {
-    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.translateClassical(dto));
+    // 计次口径（决策人 2026-09-21）：复用已有译文也扣 AI 次数；命中时只是不再调用模型
+    // 生成失败退回次数（决策人 2026-09-21）
+    return this.memberBenefit.runWithAiQuota(req.user.id, async () => {
+      const hit = await this.svc.peekTranslation(dto);
+      if (hit) return hit;
+      return this.svc.translateClassical(dto, req.user.id);
+    });
   }
 
   // ── 古籍AI问答 ──
@@ -379,7 +434,11 @@ export class ClassicController {
   @ApiResponse({ status: 201, description: "成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async ask(@Req() req: Request, @Body() dto: AskClassicDto) {
-    return this.memberBenefit.withAiQuota(req.user.id, () => this.svc.askClassic(dto.question));
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () => this.svc.askClassic(dto.question),
+      (r) => r.answer === CLASSIC_QA_EMPTY_ANSWER,
+    );
   }
 
   // ── 古籍伴读智能体（识典伴读·注入当前章节正文的开放多轮对话） ──
@@ -400,10 +459,15 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChat(@Req() req: Request, @Body() dto: CompanionChatDto) {
-    return this.memberBenefit.withAiQuota(req.user.id, () => this.companion.chat(
-      { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
-      req.user?.id,
-    ));
+    return this.memberBenefit.runWithAiQuota(
+      req.user.id,
+      () =>
+        this.companion.chat(
+          { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
+          req.user?.id,
+        ),
+      (r) => r.answer === COMPANION_EMPTY_ANSWER,
+    );
   }
 
   @UseGuards(JwtAuthGuard, ThrottleGuard)
@@ -415,13 +479,19 @@ export class ClassicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "章节不存在" })
   async companionChatStream(@Req() req: Request, @Res() res: Response, @Body() dto: CompanionChatDto) {
-    // 与解读共用占额保护：生成失败或连接断开时退回次数。
+    // 门控与非流式一致：先于 SSE 头执行，超限以普通错误响应返回
+    const ticket = await this.memberBenefit.consumeAiQuota(req.user.id);
+    // 统一 SSE 写入器（含 X-Accel-Buffering: no 防 nginx 缓冲）；流中途出错或无产出退回次数
     await this.sse.writeSseStream(
       res,
-      this.memberBenefit.withAiStreamQuota(req.user.id, this.companion.chatStream(
-        { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
-        req.user?.id,
-      ), () => res.destroyed),
+      this.memberBenefit.guardAiStream(
+        ticket,
+        this.companion.chatStream(
+          { chapterId: dto.chapterId, question: dto.question, focusText: dto.focusText, history: dto.history },
+          req.user?.id,
+        ),
+        () => res.destroyed,
+      ),
     );
   }
 

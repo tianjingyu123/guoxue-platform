@@ -16,7 +16,7 @@ import SimilarCases from '../components/similar-cases.vue'
 import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { saveBaziHistory } from './bazi-history'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 
@@ -297,6 +297,15 @@ function onShare() {
         <case-library-entry method="BAZI" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
         <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
+        <!-- 小卜 AI 文字报告：需已保存的排盘记录（报告按记录归属鉴权） -->
+        <view v-if="recordIdFromQuery" class="xb-entry" @tap="navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${recordIdFromQuery}`)">
+          <app-icon name="sparkles" :size="36" color="#C41E3A" />
+          <view class="xb-entry-text">
+            <text class="xb-entry-title">小卜 AI 解读报告</text>
+            <text class="xb-entry-sub">依据盘面与古籍原文生成文字报告，可查看引用出处</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#C41E3A" />
+        </view>
         <generate-report-button
           tool-key="bazi"
           tool-label="八字排盘"
@@ -392,6 +401,10 @@ function onShare() {
 /* 主体 */
 .body { flex: 1; }
 .disc-wrap { padding: 0 20rpx 32rpx; }
+.xb-entry { display: flex; align-items: center; gap: 16rpx; margin: 24rpx; padding: 24rpx; background: var(--card); border-radius: 20rpx; border: 2rpx solid rgba(196, 30, 58, 0.25); }
+.xb-entry-text { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.xb-entry-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink); }
+.xb-entry-sub { font-size: 24rpx; color: var(--text-soft); }
 /* 悬浮笔记按钮 */
 .fab { position: fixed; right: 24rpx; bottom: 40rpx; z-index: 10; width: 88rpx; height: 88rpx; background: var(--card); border-radius: 999rpx; box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.15); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
 .fab-text { font-size: 18rpx; color: var(--brand); font-weight: 500; }

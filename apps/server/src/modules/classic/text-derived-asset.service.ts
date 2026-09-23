@@ -134,7 +134,15 @@ export class TextDerivedAssetService {
           processingStatus: "processing",
           processingStartedAt: new Date(),
         },
-        update: { processingStatus: "processing", errorMessage: null, processingStartedAt: new Date() },
+        // 重新生成（含人工驳回后）：新结果未经复核，复核状态清回待复核
+        update: {
+          processingStatus: "processing",
+          errorMessage: null,
+          processingStartedAt: new Date(),
+          reviewStatus: "none",
+          reviewedBy: null,
+          reviewedAt: null,
+        },
       });
 
       let output: TextProcessOutput;

@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { createHash } from "crypto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "./classic-publication-policy";
 
 /**
  * 古籍段落服务：负责章节内容切分、段落持久化、旧锚点迁移
@@ -47,6 +50,26 @@ export class ClassicSegmentService {
   private readonly logger = new Logger(ClassicSegmentService.name);
 
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * 公开可读校验（2026-09-21 补）：段落接口与正文接口同一口径——已发布、未删除、有已审计的可商用版权记录。
+   * 此前 GET chapters/:id/segments 不校验，未发布或版权待审的章节正文可经段落接口读出。
+   */
+  async assertChapterPublic(chapterId: string) {
+    const ok = await this.prisma.classicChapter.findFirst({
+      where: { id: chapterId, deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE },
+      select: { id: true },
+    });
+    if (!ok) throw new BusinessException(ErrorCode.NOT_FOUND, "章节不存在");
+  }
+
+  async assertSegmentPublic(segmentId: string) {
+    const ok = await this.prisma.classicSegment.findFirst({
+      where: { id: segmentId, deletedAt: null, chapter: { deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE } },
+      select: { id: true },
+    });
+    if (!ok) throw new BusinessException(ErrorCode.NOT_FOUND, "段落不存在");
+  }
 
   /**
    * 切分段落并计算原文坐标。

@@ -65,19 +65,35 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
   }
   if (acc) pushHistory(text, acc.slice(0, 2000))
 }
+
+function openVoice() {
+  uni.navigateTo({ url: `/pkg-agent/agent/xiaobu-voice?scene=circle_assistant&contextId=${encodeURIComponent(circleId.value)}` })
+}
 </script>
 
 <template>
-  <simple-chat
-    :title="title"
-    :back-target="backTarget"
-    :quota-recovery-enabled="false"
-    icon-name="sparkles"
-    icon-color="#C41E3A"
-    icon-bg="rgba(196,30,58,0.1)"
-    welcome="你好，我是本圈的圈主助理。圈子内容、国学知识都可以问我～"
-    scene-hint="优先参考已入库的本圈知识；未命中时补充通用知识"
-    :quick-prompts="['这个圈子主要讲什么？', '推荐一些入门内容', '帮我解释一个概念']"
-    :resolve-stream="resolveStream"
-  />
+  <view class="assistant-page">
+    <simple-chat
+      :title="title"
+      :back-target="backTarget"
+      :quota-recovery-enabled="false"
+      icon-name="sparkles"
+      icon-color="#C41E3A"
+      icon-bg="rgba(196,30,58,0.1)"
+      welcome="你好，我是本圈的圈主助理。圈子内容、国学知识都可以问我～"
+      scene-hint="优先参考已入库的本圈知识；未命中时补充通用知识"
+      :quick-prompts="['这个圈子主要讲什么？', '推荐一些入门内容', '帮我解释一个概念']"
+      :resolve-stream="resolveStream"
+    />
+    <!-- 语音入口与文字分开（S02）：进入统一语音页，由服务端校验成员身份与圈主是否开通 -->
+    <view v-if="circleId" class="voice-chip" data-testid="circle-voice" @tap="openVoice">
+      <text class="voice-chip-text">语音</text>
+    </view>
+  </view>
 </template>
+
+<style lang="scss" scoped>
+.assistant-page { position: relative; }
+.voice-chip { position: fixed; right: 24rpx; top: calc(var(--status-bar-height, 0px) + 120rpx); z-index: 30; padding: 10rpx 24rpx; border-radius: 999rpx; background: rgba(196,30,58,0.92); }
+.voice-chip-text { font-size: 24rpx; color: #fff; }
+</style>

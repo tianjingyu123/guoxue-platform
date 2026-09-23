@@ -16,7 +16,8 @@ function setup(over?: { available?: number; reserved?: number; charging?: boolea
     })),
   };
   const trial: any = { status: jest.fn(), start: jest.fn(), finish: jest.fn(), mine: jest.fn() };
-  return { ctrl: new VoiceUserController(quota, trial), quota, trial };
+  const commerce: any = { memberOverview: jest.fn(async () => ({ active: false, expireAt: null, planKey: null, plans: [], monthlyVoiceMinutes: 300 })) };
+  return { ctrl: new VoiceUserController(quota, trial, commerce), quota, trial, commerce };
 }
 
 /** 鉴权守卫注入的是 req.user.id —— 早先按 userId 取，线上会拿到 undefined */

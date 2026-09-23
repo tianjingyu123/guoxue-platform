@@ -65,6 +65,21 @@ describe("SearchService", () => {
       }
     });
 
+    it("古籍只搜索公开口径（已发布 + 已审计可商用许可），全文与模糊两条路径一致", async () => {
+      mockPrisma.$queryRawUnsafe.mockClear();
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
+      await svc.search({ q: "周易版权待审", type: "classic" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((c: unknown[]) => String(c[0])).filter((s: string) => s.includes('"ClassicBook"'));
+      expect(sqls.length).toBeGreaterThanOrEqual(1);
+      for (const sql of sqls) {
+        expect(sql).toContain(`"status" = 'PUBLISHED'`);
+        expect(sql).toContain(`FROM "ClassicCopyright" cc`);
+        expect(sql).toContain(`cc."auditedAt" IS NOT NULL`);
+        expect(sql).toContain(`'PUBLIC-DOMAIN'`);
+        expect(sql).not.toContain(`'CC-BY-NC`);
+      }
+    });
+
     it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });

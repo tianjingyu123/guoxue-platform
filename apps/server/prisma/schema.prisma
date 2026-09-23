@@ -1395,6 +1395,9 @@ enum OrderType {
   LIVESTREAM
   BUNDLE
   PRACTITIONER_PRO // 从业者会员 ¥98/月（独立于 MEMBER 书院会员）
+  VOICE_MINUTES // 小卜语音时长充值（targetId=分钟档位，2026-09-21）
+  XIAOBU_REPORT // 小卜报告单独购买（targetId=排盘记录ID:报告类型，2026-09-21）
+  XIAOBU_MEMBER // 小卜AI会员（targetId=档位 MONTHLY/YEARLY/YEAR3/YEAR5，2026-09-21）
 }
 
 enum OrderStatus {
@@ -2071,6 +2074,7 @@ model CoupleChart {
   @@unique([inviteToken])
   @@index([initiatorId])
   @@index([partnerId])
+  @@index([scene])
 }
 
 // 用户自定义分组（跨排盘工具）
@@ -3820,6 +3824,9 @@ model TextDerivedAsset {
   errorMessage        String?
   processingStartedAt DateTime?
   processingEndedAt   DateTime?
+  reviewStatus        String    @default("none") // none / pending_review / approved / rejected（人工复核）
+  reviewedBy          String?
+  reviewedAt          DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -3946,7 +3953,7 @@ model UserPreferredName {
   name      String?
   source    String? // asked=用户自己说的 / nickname=从昵称采用
   askedAt   DateTime? // 有值即表示问过，不论答没答
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now()) @updatedAt
 }
 
 /// 广场智能体试聊用量（2026-09-18）。
@@ -3981,28 +3988,48 @@ model VoiceQuotaAccount {
 
 /// 小卜语音会话：开始时预留额度，结束时按供应商用量（暂缺时按估算并标注待对账）结算
 model VoiceSession {
-  id                String    @id @default(uuid())
-  userId            String
-  accountId         String? // 免费体验期可不关联账户
-  scene             String // report_dialogue / classic_companion / circle_assistant / plaza
-  contextType       String? // paipan_report / classic_segment / circle
-  contextId         String?
-  tier              String    @default("lite") // lite / standard
-  status            String    @default("reserved") // reserved / ended / failed
-  reservedSeconds   Int       @default(0)
-  maxSeconds        Int // 本次会话时长上限（额度与单次上限取小）
-  usedSeconds       Int? // 结算用量
-  usageSource       String? // vendor=供应商用量 / estimate=客户端估算（待对账）
-  providerSessionId String?
-  supplierCostMicro BigInt? // 供应商成本（百万分之一元）
-  priceRuleVersion  String? // 结算时使用的费率配置版本
-  endReason         String? // user_hangup / idle_timeout / quota_exhausted / error
-  startedAt         DateTime  @default(now())
-  endedAt           DateTime?
+  id                     String    @id @default(uuid())
+  userId                 String
+  accountId              String? // 免费体验期可不关联账户
+  scene                  String // report_dialogue / classic_companion / circle_assistant / plaza / content_guide / device
+  contextType            String? // paipan_report / classic_segment / circle / plaza_agent / device
+  contextId              String?
+  tier                   String    @default("lite") // lite / standard
+  status                 String    @default("reserved") // reserved / active / ending / ended / cancelled / failed
+  reservedSeconds        Int       @default(0)
+  maxSeconds             Int // 本次会话时长上限（额度与单次上限取小）
+  usedSeconds            Int? // 结算用量；usageState=unknown 时为空，不填 0 冒充准确
+  usageSource            String? // vendor=供应商用量 / estimate=客户端估算（待对账）/ mock=模拟供应商（非真实）
+  providerSessionId      String?
+  supplierCostMicro      BigInt? // 供应商成本（百万分之一元）
+  priceRuleVersion       String? // 结算时使用的费率配置版本
+  endReason              String? // user_hangup / idle_timeout / quota_exhausted / error / cancelled / provider_unavailable
+  startedAt              DateTime  @default(now())
+  endedAt                DateTime?
+  // ── 供应商适配边界（2026-09-21 非商业 API 收口）──
+  provider               String    @default("unavailable") // unavailable / mock / xiaozhi（真实适配器未实现）
+  providerIsMock         Boolean   @default(false) // true=全程模拟供应商，结果不得视为真实接通
+  agentId                String? // 广场智能体 / 圈子语音角色 / 报告角色
+  requestId              String    @unique @default(uuid()) // 关联 ID：贯穿供应商请求、回调与日志
+  startIdempotencyKey    String?   @unique // userId + 客户端请求号；重复点击「开始」只建一个会话
+  usageState             String    @default("none") // none / pending / vendor / estimated / unknown / mock
+  technicalOutcome       String? // success / failed / timeout / interrupted / cancelled
+  answerCompleteness     String? // complete / partial / unknown（供应商未提供时恒 unknown）
+  userSatisfaction       String? // satisfied / neutral / unsatisfied（用户主动反馈，不推断）
+  contextVersion         String? // 上下文快照版本（报告版本 / 段落内容哈希）
+  contextDigest          String? // 下发给供应商的最小上下文的哈希（审计用，不存原文）
+  deviceId               String? // 硬件会话：VoiceDevice.id
+  deviceBindingVersion   Int? // 硬件会话：绑定代次，换主人后旧代次历史不可见
+  clientEstimatedSeconds Int? // 客户端自报时长，仅作估算参考
+  issuedAt               DateTime? // 供应商签发成功时间
+  lastEventAt            DateTime? // 最近一次心跳/回调时间，超时清理依据
+  lastInputAt            DateTime? // 最近一次用户输入（说话/发文字）；超过 idleTimeoutSeconds 无新输入自动结束
 
   @@index([userId, startedAt])
   @@index([accountId])
   @@index([status])
+  @@index([provider, providerSessionId])
+  @@index([deviceId, deviceBindingVersion])
 }
 
 /// 语音额度流水：每条带幂等键，重复到达的发放/结算/退款只记一次
@@ -4020,6 +4047,167 @@ model VoiceQuotaLedger {
 
   @@index([accountId, createdAt])
   @@index([sessionId])
+}
+
+/// 每一次调用供应商（签发/结束/探测）记一条：用量与成本按「一次尝试」追溯，失败与超时也留痕
+model VoiceProviderAttempt {
+  id             String   @id @default(uuid())
+  sessionId      String?
+  provider       String
+  isMock         Boolean  @default(false)
+  operation      String // issue / end / probe
+  attemptNo      Int      @default(1)
+  idempotencyKey String   @unique // 同一操作重试共用前缀 + 序号，重复写入直接忽略
+  outcome        String // success / failed / timeout / cancelled / rejected / unavailable
+  errorCode      String?
+  retryable      Boolean  @default(false)
+  latencyMs      Int?
+  createdAt      DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([provider, createdAt])
+}
+
+/// 供应商用量回调：按 (provider, eventId) 唯一，重复到达只处理一次
+model VoiceUsageEvent {
+  id                String   @id @default(uuid())
+  provider          String
+  eventId           String
+  sessionId         String?
+  providerSessionId String?
+  usedSeconds       Int? // 供应商未给出时为空
+  isFinal           Boolean  @default(false)
+  isMock            Boolean  @default(false)
+  payloadDigest     String // 原始回调体哈希；不存原文（可能含用户语音转写）
+  applied           Boolean  @default(false)
+  note              String?
+  receivedAt        DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([sessionId])
+}
+
+/// 圈主 IP 硬件设备台账（S09）。设备序列号只存带密钥哈希与末四位，绝不明文落库。
+model VoiceDevice {
+  id                String    @id @default(uuid())
+  serialHash        String    @unique // HMAC-SHA256(序列号, XIAOBU_DEVICE_PEPPER)
+  serialHint        String // 末四位，供客服核对
+  productSku        String // 公版硬件 SKU
+  circleId          String? // 所属圈子（圈主产品）
+  agentProfileId    String? // 绑定的语音角色（VoiceAgentProfile）
+  status            String    @default("unbound") // unbound / bound / transfer_pending / disabled
+  currentUserId     String?
+  bindingVersion    Int       @default(0) // 每次换主人 +1，历史按代次隔离
+  bindCodeHash      String?   @unique // 一次性绑定码哈希（二维码内容），用后即清
+  bindCodeExpiresAt DateTime?
+  providerDeviceRef String? // 商业平台设备标识；商业 API 未接通前为空
+  activationState   String    @default("pending_vendor") // pending_vendor / activated（须真实供应商确认）
+  disabledReason    String?
+  /// 设备私有身份：HMAC(Client-Id, XIAOBU_DEVICE_PEPPER)。MAC 可被嗅探、同批连号，只认 MAC 会被冒充；
+  /// 出厂预置（factory）或首次联网锁定（first_contact），机主/后台可重置后由设备下次联网重新锁定
+  terminalIdHash    String?
+  terminalPinnedAt  DateTime?
+  terminalPinSource String? // factory / first_contact
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  bindings  VoiceDeviceBinding[]
+  transfers VoiceDeviceTransfer[]
+
+  @@index([currentUserId])
+  @@index([circleId])
+  @@index([status])
+}
+
+model VoiceDeviceBinding {
+  id             String    @id @default(uuid())
+  deviceId       String
+  userId         String
+  bindingVersion Int
+  boundAt        DateTime  @default(now())
+  unboundAt      DateTime?
+  endReason      String? // unbind / transfer / disabled / admin_reset
+
+  device VoiceDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, bindingVersion])
+  @@index([userId])
+}
+
+model VoiceDeviceTransfer {
+  id         String    @id @default(uuid())
+  deviceId   String
+  fromUserId String
+  toUserId   String?
+  tokenHash  String    @unique // 转赠码哈希，明文只给发起人一次
+  status     String    @default("pending") // pending / accepted / cancelled / expired
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  device VoiceDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, status])
+}
+
+/// 小智协议终端固件发布（在线升级通道）：按板型发布、按比例灰度、可暂停
+model VoiceFirmwareRelease {
+  id             String    @id @default(uuid())
+  boardName      String // 目标板型（设备上报的 board.name，如 xmini-c3-rebu-test）
+  version        String // 固件自带版本（从镜像描述里读出，纯数字点分）
+  projectName    String // 固件自带项目名（从镜像描述里读出）
+  chipId         Int // 镜像头里的芯片编号（ESP32-C3=5、S3=9）
+  fileKey        String // 存储对象键
+  sha256         String
+  size           Int
+  notes          String?   @db.Text
+  status         String    @default("draft") // draft / active / paused / archived
+  rolloutPercent Int       @default(0) // 0—100：按设备哈希分桶灰度
+  createdBy      String
+  activatedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  deviceStates VoiceFirmwareDeviceState[]
+
+  @@unique([boardName, version])
+  @@index([boardName, status])
+}
+
+/// 固件推送到单台设备的状态：推送次数、成功/失败（失败后不再推送给该设备）
+model VoiceFirmwareDeviceState {
+  id            String    @id @default(uuid())
+  releaseId     String
+  deviceId      String
+  fromVersion   String
+  offers        Int       @default(0)
+  status        String    @default("offered") // offered / succeeded / failed
+  firstOfferAt  DateTime  @default(now())
+  lastOfferAt   DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  release VoiceFirmwareRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@unique([releaseId, deviceId])
+  @@index([deviceId])
+}
+
+/// 有声读书断点（S05）：按用户 × 章节 × 原文/白话记录最后听到的段落与位置
+model AudioListenProgress {
+  id         String   @id @default(uuid())
+  userId     String
+  bookId     String
+  chapterId  String
+  textType   String   @default("original") // original / vernacular
+  segmentId  String? // ClassicSegment.id（稳定段落锚点）
+  sortOrder  Int      @default(0) // 段落序号（段落表缺失时的兜底定位）
+  positionMs Int      @default(0) // 段内位置
+  rate       Float    @default(1) // 播放倍速（只是偏好，不生成多份音频）
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, chapterId, textType])
+  @@index([userId, bookId])
 }
 
 /// 排盘报告知识库（小卜 AI）：人工精选的门派理论与指定古籍原文出处。
@@ -4066,6 +4254,7 @@ model PaipanReportKnowledge {
   @@index([topic])
   @@index([debateKey])
   @@index([paipanType, stance])
+  @@index([sourceKind])
 }
 
 /// 排盘报告的应验回访（2026-09-19）

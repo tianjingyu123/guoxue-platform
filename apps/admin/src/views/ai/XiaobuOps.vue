@@ -102,6 +102,81 @@
     </el-card>
 
     <el-card shadow="never" class="block">
+      <template #header><span>实时语音供应商</span></template>
+      <div v-if="provider" class="kv">
+        <div>
+          <span class="k">当前供应商</span>
+          <span>
+            <el-tag :type="provider.available ? (provider.isMock ? 'warning' : 'success') : 'info'" size="small">
+              {{ provider.isMock ? '模拟（仅测试）' : provider.available ? '已接通' : '暂未开放' }}
+            </el-tag>
+            <span class="num" style="margin-left:8px">{{ provider.providerId }}</span>
+          </span>
+        </div>
+        <div><span class="k">说明</span><span>{{ provider.opsNote }}</span></div>
+        <div><span class="k">用户化名密钥</span><el-tag :type="provider.userRefStable ? 'success' : 'warning'" size="small">{{ provider.userRefStable ? '已配置' : '未配置（上线前必须配置）' }}</el-tag></div>
+        <el-table :data="capabilityRows" size="small" border>
+          <el-table-column prop="label" label="能力" min-width="200" />
+          <el-table-column label="状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.state === 'supported' ? 'success' : row.state === 'unsupported' ? 'danger' : 'info'" size="small">{{ CAP_STATE[row.state] }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <p class="muted">「待确认」表示尚无商业文档与联调证据，页面与业务一律按不可用处理。</p>
+      </div>
+      <el-empty v-else-if="!providerLoading" description="无权查看或加载失败" :image-size="60" />
+    </el-card>
+
+    <el-card shadow="never" class="block">
+      <template #header><span>语音异常（需人工对账或排查）</span></template>
+      <div v-if="anomalies" class="kv">
+        <div><span class="k">时长未知的会话（未扣额度）</span><span class="num strong">{{ anomalies.unknownUsageSessions }}</span></div>
+        <div><span class="k">按估算结算、待核对账单</span><span class="num">{{ anomalies.estimatedUsageSessions }}</span></div>
+        <div><span class="k">未匹配到会话的用量回调</span><span class="num">{{ anomalies.unmatchedUsageEvents }}</span></div>
+        <div><span class="k">卡住超过 15 分钟的会话</span><span class="num">{{ anomalies.stuckSessions }}</span></div>
+        <el-table :data="anomalies.failedProviderAttempts" size="small" border empty-text="无失败的供应商调用">
+          <el-table-column prop="operation" label="操作" width="90" />
+          <el-table-column prop="outcome" label="结果" width="110" />
+          <el-table-column prop="errorCode" label="错误码" min-width="120" />
+          <el-table-column prop="count" label="次数" width="80" align="right" />
+        </el-table>
+      </div>
+    </el-card>
+
+    <el-card shadow="never" class="block">
+      <template #header>
+        <div class="card-head">
+          <span>语音会话明细（用户标识已脱敏，不含对话内容）</span>
+          <el-select v-model="sessionFilter.usageState" size="small" clearable placeholder="用量状态" style="width:150px" @change="loadSessions(1)">
+            <el-option v-for="(v, k) in USAGE_LABEL" :key="k" :label="v" :value="k" />
+          </el-select>
+        </div>
+      </template>
+      <el-table v-loading="sessionsLoading" :data="sessions" size="small" border empty-text="暂无会话">
+        <el-table-column label="开始时间" width="160"><template #default="{ row }">{{ fmtDate(row.startedAt) }}</template></el-table-column>
+        <el-table-column prop="user" label="用户" width="100" />
+        <el-table-column prop="scene" label="场景" width="130" />
+        <el-table-column label="供应商" width="120"><template #default="{ row }">{{ row.provider }}<el-tag v-if="row.isMock" size="small" type="warning" style="margin-left:4px">模拟</el-tag></template></el-table-column>
+        <el-table-column prop="status" label="状态" width="90" />
+        <el-table-column label="用量" width="160"><template #default="{ row }">{{ USAGE_LABEL[row.usageState] || row.usageState }}<span v-if="row.usedSeconds != null" class="num"> · {{ row.usedSeconds }}s</span></template></el-table-column>
+        <el-table-column prop="technicalOutcome" label="技术结果" width="100" />
+        <el-table-column prop="answerCompleteness" label="回答完整" width="90" />
+        <el-table-column prop="userSatisfaction" label="用户评价" width="100" />
+        <el-table-column prop="endReason" label="结束原因" min-width="140" />
+      </el-table>
+      <el-pagination
+        v-if="sessionTotal > 20"
+        style="margin-top:8px"
+        layout="prev, pager, next"
+        :total="sessionTotal"
+        :page-size="20"
+        :current-page="sessionPage"
+        @current-change="loadSessions"
+      />
+    </el-card>
+
+    <el-card shadow="never" class="block">
       <template #header><span>语音额度</span></template>
       <el-form inline size="small" @submit.prevent>
         <el-form-item label="归属">
@@ -125,7 +200,7 @@
           <div><span class="k">可用</span><span class="num strong">{{ minutes(quotaInfo.availableSeconds) }}</span></div>
         </div>
 
-        <el-form inline size="small" class="grant" @submit.prevent>
+        <el-form v-if="canGrant" inline size="small" class="grant" @submit.prevent>
           <el-form-item label="发放">
             <el-input-number id="xo-grant-minutes" v-model="grant.minutes" :min="1" :max="100000" controls-position="right" style="width:130px" />
             <span class="unit">分钟</span>
@@ -159,9 +234,32 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from "vue";
+import { computed, reactive, ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { xiaobuOpsApi, type XiaobuUsage, type QuotaInfo } from "@/api/xiaobu-ops";
+import { xiaobuOpsApi, type XiaobuUsage, type QuotaInfo, type ProviderStatus, type VoiceAnomalies, type AdminVoiceSession } from "@/api/xiaobu-ops";
+import { useAuthStore } from "@/store/auth";
+
+const CAP_LABEL: Record<string, string> = {
+  sessionIssue: "服务端签发会话（临时凭据）",
+  sessionEnd: "服务端结束会话并停止计费",
+  usageCallback: "真实用量回调",
+  callbackSignature: "回调签名校验",
+  userIdentityToMcp: "向 MCP 传递已验证用户身份",
+  agentConfigPush: "按智能体下发角色/提示词/音色",
+  deviceBinding: "商业固件设备映射",
+  memoryControl: "记忆加载/删除/重置",
+  answerCompleteness: "回答完整性信号",
+  audioRecording: "实时对话录音（热卜默认不录不存）",
+};
+const CAP_STATE: Record<string, string> = { supported: "支持", unsupported: "不支持", unknown: "待确认" };
+const USAGE_LABEL: Record<string, string> = {
+  none: "无用量",
+  pending: "等待回调",
+  vendor: "供应商用量",
+  estimated: "估算·待对账",
+  unknown: "未知·待对账",
+  mock: "模拟",
+};
 
 const SCENE_LABEL: Record<string, string> = {
   paipan_report: "排盘报告生成",
@@ -181,6 +279,21 @@ const usageLoading = ref(false);
 const usageError = ref("");
 
 const quota = reactive({ ownerType: "user" as "user" | "circle", ownerId: "" });
+/** 发放与对账分离：财务只读（后端同样拦截），界面上不给发放按钮 */
+const auth = useAuthStore();
+const canGrant = computed(() => auth.roles.includes("SUPER_ADMIN") || auth.roles.includes("OPERATION_ADMIN"));
+
+const provider = ref<ProviderStatus | null>(null);
+const providerLoading = ref(false);
+const anomalies = ref<VoiceAnomalies | null>(null);
+const sessions = ref<AdminVoiceSession[]>([]);
+const sessionTotal = ref(0);
+const sessionPage = ref(1);
+const sessionsLoading = ref(false);
+const sessionFilter = reactive({ usageState: "" });
+const capabilityRows = computed(() =>
+  provider.value ? Object.entries(provider.value.capabilities).map(([k, state]) => ({ label: CAP_LABEL[k] || k, state })) : [],
+);
 const quotaInfo = ref<QuotaInfo | null>(null);
 const quotaLoading = ref(false);
 const grant = reactive({ minutes: 30, reason: "" });
@@ -253,7 +366,42 @@ async function doGrant() {
   }
 }
 
-onMounted(loadUsage);
+async function loadProvider() {
+  providerLoading.value = true;
+  try {
+    provider.value = await xiaobuOpsApi.provider();
+  } catch {
+    provider.value = null;
+  } finally {
+    providerLoading.value = false;
+  }
+  try {
+    anomalies.value = await xiaobuOpsApi.anomalies(days.value);
+  } catch {
+    anomalies.value = null;
+  }
+}
+
+async function loadSessions(page = 1) {
+  sessionsLoading.value = true;
+  sessionPage.value = page;
+  try {
+    const r = await xiaobuOpsApi.sessions({ page, pageSize: 20, usageState: sessionFilter.usageState || undefined });
+    sessions.value = r.items;
+    sessionTotal.value = r.total;
+  } catch (e) {
+    sessions.value = [];
+    ElMessage.error(errMsg(e, "会话加载失败"));
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadUsage();
+  loadProvider();
+  loadSessions(1);
+});
 </script>
 
 <style scoped>
@@ -275,4 +423,5 @@ onMounted(loadUsage);
 .muted { margin: 4px 0 0; color: var(--color-text-secondary, #909399); font-size: 12px; line-height: 1.6; }
 .grant { margin-bottom: 12px; }
 .unit { margin-left: 6px; color: var(--color-text-secondary, #909399); }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 </style>

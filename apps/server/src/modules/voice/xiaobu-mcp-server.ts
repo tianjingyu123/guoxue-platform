@@ -14,7 +14,24 @@ import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy
  *   - 排盘报告知识库中已审核（APPROVED）的门派理论与古籍出处
  *   - 平台公共内容池（全平台开放、审核通过、未删除）
  * 圈子私有知识、个人排盘报告、用户记忆一律不提供，待商业接口提供用户/设备身份后再按权限开放。
+ *
+ * 身份绑定工具的统一边界（2026-09-21）：
+ * - 每次调用带一个 McpCallerIdentity；官方云接入点目前恒为 { verified: false }
+ * - 需要身份的工具（IDENTITY_TOOLS）在未验证身份时**不出现在 tools/list**，被硬调用也拒绝（-32001）
+ * - 身份只接受由服务端从供应商签名/会话映射解析出的结果，**不接受工具参数里的 userId/circleId 自报**
+ * - 即便将来身份已验证，圈子工具仍逐次校验有效成员（圈子 ACTIVE、未过期），只返回本圈 active 片段
  */
+export interface McpCallerIdentity {
+  /** 身份是否由服务端基于供应商能力验证过（不是模型或客户端说了算） */
+  verified: boolean;
+  userId?: string;
+  /** 本会话绑定的圈子（来自热卜会话上下文，而不是工具参数） */
+  circleId?: string;
+  source: "none" | "vendor_verified";
+}
+
+export const ANONYMOUS_CALLER: McpCallerIdentity = { verified: false, source: "none" };
+export const IDENTITY_REQUIRED_CODE = -32001;
 
 const PROTOCOL_VERSION = "2024-11-05";
 
@@ -58,6 +75,20 @@ const TOOLS = [
   },
 ];
 
+/** 需要已验证调用者身份的工具：未验证时不列出、不执行 */
+const IDENTITY_TOOLS = [
+  {
+    name: "search_circle_knowledge",
+    description:
+      "在当前会话所属圈子的已发布知识中检索（只限本圈、只限有效成员）。没有结果就如实说明，不要编造圈主观点。",
+    inputSchema: {
+      type: "object",
+      properties: { query: { type: "string", description: "要查的主题" } },
+      required: ["query"],
+    },
+  },
+];
+
 @Injectable()
 export class XiaobuMcpServer {
   private readonly logger = new Logger(XiaobuMcpServer.name);
@@ -68,7 +99,7 @@ export class XiaobuMcpServer {
   ) {}
 
   /** 处理一条 JSON-RPC 消息；通知类消息返回 null（不回复） */
-  async handle(raw: string): Promise<string | null> {
+  async handle(raw: string, identity: McpCallerIdentity = ANONYMOUS_CALLER): Promise<string | null> {
     let req: JsonRpcRequest;
     try {
       req = JSON.parse(raw);
@@ -77,7 +108,7 @@ export class XiaobuMcpServer {
     }
     const isNotification = req.id === undefined || req.id === null;
     try {
-      const result = await this.dispatch(req);
+      const result = await this.dispatch(req, identity);
       if (isNotification) return null;
       return JSON.stringify({ jsonrpc: "2.0", id: req.id, result });
     } catch (error: any) {
@@ -87,7 +118,7 @@ export class XiaobuMcpServer {
     }
   }
 
-  private async dispatch(req: JsonRpcRequest): Promise<unknown> {
+  private async dispatch(req: JsonRpcRequest, identity: McpCallerIdentity): Promise<unknown> {
     switch (req.method) {
       case "initialize":
         return {
@@ -101,9 +132,9 @@ export class XiaobuMcpServer {
       case "ping":
         return {};
       case "tools/list":
-        return { tools: TOOLS };
+        return { tools: identity.verified ? [...TOOLS, ...IDENTITY_TOOLS] : TOOLS };
       case "tools/call":
-        return this.callTool(req.params?.name, req.params?.arguments ?? {});
+        return this.callTool(req.params?.name, req.params?.arguments ?? {}, identity);
       default:
         throw Object.assign(new Error(`Method not found: ${req.method}`), { rpcCode: -32601 });
     }
@@ -119,10 +150,12 @@ export class XiaobuMcpServer {
     return v;
   }
 
-  async callTool(name: string, args: Record<string, unknown>) {
+  async callTool(name: string, args: Record<string, unknown>, identity: McpCallerIdentity = ANONYMOUS_CALLER) {
     const started = Date.now();
     try {
       switch (name) {
+        case "search_circle_knowledge":
+          return await this.searchCircleKnowledge(this.arg(args, "query"), identity);
         case "search_classics":
           return await this.searchClassics(this.arg(args, "query"));
         case "explain_bazi_term":
@@ -170,6 +203,31 @@ export class XiaobuMcpServer {
           })
           .join("\n"),
     );
+  }
+
+  /** 圈子私有知识：只在已验证身份 + 会话绑定圈子 + 有效成员时返回本圈 active 片段 */
+  private async searchCircleKnowledge(query: string, identity: McpCallerIdentity) {
+    if (!identity.verified || !identity.userId || !identity.circleId) {
+      throw Object.assign(new Error("该工具需要已验证的用户身份，当前语音接入未提供"), { rpcCode: IDENTITY_REQUIRED_CODE });
+    }
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId: identity.circleId, userId: identity.userId } },
+      select: { expireAt: true, circle: { select: { status: true, deletedAt: true } } },
+    });
+    const valid =
+      !!member && !!member.circle && !member.circle.deletedAt && member.circle.status === "ACTIVE" &&
+      !(member.expireAt && new Date(member.expireAt) < new Date());
+    if (!valid) {
+      throw Object.assign(new Error("不是该圈有效成员"), { rpcCode: IDENTITY_REQUIRED_CODE });
+    }
+    const rows = await this.prisma.circleKnowledge.findMany({
+      where: { circleId: identity.circleId, status: "active", content: { contains: query } },
+      select: { content: true },
+      orderBy: { addedAt: "desc" },
+      take: 5,
+    });
+    if (!rows.length) return this.text(`本圈已发布资料里没有找到与“${query}”相关的内容。`);
+    return this.text("来自本圈已发布资料：\n" + rows.map((r) => `- ${r.content.replace(/\s+/g, " ").slice(0, 300)}`).join("\n"));
   }
 
   private async findContent(query: string) {

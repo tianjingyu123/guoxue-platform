@@ -79,9 +79,10 @@ const typeLabels: Record<string, string> = {
   CIRCLE_RENEW: "圈子续费", STATION_MASTER: "分站站长", OPERATOR: "运营商",
   BOT_SERVICE: "智能体服务", PAIPAN: "排盘", LIVESTREAM: "直播", BUNDLE: "课程组合包",
   PRACTITIONER_PRO: "从业者会员",
+  VOICE_MINUTES: "小卜语音时长", XIAOBU_REPORT: "小卜报告", XIAOBU_MEMBER: "小卜AI会员",
 };
 const typeTagTypes: Record<string, string> = {
-  PRODUCT: "primary", MEMBER: "success", PRACTITIONER_PRO: "success",
+  PRODUCT: "primary", MEMBER: "success", PRACTITIONER_PRO: "success", XIAOBU_MEMBER: "success",
   COURSE: "warning", BUNDLE: "warning", LIVESTREAM: "warning",
   CIRCLE_JOIN: "danger", CIRCLE_RENEW: "danger",
   STATION_MASTER: "info", OPERATOR: "info", BOT_SERVICE: "info", PAIPAN: "info",

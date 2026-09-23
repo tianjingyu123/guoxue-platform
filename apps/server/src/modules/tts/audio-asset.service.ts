@@ -88,6 +88,12 @@ export class AudioAssetService {
   /** 等待他人合成的最长时间与轮询间隔（毫秒） */
   static readonly WAIT_TIMEOUT_MS = 20_000;
   static readonly WAIT_POLL_MS = 500;
+  /**
+   * 降级备忘（秒）：首选供应商失败、按备用供应商入库后，记下「请求身份 → 实际资产」。
+   * 备忘期内同一请求直接复用备用音频，不再重试首选、也不再重复合成；过期后重试首选一次，
+   * 首选恢复即回到首选音色（首选资产入库后优先命中，备忘自然失效）。
+   */
+  static readonly FALLBACK_MEMO_TTL = 600;
 
   constructor(
     private prisma: PrismaService,
@@ -119,6 +125,24 @@ export class AudioAssetService {
       synthesisParams: fields.synthesisParams || {},
     });
     return createHash("sha256").update(identity, "utf8").digest("hex");
+  }
+
+  private fallbackMemoKey(assetKey: string) {
+    return `audio-asset-fallback:${assetKey}`;
+  }
+
+  /** 备忘期内按请求身份找到上次降级得到的可播放资产 */
+  private async findFallback(assetKey: string, requestedProvider: string): Promise<AudioAssetResult | null> {
+    const actualKey = await this.redis.get(this.fallbackMemoKey(assetKey));
+    if (!actualKey) return null;
+    const asset = await this.findPlayable(actualKey);
+    return asset ? this.toResult(asset, true, { fallbackFrom: requestedProvider }) : null;
+  }
+
+  private async rememberFallback(assetKey: string, actualKey: string) {
+    await this.redis
+      .set(this.fallbackMemoKey(assetKey), actualKey, AudioAssetService.FALLBACK_MEMO_TTL)
+      .catch((e: any) => this.logger.warn(`记录 TTS 降级备忘失败：${e?.message || e}`));
   }
 
   private async findPlayable(assetKey: string) {
@@ -154,6 +178,8 @@ export class AudioAssetService {
     if (existing) {
       return this.toResult(existing, true);
     }
+    const memo = await this.findFallback(assetKey, req.ttsProvider);
+    if (memo) return memo;
 
     const lockKey = `audio-asset-lock:${assetKey}`;
     const token = randomUUID();
@@ -173,6 +199,8 @@ export class AudioAssetService {
       // 二次查库：等锁期间他人可能已完成
       const again = await this.findPlayable(assetKey);
       if (again) return this.toResult(again, true);
+      const againMemo = await this.findFallback(assetKey, req.ttsProvider);
+      if (againMemo) return againMemo;
 
       let output: SynthesisOutput;
       try {
@@ -197,6 +225,7 @@ export class AudioAssetService {
         );
         const actualExisting = await this.findPlayable(actualKey);
         if (actualExisting) {
+          await this.rememberFallback(assetKey, actualKey);
           return this.toResult(actualExisting, false, { audio: output.audio, fallbackFrom });
         }
       }
@@ -250,6 +279,7 @@ export class AudioAssetService {
       }
 
       this.logger.log(`音频资产创建成功: ${asset.id} (${output.ttsProvider}/${output.voiceId})`);
+      if (fallbackFrom) await this.rememberFallback(assetKey, actualKey);
       return this.toResult(asset, false, { audio: output.audio, fallbackFrom });
     } finally {
       await this.redis.compareAndDelete(lockKey, token);

@@ -125,6 +125,13 @@ const routes = [
         component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
         meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
+      // === 小卜 · 白话译文人工复核 ===
+      {
+        path: "classics/translations",
+        name: "ClassicTranslationReview",
+        component: () => import("@/views/classics/ClassicTranslationReview.vue"),
+        meta: { title: "白话译文复核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 社区 ===
       {
         path: "circles",
@@ -1296,6 +1303,13 @@ const routes = [
         name: "VoiceAgentReview",
         component: () => import("@/views/ai/VoiceAgentReview.vue"),
         meta: { title: "小卜语音角色审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 小卜 · 硬件台账（登记、绑定码、停用；客服只读）===
+      {
+        path: "xiaobu-devices",
+        name: "XiaobuDevices",
+        component: () => import("@/views/ai/XiaobuDevices.vue"),
+        meta: { title: "小卜硬件台账", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
       },
       // === 小卜 · 运营（用量、成本、语音额度）===
       {

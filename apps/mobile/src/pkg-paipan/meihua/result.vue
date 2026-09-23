@@ -14,6 +14,8 @@ import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import HexFigure from './components/hex-figure.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { saveMeihuaHistory } from './meihua-history'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
+import { getToken } from '@/utils/storage'
 import { fourPillars, GAN_WUXING, ZHI_WUXING, ZHIS, type FourPillars } from '@/lib/paipan/ganzhi'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
@@ -257,6 +259,44 @@ const judgeGood = computed(() => judge.value.level.includes('吉') && !judge.val
 const ceShu = computed(() => getCeShu(ben.value.lines))
 const movingText = computed(() => (moving.value >= 1 ? `动爻在${YAO_LABEL[moving.value - 1]}爻` : '无动爻'))
 
+// 生成卦书：卦象由共用引擎按同一参数重算，页面与报告必然一致，故只传参数
+const generating = ref(false)
+async function openGuaShu() {
+  if (!getToken()) {
+    uni.showModal({
+      title: '需要登录',
+      content: '登录后即可生成有依据的卦书',
+      confirmText: '去登录',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
+    })
+    return
+  }
+  if (generating.value) return
+  generating.value = true
+  try {
+    const rec = await aiReportApi.saveMeihuaRecord({
+      matter: q.value.matter,
+      year: q.value.year, month: q.value.month, day: q.value.day, hour: q.value.hour, minute: q.value.minute,
+      mode: q.value.mode,
+      numbers: q.value.numbers,
+      plusHour: q.value.plusHour,
+      yaos: q.value.yaosParam,
+      moving: q.value.movingParam,
+      // 农历用本页 lunar 库的结果，服务端重算时直接复用，避免闰月口径差异
+      lunarMonth: lunar.value.m,
+      lunarDay: lunar.value.d,
+      lunarText: lunar.value.text,
+      ganzhi: `${sizhu.value.year.gan}${sizhu.value.year.zhi}年 ${sizhu.value.month.gan}${sizhu.value.month.zhi}月 ${sizhu.value.day.gan}${sizhu.value.day.zhi}日 ${sizhu.value.hour.gan}${sizhu.value.hour.zhi}时`,
+      jieqi: jieqiText.value,
+    })
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${rec.id}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '生成失败，请稍后重试', icon: 'none' })
+  } finally {
+    generating.value = false
+  }
+}
+
 // 分类断语（accordion）
 const categoryList = Object.entries(CATEGORY_JUDGE).map(([cat, texts]) => ({ cat, texts }))
 const openCategory = ref<string | null>('运势')
@@ -483,6 +523,15 @@ function handleShare() {
           </view>
         </view>
 
+        <!-- 生成卦书：体用生克、类象、互变与断语，带门派与典籍依据 -->
+        <view class="guashu" @tap="openGuaShu">
+          <view class="guashu-main">
+            <text class="guashu-title">{{ generating ? '正在准备…' : '生成小卜卦书' }}</text>
+            <text class="guashu-sub">按体用生克逐条解读，讲清类象、过程与结果，并注明依据出处</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#ffffff" />
+        </view>
+
         <text class="footer-note">断语仅供参考，吉凶论断请根据具体所测之人事而定。</text>
 
         <disclaimer
@@ -661,6 +710,10 @@ function handleShare() {
 .cat-body { padding: 0 24rpx 24rpx; }
 
 /* 底部提示 */
+.guashu { display: flex; align-items: center; gap: 16rpx; margin: 12rpx 0 4rpx; padding: 26rpx 28rpx; border-radius: 20rpx; background: var(--brand); }
+.guashu-main { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
+.guashu-title { font-size: 30rpx; font-weight: 700; color: #fff; }
+.guashu-sub { font-size: 22rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.5; }
 .footer-note { display: block; text-align: center; font-size: 22rpx; color: #d97706; }
 
 /* 底部工具栏 */

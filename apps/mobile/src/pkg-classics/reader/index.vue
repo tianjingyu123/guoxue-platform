@@ -55,6 +55,35 @@ const brightness = ref(100)
 const dimOpacity = computed(() => ((100 - brightness.value) / 100) * 0.7)
 function onBrightnessChanging(e: { detail: { value: number } }) { brightness.value = e.detail.value }
 function onBrightnessChange(e: { detail: { value: number } }) { brightness.value = e.detail.value; savePref() }
+// ── 简体 / 原貌（S03）：简体版是服务端等长转换的派生文本，逐段替换显示，底本不变 ──
+// 笔记、划线、朗读、白话都按原文段落序号与原文文本工作；简体只影响显示。
+const scriptMode = ref<'simplified' | 'original'>('simplified')
+const simplifiedParas = ref<Record<number, string>>({})
+let simplifiedFor = ''
+function displayPara(i: number): string {
+  if (scriptMode.value !== 'simplified') return paragraphs.value[i]
+  const t = simplifiedParas.value[i]
+  // 只有与原文等长的简体段落才替换显示，保证点选位置、笔记定位与原文一一对应
+  return t && t.length === paragraphs.value[i]?.length ? t : paragraphs.value[i]
+}
+async function loadSimplified(chapterId: string) {
+  simplifiedFor = chapterId
+  simplifiedParas.value = {}
+  try {
+    const r = await classicsApi.chapterSimplified(chapterId)
+    if (simplifiedFor !== chapterId) return
+    const map: Record<number, string> = {}
+    for (const seg of r.segments) {
+      if (seg.converted && paragraphs.value[seg.sortOrder] === undefined) continue
+      if (seg.converted) map[seg.sortOrder] = seg.text
+    }
+    simplifiedParas.value = map
+  } catch { /* 简体版不可用时显示原貌，不影响阅读 */ }
+}
+function pickScript(mode: 'simplified' | 'original') {
+  scriptMode.value = mode
+  savePref()
+}
 const PREF_KEY = 'classics_reader_pref'
 function loadPref() {
   try {
@@ -63,11 +92,12 @@ function loadPref() {
       if (p.theme) theme.value = p.theme
       if (typeof p.fontIdx === 'number') fontIdx.value = Math.min(Math.max(p.fontIdx, 0), FONT_STEPS.length - 1)
       if (typeof p.brightness === 'number') brightness.value = Math.min(Math.max(Math.round(p.brightness), 0), 100)
+      if (p.scriptMode === 'original' || p.scriptMode === 'simplified') scriptMode.value = p.scriptMode
     }
   } catch { /* ignore */ }
 }
 function savePref() {
-  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value, brightness: brightness.value }) } catch { /* ignore */ }
+  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value, brightness: brightness.value, scriptMode: scriptMode.value }) } catch { /* ignore */ }
 }
 
 // ── 弹层开关 ──
@@ -306,12 +336,31 @@ async function loadChapter(idx: number, scrollTop = true) {
     const data = await classicsApi.chapter(ch.id)
     if (loadSeq !== chapterLoadSeq) return
     paragraphs.value = splitParagraphs(data?.content || '')
+    loadSimplified(ch.id)
   } catch {
     if (loadSeq !== chapterLoadSeq) return
     paragraphs.value = []
   }
   if (scrollTop) uni.pageScrollTo({ scrollTop: 0, duration: 0 })
   saveProgress()
+}
+
+/** 语音讲讲（S06）：只带当前稳定段落 ID，服务端校验公开可读后组装最小上下文 */
+async function voiceExplain() {
+  const idx = aiParaIdx.value
+  const ch = curChapter.value
+  if (idx == null || !ch) return
+  try {
+    if (!segmentCache || segmentCache.chapterId !== ch.id) {
+      segmentCache = { chapterId: ch.id, list: await classicsApi.chapterSegments(ch.id) }
+    }
+    const seg = segmentCache.list.find((s) => s.sortOrder === idx)
+    if (!seg || seg.content !== (paragraphs.value[idx] || '')) throw new Error('本章段落正在更新，请稍后再试')
+    const fallback = encodeURIComponent(`/pkg-classics/companion/index?chapterId=${ch.id}&bookTitle=${encodeURIComponent(bookTitle.value || '')}&chapterTitle=${encodeURIComponent(ch.title || '')}`)
+    uni.navigateTo({ url: `/pkg-agent/agent/xiaobu-voice?scene=classic_companion&contextId=${encodeURIComponent(seg.id)}&intent=explain&fallback=${fallback}` })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '暂时无法进入语音讲讲', icon: 'none' })
+  }
 }
 
 // ── 古籍伴读（带当前章节上下文进入伴读对话） ──
@@ -672,7 +721,7 @@ onLoad((q) => {
             class="rd-para-row"
             :class="{ 'rd-para-hl': i === highlightIdx, 'rd-para-pick': notePickMode }"
           >
-            <text class="rd-para" @tap="onParagraphTap(p, i)">{{ p }}</text>
+            <text class="rd-para" @tap="onParagraphTap(p, i)">{{ displayPara(i) }}</text>
             <view
               v-if="notesAtPosition(i).length"
               class="rd-note-mark"
@@ -813,6 +862,7 @@ onLoad((q) => {
             </view>
             <text v-else-if="punctText" class="rd-ai-trans">{{ punctSource === 'original' ? '原文已有标点，无需自动断句。' : punctText }}</text>
             <view v-else class="rd-ai-retry rd-punct-btn" @tap="punctuateCurrent"><text class="rd-ai-retry-txt">为这段加标点</text></view>
+            <view class="rd-ai-retry rd-punct-btn" data-testid="voice-explain" @tap="voiceExplain"><text class="rd-ai-retry-txt">小卜语音讲讲</text></view>
           </view>
         </scroll-view>
       </view>
@@ -972,6 +1022,13 @@ onLoad((q) => {
             <view class="rd-font-btn" @tap="fontDown"><text>A-</text></view>
             <text class="rd-font-cur">{{ fontSize }}</text>
             <view class="rd-font-btn" @tap="fontUp"><text>A+</text></view>
+          </view>
+        </view>
+        <view class="rd-set-row">
+          <text class="rd-set-label">字形</text>
+          <view class="rd-set-script">
+            <view class="rd-script-btn" :class="{ 'rd-script-on': scriptMode === 'simplified' }" data-testid="script-simplified" @tap="pickScript('simplified')"><text>简体</text></view>
+            <view class="rd-script-btn" :class="{ 'rd-script-on': scriptMode === 'original' }" data-testid="script-original" @tap="pickScript('original')"><text>原貌</text></view>
           </view>
         </view>
         <view class="rd-set-row">
@@ -1385,4 +1442,7 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-punct-tag { font-size: 22rpx; color: #9a6a12; }
 .rd-punct-hint { font-size: 24rpx; color: #888; padding: 12rpx 0; }
 .rd-punct-btn { align-self: flex-start; margin-top: 12rpx; }
+.rd-set-script { display: flex; gap: 16rpx; }
+.rd-script-btn { padding: 10rpx 28rpx; border-radius: 999rpx; border: 2rpx solid rgba(150,130,90,0.3); font-size: 26rpx; }
+.rd-script-on { background: var(--rd-brand,#a06a38); border-color: var(--rd-brand,#a06a38); color: #fff; }
 </style>

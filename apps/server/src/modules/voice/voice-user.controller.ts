@@ -6,6 +6,8 @@ import { IsInt, IsString, Max, MaxLength, Min, MinLength } from "class-validator
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { VoiceQuotaService } from "./voice-quota.service";
 import { VoiceTrialService } from "./voice-trial.service";
+import { XiaobuCommerceService } from "./xiaobu-commerce.service";
+import { quoteVoiceTopup, topupPacks, VOICE_TOPUP_ORDER_TYPE } from "./voice-topup";
 
 export class FinishTrialDto {
   /** 本次试聊实际时长（秒）；服务端会截断到试聊上限，不信任客户端多报 */
@@ -32,7 +34,18 @@ export class VoiceUserController {
   constructor(
     private readonly quota: VoiceQuotaService,
     private readonly trial: VoiceTrialService,
+    private readonly commerce: XiaobuCommerceService,
   ) {}
+
+  /**
+   * 小卜AI会员（决策人 2026-09-21：独立于书院会员；会员免费不限次生成报告、每月送语音）。
+   * 开通走平台订单：POST /shop/orders { type: "XIAOBU_MEMBER", targetId: "<档位>" }，价格以服务端为准。
+   */
+  @Get("xiaobu-member")
+  @ApiOperation({ summary: "我的小卜AI会员状态与档位" })
+  xiaobuMember(@Req() req: Request) {
+    return this.commerce.memberOverview((req as any).user?.id as string);
+  }
 
   @Get("my-quota")
   @ApiOperation({ summary: "我的语音时长余额" })
@@ -61,6 +74,30 @@ export class VoiceUserController {
       charging: cfg.chargeUsers,
       /** 未计费期间的单次体验上限 */
       freeSessionMaxSeconds: cfg.freeSessionMaxSeconds,
+    };
+  }
+
+  /**
+   * 语音时长充值档位（决策人 2026-09-21：报告赠送的时长用完后可充值继续用）。
+   * 下单走平台订单：POST /shop/orders { type: "VOICE_MINUTES", targetId: "<分钟数>" }，价格以服务端为准。
+   * 语音尚未开始计费时 canTopUp=false，页面不给充值入口（服务端下单同样拒绝）。
+   */
+  @Get("topup/packs")
+  @ApiOperation({ summary: "语音时长充值档位与价格" })
+  async topupPacks(@Req() req: Request) {
+    const userId = (req as any).user?.id as string;
+    const cfg = await this.quota.getConfig();
+    const available = await this.quota.getAvailable("user", userId);
+    return {
+      canTopUp: cfg.chargeUsers,
+      reason: cfg.chargeUsers ? null : "语音暂未开始计费，当前无需充值",
+      orderType: VOICE_TOPUP_ORDER_TYPE,
+      pricePerMinuteCents: Math.round(cfg.pricing.userMicroPerMinute / 10_000),
+      availableMinutes: Math.floor(available.availableSeconds / 60),
+      packs: topupPacks(cfg).map((m) => {
+        const q = quoteVoiceTopup(cfg, m);
+        return { minutes: m, amountYuan: q.amountYuan };
+      }),
     };
   }
 

@@ -19,6 +19,19 @@ export interface AiReportReference {
   matchedOn: string[]
 }
 
+/** 报告生成权限（决策人 2026-09-21：单份 29 元含 30 分钟 AI 语音，或小卜AI会员免费不限次） */
+export interface AiReportAccess {
+  recordId: string
+  reportType: string
+  granted: boolean
+  via: 'free' | 'member' | 'purchased' | null
+  priceYuan?: number
+  includedVoiceMinutes?: number
+  memberPlans?: { key: string; label: string; months: number; priceYuan: number }[]
+  memberMonthlyVoiceMinutes?: number
+  memberExpireAt?: string | null
+}
+
 export interface AiReportSection {
   id: string
   title: string
@@ -295,6 +308,11 @@ export const aiReportApi = {
   /** 大六壬：把起课参数（含流派选项）存到服务端，换取 recordId 以生成课书 */
   saveDaliurenRecord(params: Record<string, unknown>): Promise<{ id: string }> {
     return apiPost<{ id: string }>('/paipan/daliuren/save', params)
+  },
+  /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
+  access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
+    const q = new URLSearchParams({ recordId, reportType }).toString()
+    return apiGet<AiReportAccess>(`/paipan/report/access?${q}`)
   },
   /** 推演页数据：生成前先拿到真实的校时、盘面、取格与依据命中（服务端确定性计算，不调模型） */
   preflight(recordId: string, school?: string): Promise<AiReportPreflight> {

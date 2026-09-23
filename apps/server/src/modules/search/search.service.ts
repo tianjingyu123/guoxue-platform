@@ -4,6 +4,15 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SemanticSearchService } from "./semantic-search.service";
 import { isPublicContentQuarantined, type PublicQuarantineType } from "../../common/public-content-quarantine";
+import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-policy";
+
+/**
+ * 古籍公开口径（原生 SQL 版，与 PUBLIC_CLASSIC_BOOK_WHERE 一致）：已发布、未删除、且有已审计的可商用许可。
+ * 2026-09-21 补：此前搜索只看 PUBLISHED，版权未审的书名简介会出现在公开搜索与内容导览里，点进去却 404。
+ * 许可值来自受控常量（非用户输入），可安全内联。
+ */
+const PUBLIC_CLASSIC_SQL =
+  `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND EXISTS (SELECT 1 FROM "ClassicCopyright" cc WHERE cc."bookId" = "ClassicBook"."id" AND cc."auditedAt" IS NOT NULL AND cc."license" IN (${COMMERCIAL_CLASSIC_LICENSES.map((l) => `'${l}'`).join(",")}))`;
 
 /** 搜索结果缓存 TTL */
 const SEARCH_CACHE_TTL = 120;
@@ -59,7 +68,7 @@ export class SearchService {
 
     if (!q?.trim()) return { q, type };
 
-    const cacheKey = `search:v3:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    const cacheKey = `search:v4:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
@@ -182,7 +191,7 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,'')",
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, author, cover, category, dynasty`, where: PUBLIC_CLASSIC_SQL,
       },
       Content: {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
@@ -252,7 +261,7 @@ export class SearchService {
       },
       ClassicBook: {
         table: "ClassicBook", searchFields: ["title", "author", "intro"],
-        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, author, cover, category, dynasty`, where: PUBLIC_CLASSIC_SQL,
       },
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],

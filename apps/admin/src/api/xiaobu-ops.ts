@@ -30,7 +30,195 @@ export interface QuotaInfo {
   ledger: { id: string; type: string; seconds: number; balanceAfter: number; note: string | null; createdAt: string }[];
 }
 
+export interface ProviderStatus {
+  providerId: string;
+  isMock: boolean;
+  available: boolean;
+  opsNote: string;
+  capabilities: Record<string, "supported" | "unsupported" | "unknown">;
+  userRefStable: boolean;
+}
+
+export interface BatchRegisterResult {
+  total: number;
+  succeeded: number;
+  results: { line: number; serialHint: string; ok: boolean; deviceId?: string; error?: string }[];
+}
+
+export interface TerminalOverview {
+  ledger: Record<string, number>;
+  seen: { last24h: number; last7d: number; unregistered: number };
+  talkingNow: number;
+  connectionsThisInstance: number;
+  /** 上线配置体检（只说缺什么，不含任何密钥值） */
+  readiness?: { level: "error" | "warn"; item: string; fix: string }[];
+  firmware: Record<string, number>;
+  days: { day: string; counts: Record<string, number> }[];
+}
+
+export interface FirmwareRelease {
+  id: string;
+  boardName: string;
+  version: string;
+  projectName: string;
+  chipName: string;
+  size: number;
+  sha256: string;
+  notes: string | null;
+  status: "draft" | "active" | "paused" | "archived";
+  rolloutPercent: number;
+  activatedAt: string | null;
+  createdAt: string;
+  stats?: { offered: number; succeeded: number; failed: number };
+}
+
+export interface XiaozhiTerminal {
+  seenId: string;
+  serialHint: string;
+  deviceId: string | null;
+  registered: boolean;
+  status: string | null;
+  canRegister: boolean;
+  info: {
+    chipModel: string | null;
+    firmwareName: string | null;
+    firmwareVersion: string | null;
+    idfVersion: string | null;
+    boardType: string | null;
+    boardName: string | null;
+    flashSize: number | null;
+    userAgent: string | null;
+  };
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface AdminVoiceSession {
+  id: string;
+  requestId: string;
+  user: string | null;
+  scene: string;
+  provider: string;
+  isMock: boolean;
+  status: string;
+  usageState: string;
+  usedSeconds: number | null;
+  technicalOutcome: string | null;
+  answerCompleteness: string | null;
+  userSatisfaction: string | null;
+  endReason: string | null;
+  startedAt: string;
+  endedAt: string | null;
+}
+
+export interface VoiceAnomalies {
+  unknownUsageSessions: number;
+  estimatedUsageSessions: number;
+  failedProviderAttempts: { operation: string; outcome: string; errorCode: string | null; count: number }[];
+  unmatchedUsageEvents: number;
+  stuckSessions: number;
+}
+
+export interface AdminDevice {
+  id: string;
+  serialHint: string;
+  productSku: string;
+  circleId: string | null;
+  status: string;
+  bindingVersion: number;
+  activationState: string;
+  voiceReady: boolean;
+  disabledReason: string | null;
+  currentUserMasked: string | null;
+  /** 设备身份是否已锁定（出厂预置 factory / 首次联网 first_contact） */
+  terminalPinned?: boolean;
+  terminalPinSource?: string | null;
+  updatedAt: string;
+}
+
 export const xiaobuOpsApi = {
+  async provider(): Promise<ProviderStatus> {
+    const { data } = await api.get("/admin/xiaobu/provider");
+    return data as ProviderStatus;
+  },
+  async sessions(params: { scene?: string; status?: string; usageState?: string; page?: number; pageSize?: number }) {
+    const { data } = await api.get("/admin/xiaobu/sessions", { params });
+    return data as { total: number; page: number; pageSize: number; items: AdminVoiceSession[] };
+  },
+  async anomalies(days: number): Promise<VoiceAnomalies> {
+    const { data } = await api.get("/admin/xiaobu/anomalies", { params: { days } });
+    return data as VoiceAnomalies;
+  },
+  async devices(params: { status?: string; circleId?: string; page?: number; pageSize?: number }) {
+    const { data } = await api.get("/admin/xiaobu/devices", { params });
+    return data as { total: number; page: number; pageSize: number; items: AdminDevice[] };
+  },
+  async registerDevice(body: { serial: string; productSku: string; circleId?: string; clientId?: string }) {
+    const { data } = await api.post("/admin/xiaobu/devices", body);
+    return data as AdminDevice;
+  },
+  /** 批量登记（出厂/入库）：每行一个序列号或 MAC，逐条回报；回报只含行号与末 4 位 */
+  async registerDeviceBatch(body: { serials: string[]; productSku: string; circleId?: string }) {
+    const { data } = await api.post("/admin/xiaobu/devices/batch", body, { timeout: 120000 });
+    return data as BatchRegisterResult;
+  },
+  /** 终端运行概况 */
+  async terminalOverview() {
+    const { data } = await api.get("/admin/xiaobu/terminals/overview");
+    return data as TerminalOverview;
+  },
+  async bindCode(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/bind-code`);
+    return data as { deviceId: string; bindCode: string; expiresAt: string };
+  },
+  async disableDevice(id: string, reason: string) {
+    const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/disable`, { reason });
+    return data as AdminDevice;
+  },
+  /** 固件在线升级：发布列表（含推送成功/失败统计） */
+  async firmwareList() {
+    const { data } = await api.get("/admin/xiaobu/firmware");
+    return (Array.isArray(data) ? data : []) as FirmwareRelease[];
+  },
+  /** 上传固件（版本号由服务端从镜像读出） */
+  async firmwareUpload(file: File, boardName: string, notes?: string) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("boardName", boardName);
+    if (notes) fd.append("notes", notes);
+    const { data } = await api.post("/admin/xiaobu/firmware", fd, { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 });
+    return data as FirmwareRelease;
+  },
+  async firmwareRollout(id: string, percent: number) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/rollout`, { percent });
+    return data as FirmwareRelease;
+  },
+  async firmwarePause(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/pause`);
+    return data as FirmwareRelease;
+  },
+  async firmwareArchive(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/firmware/${encodeURIComponent(id)}/archive`);
+    return data as FirmwareRelease;
+  },
+  /** 小智协议终端：最近 OTA 上报的终端（型号/芯片/固件；不含明文 MAC） */
+  async terminals() {
+    const { data } = await api.get("/admin/xiaobu/terminals");
+    return (Array.isArray(data) ? data : []) as XiaozhiTerminal[];
+  },
+  async registerTerminal(seenId: string, body: { productSku: string; circleId?: string }) {
+    const { data } = await api.post(`/admin/xiaobu/terminals/${encodeURIComponent(seenId)}/register`, body);
+    return data as AdminDevice;
+  },
+  /** 重置设备身份（客服核实机主后操作） */
+  async resetDeviceIdentity(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/terminal-reset`);
+    return data as { ok: boolean; message: string };
+  },
+  async enableDevice(id: string) {
+    const { data } = await api.post(`/admin/xiaobu/devices/${encodeURIComponent(id)}/enable`);
+    return data as AdminDevice;
+  },
   async usage(days: number): Promise<XiaobuUsage> {
     const { data } = await api.get("/admin/xiaobu/usage", { params: { days } });
     return data as XiaobuUsage;

@@ -11,6 +11,8 @@ import { CommissionService } from "../commission/commission.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { safePagination } from "../../common/pagination";
 import { CreateOrderDto, OrderListQueryDto } from "./shop.dto";
+import { CIRCLE_VOICE_SOURCE, isValidCircleVoiceSource, priceVoiceTopupOrder, VOICE_TOPUP_ORDER_TYPE } from "../voice/voice-topup";
+import { priceMemberOrder, priceReportOrder, XIAOBU_MEMBER_ORDER_TYPE, XIAOBU_REPORT_ORDER_TYPE } from "../voice/xiaobu-commerce";
 
 /** 订单缓存 TTL */
 const ORDER_CACHE_TTL = 300;
@@ -111,6 +113,15 @@ export class ShopOrderService {
         throw new BusinessException(ErrorCode.FORBIDDEN, "分站已被平台停用，暂不可续费，请联系平台客服");
       }
       actualAmount = await this.resolveBillingPrice("station_master_price", "分站年租");
+    } else if (dto.type === VOICE_TOPUP_ORDER_TYPE) {
+      // 小卜语音时长充值：targetId = 分钟档位；价格按语音计费配置服务端计算；语音未开始计费时拒绝下单
+      actualAmount = (await priceVoiceTopupOrder(this.prisma, dto.targetId)).amountYuan;
+    } else if (dto.type === XIAOBU_REPORT_ORDER_TYPE) {
+      // 小卜报告单独购买：targetId = 排盘记录ID:报告类型；只能买自己的盘，会员/已购拒绝重复下单
+      actualAmount = (await priceReportOrder(this.prisma, userId, dto.targetId)).amountYuan;
+    } else if (dto.type === XIAOBU_MEMBER_ORDER_TYPE) {
+      // 小卜AI会员（独立于书院会员）：targetId = 档位，价格取 xiaobu_commerce_config
+      actualAmount = (await priceMemberOrder(this.prisma, dto.targetId)).amountYuan;
     } else if (dto.type === "PRACTITIONER_PRO") {
       // 从业者会员（工作台专业版）月付：价格真源 CommissionConfig.rateA，禁硬编码
       actualAmount = await this.resolveBillingPrice("practitioner_pro_monthly", "从业者会员");
@@ -444,6 +455,18 @@ export class ShopOrderService {
         && await this.attribution.isLiveProductSource(sourceContentId, dto.targetId);
       if (!isValidLiveSource) {
         this.logger.warn(`忽略无效直播商品来源: live=${sourceContentId || "-"}, product=${dto.targetId}`);
+        sourceContentType = null;
+        sourceContentId = null;
+      }
+    }
+    // 圈内语音时长充值：圈主与平台五五分成（决策人 2026-09-21），须是语音充值单、该圈有效成员、该圈语音助理已上线；
+    // 不满足只剥离归因，照常按平台价购买
+    if (sourceContentType === CIRCLE_VOICE_SOURCE) {
+      const isValidCircleVoice = dto.type === VOICE_TOPUP_ORDER_TYPE
+        && !!sourceContentId
+        && await isValidCircleVoiceSource(this.prisma, userId, sourceContentId);
+      if (!isValidCircleVoice) {
+        this.logger.warn(`忽略无效圈内语音来源: circle=${sourceContentId || "-"}, type=${dto.type}`);
         sourceContentType = null;
         sourceContentId = null;
       }

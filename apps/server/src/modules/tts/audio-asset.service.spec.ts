@@ -117,11 +117,48 @@ describe("AudioAssetService", () => {
     expect(row.requestedProvider).toBe("tencent");
     expect(row.voiceId).toBe("zh-CN-XiaoxiaoNeural");
 
-    // 下一次按期望供应商请求时不会把降级音频当成腾讯云音频复用
+    // 降级备忘期内：同一请求直接复用备用音频，不重试首选、不重复合成，且仍如实标记为降级
     const s2 = okSynth();
-    const again = await service.getOrCreateAudioAsset(baseReq, s2);
-    expect(s2).toHaveBeenCalledTimes(1);
+    const memo = await service.getOrCreateAudioAsset(baseReq, s2);
+    expect(s2).not.toHaveBeenCalled();
+    expect(memo).toMatchObject({ reused: true, ttsProvider: "edge", fallbackFrom: "tencent" });
+    expect(fakeStorage.storage.uploadBuffer).toHaveBeenCalledTimes(1);
+
+    // 备忘到期：重试首选一次；首选成功后按首选身份入库，不把降级音频当成腾讯云音频复用
+    const requestedKey = service.buildAssetKey({ ...baseReq, textVersion: service.computeTextVersionHash(baseReq.text) });
+    await redis.del(`audio-asset-fallback:${requestedKey}`);
+    const s3 = okSynth();
+    const again = await service.getOrCreateAudioAsset(baseReq, s3);
+    expect(s3).toHaveBeenCalledTimes(1);
     expect(again.ttsProvider).toBe("tencent");
+    expect(again.fallbackFrom).toBeUndefined();
+  });
+
+  it("首选恢复后优先命中首选资产，即使降级备忘尚未到期", async () => {
+    const edge = jest.fn(async () => ({ audio: Buffer.from("edge"), ttsProvider: "edge" as const, voiceId: "zh-CN-XiaoxiaoNeural" }));
+    const fb = await service.getOrCreateAudioAsset(baseReq, edge);
+    expect(fb.fallbackFrom).toBe("tencent");
+    // 模拟另一实例已按首选身份生成（例如备忘写入前的并发请求）
+    const primaryKey = service.buildAssetKey({ ...baseReq, textVersion: service.computeTextVersionHash(baseReq.text) });
+    await fakePrisma.prisma.audioAsset.upsert({
+      where: { assetKey: primaryKey },
+      create: { assetKey: primaryKey, ttsProvider: "tencent", voiceId: "101001", storageUrl: "https://cdn.test/p.mp3", storageKey: "p.mp3", isPlayable: true },
+      update: {},
+    });
+    const r = await service.getOrCreateAudioAsset(baseReq, okSynth());
+    expect(r).toMatchObject({ reused: true, ttsProvider: "tencent" });
+    expect(r.fallbackFrom).toBeUndefined();
+  });
+
+  it("降级备忘指向的备用音频对象丢失：不再命中备忘，重新走合成", async () => {
+    const edge = jest.fn(async () => ({ audio: Buffer.from("edge"), ttsProvider: "edge" as const, voiceId: "zh-CN-XiaoxiaoNeural" }));
+    const fb = await service.getOrCreateAudioAsset(baseReq, edge);
+    fakeStorage.objects.clear();
+    expect(await service.readAssetAudio(fb)).toBeNull(); // 标记不可播放
+    const s2 = okSynth();
+    const r = await service.getOrCreateAudioAsset(baseReq, s2);
+    expect(s2).toHaveBeenCalledTimes(1);
+    expect(r.ttsProvider).toBe("tencent");
   });
 
   it("合成失败记录 failed 状态并释放锁，下次可重试", async () => {

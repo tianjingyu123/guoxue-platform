@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -26,6 +27,8 @@ export interface VoiceBillingConfig {
   sessionMaxSeconds: number;
   /** 开始会话要求的最少可用额度（秒） */
   minStartSeconds: number;
+  /** 通话中连续多少秒没有新的用户输入即自动结束（默认 60，限 15–600） */
+  idleTimeoutSeconds: number;
   /** 供应商成本（百万分之一元/分钟）；来源：用户 2026-09-14 转述报价，以合同为准 */
   supplierMicroPerMinute: { lite: number; standard: number };
   /** 售价与赠送额度（决策人 2026-09-17 拍板）；金额单位一律 micro 元（1 元 = 1_000_000） */
@@ -69,6 +72,8 @@ export interface VoicePricingConfig {
   warnAtSeconds: number[];
   /** 试聊剩余提示节点（秒）：只提示一次，全程倒计时会产生压迫感 */
   trialWarnAtSeconds: number[];
+  /** 语音时长充值档位（分钟）：报告赠送时长用完后按 userMicroPerMinute 充值（决策人 2026-09-21） */
+  topUpPackMinutes: number[];
 }
 
 /** 1 元 = 1_000_000 micro */
@@ -88,10 +93,13 @@ export const DEFAULT_VOICE_PRICING: VoicePricingConfig = {
   graceSeconds: 60,
   warnAtSeconds: [300, 60],
   trialWarnAtSeconds: [30],
+  topUpPackMinutes: [10, 30, 60],
 };
 
 export const DEFAULT_VOICE_BILLING: VoiceBillingConfig = {
   version: "priced-2026-09-17",
+  // 决策人 2026-09-21：通话 1 分钟没有新的输入即结束（与小智开源服务端的无语音断开规则一致）
+  idleTimeoutSeconds: 60,
   // 价格已拍板，但真实语音链路未接通前不向用户扣费；链路就绪后由运营后台打开
   chargeUsers: false,
   freeSessionMaxSeconds: 180,
@@ -102,6 +110,25 @@ export const DEFAULT_VOICE_BILLING: VoiceBillingConfig = {
 };
 
 export type VoiceTier = "lite" | "standard";
+
+/** 解析后台配置 voice_billing_config（缺省项取默认值）；供服务与不走注入的调用方（如订单链路）共用 */
+export function parseVoiceBillingConfig(raw: string): VoiceBillingConfig {
+  const parsed = JSON.parse(raw);
+  return {
+    ...DEFAULT_VOICE_BILLING,
+    ...parsed,
+    supplierMicroPerMinute: { ...DEFAULT_VOICE_BILLING.supplierMicroPerMinute, ...(parsed.supplierMicroPerMinute || {}) },
+    pricing: { ...DEFAULT_VOICE_PRICING, ...(parsed.pricing || {}) },
+    idleTimeoutSeconds: clampIdleSeconds(parsed.idleTimeoutSeconds),
+  };
+}
+
+/** 无输入自动结束的秒数：后台可调，限定 15–600 秒，非法值回落默认 60 */
+function clampIdleSeconds(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_VOICE_BILLING.idleTimeoutSeconds;
+  return Math.min(600, Math.max(15, Math.floor(n)));
+}
 
 @Injectable()
 export class VoiceQuotaService {
@@ -115,15 +142,7 @@ export class VoiceQuotaService {
   async getConfig(): Promise<VoiceBillingConfig> {
     try {
       const cfg = await this.system?.getConfig("voice_billing_config");
-      if (cfg?.configValue) {
-        const parsed = JSON.parse(cfg.configValue);
-        return {
-          ...DEFAULT_VOICE_BILLING,
-          ...parsed,
-          supplierMicroPerMinute: { ...DEFAULT_VOICE_BILLING.supplierMicroPerMinute, ...(parsed.supplierMicroPerMinute || {}) },
-          pricing: { ...DEFAULT_VOICE_PRICING, ...(parsed.pricing || {}) },
-        };
-      }
+      if (cfg?.configValue) return parseVoiceBillingConfig(cfg.configValue);
     } catch (error: any) {
       this.logger.warn(`语音计费配置解析失败，使用默认（不向用户收费）：${error?.message || error}`);
     }
@@ -355,6 +374,10 @@ export class VoiceQuotaService {
     contextId?: string;
     tier?: VoiceTier;
     account?: { ownerType: "user" | "circle"; ownerId: string };
+    /** 首选账户可用额度不足开播门槛时改用的账户（圈子场景：成员自己的时长） */
+    fallbackAccount?: { ownerType: "user" | "circle"; ownerId: string };
+    /** 会话编排层附加字段（供应商、关联 ID、幂等键、上下文摘要等），不参与额度计算 */
+    extra?: Omit<Prisma.VoiceSessionUncheckedCreateInput, "userId" | "scene" | "maxSeconds">;
   }) {
     const cfg = await this.getConfig();
     const tier = input.tier ?? "lite";
@@ -362,6 +385,7 @@ export class VoiceQuotaService {
     if (!cfg.chargeUsers) {
       return this.prisma.voiceSession.create({
         data: {
+          ...(input.extra || {}),
           userId: input.userId,
           scene: input.scene,
           contextType: input.contextType,
@@ -376,7 +400,11 @@ export class VoiceQuotaService {
     }
 
     const owner = input.account ?? { ownerType: "user" as const, ownerId: input.userId };
-    const account = await this.ensureAccount(owner.ownerType, owner.ownerId);
+    let account = await this.ensureAccount(owner.ownerType, owner.ownerId);
+    if (input.fallbackAccount && account.balanceSeconds - account.reservedSeconds < cfg.minStartSeconds) {
+      // 首选（如圈子账户）不够开播：改扣备选账户；两边都不够时仍按下面的统一口径报额度不足
+      account = await this.ensureAccount(input.fallbackAccount.ownerType, input.fallbackAccount.ownerId);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const fresh = await tx.voiceQuotaAccount.findUniqueOrThrow({ where: { id: account.id } });
@@ -395,6 +423,7 @@ export class VoiceQuotaService {
       }
       return tx.voiceSession.create({
         data: {
+          ...(input.extra || {}),
           userId: input.userId,
           accountId: account.id,
           scene: input.scene,
@@ -421,33 +450,70 @@ export class VoiceQuotaService {
     endReason: string;
     providerSessionId?: string;
   }) {
+    return this.finalizeSession({
+      sessionId: input.sessionId,
+      usedSeconds: input.usedSeconds,
+      usageSource: input.usageSource,
+      usageState: input.usageSource === "vendor" ? "vendor" : "estimated",
+      endReason: input.endReason,
+      providerSessionId: input.providerSessionId,
+      status: "ended",
+    });
+  }
+
+  /**
+   * 收尾会话（幂等、单事务）：结束 / 失败 / 取消都走这里。
+   *
+   * - usedSeconds 为 null 表示**用量未知**：只释放预留、不扣额度、不记成本，usageState 记 unknown，
+   *   交由对账处理——绝不填 0 冒充「没用」。
+   * - 只从 fromStatuses 列出的状态转出（条件更新），并发的两次结束只有一次生效。
+   * - mock 用量照常走流水以便测试，但 note 明确标注「模拟供应商，非真实计费」。
+   */
+  async finalizeSession(input: {
+    sessionId: string;
+    usedSeconds: number | null;
+    usageSource: "vendor" | "estimate" | "mock" | null;
+    usageState: "none" | "pending" | "vendor" | "estimated" | "unknown" | "mock";
+    endReason: string;
+    status: "ended" | "failed" | "cancelled" | "ending";
+    providerSessionId?: string;
+    technicalOutcome?: string | null;
+    answerCompleteness?: string | null;
+    fromStatuses?: string[];
+  }) {
     const cfg = await this.getConfig();
-    const used = Math.max(0, Math.floor(input.usedSeconds));
+    const from = input.fromStatuses ?? ["reserved", "active", "ending"];
+    const used = input.usedSeconds == null ? null : Math.max(0, Math.floor(input.usedSeconds));
 
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.voiceSession.findUniqueOrThrow({ where: { id: input.sessionId } });
-      if (session.status !== "reserved") {
+      if (!from.includes(session.status)) {
         return { session, duplicated: true };
       }
       const tier = (session.tier === "standard" ? "standard" : "lite") as VoiceTier;
+      const closing = input.status !== "ending";
       const closed = await tx.voiceSession.updateMany({
-        where: { id: session.id, status: "reserved" },
+        where: { id: session.id, status: session.status },
         data: {
-          status: "ended",
+          status: input.status,
           usedSeconds: used,
           usageSource: input.usageSource,
+          usageState: input.usageState,
           endReason: input.endReason,
-          providerSessionId: input.providerSessionId,
-          supplierCostMicro: this.supplierCostMicro(used, tier, cfg),
-          endedAt: new Date(),
+          ...(input.providerSessionId ? { providerSessionId: input.providerSessionId } : {}),
+          ...(input.technicalOutcome !== undefined ? { technicalOutcome: input.technicalOutcome } : {}),
+          ...(input.answerCompleteness !== undefined ? { answerCompleteness: input.answerCompleteness } : {}),
+          supplierCostMicro: used == null || input.usageSource === "mock" ? null : this.supplierCostMicro(used, tier, cfg),
+          ...(closing ? { endedAt: new Date() } : {}),
         },
       });
       if (closed.count !== 1) {
         return { session: await tx.voiceSession.findUniqueOrThrow({ where: { id: session.id } }), duplicated: true };
       }
 
-      if (session.accountId && session.reservedSeconds > 0) {
-        const consume = Math.min(used, session.reservedSeconds);
+      // 「结束中」只是等回调，不动额度；真正收尾时再扣/释放
+      if (closing && session.accountId && session.reservedSeconds > 0) {
+        const consume = used == null ? 0 : Math.min(used, session.reservedSeconds);
         const account = await tx.voiceQuotaAccount.update({
           where: { id: session.accountId },
           data: {
@@ -455,20 +521,26 @@ export class VoiceQuotaService {
             balanceSeconds: { decrement: consume },
           },
         });
-        await tx.voiceQuotaLedger.create({
-          data: {
-            accountId: session.accountId,
-            sessionId: session.id,
-            type: "consume",
-            seconds: -consume,
-            balanceAfter: account.balanceSeconds,
-            idempotencyKey: `voice-session-consume:${session.id}`,
-            note: [
-              input.usageSource === "estimate" ? "按客户端估算结算，待供应商用量对账" : "按供应商用量结算",
-              used > session.reservedSeconds ? `超出预留 ${used - session.reservedSeconds} 秒未扣，待对账` : "",
-            ].filter(Boolean).join("；"),
-          },
-        });
+        if (consume > 0) {
+          await tx.voiceQuotaLedger.create({
+            data: {
+              accountId: session.accountId,
+              sessionId: session.id,
+              type: "consume",
+              seconds: -consume,
+              balanceAfter: account.balanceSeconds,
+              idempotencyKey: `voice-session-consume:${session.id}`,
+              note: [
+                input.usageSource === "mock"
+                  ? "模拟供应商用量，非真实计费"
+                  : input.usageSource === "estimate"
+                    ? "按客户端估算结算，待供应商用量对账"
+                    : "按供应商用量结算",
+                used != null && used > session.reservedSeconds ? `超出预留 ${used - session.reservedSeconds} 秒未扣，待对账` : "",
+              ].filter(Boolean).join("；"),
+            },
+          });
+        }
       }
       return { session: await tx.voiceSession.findUniqueOrThrow({ where: { id: session.id } }), duplicated: false };
     });
