@@ -107,6 +107,7 @@ const rechargeOrderNo = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
 const returnLiveRoomId = ref('')
+const returnRecordId = ref('')
 const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
@@ -143,6 +144,7 @@ onLoad((q) => {
   payMethod.value = (q?.method as string) || 'wechat'
   amount.value = (q?.amount as string) || '0'
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
+  returnRecordId.value = String(q?.returnRecordId || '').trim()
   if (isRecharge.value) {
     if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
       status.value = 'failed'
@@ -161,6 +163,13 @@ onLoad((q) => {
   if (!orderId.value) {
     status.value = 'failed'
     failReason.value = '缺少订单信息'
+    return
+  }
+  // 微信 H5 收银台回跳时只核对原订单，避免再次唤起支付。
+  if (q?.paymentReturn === '1') {
+    status.value = 'confirming'
+    startCountdown()
+    startPolling(300)
     return
   }
   startPaying()
@@ -272,6 +281,11 @@ async function startPaying() {
         mwebUrl = result.mwebUrl || ''
       }
       if (mwebUrl) {
+        if (!isRecharge.value) {
+          const url = new URL(returnUrl)
+          url.searchParams.set('paymentReturn', '1')
+          returnUrl = url.toString()
+        }
         window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(returnUrl)
       } else {
         throw new Error('支付下单失败，请稍后重试')
@@ -436,7 +450,10 @@ function startPolling(delayMs?: number) {
           const liveReturn = returnLiveRoomId.value
             ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}`
             : ''
-          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}${liveReturn}`), 900)
+          const reportReturn = returnRecordId.value
+            ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}`
+            : ''
+          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}${liveReturn}${reportReturn}`), 900)
           return
         }
       }

@@ -15,6 +15,7 @@ import { navigateBack, navigateTo } from '@/utils/router'
 import { wsApi } from '@/pkg-workspace/lib/workspace-api'
 import { shopApi } from '@/lib/shop-data'
 import { getToken } from '@/utils/storage'
+import { track } from '@/composables/useTrack'
 import {
   aiReportApi,
   referenceReaderUrl,
@@ -196,11 +197,6 @@ function sectionSeals(sec: AiReportSection) {
 const preflight = ref<AiReportPreflight | null>(null)
 const doneSteps = ref(0)
 const unveiling = ref(false)
-const STEP_MS = 700
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms))
-}
 
 async function runRitual(seq: number) {
   preflight.value = null
@@ -209,15 +205,10 @@ async function runRitual(seq: number) {
     const pf = await aiReportApi.preflight(recordId.value)
     if (seq !== requestSeq) return
     preflight.value = pf
+    // 预检已返回的步骤有真实结果，最后的模型组织阶段仍在进行。
+    doneSteps.value = Math.max(0, pf.steps.length - 1)
   } catch {
     return // 推演数据拿不到不影响生成，页面回落到普通等待文案
-  }
-  // 逐步点亮；最后一步（组织成书）留给模型返回后再点亮
-  for (let i = 0; i < (preflight.value?.steps.length ?? 0) - 1; i++) {
-    if (seq !== requestSeq) return
-    await sleep(STEP_MS)
-    if (seq !== requestSeq) return
-    doneSteps.value = i + 1
   }
 }
 
@@ -225,19 +216,23 @@ async function load(regenerate = false) {
   if (!recordId.value) return
   const seq = ++requestSeq
   loading.value = true
+  track.custom('paipan_report_generate_start', { regenerate })
   error.value = ''
   unveiling.value = false
   const ritual = runRitual(seq)
   try {
     const res = await aiReportApi.generate(recordId.value, { regenerate })
     if (seq !== requestSeq) return
-    // 等推演动作走完再揭幕，避免「还没看清就结束了」
     await ritual
     if (seq !== requestSeq) return
     doneSteps.value = preflight.value?.steps.length ?? 0
-    if (preflight.value) await sleep(420)
-    if (seq !== requestSeq) return
+    if (report.value?.id !== res.id) {
+      chatItems.value = []
+      chatProgress.value = null
+      historyLoadedFor = ''
+    }
     report.value = res
+    track.custom('paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
     unveiling.value = true
     setTimeout(() => { unveiling.value = false }, 900)
     loadRelated(res.id)
@@ -245,6 +240,7 @@ async function load(regenerate = false) {
     loadVoiceQuota()
   } catch (e) {
     if (seq !== requestSeq) return
+    track.custom('paipan_report_generate_failure', { regenerate })
     error.value = (e as Error)?.message || '报告生成失败，请稍后重试'
   } finally {
     if (seq === requestSeq) loading.value = false
@@ -286,7 +282,7 @@ function openReference(r: AiReportReference) {
 }
 
 // ── 问小卜（文字问答）：按报告提纲与依据回答；语音接通前先用文字 ──
-interface ChatItem { role: 'user' | 'assistant'; text: string; answer?: AiDialogueAnswer; failed?: boolean }
+interface ChatItem { role: 'user' | 'assistant'; text: string; answer?: AiDialogueAnswer; failed?: boolean; retryQuestion?: string }
 const chatOpen = ref(false)
 const chatSectionId = ref<string | undefined>()
 const chatItems = ref<ChatItem[]>([])
@@ -350,12 +346,14 @@ async function sendQuestion(text?: string) {
   chatItems.value.push({ role: 'user', text: question })
   chatInput.value = ''
   chatSending.value = true
+  track.custom('paipan_report_ask_start', { hasSection: !!chatSectionId.value })
   const reportId = report.value.id
   try {
     const answer = await aiReportApi.ask(reportId, { question, sectionId: chatSectionId.value })
     if (report.value?.id !== reportId) return
     if (answer.sectionId) chatSectionId.value = answer.sectionId
     chatItems.value.push({ role: 'assistant', text: answer.answer, answer })
+    track.custom('paipan_report_ask_success', { hasSection: !!answer.sectionId })
     // 更新进度（已讨论小节 / 下一节）
     if (answer.sectionId && chatProgress.value && !chatProgress.value.discussedSectionIds.includes(answer.sectionId)) {
       chatProgress.value.discussedSectionIds.push(answer.sectionId)
@@ -364,10 +362,22 @@ async function sendQuestion(text?: string) {
       chatProgress.value.nextSectionTitle = next?.title ?? null
     }
   } catch (e) {
-    chatItems.value.push({ role: 'assistant', text: (e as Error)?.message || '小卜暂时没能回答，请稍后再问', failed: true })
+    track.custom('paipan_report_ask_failure', { hasSection: !!chatSectionId.value })
+    chatItems.value.push({ role: 'assistant', text: (e as Error)?.message || '小卜暂时没能回答，请稍后再问', failed: true, retryQuestion: question })
   } finally {
     chatSending.value = false
   }
+}
+
+function retryQuestion(index: number) {
+  const item = chatItems.value[index]
+  if (!item?.failed || !item.retryQuestion || chatSending.value) return
+  const question = item.retryQuestion
+  chatItems.value.splice(index, 1)
+  if (chatItems.value[index - 1]?.role === 'user' && chatItems.value[index - 1].text === question) {
+    chatItems.value.splice(index - 1, 1)
+  }
+  sendQuestion(question)
 }
 
 function askXiaobu(sectionId: string, question?: string) {
@@ -388,6 +398,7 @@ async function useAsClientReport() {
   toWorkbench.value = true
   try {
     const created = await wsApi.importXiaobuReport({ reportId: rid })
+    track.custom('paipan_report_import_workbench')
     uni.showToast({ title: '已存入工作台，可编辑后交付', icon: 'none' })
     setTimeout(() => navigateTo(`/pkg-workspace/report/index?id=${created.id}`), 600)
   } catch (e) {
@@ -413,6 +424,7 @@ function openVoice() {
 const paywall = ref<AiReportAccess | null>(null)
 const checkingAccess = ref(false)
 const buyingReport = ref(false)
+let lastAccessEvent = ''
 
 async function checkAccessThenLoad() {
   if (!recordId.value || checkingAccess.value) return
@@ -420,6 +432,11 @@ async function checkAccessThenLoad() {
   error.value = ''
   try {
     const access = await aiReportApi.access(recordId.value)
+    const accessEvent = `${access.granted}:${access.via}:${access.reportType}`
+    if (accessEvent !== lastAccessEvent) {
+      track.custom('paipan_report_access', { state: access.granted ? 'granted' : 'paywall', via: access.via || 'none', reportType: access.reportType })
+      lastAccessEvent = accessEvent
+    }
     if (access.granted) {
       paywall.value = null
       load()
@@ -436,10 +453,12 @@ async function checkAccessThenLoad() {
 async function buyReport() {
   if (buyingReport.value || !paywall.value) return
   buyingReport.value = true
+  track.custom('paipan_report_buy_click', { reportType: paywall.value.reportType })
   try {
     // 金额由服务端计算（29 元），targetId = 排盘记录:报告类型
     const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId: `${recordId.value}:${paywall.value.reportType}`, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
+    track.custom('paipan_report_order_created', { reportType: paywall.value.reportType })
     navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || paywall.value.priceYuan || 0}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
@@ -449,12 +468,12 @@ async function buyReport() {
 }
 
 function openMember() {
-  navigateTo('/pkg-agent/agent/xiaobu-member')
+  navigateTo(`/pkg-agent/agent/xiaobu-member?recordId=${encodeURIComponent(recordId.value)}`)
 }
 
 const memberFrom = computed(() => {
   const plans = paywall.value?.memberPlans || []
-  return plans.length ? Math.min(...plans.map((p) => p.priceYuan)) : 0
+  return plans.length ? Math.min(...plans.map((p) => p.priceYuan)) : null
 })
 
 onLoad((q) => {
@@ -521,7 +540,7 @@ onShow(() => {
         <view class="pw-card" data-testid="report-member" @tap="openMember">
           <view class="pw-row">
             <text class="pw-name">开通小卜AI会员</text>
-            <text class="pw-price pw-price-soft">¥{{ memberFrom }} 起</text>
+            <text v-if="memberFrom !== null" class="pw-price pw-price-soft">¥{{ memberFrom }} 起</text>
           </view>
           <text class="pw-desc">会员期内报告免费、不限次数，每月赠送 {{ paywall.memberMonthlyVoiceMinutes }} 分钟 AI 语音对话</text>
         </view>
@@ -1067,6 +1086,7 @@ onShow(() => {
           </view>
           <view v-for="(c, i) in chatItems" :id="`chat-${i}`" :key="i" class="msg" :class="c.role === 'user' ? 'msg-user' : 'msg-bot'">
             <text class="msg-text" :class="{ 'msg-failed': c.failed }">{{ c.text }}</text>
+            <text v-if="c.failed && c.retryQuestion" class="term-ask" @tap="retryQuestion(i)">重试这个问题</text>
             <view v-if="c.answer && (c.answer.sectionTitle || c.answer.references.length)" class="msg-meta">
               <text class="seal seal-pan small-seal">盘</text>
               <text v-if="c.answer.references.some((r) => r.kind === 'school_theory')" class="seal seal-pai small-seal">派</text>

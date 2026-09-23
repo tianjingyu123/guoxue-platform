@@ -12,7 +12,7 @@
  */
 import { ref, computed } from 'vue'
 import { buildH5Url } from '@/utils/share'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -48,6 +48,10 @@ const shareUrl = computed(() =>
 onLoad((q) => {
   id.value = (q?.id as string) || ''
   load()
+})
+onShow(async () => {
+  if (!report.value) return
+  try { isPro.value = (await wsApi.pro()).isPro } catch { /* 保留上次状态，交付仍由服务端校验 */ }
 })
 
 /** 兜底按钮：有 id 则重试加载，无 id（缺参）则返回上一页 */
@@ -98,11 +102,14 @@ async function rewriteForClient() {
     })
   })
   if (!ok) return
+  if (dirty.value && !(await save())) return
   rewriting.value = true
   uni.showLoading({ title: '正在改写…', mask: true })
   try {
     const res = await wsApi.rewriteForClient(report.value.id)
     report.value = res.report
+    chapters.value = (res.report.chapters ?? []).map((c) => ({ ...c }))
+    dirty.value = false
     uni.showToast({
       title: res.failed ? `已改写 ${res.rewritten} 章，${res.failed} 章未成功` : `已改写 ${res.rewritten} 章`,
       icon: 'none',
@@ -147,8 +154,8 @@ async function aiDraft(i: number) {
   }
 }
 
-async function save(status?: 'draft' | 'final') {
-  if (!report.value) return
+async function save(status?: 'draft' | 'final'): Promise<boolean> {
+  if (!report.value || saving.value) return false
   saving.value = true
   try {
     const r = await wsApi.updateReport(id.value, {
@@ -159,8 +166,10 @@ async function save(status?: 'draft' | 'final') {
     report.value = { ...report.value, status: r.status }
     dirty.value = false
     uni.showToast({ title: status === 'final' ? '已定稿' : '已保存', icon: 'success' })
+    return true
   } catch (e: any) {
     uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+    return false
   } finally {
     saving.value = false
   }
@@ -179,7 +188,19 @@ async function share() {
     })
     return
   }
-  if (dirty.value) await save('final')
+  const emptyCount = chapters.value.filter((c) => !c.body.trim()).length
+  if (emptyCount) {
+    const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+      title: '报告还有空白章节',
+      content: `有 ${emptyCount} 章尚未填写，客户会看到空白内容。确认仍要交付吗？`,
+      confirmText: '仍要交付',
+      cancelText: '继续编辑',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    }))
+    if (!proceed) return
+  }
+  if (dirty.value && !(await save('final'))) return
   try {
     const res = await wsApi.shareReport(id.value)
     report.value = { ...report.value!, shareToken: res.shareToken, sharedAt: res.sharedAt, status: 'delivered' }

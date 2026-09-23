@@ -7,7 +7,7 @@
  * 会员期与当月赠送由支付回调在同一事务里登记。会员期内续买从到期日往后顺延。
  */
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -18,6 +18,8 @@ const loading = ref(true)
 const error = ref('')
 const picked = ref('')
 const buying = ref(false)
+const returnRecordId = ref('')
+onLoad((q) => { returnRecordId.value = String(q?.recordId || '') })
 
 const pickedPlan = computed(() => info.value?.plans.find((p) => p.key === picked.value) || null)
 
@@ -55,7 +57,8 @@ async function buy() {
     // 金额由服务端按档位计算，这里的数量固定 1
     const order = await shopApi.createOrder({ type: 'XIAOBU_MEMBER', targetId: pickedPlan.value.key, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pickedPlan.value.priceYuan}`)
+    const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
+    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pickedPlan.value.priceYuan}${returnQuery}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

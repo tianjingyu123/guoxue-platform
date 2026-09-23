@@ -1225,7 +1225,7 @@ interface RawCoupon { id?: string; name?: string; type?: string; value?: number 
 interface RawUserCoupon { id?: string; couponId?: string; used?: boolean; coupon?: RawCoupon | null }
 interface RawFlashItem { productId?: string; product?: { title?: string; image?: string; originalPrice?: number | string; price?: number | string } | null; flashPrice?: number | string; stock?: number; sold?: number }
 interface RawFlashSale { id?: string; name?: string; startTime?: string; endTime?: string; items?: RawFlashItem[] }
-interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
+interface RawShopOrder { id?: string; type?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
 
 /* —— 订单试算（结算页价格明细预估·与后端定价引擎同口径） —— */
 interface RawOrderEstimate { goodsAmount?: number | string; couponDiscount?: number | string; selfDiscount?: number | string; payableAmount?: number | string }
@@ -1851,7 +1851,7 @@ export const shopApi = {
   },
 
   /** 支付成功页订单摘要 — GET /shop/orders/:id（真查金额/支付方式/支付时间/件数，替代硬编码展示） */
-  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number; status: string; paid: boolean }> {
+  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number; status: string; paid: boolean; type?: string; targetId?: string }> {
     const o = await apiGet<RawShopOrder>(`/shop/orders/${orderId}`)
     const methodMap: Record<string, string> = { WECHAT: '微信支付', ALIPAY: '支付宝', UNIONPAY: '银联支付', HUIFU: '汇付支付', COIN: '国学币' }
     const paidAt = o?.paidAt ? new Date(o.paidAt) : null
@@ -1865,6 +1865,8 @@ export const shopApi = {
       itemCount: Math.max(1, Number(o?.quantity) || 1),
       status,
       paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status),
+      type: o?.type,
+      targetId: o?.targetId,
     }
   },
 
