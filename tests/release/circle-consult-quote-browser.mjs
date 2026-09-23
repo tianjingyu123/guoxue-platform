@@ -9,6 +9,7 @@ if (!origin) throw new Error('缺少隔离 H5 地址')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let currentPrice = 50
 let askWrites = 0
+let rejectOnce = false
 const errors = []
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
@@ -26,6 +27,11 @@ try {
         askWrites++
         const body = route.request().postDataJSON()
         assert.equal(body.expectedPriceCoin, currentPrice)
+        if (rejectOnce) {
+          rejectOnce = false
+          currentPrice = 90
+          return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 409, message: '达人报价已变化，请刷新后确认再提问' }) })
+        }
         data = { id: 'q1', circleId: 'c1', answererId: 'u2', askerId: 'qa-asker', question: '【测试问题】测试描述', priceCoin: currentPrice, status: 'PENDING' }
       } else if (path === '/question') data = { questions: [], total: 0, page: 1, pageSize: 20 }
       else if (path === '/coin/balance') data = { balance: 100 }
@@ -48,8 +54,17 @@ try {
   await page.getByText('确认支付 80 金币并提问').click()
   await page.waitForURL(/question-detail\?id=q1/)
   assert.equal(askWrites, 1)
+  await page.goto(`${origin}/h5/pkg-circle/circles/consult-ask?circleId=c1&answererId=u2&priceCoin=1`)
+  await page.getByText('确认支付 80 金币并提问').waitFor()
+  await page.locator('.ca-input-title input').fill('测试问题')
+  await page.locator('.ca-input-body textarea').fill('测试描述')
+  rejectOnce = true
+  await page.getByText('确认支付 80 金币并提问').click()
+  await page.getByText('确认支付 90 金币并提问').waitFor()
+  assert.equal(askWrites, 2)
+  assert.match(page.url(), /consult-ask/)
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: 5, askWrites, errors }))
+  console.log(JSON.stringify({ passed: 7, askWrites, errors }))
 } finally {
   await browser.close()
 }

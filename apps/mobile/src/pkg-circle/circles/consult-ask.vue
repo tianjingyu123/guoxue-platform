@@ -126,7 +126,13 @@ async function submit() {
     submitted.value = true
     redirectTo(`/pkg-circle/circles/question-detail?id=${q.id}`)
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
+    const message = (e as Error)?.message || '提交失败'
+    if (message.includes('报价已变化')) {
+      await loadQuote()
+      uni.showToast({ title: '达人报价已变化，请核对后重新提交', icon: 'none' })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     submitting.value = false
   }
