@@ -5,7 +5,8 @@
  * 五种状态：圈主审核中 / 平台审核中 / 退款处理中 / 退款已到账 / 已驳回（圈主或平台）。
  * 数据：refundApi.myRefunds + wallet（真连 circle-refund 后端）。去提现 → /pkg-mine/wallet/withdraw。
  */
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
@@ -93,6 +94,16 @@ function statusView(it: RefundRequestItem): StatusView {
       ],
     }
   }
+  if (it.refundStatus === 'failed') {
+    return {
+      badge: 'rejected', label: '退款未完成', timeSub: '未到账，请联系平台客服', rejectReason: '',
+      nodes: [
+        { label: '圈主审核', state: it.ownerStatus === 'approved' ? 'done' : 'idle' },
+        { label: '平台审核', state: it.adminStatus === 'approved' ? 'done' : 'idle' },
+        { label: '未到账', state: 'fail' },
+      ],
+    }
+  }
   if (it.ownerStatus === 'approved') {
     return {
       badge: 'pending', label: '平台审核中', timeSub: '圈主已通过', rejectReason: '',
@@ -155,7 +166,8 @@ function chooseExitCircle() {
   })
 }
 
-onMounted(load)
+// 从退款申请或钱包返回时重新读取状态和余额，不沿用进入页面时的旧数据。
+onShow(() => { void load() })
 </script>
 
 <template>
@@ -222,6 +234,9 @@ onMounted(load)
         <!-- 驳回原因 -->
         <text v-if="statusView(it).rejectReason" class="rf-reject">
           <text class="rf-reject-b">驳回原因：</text>{{ statusView(it).rejectReason }}
+        </text>
+        <text v-if="it.refundStatus === 'failed' && it.ownerStatus !== 'rejected' && it.adminStatus !== 'rejected'" class="rf-reject">
+          请联系平台客服核对退款，提供申请编号：<text class="rf-request-id">{{ it.id }}</text>
         </text>
       </view>
       <view class="rf-bottom-pad" />
@@ -351,6 +366,7 @@ onMounted(load)
   font-size: 24rpx; color: var(--text-secondary, #6e6e73); line-height: 1.6;
 }
 .rf-reject-b { font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.rf-request-id { word-break: break-all; user-select: text; }
 
 .rf-bottom-pad { height: 40rpx; }
 
