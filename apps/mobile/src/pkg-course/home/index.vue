@@ -81,12 +81,12 @@ function entryLabel(name: string) {
 }
 
 async function loadHeader() {
-  const [home, tabs] = await Promise.all([
+  const [home, tabs] = await Promise.allSettled([
     courseApi.getHome(),
     coursesListApi.getCategoryTabs(),
   ])
-  newCourses.value = (home.newCourses || []).slice(0, 4)
-  categoryTabs.value = tabs.length ? tabs : [{ id: 'all', name: '全部' }]
+  if (home.status === 'fulfilled') newCourses.value = (home.value.newCourses || []).slice(0, 4)
+  if (tabs.status === 'fulfilled') categoryTabs.value = tabs.value.length ? tabs.value : [{ id: 'all', name: '全部' }]
 }
 
 onLoad(() => {
@@ -378,7 +378,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
   background: #fff;
   box-shadow: 0 6rpx 18rpx rgba(62, 42, 25, .05);
 }
-.body { padding: 24rpx 32rpx 48rpx; display: flex; flex-direction: column; gap: 38rpx; }
+.body { padding: 22rpx 22rpx 48rpx; display: flex; flex-direction: column; gap: 28rpx; }
 .quick-shell {
   overflow: hidden;
   padding: 26rpx 22rpx 22rpx;
@@ -416,8 +416,8 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .section { display: flex; flex-direction: column; gap: 20rpx; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; }
 .section-more { display: flex; align-items: center; gap: 4rpx; color: #8b7b64; font-size: 21rpx; }
-.new-grid { display: flex; flex-wrap: wrap; gap: 18rpx; }
-.new-grid :deep(.learning-card) { width: calc(50% - 9rpx); box-sizing: border-box; }
+.new-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.new-grid :deep(.learning-card) { width: calc(50% - 6rpx); box-sizing: border-box; }
 .all-section { padding-top: 4rpx; }
 .all-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18rpx; }
 .all-title { display: block; color: #24211f; font-size: 34rpx; font-weight: 800; }

@@ -48,6 +48,7 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
   const loadingMore = ref(false) // 上拉加载更多
   const error = ref('')
   const hasMore = ref(false)
+  let requestVersion = 0
 
   function buildParams(p: number): FetchParams & P {
     const extra = (opts.getParams ? opts.getParams() : {}) as P
@@ -56,32 +57,36 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
 
   /** 重载第一页（首屏、下拉刷新、切换筛选时调用） */
   async function refresh() {
-    if (loading.value) return
+    const version = ++requestVersion
     loading.value = true
     error.value = ''
     page.value = 1
     try {
       const res = await opts.fetcher(buildParams(1))
+      if (version !== requestVersion) return
       list.value = res.items
       total.value = res.total ?? res.items.length
       hasMore.value = res.items.length >= pageSize
     } catch (e: any) {
+      if (version !== requestVersion) return
       error.value = e?.message || '加载失败，请稍后重试'
       list.value = []
       total.value = 0
       hasMore.value = false
     } finally {
-      loading.value = false
+      if (version === requestVersion) loading.value = false
     }
   }
 
   /** 追加下一页（上拉触底调用）。失败静默，保留已加载内容 */
   async function loadMore() {
     if (loading.value || loadingMore.value || !hasMore.value) return
+    const version = requestVersion
     loadingMore.value = true
     try {
       const next = page.value + 1
       const res = await opts.fetcher(buildParams(next))
+      if (version !== requestVersion) return
       list.value.push(...res.items)
       page.value = next
       hasMore.value = res.items.length >= pageSize

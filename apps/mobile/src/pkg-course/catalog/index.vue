@@ -298,7 +298,7 @@ function toggleSortOnKeyboard(event: KeyboardEvent) {
 }
 .search-input { min-width: 0; flex: 1; color: #3c3732; font-size: 24rpx; }
 .search-placeholder { color: #aaa096; }
-.search-clear { width: 42rpx; height: 42rpx; display: flex; align-items: center; justify-content: center; }
+.search-clear { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
 .catalog-body { display: flex; align-items: flex-start; }
 .sidebar {
   position: sticky; top: 180rpx; width: 174rpx; height: calc(100vh - 180rpx);
@@ -350,13 +350,8 @@ function toggleSortOnKeyboard(event: KeyboardEvent) {
 .sort-option:last-child { border-bottom: 0; }
 .sort-option.active { color: #c41e3a; font-weight: 700; }
 .course-list { display: flex; flex-direction: column; gap: 16rpx; }
-.course-list :deep(.learning-card--list) { min-height: 240rpx; }
-.course-list :deep(.learning-card--list .cover) { width: 205rpx; }
-.course-list :deep(.learning-card--list .content) { padding: 20rpx 16rpx 16rpx 32rpx; gap: 8rpx; }
-.course-list :deep(.learning-card--list .title) { font-size: 26rpx; }
-.course-list :deep(.learning-card--list .outcome-text) { font-size: 20rpx; }
-.course-list :deep(.learning-card--list .course-meta) { display: none; }
-.course-list :deep(.learning-card--list .original-price) { display: none; }
+.course-list :deep(.learning-card--list .cover) { width: 178rpx; }
+.course-list :deep(.learning-card--list .meta-item:nth-child(n+2)) { display: none; }
 .state { min-height: 540rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13rpx; text-align: center; }
 .state-title { color: #4b443d; font-size: 25rpx; font-weight: 600; }
 .state-desc { color: #9c9288; font-size: 21rpx; }

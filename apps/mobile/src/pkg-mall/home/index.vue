@@ -216,17 +216,17 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
         <view
           class="promo-main tap-press"
           role="link"
-          aria-label="进入国学好物季专题会场"
+          aria-label="浏览全部商品"
           tabindex="0"
           @tap="navigateTo('/mall/category')"
           @keydown="activateOnKeyboard($event, () => navigateTo('/mall/category'))"
         >
           <view class="promo-main-copy">
-            <text class="promo-kicker">本期雅集</text>
-            <text class="promo-title">国学好物季</text>
-            <text class="promo-sub">典籍 · 文房 · 茶器 · 国风周边</text>
+            <text class="promo-kicker">好物雅集</text>
+            <text class="promo-title">慢慢逛好物</text>
+            <text class="promo-sub">在分类中找到所需</text>
             <view class="promo-cta">
-              <text class="promo-cta-text">进入专题会场</text>
+              <text class="promo-cta-text">浏览全部商品</text>
               <AppIcon name="chevron-right" :size="20" color="#6d281f" />
             </view>
           </view>
@@ -280,7 +280,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
       <MarketingZone />
 
       <!-- 商品分类 -->
-      <view class="section">
+      <view v-if="mallCategories.length" class="section">
         <view class="sec-head">
           <text class="sec-title">商品分类</text>
           <view
@@ -312,18 +312,21 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
         </view>
       </view>
 
-      <!-- 猜你喜欢 -->
+      <!-- 商品陈列 -->
       <view class="section">
         <view class="guess-head">
           <view class="guess-line" />
-          <AppIcon name="sparkles" :size="26" color="#c41e3a" />
-          <text class="guess-title">猜你喜欢</text>
+          <text class="guess-title">精选商品</text>
           <view class="guess-line" />
         </view>
-        <view class="prod-grid">
+        <view v-if="mallProducts.length" class="prod-grid">
           <view v-for="p in mallProducts" :key="p.id" class="prod-cell">
             <ProductCard :data="p" />
           </view>
+        </view>
+        <view v-else class="products-empty" role="status">
+          <text>暂时没有可展示的商品</text>
+          <view role="link" tabindex="0" aria-label="浏览全部商品" @tap="navigateTo('/mall/category')" @keydown="activateOnKeyboard($event, () => navigateTo('/mall/category'))">浏览全部商品</view>
         </view>
       </view>
       </template>
@@ -351,10 +354,10 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
 .cart-badge { position: absolute; top: -10rpx; right: -10rpx; z-index: 2; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; border: 2rpx solid #faf8f5; box-sizing: border-box; }
 .card-press { opacity: 0.85; }
 
-.body { padding: 32rpx; display: flex; flex-direction: column; gap: 40rpx; }
+.body { padding: 24rpx 22rpx 48rpx; display: flex; flex-direction: column; gap: 28rpx; }
 
 /* 快捷入口 */
-.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24rpx; }
+.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; }
 .quick-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 24rpx 0; border-radius: 24rpx; background: var(--card); }
 .quick-icon { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: var(--secondary); display: flex; align-items: center; justify-content: center; }
 .quick-label { font-size: 24rpx; color: var(--text-strong); }
@@ -530,7 +533,9 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
 .guess-head { display: flex; align-items: center; justify-content: center; gap: 16rpx; margin-bottom: 24rpx; }
 .guess-line { width: 64rpx; height: 2rpx; background: var(--border); }
 .guess-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
-.prod-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.prod-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; }
+.products-empty { display: flex; flex-direction: column; align-items: center; gap: 18rpx; padding: 52rpx 12rpx; color: var(--text-soft); font-size: 24rpx; }
+.products-empty [role="link"] { padding: 16rpx 28rpx; color: var(--brand); }
 
 /* 三态：加载/错误 */
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }

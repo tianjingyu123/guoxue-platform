@@ -302,9 +302,10 @@ onMounted(() => {
   </view>
 
   <!-- Error -->
-  <view v-else-if="error" class="error-wrap">
+  <view v-else-if="error" class="error-wrap" role="alert" aria-live="assertive">
     <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" role="button" tabindex="0" aria-label="重新加载课程" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><text class="retry-text">返回</text></view>
   </view>
 
   <!-- Content -->

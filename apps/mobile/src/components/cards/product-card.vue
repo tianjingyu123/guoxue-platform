@@ -1,32 +1,30 @@
 <script setup lang="ts">
-/** 全平台商品卡：与首页/发现页统一为 1:1 首图 + 真实销售信息区。 */
+/** 商城商品卡：只呈现发布数据，整卡为唯一跳转入口。 */
 import { computed } from 'vue'
-import { navigateToContent } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { type ProductCardData } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
+import { navigateToContent } from '@/utils/router'
 
-const props = defineProps<{ data: ProductCardData }>()
-const saving = computed(() => {
-  const price = Number(props.data.price || 0)
-  const original = Number(props.data.originalPrice || 0)
-  return original > price ? original - price : 0
-})
-const trustLabel = computed(() => {
-  if (props.data.isOfficialSelfOwned) return '官方自营'
-  if (props.data.isSelected) return '平台严选'
-  return '商家商品'
-})
+const props = withDefaults(defineProps<{
+  data: ProductCardData
+  variant?: 'grid' | 'list'
+}>(), { variant: 'grid' })
 
-const accessibilityLabel = computed(() => {
-  const subtitle = props.data.subtitle ? `，${props.data.subtitle}` : ''
-  const sales = props.data.sales ? `，已售 ${props.data.sales}` : ''
-  const stock = props.data.stock != null && props.data.stock > 0 ? '，现货' : ''
-  return `选购商品：${props.data.title}${subtitle}${sales}${stock}，到手价 ${formatPrice(props.data.price)} 元`
+const hasPrice = computed(() => props.data.price != null && Number.isFinite(Number(props.data.price)))
+const label = computed(() => props.data.isOfficialSelfOwned ? '官方自营' : props.data.isSelected ? '平台严选' : '')
+const originalPrice = computed(() => {
+  const value = Number(props.data.originalPrice)
+  return hasPrice.value && Number.isFinite(value) && value > Number(props.data.price) ? value : null
 })
+const accessibilityLabel = computed(() => [
+  `查看商品：${props.data.title}`,
+  label.value,
+  hasPrice.value ? `价格 ${formatPrice(props.data.price)} 元` : '详情查看价格',
+  props.data.stock === 0 ? '暂时缺货' : '',
+].filter(Boolean).join('，'))
 
 function open(event?: unknown) { navigateToContent(`/mall/product/${props.data.id}`, event) }
-
 function openOnKeyboard(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
@@ -36,7 +34,8 @@ function openOnKeyboard(event: KeyboardEvent) {
 
 <template>
   <view
-    class="card sales-card"
+    class="product-card"
+    :class="`product-card--${variant}`"
     data-content-card
     role="link"
     :aria-label="accessibilityLabel"
@@ -47,83 +46,47 @@ function openOnKeyboard(event: KeyboardEvent) {
   >
     <view class="cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
-      <text v-if="saving > 0" class="saving-badge">立省 ¥{{ formatPrice(saving) }}</text>
+      <text v-if="data.stock === 0" class="stock-badge">暂时缺货</text>
     </view>
     <view class="body">
-      <view class="eyebrow">
-        <text class="select-tag">{{ trustLabel }}</text>
-        <text v-for="tag in (data.tags || []).slice(0, 2)" :key="tag" class="benefit-tag">{{ tag }}</text>
-      </view>
+      <text v-if="label" class="label">{{ label }}</text>
       <text class="title">{{ data.title }}</text>
       <text v-if="data.subtitle" class="subtitle">{{ data.subtitle }}</text>
-      <view v-if="data.sales || (data.stock != null && data.stock > 0)" class="sales-proof">
-        <text v-if="data.sales">已售 {{ data.sales }}</text>
-        <text v-if="data.sales && data.stock != null && data.stock > 0" class="proof-dot">·</text>
-        <text v-if="data.stock != null && data.stock > 0">现货</text>
-      </view>
       <view class="foot">
-        <view class="price-block">
-          <text class="price-prefix">到手价</text>
-          <text class="price"><text class="price-cny">¥</text>{{ formatPrice(data.price) }}</text>
-          <text v-if="data.originalPrice && data.originalPrice > (data.price || 0)" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
+        <view class="price-line">
+          <text v-if="hasPrice" class="price">¥{{ formatPrice(data.price) }}</text>
+          <text v-else class="price-pending">查看价格</text>
+          <text v-if="originalPrice != null" class="original-price">¥{{ formatPrice(originalPrice) }}</text>
         </view>
-        <text class="buy">立即选购</text>
+        <text v-if="data.sales" class="sales">已售 {{ data.sales }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.card {
-  overflow: hidden;
-  margin-bottom: 12rpx;
-  border: 2rpx solid rgba(201,169,110,.16);
-  border-radius: 24rpx;
-  background: #fff;
-  box-shadow: 0 6rpx 20rpx rgba(74,54,30,.08);
-  transition: transform .15s ease-out, opacity .15s ease-out;
+.product-card {
+  min-width: 0; overflow: hidden; box-sizing: border-box;
+  border: 1rpx solid rgba(63, 48, 36, .1); border-radius: 22rpx;
+  background: #fff; box-shadow: 0 5rpx 18rpx rgba(45, 36, 27, .05);
 }
-.card-press { transform: scale(0.98); }
-.cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
-.cover { padding-bottom: 100%; }
-.cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-.saving-badge {
-  position: absolute; left: 14rpx; bottom: 14rpx;
-  padding: 7rpx 12rpx; border-radius: 8rpx;
-  background: rgba(196,30,58,.92); color: #fff;
-  font-size: 20rpx; font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(196,30,58,.22);
-}
-.body { padding: 18rpx 18rpx 20rpx; background: linear-gradient(180deg,#fff 0%,#fffcf7 100%); }
-.eyebrow { min-height: 32rpx; display: flex; align-items: center; gap: 8rpx; overflow: hidden; }
-.select-tag,.benefit-tag { flex-shrink: 0; padding: 3rpx 8rpx; border-radius: 6rpx; font-size: 18rpx; line-height: 1.3; }
-.select-tag { color: #9d2b3d; background: #fff0f2; }
-.benefit-tag { color: #7b6332; background: #f6eedf; }
-.title {
-  display: -webkit-box; overflow: hidden; margin-top: 10rpx;
-  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  color: #2c2c2c; font-size: 28rpx; font-weight: 650; line-height: 1.4;
-}
-.subtitle {
-  display: -webkit-box; overflow: hidden; margin-top: 8rpx;
-  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  color: #8b8175; font-size: 21rpx; line-height: 1.45;
-}
-.sales-proof { display: flex; align-items: center; gap: 6rpx; margin-top: 10rpx; color: #9b8c78; font-size: 20rpx; }
-.proof-dot { color: #c9a96e; }
-.foot {
-  display: flex; align-items: flex-end; gap: 8rpx;
-  margin-top: 14rpx; padding-top: 14rpx; border-top: 2rpx solid #f3ece2;
-}
-.price-block { min-width: 0; display: flex; align-items: baseline; gap: 6rpx; flex-wrap: wrap; }
-.price-prefix { width: 100%; color: #9d2b3d; font-size: 18rpx; line-height: 1; }
-.price { flex-shrink: 0; color: #c41e3a; font-size: 31rpx; font-weight: 750; line-height: 1.1; }
-.price-cny { font-size: 20rpx; font-weight: 400; }
-.price-orig { color: #aaa096; font-size: 18rpx; text-decoration: line-through; }
-.buy {
-  flex-shrink: 0; margin-left: auto; padding: 9rpx 13rpx; border-radius: 999rpx;
-  color: #fff; font-size: 20rpx; font-weight: 650;
-  background: linear-gradient(135deg,#c41e3a,#a81730);
-  box-shadow: 0 4rpx 12rpx rgba(196,30,58,.18);
-}
+.card-press { transform: scale(.985); opacity: .94; }
+.cover { position: relative; overflow: hidden; background: var(--surface-sunken); }
+.cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stock-badge { position: absolute; left: 12rpx; bottom: 12rpx; padding: 5rpx 12rpx; border-radius: 999rpx; background: rgba(35, 31, 28, .76); color: #fff; font-size: 19rpx; }
+.body { min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; padding: 17rpx 18rpx 18rpx; }
+.label { align-self: flex-start; margin-bottom: 8rpx; color: #a4273b; font-size: 20rpx; font-weight: 600; }
+.title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #262320; font-size: 27rpx; font-weight: 650; line-height: 1.38; }
+.subtitle { display: -webkit-box; overflow: hidden; margin-top: 5rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 1; color: #827970; font-size: 21rpx; line-height: 1.4; }
+.foot { display: flex; flex-direction: column; align-items: flex-start; gap: 5rpx; margin-top: auto; padding-top: 14rpx; }
+.price-line { display: flex; align-items: baseline; gap: 8rpx; max-width: 100%; }
+.price { color: #b9283f; font-size: 31rpx; font-weight: 750; white-space: nowrap; }
+.price-pending { color: #625a52; font-size: 23rpx; }
+.original-price { color: #a69d94; font-size: 19rpx; text-decoration: line-through; white-space: nowrap; }
+.sales { color: #8d847b; font-size: 19rpx; }
+.product-card--grid .cover { width: 100%; padding-top: 78%; }
+.product-card--grid .body { min-height: 198rpx; }
+.product-card--list { display: flex; min-height: 190rpx; }
+.product-card--list .cover { width: 190rpx; flex-shrink: 0; }
+.product-card--list .body { flex: 1; }
 </style>

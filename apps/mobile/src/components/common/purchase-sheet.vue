@@ -266,7 +266,7 @@ const paymentMethodName = computed(() =>
   ALL_PAY_METHODS.find((item) => item.id === payMethod.value)?.name || '所选方式',
 )
 // #endif
-const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
+const tipText = computed(() => (props.bizType === 'PRODUCT' ? '发货与售后规则以订单信息为准' : '官方正版 · 购买后立即可用'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
   if (hasSku.value && !selectedSku.value) return '请选择规格'

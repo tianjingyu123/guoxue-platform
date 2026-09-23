@@ -231,10 +231,11 @@ async function toggleFavorite() {
       <AppLoading />
     </view>
     <!-- 加载失败 -->
-    <view v-else-if="error" class="state-wrap">
+    <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
       <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
       <text class="state-text">加载失败，请重试</text>
-      <view class="state-retry" @tap="fetchData()"><text class="state-retry-text">点击重试</text></view>
+      <view class="state-retry" role="button" tabindex="0" aria-label="重新加载商品" @tap="fetchData()" @keydown.enter="fetchData()" @keydown.space.prevent="fetchData()"><text class="state-retry-text">点击重试</text></view>
+      <view class="state-retry" role="button" tabindex="0" aria-label="返回上一页" @tap="navigateBack()" @keydown.enter="navigateBack()" @keydown.space.prevent="navigateBack()"><text class="state-retry-text">返回</text></view>
     </view>
     <!-- 内容 -->
     <template v-else>
@@ -294,15 +295,10 @@ async function toggleFavorite() {
       <AppIcon name="chevron-right" :size="32" color="var(--text-soft)" />
     </view>
 
-    <!-- 服务保障 -->
+    <!-- 交易提示：发货和售后承诺须以订单实际规则为准 -->
     <view class="card">
-      <text class="card-title">服务保障</text>
-      <view class="guard-grid">
-        <view class="guard-item"><view class="guard-icon"><AppIcon name="shield" :size="32" color="var(--brand)" /></view><view><text class="guard-name">正品保障</text><text class="guard-desc">假一赔十</text></view></view>
-        <view class="guard-item"><view class="guard-icon"><AppIcon name="truck" :size="32" color="var(--brand)" /></view><view><text class="guard-name">急速发货</text><text class="guard-desc">48小时内</text></view></view>
-        <view class="guard-item"><view class="guard-icon"><AppIcon name="refresh-cw" :size="32" color="var(--brand)" /></view><view><text class="guard-name">7天退换</text><text class="guard-desc">无理由退换</text></view></view>
-        <view class="guard-item"><view class="guard-icon"><AppIcon :name="product.isOfficialSelfOwned || product.isSelected ? 'award' : 'shield'" :size="32" color="var(--brand)" /></view><view><text class="guard-name">{{ product.isOfficialSelfOwned ? '官方自营' : product.isSelected ? '品质认证' : '平台交易保障' }}</text><text class="guard-desc">{{ product.isOfficialSelfOwned ? '官方直营' : product.isSelected ? '平台严选' : '订单售后可追踪' }}</text></view></view>
-      </view>
+      <text class="card-title">交易提示</text>
+      <text class="p-sub">发货时间与售后规则，请以结算页和订单信息为准。</text>
     </view>
 
     <!-- 商品评价 -->
