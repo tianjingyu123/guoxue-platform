@@ -121,10 +121,13 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
 
   private onKick(raw: string) {
     try {
-      const m = JSON.parse(raw) as { deviceId: string; connId: string; from: string };
+      const m = JSON.parse(raw) as { deviceId: string; connId: string; from: string; epoch: number };
       if (m.from === this.instanceId) return;
       const c = this.connections.get(m.deviceId);
-      if (c && c.id !== m.connId) c.shutdown("replaced_by_new_connection");
+      // Redis 消息可能晚到：只允许较新的连接顶替较旧的连接。
+      if (c && c.id !== m.connId && Number.isSafeInteger(m.epoch) && m.epoch > c.epoch) {
+        c.shutdown("replaced_by_new_connection");
+      }
     } catch {
       /* 忽略格式不对的消息 */
     }
@@ -170,11 +173,23 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
       void this.link.stat("auth_fail");
       return rejectUpgrade(socket, 401, "unauthorized");
     }
-    void this.link.stat("ws_open");
+    let epoch = 0;
+    if (this.sub && this.redis) {
+      try {
+        epoch = (await this.redis.incrWithTtl(`xz:connseq:${auth.deviceId}`, 86400)).count;
+      } catch (e: any) {
+        this.logger.warn(`小智终端连接序号分配失败，按本实例顶替运行：${e?.message || e}`);
+      }
+    }
+    const prev = this.connections.get(auth.deviceId);
+    // 同一实例的两个异步握手也可能乱序完成，拒绝较早的那一个。
+    if (prev && epoch > 0 && prev.epoch > 0 && epoch <= prev.epoch) {
+      return rejectUpgrade(socket, 409, "superseded");
+    }
     const ws = acceptUpgrade(req, socket, head);
     if (!ws) return;
+    void this.link.stat("ws_open");
 
-    const prev = this.connections.get(auth.deviceId);
     if (prev) prev.shutdown("replaced_by_new_connection");
     const conn = new XiaozhiConnection(ws, auth, normalizeBinaryVersion(headerOf(req, "protocol-version")), {
       sessions: this.sessions,
@@ -183,10 +198,13 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
       prisma: this.prisma,
       logger: this.logger,
       link: this.link,
-    });
+    }, epoch);
     this.connections.set(auth.deviceId, conn);
     // 通知其他实例：这台设备已在本实例重连，旧连接可以关了
-    void this.redis?.publish(KICK_CHANNEL, JSON.stringify({ deviceId: auth.deviceId, connId: conn.id, from: this.instanceId })).catch(() => 0);
+    if (epoch > 0) {
+      void this.redis!.publish(KICK_CHANNEL, JSON.stringify({ deviceId: auth.deviceId, connId: conn.id, from: this.instanceId, epoch }))
+        .catch((e: any) => this.logger.warn(`小智终端跨实例顶替广播失败：${e?.message || e}`));
+    }
     conn.onClosed(() => {
       if (this.connections.get(auth!.deviceId) === conn) this.connections.delete(auth!.deviceId);
     });
@@ -225,6 +243,7 @@ export class XiaozhiConnection {
     private readonly auth: Auth,
     private readonly binaryVersion: BinaryVersion,
     private readonly deps: XiaozhiDeps,
+    readonly epoch = 0,
   ) {
     ws.on("text", (t: string) => void this.onText(t));
     ws.on("binary", (b: Buffer) => this.onBinary(b));

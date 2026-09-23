@@ -118,4 +118,23 @@ run("小智协议终端 · 多实例顶替（真实库 + 真实 Redis）", () =>
     expect(A.gateway.activeCount()).toBe(1);
     c.ws.close();
   });
+
+  it("较旧连接的跨实例广播晚到时，不会关掉较新的连接", async () => {
+    const [A, B] = nodes;
+    await waitFor(() => A.gateway.activeCount() === 0 && B.gateway.activeCount() === 0);
+    const token = ((await A.link.handleOta({ "device-id": MAC, "client-id": CID }, {}, A.base)) as any).websocket.token;
+    const old = await connectTo(A, token);
+    const oldEpoch = Number(await A.redis.get(`xz:connseq:${deviceId}`));
+    const newer = await connectTo(B, token);
+    await waitFor(() => old.isClosed());
+    const newEpoch = Number(await B.redis.get(`xz:connseq:${deviceId}`));
+    expect(newEpoch).toBeGreaterThan(oldEpoch);
+
+    // 模拟旧实例的发布在网络/事件循环中延迟，晚于新连接广播才送达。
+    await A.redis.publish("xz:kick", JSON.stringify({ deviceId, connId: "delayed-old", from: A.gateway.instanceId, epoch: oldEpoch }));
+    await new Promise((r) => setTimeout(r, 150));
+    expect(newer.isClosed()).toBe(false);
+    expect(B.gateway.activeCount()).toBe(1);
+    newer.ws.close();
+  });
 });
