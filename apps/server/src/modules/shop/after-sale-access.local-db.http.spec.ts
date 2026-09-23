@@ -11,6 +11,7 @@ import { ShopCouponService } from "./shop-coupon.service";
 import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
+import { WechatService } from "../auth/wechat.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { JwtStrategy } from "../../common/jwt.strategy";
@@ -76,6 +77,7 @@ const isIsolatedLocalDb = (() => {
         { provide: AfterSaleSlaService, useValue: {} },
         { provide: LogisticsService, useValue: {} },
         { provide: SystemService, useValue: {} },
+        { provide: WechatService, useValue: {} },
       ],
     })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })

@@ -13,6 +13,7 @@ import { ShopCouponService } from "./shop-coupon.service";
 import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
+import { WechatService } from "../auth/wechat.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { JwtStrategy } from "../../common/jwt.strategy";
@@ -41,6 +42,7 @@ const isIsolatedLocalDb = (() => {
   const userId = `synthetic-http-user-${randomUUID()}`;
   const otherUserId = `synthetic-http-other-${randomUUID()}`;
   const productId = `synthetic-http-product-${randomUUID()}`;
+  const addressId = `synthetic-http-address-${randomUUID()}`;
   const token = jwt.sign({ sub: userId }, secret, { expiresIn: "5m" });
   const otherToken = jwt.sign({ sub: otherUserId }, secret, { expiresIn: "5m" });
 
@@ -53,6 +55,10 @@ const isIsolatedLocalDb = (() => {
       { id: otherUserId, nickname: "合成其他用户" },
     ] });
     await prisma.product.create({ data: { id: productId, title: "合成 HTTP 商品", detail: "仅用于独立库测试", price: 15, stock: 10, status: "ON_SALE" } });
+    await prisma.shippingAddress.create({ data: {
+      id: addressId, userId, name: "合成收件人", phone: "13800000000",
+      province: "北京市", city: "北京市", district: "海淀区", detail: "仅用于本地 HTTP 测试",
+    } });
     const cached = new Map<string, unknown>();
     const redis = {
       get: async () => null,
@@ -86,6 +92,7 @@ const isIsolatedLocalDb = (() => {
         { provide: AfterSaleSlaService, useValue: {} },
         { provide: LogisticsService, useValue: {} },
         { provide: SystemService, useValue: { logAudit: async () => undefined } },
+        { provide: WechatService, useValue: {} },
       ],
     })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
@@ -103,6 +110,7 @@ const isIsolatedLocalDb = (() => {
     if (prisma) {
       await prisma.order.deleteMany({ where: { userId } });
       await prisma.product.deleteMany({ where: { id: productId } });
+      await prisma.shippingAddress.deleteMany({ where: { id: addressId } });
       await prisma.user.deleteMany({ where: { id: { in: [userId, otherUserId] } } });
       await prisma.$disconnect();
     }
@@ -113,7 +121,7 @@ const isIsolatedLocalDb = (() => {
   it("游客被拒；同键并发只建一单扣一次库存；改量拒绝复用", async () => {
     const url = "/api/v1/shop/orders";
     const key = `same-${randomUUID()}`;
-    const body = { type: "PRODUCT", targetId: productId, amount: 2, clientRequestId: key };
+    const body = { type: "PRODUCT", targetId: productId, addressId, amount: 2, clientRequestId: key };
     await request(app.getHttpServer()).post(url).send(body).expect(401);
     const responses = await Promise.all(Array.from({ length: 3 }, () =>
       request(app.getHttpServer()).post(url).set("Authorization", `Bearer ${token}`).send(body).expect(201)));
@@ -128,7 +136,7 @@ const isIsolatedLocalDb = (() => {
 
   it("客户端丢弃成功响应正文后，同键重试仍返回已提交的原订单", async () => {
     const key = `lost-${randomUUID()}`;
-    const body = JSON.stringify({ type: "PRODUCT", targetId: productId, amount: 1, clientRequestId: key });
+    const body = JSON.stringify({ type: "PRODUCT", targetId: productId, addressId, amount: 1, clientRequestId: key });
     const port = (app.getHttpServer().address() as { port: number }).port;
     await new Promise<void>((resolve, reject) => {
       const req = httpRequest({
