@@ -1,16 +1,20 @@
 import { PractitionerService } from "./practitioner.service";
 
 function setup(shareToken: string | null) {
-  const report = { id: "report-1", ownerId: "teacher-1", status: shareToken ? "delivered" : "final", shareToken };
+  const report = { id: "report-1", ownerId: "teacher-1", status: shareToken ? "delivered" : "final", shareToken, sharedAt: null as Date | null };
   const prisma: any = {
     practitionerProfile: { findUnique: jest.fn(async () => ({ proExpireAt: new Date(Date.now() + 86400000) })) },
     practitionerReport: {
-      findFirst: jest.fn(async () => report),
-      updateMany: jest.fn(async () => ({ count: shareToken ? 0 : 1 })),
-      update: jest.fn(async ({ data }: any) => ({ ...report, ...data })),
+      findFirst: jest.fn(async () => ({ ...report })),
+      updateMany: jest.fn(async ({ where, data }: any) => {
+        if (where.shareToken === null && report.shareToken !== null) return { count: 0 };
+        Object.assign(report, data);
+        return { count: 1 };
+      }),
+      update: jest.fn(async ({ data }: any) => Object.assign(report, data)),
     },
   };
-  return { service: new PractitionerService(prisma, {} as any), prisma };
+  return { service: new PractitionerService(prisma, {} as any), prisma, report };
 }
 
 describe("从业者报告交付后锁定", () => {
@@ -32,12 +36,37 @@ describe("从业者报告交付后锁定", () => {
   it("交付标记为 delivered，撤回后回到可编辑的 final", async () => {
     const { service, prisma } = setup(null);
     await service.shareReport("teacher-1", "report-1");
-    expect(prisma.practitionerReport.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(prisma.practitionerReport.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "report-1", ownerId: "teacher-1", shareToken: null },
       data: expect.objectContaining({ status: "delivered" }),
     }));
     await service.unshareReport("teacher-1", "report-1");
     expect(prisma.practitionerReport.update).toHaveBeenLastCalledWith(expect.objectContaining({
       data: { shareToken: null, sharedAt: null, status: "final" },
     }));
+  });
+
+  it("并发生成交付链接时返回同一令牌，重复请求不刷新链接", async () => {
+    const { service, prisma, report } = setup(null);
+    let reads = 0;
+    let releaseReads!: () => void;
+    const bothRead = new Promise<void>((resolve) => { releaseReads = resolve; });
+    prisma.practitionerReport.findFirst.mockImplementation(async () => {
+      reads += 1;
+      const snapshot = { ...report };
+      if (reads === 2) releaseReads();
+      await bothRead;
+      return snapshot;
+    });
+    const [first, second] = await Promise.all([
+      service.shareReport("teacher-1", "report-1"),
+      service.shareReport("teacher-1", "report-1"),
+    ]);
+    expect(first.shareToken).toBeTruthy();
+    expect(second.shareToken).toBe(first.shareToken);
+    expect(report.shareToken).toBe(first.shareToken);
+    const again = await service.shareReport("teacher-1", "report-1");
+    expect(again).toEqual(first);
+    expect(prisma.practitionerReport.updateMany).toHaveBeenCalledTimes(2);
   });
 });

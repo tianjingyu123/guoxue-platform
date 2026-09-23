@@ -370,12 +370,20 @@ export class PractitionerService {
   async shareReport(userId: string, id: string) {
     await this.requirePro(userId, "交付报告给客户");
     const r = await this.getReport(userId, id);
-    const token = r.shareToken ?? randomBytes(16).toString("hex");
-    const updated = await this.prisma.practitionerReport.update({
-      where: { id },
-      data: { shareToken: token, sharedAt: new Date(), status: "delivered" },
+    if (r.shareToken) return { shareToken: r.shareToken, sharedAt: r.sharedAt };
+
+    const token = randomBytes(16).toString("hex");
+    const sharedAt = new Date();
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null },
+      data: { shareToken: token, sharedAt, status: "delivered" },
     });
-    return { shareToken: updated.shareToken, sharedAt: updated.sharedAt };
+    if (updated.count) return { shareToken: token, sharedAt };
+
+    // 另一请求已先完成交付时，返回同一有效链接，避免双击得到作废令牌。
+    const current = await this.getReport(userId, id);
+    if (current.shareToken) return { shareToken: current.shareToken, sharedAt: current.sharedAt };
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新后重试交付");
   }
 
   /** 撤回交付链接 */

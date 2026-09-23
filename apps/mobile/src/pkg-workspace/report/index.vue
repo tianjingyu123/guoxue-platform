@@ -23,6 +23,8 @@ const id = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const saving = ref(false)
+const sharing = ref(false)
+const unsharing = ref(false)
 const report = ref<ReportRecord | null>(null)
 const chapters = ref<ReportChapter[]>([])
 const isPro = ref(false)
@@ -81,7 +83,7 @@ async function load() {
 }
 
 function onEdit(i: number, e: any) {
-  if (report.value?.shareToken) return
+  if (report.value?.shareToken || sharing.value) return
   chapters.value[i].body = e.detail.value
   // 老师动过手的章节就不再算 AI 初稿——署的是他的名，责任也是他的
   if (chapters.value[i].ai) chapters.value[i].ai = false
@@ -92,7 +94,7 @@ function onEdit(i: number, e: any) {
 // 盘面事实章不动（那是排盘数据），改完仍是草稿，老师可以继续改。
 const rewriting = ref(false)
 async function rewriteForClient() {
-  if (!report.value || rewriting.value || report.value.shareToken) return
+  if (!report.value || rewriting.value || sharing.value || report.value.shareToken) return
   const ok = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '改写成给客户看的话',
@@ -125,7 +127,7 @@ async function rewriteForClient() {
 
 async function aiDraft(i: number) {
   const c = chapters.value[i]
-  if (drafting.value || report.value?.shareToken) return
+  if (drafting.value || sharing.value || report.value?.shareToken) return
   if (c.body.trim()) {
     const ok = await new Promise<boolean>((resolve) =>
       uni.showModal({
@@ -178,6 +180,7 @@ async function save(status?: 'draft' | 'final'): Promise<boolean> {
 
 /** 交付：生成只读链接（会员专属；后端也有闸门） */
 async function share() {
+  if (!report.value || report.value.shareToken || sharing.value || unsharing.value || saving.value || rewriting.value || drafting.value) return
   if (!isPro.value) {
     uni.showModal({
       title: '交付报告需要会员',
@@ -189,25 +192,28 @@ async function share() {
     })
     return
   }
-  const emptyCount = chapters.value.filter((c) => !c.body.trim()).length
-  if (emptyCount) {
-    const proceed = await new Promise<boolean>((resolve) => uni.showModal({
-      title: '报告还有空白章节',
-      content: `有 ${emptyCount} 章尚未填写，客户会看到空白内容。确认仍要交付吗？`,
-      confirmText: '仍要交付',
-      cancelText: '继续编辑',
-      success: (r) => resolve(!!r.confirm),
-      fail: () => resolve(false),
-    }))
-    if (!proceed) return
-  }
-  if (dirty.value && !(await save('final'))) return
+  sharing.value = true
   try {
+    const emptyCount = chapters.value.filter((c) => !c.body.trim()).length
+    if (emptyCount) {
+      const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+        title: '报告还有空白章节',
+        content: `有 ${emptyCount} 章尚未填写，客户会看到空白内容。确认仍要交付吗？`,
+        confirmText: '仍要交付',
+        cancelText: '继续编辑',
+        success: (r) => resolve(!!r.confirm),
+        fail: () => resolve(false),
+      }))
+      if (!proceed) return
+    }
+    if (dirty.value && !(await save('final'))) return
     const res = await wsApi.shareReport(id.value)
     report.value = { ...report.value!, shareToken: res.shareToken, sharedAt: res.sharedAt, status: 'delivered' }
     copyShare()
   } catch (e: any) {
     uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+  } finally {
+    sharing.value = false
   }
 }
 
@@ -219,21 +225,25 @@ function copyShare() {
   })
 }
 
-function unshare() {
-  uni.showModal({
-    title: '撤回交付链接',
-    content: '撤回后客户将无法再打开这份报告。',
-    success: async (r) => {
-      if (!r.confirm) return
-      try {
-        await wsApi.unshareReport(id.value)
-        report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final' }
-        uni.showToast({ title: '已撤回', icon: 'success' })
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
-      }
-    },
-  })
+async function unshare() {
+  if (!report.value?.shareToken || sharing.value || unsharing.value) return
+  unsharing.value = true
+  try {
+    const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
+      title: '撤回交付链接',
+      content: '撤回后客户将无法再打开这份报告。',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    }))
+    if (!confirmed) return
+    await wsApi.unshareReport(id.value)
+    report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final' }
+    uni.showToast({ title: '已撤回', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
+  } finally {
+    unsharing.value = false
+  }
 }
 
 function preview() {
@@ -273,7 +283,7 @@ function archive() {
       <scroll-view class="re-body" scroll-y :show-scrollbar="false">
         <!-- 抬头 -->
         <PaperCard gold padding="lg">
-          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken" @input="dirty = true" />
+          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken || sharing" @input="dirty = true" />
           <view class="re-meta">
             <text class="re-meta-item">{{ report.clientName }}</text>
             <text v-if="report.clientBirth" class="re-meta-item">{{ report.clientBirth }}</text>
@@ -331,7 +341,7 @@ function archive() {
             placeholder-class="re-ph"
             auto-height
             :maxlength="-1"
-            :disabled="!!report.shareToken"
+            :disabled="!!report.shareToken || sharing"
             @input="onEdit(i, $event)"
           />
           <text v-else-if="c.body" class="re-ch-fold">{{ c.body.slice(0, 40) }}…</text>
@@ -350,13 +360,13 @@ function archive() {
                 <text class="re-btn-txt re-btn-txt--ghost">复制链接</text>
               </view>
               <view class="re-btn re-btn--ghost" @tap="unshare">
-                <text class="re-btn-txt re-btn-txt--ghost">撤回交付</text>
+                <text class="re-btn-txt re-btn-txt--ghost">{{ unsharing ? '撤回中…' : '撤回交付' }}</text>
               </view>
             </view>
           </view>
           <view v-else class="re-btn re-btn--gold" @tap="share">
             <AppIcon name="share-2" :size="16" color="#fff" />
-            <text class="re-btn-txt re-btn-txt--primary">{{ isPro ? '定稿并生成交付链接' : '开通会员以交付报告' }}</text>
+            <text class="re-btn-txt re-btn-txt--primary">{{ sharing ? '生成中…' : isPro ? '定稿并生成交付链接' : '开通会员以交付报告' }}</text>
           </view>
         </PaperCard>
 
