@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
-import { collectPublicCatalogPreview } from "./public-content-catalog-preview";
+import { collectPublicCatalogPreview, scanPublicCatalogReadonly } from "./public-content-catalog-preview";
 
 describe("只读公开目录预览", () => {
   it("七类来源仅查询安全元数据，限制单类条数，二次过滤返回值", async () => {
@@ -31,5 +31,36 @@ describe("只读公开目录预览", () => {
     }
     const productQuery = findMany.mock.calls[2][0];
     expect(productQuery.where).toMatchObject({ stationId: null, circleId: null });
+  });
+
+  it("按 ID 翻页扫描，仅返回数量与指纹，不把普通扫描误称一致快照", async () => {
+    const now = new Date("2026-09-23T12:00:00Z");
+    const articleFind = jest.fn()
+      .mockResolvedValueOnce([{ id: "a1", title: "公开文章", excerpt: "摘要", tags: [],
+        visibility: "PLATFORM", auditStatus: "APPROVED", deletedAt: null, scheduledAt: null, createdAt: now }])
+      .mockResolvedValueOnce([]);
+    const empty = jest.fn().mockResolvedValue([]);
+    const prisma = Object.fromEntries(
+      ["article", "course", "video", "product", "circle", "content", "classicBook"]
+        .map((key) => [key, { findMany: key === "article" ? articleFind : empty }]),
+    ) as unknown as PrismaClient;
+    const result = await scanPublicCatalogReadonly(prisma, 1, now);
+    expect(result).toMatchObject({ counts: { article: 1, course: 0 }, pages: 2, snapshotConsistent: false });
+    expect(result.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(articleFind.mock.calls[1][0].where.id).toEqual({ gt: "a1" });
+    expect(empty).toHaveBeenCalledTimes(6);
+    expect(JSON.stringify(result)).not.toContain("公开文章");
+  });
+
+  it("超过页数上限拒绝生成扫描摘要", async () => {
+    const now = new Date("2026-09-23T12:00:00Z");
+    const forever = jest.fn().mockResolvedValue([{ id: "a1", title: "公开文章", tags: [],
+      visibility: "PLATFORM", auditStatus: "APPROVED", deletedAt: null, createdAt: now }]);
+    const empty = jest.fn().mockResolvedValue([]);
+    const prisma = Object.fromEntries(
+      ["article", "course", "video", "product", "circle", "content", "classicBook"]
+        .map((key) => [key, { findMany: key === "article" ? forever : empty }]),
+    ) as unknown as PrismaClient;
+    await expect(scanPublicCatalogReadonly(prisma, 1, now, 1)).rejects.toThrow("页数上限");
   });
 });
