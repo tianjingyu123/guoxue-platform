@@ -16,13 +16,19 @@ import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type Circle, type RankingCircle, type AiSearchResult } from '@/lib/circle-data'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
-// 热门搜索：运营引导词（非冒充统计的假数据）
+// 探索主题：运营引导词（不冒充真实热搜排行）
 const HOT_SEARCHES = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '宝宝起名', '国学']
 const HISTORY_KEY = 'circle_search_history'
 
 const keyword = ref('')
 const hasSearched = ref(false)
-const history = ref<string[]>((uni.getStorageSync(HISTORY_KEY) as string[]) || [])
+function readHistory(): string[] {
+  try {
+    const stored = uni.getStorageSync(HISTORY_KEY)
+    return Array.isArray(stored) ? stored.filter((item): item is string => typeof item === 'string').slice(0, 10) : []
+  } catch { return [] }
+}
+const history = ref<string[]>(readHistory())
 const results = ref<Circle[]>([])
 const searching = ref(false)
 const error = ref('')
@@ -36,15 +42,17 @@ const menuSafeRight = getMiniProgramMenuSafeRight()
 // 热门圈子推荐（AI 智能推荐降级：真实排行榜接口按成员数取前 5；
 // 不用 list() 无关键词分支——其失败回退 mockCircles 会展示假圈子）
 const hotCircles = ref<RankingCircle[]>([])
+const hotError = ref(false)
 
 async function loadHot() {
-  try { hotCircles.value = (await circleApi.getRanking('memberCount')).slice(0, 5) }
-  catch { hotCircles.value = [] }
+  hotError.value = false
+  try { hotCircles.value = (await circleApi.getRanking('memberCount', { throwOnError: true })).slice(0, 5) }
+  catch { hotCircles.value = []; hotError.value = true }
 }
 
 function saveHistory(k: string) {
   history.value = [k, ...history.value.filter((h) => h !== k)].slice(0, 10)
-  uni.setStorageSync(HISTORY_KEY, history.value)
+  try { uni.setStorageSync(HISTORY_KEY, history.value) } catch { /* 本机记录不可用时仍允许搜索 */ }
 }
 
 // ── #37 AI 智能推荐（与主搜索并行·失败/无内容不渲染） ──
@@ -67,7 +75,7 @@ async function doSearch(kw: string) {
   // AI 推荐并行请求，不阻塞主搜索；旧结果先清（避免上个词的推荐串场）
   aiResult.value = null
   const seq = ++aiSeq
-  circleApi.aiSearch(k).then((r) => { if (seq === aiSeq) aiResult.value = r })
+  circleApi.aiSearch(k).then((r) => { if (seq === aiSeq) aiResult.value = r }).catch(() => { /* AI 推荐失败不阻断主搜索 */ })
   const request = ++searchSeq
   try {
     const res = await circleApi.list({ keyword: k, page: 1, pageSize: 20, throwOnError: true })
@@ -103,7 +111,10 @@ async function loadMore() {
   }
 }
 
-function clearHistory() { history.value = []; uni.removeStorageSync(HISTORY_KEY) }
+function clearHistory() {
+  history.value = []
+  try { uni.removeStorageSync(HISTORY_KEY) } catch { /* 本机记录不可用时仍可清空当前页面 */ }
+}
 function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = []; total.value = 0; error.value = ''; searching.value = false; aiResult.value = null; aiSeq++; searchSeq++ }
 function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
 /** 加入按钮 → 圈子预览页（加入漏斗：免费/审批/付费在预览页分流） */
@@ -148,7 +159,7 @@ onMounted(loadHot)
           v-model="keyword" class="cs-input" placeholder="搜索圈子" placeholder-class="cs-ph"
           confirm-type="search" focus @confirm="doSearch(keyword)"
         />
-        <view v-if="keyword" class="cs-clear" @tap="clearKeyword"><app-icon name="x" :size="22" color="#6E6E73" /></view>
+        <view v-if="keyword" class="cs-clear" role="button" aria-label="清空搜索词" @tap="clearKeyword"><app-icon name="x" :size="22" color="#6E6E73" /></view>
       </view>
       <text v-if="!menuSafeRight" class="cs-cancel" @tap="goBack">取消</text>
     </view>
@@ -157,17 +168,15 @@ onMounted(loadHot)
     <view v-if="!hasSearched">
       <view v-if="history.length" class="cs-pre-label">
         <text>最近搜索</text>
-        <view class="cs-pre-clear" @tap="clearHistory"><app-icon name="x" :size="26" color="#999999" /></view>
+        <view class="cs-pre-clear" role="button" aria-label="清空最近搜索" @tap="clearHistory"><app-icon name="x" :size="26" color="#999999" /></view>
       </view>
       <view v-if="history.length" class="cs-chips">
         <view v-for="(kw, i) in history" :key="i" class="cs-chip" @tap="doSearch(kw)"><text class="cs-chip-t">{{ kw }}</text></view>
       </view>
 
-      <view class="cs-pre-label mt"><text>大家都在搜</text></view>
+      <view class="cs-pre-label mt"><text>探索主题</text></view>
       <view class="cs-chips">
-        <view v-for="(kw, i) in HOT_SEARCHES" :key="i" class="cs-chip" @tap="doSearch(kw)">
-          <text v-if="i < 3" class="cs-chip-rank top">{{ i + 1 }}</text>
-          <text v-else-if="i < 5" class="cs-chip-rank">{{ i + 1 }}</text>
+        <view v-for="kw in HOT_SEARCHES" :key="kw" class="cs-chip" @tap="doSearch(kw)">
           <text class="cs-chip-t dark">{{ kw }}</text>
         </view>
       </view>
@@ -188,6 +197,10 @@ onMounted(loadHot)
           </view>
         </view>
       </template>
+      <view v-else-if="hotError" class="cs-hot-failed">
+        <text>圈子推荐暂时没加载出来</text>
+        <view class="cs-hot-retry" role="button" aria-label="重试圈子推荐" @tap="loadHot">重试</view>
+      </view>
     </view>
 
     <!-- 搜索中骨架 -->
@@ -235,7 +248,7 @@ onMounted(loadHot)
             <text class="cs-ai-rec-t">{{ f }}</text>
           </view>
         </view>
-        <text class="cs-ai-note">AI 生成内容仅供参考 · 推荐基于你的圈子偏好</text>
+        <text class="cs-ai-note">AI 生成内容仅供参考 · 推荐参考搜索词与已加入圈子</text>
       </view>
 
       <!-- 空结果：转创建 -->
@@ -311,7 +324,7 @@ onMounted(loadHot)
   font-size: 24rpx; color: var(--text-tertiary, #999);
 }
 .cs-pre-label.mt { margin-top: 40rpx; }
-.cs-pre-clear { display: flex; padding: 4rpx; }
+.cs-pre-clear { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .cs-chips { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 0 32rpx; }
 .cs-chip {
   display: inline-flex; align-items: center; gap: 10rpx; min-height: 44px; padding: 0 26rpx;
@@ -320,8 +333,8 @@ onMounted(loadHot)
 }
 .cs-chip-t { font-size: 26rpx; color: var(--text-secondary, #6E6E73); }
 .cs-chip-t.dark { color: var(--text-primary, #2C2C2C); }
-.cs-chip-rank { font-size: 22rpx; font-weight: 700; color: #C9A96E; }
-.cs-chip-rank.top { color: var(--brand, #C41E3A); }
+.cs-hot-failed { margin: 24rpx 36rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; font-size: 24rpx; color: var(--text-secondary, #6E6E73); }
+.cs-hot-retry { min-width: 88rpx; min-height: 44px; padding: 0 16rpx; display: flex; align-items: center; justify-content: center; color: var(--brand, #C41E3A); font-weight: 600; }
 
 /* #37 AI 智能推荐卡（V0 ai-card：金描边+呼吸点+追问 chips） */
 .cs-ai-card {
