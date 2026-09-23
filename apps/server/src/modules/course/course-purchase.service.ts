@@ -152,7 +152,8 @@ export class CoursePurchaseService {
     if (course.memberFree && (await this.isActiveMember(userId))) return true;
 
     const order = await this.prisma.order.findFirst({
-      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] }, paidAt: { not: null } },
+      orderBy: { paidAt: "desc" },
     });
     if (!order || !order.paidAt) return false;
 
