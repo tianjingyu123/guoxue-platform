@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CircleRefundService } from "./circle-refund.service";
@@ -57,6 +57,14 @@ export class CircleRefundController {
   @ApiBearerAuth()
   ownerPending(@Req() req: Request) {
     return this.svc.getOwnerPending(req.user.id);
+  }
+
+  @Get("owner-reviewed")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "圈主已审核退款记录（只读、分页）" })
+  @ApiBearerAuth()
+  ownerReviewed(@Req() req: Request, @Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.svc.getOwnerReviewed(req.user.id, Number(limit), Number(offset));
   }
 
   @Post(":id/owner-review")

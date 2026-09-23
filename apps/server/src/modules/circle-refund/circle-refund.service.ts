@@ -180,6 +180,21 @@ export class CircleRefundService {
     );
   }
 
+  /** 只返回当前圈主已审核的申请；历史可追溯，不借用当前会话中的乐观状态。 */
+  async getOwnerReviewed(ownerId: string, limit = 20, offset = 0) {
+    const take = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit) || 20, 1), 50) : 20;
+    const skip = Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0;
+    return this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT r.*, u."nickname" AS "userNickname", u."avatar" AS "userAvatar", c."name" AS "circleName"
+       FROM "CircleRefundRequest" r
+       JOIN "Circle" c ON r."circleId"=c.id
+       LEFT JOIN "User" u ON r."userId"=u.id
+       WHERE c."ownerId"=$1 AND r."ownerStatus" IN ('approved','rejected')
+       ORDER BY r."ownerReviewedAt" DESC NULLS LAST, r."createdAt" DESC, r.id DESC
+       LIMIT $2 OFFSET $3`, ownerId, take, skip,
+    );
+  }
+
   /** 平台待审列表（圈主已通过、平台待审，带申请人昵称、圈子名） */
   async getAdminPending() {
     return this.prisma.$queryRawUnsafe<any[]>(

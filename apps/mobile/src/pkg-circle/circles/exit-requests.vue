@@ -12,18 +12,31 @@ import { goBack } from '@/utils/router'
 import { exitApi, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
 
 const requests = ref<ExitApplication[]>([])
-// 后端只提供待审列表，已处理记录只能在本页会话中显示。
+const reviewed = ref<ExitApplication[]>([])
 const processedThisSession = ref<ExitApplication[]>([])
 const loading = ref(true)
 const error = ref('')
+const reviewedLoading = ref(true)
+const reviewedError = ref('')
+const reviewedMoreError = ref(false)
+const reviewedMoreLoading = ref(false)
+const reviewedHasMore = ref(false)
+const REVIEW_PAGE_SIZE = 20
+let reviewedOffset = 0
+let reviewedVersion = 0
 const filter = ref<'pending' | 'processed'>('pending')
 const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
 const submitting = ref(false)
 
 const pending = computed(() => requests.value.filter((r) => r.stage === 'owner_reviewing' && !processedThisSession.value.some((p) => p.id === r.id)))
-const processed = computed(() => processedThisSession.value)
+const processed = computed(() => {
+  const seen = new Set(reviewed.value.map((r) => r.id))
+  return [...processedThisSession.value.filter((r) => !seen.has(r.id)), ...reviewed.value]
+})
 const display = computed(() => (filter.value === 'pending' ? pending.value : processed.value))
+const currentLoading = computed(() => filter.value === 'pending' ? loading.value : reviewedLoading.value)
+const currentError = computed(() => filter.value === 'pending' ? error.value : processed.value.length ? '' : reviewedError.value)
 
 function toneCls(tone: string) {
   if (tone === 'approved') return 'er-tone-ok'
@@ -44,9 +57,48 @@ async function fetchRequests() {
   }
 }
 
-function retry() { fetchRequests() }
+async function fetchReviewed() {
+  const version = ++reviewedVersion
+  reviewedLoading.value = true
+  reviewedError.value = ''
+  reviewedMoreError.value = false
+  try {
+    const rows = await exitApi.getOwnerReviewed(REVIEW_PAGE_SIZE, 0)
+    if (version !== reviewedVersion) return
+    reviewed.value = rows
+    reviewedOffset = rows.length
+    reviewedHasMore.value = rows.length === REVIEW_PAGE_SIZE
+    const ids = new Set(rows.map((r) => r.id))
+    processedThisSession.value = processedThisSession.value.filter((r) => !ids.has(r.id))
+  } catch {
+    if (version === reviewedVersion) reviewedError.value = '已处理记录加载失败，请重试'
+  } finally {
+    if (version === reviewedVersion) reviewedLoading.value = false
+  }
+}
 
-onShow(() => { void fetchRequests() })
+async function loadReviewedMore() {
+  if (reviewedMoreLoading.value || !reviewedHasMore.value) return
+  reviewedMoreLoading.value = true
+  reviewedMoreError.value = false
+  const version = reviewedVersion
+  try {
+    const rows = await exitApi.getOwnerReviewed(REVIEW_PAGE_SIZE, reviewedOffset)
+    if (version !== reviewedVersion) return
+    reviewedOffset += rows.length
+    const seen = new Set(reviewed.value.map((r) => r.id))
+    reviewed.value = [...reviewed.value, ...rows.filter((r) => !seen.has(r.id))]
+    reviewedHasMore.value = rows.length === REVIEW_PAGE_SIZE && rows.some((r) => !seen.has(r.id))
+  } catch {
+    if (version === reviewedVersion) reviewedMoreError.value = true
+  } finally {
+    reviewedMoreLoading.value = false
+  }
+}
+
+function retry() { if (filter.value === 'pending') void fetchRequests(); else void fetchReviewed() }
+
+onShow(() => { void fetchRequests(); void fetchReviewed() })
 
 async function approve(id: string) {
   if (submitting.value) return
@@ -56,6 +108,7 @@ async function approve(id: string) {
     const reviewed = requests.value.find((r) => r.id === id)
     if (reviewed) processedThisSession.value = [{ ...reviewed, stage: 'platform_reviewing', ownerReviewedAt: new Date().toISOString().slice(0, 10) }, ...processedThisSession.value]
     requests.value = requests.value.filter((r) => r.id !== id)
+    void fetchReviewed()
     uni.showToast({ title: '已同意退出', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
@@ -73,6 +126,7 @@ async function confirmReject() {
     const reviewed = requests.value.find((r) => r.id === id)
     if (reviewed) processedThisSession.value = [{ ...reviewed, stage: 'rejected', rejectBy: 'owner', rejectReason: rejectReason.value || '圈主未通过退出申请', ownerReviewedAt: new Date().toISOString().slice(0, 10) }, ...processedThisSession.value]
     requests.value = requests.value.filter((r) => r.id !== id)
+    void fetchReviewed()
     rejectingId.value = null; rejectReason.value = ''
     uni.showToast({ title: '已驳回申请', icon: 'none' })
   } catch (e) {
@@ -104,12 +158,12 @@ async function confirmReject() {
         <view class="er-divider" />
         <view>
           <text class="er-stat-num">{{ processed.length }}</text>
-          <text class="er-stat-label">本次已处理</text>
+          <text class="er-stat-label">已展示记录</text>
         </view>
       </view>
       <view class="er-tabs">
         <!-- t.key 是宽 string，filter 是联合字面量类型，去掉 as any 会报类型不匹配，故保留 -->
-        <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '本次已处理' }]" :key="t.key"
+        <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '已处理' }]" :key="t.key"
           class="er-tab" :class="{ 'er-tab-on': filter === t.key }" @tap="filter = t.key as any">
           <text>{{ t.label }}</text>
           <view v-if="filter === t.key" class="er-tab-line" />
@@ -118,15 +172,16 @@ async function confirmReject() {
     </view>
 
     <!-- 圈主审核说明 -->
-    <view v-if="!loading && !error && filter === 'pending' && pending.length > 0" class="er-note">
+    <view v-if="!currentLoading && !currentError && filter === 'pending' && pending.length > 0" class="er-note">
       <text class="er-note-text">请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。</text>
     </view>
-    <view v-if="!loading && !error && filter === 'processed'" class="er-note">
-      <text class="er-note-text">这里只记录本次打开页面后的圈主审核操作；后续平台处理和退款到账状态不会在此更新。</text>
+    <view v-if="!currentLoading && !currentError && filter === 'processed'" class="er-note">
+      <text class="er-note-text">{{ reviewedError ? '历史记录暂未确认，当前仅保留本次审核结果。' : '显示圈主已审核的申请；后续平台审核和退款到账以实时记录为准。' }}</text>
+      <text v-if="reviewedError" class="er-note-retry" @tap="fetchReviewed">重试读取</text>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading" class="er-list">
+    <view v-if="currentLoading" class="er-list">
       <view v-for="i in 3" :key="'sk-'+i" class="er-card er-card-done">
         <view class="er-card-body">
           <view class="er-card-head">
@@ -142,16 +197,16 @@ async function confirmReject() {
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="error" class="er-empty">
+    <view v-else-if="currentError" class="er-empty">
       <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
-      <text class="er-empty-text">{{ error }}</text>
+      <text class="er-empty-text">{{ currentError }}</text>
       <view class="er-empty-retry" @tap="retry"><text class="er-empty-retry-t">重试</text></view>
     </view>
 
     <!-- 空态 -->
     <view v-else-if="display.length === 0" class="er-empty">
       <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
-      <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '本次打开页面后尚未处理申请' }}</text>
+      <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}</text>
     </view>
 
     <!-- 列表 -->
@@ -185,6 +240,7 @@ async function confirmReject() {
           </view>
 
           <text v-if="req.stage === 'rejected' && req.rejectReason" class="er-rej">{{ req.rejectBy === 'owner' ? '圈主驳回：' : '平台驳回：' }}{{ req.rejectReason }}</text>
+          <text v-if="req.stage === 'failed'" class="er-rej">退款尚未完成，请联系平台核对。申请编号：{{ req.id }}</text>
           <text v-if="req.stage === 'platform_reviewing'" class="er-flow">已同意，等待平台审核与退款处理</text>
           <text v-if="req.stage === 'refunded'" class="er-flow-ok">退款 ¥{{ req.breakdown.refundAmount }} 已于 {{ req.refundedAt }} 到账</text>
         </view>
@@ -194,6 +250,11 @@ async function confirmReject() {
           <view class="er-act-divider" />
           <view class="er-act er-act-ok" @tap="approve(req.id)"><app-icon name="check-circle" :size="28" color="#C41E3A" /><text>同意退出</text></view>
         </view>
+      </view>
+      <view v-if="filter === 'processed' && reviewedHasMore" class="er-more" role="button" tabindex="0"
+        :aria-label="reviewedMoreError ? '重试加载已处理记录' : '查看更多已处理记录'"
+        @tap="loadReviewedMore" @keydown.enter="loadReviewedMore">
+        {{ reviewedMoreLoading ? '正在加载…' : reviewedMoreError ? '加载失败，点此重试' : '查看更多已处理记录' }}
       </view>
     </view>
 
@@ -228,9 +289,11 @@ async function confirmReject() {
 .er-tabs { display: flex; border-bottom: 1rpx solid #F2EFEA; }
 .er-tab { flex: 1; padding: 22rpx 0; text-align: center; font-size: 28rpx; font-weight: 500; color: #999999; position: relative; }
 .er-tab-on { color: var(--brand); }
+.er-more { margin: 24rpx; min-height: 88rpx; border-radius: 20rpx; background: #fff; color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 26rpx; font-weight: 600; }
 .er-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: var(--brand); border-radius: 999rpx; }
 .er-note { margin: 20rpx 24rpx 0; padding: 18rpx; border-radius: 16rpx; background: rgba(201,169,110,0.1); border: 1rpx solid rgba(201,169,110,0.2); }
 .er-note-text { font-size: 22rpx; color: #7A6A4F; line-height: 1.7; }
+.er-note-retry { display: inline-flex; align-items: center; min-height: 44px; margin-left: 16rpx; color: var(--brand); font-size: 23rpx; }
 .er-empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
 .er-empty-icon { width: 120rpx; height: 120rpx; border-radius: 999rpx; background: #F2EFEA; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
 .er-empty-text { font-size: 28rpx; color: #999999; }
