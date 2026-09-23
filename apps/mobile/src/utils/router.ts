@@ -515,6 +515,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   // 文章详情 /articles/:id（复数为真源，单数 /article/:id 原型为重定向，统一指向详情）
   [/^\/articles\/([^/?]+)$/, '/pkg-circle/articles/detail', 'id'],
   [/^\/article\/([^/?]+)$/, '/pkg-circle/articles/detail', 'id'],
+  // 平台 Content 与圈子 Article 分表，必须使用独立详情页和 /contents/:id 接口。
+  [/^\/contents\/([^/?]+)$/, '/pkg-common/contents/detail', 'id'],
   // 单聊 /im/chat/:id
   [/^\/im\/chat\/([^/?]+)$/, '/pkg-im/im/chat/index', 'id'],
   // 群聊 /im/group-chat/:id

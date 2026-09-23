@@ -4,7 +4,7 @@ import { projectPublicCatalogEntry, type CatalogSource, type PublicCatalogEntry 
 
 /**
  * 只读目录预览，不写索引、不提供公开接口、不读取正文、视频播放地址或交易数据。
- * 每类最多取 50 条，供主线核对准入和字段；Content 暂无安全详情链路，暂不预览。
+ * 每类最多取 50 条，供主线核对准入和字段；非全量回填。
  */
 export async function collectPublicCatalogPreview(
   prisma: PrismaClient,
@@ -36,12 +36,16 @@ export async function collectPublicCatalogPreview(
     prisma.circle.findMany({ where: { status: "ACTIVE", deletedAt: null, stationId: null },
       select: { id: true, name: true, intro: true, cover: true, tags: true, stationId: true,
         status: true, deletedAt: true, createdAt: true, updatedAt: true }, orderBy: { createdAt: "desc" }, take }),
+    prisma.content.findMany({ where: { status: "PUBLISHED", deletedAt: null, stationId: null, AND: [publishedAt] },
+      select: { id: true, title: true, excerpt: true, cover: true, tags: true, stationId: true,
+        status: true, deletedAt: true, scheduledAt: true, createdAt: true, updatedAt: true },
+      orderBy: { createdAt: "desc" }, take }),
     prisma.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE,
       select: { id: true, title: true, intro: true, cover: true, status: true, deletedAt: true,
         createdAt: true, updatedAt: true, copyrights: { select: { license: true, auditedAt: true } } },
       orderBy: { createdAt: "desc" }, take }),
   ]);
-  const types: CatalogSource[] = ["article", "course", "video", "product", "circle", "classic"];
+  const types: CatalogSource[] = ["article", "course", "video", "product", "circle", "content", "classic"];
   return sources.flatMap((rows, index) => rows
     .map((row) => projectPublicCatalogEntry(types[index], row as unknown as Record<string, unknown>, now))
     .filter((entry): entry is PublicCatalogEntry => entry !== null));

@@ -22,7 +22,7 @@ export class ContentGuideService {
 
   private hasCards(result: Record<string, unknown>, query: string): boolean {
     const eligibleGroups = [
-      "articles", "classics",
+      "articles", "classics", "contents",
       ...(wantsCourseResources(query) ? ["courses"] : []),
       ...(wantsCircleResources(query) ? ["circles"] : []),
       ...(wantsVideoResources(query) ? ["videos"] : []),
@@ -117,19 +117,25 @@ export class ContentGuideService {
       cover: (r) => r.images?.[0],
       price: (r) => r.price,
     });
+    push("content", res.contents, {
+      id: (r) => r.id,
+      title: (r) => r.title,
+      subtitle: (r) => [r.author, r.dynasty].filter(Boolean).join(" · ") || r.excerpt,
+      cover: (r) => r.cover,
+    });
 
     // 跨类型轮取；课程和圈子分别按用户明确意图进入候选。
     const priority: GuideCardType[] = wantsVideoResources(q)
-      ? ["video", "article", "classic", "course", "circle", "product"]
+      ? ["video", "article", "classic", "content", "course", "circle", "product"]
       : wantsProductResources(q)
-        ? ["product", "article", "classic", "course", "circle", "video"]
+        ? ["product", "article", "classic", "content", "course", "circle", "video"]
       : /课程|系统学|入门|学习路线/.test(q)
-      ? ["course", "article", "classic", "circle", "video", "product"]
+      ? ["course", "article", "classic", "circle", "content", "video", "product"]
       : /圈子|社群|交流|同好/.test(q)
-        ? ["circle", "article", "course", "classic", "video", "product"]
+        ? ["circle", "article", "course", "classic", "content", "video", "product"]
         : /原文|古籍|典籍|出处/.test(q)
-          ? ["classic", "article", "course", "circle", "video", "product"]
-          : ["article", "classic", "course", "circle", "video", "product"];
+          ? ["classic", "article", "content", "course", "circle", "video", "product"]
+          : ["article", "classic", "course", "circle", "content", "video", "product"];
     const cards: GuideCard[] = [];
     while (cards.length < limit && priority.some((type) => groups.get(type)?.length)) {
       for (const type of priority) {
@@ -147,7 +153,7 @@ export class ContentGuideService {
    * 与 apps/mobile/src/pages.json 及全局搜索结果页（lib/search-data.ts + utils/router.ts 动态路由）保持一致：
    * - 文章 /articles/:id → /pkg-circle/articles/detail
    * - 圈子 /circles/:id → /pkg-circle/circles/detail
- * - Content 内容表暂无安全且能按其 ID 打开的前端详情页，因此暂不发卡片。
+ * - Content 内容表独立走 /pkg-common/contents/detail，不与圈子 Article 混用 ID。
    */
   private buildTarget(type: GuideCardType, id: string): string {
     const encoded = encodeURIComponent(id);
@@ -156,6 +162,7 @@ export class ContentGuideService {
       case "article": return `/pkg-circle/articles/detail?id=${encoded}`;
       case "course": return `/pkg-course/detail/index?id=${encoded}`;
       case "circle": return `/pkg-circle/circles/detail?id=${encoded}`;
+      case "content": return `/pkg-common/contents/detail?id=${encoded}`;
       case "video": return `/pkg-video/detail/index?id=${encoded}`;
       case "product": return `/pkg-mall/product/detail?id=${encoded}`;
       default: return `/`;
@@ -163,7 +170,7 @@ export class ContentGuideService {
   }
 }
 
-export type GuideCardType = "classic" | "article" | "course" | "circle" | "video" | "product";
+export type GuideCardType = "classic" | "article" | "course" | "circle" | "content" | "video" | "product";
 
 export interface GuideCard {
   type: GuideCardType;

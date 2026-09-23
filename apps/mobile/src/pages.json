@@ -2776,6 +2776,12 @@
       "root": "pkg-common",
       "pages": [
         {
+          "path": "contents/detail",
+          "style": {
+            "navigationBarTitleText": "内容阅读"
+          }
+        },
+        {
           "path": "content/index",
           "style": {
             "navigationStyle": "custom"

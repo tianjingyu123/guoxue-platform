@@ -49,14 +49,21 @@ describe("SearchService", () => {
       expect(result).toHaveProperty("users");
       expect(result).toHaveProperty("classics");
       expect(result).toHaveProperty("contents");
-      expect(result.contents).toEqual([]);
     });
 
-    it("Content 无安全详情页前不返回坏链，也不复用旧缓存", async () => {
+    it("Content 公开搜索使用发布/分站/定时门禁，且不复用旧缓存", async () => {
       const result = await svc.search({ q: "旧内容", type: "content" });
       expect(result.contents).toEqual([]);
-      expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
-      expect(String(mockRedis.getJson.mock.calls[0][0])).toMatch(/^search:v5:/);
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls.map((args: unknown[]) => String(args[0]))
+        .filter((sql: string) => sql.includes('FROM "Content"'));
+      expect(sqls).toHaveLength(2);
+      for (const sql of sqls) {
+        expect(sql).toContain('"status" = \'PUBLISHED\'');
+        expect(sql).toContain('"stationId" IS NULL');
+        expect(sql).toContain('"scheduledAt" <= NOW()');
+      }
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
     });
 
     it("文章/课程只搜索全平台开放且未删除的内容（全文与模糊回退两条路径都不含圈内私有）", async () => {

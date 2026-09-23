@@ -13,6 +13,8 @@ import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-poli
  */
 const PUBLIC_CLASSIC_SQL =
   `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND EXISTS (SELECT 1 FROM "ClassicCopyright" cc WHERE cc."bookId" = "ClassicBook"."id" AND cc."auditedAt" IS NOT NULL AND cc."license" IN (${COMMERCIAL_CLASSIC_LICENSES.map((l) => `'${l}'`).join(",")}))`;
+const PUBLIC_CONTENT_SQL =
+  `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND "stationId" IS NULL AND ("scheduledAt" IS NULL OR "scheduledAt" <= NOW())`;
 
 /** 搜索结果缓存 TTL */
 const SEARCH_CACHE_TTL = 120;
@@ -70,8 +72,9 @@ export class SearchService {
 
     if (!q?.trim()) return { q, type };
 
-    const cacheKey = `search:v5:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
-    const cacheable = !fresh && !weightMap?.size;
+    const cacheKey = `search:v6:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    // 含 Content 的结果必须即时重查发布状态；其他类型旧缓存撤权仍待增量失效机制。
+    const cacheable = !fresh && !weightMap?.size && !!type && type !== "content";
     if (cacheable) {
       const cached = await this.redis.getJson<any>(cacheKey);
       if (cached) return cached;
@@ -108,9 +111,9 @@ export class SearchService {
     //    前端 pkg-ebook 分包整个删掉了，但搜索这里还在返回 10 本库存电子书 ——
     //    用户搜到卡片点进去跳 /ebook/:id，全项目没有这个页 → 必然白屏。
     //    （库里的 Ebook 表和数据保留不动，只是不再对外可搜。）
-    // Content 表当前没有匹配其 ID 的公开详情页；旧卡片误走 Article API 会打不开，
-    // 且 GET /contents/:id 尚未完整约束公开状态。补齐安全详情链路前不提供可点击搜索结果。
-    if (!type || type === "content") results.contents = [];
+    if (!type || type === "content") {
+      searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
+    }
 
     await Promise.all(searches);
     if (cacheable) await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
@@ -200,7 +203,7 @@ export class SearchService {
       },
       Content: {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(description,'')",
@@ -270,7 +273,7 @@ export class SearchService {
       },
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", searchFields: ["title", "author", "description"],
