@@ -1394,20 +1394,23 @@ function fmtDateTime(s?: string | null): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-/** 后端拼团结果(my-result) → 成功结果页（成团时间取支付时间·后端无单独成团时间；发货预估为业务承诺文案） */
+/** 后端拼团结果(my-result) → 成功结果页；仅使用接口可证实的状态与字段。 */
 function adaptGroupBuySuccess(r: RawGroupResult) {
+  if (r?.status !== 'SUCCESS') throw new Error(r?.status === 'WAITING'
+    ? '拼团尚未成功，请返回拼团订单查看进度'
+    : '拼团未成功，请返回订单查看退款进度')
   const price = shopNum(r?.product?.price)
   const originalPrice = shopNum(r?.product?.originalPrice)
+  const hasDiscount = originalPrice > price && price > 0
   return {
     productCover: r?.product?.image || '',
     productName: r?.product?.title || '',
     price,
-    originalPrice,
-    savedAmount: Math.round((originalPrice - price) * 100) / 100,
+    originalPrice: hasDiscount ? originalPrice : null,
+    savedAmount: hasDiscount ? Math.round((originalPrice - price) * 100) / 100 : null,
     members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
-    completedAt: fmtDateTime(r?.paidAt),
+    paidAt: fmtDateTime(r?.paidAt),
     orderId: r?.orderId || '',
-    estimatedShipDate: '付款后 3 个工作日内',
   }
 }
 /** 后端拼团结果(my-result) → 失败结果页（reason 统一 timeout·后端仅超时未成团一种失败；退款状态由 refundedAt 派生） */

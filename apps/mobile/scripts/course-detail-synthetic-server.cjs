@@ -105,7 +105,7 @@ http.createServer((req, res) => {
   } else if (url.pathname === '/api/v1/shop/after-sales') {
     data = { items: [{ id: 'refund-1', orderId: 'order-1', type: 'refund_only', status: refundStatus, amount: 12, reason: '合成测试', createdAt: '2026-09-22T00:00:00Z', updatedAt: '2026-09-22T01:00:00Z' }], total: 1 }
   } else if (url.pathname === '/api/v1/marketing/group-buys/group-1/my-result') {
-    data = { status: groupResultStatus, groupId: 'group-1', orderId: 'order-1', minMembers: 3, currentMembers: 2, product: { title: '测试商品', price: 20, image: '' }, members: [], paidAt: '2026-09-21T00:00:00Z', refundedAt: null, refundAmount: 20 }
+    data = { status: groupResultStatus, groupId: 'group-1', orderId: 'order-1', minMembers: 3, currentMembers: groupResultStatus === 'SUCCESS' ? 3 : 2, product: { title: '测试商品', price: 20, image: '' }, members: groupResultStatus === 'SUCCESS' ? [{ avatar: '' }, { avatar: '' }, { avatar: '' }] : [], paidAt: '2026-09-21T00:00:00Z', refundedAt: null, refundAmount: 20 }
   } else if (url.pathname === '/__group_result_status') {
     groupResultStatus = url.searchParams.get('status') || 'REFUNDED'
     data = { groupResultStatus }
