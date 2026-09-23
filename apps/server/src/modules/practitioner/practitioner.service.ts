@@ -461,7 +461,11 @@ export class PractitionerService {
     const where: any = { ownerId: userId };
     if (query.category && query.category !== "all") where.category = query.category;
     if (query.keyword) {
-      where.OR = [{ title: { contains: query.keyword } }, { clientName: { contains: query.keyword } }];
+      where.OR = [
+        { title: { contains: query.keyword } },
+        { clientName: { contains: query.keyword } },
+        { tags: { has: query.keyword } },
+      ];
     }
     const list = await this.prisma.practitionerCase.findMany({
       where,
@@ -472,6 +476,13 @@ export class PractitionerService {
   }
 
   async createCase(userId: string, dto: any) {
+    if (dto.reportId) {
+      const source = await this.prisma.practitionerReport.findFirst({
+        where: { id: dto.reportId, ownerId: userId },
+        select: { id: true },
+      });
+      if (!source) throw new BusinessException(ErrorCode.NOT_FOUND, "来源报告不存在");
+    }
     return this.prisma.practitionerCase.create({
       data: {
         ownerId: userId,

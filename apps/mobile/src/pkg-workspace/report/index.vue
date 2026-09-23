@@ -361,7 +361,7 @@ async function archive() {
   if (!report.value || rewriting.value || drafting.value || sharing.value || saving.value) return
   if (dirty.value && !(await save())) return
   uni.navigateTo({
-    url: `/pkg-workspace/cases/index?fromReport=${id.value}&title=${encodeURIComponent(report.value.title)}&clientName=${encodeURIComponent(report.value.clientName)}`,
+    url: `/pkg-workspace/cases/index?fromReport=${encodeURIComponent(id.value)}`,
   })
 }
 </script>
