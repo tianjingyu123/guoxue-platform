@@ -410,6 +410,10 @@ export const courseApi = {
     return { avgRating: toNum(result.avgRating), reviewCount: toNum(result.reviewCount) }
   },
 
+  /** 登录用户自己的评价记录状态，由服务端按会话身份查询。 */
+  getMyReviewStatus: (id: string): Promise<{ hasReviewed: boolean; status: string | null }> =>
+    apiGet(`/courses/${encodeURIComponent(id)}/reviews/my`),
+
   /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
   async checkAccess(id: string): Promise<boolean> {
     try {

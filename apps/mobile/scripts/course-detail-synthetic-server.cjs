@@ -9,6 +9,7 @@ let paymentOrderStatus = 'PENDING'
 let certificateAvailable = false
 let questionMode = 'READY'
 let reviewMode = 'READY'
+let userHasReviewed = false
 
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -81,6 +82,11 @@ http.createServer((req, res) => {
   } else if (url.pathname === '/api/v1/courses/reviews-1/rating') {
     if (reviewMode === 'RATING_ERROR') { status = 503; data = null }
     else data = { avgRating: 4.2, reviewCount: 21 }
+  } else if (url.pathname === '/api/v1/courses/reviews-1/reviews/my') {
+    data = { hasReviewed: userHasReviewed, status: userHasReviewed ? 'PUBLISHED' : null }
+  } else if (url.pathname === '/__user_has_reviewed') {
+    userHasReviewed = url.searchParams.get('enabled') === '1'
+    data = { userHasReviewed }
   } else if (url.pathname === '/__review_mode') {
     reviewMode = url.searchParams.get('mode') || 'READY'
     data = { reviewMode }
@@ -120,6 +126,7 @@ http.createServer((req, res) => {
     certificateAvailable = false
     questionMode = 'READY'
     reviewMode = 'READY'
+    userHasReviewed = false
     data = { reset: true }
   }
   res.writeHead(status)

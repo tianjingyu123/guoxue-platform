@@ -425,6 +425,10 @@ export class CourseService {
     return this.reviewQaSvc.listReviews(courseId, rawPage, rawPageSize);
   }
 
+  getMyReviewStatus(userId: string, courseId: string) {
+    return this.reviewQaSvc.getMyReviewStatus(userId, courseId);
+  }
+
   getCourseRating(courseId: string) {
     return this.reviewQaSvc.getCourseRating(courseId);
   }

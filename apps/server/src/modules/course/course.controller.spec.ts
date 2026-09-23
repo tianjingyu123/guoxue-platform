@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { GUARDS_METADATA } from "@nestjs/common/constants";
 import { CourseController } from "./course.controller";
 import { CourseService } from "./course.service";
 import { SystemService } from "../system/system.service";
@@ -35,6 +36,7 @@ const mockCourseSvc = {
   scoreWork: jest.fn().mockResolvedValue({ id: "w1", score: 90 }),
   createReview: jest.fn().mockResolvedValue({ id: "rv1", rating: 5 }),
   listReviews: jest.fn().mockResolvedValue([{ id: "rv1", rating: 5 }]),
+  getMyReviewStatus: jest.fn().mockResolvedValue({ hasReviewed: true, status: "PUBLISHED" }),
   getCourseRating: jest.fn().mockResolvedValue({ average: 4.5, count: 20 }),
   getCourseStats: jest.fn().mockResolvedValue({ enrollments: 100, revenue: 5000 }),
   getCreatedCourses: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
@@ -239,6 +241,13 @@ describe("CourseController", () => {
     const q: any = { page: 1, pageSize: 20 };
     const result: any = await ctrl.getReviews("c1", q);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /courses/:id/reviews/my — 使用会话用户查询本人评价", async () => {
+    const req: any = { user: { id: "u1" } };
+    await expect(ctrl.getMyReviewStatus(req, "c1")).resolves.toEqual({ hasReviewed: true, status: "PUBLISHED" });
+    expect(mockCourseSvc.getMyReviewStatus).toHaveBeenCalledWith("u1", "c1");
+    expect(Reflect.getMetadata(GUARDS_METADATA, ctrl.getMyReviewStatus)).toContain(JwtAuthGuard);
   });
 
   it("GET /courses/:id/rating — 评分统计", async () => {

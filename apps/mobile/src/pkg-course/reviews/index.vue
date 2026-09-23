@@ -11,11 +11,12 @@
  * onLoad 取 evt.courseId（兼容 id）；role=instructor 进讲师视角
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { courseApi, type CourseReview } from '@/lib/course-data'
+import { getToken } from '@/utils/storage'
 
 // 自定义导航栏状态栏占位高度
 const statusBarHeight = ref(0)
@@ -33,6 +34,8 @@ const ratingSummary = ref<{ avgRating: number; reviewCount: number } | null>(nul
 const reviewPage = ref(1)
 const moreLoading = ref(false)
 const moreError = ref(false)
+const hasReviewed = ref(false)
+const reviewStatusToken = ref('')
 
 // ── 写评价半屏弹层（学员视角） ──
 const showWriteSheet = ref(false)
@@ -85,6 +88,21 @@ async function loadMore() {
   }
 }
 
+async function loadMyReviewStatus() {
+  const token = getToken()
+  if (reviewStatusToken.value !== token) {
+    hasReviewed.value = false
+    reviewStatusToken.value = token
+  }
+  if (!token || !courseId.value) return
+  try {
+    const result = await courseApi.getMyReviewStatus(courseId.value)
+    if (getToken() === token && result.hasReviewed) hasReviewed.value = true
+  } catch {
+    // 本人状态不可用时仍由提交接口做最终资格与重复校验。
+  }
+}
+
 // ── 学员：写评价弹层 ──
 function openWriteSheet() {
   writeRating.value = 5
@@ -108,6 +126,8 @@ async function submitReview() {
     // 🔴 原来这里是「评价功能即将开放」的假 toast，用户写的评价被直接丢弃 ——
     //    而后端 POST /courses/:id/reviews 一直都在（注释却写着"需后端补"）。
     await courseApi.createReview(courseId.value, writeRating.value, writeContent.value.trim())
+    hasReviewed.value = true
+    reviewStatusToken.value = getToken()
     showWriteSheet.value = false
     uni.showToast({ title: '评价已发布', icon: 'success' })
     await loadReviews() // 立刻回读，让用户看到自己的评价真的在列表里
@@ -155,7 +175,10 @@ onLoad((options) => {
   courseTitle.value = options?.title ? decodeURIComponent(options.title) : ''
   if (options?.role === 'instructor') role.value = 'instructor'
   loadReviews()
+  loadMyReviewStatus()
 })
+
+onShow(() => { loadMyReviewStatus() })
 </script>
 
 <template>
@@ -193,8 +216,8 @@ onLoad((options) => {
         <app-icon name="star" :size="46" color="#C9A96E" />
       </view>
       <text class="empty-title serif">还没有评价</text>
-      <text class="empty-desc">{{ isInstructor ? '学员评价后，你可以在这里回复' : '购买后欢迎首评，你的评价会帮到更多同好' }}</text>
-      <view v-if="!isInstructor" class="empty-btn" hover-class="press" @tap="openWriteSheet">
+      <text class="empty-desc">{{ isInstructor ? '学员评价后，你可以在这里回复' : hasReviewed ? '你已提交评价，当前暂无公开评价' : '购买后欢迎首评，你的评价会帮到更多同好' }}</text>
+      <view v-if="!isInstructor && !hasReviewed" class="empty-btn" hover-class="press" @tap="openWriteSheet">
         <text class="empty-btn-txt">写下第一条评价</text>
       </view>
     </view>
@@ -287,7 +310,7 @@ onLoad((options) => {
 
     <!-- ══ 学员视角·吸底「写个评价」 ══ -->
     <view
-      v-if="!isInstructor && !loading && !error && reviews.length > 0"
+      v-if="!isInstructor && !hasReviewed && !loading && !error && reviews.length > 0"
       class="bottom-bar"
       :style="{ paddingBottom: 'calc(24rpx + env(safe-area-inset-bottom))' }"
     >
