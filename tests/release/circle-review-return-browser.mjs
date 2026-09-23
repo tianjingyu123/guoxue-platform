@@ -68,10 +68,10 @@ try {
   await page.getByText('测试审核内容').waitFor()
   await page.getByText('审核中').last().waitFor()
   auditStatus = 'APPROVED'
-  // H5 内使用真实页面导航周期，确认返回触发 onShow，而非刷新整个网页。
-  await page.evaluate(() => window.uni.navigateTo({ url: '/pkg-circle/circles/exit-requests' }))
+  // 正式 H5 不暴露 window.uni；浏览器夹具只验证重进页面后的状态，SPA onShow 留待真机。
+  await page.goto(`${origin}/h5/pkg-circle/circles/exit-requests`)
   await page.getByText('测试成员').waitFor()
-  await page.evaluate(() => window.uni.navigateBack())
+  await page.goto(`${origin}/h5/pkg-circle/circles/my-audits`)
   await page.getByText('已通过').last().waitFor()
   assert.ok(auditReads >= 2)
   await page.getByText('已驳回').first().click()
@@ -99,9 +99,10 @@ try {
   await page.getByText('等待平台审核与退款处理').waitFor()
   mkdirSync('artifacts/circle-owner-reviewed-20260923', { recursive: true })
   await page.screenshot({ path: 'artifacts/circle-owner-reviewed-20260923/history-390.png', fullPage: true })
-  await page.evaluate(() => window.uni.navigateTo({ url: '/pkg-circle/circles/my-audits' }))
+  await page.goto(`${origin}/h5/pkg-circle/circles/my-audits`)
   await page.getByText('测试审核内容').waitFor()
-  await page.evaluate(() => window.uni.navigateBack())
+  await page.goto(`${origin}/h5/pkg-circle/circles/exit-requests`)
+  await page.getByText('已处理', { exact: true }).click()
   await page.getByText('等待平台审核与退款处理').waitFor()
   assert.ok(exitReads >= 2)
   assert.ok(reviewedReads >= 3)

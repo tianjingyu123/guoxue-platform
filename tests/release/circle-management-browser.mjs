@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
 const require = createRequire(import.meta.url)
 const { chromium } = require(resolve(process.env.QA_NODE_MODULES, 'playwright'))
-const origin = 'http://127.0.0.1:5197'
+const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197'
 const out = resolve('artifacts/circle-management-20260922')
 await mkdir(out, { recursive: true })
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })

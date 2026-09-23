@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { mkdir, writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 const { chromium } = createRequire(import.meta.url)(resolve(process.env.QA_NODE_MODULES, 'playwright'))
-const origin = 'http://127.0.0.1:5197', out = resolve('artifacts/circle-settings-20260922')
+const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197', out = resolve('artifacts/circle-settings-20260922')
 await mkdir(out, { recursive: true })
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let overviewReads = 0, failOverview = false, failSave = true, failAnnouncement = true, saves = 0

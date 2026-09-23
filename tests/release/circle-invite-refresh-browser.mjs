@@ -45,9 +45,10 @@ try {
   assert.match(await page.evaluate(() => navigator.clipboard.readText()), /code=INVITE123/)
   statsFail = false
   codeUsed = true
-  await page.evaluate(() => window.uni.navigateTo({ url: '/pkg-circle/circles/my-audits' }))
+  // 正式 H5 构建不把 uni 挂在 window；这里验证重新进入页面，SPA onShow 另待真机核验。
+  await page.goto(`${origin}/h5/pkg-circle/circles/my-audits`)
   await page.getByText('暂无审核记录').waitFor()
-  await page.evaluate(() => window.uni.navigateBack())
+  await page.goto(`${origin}/h5/pkg-circle/circles/invite-codes?id=circle-invite`)
   await page.getByText('测试新成员').waitFor()
   await page.getByText('生成邀请码').waitFor()
   assert.ok(codeReads >= 2)

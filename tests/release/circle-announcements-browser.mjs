@@ -16,6 +16,7 @@ const json = (data, status = 200) => ({ status, contentType: 'application/json',
 
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await context.addInitScript(() => localStorage.setItem('auth_token', JSON.stringify({ type: 'string', data: 'local-fixture-only' })))
   await context.route('**/*', async route => {
     const url = new URL(route.request().url())
     if (!url.pathname.includes('/api/v1/')) return url.origin === origin ? route.continue() : route.abort()
@@ -27,6 +28,7 @@ try {
     }
     if (path === '/circles/qa/announcements') return route.fulfill(json({ list: [first, second], total: 2 }))
     if (path === '/circles/qa/announcements/a2') return route.fulfill(json(second))
+    if (path === '/circles/qa/announcements/a2/read-status') return route.fulfill(json({ isRead: false }))
     if (path === '/circles/qa/announcements/a2/read') {
       writeCalls++
       if (readFails) { readFails = false; return route.fulfill(json(null, 503)) }

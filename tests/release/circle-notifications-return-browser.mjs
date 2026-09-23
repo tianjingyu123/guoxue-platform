@@ -45,9 +45,10 @@ try {
   await page.getByText('测试回复通知').waitFor()
   assert.equal(await page.locator('.cn-dot').count(), 1)
   isRead = true
-  await page.evaluate(() => window.uni.navigateTo({ url: '/pkg-circle/circles/my-audits' }))
+  // 生产 H5 没有 window.uni 全局对象；这里只验证页面重进后的数据恢复。
+  await page.goto(`${origin}/h5/pkg-circle/circles/my-audits`)
   await page.getByText('暂无审核记录').waitFor()
-  await page.evaluate(() => window.uni.navigateBack())
+  await page.goto(`${origin}/h5/pkg-circle/circles/notifications`)
   await page.getByText('测试回复通知').waitFor()
   assert.equal(await page.locator('.cn-dot').count(), 0)
   assert.ok(reads >= 2)

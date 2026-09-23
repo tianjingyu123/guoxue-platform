@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
 const { chromium } = createRequire(import.meta.url)(resolve(process.env.QA_NODE_MODULES, 'playwright'))
-const origin = 'http://127.0.0.1:5197'
+const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197'
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let member = false, attempts = 0, renewAttempts = 0, failFirst = true, orderReads = 0, invalidOrder = false, otherWrites = 0
 let orderType = 'CIRCLE_JOIN'
