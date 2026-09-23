@@ -2,7 +2,7 @@
   <view class="sku-cart">
     <app-nav-bar title="购物车" back-icon="arrow-left" :back-size="40" :title-size="36" :bar-height="106">
       <template #right>
-        <text class="nav-edit" @tap="editMode = !editMode">{{ editMode ? '完成' : '管理' }}</text>
+        <view class="nav-edit" role="button" tabindex="0" :aria-label="editMode ? '完成购物车管理' : '管理购物车'" @tap="editMode = !editMode" @keydown.enter="editMode = !editMode" @keydown.space.prevent="editMode = !editMode">{{ editMode ? '完成' : '管理' }}</view>
       </template>
     </app-nav-bar>
 
@@ -11,10 +11,10 @@
       <AppLoading />
     </view>
     <!-- 错误 -->
-    <view v-else-if="error" class="state-wrap">
+    <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
       <app-icon name="alert-circle" :size="56" color="#E74C3C" />
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" @tap="retry">
+      <view class="retry-btn" role="button" tabindex="0" aria-label="重新加载购物车" @tap="retry" @keydown.enter="retry" @keydown.space.prevent="retry">
         <text class="retry-btn-text">重试</text>
       </view>
     </view>
@@ -30,7 +30,7 @@
         >
           <view class="swipe-inner" :style="{ transform: openId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }">
             <view class="cart-item" @tap="onItemTap(item)" @touchstart="onRowTouchStart" @touchend="onRowTouchEnd($event, item)">
-              <view class="item-check" :class="{ checked: item.selected }" @tap.stop="toggleItem(item)">
+              <view class="item-check" :class="{ checked: item.selected }" role="checkbox" :aria-label="`选择商品：${item.productName}`" :aria-checked="item.selected ? 'true' : 'false'" tabindex="0" @tap.stop="toggleItem(item)" @keydown.enter.stop="toggleItem(item)" @keydown.space.stop.prevent="toggleItem(item)">
                 <app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" />
               </view>
               <image lazy-load class="item-img" :src="item.productCover" mode="aspectFill" />
@@ -40,7 +40,7 @@
                 <view class="item-bottom">
                   <view class="price-box">
                     <text class="cur">¥{{ formatPrice(item.price) }}</text>
-                    <text class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
+                    <text v-if="item.originalPrice > item.price" class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
                   </view>
                   <view class="stepper">
                     <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" @tap.stop="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
@@ -78,12 +78,12 @@
     <view class="empty" v-else>
       <app-icon name="shopping-cart" :size="120" color="#DDDDDD" />
       <text class="empty-text">购物车是空的</text>
-      <view class="empty-btn" @tap="goShop"><text>去选购</text></view>
+      <view class="empty-btn" role="link" tabindex="0" aria-label="去商城选购" @tap="goShop" @keydown.enter="goShop" @keydown.space.prevent="goShop"><text>去选购</text></view>
     </view>
 
     <!-- 底部渐变结算栏 -->
     <view class="footer" v-if="validItems.length">
-      <view class="all-check" :class="{ checked: isAllChecked }" @tap="toggleAll">
+      <view class="all-check" :class="{ checked: isAllChecked }" role="checkbox" aria-label="全选商品" :aria-checked="isAllChecked ? 'true' : 'false'" tabindex="0" @tap="toggleAll" @keydown.enter="toggleAll" @keydown.space.prevent="toggleAll">
         <app-icon v-if="isAllChecked" name="check" :size="28" color="#FFFFFF" />
       </view>
       <text class="all-label">全选</text>
@@ -92,13 +92,13 @@
           <text class="total-label">合计</text>
           <text class="total-amount">¥{{ formatPrice(totalAmount) }}</text>
         </view>
-        <text class="saved">已优惠 ¥{{ formatPrice(savedAmount) }}</text>
+        <text v-if="savedAmount > 0" class="saved">已优惠 ¥{{ formatPrice(savedAmount) }}</text>
       </view>
       <view class="footer-spacer" v-else />
-      <view class="checkout-btn" v-if="!editMode" @tap="goCheckout">
+      <view class="checkout-btn" v-if="!editMode" role="button" tabindex="0" :aria-label="`结算已选 ${selectedCount} 件商品`" @tap="goCheckout" @keydown.enter="goCheckout" @keydown.space.prevent="goCheckout">
         <text>结算({{ selectedCount }})</text>
       </view>
-      <view class="checkout-btn danger" v-else @tap="removeSelected">
+      <view class="checkout-btn danger" v-else role="button" tabindex="0" aria-label="删除已选商品" @tap="removeSelected" @keydown.enter="removeSelected" @keydown.space.prevent="removeSelected">
         <text>删除</text>
       </view>
     </view>
@@ -194,7 +194,7 @@ function toggleAll() {
 }
 const selectedCount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.quantity, 0))
 const totalAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + i.price * i.quantity, 0))
-const savedAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + (i.originalPrice - i.price) * i.quantity, 0))
+const savedAmount = computed(() => validItems.value.filter((i) => i.selected).reduce((s, i) => s + Math.max(0, i.originalPrice - i.price) * i.quantity, 0))
 /** 写操作后重拉购物车，保留用户当前勾选状态 */
 async function refreshSku() {
   const selectedMap = new Map(items.value.map((i) => [i.id, i.selected]))
@@ -267,7 +267,7 @@ function goCheckout() {
 
 <style lang="scss" scoped>
 .sku-cart { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
-.nav-edit { font-size: 28rpx; color: var(--brand); }
+.nav-edit { min-width: 88rpx; min-height: 88rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: var(--brand); }
 .content { flex: 1; }
 .item-list { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .swipe-wrap { overflow: hidden; border-radius: 20rpx; }

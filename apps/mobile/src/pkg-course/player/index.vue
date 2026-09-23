@@ -390,9 +390,10 @@ onShow(() => {
   </view>
 
   <!-- Error -->
-  <view v-else-if="error" class="error-wrap">
+  <view v-else-if="error" class="error-wrap" role="alert" aria-live="assertive">
     <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" role="button" tabindex="0" aria-label="重新加载课时" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><text class="retry-text">返回</text></view>
   </view>
 
   <!-- ══════════ 图文态：整页沉浸阅读 ══════════ -->
@@ -403,9 +404,9 @@ onShow(() => {
         <app-icon name="award" :size="40" color="#C9A96E" />
         <text class="congrats-title-txt">恭喜完成全部课程</text>
       </view>
-      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 学习证书已生成</text>
+      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 查看学习成果</text>
       <view class="congrats-btns">
-        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">查看证书</text></view>
+        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">学习证书</text></view>
         <view class="cbtn soft" @tap="goReview"><text class="cbtn-txt-r">写个评价</text></view>
       </view>
     </view>
@@ -514,9 +515,9 @@ onShow(() => {
         <app-icon name="award" :size="40" color="#C9A96E" />
         <text class="congrats-title-txt">恭喜完成全部课程</text>
       </view>
-      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 学习证书已生成</text>
+      <text class="congrats-sub">{{ lessonTotal }} 讲全部学完 · 查看学习成果</text>
       <view class="congrats-btns">
-        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">查看证书</text></view>
+        <view class="cbtn primary" @tap="openCert"><text class="cbtn-txt-w">学习证书</text></view>
         <view class="cbtn soft" @tap="goReview"><text class="cbtn-txt-r">写个评价</text></view>
       </view>
     </view>

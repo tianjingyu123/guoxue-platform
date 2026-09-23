@@ -11,24 +11,15 @@
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="error" class="error-zone">
+    <view v-else-if="error" class="error-zone" role="alert" aria-live="assertive">
       <text class="error-text">{{ error }}</text>
-      <view class="error-retry" @tap="fetchCheckoutData()"><text>重试</text></view>
+      <view class="error-retry" role="button" tabindex="0" aria-label="重新加载结算信息" @tap="fetchCheckoutData()" @keydown.enter="fetchCheckoutData()" @keydown.space.prevent="fetchCheckoutData()"><text>重试</text></view>
     </view>
 
     <template v-else>
-    <!-- 超时倒计时条 -->
-    <view class="timer-bar" :class="{ urgent: isUrgent }">
-      <view class="timer-left">
-        <app-icon name="clock" :size="28" :color="isUrgent ? '#EF4444' : '#FF6B35'" />
-        <text class="timer-text" :class="{ urgent: isUrgent }">请在 {{ countdown.m }}:{{ countdown.s }} 内完成支付</text>
-      </view>
-      <text v-if="isUrgent" class="timer-warn">即将超时</text>
-    </view>
-
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
-      <view class="address-card" @tap="onAddressCardTap">
+      <view class="address-card" role="button" tabindex="0" aria-label="选择或添加收货地址" @tap="onAddressCardTap" @keydown.enter="onAddressCardTap" @keydown.space.prevent="onAddressCardTap">
         <app-icon name="map-pin" :size="40" color="#C41E3A" />
         <view class="address-info" v-if="currentAddress">
           <view class="addr-top">
@@ -62,7 +53,7 @@
       </view>
 
       <!-- 优惠券 -->
-      <view class="cell" @tap="showCoupon = true">
+      <view class="cell" role="button" tabindex="0" aria-label="选择优惠券" @tap="showCoupon = true" @keydown.enter="showCoupon = true" @keydown.space.prevent="showCoupon = true">
         <view class="cell-left">
           <app-icon name="tag" :size="36" color="#C41E3A" />
           <text class="cell-label">优惠券</text>
@@ -73,9 +64,9 @@
       </view>
 
       <!-- 支付方式 -->
-      <view class="pay-card">
+      <view class="pay-card" role="radiogroup" aria-label="支付方式">
         <text class="pay-title">支付方式</text>
-        <view v-for="m in payMethods" :key="m.id" class="pay-item" @tap="payMethod = m.id">
+        <view v-for="m in payMethods" :key="m.id" class="pay-item" role="radio" :aria-label="m.name" :aria-checked="payMethod === m.id ? 'true' : 'false'" tabindex="0" @tap="payMethod = m.id" @keydown.enter="payMethod = m.id" @keydown.space.prevent="payMethod = m.id">
           <view class="pay-badge" :style="{ background: m.badgeColor }"><text>{{ m.badge }}</text></view>
           <text class="pay-name">{{ m.name }}</text>
           <view class="radio" :class="{ checked: payMethod === m.id }">
@@ -88,11 +79,13 @@
       <view class="amount-card">
         <text class="amount-title">价格明细</text>
         <view class="amount-row"><text>商品金额</text><text class="amount-val">¥{{ displayGoods.toFixed(2) }}</text></view>
-        <view class="amount-row"><text>运费</text><text class="amount-val">免运费</text></view>
+        <view class="amount-row"><text>运费</text><text class="amount-val">以订单为准</text></view>
         <view class="amount-row" v-if="displayCouponDiscount > 0"><text>优惠券抵扣</text><text class="discount">-¥{{ displayCouponDiscount.toFixed(2) }}</text></view>
         <!-- 分销自购立减：仅后端试算确认有该身份优惠时展示（拿不到身份不猜） -->
         <view class="amount-row" v-if="estimate && estimate.selfDiscount > 0"><text>分销自购立减</text><text class="discount">-¥{{ estimate.selfDiscount.toFixed(2) }}</text></view>
-        <view class="amount-row total"><text>实付金额</text><text class="pay-amount">¥{{ displayPayTotal.toFixed(2) }}</text></view>
+        <view class="amount-row total"><text>{{ estimate ? '商品应付' : '预估商品应付' }}</text><text class="pay-amount">¥{{ displayPayTotal.toFixed(2) }}</text></view>
+        <text v-if="estimateLoading" class="estimate-tip">正在核算最终金额，请在支付前核对。</text>
+        <text v-else-if="!estimate" class="estimate-tip">订单试算暂不可用，最终金额请在支付前核对。</text>
       </view>
       <view style="height: 140rpx;" />
     </scroll-view>
@@ -101,12 +94,12 @@
     <view class="footer">
       <view class="footer-total">
         <view class="ft-line">
-          <text class="ft-label">合计:</text>
+          <text class="ft-label">{{ estimate ? '商品应付' : '预估应付' }}:</text>
           <text class="ft-amount">¥{{ displayPayTotal.toFixed(2) }}</text>
         </view>
         <text v-if="displaySaved > 0" class="ft-saved">已优惠 ¥{{ displaySaved.toFixed(2) }}</text>
       </view>
-      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
+      <view class="pay-btn" role="button" tabindex="0" :aria-disabled="submitting || estimateLoading ? 'true' : 'false'" @tap="submitOrder" @keydown.enter="submitOrder" @keydown.space.prevent="submitOrder"><text>{{ submitting ? '提交中…' : estimateLoading ? '核算中…' : '提交订单' }}</text></view>
     </view>
 
     <!-- 地址选择 -->
@@ -146,24 +139,15 @@
       </view>
     </view>
 
-    <!-- 超时警告 -->
-    <view v-if="showTimeout" class="mask center">
-      <view class="dialog" @tap.stop>
-        <app-icon name="clock" :size="80" color="#FF8800" />
-        <text class="dialog-title">支付超时</text>
-        <text class="dialog-desc">订单支付时间已超时，请重新下单</text>
-        <view class="dialog-btn" @tap="onTimeout"><text>重新下单</text></view>
-      </view>
-    </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
-import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
+import { shopApi, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
 
 const loading = ref(true)
 const error = ref('')
@@ -176,7 +160,6 @@ const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
-const showTimeout = ref(false)
 const submitting = ref(false)
 // 多商品逐单创建时，缓存已成功建单（key=productId:skuId），失败重试跳过已建单，避免首商品重复下单产生孤儿单
 const createdOrders = new Map<string, { id: string; amount: number }>()
@@ -196,10 +179,13 @@ const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.v
  * 试算失败（网络/旧后端）回退前端预估（displayX 兜底 goodsTotal/payTotal），且不显示自购立减行（拿不到身份不猜）。
  */
 const estimate = ref<OrderEstimate | null>(null)
+const estimateLoading = ref(false)
 let estimateSeq = 0
 async function refreshEstimate() {
   const seq = ++estimateSeq
-  if (!items.value.length) { estimate.value = null; return }
+  estimate.value = null
+  if (!items.value.length) { estimateLoading.value = false; return }
+  estimateLoading.value = true
   try {
     const results: OrderEstimate[] = []
     for (let i = 0; i < items.value.length; i++) {
@@ -222,6 +208,8 @@ async function refreshEstimate() {
     if (seq !== estimateSeq) return
     estimate.value = null // 回退前端预估
     console.warn('[checkout] 订单试算失败，回退前端预估', e)
+  } finally {
+    if (seq === estimateSeq) estimateLoading.value = false
   }
 }
 watch([items, selectedCoupon], () => { refreshEstimate() }, { deep: false })
@@ -241,8 +229,12 @@ async function fetchCheckoutData() {
     addresses.value = result.addresses || []
     coupons.value = result.coupons || []
     payMethods.value = result.payMethods || []
+    if (!payMethods.value.some((method) => method.id === payMethod.value)) {
+      payMethod.value = payMethods.value[0]?.id || ''
+    }
     currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
     if (!items.value.length) error.value = '没有可结算的商品，请返回重新选择'
+    else if (!payMethods.value.length) error.value = '暂无可用支付方式，请稍后重试'
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -263,23 +255,8 @@ onLoad((q) => {
   if (SOURCE_TYPES.includes(srcType) && srcId) contentSource.value = { type: srcType, id: srcId }
 })
 
-// 15分钟倒计时
-const remain = ref(15 * 60 * 1000)
-const countdown = computed(() => formatCountdown(remain.value))
-const isUrgent = computed(() => remain.value <= 180 * 1000)
-let timer: ReturnType<typeof setInterval> | null = null
-onMounted(async () => {
-  await fetchCheckoutData()
-  timer = setInterval(() => {
-    remain.value -= 1000
-    if (remain.value <= 0) {
-      remain.value = 0
-      showTimeout.value = true
-      if (timer) clearInterval(timer)
-    }
-  }, 1000)
-})
-onUnmounted(() => { if (timer) clearInterval(timer) })
+// 支付时限应从真实订单状态计算，结算页尚未建单，不启动本地倒计时。
+onMounted(() => { void fetchCheckoutData() })
 
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
@@ -308,7 +285,8 @@ onShow(() => {
 })
 
 async function submitOrder() {
-  if (submitting.value) return
+  if (submitting.value || estimateLoading.value) return
+  if (!payMethod.value) { uni.showToast({ title: '请选择支付方式', icon: 'none' }); return }
   if (!items.value.length) { uni.showToast({ title: '没有可结算的商品', icon: 'none' }); return }
   if (!currentAddress.value) { uni.showToast({ title: '请选择收货地址', icon: 'none' }); return }
   submitting.value = true
@@ -351,7 +329,6 @@ async function submitOrder() {
     submitting.value = false
   }
 }
-function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
 
 <style lang="scss" scoped>
@@ -403,6 +380,7 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .amount-row .discount { color: var(--brand); }
 .amount-row.total { margin-bottom: 0; padding-top: 16rpx; border-top: 2rpx solid #F0F0F0; }
 .amount-row.total text { font-size: 28rpx; color: #1A1A1A; font-weight: 600; }
+.estimate-tip { display: block; margin-top: 12rpx; color: #766a5f; font-size: 22rpx; line-height: 1.45; }
 .pay-amount { color: var(--brand) !important; font-size: 34rpx !important; }
 .footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 20rpx 30rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); background: #FFFFFF; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
 .footer-total { display: flex; flex-direction: column; }
