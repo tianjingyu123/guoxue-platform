@@ -73,4 +73,19 @@ describe("ContentVectorizeService", () => {
       where: expect.objectContaining({ status: "ACTIVE", deletedAt: null }),
     }));
   });
+
+  it("增量向量化按指定 ID 精确读取较早内容，不受最新 1000 条窗口限制", async () => {
+    const older = { id: "older", title: "早期文章", content: "正文", excerpt: "简介" };
+    const { service, prisma, getStored } = makeService([], [older]);
+    await service.onContentApproved("ARTICLE", "older");
+    expect(prisma.article.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: expect.objectContaining({ equals: "older", notIn: expect.any(Array) }),
+        auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null,
+      }),
+      skip: 0,
+      take: 1,
+    }));
+    expect(getStored()).toEqual([{ id: "older", type: "ARTICLE", vector }]);
+  });
 });

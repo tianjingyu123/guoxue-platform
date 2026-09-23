@@ -29,7 +29,7 @@ interface ContentTypeVectorizer {
   /** RecommendItem 类型标识（ARTICLE/COURSE/PRODUCT/CIRCLE/VIDEO/CLASSIC…） */
   type: string;
   /** 拉取「审核通过 / 已上架」的内容（分页）。auditStatus/status 即推荐池准入口径，与推荐联动一致。 */
-  loadApproved(prisma: PrismaService, skip: number, take: number): Promise<Array<{ id: string; raw: Record<string, unknown> }>>;
+  loadApproved(prisma: PrismaService, skip: number, take: number, id?: string): Promise<Array<{ id: string; raw: Record<string, unknown> }>>;
   /** 单条内容 → 文本（文本提取器）。 */
   extractText(raw: Record<string, unknown>): string;
 }
@@ -73,48 +73,48 @@ export class ContentVectorizeService {
   private readonly vectorizers: ContentTypeVectorizer[] = [
     {
       type: "ARTICLE",
-      loadApproved: (p, skip, take) =>
-        p.article.findMany({ where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, content: true, excerpt: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.article.findMany({ where: { id: { notIn: publicQuarantinedIds("article"), ...(id ? { equals: id } : {}) }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, content: true, excerpt: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 文章 = 标题 + 正文（去 HTML）
       extractText: (r) => joinText(r.title, stripHtml(r.content) || r.excerpt),
     },
     {
       type: "VIDEO",
-      loadApproved: (p, skip, take) =>
-        p.video.findMany({ where: { id: { notIn: publicQuarantinedIds("video") }, status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false }, select: { id: true, title: true, description: true, tags: true, categoryLevel1: true, categoryLevel2: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.video.findMany({ where: { id: { notIn: publicQuarantinedIds("video"), ...(id ? { equals: id } : {}) }, status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false }, select: { id: true, title: true, description: true, tags: true, categoryLevel1: true, categoryLevel2: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 短视频 = 标题 + 描述 + 标签 + 分类（ASR 语音转写文字为后续增强：拿到 transcript 后拼接进来即可）
       extractText: (r) => joinText(r.title, r.description, r.tags, r.categoryLevel1, r.categoryLevel2),
     },
     {
       type: "COURSE",
-      loadApproved: (p, skip, take) =>
-        p.course.findMany({ where: { id: { notIn: publicQuarantinedIds("course") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.course.findMany({ where: { id: { notIn: publicQuarantinedIds("course"), ...(id ? { equals: id } : {}) }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 课程 = 标题 + 简介 + 标签（大纲：如需接章节标题，扩展 select chapters 后拼入）
       extractText: (r) => joinText(r.title, r.intro, r.tags),
     },
     {
       type: "PRODUCT",
-      loadApproved: (p, skip, take) =>
-        p.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product") }, status: "ON_SALE", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product"), ...(id ? { equals: id } : {}) }, status: "ON_SALE", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 商品 = 标题 + 详情 + 标签
       extractText: (r) => joinText(r.title, r.intro, r.tags),
     },
     {
       type: "CIRCLE",
-      loadApproved: (p, skip, take) =>
-        p.circle.findMany({ where: { id: { notIn: publicQuarantinedIds("circle") }, status: "ACTIVE", deletedAt: null }, select: { id: true, name: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.circle.findMany({ where: { id: { notIn: publicQuarantinedIds("circle"), ...(id ? { equals: id } : {}) }, status: "ACTIVE", deletedAt: null }, select: { id: true, name: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 圈子 = 名称 + 简介 + 标签
       extractText: (r) => joinText(r.name, r.intro, r.tags),
     },
     {
       type: "CLASSIC",
-      loadApproved: (p, skip, take) =>
-        p.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: { id: true, title: true, author: true, intro: true, category: true }, skip, take, orderBy: { createdAt: "desc" } })
+      loadApproved: (p, skip, take, id) =>
+        p.classicBook.findMany({ where: { ...PUBLIC_CLASSIC_BOOK_WHERE, ...(id ? { id } : {}) }, select: { id: true, title: true, author: true, intro: true, category: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 古籍 = 书名 + 作者 + 简介 + 分类（章节级向量为进阶：按 ClassicChapter 逐章 extractText 后入库）
       extractText: (r) => joinText(r.title, r.author, r.intro, r.category),
@@ -258,12 +258,11 @@ export class ContentVectorizeService {
   }
 
   private async loadOne(vz: ContentTypeVectorizer, id: string): Promise<{ id: string; raw: Record<string, unknown> } | null> {
-    // 复用类型加载器的 select 口径：小范围分页里找目标 id（避免为单条另写查询/select 漂移）
-    // 单条实时入口调用频率低，直接用 prisma 动态取该 id 一条并复用 extractText 的字段。
+    // 精确 ID 与既有公开门禁合并，不能只扫最新 1000 条而漏掉早期上架内容。
     const model = vz.type.toLowerCase();
     try {
-      const rows = await vz.loadApproved(this.prisma, 0, 1000);
-      return rows.find((r) => r.id === id) ?? null;
+      const rows = await vz.loadApproved(this.prisma, 0, 1, id);
+      return rows[0] ?? null;
     } catch {
       this.logger.debug(`loadOne 回退失败 ${model}:${id}`);
       return null;
