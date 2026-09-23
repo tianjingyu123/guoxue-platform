@@ -79,11 +79,18 @@ export class ReportAskService {
       );
     }
 
-    const profile = await this.prisma.practitionerProfile.findUnique({ where: { userId: report.ownerId } });
-    const author = await this.prisma.user.findUnique({
-      where: { id: report.ownerId },
-      select: { nickname: true },
-    });
+    let profile: { brandName: string | null } | null;
+    let author: { nickname: string | null } | null;
+    try {
+      profile = await this.prisma.practitionerProfile.findUnique({ where: { userId: report.ownerId } });
+      author = await this.prisma.user.findUnique({
+        where: { id: report.ownerId },
+        select: { nickname: true },
+      });
+    } catch (error) {
+      await release();
+      throw error;
+    }
     const brandName = profile?.brandName || author?.nickname || "";
 
     const chapters = Array.isArray(report.chapters) ? (report.chapters as any[]) : [];

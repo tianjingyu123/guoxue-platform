@@ -86,6 +86,15 @@ describe("交付报告问答", () => {
     expect(redis.decrFloorZero).toHaveBeenCalledTimes(2);
   });
 
+  it("老师资料查询失败时恢复提问次数，不调用模型", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    prisma.practitionerProfile.findUnique.mockRejectedValueOnce(new Error("database unavailable"));
+
+    await expect(svc.ask("tok-1", "问题")).rejects.toThrow("database unavailable");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
   it("剩余次数随问随减，供页面提示", async () => {
     const { svc } = setup({ used: ReportAskService.DAILY_LIMIT - 2 });
     const r = await svc.ask("tok-1", "问题");
