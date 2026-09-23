@@ -125,8 +125,7 @@ export interface WorkResult {
   chapterTitle: string; courseTitle: string
   content: string; images: string[]; submittedAt: string
   score?: number; maxScore: number
-  gradedBy?: { name: string; avatar: string }
-  teacherComment?: string; gradedAt?: string
+  feedback?: string; gradedAt?: string
   suggestions?: string[]
   canResubmit?: boolean
 }
@@ -757,8 +756,7 @@ export const courseApi = {
       submittedAt: w.createdAt ? String(w.createdAt).replace('T', ' ').slice(0, 16) : '',
       score: graded ? toNum(w.score) : undefined,
       maxScore: 100,
-      gradedBy: graded ? { name: '讲师', avatar: '' } : undefined,
-      teacherComment: w.feedback || undefined,
+      feedback: w.feedback || undefined,
       suggestions: [],
       canResubmit: false,
     }
