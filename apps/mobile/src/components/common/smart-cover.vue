@@ -221,7 +221,8 @@ const decoChars = computed(() => {
 </script>
 
 <template>
-  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="displaySrc" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="onImgError" />
+  <!-- 个别运行容器会在监听挂载前完成图片加载，不能依赖 @load 才解除透明；底色在加载期间兜底。 -->
+  <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="{ background: grad }" :src="displaySrc" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="onImgError" />
   <!-- 首帧兜底：无封面图或封面加载失败时取视频第一帧（静音·不自动播·不显控件） -->
   <view v-else-if="hasVideoFrame" class="sc-full sc-video-frame">
     <!-- 首帧解码前先给用户完整的国学封面，不暴露原生 video 黑屏；解码成功后渐显真实第一帧。 -->

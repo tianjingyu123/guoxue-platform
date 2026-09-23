@@ -79,8 +79,8 @@ onShow(load)
         <view class="profile-avatar"><app-icon name="user" :size="56" color="#999999" /></view>
         <view class="profile-info">
           <text class="profile-name">我的圈子</text>
-          <text v-if="statsReady && circlesReady" class="profile-sub">加入 {{ stats.joinedCount }} 个圈子 · 创建 {{ createdCount }} 个</text>
-          <text v-else class="profile-sub">{{ loading ? '正在读取你的圈子…' : '圈子与内容统计暂未完整确认' }}</text>
+          <text v-if="circlesReady" class="profile-sub">加入 {{ myCircles.length }} 个圈子 · 创建 {{ createdCount }} 个</text>
+          <text v-else class="profile-sub">{{ loading ? '正在读取你的圈子…' : '圈子列表暂时无法读取' }}</text>
         </view>
       </view>
 
@@ -144,9 +144,9 @@ onShow(load)
       <view class="section">
         <view class="section-head"><text class="section-title">我的内容</text></view>
         <view class="content-grid">
-          <view class="content-cell" @tap="go('/pkg-circle/my-circles/index')">
+          <view class="content-cell content-stat" aria-label="我的发帖数量">
             <text class="content-num">{{ statsReady ? stats.postCount : '—' }}</text>
-            <text class="content-label">帖子</text>
+            <text class="content-label">发帖数</text>
           </view>
           <view class="content-cell" @tap="go('/pkg-circle/circles/my-questions')">
             <app-icon name="message-square" :size="40" color="#6E6E73" />
@@ -159,7 +159,7 @@ onShow(load)
         </view>
       </view>
 
-      <!-- 圈子事务（V0 六项·圈子内收藏无接口降级未放）：发布审核与草稿 / 我的悬赏 / 咨询订单 / 加入申请 / 退款 -->
+      <!-- 圈子事务：审核记录、悬赏、咨询、加入申请与售后；草稿尚无聚合入口 -->
       <view class="section">
         <view class="section-head"><text class="section-title">圈子事务</text></view>
         <view class="row-list">
@@ -170,7 +170,7 @@ onShow(load)
           </view>
           <view class="row" @tap="go('/pkg-circle/circles/my-audits')">
             <view class="row-icon"><app-icon name="file-text" :size="30" color="#6E6E73" /></view>
-            <text class="row-label">发布审核与草稿</text>
+            <text class="row-label">发布审核</text>
             <app-icon name="chevron-right" :size="30" color="#999999" />
           </view>
           <view class="row" @tap="go('/pkg-bounty/my/index')">
@@ -300,6 +300,7 @@ onShow(load)
   box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04);
 }
 .content-cell:active { transform: scale(0.98); }
+.content-cell.content-stat:active { transform: none; }
 .content-num { font-size: 38rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
 .content-label { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
 

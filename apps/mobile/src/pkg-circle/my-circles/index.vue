@@ -19,37 +19,41 @@
         </view>
         <view class="overview-stats">
           <view class="stat-item">
-            <text class="stat-num">{{ totalCircles }}</text>
+            <text class="stat-num">{{ loading || error ? '—' : totalCircles }}</text>
             <text class="stat-label">已加入</text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ stats.postCount }}</text>
+            <text class="stat-num">{{ !loading && statsReady ? stats.postCount : '—' }}</text>
             <text class="stat-label">发帖数</text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ formatK(stats.likeReceived) }}</text>
+            <text class="stat-num">{{ !loading && statsReady ? formatK(stats.likeReceived) : '—' }}</text>
             <text class="stat-label">获赞数</text>
           </view>
+        </view>
+        <view v-if="!loading && !statsReady" class="stats-notice" role="status">
+          <text>内容统计暂时无法读取</text>
+          <text class="stats-retry" @tap="load">重试</text>
         </view>
         <view class="overview-roles">
           <view class="role-stat">
             <view class="role-stat-top">
               <AppIcon name="crown" :size="16" color="#826329" />
-              <text class="role-stat-num">{{ roleCounts.owner }}</text>
+              <text class="role-stat-num">{{ loading || error ? '—' : roleCounts.owner }}</text>
             </view>
             <text class="role-stat-label">圈主</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
-              <AppIcon name="shield" :size="16" color="#2465AD" />
-              <text class="role-stat-num">{{ roleCounts.admin }}</text>
+              <AppIcon name="shield" :size="16" color="#2B6F68" />
+              <text class="role-stat-num">{{ loading || error ? '—' : roleCounts.admin }}</text>
             </view>
             <text class="role-stat-label">管理员</text>
           </view>
           <view class="role-stat">
             <view class="role-stat-top">
-              <AppIcon name="user" :size="16" color="#2B6F68" />
-              <text class="role-stat-num">{{ roleCounts.member }}</text>
+              <AppIcon name="user" :size="16" color="#6E6E73" />
+              <text class="role-stat-num">{{ loading || error ? '—' : roleCounts.member }}</text>
             </view>
             <text class="role-stat-label">成员</text>
           </view>
@@ -61,6 +65,7 @@
         <view class="search-box">
           <AppIcon name="search" :size="16" color="#999" />
           <input
+            :key="searchInputKey"
             v-model="searchQuery"
             class="search-input"
             placeholder="搜索圈子"
@@ -113,7 +118,8 @@
             <AppIcon name="users" :size="32" color="#999" />
           </view>
           <text class="empty-text">{{ myCircles.length === 0 ? '你还没有加入任何圈子' : '没有符合条件的圈子' }}</text>
-          <text class="empty-link" @tap="navigateTo('/circles')">去圈子广场逛逛</text>
+          <text v-if="myCircles.length" class="empty-link" @tap="clearFilters">清除筛选</text>
+          <text v-else class="empty-link" @tap="navigateTo('/circles')">去圈子广场逛逛</text>
         </view>
 
         <!-- 列表 -->
@@ -125,9 +131,7 @@
           @tap="navigateTo(`/circles/${circle.id}`)"
         >
           <view class="circle-cover-wrap">
-            <view class="circle-cover" :style="{ background: coverColor(circle.name) }">
-              <text class="circle-cover-text">{{ circle.name.slice(0, 1) }}</text>
-            </view>
+            <SmartCover class="circle-cover" :src="circle.cover" :title="circle.name" type="circle" deco :deco-size="40" />
           </view>
 
           <view class="circle-info">
@@ -195,36 +199,44 @@ import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, type MyCircle, type MyCircleRole } from '@/lib/circle-data'
 
 const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref(false)
+const statsReady = ref(false)
 const myCircles = ref<MyCircle[]>([])
 // 后端 /circles/my-stats 聚合：发帖数 / 累计获赞（已加入数与角色分布从列表实时派生）
 const stats = ref<{ postCount: number; likeReceived: number }>({ postCount: 0, likeReceived: 0 })
 
 const searchQuery = ref('')
+const searchInputKey = ref(0)
 const activeFilter = ref<'all' | MyCircleRole>('all')
 
 async function load() {
   loading.value = true
   error.value = false
-  try {
-    const [circles, s] = await Promise.all([
-      circleApi.getMyCircles(),
-      circleApi.getMyStats(),
-    ])
-    myCircles.value = circles
-    stats.value = { postCount: s.postCount, likeReceived: s.likeReceived }
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
-  }
+  statsReady.value = false
+  const [circles, s] = await Promise.allSettled([
+    circleApi.getMyCircles(),
+    circleApi.getMyStats(false, { throwOnError: true }),
+  ])
+  error.value = circles.status === 'rejected'
+  myCircles.value = circles.status === 'fulfilled' ? circles.value : []
+  statsReady.value = s.status === 'fulfilled'
+  if (s.status === 'fulfilled') stats.value = { postCount: s.value.postCount, likeReceived: s.value.likeReceived }
+  loading.value = false
 }
 onShow(load)
+
+function clearFilters() {
+  searchQuery.value = ''
+  activeFilter.value = 'all'
+  // uni-input 在 H5/小程序里可能保留原生输入框文本；重建输入框以同步视觉与筛选状态。
+  searchInputKey.value++
+}
 
 // 已加入总数（列表长度，权威口径）
 const totalCircles = computed(() => myCircles.value.length)
@@ -255,13 +267,6 @@ function formatK(n: number) {
   return n > 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
 }
 
-const coverPalette = ['#C41E3A', '#B8860B', '#2E7D5B', '#1F6FB2', '#8B5A2B', '#9A3B5C']
-function coverColor(name: string) {
-  let sum = 0
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
-  return coverPalette[sum % coverPalette.length]
-}
-
 function roleIcon(role: MyCircleRole) {
   return role === 'owner' ? 'crown' : role === 'admin' ? 'shield' : 'user'
 }
@@ -269,7 +274,7 @@ function roleLabel(role: MyCircleRole) {
   return role === 'owner' ? '圈主' : role === 'admin' ? '管理员' : '成员'
 }
 function roleColor(role: MyCircleRole) {
-  return role === 'owner' ? '#C9A96E' : role === 'admin' ? '#1890FF' : '#52C41A'
+  return role === 'owner' ? '#826329' : role === 'admin' ? '#2B6F68' : '#6E6E73'
 }
 </script>
 
@@ -307,6 +312,9 @@ function roleColor(role: MyCircleRole) {
   color: #2c2c2c;
 }
 .nav-more {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
   font-size: 26rpx;
   color: var(--brand);
 }
@@ -360,6 +368,16 @@ function roleColor(role: MyCircleRole) {
   color: var(--circle-secondary);
   margin-top: 4rpx;
 }
+.stats-notice {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 20rpx;
+  font-size: 23rpx;
+  color: var(--circle-secondary);
+}
+.stats-retry { color: var(--brand); min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .overview-roles {
   display: flex;
   margin-top: 32rpx;
@@ -394,7 +412,7 @@ function roleColor(role: MyCircleRole) {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  height: 72rpx;
+  height: 88rpx;
   padding: 0 28rpx;
   background: #fff;
   border: 2rpx solid #e8e3db;
@@ -472,14 +490,7 @@ function roleColor(role: MyCircleRole) {
   width: 112rpx;
   height: 112rpx;
   border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.circle-cover-text {
-  font-size: 48rpx;
-  font-weight: 600;
-  color: #fff;
+  overflow: hidden;
 }
 .unread-badge {
   position: absolute;
@@ -528,10 +539,10 @@ function roleColor(role: MyCircleRole) {
   background: rgba(201, 169, 110, 0.1);
 }
 .role-tag.admin {
-  background: rgba(24, 144, 255, 0.1);
+  background: rgba(43, 111, 104, 0.1);
 }
 .role-tag.member {
-  background: rgba(82, 196, 26, 0.1);
+  background: rgba(110, 110, 115, 0.1);
 }
 .role-tag-text {
   font-size: 20rpx;
@@ -548,7 +559,7 @@ function roleColor(role: MyCircleRole) {
 }
 .meta-text {
   font-size: 24rpx;
-  color: #999;
+  color: var(--circle-secondary);
 }
 .meta-text.hot {
   color: #ff6b35;
@@ -670,6 +681,9 @@ function roleColor(role: MyCircleRole) {
 .empty-link {
   font-size: 26rpx;
   color: var(--brand);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 .quick-entry {
   display: flex;
