@@ -82,7 +82,10 @@ export function evaluateXiaozhiAlerts(c: Record<string, number>, firmwareFailedL
   return out;
 }
 
-/** 每分钟重查上一个完整窗口；发送失败可在窗口切换前补发。 */
+type XiaozhiAlert = ReturnType<typeof evaluateXiaozhiAlerts>[number];
+const ALERT_KEYS = ["xz:auth_fail", "xz:identity", "xz:throttled", "xz:voice", "xz:rejected", "xz:firmware"];
+
+/** 每分钟重查上一个完整窗口，并补发最近一小时内未确认送达的告警。 */
 @Injectable()
 export class XiaozhiAlertTask {
   private readonly logger = new Logger(XiaozhiAlertTask.name);
@@ -95,37 +98,60 @@ export class XiaozhiAlertTask {
 
   @Cron("30 * * * * *")
   async run(now = Date.now()) {
+    const bucket = Math.floor(now / 300_000) - 1;
+    const delivered: XiaozhiAlert[] = [];
+    // 先补历史失败项；本轮计数或数据库读取失败，也不阻断已有待发告警。
+    for (let old = bucket - 1; old >= bucket - 11; old--) {
+      try {
+        const pending: XiaozhiAlert[] = [];
+        for (const key of ALERT_KEYS) {
+          const raw = await this.redis.get(`xz:alert:pending:${old}:${key}`);
+          if (raw) pending.push(JSON.parse(raw) as XiaozhiAlert);
+        }
+        if (pending.length) delivered.push(...await this.deliver(old, pending));
+      } catch (e: any) {
+        this.logger.warn(`小卜硬件历史告警补发失败：${old}：${e?.message || e}`);
+      }
+    }
     try {
-      const bucket = Math.floor(now / 300_000) - 1;
       const counts = await this.link.windowCounts(bucket);
       const failed = this.prisma
         ? await this.prisma.voiceFirmwareDeviceState.count({ where: { status: "failed", resolvedAt: { gte: new Date(now - 3600_000) } } })
         : 0;
       const alerts = evaluateXiaozhiAlerts(counts, failed);
-      const lockKey = `xz:alert:lock:${bucket}`;
-      const lockId = `${process.pid}:${Date.now()}:${Math.random()}`;
-      if (!(await this.redis.setNX(lockKey, lockId, 120))) return [];
-      const delivered: typeof alerts = [];
-      try {
-        for (const a of alerts) {
-          const doneKey = `xz:alert:done:${bucket}:${a.key}`;
-          if (await this.redis.get(doneKey)) continue;
-          try {
-            await sendAlertConfirmed(a.title, a.detail);
-            await this.redis.set(doneKey, "1", 3600);
-            this.logger.warn(`${a.title}：${a.detail}`);
-            delivered.push(a);
-          } catch (e: any) {
-            this.logger.warn(`小卜硬件告警发送失败，稍后重试：${a.key}：${e?.message || e}`);
-          }
-        }
-      } finally {
-        if (await this.redis.get(lockKey) === lockId) await this.redis.del(lockKey);
-      }
+      delivered.push(...await this.deliver(bucket, alerts));
       return delivered;
     } catch (e: any) {
       this.logger.warn(`小卜硬件告警检查失败：${e?.message || e}`);
-      return [];
+      return delivered;
     }
+  }
+
+  private async deliver(bucket: number, alerts: XiaozhiAlert[]): Promise<XiaozhiAlert[]> {
+    const lockKey = `xz:alert:lock:${bucket}`;
+    const lockId = `${process.pid}:${Date.now()}:${Math.random()}`;
+    if (!(await this.redis.setNX(lockKey, lockId, 120))) return [];
+    const delivered: XiaozhiAlert[] = [];
+    try {
+      for (const a of alerts) {
+        const doneKey = `xz:alert:done:${bucket}:${a.key}`;
+        const pendingKey = `xz:alert:pending:${bucket}:${a.key}`;
+        if (await this.redis.get(doneKey)) continue;
+        try {
+          // 发送前持久化待发项，进程中断后仍可补发。
+          await this.redis.set(pendingKey, JSON.stringify(a), 3600);
+          await sendAlertConfirmed(a.title, a.detail);
+          await this.redis.set(doneKey, "1", 7200);
+          await this.redis.del(pendingKey);
+          this.logger.warn(`${a.title}：${a.detail}`);
+          delivered.push(a);
+        } catch (e: any) {
+          this.logger.warn(`小卜硬件告警发送失败，稍后重试：${a.key}：${e?.message || e}`);
+        }
+      }
+    } finally {
+      if (await this.redis.get(lockKey) === lockId) await this.redis.del(lockKey);
+    }
+    return delivered;
   }
 }

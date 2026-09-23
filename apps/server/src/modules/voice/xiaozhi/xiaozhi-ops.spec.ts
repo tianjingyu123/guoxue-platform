@@ -125,4 +125,30 @@ describe("小智协议终端 · 告警任务", () => {
     expect((await task.run(now + 60_000)).map((a) => a.key)).toEqual(["xz:identity"]);
     expect(sent).toEqual(["小卜硬件：连接鉴权失败激增", "小卜硬件：设备身份不符激增"]);
   });
+
+  it("跨五分钟窗口补发；本轮计数读取失败也能发送历史待发项", async () => {
+    sent.length = 0;
+    const redis = new RedisService();
+    const now = Date.UTC(2026, 8, 22, 8, 20, 30);
+    const firstBucket = Math.floor(now / 300_000) - 1;
+    let failDelivery = true;
+    let failRead = false;
+    setAlertHandler(async (title) => {
+      if (failDelivery) throw new Error("temporary outage");
+      sent.push(title);
+    });
+    const link: any = { windowCounts: async (bucket: number) => {
+      if (failRead) throw new Error("read unavailable");
+      return bucket === firstBucket ? { auth_fail: 30 } : {};
+    } };
+    const task = new XiaozhiAlertTask(link, redis);
+    expect(await task.run(now)).toEqual([]);
+    expect(await redis.get(`xz:alert:pending:${firstBucket}:xz:auth_fail`)).not.toBeNull();
+    failDelivery = false;
+    failRead = true;
+    expect((await task.run(now + 5 * 60_000)).map((a) => a.key)).toEqual(["xz:auth_fail"]);
+    failRead = false;
+    expect(await task.run(now + 6 * 60_000)).toEqual([]);
+    expect(sent).toEqual(["小卜硬件：连接鉴权失败激增"]);
+  });
 });
