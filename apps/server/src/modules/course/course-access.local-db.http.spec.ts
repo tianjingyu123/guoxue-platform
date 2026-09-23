@@ -8,6 +8,7 @@ import * as jwt from "jsonwebtoken";
 import { CourseController } from "./course.controller";
 import { CourseService } from "./course.service";
 import { CoursePurchaseService } from "./course-purchase.service";
+import { CourseLearningService } from "./course-learning.service";
 import { SystemService } from "../system/system.service";
 import { LiveService } from "../live/live.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -36,6 +37,7 @@ const isIsolatedLocalDb = (() => {
   const buyerId = `synthetic-access-buyer-${randomUUID()}`;
   const otherId = `synthetic-access-other-${randomUUID()}`;
   const courseId = `synthetic-access-course-${randomUUID()}`;
+  const chapterId = `synthetic-access-chapter-${randomUUID()}`;
   const oldOrderId = `synthetic-access-old-${randomUUID()}`;
   const newOrderId = `synthetic-access-new-${randomUUID()}`;
 
@@ -52,6 +54,7 @@ const isIsolatedLocalDb = (() => {
       id: courseId, userId: authorId, title: "合成续购课程", price: 15,
       validityDays: 5, auditStatus: "APPROVED", visibility: "PLATFORM",
     } });
+    await prisma.courseChapter.create({ data: { id: chapterId, courseId, title: "合成课程章节" } });
     await prisma.order.createMany({ data: [
       { id: oldOrderId, userId: buyerId, type: "COURSE", targetId: courseId, amount: 15,
         status: "PAID", paidAt: new Date(Date.now() - 10 * 86400000) },
@@ -59,6 +62,7 @@ const isIsolatedLocalDb = (() => {
         status: "PAID", paidAt: new Date(Date.now() - 86400000) },
     ] });
     const purchase = new CoursePurchaseService(prisma as any, {} as any, {} as any, {} as any);
+    const learning = new CourseLearningService(prisma as any, purchase);
     const module = await Test.createTestingModule({
       imports: [PassportModule.register({ defaultStrategy: "jwt" })],
       controllers: [CourseController],
@@ -69,6 +73,9 @@ const isIsolatedLocalDb = (() => {
         { provide: CourseService, useValue: {
           checkAccess: (userId: string, id: string) => purchase.checkAccess(userId, id),
           getUserValidCourses: (userId: string) => purchase.getUserValidCourses(userId),
+          updateProgress: (userId: string, id: string, dto: { progress: number }) => learning.updateProgress(userId, id, dto),
+          getMyProgress: (userId: string, id: string) => learning.getMyProgress(userId, id),
+          completeCourse: (userId: string, id: string) => learning.completeCourse(userId, id),
         } },
         { provide: SystemService, useValue: {} },
         { provide: LiveService, useValue: {} },
@@ -127,5 +134,27 @@ const isIsolatedLocalDb = (() => {
     } finally {
       await prisma.order.delete({ where: { id: anotherId } });
     }
+  });
+
+  it("学习进度仅允许当前有权限的本人写入，退款后拒绝继续写入", async () => {
+    const url = `/api/v1/courses/chapters/${chapterId}/progress`;
+    const buyerToken = jwt.sign({ sub: buyerId }, secret, { expiresIn: "5m" });
+    const otherToken = jwt.sign({ sub: otherId }, secret, { expiresIn: "5m" });
+    await request(app.getHttpServer()).put(url).send({ progress: 25 }).expect(401);
+    await request(app.getHttpServer()).put(url).set("Authorization", `Bearer ${otherToken}`)
+      .send({ progress: 25 }).expect(403);
+    expect(await prisma.courseProgress.count({ where: { courseId } })).toBe(0);
+    await request(app.getHttpServer()).put(url).set("Authorization", `Bearer ${buyerToken}`)
+      .send({ progress: 25 }).expect(200);
+    expect(await prisma.courseProgress.count({ where: { courseId, userId: buyerId } })).toBe(1);
+    await request(app.getHttpServer()).post(`/api/v1/courses/${courseId}/complete`)
+      .set("Authorization", `Bearer ${buyerToken}`).expect(400);
+    await prisma.order.update({ where: { id: newOrderId }, data: { status: "REFUNDED" } });
+    await request(app.getHttpServer()).put(url).set("Authorization", `Bearer ${buyerToken}`)
+      .send({ progress: 50 }).expect(403);
+    await request(app.getHttpServer()).post(`/api/v1/courses/${courseId}/complete`)
+      .set("Authorization", `Bearer ${buyerToken}`).expect(403);
+    const row = await prisma.courseProgress.findUniqueOrThrow({ where: { userId_chapterId: { userId: buyerId, chapterId } } });
+    expect(row.progress).toBe(25);
   });
 });
