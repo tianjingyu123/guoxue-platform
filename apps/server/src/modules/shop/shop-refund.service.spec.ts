@@ -113,6 +113,23 @@ describe("ShopRefundService", () => {
   })
 
   describe("refundOrder", () => {
+    it("退款落库后同时清除详情与本人列表缓存，缓存失败不改写退款结果", async () => {
+      const order = { id: "o-cache", userId: "u-cache", type: "COURSE", targetId: "c-cache", status: "PAID", amount: 99 };
+      mockPrisma.order.findUnique.mockResolvedValue(order);
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
+      mockRedis.delByPattern.mockRejectedValueOnce(new Error("synthetic redis unavailable"));
+      await expect((svc as any).applyRefundedBookkeeping(order.id, 99, "退款")).resolves.toBe(true);
+      expect(mockRedis.del).toHaveBeenCalledWith("shop:order:o-cache");
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith("shop:userOrders:u-cache:*");
+      expect(mockWebhook.fire).toHaveBeenCalledWith("ORDER_REFUNDED", expect.objectContaining({ orderId: order.id }));
+    });
+
+    it("重复退款确认仍尝试修复此前未清理的订单列表缓存", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-done-cache", userId: "u-cache", status: "REFUNDED" });
+      await expect((svc as any).applyRefundedBookkeeping("o-done-cache", 99, "退款")).resolves.toBe(true);
+      expect(mockRedis.delByPattern).toHaveBeenCalledWith("shop:userOrders:u-cache:*");
+    });
+
     it("已支付订单按实付金额而非标价退款", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", status: "PAID", amount: "99", payAmount: "88", payMethod: "WECHAT", payTransactionId: "txn1" })
       mockPrisma.order.update.mockResolvedValue({ id: "o1", status: "REFUNDED" })

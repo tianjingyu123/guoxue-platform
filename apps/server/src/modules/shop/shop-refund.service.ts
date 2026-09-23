@@ -156,6 +156,7 @@ export class ShopRefundService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) return false;
     if (order.status === "REFUNDED") {
+      await this.invalidateRefundedOrderCache(order.id, order.userId);
       await this.webhook.fire("ORDER_REFUNDED", {
         orderId,
         amount,
@@ -218,13 +219,24 @@ export class ShopRefundService {
       const current = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
       return current?.status === "REFUNDED";
     }
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.invalidateRefundedOrderCache(orderId, order.userId);
     await this.webhook.fire("ORDER_REFUNDED", {
       orderId,
       amount,
       reason: reason || "用户申请退款",
     });
     return true;
+  }
+
+  /** 资金事务已提交后清理展示缓存；缓存故障不能改写退款结果。 */
+  private async invalidateRefundedOrderCache(orderId: string, userId: string): Promise<void> {
+    const results = await Promise.allSettled([
+      this.redis.del(`${CACHE_PREFIX}order:${orderId}`),
+      this.redis.delByPattern(`${CACHE_PREFIX}userOrders:${userId}:*`),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected") this.logger.warn(`退款订单缓存清理失败 order=${orderId}`, result.reason);
+    }
   }
 
   /** 会员退款后从仍有效的购买记录重建状态，避免简单清空误伤其他续费。 */
