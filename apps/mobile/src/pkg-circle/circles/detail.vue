@@ -186,13 +186,16 @@ async function loadMoreEssence() {
 const qaExperts = ref<ConsultExpert[]>([])
 const qaLoading = ref(false)
 const qaLoaded = ref(false)
+const qaError = ref(false)
 async function loadQaExperts() {
   if (qaLoaded.value || qaLoading.value) return
   qaLoading.value = true
+  qaError.value = false
   try {
-    qaExperts.value = await consultApi.listExperts(circleId.value)
-  } catch { qaExperts.value = [] }
-  finally { qaLoading.value = false; qaLoaded.value = true }
+    qaExperts.value = await consultApi.listExperts(circleId.value, { throwOnError: true })
+    qaLoaded.value = true
+  } catch { qaError.value = true }
+  finally { qaLoading.value = false }
 }
 function onTabTap(id: typeof activeTab.value) {
   activeTab.value = id
@@ -798,6 +801,13 @@ function openResource(id: string) {
           <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
         </view>
         <view v-if="qaLoading" class="empty"><AppLoading /></view>
+        <view v-else-if="qaError" class="empty" role="status">
+          <text class="empty-txt">问答服务暂时无法加载，已开通的达人信息尚未确认。</text>
+          <view class="empty-action" role="button" tabindex="0" aria-label="重试加载问答达人"
+            @tap="loadQaExperts" @keydown="activateOnKeyboard($event, loadQaExperts)">
+            <text class="empty-action-txt">重试加载</text>
+          </view>
+        </view>
         <template v-else-if="qaExperts.length">
           <view v-for="e in qaExperts" :key="e.id" class="qa-card">
             <smart-avatar :src="e.avatar" :name="e.name || ''" class="qa-avatar" />

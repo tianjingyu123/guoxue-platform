@@ -1,65 +1,60 @@
 <script setup lang="ts">
 /**
- * 通话预约（连麦咨询）— V0 circle-consult-call-book.html 还原（2026-07-10 批④）
- * V0 稿即 App/H5 对照：App 端预约流程 + H5/小程序降级引导，按端条件编译分流。
- * 数据：consultApi.listExperts(circleId) 反查达人核实单价（入口参数仅兜底展示，价格以后端为准）。
+ * 连麦咨询说明页 — 当前尚无预约时段或可用的实时通话界面。
+ * 数据：consultApi.listExperts(circleId) 反查达人和当前单价；链接参数不作为报价依据。
  * 降级（后端为准·记台账）：
  *  - 后端无预约模型（ConsultCall.initiate 为即时通话·无时段/预约时长字段）→ V0「选择时段/预计时长/
  *    预扣金额=时长×单价」不做，费用区改为真实计费规则说明（预扣按后端 initiate 返回为准）。
- *  - App 端 TRTC 通话组件尚未集成（后端 initiate 已就绪但无通话界面）→ 发起按钮暂不接真实预扣，
- *    防「扣金币无界面」资金事故；提示待通话组件联调后开放。
+ *  - App 端 TRTC 通话组件尚未集成（后端 initiate 已就绪但无通话界面）→ 不呈现发起按钮，
+ *    防「扣金币无界面」资金事故；如实告知各端暂未开放。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, redirectTo } from '@/utils/router'
 import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
 
 const circleId = ref('')
 const expertId = ref('')
 const fallbackName = ref('')
 const fallbackAvatar = ref('')
-const fallbackPrice = ref(0)
 
 const loading = ref(true)
 const error = ref('')
 const expert = ref<ConsultExpert | null>(null)
-const callType = ref<'VOICE' | 'VIDEO'>('VOICE')
 
 const name = computed(() => expert.value?.name || fallbackName.value || '达人')
 const avatar = computed(() => expert.value?.avatar || fallbackAvatar.value)
-const price = computed(() => expert.value?.callPrice || fallbackPrice.value)
+const price = computed(() => expert.value?.callPrice || 0)
 
 async function load() {
   if (!circleId.value || !expertId.value) { error.value = '缺少达人参数，请从达人列表进入'; loading.value = false; return }
   loading.value = true
   error.value = ''
   try {
-    const list = await consultApi.listExperts(circleId.value)
+    const list = await consultApi.listExperts(circleId.value, { throwOnError: true })
     expert.value = list.find(e => e.id === expertId.value) || null
-    if (!expert.value && !fallbackPrice.value) error.value = '该达人暂未开通连麦咨询'
+    if (!expert.value?.callPrice) error.value = '该达人暂未开通连麦咨询'
   } catch {
-    // 反查失败但入口带了价格 → 用兜底展示；否则报错
-    if (!fallbackPrice.value) error.value = '加载失败'
+    error.value = '暂时无法核实连麦服务与价格，请重试'
   } finally {
     loading.value = false
   }
 }
 
-/** App 端发起：TRTC 通话组件未集成，暂不接真实预扣（后端 initiate 已就绪） */
-function onInitiate() {
-  uni.showToast({ title: '实时通话组件正在真机联调，暂未开放', icon: 'none' })
-}
-
 function goMyCalls() { navigateTo('/pkg-circle/circles/my-calls') }
-function goExperts() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
+function goExperts() {
+  const pages = getCurrentPages()
+  const previous = pages[pages.length - 2]?.route || ''
+  if (previous.includes('pkg-circle/circles/consult-experts')) goBack()
+  else redirectTo(`/pkg-circle/circles/consult-experts?circleId=${encodeURIComponent(circleId.value)}`)
+}
 
 onLoad((opt) => {
   circleId.value = (opt?.circleId || opt?.id || '') as string
   expertId.value = (opt?.expertId || '') as string
   fallbackName.value = decodeURIComponent((opt?.name || '') as string)
   fallbackAvatar.value = decodeURIComponent((opt?.avatar || '') as string)
-  fallbackPrice.value = Number(opt?.price) || 0
   load()
 })
 </script>
@@ -68,7 +63,7 @@ onLoad((opt) => {
   <view class="bk-page">
     <view class="bk-topbar">
       <view class="bk-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <text class="bk-title">预约连麦</text>
+      <text class="bk-title">连麦咨询</text>
     </view>
 
     <!-- 三态 -->
@@ -92,21 +87,6 @@ onLoad((opt) => {
           </view>
         </view>
 
-        <!-- App 端：通话方式 + 计费规则 + 发起 -->
-        <!-- #ifdef APP-PLUS -->
-        <text class="bk-field-label">通话方式</text>
-        <view class="bk-types">
-          <view class="bk-type" :class="{ 'is-active': callType === 'VOICE' }" @tap="callType = 'VOICE'">
-            <app-icon name="phone" :size="30" :color="callType === 'VOICE' ? '#C41E3A' : '#6E6E73'" />
-            <text class="bk-type-t" :class="{ 'is-active': callType === 'VOICE' }">语音通话</text>
-          </view>
-          <view class="bk-type" :class="{ 'is-active': callType === 'VIDEO' }" @tap="callType = 'VIDEO'">
-            <app-icon name="video" :size="30" :color="callType === 'VIDEO' ? '#C41E3A' : '#6E6E73'" />
-            <text class="bk-type-t" :class="{ 'is-active': callType === 'VIDEO' }">视频通话</text>
-          </view>
-        </view>
-        <!-- #endif -->
-
         <!-- 计费规则（后端真实规则：预扣→按实结算多退少不补→不足1分钟按1分钟→未接通全额退） -->
         <view class="bk-fee">
           <view class="bk-fee-row"><text class="bk-fee-l">计费单价</text><text class="bk-fee-v">{{ price }} 金币/分钟</text></view>
@@ -115,8 +95,8 @@ onLoad((opt) => {
         </view>
 
         <!-- #ifdef APP-PLUS -->
-        <view class="bk-book-btn" @tap="onInitiate"><text class="bk-book-btn-t">发起{{ callType === 'VIDEO' ? '视频' : '语音' }}通话</text></view>
-        <text class="bk-book-note">实时通话组件正在真机联调，开放后此处将直接预扣并进入通话。</text>
+        <view class="bk-unavailable" role="status">实时语音／视频正在联调，暂时不能发起，也不会扣除金币。</view>
+        <view class="bk-book-btn bk-book-btn--secondary" @tap="goExperts"><text class="bk-book-btn-t">返回达人列表</text></view>
         <!-- #endif -->
       </view>
 
@@ -124,8 +104,8 @@ onLoad((opt) => {
       <!-- #ifndef APP-PLUS -->
       <view class="bk-downgrade">
         <view class="bk-down-icon"><app-icon name="smartphone" :size="56" color="#6E6E73" /></view>
-        <text class="bk-down-title">连麦咨询请在 App 中使用</text>
-        <text class="bk-down-desc">实时语音/视频通话依赖 App 专属能力，网页端暂不支持。你的通话记录在网页端仍可随时查看。</text>
+        <text class="bk-down-title">连麦服务准备中</text>
+        <text class="bk-down-desc">实时语音／视频尚在联调，目前各端均不能发起。已有通话记录仍可查看。</text>
         <view class="bk-down-btn" @tap="goMyCalls"><text class="bk-down-btn-t">查看我的通话记录</text></view>
         <text class="bk-down-alt" @tap="goExperts">先看看达人的图文咨询</text>
       </view>
@@ -169,17 +149,6 @@ onLoad((opt) => {
 .bk-expert-price { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
 .bk-price-b { color: var(--gold, #c9a96e); font-weight: 700; font-size: 28rpx; }
 
-.bk-field-label { display: block; font-size: 26rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin: 32rpx 0 20rpx; }
-.bk-types { display: flex; gap: 16rpx; }
-.bk-type {
-  flex: 1; padding: 20rpx 0; border-radius: 16rpx; text-align: center;
-  border: 1rpx solid var(--separator, #ede7dd); background: var(--bg-card, #fff);
-  display: flex; align-items: center; justify-content: center; gap: 10rpx;
-}
-.bk-type.is-active { border-color: var(--brand, #c41e3a); background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
-.bk-type-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
-.bk-type-t.is-active { color: var(--brand, #c41e3a); font-weight: 600; }
-
 /* 计费规则 */
 .bk-fee { margin-top: 32rpx; padding: 26rpx 28rpx; background: var(--bg-warm, #f8f4ec); border-radius: 28rpx; }
 .bk-fee-row { display: flex; justify-content: space-between; font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
@@ -194,7 +163,14 @@ onLoad((opt) => {
 }
 .bk-book-btn:active { opacity: 0.88; }
 .bk-book-btn-t { font-size: 30rpx; font-weight: 600; letter-spacing: 2rpx; color: #fff; }
-.bk-book-note { display: block; font-size: 20rpx; color: var(--text-tertiary, #999); text-align: center; margin-top: 16rpx; line-height: 1.6; }
+.bk-book-btn--secondary { background: var(--bg-warm, #f8f4ec); }
+.bk-book-btn--secondary .bk-book-btn-t { color: var(--text-primary, #2c2c2c); }
+.bk-unavailable {
+  margin-top: 28rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary, #6e6e73);
+  line-height: 1.6;
+}
 
 /* H5 降级引导卡 */
 .bk-downgrade {

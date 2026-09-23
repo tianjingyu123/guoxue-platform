@@ -71,7 +71,7 @@ export const consultApi = {
   },
 
   /** 圈子达人列表 — GET /circles/:id/experts */
-  listExperts: async (circleId: string): Promise<ConsultExpert[]> => {
+  listExperts: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<ConsultExpert[]> => {
     try {
       const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/${circleId}/experts`)
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
@@ -85,7 +85,8 @@ export const consultApi = {
         callPrice: Number(m.callPricePerMinuteCoin) || 0,
         responseHours: Number(m.questionTimeoutHours) || 0,
       }))
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return []
     }
   },
@@ -95,7 +96,7 @@ export const consultApi = {
    * 发现页的「达人咨询」不带 circleId，此前跳达人列表页时 circleId 为空 → 恒空列表、
    * 提问按钮点不动。跨圈模式下每个达人带自己的 circleId，下单用它。
    */
-  listAllExperts: async (limit = 50): Promise<ConsultExpert[]> => {
+  listAllExperts: async (limit = 50, options: { throwOnError?: boolean } = {}): Promise<ConsultExpert[]> => {
     try {
       const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/experts/discover?limit=${limit}`)
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
@@ -111,7 +112,8 @@ export const consultApi = {
         circleId: m.circleId || m.circle?.id || '',
         circleName: m.circle?.name || '',
       }))
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return []
     }
   },

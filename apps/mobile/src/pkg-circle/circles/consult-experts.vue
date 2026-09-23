@@ -7,7 +7,7 @@
  *   GET /consult-calls/expert-stats（rating≥4 占比）；无评价/未登录/失败不渲染该行（不编数）。
  * 降级（后端缺字段·不造假）：认证徽章/头衔简介/已答数/平均回复时长仍无字段→不渲染，
  *   另展示真实 responseHours（提问响应时限）。
- * 通话：TRTC 仅 App 端，H5/小程序按 V0 做「去 App 预约」弱化按钮 → 通话预约页(booking)。
+ * 通话：实时组件尚未接通，达人卡仅进入连麦说明页；各端不提供预约或预扣入口。
  */
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -45,8 +45,8 @@ async function load() {
   error.value = ''
   try {
     experts.value = isDiscoverMode.value
-      ? await consultApi.listAllExperts()
-      : await consultApi.listExperts(circleId.value)
+      ? await consultApi.listAllExperts(50, { throwOnError: true })
+      : await consultApi.listExperts(circleId.value, { throwOnError: true })
     // 好评率是补充信息，失败不能把已加载的达人列表变成整页错误。
     if (experts.value.length) {
       try {
@@ -73,11 +73,11 @@ function goAsk(e: ConsultExpert) {
   if (!cid || !e.questionPrice) return
   navigateTo(`/pkg-circle/circles/consult-ask?circleId=${cid}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
 }
-/** 连麦咨询：通话预约页（App/H5 对照·预约页内分端降级） */
+/** 连麦咨询说明页；当前尚无预约时段与实时通话能力。 */
 function goBook(e: ConsultExpert) {
   const cid = circleOf(e)
   if (!cid || !e.callPrice) return
-  navigateTo(`/pkg-circle/circles/booking?circleId=${cid}&expertId=${e.id}&name=${encodeURIComponent(e.name)}&avatar=${encodeURIComponent(e.avatar || '')}&price=${e.callPrice}`)
+  navigateTo(`/pkg-circle/circles/booking?circleId=${cid}&expertId=${e.id}&name=${encodeURIComponent(e.name)}&avatar=${encodeURIComponent(e.avatar || '')}`)
 }
 function goMyOrders() {
   navigateTo(`/pkg-circle/circles/consult-orders?circleId=${circleId.value}`)
@@ -160,7 +160,7 @@ onMounted(load)
               <text class="ce-price-num">{{ e.callPrice }}</text>
               <text class="ce-price-unit"> 金币/分钟</text>
             </view>
-            <view class="ce-btn ce-btn-degrade" @tap="goBook(e)"><text class="ce-btn-degrade-t">去预约</text></view>
+            <view class="ce-btn ce-btn-degrade" @tap="goBook(e)"><text class="ce-btn-degrade-t">了解连麦</text></view>
           </view>
         </view>
       </view>

@@ -26,6 +26,8 @@ import { circleGovernanceApi, type CircleRuleItem } from '@/lib/circle-governanc
 const circleId = ref('')
 const circle = ref<CircleDetail | null>(null)
 const previewPosts = ref<CirclePost[]>([])
+const previewFailed = ref(false)
+const previewLoading = ref(false)
 const isLoading = ref(true)
 const error = ref('')
 const isJoined = ref(false)
@@ -119,16 +121,13 @@ async function loadData() {
   isLoading.value = true
   error.value = ''
   try {
-    const [c, p] = await Promise.all([
-      circleDetailApi.detail(circleId.value),
-      circleDetailApi.posts(circleId.value),
-    ])
+    const c = await circleDetailApi.detail(circleId.value)
     circle.value = c
     isJoined.value = c.isJoined
-    // 抢先看：精华优先，不足补最新帖，最多 2 条（真数据）
-    const essence = p.data.filter((x) => x.isEssence)
-    previewPosts.value = [...essence, ...p.data.filter((x) => !x.isEssence)].slice(0, 2)
-    await checkMembership()
+    // 帖子抢先看是次要内容，失败不能吞成「圈内没有帖子」，更不能拖垮介绍与入圈入口。
+    // 圈子主体先展示；慢帖流不再拖住入圈页。成员资格仍单独核实，核实期间主按钮禁用。
+    void loadPreviewPosts()
+    void checkMembership()
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -193,6 +192,22 @@ async function onPurchased() {
   paidAwaitingAccess.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
   await checkMembership()
+}
+
+async function loadPreviewPosts() {
+  if (previewLoading.value) return
+  previewLoading.value = true
+  previewFailed.value = false
+  try {
+    const p = await circleDetailApi.posts(circleId.value, { throwOnError: true })
+    const essence = p.data.filter((x) => x.isEssence)
+    previewPosts.value = [...essence, ...p.data.filter((x) => !x.isEssence)].slice(0, 2)
+  } catch {
+    previewPosts.value = []
+    previewFailed.value = true
+  } finally {
+    previewLoading.value = false
+  }
 }
 
 async function openRulesAck() {
@@ -311,7 +326,8 @@ onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
     </view>
 
     <!-- 内容预览：勾兴趣但不可深入 -->
-    <template v-if="previewPosts.length">
+    <view v-if="previewLoading" class="jp-preview-unavailable" role="status">正在读取圈内内容…</view>
+    <template v-else-if="previewPosts.length">
       <text class="jp-label">圈内内容抢先看</text>
       <view v-for="p in previewPosts" :key="p.id" class="jp-preview-card">
         <view class="jp-preview-meta">
@@ -325,6 +341,10 @@ onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
         <text class="jp-preview-lock-t">加入后解锁全部 {{ fmt(circle.posts) }} 条内容</text>
       </view>
     </template>
+    <view v-else-if="previewFailed" class="jp-preview-unavailable" role="status">
+      <text>圈内内容暂时无法预览，仍可了解圈子与加入方式。</text>
+      <view class="jp-preview-retry" role="button" tabindex="0" aria-label="重试加载圈内内容" @tap="loadPreviewPosts" @keydown.enter="loadPreviewPosts">重试预览</view>
+    </view>
 
     <!-- 邀请码兑换口（C1 链路：好友有码却无处输）：点击展开输入行，join 时随请求携带 -->
     <view v-if="!isJoined && joinMode !== 'paid'" class="jp-invite">
@@ -533,6 +553,22 @@ onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
   border-radius: 28rpx; background: var(--bg-warm, #f8f4ec);
 }
 .jp-preview-lock-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.jp-preview-unavailable {
+  margin: 28rpx 32rpx 0;
+  padding: 28rpx 32rpx;
+  border-radius: 28rpx;
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #6e6e73);
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.jp-preview-retry {
+  display: inline-flex;
+  align-items: center;
+  min-height: 88rpx;
+  color: var(--brand, #b91c36);
+  font-weight: 600;
+}
 
 /* 邀请码兑换口 */
 .jp-invite { margin: 28rpx 32rpx 0; }
