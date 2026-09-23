@@ -411,8 +411,8 @@ export class CourseService {
     return this.purchaseSvc.getUserValidCourses(userId);
   }
 
-  getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
-    return this.purchaseSvc.getMyCourses(userId, rawPage, rawPageSize);
+  getMyCourses(userId: string, rawPage = 1, rawPageSize = 20, targetId?: string) {
+    return this.purchaseSvc.getMyCourses(userId, rawPage, rawPageSize, targetId);
   }
 
   // ═══════════════════ 课程评价（委托 CourseReviewQaService） ═══════════════════

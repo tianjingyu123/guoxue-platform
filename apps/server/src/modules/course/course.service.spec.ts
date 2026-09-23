@@ -566,6 +566,19 @@ describe("CourseService", () => {
       expect(result.total).toBe(1);
       expect(result.courses[0].course?.title).toBe("论语精讲");
     });
+
+    it("按当前用户与课程 ID 核对已支付订阅，不混入其他课程", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.order.count.mockResolvedValue(0);
+      const result = await svc.getMyCourses("u1", 1, 1, "free-course");
+      expect(result.total).toBe(0);
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "u1", targetId: "free-course", type: "COURSE",
+          status: { in: ["PAID", "COMPLETED"] },
+        }),
+      }));
+    });
   });
 
   // ═══════════════════ 评价 ═══════════════════

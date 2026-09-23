@@ -57,6 +57,16 @@ const accessChecking = ref(true)
 const accessUnknown = ref(false)
 let accessRequestSeq = 0
 let paymentConfirmedHere = false
+const enrolled = ref(false)
+const enrollmentChecking = ref(false)
+const enrollmentUnknown = ref(false)
+let enrollmentRequestSeq = 0
+function markEnrolled() {
+  enrollmentRequestSeq++
+  enrollmentChecking.value = false
+  enrollmentUnknown.value = false
+  enrolled.value = true
+}
 const showPurchase = ref(false)
 const showShare = ref(false)
 const isLiked = ref(false)
@@ -130,7 +140,11 @@ async function onPurchase() {
     uni.showToast({ title: '请先确认课程权益状态', icon: 'none' })
     return
   }
-  if (hasAccess.value) { onContinueLearning(); return }
+  if (hasAccess.value && (!course.value?.isFree || enrolled.value)) { onContinueLearning(); return }
+  if (course.value?.isFree && (enrollmentChecking.value || enrollmentUnknown.value)) {
+    uni.showToast({ title: '请先确认订阅状态', icon: 'none' })
+    return
+  }
   // F3 电商漏斗埋点：购买点击（D-T1）
   track.custom('buy_click', { type: 'course', id: course.value?.id })
   // 免费课「免费订阅」（董事长 2026-07-18 拍板）：不进支付链，但要有订阅动作——
@@ -142,11 +156,13 @@ async function onPurchase() {
     try {
       await purchaseApi.createOrder({ type: 'COURSE', targetId: courseId.value, amount: 1 })
       hasAccess.value = true
+      markEnrolled()
       uni.showToast({ title: '已订阅，可在「我的课程」查看', icon: 'none' })
     } catch (e) {
       const msg = (e as Error)?.message || ''
       if (msg.includes('已购买') || msg.includes('无需重复')) {
         hasAccess.value = true // 已订阅过：视同成功直接解锁
+        markEnrolled()
       } else if (msg) {
         uni.showToast({ title: msg, icon: 'none' })
       }
@@ -221,6 +237,16 @@ async function refreshAccess() {
   if (!accessUnknown.value) hasAccess.value = state === 'granted'
   return state
 }
+async function refreshEnrollment() {
+  const seq = ++enrollmentRequestSeq
+  const id = courseId.value
+  enrollmentChecking.value = true
+  const state = await courseApi.getEnrollmentState(id)
+  if (seq !== enrollmentRequestSeq || id !== courseId.value) return
+  enrollmentChecking.value = false
+  enrollmentUnknown.value = state === 'unknown'
+  if (!enrollmentUnknown.value) enrolled.value = state === 'enrolled'
+}
 async function loadReviews(id: string, seq: number) {
   reviewsLoading.value = true
   reviewsError.value = false
@@ -247,6 +273,7 @@ async function loadData() {
     if (seq !== detailLoadSeq) return
     course.value = detail
     chapters.value = chaps
+    if (detail.isFree) void refreshEnrollment()
     // 评价与推荐是附加内容，失败或慢响应不阻断课程、目录与购买入口。
     void loadReviews(id, seq)
     void recommendApi.getForScene('course_detail', String(id)).then((items) => {
@@ -288,6 +315,7 @@ onShow(() => {
   if (!firstShowDone) { firstShowDone = true; return }
   if (!courseId.value || loading.value) return
   void refreshAccess()
+  if (course.value?.isFree) void refreshEnrollment()
 })
 
 // 评价区滚动定位（页级滚动·锚点 #reviewsCard，参照文章页 adCommentsAnchor 机制的页面版）
@@ -605,6 +633,16 @@ onMounted(() => {
           <app-icon name="shield-alert" :size="40" color="#6E6E73" />
           <text class="mini-txt">投诉</text>
         </view>
+        <view
+          v-if="course.isFree && !enrolled"
+          class="enroll-btn"
+          role="button"
+          tabindex="0"
+          :aria-label="enrollmentUnknown ? '重新检查免费课订阅状态' : '将免费课加入我的课程'"
+          @tap="enrollmentUnknown ? refreshEnrollment() : onPurchase()"
+          @keydown.enter="enrollmentUnknown ? refreshEnrollment() : onPurchase()"
+          @keydown.space.prevent="enrollmentUnknown ? refreshEnrollment() : onPurchase()"
+        ><text>{{ enrollmentChecking ? '核验中…' : enrollmentUnknown ? '重试订阅' : subscribing ? '订阅中…' : '加入我的课程' }}</text></view>
         <view class="full-btn" hover-class="btn-press" @tap="onContinueLearning">
           <text class="full-btn-txt">继续学习</text>
         </view>
@@ -827,6 +865,7 @@ onMounted(() => {
 .bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); z-index: 50; }
 .access-hint { flex: 1; color: #6E6E73; font-size: 26rpx; line-height: 1.4; }
 .access-retry { min-width: 176rpx; min-height: 88rpx; padding: 0 20rpx; border-radius: 999rpx; background: #F8F4EC; color: #8A5636; font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.enroll-btn { flex-shrink: 0; min-width: 164rpx; min-height: 88rpx; padding: 0 12rpx; border-radius: 999rpx; background: #F8F4EC; color: #8A5636; font-size: 23rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .mini-act { flex-shrink: 0; min-width: 96rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
 .mini-txt { font-size: 20rpx; line-height: 1; color: #6E6E73; }
 .buy-btn { flex: 1; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }

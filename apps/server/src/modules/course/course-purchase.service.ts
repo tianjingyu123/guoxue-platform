@@ -285,9 +285,14 @@ export class CoursePurchaseService {
   }
 
   /** 获取我购买的课程 */
-  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20) {
+  async getMyCourses(userId: string, rawPage = 1, rawPageSize = 20, targetId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.OrderWhereInput = { userId, type: "COURSE" as const, status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] } };
+    const where: Prisma.OrderWhereInput = {
+      userId,
+      type: "COURSE" as const,
+      status: { in: [OrderStatus.PAID, OrderStatus.COMPLETED] },
+      ...(targetId ? { targetId } : {}),
+    };
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where,

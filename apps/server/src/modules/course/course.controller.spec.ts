@@ -113,6 +113,12 @@ describe("CourseController", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("GET /courses/my?targetId=... — 仅按本人课程筛选", async () => {
+    const req: any = { user: { id: "u1" } };
+    await ctrl.getMyCourses(req, 1, 1, "free-course");
+    expect(mockCourseSvc.getMyCourses).toHaveBeenCalledWith("u1", 1, 1, "free-course");
+  });
+
   it("GET /courses/dashboard — 学习看板", async () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.getMyDashboard(req);

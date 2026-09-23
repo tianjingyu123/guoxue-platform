@@ -39,7 +39,16 @@ async function run() {
   let token = 'synthetic-token'
   const expiredSession = createApi(() => token, async () => { token = ''; throw new Error('unauthorized') })
   assert.equal(await expiredSession.getAccessState('c1'), 'denied')
-  process.stdout.write('course access state: 5 synthetic cases passed\n')
+
+  const enrollmentGuest = createApi(() => '', async () => { throw new Error('guest request should not happen') })
+  assert.equal(await enrollmentGuest.getEnrollmentState('c1'), 'not-enrolled')
+  const enrolled = createApi(() => 'synthetic-token', async () => [{ orderId: 'synthetic-order' }])
+  assert.equal(await enrolled.getEnrollmentState('c1'), 'enrolled')
+  const notEnrolled = createApi(() => 'synthetic-token', async () => ({ courses: [] }))
+  assert.equal(await notEnrolled.getEnrollmentState('c1'), 'not-enrolled')
+  const enrollmentFailure = createApi(() => 'synthetic-token', async () => { throw new Error('network timeout') })
+  assert.equal(await enrollmentFailure.getEnrollmentState('c1'), 'unknown')
+  process.stdout.write('course access and enrollment state: 9 synthetic cases passed\n')
 }
 
 run().catch((error) => { console.error(error); process.exitCode = 1 })

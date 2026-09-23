@@ -419,6 +419,18 @@ export const courseApi = {
     }
   },
 
+  /** 免费课是否已生成订阅订单；可学习权限与“我的课程”收录分开核对。 */
+  async getEnrollmentState(id: string): Promise<'enrolled' | 'not-enrolled' | 'unknown'> {
+    if (!getToken()) return 'not-enrolled'
+    try {
+      const res = await apiGetOptionalAuth<unknown>(`/courses/my?page=1&pageSize=1&targetId=${encodeURIComponent(id)}`)
+      const items = Array.isArray(res) ? res : (res as { courses?: unknown[] } | null)?.courses
+      return items?.length ? 'enrolled' : 'not-enrolled'
+    } catch {
+      return getToken() ? 'unknown' : 'not-enrolled'
+    }
+  },
+
   /** 是否已收藏 — GET /interaction/collect（在我的收藏中匹配 COURSE·未登录静默 false） */
   async isFavorited(id: string): Promise<boolean> {
     try {

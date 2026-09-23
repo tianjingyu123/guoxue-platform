@@ -97,8 +97,8 @@ export class CourseController {
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "成功返回已购课程" })
   @ApiResponse({ status: 401, description: "未认证" })
-  getMyCourses(@Req() req: AuthRequest, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.course.getMyCourses(req.user.id, page || 1, pageSize || 20);
+  getMyCourses(@Req() req: AuthRequest, @Query("page") page?: number, @Query("pageSize") pageSize?: number, @Query("targetId") targetId?: string) {
+    return this.course.getMyCourses(req.user.id, page || 1, pageSize || 20, targetId);
   }
 
   @Get("dashboard")
