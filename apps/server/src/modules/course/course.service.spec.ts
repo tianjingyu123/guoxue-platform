@@ -278,6 +278,16 @@ describe("CourseService", () => {
         expect(arg.where.auditStatus).toBe("APPROVED"); // 默认只看已审核
       });
 
+      it("讲师课程仅筛选其已审核且公开的作品", async () => {
+        await svc.listCourses({ page: 1, pageSize: 6, instructorId: "teacher-1" });
+        const where = mockPrisma.course.findMany.mock.calls.at(-1)![0].where;
+        expect(where.userId).toBe("teacher-1");
+        expect(where.auditStatus).toBe("APPROVED");
+        expect(where.visibility).toBe("PLATFORM");
+        expect(where.deletedAt).toBeNull();
+        expect(mockRedis.getJson).not.toHaveBeenCalled();
+      });
+
       it("free=true → where.price=0", async () => {
         await svc.listCourses({ page: 1, pageSize: 20, free: true });
         expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].where.price).toBe(0);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 讲师主页 F1 - V0 阶段二视觉稿 f1-instructor.html 还原（头部讲师卡 + TA 的课程）。
  *  script 真连保留：instructorApi.getDetail（聚合 users/:id + stats + is-following）。
- *  featuredCourses 后端暂无来源恒空 → 走「暂无公开课程」空态，绝不回退假数据。 */
+ *  公开课程按作者筛选；空结果与接口失败分开展示。 */
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
@@ -59,7 +59,7 @@ onMounted(() => {
   <view class="page">
     <!-- ══ 顶栏（自定义状态栏高度）══ -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+      <view class="nav-back" hover-class="btn-press" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
         <app-icon name="chevron-left" :size="36" color="#2C2C2C" />
       </view>
     </view>
@@ -67,7 +67,7 @@ onMounted(() => {
     <!-- ══ Error 态 ══ -->
     <view v-if="error" class="state-wrap">
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" hover-class="btn-press" @tap="loadData"><text class="retry-text">重试</text></view>
+      <view class="retry-btn" hover-class="btn-press" role="button" tabindex="0" aria-label="重新加载讲师资料" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
     </view>
 
     <!-- ══ Loading 骨架屏（头部卡 + 标题 + 课程卡占位）══ -->
@@ -89,7 +89,7 @@ onMounted(() => {
           class="p-bio"
           :class="{ expanded: bioExpanded }"
         >{{ detail.introduction }}</text>
-        <view v-if="detail.introduction" class="p-expand" hover-class="btn-press" @tap="toggleBio">
+        <view v-if="detail.introduction" class="p-expand" hover-class="btn-press" role="button" tabindex="0" :aria-label="bioExpanded ? '收起讲师简介' : '展开讲师简介'" @tap="toggleBio" @keydown.enter="toggleBio" @keydown.space.prevent="toggleBio">
           <text class="p-expand-txt">{{ bioExpanded ? '收起' : '展开' }}</text>
           <app-icon :name="bioExpanded ? 'chevron-up' : 'chevron-down'" :size="20" color="#999999" />
         </view>
@@ -113,13 +113,22 @@ onMounted(() => {
       <!-- ── 区块2 TA 的课程 ── -->
       <text class="section-title serif">TA 的课程</text>
 
-      <view v-if="detail.featuredCourses.length" class="course-list">
+      <view v-if="detail.coursesUnavailable" class="empty" role="alert">
+        <text class="empty-title serif">课程暂时无法加载</text>
+        <view class="retry-btn" role="button" tabindex="0" aria-label="重试加载讲师课程" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
+      </view>
+      <view v-else-if="detail.featuredCourses.length" class="course-list">
         <view
           v-for="c in detail.featuredCourses"
           :key="c.id"
           class="card"
           hover-class="card-press"
+          role="link"
+          tabindex="0"
+          :aria-label="`查看课程：${c.title}`"
           @tap="openCourse(String(c.id))"
+          @keydown.enter="openCourse(String(c.id))"
+          @keydown.space.prevent="openCourse(String(c.id))"
         >
           <view class="card-cover">
             <view class="ratio-169">
@@ -141,7 +150,7 @@ onMounted(() => {
         </view>
       </view>
 
-      <!-- 空态：后端无公开课程数据源恒空态 -->
+      <!-- 公开课程为空时才显示空态 -->
       <view v-else class="empty">
         <view class="empty-art">
           <app-icon name="book-open" :size="56" color="#C9A96E" />

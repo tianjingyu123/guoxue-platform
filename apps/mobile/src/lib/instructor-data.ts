@@ -5,8 +5,7 @@
 //   GET /users/:id            → { id, nickname, avatar, bio, ... }
 //   GET /users/:id/stats      → { courses, followers, articles, circles, ... }
 //   GET /users/:id/is-following → { following }
-// 后端无公开数据源的字段（title/level/verified/specialties/rating/教学经历/
-// 资质证书/讲师课程列表/评价）→ 一律留空，由页面 v-if 诚实降级，绝不回退假 mock。
+// 讲师课程复用公开课程列表的作者筛选；认证/经历/讲师评价无公开数据源，保持空态。
 import { apiGet, apiGetOptionalAuth } from '@/utils/request'
 
 export interface InstructorCertificate { name: string; issuer: string; year: string }
@@ -46,6 +45,7 @@ export interface InstructorDetail {
   experience: string[]
   certificates: InstructorCertificate[]
   featuredCourses: InstructorFeaturedCourse[]
+  coursesUnavailable: boolean
   reviews: InstructorReview[]
 }
 
@@ -67,6 +67,7 @@ export function getInstructorLevelStyle(level: InstructorDetail['level']): { col
 
 interface UserBasic { id: string; nickname?: string; avatar?: string; bio?: string }
 interface UserStats { courses?: number; followers?: number }
+interface PublicCourseList { courses?: Array<{ id: string; title?: string; cover?: string; studentCount?: number }>; total?: number }
 
 export const instructorApi = {
   /**
@@ -75,10 +76,11 @@ export const instructorApi = {
    * 辅助的 stats / is-following 失败则降级为 0 / 未关注，不阻断主资料展示。
    */
   async getDetail(id: string): Promise<InstructorDetail> {
-    const [user, stats, follow] = await Promise.all([
+    const [user, stats, follow, publicCourses] = await Promise.all([
       apiGet<UserBasic>(`/users/${id}`),
       apiGet<UserStats>(`/users/${id}/stats`).catch(() => null),
       apiGetOptionalAuth<{ following: boolean }>(`/users/${id}/is-following`).catch(() => null),
+      apiGet<PublicCourseList>(`/courses?instructorId=${encodeURIComponent(id)}&pageSize=6`).catch(() => null),
     ])
     return {
       id: user.id,
@@ -86,14 +88,18 @@ export const instructorApi = {
       avatar: user.avatar || '',
       introduction: user.bio || '',
       followerCount: stats?.followers ?? 0,
-      courseCount: stats?.courses ?? 0,
+      courseCount: publicCourses?.total ?? stats?.courses ?? 0,
       isFollowing: !!follow?.following,
       // 后端无来源 → 空，页面降级
       specialties: [],
       education: [],
       experience: [],
       certificates: [],
-      featuredCourses: [],
+      featuredCourses: (publicCourses?.courses || []).map((course) => ({
+        id: course.id, title: course.title || '', cover: course.cover || '',
+        studentCount: course.studentCount ? String(course.studentCount) : '', rating: 0,
+      })),
+      coursesUnavailable: publicCourses == null,
       reviews: [],
     }
   },

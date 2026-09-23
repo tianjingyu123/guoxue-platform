@@ -79,6 +79,7 @@ export class CourseController {
       page: q.page || 1,
       pageSize: q.pageSize || 20,
       circleId: q.circleId,
+      instructorId: q.instructorId,
       auditStatus: isAdmin ? requestedStatus : undefined,
       stationId: stationId || q.stationId,
       type: q.type,

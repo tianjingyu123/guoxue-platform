@@ -252,6 +252,10 @@ export class CourseListQueryDto {
   @IsOptional() @IsString()
   circleId?: string;
 
+  @ApiPropertyOptional({ description: "公开课程作者 ID" })
+  @IsOptional() @IsString() @MaxLength(64)
+  instructorId?: string;
+
   @ApiPropertyOptional({ description: "审核状态" })
   @IsOptional() @IsString()
   auditStatus?: string;
