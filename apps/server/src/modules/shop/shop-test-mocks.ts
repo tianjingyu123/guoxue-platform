@@ -156,6 +156,9 @@ export function makeMockPrisma(): any {
     configSystem: {
       findUnique: jest.fn(),
     },
+    brandConfig: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     memberPurchase: {
       create: jest.fn(),
     },
