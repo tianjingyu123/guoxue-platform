@@ -7,7 +7,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+import { goBack, navigateTo } from '@/utils/router'
 import { growthApi, type BadgeItem } from '@/lib/circle-growth-data'
 
 const RARITY_CFG = {
@@ -18,6 +19,7 @@ const RARITY_CFG = {
 }
 
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const isLoading = ref(true)
 const loadError = ref(false)
 const badges = ref<BadgeItem[]>([])
@@ -51,8 +53,8 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 
 <template>
   <view class="bg">
-    <view class="bg-header">
-      <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="bg-header" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="bg-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="bg-title">我的徽章</text>
       <text class="bg-count">{{ earned.length }}/{{ badges.length }}</text>
     </view>
@@ -67,8 +69,9 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
     <!-- 错误态 -->
     <view v-else-if="loadError" class="bg-state">
       <app-icon name="alert-circle" :size="72" color="#CCCCCC" />
-      <text class="bg-state-t">加载失败</text>
-      <view class="bg-retry" @tap="loadBadges">重试</view>
+      <text class="bg-state-t">{{ circleId ? '加载失败' : '请先选择一个圈子查看徽章' }}</text>
+      <view v-if="circleId" class="bg-retry" @tap="loadBadges">重试</view>
+      <view v-else class="bg-retry" @tap="navigateTo('/pkg-circle/my-circles/index')">选择圈子</view>
     </view>
 
     <!-- 空态 -->
@@ -118,6 +121,7 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 <style scoped lang="scss">
 .bg { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
 .bg-header { position: sticky; top: 0; z-index: 10; background: var(--bg-paper, #FAF8F5); border-bottom: 2rpx solid var(--border, #EDE8E0); display: flex; align-items: center; gap: 24rpx; padding: 0 32rpx; height: 96rpx; padding-top: var(--status-bar-height, 0px); }
+.bg-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .bg-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); }
 .bg-count { font-size: 24rpx; color: #999; }
 .bg-body { padding: 0 32rpx 160rpx; }
@@ -157,5 +161,5 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 .bg-progress-txt { font-size: 20rpx; color: #999; flex-shrink: 0; }
 .bg-state { display: flex; flex-direction: column; align-items: center; padding: 160rpx 0; gap: 24rpx; }
 .bg-state-t { font-size: 28rpx; color: #999; }
-.bg-retry { padding: 14rpx 48rpx; background: var(--brand); color: #fff; font-size: 26rpx; border-radius: 999rpx; }
+.bg-retry { min-height: 44px; padding: 0 48rpx; display: flex; align-items: center; background: var(--brand); color: #fff; font-size: 26rpx; border-radius: 999rpx; }
 </style>

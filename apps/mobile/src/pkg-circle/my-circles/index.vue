@@ -185,11 +185,11 @@
           </view>
           <text class="quick-label">圈内动态</text>
         </view>
-        <view class="quick-item" @tap="navigateTo('/circles/badges')">
+        <view class="quick-item" @tap="navigateTo('/pkg-circle/circles/ranking')">
           <view class="quick-icon" style="background: rgba(201,169,110,0.1)">
-            <AppIcon name="award" :size="20" color="#C9A96E" />
+            <AppIcon name="trophy" :size="20" color="#826329" />
           </view>
-          <text class="quick-label">我的勋章</text>
+          <text class="quick-label">圈子排行</text>
         </view>
       </view>
 

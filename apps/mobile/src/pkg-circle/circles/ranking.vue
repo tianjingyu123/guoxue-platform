@@ -9,6 +9,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type RankingCircle, type RankSortBy } from '@/lib/circle-data'
 
@@ -20,6 +21,7 @@ const tabs: { value: RankTab; label: string; sortBy: RankSortBy; sub: string }[]
 ]
 
 const activeTab = ref<RankTab>('members')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref('')
 const items = ref<RankingCircle[]>([])
@@ -62,7 +64,7 @@ onMounted(load)
 <template>
   <view class="rk">
     <!-- 渐变顶部 -->
-    <view class="rk-top">
+    <view class="rk-top" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="rk-head">
         <view class="rk-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="rk-title">圈子排行榜</text>

@@ -19,11 +19,13 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
 // 列表、分账修改和移除均使用当前圈子；路由参数就绪后才读取。
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string; void loadGuests() })
 const canRemove = computed(() => !!circleId.value)
 
@@ -131,10 +133,10 @@ async function doRemove(g: CircleGuest) {
   <view class="gt">
     <!-- Header -->
     <view class="gt-nav">
-      <view class="gt-nav-bar">
-        <view class="gt-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <view class="gt-nav-bar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+        <view class="gt-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="gt-title">嘉宾管理</text>
-        <view class="gt-invite-btn" @tap="openInvite"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
+        <view class="gt-invite-btn" role="button" tabindex="0" aria-label="邀请嘉宾" @tap="openInvite" @keydown.enter="openInvite"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
       </view>
       <!-- 搜索 -->
       <view class="gt-search-wrap">
@@ -219,7 +221,7 @@ async function doRemove(g: CircleGuest) {
 .gt { min-height: 100vh; background: #FAF8F5; }
 .gt-nav { position: sticky; top: var(--status-bar-height, 0px); z-index: 10; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
 .gt-nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 96rpx; }
-.gt-back, .gt-invite-btn { padding: 8rpx; }
+.gt-back, .gt-invite-btn { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .gt-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .gt-search-wrap { padding: 0 24rpx 18rpx; }
 .gt-search { display: flex; align-items: center; gap: 10rpx; background: #FAF8F5; border-radius: 16rpx; padding: 16rpx 20rpx; }

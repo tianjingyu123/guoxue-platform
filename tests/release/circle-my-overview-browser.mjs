@@ -80,6 +80,13 @@ try {
   await page.getByText('你还没有加入任何圈子', { exact: true }).waitFor()
   assert.equal(await page.locator('.search-wrap').count(), 0, '尚未加入圈子时不显示无效搜索')
   await page.getByText('去圈子广场逛逛', { exact: true }).waitFor()
+  assert.equal(await page.getByText('我的勋章', { exact: true }).count(), 0)
+  await page.getByText('圈子排行', { exact: true }).click()
+  await page.waitForURL(/pkg-circle\/circles\/ranking/)
+  await page.goto(`${origin}/h5/pkg-circle/circles/badges`)
+  await page.getByText('请先选择一个圈子查看徽章', { exact: true }).waitFor()
+  await page.getByText('选择圈子', { exact: true }).click()
+  await page.waitForURL(/pkg-circle\/my-circles\/index/)
 
   circles = circleFixtures
   failStats = true
@@ -92,7 +99,7 @@ try {
   assert.match(page.url(), /pkg-circle\/circles\/me/, '发帖数不能误跳圈子列表')
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('圈子概览隔离回归通过：部分失败、封面、筛选恢复、重试、误导入口')
+  console.log('圈子概览隔离回归通过：部分失败、封面、筛选恢复、排行入口与徽章缺参回退')
 } finally {
   await browser.close()
 }
