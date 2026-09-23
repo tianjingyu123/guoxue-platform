@@ -43,6 +43,7 @@ interface RawKnowledgeResp {
   items?: RawKnowledge[]
   data?: RawKnowledge[]
   list?: RawKnowledge[]
+  total?: number
 }
 
 function adapt(k: RawKnowledge): KnowledgeItem {
@@ -64,16 +65,27 @@ function pickArray(res: RawKnowledge[] | RawKnowledgeResp | null | undefined): R
 }
 
 export const knowledgeApi = {
+  /** 管理页分页读取：失败上抛，避免将网络/权限错误误报为空库。 */
+  listPage: async (circleId: string, page = 1, pageSize = 20): Promise<{ items: KnowledgeItem[]; total: number }> => {
+    const res = await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge?page=${page}&pageSize=${pageSize}`)
+    const items = pickArray(res)
+    return { items: items.map(adapt), total: Array.isArray(res) ? items.length : (res?.total ?? items.length) }
+  },
+  candidatesPage: async (circleId: string, page = 1, pageSize = 20): Promise<{ items: KnowledgeItem[]; total: number }> => {
+    const res = await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?page=${page}&pageSize=${pageSize}`)
+    const items = pickArray(res)
+    return { items: items.map(adapt), total: Array.isArray(res) ? items.length : (res?.total ?? items.length) }
+  },
   /** 已入库知识条目 — GET /circles/:id/knowledge */
   list: async (circleId: string): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge?pageSize=50`)).map(adapt)
+      return (await knowledgeApi.listPage(circleId, 1, 50)).items
     } catch { return [] }
   },
   /** 待审核候选 — GET /circles/:id/knowledge/candidates */
   candidates: async (circleId: string, options: { throwOnError?: boolean } = {}): Promise<KnowledgeItem[]> => {
     try {
-      return pickArray(await apiGet<RawKnowledge[] | RawKnowledgeResp>(`/circles/${circleId}/knowledge/candidates?pageSize=50`)).map(adapt)
+      return (await knowledgeApi.candidatesPage(circleId, 1, 50)).items
     } catch (error) { if (options.throwOnError) throw error; return [] }
   },
   /** 确认候选入库 */

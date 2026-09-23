@@ -117,7 +117,7 @@ export class CircleKnowledgeService {
     const [items, total] = await Promise.all([
       this.prisma.circleKnowledge.findMany({
         where,
-        orderBy: { addedAt: "desc" },
+        orderBy: [{ addedAt: "desc" }, { id: "desc" }],
         skip,
         take: pageSize,
       }),
@@ -223,7 +223,7 @@ export class CircleKnowledgeService {
     const [items, total] = await Promise.all([
       this.prisma.circleKnowledgeCandidate.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip,
         take: pageSize,
       }),

@@ -15,6 +15,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { knowledgeApi, type KnowledgeItem } from '@/lib/circle-knowledge-data'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const circleId = ref('')
 const activeTab = ref<'confirmed' | 'pending'>('confirmed')
@@ -24,6 +25,13 @@ const acting = ref<string | null>(null)
 
 const confirmedItems = ref<KnowledgeItem[]>([])
 const pendingItems = ref<KnowledgeItem[]>([])
+const confirmedTotal = ref(0)
+const pendingTotal = ref(0)
+const confirmedPage = ref(1)
+const pendingPage = ref(1)
+const loadingMore = ref(false)
+const moreError = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const expandedId = ref<string | null>(null)
 const menuId = ref<string | null>(null)
 
@@ -52,23 +60,52 @@ async function doExtract() {
   }
 }
 
-const pendingCount = computed(() => pendingItems.value.length)
+const pendingCount = computed(() => pendingTotal.value)
+const hasMore = computed(() => activeTab.value === 'pending'
+  ? pendingItems.value.length < pendingTotal.value
+  : confirmedItems.value.length < confirmedTotal.value)
 
 async function load() {
   loading.value = true
   error.value = false
+  moreError.value = false
   try {
+    if (!circleId.value) throw new Error('missing circle id')
     const [list, cands] = await Promise.all([
-      knowledgeApi.list(circleId.value),
-      knowledgeApi.candidates(circleId.value),
+      knowledgeApi.listPage(circleId.value),
+      knowledgeApi.candidatesPage(circleId.value),
     ])
-    confirmedItems.value = list
-    pendingItems.value = cands
+    confirmedItems.value = list.items
+    pendingItems.value = cands.items
+    confirmedTotal.value = list.total
+    pendingTotal.value = cands.total
+    confirmedPage.value = 1
+    pendingPage.value = 1
   } catch {
     error.value = true
   } finally {
     loading.value = false
   }
+}
+
+async function loadMore() {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  const tab = activeTab.value
+  loadingMore.value = true
+  moreError.value = false
+  try {
+    const nextPage = (tab === 'pending' ? pendingPage.value : confirmedPage.value) + 1
+    const result = tab === 'pending'
+      ? await knowledgeApi.candidatesPage(circleId.value, nextPage)
+      : await knowledgeApi.listPage(circleId.value, nextPage)
+    if (!result.items.length) { if (activeTab.value === tab) moreError.value = true; return }
+    const target = tab === 'pending' ? pendingItems : confirmedItems
+    const seen = new Set(target.value.map(item => item.id))
+    target.value.push(...result.items.filter(item => !seen.has(item.id)))
+    if (tab === 'pending') { pendingTotal.value = result.total; pendingPage.value = nextPage }
+    else { confirmedTotal.value = result.total; confirmedPage.value = nextPage }
+  } catch { if (activeTab.value === tab) moreError.value = true }
+  finally { loadingMore.value = false }
 }
 
 async function confirmCand(item: KnowledgeItem) {
@@ -143,6 +180,7 @@ async function submitAdd() {
 }
 
 function toggleExpand(id: string) { expandedId.value = expandedId.value === id ? null : id }
+function switchTab(tab: 'confirmed' | 'pending') { activeTab.value = tab; moreError.value = false }
 function fmtDate(iso: string) {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : `${d.getMonth() + 1}月${d.getDate()}日`
@@ -161,8 +199,8 @@ onLoad((q) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="back-btn" role="button" aria-label="返回管理中心" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">知识库与 AI</text>
     </view>
 
@@ -171,17 +209,17 @@ onLoad((q) => {
       <view class="ai-orb" />
       <view class="ai-main">
         <text class="ai-title">圈主 AI 助理 · 你的智能分身</text>
-        <text class="ai-desc">知识库 {{ confirmedItems.length }} 条{{ pendingCount ? ` · 待确认 ${pendingCount} 条` : '' }}</text>
+        <text class="ai-desc">知识库 {{ confirmedTotal }} 条{{ pendingCount ? ` · 待确认 ${pendingCount} 条` : '' }}</text>
       </view>
       <view class="ai-btn" @tap="goAssistant"><text class="ai-btn-txt">对话调教</text></view>
     </view>
 
     <!-- 双 Tab -->
     <view class="state-tabs">
-      <view class="state-tab" :class="{ active: activeTab === 'confirmed' }" @tap="activeTab = 'confirmed'">
-        <text class="state-tab-txt">已入库 · {{ confirmedItems.length }}</text>
+      <view class="state-tab" :class="{ active: activeTab === 'confirmed' }" @tap="switchTab('confirmed')">
+        <text class="state-tab-txt">已入库 · {{ confirmedTotal }}</text>
       </view>
-      <view class="state-tab" :class="{ active: activeTab === 'pending' }" @tap="activeTab = 'pending'">
+      <view class="state-tab" :class="{ active: activeTab === 'pending' }" @tap="switchTab('pending')">
         <text class="state-tab-txt">待确认</text>
         <view v-if="pendingCount" class="n"><text class="n-txt">{{ pendingCount }}</text></view>
       </view>
@@ -230,6 +268,9 @@ onLoad((q) => {
             </view>
           </view>
         </view>
+        <view v-if="hasMore" class="knowledge-more" role="button" :aria-label="moreError ? '重试加载更多知识候选' : '加载更多知识候选'" @tap="loadMore">
+          <text>{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点此重试' : `查看更多候选 · 已显示 ${pendingItems.length}/${pendingTotal}` }}</text>
+        </view>
       </template>
 
       <!-- ═══ 已入库 ═══ -->
@@ -263,6 +304,9 @@ onLoad((q) => {
               <app-icon name="plus" :size="26" color="#C41E3A" />
               <text class="add-entry-txt">手动新增条目</text>
             </view>
+          </view>
+          <view v-if="hasMore" class="knowledge-more" role="button" :aria-label="moreError ? '重试加载更多知识条目' : '加载更多知识条目'" @tap="loadMore">
+            <text>{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点此重试' : `查看更多知识 · 已显示 ${confirmedItems.length}/${confirmedTotal}` }}</text>
           </view>
         </template>
       </template>
@@ -303,7 +347,9 @@ onLoad((q) => {
   padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
 }
-.back-btn { display: flex; align-items: center; }
+.back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.knowledge-more { min-height: 44px; margin: 24rpx auto; padding: 0 32rpx; width: fit-content; border-radius: 22rpx; background: #fff; color: #1d1d1f; display: flex; align-items: center; justify-content: center; font-size: 26rpx; }
+.knowledge-more:active { background: #ececef; }
 .topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
 
 /* AI 助理入口 */

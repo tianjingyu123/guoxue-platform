@@ -135,7 +135,7 @@ async function load() {
       growthApi.joinRequests(circleId.value),
       refundApi.ownerPending({ throwOnError: true }),
       dashboardApi.pendingQuestions(circleId.value),
-      knowledgeApi.candidates(circleId.value, { throwOnError: true }),
+      knowledgeApi.candidatesPage(circleId.value, 1, 1),
     ])
     failedTodos.value = [joinRes, refundRes, pqRes, candRes].flatMap((result, index) => result.status === 'rejected' ? [['加入申请', '退款申请', '付费提问', '知识库候选'][index]] : [])
     trendFailed.value = trendRes.status === 'rejected'
@@ -152,7 +152,7 @@ async function load() {
         ? refundRes.value.filter((r) => r.circleId === circleId.value && r.ownerStatus === 'pending')
         : []
     pendingQuestions.value = pqRes.status === 'fulfilled' ? pqRes.value : []
-    candidateCount.value = candRes.status === 'fulfilled' ? candRes.value.length : 0
+    candidateCount.value = candRes.status === 'fulfilled' ? candRes.value.total : 0
 
     // 空圈冷启动：补拉起步清单判定所需数据
     if (overview.value.memberCount <= 1) {
