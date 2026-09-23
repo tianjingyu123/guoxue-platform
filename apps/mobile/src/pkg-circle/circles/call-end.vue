@@ -3,8 +3,8 @@
  * 通话结算单 — V0 circle-consult-call-end.html 还原（2026-07-10 批④·新建页）
  * 结构：完成态头部 → 通话对象卡 → 账单核算表（双方看同一套数字）→ 评价区（降级）→ 吸底返回。
  * 数据：后端无 GET /consult-calls/:id 单条端点 → 经 GET /consult-calls/my 反查（记录仅当事人可见，口径一致）。
- * 账单全真字段：durationSec/pricePerMinute/prepaidCoin/settledCoin/refundedCoin；
- *   达人侧入账 = settledCoin × 50%（与后端 end() 分账硬编码 rate 0.5 一致）。
+ * 账单字段：durationSec/pricePerMinute/prepaidCoin/settledCoin/refundedCoin；
+ *   金币订单金额不等于达人已到账收益，分成以收益账户记录为准。
  * 评价（待办 #31·2026-07-11 解锁）：星级 1-5 + 标签 chips（V0 稿文案）+ 文字 ≤200 字，
  *   真连 POST /consult-calls/:id/rate（仅发起方·仅 ENDED·仅一次·结束后 24h 内）；已评态回显；超窗提示。
  * 账单申诉（同批解锁）：POST /consult-calls/:id/dispute（双方·24h 内·一次），提交后回显状态；
@@ -29,9 +29,6 @@ const peerName = computed(() => (isCaller.value ? call.value?.expertName : call.
 const peerAvatar = computed(() => (isCaller.value ? call.value?.expertAvatar : call.value?.callerAvatar) || '')
 /** 计费分钟（后端口径：不足 1 分钟按 1 分钟） */
 const billedMinutes = computed(() => call.value ? Math.max(1, Math.ceil((call.value.durationSec || 0) / 60)) : 0)
-/** 达人侧入账（后端 end() 分账硬编码 50%） */
-const expertIncome = computed(() => call.value ? Math.floor(call.value.settledCoin * 0.5) : 0)
-
 const headline = computed(() => {
   const s = call.value?.status
   if (s === 'ENDED') return { title: '通话完成', icon: 'check', ok: true }
@@ -191,24 +188,24 @@ onMounted(load)
         <template v-if="ended">
           <view class="cle-bill-row"><text class="cle-bill-l">通话时长</text><text class="cle-bill-v">{{ durText(call.durationSec) }}（计 {{ billedMinutes }} 分钟）</text></view>
           <view class="cle-bill-row"><text class="cle-bill-l">计费单价</text><text class="cle-bill-v">{{ call.pricePerMinute }} 金币/分钟</text></view>
-          <view class="cle-bill-row"><text class="cle-bill-l">发起时预扣</text><text class="cle-bill-v">{{ call.prepaidCoin }} 金币</text></view>
+          <view class="cle-bill-row"><text class="cle-bill-l">{{ isCaller ? '发起时预扣' : '发起方预扣' }}</text><text class="cle-bill-v">{{ call.prepaidCoin }} 金币</text></view>
           <view class="cle-bill-row"><text class="cle-bill-l">实际费用</text><text class="cle-bill-v">{{ call.settledCoin }} 金币</text></view>
-          <view v-if="call.refundedCoin > 0" class="cle-bill-row"><text class="cle-bill-l">差额退回</text><text class="cle-bill-v is-green">+{{ call.refundedCoin }} 金币 已退回余额</text></view>
+          <view v-if="call.refundedCoin > 0" class="cle-bill-row"><text class="cle-bill-l">{{ isCaller ? '差额退回' : '退回发起方' }}</text><text class="cle-bill-v is-green">{{ call.refundedCoin }} 金币</text></view>
           <view class="cle-bill-total">
-            <text class="cle-total-l">{{ isCaller ? '实际支付' : '分账入账（50%）' }}</text>
-            <text class="cle-total-v">{{ isCaller ? call.settledCoin : expertIncome }} 金币</text>
+            <text class="cle-total-l">{{ isCaller ? '实际支付' : '订单金额' }}</text>
+            <text class="cle-total-v">{{ call.settledCoin }} 金币</text>
           </view>
         </template>
         <template v-else>
-          <view class="cle-bill-row"><text class="cle-bill-l">发起时预扣</text><text class="cle-bill-v">{{ call.prepaidCoin }} 金币</text></view>
-          <view class="cle-bill-row"><text class="cle-bill-l">退回</text><text class="cle-bill-v is-green">+{{ call.refundedCoin || call.prepaidCoin }} 金币 已全额退回</text></view>
+          <view class="cle-bill-row"><text class="cle-bill-l">{{ isCaller ? '发起时预扣' : '发起方预扣' }}</text><text class="cle-bill-v">{{ call.prepaidCoin }} 金币</text></view>
+          <view class="cle-bill-row"><text class="cle-bill-l">{{ isCaller ? '退回' : '退回发起方' }}</text><text class="cle-bill-v is-green">{{ call.refundedCoin || call.prepaidCoin }} 金币</text></view>
           <view class="cle-bill-total">
-            <text class="cle-total-l">实际支付</text>
+            <text class="cle-total-l">{{ isCaller ? '实际支付' : '发起方实际支付' }}</text>
             <text class="cle-total-v">0 金币</text>
           </view>
         </template>
       </view>
-      <text class="cle-bill-note">不足 1 分钟按 1 分钟计 · 结算明细与对方看到的完全一致</text>
+      <text class="cle-bill-note">不足 1 分钟按 1 分钟计<template v-if="ended && !isCaller"> · 达人按 50% 记录收益，到账以收益账户为准</template></text>
 
       <!-- 账单申诉：24h 内一次；提交后回显状态（处理只记结论·退款走人工审批流） -->
       <view v-if="ended && (disputed || canDispute)" class="cle-dispute">

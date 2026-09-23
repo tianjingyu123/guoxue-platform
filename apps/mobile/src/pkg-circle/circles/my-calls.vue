@@ -3,8 +3,8 @@
  * 我的通话 · 连麦记录 — V0 circle-consult-calls.html 还原（2026-07-10 批④）
  * 结构：顶栏+方向筛选(全部/拨出/接入/未接) → H5 降级提示条（通话仅 App）→ 通话条目（分账透明）。
  * 数据：GET /consult-calls/my（callApi.myCalls 真连）。
- * 口径（后端为准）：达人侧入账 = settledCoin × 50%（后端 consult-call.service end() 分账硬编码 rate 0.5，
- *   与 V0「分账 50%」一致）；未接(MISSED)/取消(REFUNDED)预扣全额退回。点击已结束通话 → 结算单页(call-end)。
+ * 口径（后端为准）：订单 settledCoin 以金币计；达人收益按 50% 记录为收益账户，
+ *   不能将其展示成金币已到账。未接/取消时退还发起方预扣。点击已结束通话 → 结算单页(call-end)。
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -49,18 +49,19 @@ function timeText(c: ConsultCallRecord) {
   if (d.toDateString() === now.toDateString()) return `今天 ${hh}:${mm}`
   return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`
 }
-/** 结算列：主叫支出 / 达人 50% 分账收入 / 未接通退回 */
-function amount(c: ConsultCallRecord): { text: string; cls: string; sub: string; subCls: string } {
+/** 结算列只显示已知订单金额，收益入账以收益账户的实际记录为准。 */
+function amount(c: ConsultCallRecord): { text: string; cls: string; sub: string; subCls: string; unit: boolean } {
   if (c.status === 'MISSED' || c.status === 'REFUNDED') {
-    return { text: '0', cls: 'expense', sub: '预扣已全额退回', subCls: 'missed' }
+    return { text: '0', cls: 'expense', sub: c.callerId === me.value ? '预扣已退回' : '发起方预扣已退回', subCls: 'missed', unit: true }
   }
   if (c.status === 'WAITING' || c.status === 'ONGOING') {
-    return { text: `${c.prepaidCoin}`, cls: 'expense', sub: c.status === 'WAITING' ? '等待接听 · 预扣中' : '通话中 · 按分钟计费', subCls: '' }
+    if (c.callerId !== me.value) return { text: '—', cls: 'expense', sub: '发起方预扣中，你尚无收入', subCls: '', unit: false }
+    return { text: `−${c.prepaidCoin}`, cls: 'expense', sub: c.status === 'WAITING' ? '等待接听 · 预扣中' : '通话中 · 按分钟计费', subCls: '', unit: true }
   }
   if (c.callerId === me.value) {
-    return { text: `−${c.settledCoin}`, cls: 'expense', sub: `${c.pricePerMinute} 金币/分钟 已结算`, subCls: '' }
+    return { text: `−${c.settledCoin}`, cls: 'expense', sub: `${c.pricePerMinute} 金币/分钟 已结算`, subCls: '', unit: true }
   }
-  return { text: `+${Math.floor(c.settledCoin * 0.5)}`, cls: 'income', sub: '分账 50% 已入账', subCls: '' }
+  return { text: `${c.settledCoin}`, cls: 'expense', sub: '订单金额 · 分成请以收益账户为准', subCls: '', unit: true }
 }
 
 const filtered = computed(() =>
@@ -146,7 +147,7 @@ onMounted(load)
           </view>
         </view>
         <view class="mcl-amount">
-          <text class="mcl-coin" :class="'mcl-coin-' + amount(c).cls">{{ amount(c).text }}<text class="mcl-coin-unit"> 金币</text></text>
+          <text class="mcl-coin" :class="'mcl-coin-' + amount(c).cls">{{ amount(c).text }}<text v-if="amount(c).unit" class="mcl-coin-unit"> 金币</text></text>
           <text class="mcl-sub" :class="{ 'is-missed': amount(c).subCls === 'missed' }">{{ amount(c).sub }}</text>
         </view>
       </view>
