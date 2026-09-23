@@ -33,6 +33,11 @@ let extrasSeq = 0
 function selectHub(id: HubTab) { activeHub.value = id }
 const category = ref('')
 const circles = ref<Circle[]>([])
+const circleTotal = ref(0)
+const circlePage = ref(1)
+const discoverLoadingMore = ref(false)
+const discoverMoreError = ref(false)
+const discoverHasMore = computed(() => circles.value.length < circleTotal.value)
 const myCircles = ref<Circle[]>([])
 // 已加入圈子 id 集合（来自 my()）：给发现列表正确标「已加入」
 const joinedIds = ref<Set<string>>(new Set())
@@ -62,7 +67,8 @@ const visibleDiscoverCircles = computed(() => {
 const currentCategoryName = computed(
   () => circleCategories.find((item) => item.id === category.value)?.name || '',
 )
-const emptyReason = computed<'category' | 'all-joined' | 'none'>(() => {
+const emptyReason = computed<'category' | 'all-joined' | 'none' | 'more'>(() => {
+  if (discoverHasMore.value) return 'more'
   // 接口有返回、只是都被 joinedIds 过滤掉 → 已全部加入（不是「没找到」）
   if (circles.value.length > 0) return 'all-joined'
   if (category.value !== '') return 'category'
@@ -93,14 +99,20 @@ let circlesReqSeq = 0
  *  silent=true 为 SWR 后台静默刷新：不回骨架屏；失败时保留已上屏的缓存内容（不切错误态）。 */
 async function loadCircles(silent = false) {
   const seq = ++circlesReqSeq
+  discoverLoadingMore.value = false
+  discoverMoreError.value = false
   if (!silent) {
     loading.value = true
     error.value = false
   }
   try {
-    const res = await circleApi.list({ category: category.value })
+    const res = await circleApi.list({ category: category.value, page: 1, pageSize: 20 })
     if (seq !== circlesReqSeq) return // 过期响应：丢弃，由更新的请求负责上屏
     circles.value = res.data
+    circleTotal.value = res.total
+    circlePage.value = 1
+    discoverMoreError.value = false
+    discoverBatch.value = 0
     markJoined()
     error.value = false
     // SWR 缓存：只存「推荐」分类首屏。isJoined 属用户态，落盘前抹掉防换号后串显；
@@ -219,8 +231,34 @@ function formatPostTime(value: string) {
   return `${date.getMonth() + 1}月${date.getDate()}日`
 }
 
-function nextDiscoverBatch() {
-  discoverBatch.value = (discoverBatch.value + 1) % discoverBatchCount.value
+async function nextDiscoverBatch() {
+  if (discoverLoadingMore.value) return
+  if (discoverBatch.value < discoverBatchCount.value - 1) {
+    discoverBatch.value += 1
+    return
+  }
+  if (!discoverHasMore.value) {
+    discoverBatch.value = 0
+    return
+  }
+  const seq = circlesReqSeq
+  const previousBatches = discoverBatchCount.value
+  discoverLoadingMore.value = true
+  discoverMoreError.value = false
+  try {
+    const res = await circleApi.list({ category: category.value, page: circlePage.value + 1, pageSize: 20, throwOnError: true })
+    if (seq !== circlesReqSeq) return
+    circles.value = circles.value.concat(res.data.filter((item) => !circles.value.some((old) => old.id === item.id)))
+    circlePage.value += 1
+    circleTotal.value = res.data.length ? res.total : circles.value.length
+    markJoined()
+    if (discoverBatchCount.value > previousBatches) discoverBatch.value = previousBatches
+    else if (discoverHasMore.value) uni.showToast({ title: '这一批暂无新圈子，继续换一批', icon: 'none' })
+  } catch {
+    if (seq === circlesReqSeq) discoverMoreError.value = true
+  } finally {
+    if (seq === circlesReqSeq) discoverLoadingMore.value = false
+  }
 }
 
 function go(url: string) { navigateTo(url) }
@@ -241,6 +279,7 @@ onMounted(() => {
   } catch { /* 读缓存失败按未命中处理 */ }
   if (cached.length > 0) {
     circles.value = cached
+    circleTotal.value = cached.length
     loading.value = false
     loadCircles(true)
   } else {
@@ -384,7 +423,7 @@ onShow(() => {
         </scroll-view>
 
         <!-- 加载态：骨架 -->
-        <view v-if="loading" class="discover-list" role="status" aria-live="polite" aria-label="圈子列表加载中">
+        <view v-if="loading || (sessionReady && extrasLoading && joinedIds.size === 0)" class="discover-list" role="status" aria-live="polite" aria-label="圈子列表加载中">
           <view v-for="i in 4" :key="i" class="sk-card">
             <view class="sk-cover" />
             <view class="sk-body"><view class="sk-line w3" /><view class="sk-line w2" /></view>
@@ -449,18 +488,18 @@ onShow(() => {
               </view>
             </view>
           </view>
-          <view v-if="discoverBatchCount > 1" class="discover-pager">
-            <text class="discover-pager-count">{{ discoverBatch + 1 }} / {{ discoverBatchCount }}</text>
+          <view v-if="discoverBatchCount > 1 || discoverHasMore" class="discover-pager">
+            <text class="discover-pager-count">{{ discoverBatch + 1 }} / {{ discoverBatchCount }}{{ discoverHasMore ? '+' : '' }}</text>
             <view
               class="discover-pager-btn"
               role="button"
               tabindex="0"
-              aria-label="换一批发现圈子"
+              :aria-label="discoverMoreError ? '重试加载更多圈子' : '换一批发现圈子'"
               @tap="nextDiscoverBatch"
               @keydown="activateOnKeyboard($event, nextDiscoverBatch)"
             >
               <app-icon name="refresh-cw" :size="24" color="#7A5634" />
-              <text class="discover-pager-txt">换一批</text>
+              <text class="discover-pager-txt">{{ discoverLoadingMore ? '正在寻找…' : discoverMoreError ? '加载失败，重试' : '换一批' }}</text>
             </view>
           </view>
         </view>
@@ -468,6 +507,7 @@ onShow(() => {
         <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" decorative /></view>
           <text v-if="emptyReason === 'category'" class="empty-text">「{{ currentCategoryName }}」分类下暂时没有圈子</text>
+          <text v-else-if="emptyReason === 'more'" class="empty-text">已展示的圈子都加入了，继续看看后面的圈子</text>
           <text v-else-if="emptyReason === 'all-joined'" class="empty-text">这里的圈子你都已经加入了</text>
           <text v-else class="empty-text">圈子还在筹备中，稍后再来看看</text>
           <view class="empty-actions">
@@ -480,6 +520,15 @@ onShow(() => {
               @tap="resetCategory"
               @keydown="activateOnKeyboard($event, resetCategory)"
             ><text class="empty-action-txt">查看全部圈子</text></view>
+            <view
+              v-else-if="emptyReason === 'more'"
+              class="empty-action"
+              role="button"
+              tabindex="0"
+              :aria-label="discoverMoreError ? '重试加载更多圈子' : '继续发现圈子'"
+              @tap="nextDiscoverBatch"
+              @keydown="activateOnKeyboard($event, nextDiscoverBatch)"
+            ><text class="empty-action-txt">{{ discoverLoadingMore ? '正在寻找…' : discoverMoreError ? '加载失败，重试' : '继续发现' }}</text></view>
             <view
               v-else-if="emptyReason === 'all-joined'"
               class="empty-action"
