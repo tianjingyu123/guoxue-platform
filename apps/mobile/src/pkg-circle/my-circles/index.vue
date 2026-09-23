@@ -61,7 +61,7 @@
       </view>
 
       <!-- 搜索 -->
-      <view class="search-wrap">
+      <view v-if="!loading && !error && myCircles.length" class="search-wrap">
         <view class="search-box">
           <AppIcon name="search" :size="16" color="#999" />
           <input
@@ -75,14 +75,18 @@
       </view>
 
       <!-- 筛选 Tab -->
-      <scroll-view scroll-x class="filter-scroll">
+      <scroll-view v-if="!loading && !error && myCircles.length" scroll-x class="filter-scroll">
         <view class="filter-row" role="tablist" aria-label="按圈子身份筛选">
           <view
             v-for="tab in filterTabs"
             :key="tab.id"
             class="filter-chip"
             :class="{ active: activeFilter === tab.id }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="activeFilter === tab.id"
             @tap="activeFilter = tab.id"
+            @keydown.enter="activeFilter = tab.id"
           >
             <text class="filter-label">{{ tab.label }}</text>
             <text class="filter-count" :class="{ active: activeFilter === tab.id }">{{ tab.count }}</text>

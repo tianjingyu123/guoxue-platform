@@ -14,10 +14,11 @@ let failStats = true
 let failCircles = false
 let writes = 0
 const cover = `${origin}/qa-cover.svg`
-const circles = [
+const circleFixtures = [
   { circle: { id: 'qa-a', name: '古籍共读社', cover, memberCount: 16, postCount: 3 }, role: 'OWNER' },
   { circle: { id: 'qa-b', name: '诗词研习社', memberCount: 8, postCount: 2 }, role: 'MEMBER' },
 ]
+let circles = circleFixtures
 const json = (data, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify({ code: status, data, message: status === 200 ? 'ok' : '模拟读取失败' }) })
 
 try {
@@ -71,8 +72,16 @@ try {
   await page.reload()
   await page.getByText('加载失败，请稍后重试', { exact: true }).waitFor()
   assert.equal(await page.locator('.overview-stats .stat-num').first().innerText(), '—', '列表失败不能伪装为零圈子')
-
+  assert.equal(await page.locator('.search-wrap').count(), 0, '列表失败时不显示不可用的搜索和筛选')
+  assert.equal(await page.locator('.filter-scroll').count(), 0)
   failCircles = false
+  circles = []
+  await page.reload()
+  await page.getByText('你还没有加入任何圈子', { exact: true }).waitFor()
+  assert.equal(await page.locator('.search-wrap').count(), 0, '尚未加入圈子时不显示无效搜索')
+  await page.getByText('去圈子广场逛逛', { exact: true }).waitFor()
+
+  circles = circleFixtures
   failStats = true
   await page.goto(`${origin}/h5/pkg-circle/circles/me`)
   await page.getByText('加入 2 个圈子 · 创建 1 个', { exact: true }).waitFor()
