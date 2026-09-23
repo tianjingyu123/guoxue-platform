@@ -7,8 +7,8 @@
  *   已回答且公开显示围观人数（peekCount 真字段）；V0「分成 +9 金币(40%)」金额无后端字段→不显示；
  *   未公开问答显示「仅自己与达人可见」（isPublic 真字段）。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onReachBottom } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
@@ -107,7 +107,8 @@ onReachBottom(() => { if (hasMore.value && !moreError.value) void loadMore() })
 function openDetail(id: string) { navigateTo(`/pkg-circle/circles/question-detail?id=${id}`) }
 
 onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
-onMounted(() => { myId.value = getCurrentUserId(); load() })
+// 详情页可能刚完成回答、拒答或超时退款；返回时重新确认问题状态。
+onShow(() => { myId.value = getCurrentUserId(); void load() })
 </script>
 
 <template>
@@ -122,7 +123,8 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
         <view
           v-for="f in filterTabs" :key="f.key"
           class="mq-filter" :class="{ 'is-active': filter === f.key }"
-          @tap="filter = f.key"
+          role="tab" tabindex="0" :aria-selected="filter === f.key"
+          @tap="filter = f.key" @keydown.enter="filter = f.key"
         >
           <text class="mq-filter-t" :class="{ 'is-active': filter === f.key }">{{ f.label }}</text>
         </view>
@@ -135,7 +137,10 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
       <text class="mq-state-t">{{ error }}</text>
       <view class="mq-retry" @tap="load"><text class="mq-retry-t">重试</text></view>
     </view>
-    <view v-else-if="filtered.length === 0 && !hasMore" class="mq-state"><text class="mq-state-t">暂无问答记录</text></view>
+    <view v-else-if="filtered.length === 0 && !hasMore" class="mq-state">
+      <text class="mq-state-t">{{ all.length ? '当前没有此状态的问答' : '暂无问答记录' }}</text>
+      <view v-if="all.length" class="mq-retry" role="button" tabindex="0" @tap="filter = 'all'" @keydown.enter="filter = 'all'"><text class="mq-retry-t">查看全部</text></view>
+    </view>
 
     <template v-else>
       <view v-if="filtered.length === 0" class="mq-state"><text class="mq-state-t">当前已加载记录中没有此状态，继续查看后续记录</text></view>
@@ -180,7 +185,8 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
 .mq-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
 .mq-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 .mq-filters { display: flex; gap: 16rpx; padding: 24rpx 0; }
-.mq-filter { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.mq-filter { min-height: 44px; padding: 0 28rpx; display: flex; align-items: center; border-radius: 30rpx; background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.mq-filter:focus-visible { outline: 2px solid #2b6f68; outline-offset: 2px; }
 .mq-filter.is-active { background: var(--text-primary, #2c2c2c); }
 .mq-filter-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
 .mq-filter-t.is-active { color: #fff; font-weight: 500; }

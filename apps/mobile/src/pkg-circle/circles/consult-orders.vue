@@ -10,8 +10,8 @@
  *  - 我回答的通话：+settledCoin×50%（后端分账硬编码 rate 0.5）；
  *  - V0「累计回答/分成收入」无可靠聚合字段 → 第二格改为真实「咨询总笔数」。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onReachBottom } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
@@ -238,7 +238,8 @@ function openDetail(o: OrderItem) {
 }
 
 onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
-onMounted(() => { myId.value = getCurrentUserId(); load() })
+// 从回答/拒答详情返回时重新读取真实状态，避免旧的“待我回答”继续留在列表。
+onShow(() => { myId.value = getCurrentUserId(); void load() })
 </script>
 
 <template>
@@ -253,7 +254,8 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
         <view
           v-for="f in filterTabs" :key="f.key"
           class="cor-filter" :class="{ 'is-active': filter === f.key }"
-          @tap="filter = f.key"
+          role="tab" tabindex="0" :aria-selected="filter === f.key"
+          @tap="filter = f.key" @keydown.enter="filter = f.key"
         >
           <text class="cor-filter-t" :class="{ 'is-active': filter === f.key }">{{ f.label }}</text>
         </view>
@@ -325,6 +327,10 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
       <view v-if="hasMoreQa || moreQaError" class="cor-more" @tap="loadQaPage">
         {{ loadingMoreQa ? '正在加载图文咨询…' : moreQaError ? `图文咨询加载失败，点击重试` : '查看更多图文咨询' }}
       </view>
+      <view v-if="orders.length && !askedOrders.length && !answeredOrders.length" class="cor-state">
+        <text class="cor-state-t">当前没有此状态的咨询订单</text>
+        <view class="cor-retry" role="button" tabindex="0" @tap="filter = 'all'" @keydown.enter="filter = 'all'"><text class="cor-retry-t">查看全部</text></view>
+      </view>
       <view v-if="hasMoreCalls || moreCallError" class="cor-more" @tap="loadCallPage">
         {{ loadingMoreCall ? '正在加载通话记录…' : moreCallError ? '通话记录加载失败，点击重试' : '查看更多通话记录' }}
       </view>
@@ -346,7 +352,8 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
 .cor-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
 .cor-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 .cor-filters { display: flex; gap: 16rpx; padding: 24rpx 0; }
-.cor-filter { padding: 12rpx 28rpx; border-radius: 30rpx; background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.cor-filter { min-height: 44px; padding: 0 28rpx; display: flex; align-items: center; border-radius: 30rpx; background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.cor-filter:focus-visible { outline: 2px solid #2b6f68; outline-offset: 2px; }
 .cor-filter.is-active { background: var(--text-primary, #2c2c2c); }
 .cor-filter-t { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
 .cor-filter-t.is-active { color: #fff; font-weight: 500; }
