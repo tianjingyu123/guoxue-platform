@@ -108,4 +108,21 @@ describe("小智协议终端 · 告警任务", () => {
     expect((await task.run(now)).map((a) => a.key)).toEqual(["xz:auth_fail"]);
     expect(sent).toEqual(["小卜硬件：连接鉴权失败激增"]);
   });
+
+  it("Webhook 失败后下一分钟补发，已送达的另一条不重复", async () => {
+    sent.length = 0;
+    const redis = new RedisService();
+    const now = Date.UTC(2026, 8, 22, 8, 15, 30);
+    const link: any = { windowCounts: async () => ({ auth_fail: 30, identity_mismatch: 10 }) };
+    let fail = true;
+    setAlertHandler(async (title) => {
+      if (fail && title.includes("身份不符")) throw new Error("webhook down");
+      sent.push(title);
+    });
+    const task = new XiaozhiAlertTask(link, redis);
+    expect((await task.run(now)).map((a) => a.key)).toEqual(["xz:auth_fail"]);
+    fail = false;
+    expect((await task.run(now + 60_000)).map((a) => a.key)).toEqual(["xz:identity"]);
+    expect(sent).toEqual(["小卜硬件：连接鉴权失败激增", "小卜硬件：设备身份不符激增"]);
+  });
 });

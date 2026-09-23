@@ -73,10 +73,8 @@ async function bootstrap() {
   // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
   try {
     const wework = app.get(WeworkService, { strict: false });
-    const toWework = (title: string, detail: string) => {
-      wework.notifyAlert(title, detail).catch(() => undefined);
-    };
-    setDecryptAlertHandler(toWework);
+      const toWework = (title: string, detail: string) => wework.notifyAlertChecked(title, detail);
+      setDecryptAlertHandler((title, detail) => { void toWework(title, detail).catch(() => undefined); });
     // B4 可观测：5xx / 慢请求 / 队列积压统一告警通道注入企微
     setAlertHandler(toWework);
   } catch {

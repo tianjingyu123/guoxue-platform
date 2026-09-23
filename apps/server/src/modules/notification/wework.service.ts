@@ -100,6 +100,19 @@ export class WeworkService {
     return this.sendMarkdown(content);
   }
 
+  /** 运维任务使用：至少一个 Webhook 确认成功，否则交由调用方重试。 */
+  async notifyAlertChecked(title: string, detail: string): Promise<void> {
+    if (this.webhookUrls.length === 0) {
+      process.stderr.write(`[Alert] ${title} | ${detail}\n`);
+      return;
+    }
+    const content = `## ⚠️ 系统告警\n**${title}**\n${detail}\n时间: ${new Date().toLocaleString("zh-CN")}`;
+    const results = await this.sendMarkdown(content);
+    if (!results.some((result) => result.errcode === 0)) {
+      throw new Error("企业微信告警未获成功回执");
+    }
+  }
+
   /** 广播到所有配置的webhook */
   private async broadcast(body: Record<string, unknown>) {
     const results: Record<string, unknown>[] = [];
@@ -109,9 +122,14 @@ export class WeworkService {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(10_000),
         });
         const data = await resp.json() as Record<string, unknown>;
-        results.push(data);
+        if (resp.ok === false || data.errcode !== 0) {
+          this.logger.error(`企业微信消息发送失败：HTTP ${resp.status ?? "unknown"}，errcode ${String(data.errcode ?? "unknown")}`);
+        } else {
+          results.push(data);
+        }
       } catch (err: unknown) {
         this.logger.error("企业微信消息发送失败", (err as Error).message);
       }

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import { sendAlert } from "../../../common/alert";
+import { sendAlertConfirmed } from "../../../common/alert";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 import { XiaozhiLinkService } from "./xiaozhi-link.service";
@@ -82,7 +82,7 @@ export function evaluateXiaozhiAlerts(c: Record<string, number>, firmwareFailedL
   return out;
 }
 
-/** 每 5 分钟看上一个完整窗口；多实例时只有抢到该窗口的实例评估一次 */
+/** 每分钟重查上一个完整窗口；发送失败可在窗口切换前补发。 */
 @Injectable()
 export class XiaozhiAlertTask {
   private readonly logger = new Logger(XiaozhiAlertTask.name);
@@ -93,7 +93,7 @@ export class XiaozhiAlertTask {
     @Optional() private readonly prisma?: PrismaService,
   ) {}
 
-  @Cron("30 */5 * * * *")
+  @Cron("30 * * * * *")
   async run(now = Date.now()) {
     try {
       const bucket = Math.floor(now / 300_000) - 1;
@@ -101,14 +101,28 @@ export class XiaozhiAlertTask {
       const failed = this.prisma
         ? await this.prisma.voiceFirmwareDeviceState.count({ where: { status: "failed", resolvedAt: { gte: new Date(now - 3600_000) } } })
         : 0;
-      // 先读完数据再标记窗口；读取失败时下次调用仍可补报。
-      if (!(await this.redis.setNX(`xz:alert:done:${bucket}`, "1", 3600))) return [];
       const alerts = evaluateXiaozhiAlerts(counts, failed);
-      for (const a of alerts) {
-        this.logger.warn(`${a.title}：${a.detail}`);
-        sendAlert(a.key, a.title, a.detail);
+      const lockKey = `xz:alert:lock:${bucket}`;
+      const lockId = `${process.pid}:${Date.now()}:${Math.random()}`;
+      if (!(await this.redis.setNX(lockKey, lockId, 120))) return [];
+      const delivered: typeof alerts = [];
+      try {
+        for (const a of alerts) {
+          const doneKey = `xz:alert:done:${bucket}:${a.key}`;
+          if (await this.redis.get(doneKey)) continue;
+          try {
+            await sendAlertConfirmed(a.title, a.detail);
+            await this.redis.set(doneKey, "1", 3600);
+            this.logger.warn(`${a.title}：${a.detail}`);
+            delivered.push(a);
+          } catch (e: any) {
+            this.logger.warn(`小卜硬件告警发送失败，稍后重试：${a.key}：${e?.message || e}`);
+          }
+        }
+      } finally {
+        if (await this.redis.get(lockKey) === lockId) await this.redis.del(lockKey);
       }
-      return alerts;
+      return delivered;
     } catch (e: any) {
       this.logger.warn(`小卜硬件告警检查失败：${e?.message || e}`);
       return [];
