@@ -3,7 +3,7 @@
  * 圈规与治理 — V0 circle-admin-rules.html 还原（2026-07-10 批⑦·治理前端）
  * 结构：官方模板一键套用 → 圈规条文 CRUD+排序 → 违规三级阶梯（配置可改）→ 内容自动治理 → 治理记录（匿名留痕）
  * 数据：circleGovernanceApi（真连 /circle-governance/*·2026-07-10 治理后端）。
- * 权限：圈规编辑/治理配置=仅圈主（后端 checkOwnership）；管理员进入降级为只读（configDenied）。
+ * 权限：圈规编辑/治理配置=仅圈主（后端 checkOwnership）；配置读取失败时保守只读并提供重试。
  * 降级（如实·不造假）：
  * - V0「长按拖动排序」→ ⋯ 菜单上移/下移（PUT reorder 真连·uni-app 拖拽不做）；
  * - 模板 chips 按后端真实内容写（圈规 6 条/三级阶梯/加入须确认/新帖先审 7 天·V0 的成长阶梯五级/续费8折后端无）；
@@ -14,6 +14,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   circleGovernanceApi,
   type CircleRuleItem,
@@ -29,7 +30,7 @@ const error = ref('')
 
 // ─── 圈规条文 ───
 const rules = ref<CircleRuleItem[]>([])
-// ─── 治理配置（仅圈主可读写·管理员 configDenied 只读） ───
+// ─── 治理配置（仅圈主可读写·读取失败时保守只读） ───
 const cfg = ref<GovernanceConfig | null>(null)
 const configDenied = ref(false)
 const canEdit = computed(() => !configDenied.value && !!cfg.value)
@@ -38,6 +39,11 @@ const canEdit = computed(() => !configDenied.value && !!cfg.value)
 const log = ref<GovernanceLogItem[]>([])
 const logTotal = ref(0)
 const logOpen = ref(false)
+const logPage = ref(1)
+const logLoading = ref(false)
+const logError = ref(false)
+const logMoreError = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 // 管理侧聚合角标（listViolations 需 member.discipline·失败静默隐藏）
 const recent30 = ref<number | null>(null)
 const pendingAppeals = ref(0)
@@ -63,7 +69,7 @@ async function load() {
   try {
     const r = await circleGovernanceApi.getRules(circleId.value)
     rules.value = r.rules
-    // 配置：仅圈主可读·管理员降级只读
+    // 配置：权限不足或网络失败都不放开写权限，展示可重试的只读态。
     try {
       cfg.value = await circleGovernanceApi.getConfig(circleId.value)
       configDenied.value = false
@@ -76,19 +82,39 @@ async function load() {
       .listViolations(circleId.value, 1, 50)
       .then((res) => {
         const now = Date.now()
-        recent30.value = res.items.filter((v) => now - new Date(v.createdAt).getTime() <= 30 * 24 * 3600 * 1000).length
-        pendingAppeals.value = res.items.filter((v) => v.appealStatus === 'PENDING').length
+        // 只有取全量时才展示精确角标；首 50 条不能冒充整个圈子的近 30 天总数。
+        recent30.value = res.total <= res.items.length ? res.items.filter((v) => now - new Date(v.createdAt).getTime() <= 30 * 24 * 3600 * 1000).length : null
+        pendingAppeals.value = res.total <= res.items.length ? res.items.filter((v) => v.appealStatus === 'PENDING').length : 0
       })
-      .catch(() => { recent30.value = null })
-    circleGovernanceApi
-      .getLog(circleId.value, 1, 20)
-      .then((res) => { log.value = res.items; logTotal.value = res.total })
-      .catch(() => { log.value = []; logTotal.value = 0 })
+      .catch(() => { recent30.value = null; pendingAppeals.value = 0 })
+    void loadLog(true)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+async function loadLog(reset = false) {
+  if (logLoading.value) return
+  logLoading.value = true
+  if (reset) logError.value = false
+  logMoreError.value = false
+  try {
+    const nextPage = reset ? 1 : logPage.value + 1
+    const result = await circleGovernanceApi.getLog(circleId.value, nextPage, 20)
+    if (!reset && !result.items.length) { logMoreError.value = true; return }
+    if (reset) log.value = result.items
+    else {
+      const seen = new Set(log.value.map(item => item.id))
+      log.value.push(...result.items.filter(item => !seen.has(item.id)))
+    }
+    logTotal.value = result.total
+    logPage.value = nextPage
+  } catch {
+    if (reset) logError.value = true
+    else logMoreError.value = true
+  } finally { logLoading.value = false }
 }
 
 async function reloadRules() {
@@ -309,8 +335,8 @@ onLoad((query) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="back-btn" role="button" aria-label="返回管理中心" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">圈规与治理</text>
     </view>
 
@@ -325,10 +351,11 @@ onLoad((query) => {
     </view>
 
     <template v-else>
-      <!-- 管理员只读提示 -->
+      <!-- 权限或网络异常均保守只读，避免把网络失败误判成管理员身份。 -->
       <view v-if="configDenied" class="readonly-note">
         <app-icon name="info" :size="26" color="#C97B2D" />
-        <text class="readonly-note-t">圈规编辑与治理配置仅圈主可操作，当前为只读查看</text>
+        <text class="readonly-note-t">治理配置暂不可用，当前以只读展示；圈主可重试确认权限</text>
+        <view class="readonly-retry" role="button" aria-label="重试加载治理配置" @tap="load">重试</view>
       </view>
 
       <!-- 圈规模板：一键套用（后端幂等·手改不覆盖） -->
@@ -485,7 +512,12 @@ onLoad((query) => {
           <app-icon :name="logOpen ? 'chevron-up' : 'chevron-down'" :size="30" color="#999999" />
         </view>
         <template v-if="logOpen">
-          <view v-if="!log.length" class="log-empty"><text class="log-empty-t">暂无治理记录，圈内风清气正</text></view>
+          <view v-if="logLoading && !log.length" class="log-empty"><text class="log-empty-t">正在读取治理记录…</text></view>
+          <view v-else-if="logError && !log.length" class="log-empty">
+            <text class="log-empty-t">治理记录暂时无法加载，不能确认是否有记录</text>
+            <view class="log-retry" role="button" aria-label="重新加载治理记录" @tap="loadLog(true)">重试</view>
+          </view>
+          <view v-else-if="!log.length" class="log-empty"><text class="log-empty-t">暂无治理记录</text></view>
           <view v-for="item in log" :key="item.id" class="log-row">
             <view class="log-type" :class="item.type.toLowerCase()"><text class="log-type-t" :class="item.type.toLowerCase()">{{ TYPE_LABEL[item.type] }}</text></view>
             <view class="log-main">
@@ -493,7 +525,7 @@ onLoad((query) => {
               <text class="log-meta">{{ fmtDate(item.createdAt) }} · {{ LOG_STATUS[item.status] || item.status }}</text>
             </view>
           </view>
-          <view v-if="logTotal > log.length" class="log-more"><text class="log-more-t">共 {{ logTotal }} 条，仅展示最近 {{ log.length }} 条</text></view>
+          <view v-if="!logError && logTotal > log.length" class="log-more" role="button" :aria-label="logMoreError ? '重试加载更多治理记录' : '加载更多治理记录'" @tap="loadLog(false)"><text class="log-more-t">{{ logLoading ? '正在加载…' : logMoreError ? '加载失败，点此重试' : `查看更多记录 · 已显示 ${log.length}/${logTotal}` }}</text></view>
         </template>
       </view>
 
@@ -561,7 +593,7 @@ onLoad((query) => {
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.back-btn { display: flex; align-items: center; }
+.back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
 
 /* 三态 */
@@ -580,6 +612,7 @@ onLoad((query) => {
   background: rgba(201, 123, 45, 0.08); border-radius: 20rpx;
 }
 .readonly-note-t { font-size: 24rpx; color: #c97b2d; line-height: 1.6; flex: 1; }
+.readonly-retry { min-width: 44px; min-height: 44px; padding: 0 12rpx; display: flex; align-items: center; justify-content: center; color: var(--brand, #c41e3a); font-size: 24rpx; }
 
 .group-label { display: block; margin: 36rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999999); }
 .group {
@@ -732,8 +765,9 @@ onLoad((query) => {
 .log-main { flex: 1; min-width: 0; }
 .log-text { display: block; font-size: 26rpx; color: var(--text-primary, #2c2c2c); line-height: 1.6; }
 .log-meta { display: block; font-size: 22rpx; color: var(--text-tertiary, #999999); margin-top: 4rpx; }
-.log-more { padding: 20rpx 32rpx; border-top: 1rpx solid var(--separator, #ede7dd); }
+.log-more { min-height: 44px; padding: 20rpx 32rpx; border-top: 1rpx solid var(--separator, #ede7dd); display: flex; align-items: center; justify-content: center; }
 .log-more-t { font-size: 22rpx; color: var(--text-tertiary, #999999); }
+.log-retry { min-height: 44px; margin-top: 12rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: var(--brand, #c41e3a); color: #fff; font-size: 26rpx; }
 
 .page-note { display: block; margin: 28rpx 36rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999999); line-height: 1.7; }
 .bottom-pad { height: 40rpx; }
