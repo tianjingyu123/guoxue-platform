@@ -331,10 +331,11 @@ export const circleDetailApi = {
     }
   },
   /** 圈内已发布文章（真连 GET /articles?circleId=·成员/圈主发布的文章·修"文章板块看不到"）。失败降级空。 */
-  postedArticles: async (id: string, options: { throwOnError?: boolean } = {}): Promise<CircleArticle[]> => {
+  postedArticles: async (id: string, options: { throwOnError?: boolean; page?: number } = {}): Promise<CircleArticle[]> => {
     try {
-      const r = await apiGet<unknown>(`/articles?circleId=${id}&pageSize=6`)
-      const arr: RawCircleArticle[] = Array.isArray(r) ? r : ((r as { items?: RawCircleArticle[]; data?: RawCircleArticle[] })?.items ?? (r as { data?: RawCircleArticle[] })?.data ?? [])
+      const page = Math.max(1, Math.floor(options.page || 1))
+      const r = await apiGet<unknown>(`/articles?circleId=${encodeURIComponent(id)}&page=${page}&pageSize=6`)
+      const arr: RawCircleArticle[] = Array.isArray(r) ? r : ((r as { rows?: RawCircleArticle[]; items?: RawCircleArticle[]; data?: RawCircleArticle[] })?.rows ?? (r as { items?: RawCircleArticle[] })?.items ?? (r as { data?: RawCircleArticle[] })?.data ?? [])
       return arr.map((a) => ({
         id: String(a.id ?? ''),
         title: a.title ?? '',

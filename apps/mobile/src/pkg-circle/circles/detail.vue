@@ -54,9 +54,14 @@ const courses = ref<CircleCourse[]>([])
 const lives = ref<CircleLive[]>([])
 const circleProducts = ref<CircleProduct[]>([])
 const postedArticles = ref<CircleArticle[]>([])
+const articlePage = ref(1)
+const articlesHasMore = ref(false)
+const articlesMoreLoading = ref(false)
+const articlesMoreError = ref(false)
 const isLoading = ref(true)
 const error = ref('')
 const feedLoadFailed = ref(false)
+const articlesLoadFailed = ref(false)
 const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
 const showAnnouncement = ref(false)
 const isJoined = ref(false)
@@ -147,6 +152,23 @@ async function loadMorePosts() {
     likedPosts.value = new Set([...likedPosts.value, ...r.data.filter(post => post.isLiked).map(post => post.id)])
   } catch { postsMoreError.value = true }
   finally { postsLoadingMore.value = false }
+}
+
+async function loadMoreArticles() {
+  if (!articlesHasMore.value || articlesMoreLoading.value) return
+  articlesMoreLoading.value = true
+  articlesMoreError.value = false
+  try {
+    const nextPage = articlePage.value + 1
+    const batch = await circleDetailApi.postedArticles(circleId.value, { page: nextPage, throwOnError: true })
+    const seen = new Set(postedArticles.value.map((article) => article.id))
+    const fresh = batch.filter((article) => !seen.has(article.id))
+    postedArticles.value = [...postedArticles.value, ...fresh]
+    articlePage.value = nextPage
+    // 旧接口若忽略 page 会重复首批；停止续页，避免用户无限点相同文章。
+    articlesHasMore.value = batch.length === 6 && fresh.length > 0
+  } catch { articlesMoreError.value = true }
+  finally { articlesMoreLoading.value = false }
 }
 
 async function loadEssence() {
@@ -353,6 +375,7 @@ async function loadData() {
       isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
     ])
     feedLoadFailed.value = [p, crs, pas].some((result) => result.status === 'rejected')
+    articlesLoadFailed.value = pas.status === 'rejected'
     posts.value = p.status === 'fulfilled' ? p.value.data : []
     postsTotal.value = p.status === 'fulfilled' ? p.value.total : 0
     postsPage.value = 1
@@ -365,6 +388,9 @@ async function loadData() {
     lives.value = lvs.status === 'fulfilled' ? lvs.value : []
     circleProducts.value = prds.status === 'fulfilled' ? prds.value : []
     postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
+    articlePage.value = 1
+    articlesHasMore.value = pas.status === 'fulfilled' && pas.value.length === 6
+    articlesMoreError.value = false
     membershipError.value = isLoggedIn() && (st.status === 'rejected' || (st.status === 'fulfilled' && !st.value.joined && c.needApproval && jr.status === 'rejected'))
     if (!isLoggedIn()) {
       isJoined.value = false
@@ -755,7 +781,7 @@ function openResource(id: string) {
           ><text class="empty-action-txt">重新加载</text></view>
         </view>
         <view v-else-if="!hasMorePosts && (posts.length || courses.length || postedArticles.length)" class="scroll-end"><text>{{ VOICE.END }}</text></view>
-        <view v-else class="empty" role="status">
+        <view v-else-if="!hasMorePosts" class="empty" role="status">
           <app-icon name="users" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">圈子还没有内容</text>
           <text class="empty-txt">{{ isJoined ? '点击右下角发布按钮，分享第一条动态吧' : '可以先了解圈子介绍，加入后参与交流' }}</text>
@@ -842,7 +868,13 @@ function openResource(id: string) {
 
       <!-- 文章 Tab -->
       <view v-else class="feed">
-        <template v-if="postedArticles.length">
+        <view v-if="articlesLoadFailed" class="empty" role="alert">
+          <app-icon name="wifi-off" :size="88" color="#E8E3DB" decorative />
+          <text class="empty-txt">文章暂时无法加载，尚不能确认本圈是否有文章</text>
+          <view class="empty-action" role="button" tabindex="0" aria-label="重试加载圈内文章"
+            @tap="reloadData" @keydown="activateOnKeyboard($event, reloadData)"><text class="empty-action-txt">重试加载</text></view>
+        </view>
+        <template v-else-if="postedArticles.length">
           <view
             v-for="a in postedArticles" :key="a.id"
             class="inline-card article-card" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)"
@@ -853,6 +885,11 @@ function openResource(id: string) {
               <text class="article-byline">{{ a.author }}<text v-if="a.views"> · 阅读 {{ a.views }}</text></text>
             </view>
             <image v-if="a.cover" lazy-load :src="a.cover" class="article-cover" mode="aspectFill" />
+          </view>
+          <view v-if="articlesHasMore" class="feed-more" role="button" tabindex="0"
+            :aria-label="articlesMoreError ? '重试加载更多圈内文章' : '加载更多圈内文章'"
+            @tap="loadMoreArticles" @keydown="activateOnKeyboard($event, loadMoreArticles)">
+            <text>{{ articlesMoreLoading ? '正在加载…' : articlesMoreError ? '加载失败，点此重试' : `查看更多文章 · 已显示 ${postedArticles.length} 篇` }}</text>
           </view>
         </template>
         <view v-else class="empty" role="status">

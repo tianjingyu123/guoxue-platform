@@ -9,6 +9,8 @@ const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5198'
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let nextFails = true
 let essenceQueries = 0
+let articleQueries = 0
+let articlePageTwoFails = true
 let qaAttempts = 0
 let discoverAttempts = 0
 let paginateDiscover = false
@@ -38,6 +40,17 @@ try {
       return route.fulfill(json({ posts: page === 1 ? Array.from({ length: 20 }, (_, i) => post(`regular-${i + 1}`)) : [post('regular-21'), post('regular-22'), post('regular-23')], total: 23 }))
     }
     if (path === '/circles/qa/members') return route.fulfill(json({ members: [], total: 0 }))
+    if (path === '/articles') {
+      articleQueries++
+      const articlePage = Number(url.searchParams.get('page') || 1)
+      if (articleQueries === 1 || (articlePage === 2 && articlePageTwoFails)) {
+        if (articlePage === 2) articlePageTwoFails = false
+        return route.fulfill(json(null, 503))
+      }
+      const rows = articlePage === 1 ? Array.from({ length: 6 }, (_, i) => ({ id: `article-${i + 1}`, title: `共读文章 ${i + 1}`, cover: '/static/images/default-cover.png' }))
+        : [{ id: 'article-7', title: '共读文章 7' }, { id: 'article-8', title: '共读文章 8' }]
+      return route.fulfill(json({ rows, total: 8 }))
+    }
     if (path === '/circles/qa/experts') {
       qaAttempts++
       if (qaAttempts === 1 || qaAttempts === 3 || qaAttempts === 5) return route.fulfill(json(null, 503))
@@ -63,12 +76,26 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(`${origin}/h5/pkg-circle/circles/detail?id=qa`)
   await page.getByText('共读笔记 regular-20', { exact: true }).waitFor({ timeout: 15000 })
+  assert.equal(await page.getByText('圈子还没有内容').count(), 0, '有续页的推荐流不得显示空圈提示')
   await page.getByRole('button', { name: '加载更多圈内动态' }).click()
   await page.getByRole('button', { name: '重试加载更多动态' }).waitFor()
   assert.equal(await page.getByText('共读笔记 regular-20', { exact: true }).count(), 1, '续页故障应保留首批内容')
   await page.getByRole('button', { name: '重试加载更多动态' }).click()
   await page.getByText('共读笔记 regular-23', { exact: true }).waitFor()
   assert.equal(await page.getByRole('button', { name: '加载更多圈内动态' }).count(), 0)
+  await page.getByRole('tab', { name: '文章' }).click()
+  await page.getByText('文章暂时无法加载，尚不能确认本圈是否有文章').waitFor()
+  assert.equal(await page.getByText('本圈还没有文章').count(), 0, '文章读取失败不得伪装为空')
+  await page.getByRole('button', { name: '重试加载圈内文章' }).click()
+  await page.getByText('共读文章 6', { exact: true }).waitFor()
+  assert.equal(articleQueries, 2)
+  await page.getByRole('button', { name: '加载更多圈内文章' }).click()
+  await page.getByRole('button', { name: '重试加载更多圈内文章' }).waitFor()
+  assert.equal(await page.getByText('共读文章 6', { exact: true }).count(), 1)
+  await page.getByRole('button', { name: '重试加载更多圈内文章' }).click()
+  await page.getByText('共读文章 8', { exact: true }).waitFor()
+  assert.equal(await page.getByRole('button', { name: '加载更多圈内文章' }).count(), 0)
+  assert.equal(articleQueries, 4)
   await page.getByRole('tab', { name: '精华' }).click()
   await page.getByText('共读笔记 essence-21', { exact: true }).waitFor()
   assert.ok(essenceQueries >= 1, '精华栏目必须请求独立筛选，不得仅过滤推荐首屏')
@@ -124,7 +151,7 @@ try {
   assert.equal(await page.getByRole('button', { name: '加载更多达人服务' }).count(), 0, '旧服务端重复首页时不得无限续页')
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('圈子详情：推荐与达人续页、精华、故障重试、跨圈服务及连麦报价：通过')
+  console.log('圈子详情：推荐、文章与达人续页，精华、故障重试、跨圈服务及连麦报价：通过')
 } finally {
   await browser.close()
 }

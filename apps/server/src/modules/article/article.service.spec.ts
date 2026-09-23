@@ -236,8 +236,18 @@ describe("ArticleService", () => {
       expect(mockPrisma.article.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ circleId: "c1" }),
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         }),
       );
+    });
+
+    it("不同分站的公共文章列表不共用缓存键", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.article.findMany.mockResolvedValue([]);
+      mockPrisma.article.count.mockResolvedValue(0);
+      await svc.listArticles({ page: 1, pageSize: 20, stationId: "station-a" });
+      await svc.listArticles({ page: 1, pageSize: 20, stationId: "station-b" });
+      expect(mockRedis.getJson.mock.calls[0][0]).not.toBe(mockRedis.getJson.mock.calls[1][0]);
     });
   });
 

@@ -196,8 +196,8 @@ export class ArticleService {
   }) {
     const { circleId, tag, isPushHome, auditStatus, keyword, stationId, isAdmin } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
-    const cacheKey = `articles:list:v3:${page}:${pageSize}:${filterHash}`;
+    const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}:${stationId ?? ""}`;
+    const cacheKey = `articles:list:v4:${page}:${pageSize}:${filterHash}`;
 
     // 管理端（isAdmin）不走缓存：审核工作台需实时数据，且避免与 C 端共享缓存键互相污染
     if (!isAdmin) {
@@ -240,7 +240,8 @@ export class ArticleService {
         select,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        // 同一创建时间的文章需要稳定顺序，否则跨页可能重复或漏项。
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.article.count({ where }),
     ]);

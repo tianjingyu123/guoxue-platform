@@ -222,8 +222,8 @@ export class CourseService {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterStatus = auditStatus || status;
     const hasPrice = minPrice !== undefined || maxPrice !== undefined;
-    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}`;
-    const cacheKey = `courses:list:v2:${page}:${pageSize}:${filterHash}`;
+    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}:${stationId ?? ""}`;
+    const cacheKey = `courses:list:v3:${page}:${pageSize}:${filterHash}`;
 
     // 关键词搜索、类型/品类/排序/免费/价格筛选不缓存（组合太多）
     if (!keyword && !type && !categoryLevel1 && !sort && !free && !hasPrice) {

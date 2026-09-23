@@ -246,6 +246,15 @@ describe("CourseService", () => {
       expect(result).toEqual(cached);
     });
 
+    it("不同分站的课程列表不共用缓存键", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: 1, pageSize: 20, stationId: "station-a" });
+      await svc.listCourses({ page: 1, pageSize: 20, stationId: "station-b" });
+      expect(mockRedis.getJson.mock.calls[0][0]).not.toBe(mockRedis.getJson.mock.calls[1][0]);
+    });
+
     it("管理端 ALL 保留隔离记录用于审核", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.course.findMany.mockResolvedValue([]);
