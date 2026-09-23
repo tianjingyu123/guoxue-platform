@@ -5,12 +5,15 @@
  * 数据/退款计算复用 lib/circle-exit.ts
  * @data-needs 退出申请列表通过 exitApi.getExitRequests(circleId) 获取
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { exitApi, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
 
 const requests = ref<ExitApplication[]>([])
+// 后端只提供待审列表，已处理记录只能在本页会话中显示。
+const processedThisSession = ref<ExitApplication[]>([])
 const loading = ref(true)
 const error = ref('')
 const filter = ref<'pending' | 'processed'>('pending')
@@ -18,8 +21,8 @@ const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
 const submitting = ref(false)
 
-const pending = computed(() => requests.value.filter((r) => r.stage === 'owner_reviewing'))
-const processed = computed(() => requests.value.filter((r) => r.stage !== 'owner_reviewing'))
+const pending = computed(() => requests.value.filter((r) => r.stage === 'owner_reviewing' && !processedThisSession.value.some((p) => p.id === r.id)))
+const processed = computed(() => processedThisSession.value)
 const display = computed(() => (filter.value === 'pending' ? pending.value : processed.value))
 
 function toneCls(tone: string) {
@@ -43,17 +46,16 @@ async function fetchRequests() {
 
 function retry() { fetchRequests() }
 
-onMounted(() => { fetchRequests() })
+onShow(() => { void fetchRequests() })
 
 async function approve(id: string) {
   if (submitting.value) return
   submitting.value = true
   try {
     await exitApi.ownerReview(id, true)
-    // 审核已持久化：本地乐观更新，使该条移入「已处理」（后端无圈主已处理历史端点）
-    requests.value = requests.value.map((r) =>
-      r.id === id ? { ...r, stage: 'platform_reviewing' as const, ownerReviewedAt: new Date().toISOString().slice(0, 10) } : r,
-    )
+    const reviewed = requests.value.find((r) => r.id === id)
+    if (reviewed) processedThisSession.value = [{ ...reviewed, stage: 'platform_reviewing', ownerReviewedAt: new Date().toISOString().slice(0, 10) }, ...processedThisSession.value]
+    requests.value = requests.value.filter((r) => r.id !== id)
     uni.showToast({ title: '已同意退出', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
@@ -68,11 +70,9 @@ async function confirmReject() {
   submitting.value = true
   try {
     await exitApi.ownerReview(id, false, rejectReason.value || undefined)
-    requests.value = requests.value.map((r) =>
-      r.id === id
-        ? { ...r, stage: 'rejected' as const, rejectBy: 'owner' as const, rejectReason: rejectReason.value || '圈主未通过退出申请', ownerReviewedAt: new Date().toISOString().slice(0, 10) }
-        : r,
-    )
+    const reviewed = requests.value.find((r) => r.id === id)
+    if (reviewed) processedThisSession.value = [{ ...reviewed, stage: 'rejected', rejectBy: 'owner', rejectReason: rejectReason.value || '圈主未通过退出申请', ownerReviewedAt: new Date().toISOString().slice(0, 10) }, ...processedThisSession.value]
+    requests.value = requests.value.filter((r) => r.id !== id)
     rejectingId.value = null; rejectReason.value = ''
     uni.showToast({ title: '已驳回申请', icon: 'none' })
   } catch (e) {
@@ -104,12 +104,12 @@ async function confirmReject() {
         <view class="er-divider" />
         <view>
           <text class="er-stat-num">{{ processed.length }}</text>
-          <text class="er-stat-label">已处理</text>
+          <text class="er-stat-label">本次已处理</text>
         </view>
       </view>
       <view class="er-tabs">
         <!-- t.key 是宽 string，filter 是联合字面量类型，去掉 as any 会报类型不匹配，故保留 -->
-        <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '已处理' }]" :key="t.key"
+        <view v-for="t in [{ key: 'pending', label: '待审核' }, { key: 'processed', label: '本次已处理' }]" :key="t.key"
           class="er-tab" :class="{ 'er-tab-on': filter === t.key }" @tap="filter = t.key as any">
           <text>{{ t.label }}</text>
           <view v-if="filter === t.key" class="er-tab-line" />
@@ -120,6 +120,9 @@ async function confirmReject() {
     <!-- 圈主审核说明 -->
     <view v-if="!loading && !error && filter === 'pending' && pending.length > 0" class="er-note">
       <text class="er-note-text">请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。</text>
+    </view>
+    <view v-if="!loading && !error && filter === 'processed'" class="er-note">
+      <text class="er-note-text">这里只记录本次打开页面后的圈主审核操作；后续平台处理和退款到账状态不会在此更新。</text>
     </view>
 
     <!-- 加载骨架 -->
@@ -148,7 +151,7 @@ async function confirmReject() {
     <!-- 空态 -->
     <view v-else-if="display.length === 0" class="er-empty">
       <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
-      <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}</text>
+      <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '本次打开页面后尚未处理申请' }}</text>
     </view>
 
     <!-- 列表 -->

@@ -5,8 +5,8 @@
  * 数据：contentAuditApi.mine（真连 GET /audit/content-audits/mine·JWT）。
  * 降级：草稿聚合暂未做（后端 /circles/drafts 仅帖子草稿且前端无草稿续编流程），本页先做审核记录。
  */
-import { ref, onMounted, computed } from 'vue'
-import { onReachBottom } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onReachBottom, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { contentAuditApi, type MyContentAudit, type AuditFinalStatus } from '@/lib/content-audit-data'
@@ -93,7 +93,8 @@ function fmtDate(s: string) {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
 
-onMounted(load)
+// 从内容编辑或其他页面返回时重新取得审核状态，保留当前筛选。
+onShow(() => { void load() })
 </script>
 
 <template>
@@ -127,8 +128,8 @@ onMounted(load)
     <!-- 空态 -->
     <view v-else-if="!list.length" class="ma-state center">
       <view class="ma-empty-icon"><app-icon name="file-text" :size="52" color="#999999" /></view>
-      <text class="ma-empty-title">暂无审核记录</text>
-      <text class="ma-empty-sub">发布内容选择「向全平台开放」后，平台审核进度会显示在这里；仅圈内可见的内容无需平台审核。</text>
+      <text class="ma-empty-title">{{ filter === 'ALL' ? '暂无审核记录' : `暂无${FILTERS.find((f) => f.id === filter)?.label}记录` }}</text>
+      <text class="ma-empty-sub">{{ filter === 'ALL' ? '发布内容选择「向全平台开放」后，平台审核进度会显示在这里；仅圈内可见的内容无需平台审核。' : '可切换其他状态，查看已提交内容的审核进度。' }}</text>
     </view>
 
     <!-- 审核记录列表 -->
@@ -174,7 +175,7 @@ onMounted(load)
 /* 筛选 */
 .ma-filters { display: flex; gap: 16rpx; padding: 8rpx 32rpx 8rpx; }
 .ma-filter {
-  height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  min-height: 88rpx; padding: 0 24rpx; border-radius: 44rpx;
   background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.04);
   display: flex; align-items: center; justify-content: center;
 }

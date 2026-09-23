@@ -9,7 +9,7 @@
  * 入口：dashboard 待办/分区（?id=xxx&type=refund 直达退款 Tab）。
  */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
@@ -50,9 +50,9 @@ async function load() {
       growthApi.joinRequests(circleId.value),
       refundApi.ownerPending({ throwOnError: true }),
     ])
-    if (jRes.status === 'rejected') throw new Error('load failed')
-    joinRequests.value = jRes.value
-    if (rRes.status === 'rejected') refundsError.value = true
+    if (jRes.status === 'rejected') { loadError.value = true; joinRequests.value = [] }
+    else joinRequests.value = jRes.value
+    if (rRes.status === 'rejected') { refundsError.value = true; refunds.value = [] }
     else refunds.value = rRes.value.filter((r) => r.circleId === circleId.value)
   } catch {
     loadError.value = true
@@ -139,8 +139,9 @@ function money(n: number) {
 onLoad((q) => {
   circleId.value = q?.id || q?.circleId || ''
   if (q?.type === 'refund') activeType.value = 'refund'
-  load()
 })
+// 返回管理页后可能已有别处完成审核；重新读取当前待办。
+onShow(() => { void load() })
 </script>
 
 <template>
@@ -176,7 +177,7 @@ onLoad((q) => {
     <scroll-view scroll-y class="body">
       <!-- 三态 -->
       <view v-if="loading" class="state-view"><AppLoading /></view>
-      <view v-else-if="loadError" class="state-view">
+      <view v-else-if="loadError && activeType === 'join'" class="state-view">
         <app-icon name="alert-circle" :size="64" color="#C9A96E" />
         <text class="state-desc">加载失败（需圈主身份访问）</text>
         <view class="state-btn" @tap="load"><text class="state-btn-txt">重试</text></view>
