@@ -71,6 +71,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
   <simple-chat
     :title="title"
     :back-target="backTarget"
+    :quota-recovery-enabled="false"
     icon-name="sparkles"
     icon-color="#C41E3A"
     icon-bg="rgba(196,30,58,0.1)"

@@ -68,6 +68,8 @@ const props = defineProps<{
   sceneHint?: string
   /** 独立打开对话页时的场景返回目标；正常页面栈仍返回上一页。 */
   backTarget?: string
+  /** 当前场景确有用户可购买的 AI 额度时才展示恢复权益入口。 */
+  quotaRecoveryEnabled?: boolean
   /** 智能体专业模板键；GUIDE / SERVICE / 各领域 type */
   experienceKey?: string
   /** 用于生成专属题签与跨专业路由 */
@@ -278,7 +280,7 @@ async function sendStreaming(t: string) {
     const m = live()
     if (m) m.knowledgeMatches = undefined
     const errText = (e as Error)?.message || '请稍后再试'
-    if (/额度|次数|用完|余额不足/u.test(errText)) {
+    if (props.quotaRecoveryEnabled !== false && /额度|次数|用完|余额不足/u.test(errText)) {
       quotaExhausted.value = true
       if (m) m.content = '本次服务额度已用完。你可以恢复权益后继续当前对话，已有内容不会丢失。'
     } else if (m) m.content = m.content ? m.content + `\n\n（连接中断：${errText}）` : `抱歉，回复生成失败：${errText}`
@@ -372,7 +374,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
         <text class="head-title">{{ title }}</text>
-        <text class="head-online">在线</text>
+        <text class="head-online">AI 对话</text>
       </view>
       <view class="refresh" role="button" tabindex="0" aria-label="重新开始对话" @tap="reset" @keydown="activateOnKeyboard($event, reset)"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
     </view>
@@ -398,7 +400,12 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 
           <!-- 文本气泡 -->
           <view v-else-if="msg.role === 'assistant' && !msg.streaming && msg.content" class="answer-wrap">
+            <view v-if="msg.id === 0 || (msg.content.length < 180 && !msg.content.includes('\n'))" class="bubble bubble-ai compact-answer">
+              <text class="bubble-text">{{ msg.content }}</text>
+              <text class="bubble-time">{{ msg.time }}</text>
+            </view>
             <AgentAnswerCard
+              v-else
               :content="msg.content"
               :experience="experience"
               :agent-name="agentName || title"
@@ -554,6 +561,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .card-wrap { flex: 1; min-width: 0; max-width: 86%; }
 .answer-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.compact-answer { align-self: flex-start; box-sizing: border-box; max-width: 100%; }
 .knowledge-note { display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 18rpx; border-radius: 16rpx; background: #edf4f2; color: #315f58; }
 .knowledge-note__label { flex-shrink: 0; font-size: 20rpx; font-weight: 700; }
 .knowledge-note__text { font-size: 20rpx; line-height: 1.5; }

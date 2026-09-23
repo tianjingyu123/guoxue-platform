@@ -26,11 +26,12 @@ try {
     if (path === '/circles/qa-circle/assistant/stream' && method === 'POST') {
       const question = JSON.parse(route.request().postData() || '{}').question || ''
       const empty = question.includes('入门')
-      const failed = question.includes('概念')
+      const failed = question.includes('概念') || question.includes('额度')
+      const longAnswer = question.includes('长篇')
       const events = failed
-        ? [{ type: 'meta', knowledgeMatches: { circle: 1, global: 0 } }, { type: 'error', message: '模拟流式失败' }]
+        ? [{ type: 'meta', knowledgeMatches: { circle: 1, global: 0 } }, { type: 'error', message: question.includes('额度') ? '模拟额度耗尽' : '模拟流式失败' }]
         : [{ type: 'meta', knowledgeMatches: empty ? { circle: 0, global: 0 } : { circle: 2, global: 1 } },
-          { type: 'chunk', content: empty ? '可先从基础内容读起。' : '本圈从古籍共读入门。' }, { type: 'done' }]
+          { type: 'chunk', content: empty ? '可先从基础内容读起。' : longAnswer ? '本圈的共读路径从经典原文开始，再配合注释与讨论理解语境。'.repeat(8) : '本圈从古籍共读入门。' }, { type: 'done' }]
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') })
     }
     let data = []
@@ -72,11 +73,22 @@ try {
   await page.getByText('古籍共读社 · 圈主助理', { exact: true }).first().waitFor({ timeout: 5000 })
   await page.getByText('这个圈子主要讲什么？', { exact: true }).click()
   await page.getByText('本次检索到本圈 2 条、通用 1 条；检索命中不代表回答已逐条引用。', { exact: true }).waitFor({ timeout: 10000 })
+  assert.equal(await page.locator('.answer-art').count(), 0, '欢迎语与短回答不应占用整幅答卷卡')
+  if (process.env.QA_SCREENSHOT) {
+    await page.screenshot({ path: process.env.QA_SCREENSHOT, fullPage: true })
+  }
+  await page.locator('textarea').fill('请给我长篇解释')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  await page.locator('.answer-art').waitFor({ timeout: 10000 })
   await page.getByText('推荐一些入门内容', { exact: true }).click()
   await page.getByText('未检索到直接相关的资料，本次回答来自通用知识。', { exact: true }).waitFor({ timeout: 10000 })
   await page.getByText('帮我解释一个概念', { exact: true }).click()
   await page.getByText('模拟流式失败', { exact: false }).waitFor({ timeout: 10000 })
-  assert.equal(await page.locator('.knowledge-note').count(), 2, '失败回答不应继续展示检索摘要')
+  assert.equal(await page.locator('.knowledge-note').count(), 3, '失败回答不应继续展示检索摘要')
+  await page.locator('textarea').fill('模拟额度问题')
+  await page.getByRole('button', { name: '发送消息' }).click()
+  await page.getByText('模拟额度耗尽', { exact: false }).waitFor({ timeout: 10000 })
+  assert.equal(await page.locator('.quota-recovery').count(), 0, '圈主助理未设付费额度时不应诱导购买会员')
   const refreshed = page.waitForResponse(resp => resp.url().includes('/api/v1/circles/qa-circle') && resp.url().split('?')[0].endsWith('/qa-circle'))
   await page.getByRole('button', { name: '返回上一页' }).click()
   await page.waitForURL('**/pkg-circle/circles/detail?id=qa-circle')
@@ -104,5 +116,5 @@ try {
 
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('9组通过：未入圈先引导、成员进助理并保留阅读位置、流式命中/零命中/失败摘要、过期先续费、助理独立打开返回原圈、成员状态失败不放行；真实业务写入0。')
+  console.log('12组通过：成员引导与返回滚动、长短回答层级、流式命中/零命中/失败摘要、无付费额度不诱导购买、过期续费与状态失败保护；真实业务写入0。')
 } finally { await browser.close() }
