@@ -307,7 +307,7 @@ export class CirclePostService {
     let total: number;
 
     if (sortField === "activityScore") {
-      // activityScore 需要计算（memberCount + postCount），取全部后排序
+      // 综合分按成员数 + 帖子数计算；必须先排序再分页，不能沿用成员数排序后仅改名。
       const [circles, count] = await Promise.all([
         this.prisma.circle.findMany({
           where,
@@ -316,12 +316,16 @@ export class CirclePostService {
             postCount: true, intro: true, categoryLevel1: true,
             owner: { select: { nickname: true } },
           },
-          orderBy: [{ memberCount: "desc" }, { postCount: "desc" }],
         }),
         this.prisma.circle.count({ where }),
       ]);
       total = count;
-      items = circles.slice((page - 1) * pageSize, page * pageSize).map((c, i) => ({
+      const ranked = circles.sort((a, b) =>
+        (b.memberCount + b.postCount) - (a.memberCount + a.postCount)
+        || b.postCount - a.postCount
+        || a.id.localeCompare(b.id),
+      );
+      items = ranked.slice((page - 1) * pageSize, page * pageSize).map((c, i) => ({
         ...c,
         rank: (page - 1) * pageSize + i + 1,
       }));

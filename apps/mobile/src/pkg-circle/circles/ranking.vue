@@ -3,7 +3,7 @@
  * 圈子排行榜（视觉层沿用原型 app/circles/ranking/page.tsx；逻辑层重写为真连后端）
  * 渐变顶部 + 三Tab + 前3名台阶式 + 4名后列表 + 三态
  * 注：原型"高质量/精华率"Tab 后端无支撑(臆想指标)，改为后端支持的"内容数"(postCount)。
- *     三Tab 对应后端 sortBy: memberCount / activityScore / postCount。
+ *     三Tab 对应后端 sortBy: memberCount / activityScore(成员+帖子) / postCount。
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -15,7 +15,7 @@ import { circleApi, formatMembers, type RankingCircle, type RankSortBy } from '@
 type RankTab = 'members' | 'active' | 'content'
 const tabs: { value: RankTab; label: string; sortBy: RankSortBy; sub: string }[] = [
   { value: 'members', label: '成员数', sortBy: 'memberCount', sub: '成员' },
-  { value: 'active', label: '最活跃', sortBy: 'activityScore', sub: '帖子' },
+  { value: 'active', label: '综合', sortBy: 'activityScore', sub: '人＋帖' },
   { value: 'content', label: '内容数', sortBy: 'postCount', sub: '内容' },
 ]
 
@@ -28,18 +28,20 @@ const currentTab = computed(() => tabs.find(t => t.value === activeTab.value)!)
 const top3 = computed(() => items.value.slice(0, 3))
 const rest = computed(() => items.value.slice(3))
 
-/** 当前 Tab 展示的数值：成员数走万分位格式化，帖子/内容数直接显示 */
+/** 当前 Tab 展示的数值必须与排序口径一致，综合=成员数+帖子数。 */
 function valOf(c?: RankingCircle): string {
   if (!c) return ''
-  return activeTab.value === 'members' ? formatMembers(c.memberCount) : String(c.postCount)
+  if (activeTab.value === 'members') return formatMembers(c.memberCount)
+  return String(activeTab.value === 'active' ? c.memberCount + c.postCount : c.postCount)
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    items.value = await circleApi.getRanking(currentTab.value.sortBy)
+    items.value = await circleApi.getRanking(currentTab.value.sortBy, { throwOnError: true })
   } catch {
+    items.value = []
     error.value = '加载失败'
   } finally {
     loading.value = false
@@ -62,12 +64,12 @@ onMounted(load)
     <!-- 渐变顶部 -->
     <view class="rk-top">
       <view class="rk-head">
-        <view @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+        <view class="rk-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="rk-title">圈子排行榜</text>
         <app-icon name="trophy" :size="44" color="#FCD34D" />
       </view>
       <view class="rk-tabs">
-        <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" @tap="switchTab(tab.value)">
+        <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" role="tab" tabindex="0" :aria-selected="activeTab === tab.value" @tap="switchTab(tab.value)" @keydown.enter="switchTab(tab.value)">
           <text class="rk-tab-txt" :class="{ on: activeTab === tab.value }">{{ tab.label }}</text>
         </view>
       </view>
@@ -77,7 +79,7 @@ onMounted(load)
     <view v-if="loading" class="rk-state"><AppLoading /></view>
     <view v-else-if="error" class="rk-state">
       <text class="rk-state-txt">{{ error }}</text>
-      <view class="rk-state-btn" @tap="load">重试</view>
+      <view class="rk-state-btn" role="button" tabindex="0" @tap="load" @keydown.enter="load">重试</view>
     </view>
     <view v-else-if="!items.length" class="rk-state"><text class="rk-state-txt">暂无排行数据</text></view>
 
@@ -85,7 +87,7 @@ onMounted(load)
       <!-- 前3名台阶式 -->
       <view class="rk-podium">
         <!-- 第2名 -->
-        <view class="rk-pod rk-pod-2">
+        <view v-if="top3[1]" class="rk-pod rk-pod-2" role="button" tabindex="0" :aria-label="`查看第2名${top3[1].name}`" @tap="openCircle(top3[1].id)" @keydown.enter="openCircle(top3[1].id)">
           <view class="rk-pod-avatar-wrap">
             <view class="rk-pod-avatar silver"><smart-cover :src="top3[1]?.cover" :title="top3[1]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank silver">2</view>
@@ -95,7 +97,7 @@ onMounted(load)
           <text class="rk-pod-sub">{{ currentTab.sub }}</text>
         </view>
         <!-- 第1名 -->
-        <view class="rk-pod rk-pod-1">
+        <view class="rk-pod rk-pod-1" role="button" tabindex="0" :aria-label="`查看第1名${top3[0].name}`" @tap="openCircle(top3[0].id)" @keydown.enter="openCircle(top3[0].id)">
           <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#F59E0B" /></view>
           <view class="rk-pod-avatar-wrap">
             <view class="rk-pod-avatar gold"><smart-cover :src="top3[0]?.cover" :title="top3[0]?.name" type="circle" deco :deco-size="50" /></view>
@@ -106,7 +108,7 @@ onMounted(load)
           <text class="rk-pod-sub">{{ currentTab.sub }}</text>
         </view>
         <!-- 第3名 -->
-        <view class="rk-pod rk-pod-2">
+        <view v-if="top3[2]" class="rk-pod rk-pod-2" role="button" tabindex="0" :aria-label="`查看第3名${top3[2].name}`" @tap="openCircle(top3[2].id)" @keydown.enter="openCircle(top3[2].id)">
           <view class="rk-pod-avatar-wrap">
             <view class="rk-pod-avatar bronze"><smart-cover :src="top3[2]?.cover" :title="top3[2]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank bronze">3</view>
@@ -143,19 +145,20 @@ onMounted(load)
 .rk { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
 .rk-top { background: linear-gradient(135deg, var(--brand), #8B0000); padding: 24rpx 32rpx 128rpx; padding-top: calc(48rpx + var(--status-bar-height, 0px)); }
 .rk-head { display: flex; align-items: center; gap: 24rpx; margin-bottom: 48rpx; }
+.rk-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rk-title { flex: 1; font-size: 40rpx; font-weight: 700; color: #fff; }
 .rk-tabs { display: flex; background: rgba(255,255,255,0.1); border-radius: 24rpx; padding: 8rpx; gap: 8rpx; }
-.rk-tab { flex: 1; padding: 16rpx 0; border-radius: 16rpx; text-align: center; }
+.rk-tab { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16rpx; text-align: center; }
 .rk-tab.on { background: #fff; }
 .rk-tab-txt { font-size: 28rpx; font-weight: 500; color: rgba(255,255,255,0.8); }
 .rk-tab-txt.on { color: var(--brand, var(--brand)); }
 /* 三态 */
 .rk-state { display: flex; flex-direction: column; align-items: center; gap: 24rpx; padding: 160rpx 0; }
 .rk-state-txt { font-size: 28rpx; color: #999; }
-.rk-state-btn { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand, var(--brand)); color: #fff; font-size: 26rpx; }
+.rk-state-btn { min-height: 44px; padding: 0 48rpx; display: flex; align-items: center; border-radius: 999rpx; background: var(--brand, var(--brand)); color: #fff; font-size: 26rpx; }
 /* 台阶 */
-.rk-podium { display: flex; gap: 16rpx; padding: 0 32rpx; margin-top: -80rpx; align-items: flex-end; }
-.rk-pod { flex: 1; display: flex; flex-direction: column; align-items: center; background: var(--card, #fff); border-radius: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06); padding-bottom: 24rpx; }
+.rk-podium { display: flex; justify-content: center; gap: 16rpx; padding: 0 32rpx; margin-top: -80rpx; align-items: flex-end; }
+.rk-pod { flex: 1; max-width: 220rpx; display: flex; flex-direction: column; align-items: center; background: var(--card, #fff); border-radius: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06); padding-bottom: 24rpx; }
 .rk-pod-2 { margin-top: 48rpx; padding-top: 16rpx; border: 2rpx solid var(--border, #EDE8E0); }
 .rk-pod-1 { border: 2rpx solid #FDE68A; }
 .rk-pod-crown { width: 100%; background: rgba(251,191,36,0.2); padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }

@@ -339,9 +339,9 @@ export const circleApi = {
   },
   /**
    * 圈子排行榜 — GET /circles/ranking（真连，后端 {items}）
-   * @param sortBy memberCount(成员数) / activityScore(最活跃) / postCount(内容数)
+   * @param sortBy memberCount(成员数) / activityScore(成员+帖子综合分) / postCount(内容数)
    */
-  getRanking: async (sortBy: RankSortBy = 'memberCount'): Promise<RankingCircle[]> => {
+  getRanking: async (sortBy: RankSortBy = 'memberCount', options: { throwOnError?: boolean } = {}): Promise<RankingCircle[]> => {
     try {
       const res = await apiGet<RawRankingResp>(`/circles/ranking?sortBy=${sortBy}&pageSize=20`)
       const arr: RawRankingCircle[] = res?.items ?? (Array.isArray(res) ? res : (res?.data ?? []))
@@ -355,7 +355,8 @@ export const circleApi = {
         category: c.categoryLevel1 || '',
         owner: c.owner?.nickname || '',
       }))
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return []
     }
   },
