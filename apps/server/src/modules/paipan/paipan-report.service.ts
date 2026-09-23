@@ -277,6 +277,8 @@ export class PaipanReportService {
     if (existing && !options?.regenerate) {
       const content = this.safeParse(existing.analysisContent);
       if (content?.metadata?.version === version) {
+        // 盘面准备与依据检索期间权益也可能被撤销，复用前再核一次。
+        await this.commerce.assertReportAccess(userId, paipanRecordId, type);
         return { id: existing.id, content, version, createdAt: existing.createdAt, reused: true };
       }
     }
@@ -294,6 +296,9 @@ export class PaipanReportService {
     });
     report.chartView = plan.chartView;
     report.glossary = this.glossaryOf(paipanType, [report.summary, ...report.sections.map((x) => x.content)]);
+
+    // 模型调用可能耗时较长；若期间退款或会员到期，不保存、更不返回刚生成的付费正文。
+    await this.commerce.assertReportAccess(userId, paipanRecordId, type);
 
     const data = {
       analysisContent: JSON.stringify(report),

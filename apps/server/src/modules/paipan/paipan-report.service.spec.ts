@@ -238,6 +238,29 @@ describe("PaipanReportService", () => {
     await expect(svc.getReport("u1", id)).rejects.toThrow("购买权益已撤销");
   });
 
+  it("模型生成期间权益被撤销时，不保存也不交付新报告", async () => {
+    const { svc, gateway, prisma, commerce } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+      return { content: modelJson(), model: "m1" };
+    });
+    await expect(svc.generateReport("u1", "rec-1")).rejects.toThrow("购买权益已撤销");
+    expect(prisma.aiAnalysisRecord.create).not.toHaveBeenCalled();
+    expect(prisma.aiAnalysisRecord.update).not.toHaveBeenCalled();
+  });
+
+  it("复用旧报告前权益被撤销时，不返回已存正文", async () => {
+    const { svc, gateway, prisma, commerce, store } = setup();
+    gateway.chat.mockResolvedValue({ content: modelJson(), model: "m1" });
+    await svc.generateReport("u1", "rec-1");
+    prisma.aiAnalysisRecord.findFirst.mockImplementationOnce(async () => {
+      commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+      return store[0];
+    });
+    await expect(svc.generateReport("u1", "rec-1")).rejects.toThrow("购买权益已撤销");
+    expect(gateway.chat).toHaveBeenCalledTimes(1);
+  });
+
   it("旧报告正文缺类型时从存档分析类型补推权益门禁", async () => {
     const { svc, prisma, commerce } = setup();
     prisma.aiAnalysisRecord.findUnique.mockResolvedValueOnce({
