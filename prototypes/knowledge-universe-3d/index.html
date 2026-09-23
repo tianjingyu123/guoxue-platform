@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>热卜 · 知识宇宙 3D 体验样例</title>
+  <style>
+    :root { color-scheme: dark; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #040914; color: #f4f4ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; overflow: hidden; background: radial-gradient(ellipse at 50% 38%, #172843 0%, #091528 38%, #040914 78%); }
+    body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .5; background-image: radial-gradient(#fff 1px, transparent 1px), radial-gradient(#7cc6d6 1px, transparent 1px); background-size: 107px 101px, 163px 137px; background-position: 13px 19px, 59px 81px; mask-image: radial-gradient(ellipse at center, transparent 25%, #000 100%); }
+    #universe { position: fixed; inset: 0; }
+    .orbits { position: fixed; z-index: 1; pointer-events: none; left: 27%; top: 8%; width: 75vw; height: 82vh; transform: rotate(-18deg); border: 1px solid #b3e5e514; border-radius: 50%; box-shadow: 0 0 90px #408aa014, inset 0 0 80px #408aa00c; }
+    .orbits::before, .orbits::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid #d7bb7d1f; }
+    .orbits::before { inset: 12% 8%; transform: rotate(27deg); }
+    .orbits::after { inset: 27% 21%; border-color: #93d6e91c; transform: rotate(-35deg); }
+    .shade { position: fixed; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(4,9,20,.92) 0%, rgba(4,9,20,.2) 38%, transparent 62%), linear-gradient(0deg, rgba(4,9,20,.86), transparent 26%); }
+    .rail { position: fixed; z-index: 2; inset: 0 auto 0 0; width: 72px; border-right: 1px solid #bfcbd021; display: grid; grid-template-rows: 100px 1fr 100px; place-items: center; color: #d8c997; }
+    .mark { width: 32px; height: 32px; border: 1px solid #d8c997; border-radius: 50%; display: grid; place-items: center; font-family: serif; font-size: 19px; }
+    .rail-line { width: 1px; height: 44%; background: linear-gradient(transparent, #c5ad75 50%, transparent); }
+    .rail small { writing-mode: vertical-rl; letter-spacing: .28em; font-size: 10px; }
+    .intro { position: fixed; z-index: 2; top: clamp(72px, 15vh, 160px); left: clamp(102px, 12vw, 210px); width: min(410px, calc(100vw - 130px)); pointer-events: none; }
+    .eyebrow { color: #dbc791; letter-spacing: .32em; font-size: 11px; margin: 0 0 25px; }
+    h1 { font-family: "Songti SC", "Noto Serif CJK SC", SimSun, serif; font-size: clamp(44px, 5.4vw, 78px); line-height: 1.15; font-weight: 500; letter-spacing: .06em; margin: 0; text-shadow: 0 0 40px #99c9d33d; }
+    .intro p:last-child { max-width: 320px; color: #b5c5d0; font-size: 14px; line-height: 1.9; margin-top: 26px; }
+    .counter { position: fixed; z-index: 2; top: 42px; right: 48px; color: #aab9c8; font-size: 11px; letter-spacing: .14em; text-align: right; }
+    .counter strong { display: block; color: #e4d5a9; font-size: 28px; font-weight: 300; letter-spacing: .1em; margin-bottom: 7px; }
+    .card { position: fixed; z-index: 3; right: clamp(20px, 5vw, 80px); bottom: clamp(65px, 12vh, 120px); width: min(330px, calc(100vw - 115px)); padding: 25px 27px; border: 1px solid #c9d7e241; background: #091728d9; box-shadow: 0 22px 80px #0008, inset 0 1px #e3d2aa26; backdrop-filter: blur(20px); transition: transform .4s, opacity .4s; }
+    .card.hidden { opacity: 0; transform: translateY(15px); pointer-events: none; }
+    .card::before { content: ""; position: absolute; top: 0; left: 25px; width: 45px; height: 2px; background: #d5c08a; box-shadow: 0 0 15px #e2c685; }
+    .card .kicker { font-size: 10px; letter-spacing: .22em; color: #c9b98d; }
+    .card h2 { font: normal 29px/1.3 "Songti SC", SimSun, serif; margin: 13px 0; }
+    .card p { font-size: 13px; color: #bfd0d9; line-height: 1.8; margin: 0 0 15px; }
+    .card .relation { border-top: 1px solid #dce8ed23; padding-top: 13px; color: #a9cad3; font-size: 11px; }
+    .hint { position: fixed; z-index: 2; bottom: 36px; left: clamp(102px, 12vw, 210px); color: #a4b3bf; font-size: 11px; letter-spacing: .12em; }
+    .hint span { color: #d4c18f; margin-right: 12px; }
+    .demo { position: fixed; z-index: 2; bottom: 34px; right: 42px; color: #a9b7c4; font-size: 10px; }
+    .fallback { position: fixed; inset: 0; display: none; z-index: 1; place-items: center; text-align: center; color: #d6c89d; padding: 30px; }
+    .fallback.show { display: grid; }
+    @media (max-width: 700px) { .rail { width: 42px; } .mark { width: 25px; height: 25px; font-size: 15px; } .intro { top: 73px; left: 66px; width: calc(100vw - 86px); } .intro p:last-child { max-width: 245px; font-size: 12px; } .counter { top: auto; bottom: 25px; right: 18px; } .counter strong { font-size: 18px; } .hint { left: 66px; bottom: 30px; width: 160px; line-height: 1.7; } .card { right: 16px; bottom: 88px; width: calc(100vw - 82px); padding: 18px; } .card h2 { font-size: 22px; } .demo { display: none; } .shade { background: linear-gradient(180deg, #040914cb, transparent 45%, #04091499); } .orbits { left: 5%; width: 130vw; } }
+    @media (prefers-reduced-motion: reduce) { .orbits { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div id="universe" aria-label="可拖拽的三维知识点关系图"></div>
+  <div class="orbits" aria-hidden="true"></div>
+  <div class="shade"></div>
+  <div class="rail"><div class="mark">卜</div><div class="rail-line"></div><small>REBU · KNOWLEDGE</small></div>
+  <div class="intro"><p class="eyebrow">THE LIVING KNOWLEDGE UNIVERSE</p><h1>万象有联<br>知识成宇</h1><p>每一颗星，都是一个具体知识点。循着它们之间的线索，看见一座圈子真正积累的思想。</p></div>
+  <div class="counter"><strong id="count">24</strong>知识节点 · 演示数据</div>
+  <article class="card hidden" id="card"><div class="kicker">KNOWLEDGE POINT / 知识点</div><h2 id="title"></h2><p id="description"></p><div class="relation" id="relation"></div></article>
+  <div class="hint"><span>◌</span>拖动探索 · 滚轮缩放 · 点击知识点查看</div>
+  <div class="demo">视觉体验样例 · 未接真实圈子知识库</div>
+  <div class="fallback" id="fallback">此设备暂不支持 3D 展示。正式产品应提供可访问的知识卡片列表。</div>
+  <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.80.0/dist/3d-force-graph.min.js" crossorigin="anonymous"></script>
+  <script>
+    // 全部是视觉演示用的具体概念，不代表任何圈子的实际知识或经审核的关系。
+    const concepts = [
+      ['仁者爱人','以关怀他人理解“仁”的核心表达',3],['克己复礼','从自我约束理解礼与仁的关系',3],['己所不欲','用推己及人的方式理解待人之道',2],['君子务本','追问修身的根基从哪里开始',2],
+      ['学而时习','把学习落实到反复实践之中',2],['温故知新','从旧有理解中发现新的认识',2],['知行合一','把所知与行动放在同一条路上',3],['致良知','从内在判断走向真实行动',2],
+      ['格物致知','由事物与经验推进认识',3],['诚意正心','审视动机与内心的端正',2],['修身齐家','个体修养与日常关系相连',2],['中庸之道','在具体情境中求得恰当',2],
+      ['道法自然','顺应事物自身的规律',3],['无为而治','从不过度干预理解治理',2],['上善若水','以水的意象观察柔与善',2],['有无相生','对立概念在关系中彼此生成',2],
+      ['一阴一阳','从变化关系理解阴阳',3],['乾坤之道','借乾坤之象思考天地变化',2],['观物取象','由可见之物抽取意味',2],['天人合一','人与天地关系的整体视角',3],
+      ['诗以言志','借诗表达情志与志向',2],['兴观群怨','从诗的作用理解审美与社会',2],['文以载道','思考文字与思想的承载关系',2],['以史为鉴','从历史经验反观当下选择',2]
+    ];
+    const pairs = [[0,1],[0,2],[0,3],[0,10],[1,9],[2,11],[3,4],[4,5],[4,6],[5,23],[6,7],[6,8],[7,9],[8,9],[9,10],[10,11],[11,19],[12,13],[12,14],[12,19],[13,15],[14,15],[15,16],[16,17],[16,18],[17,18],[18,19],[19,20],[20,21],[20,22],[21,22],[22,23],[0,12],[6,12],[8,18],[11,16],[23,3]];
+    const nodes = concepts.map(([name, description, weight], i) => ({ id: i, name, description, weight, group: i < 12 ? 0 : i < 20 ? 1 : 2 }));
+    const links = pairs.map(([source,target]) => ({ source, target }));
+    const card = document.getElementById('card');
+    const fallback = document.getElementById('fallback');
+    document.getElementById('count').textContent = String(nodes.length).padStart(2, '0');
+    let graph, orbitFrame, angle = 0, active = false;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function stopOrbit() { active = false; if (orbitFrame) cancelAnimationFrame(orbitFrame); }
+    function orbit() {
+      if (!active || document.hidden) return;
+      angle += 0.00032;
+      graph.cameraPosition({ x: Math.sin(angle) * 420, y: 75 + Math.sin(angle * 0.6) * 28, z: Math.cos(angle) * 420 }, { x: 0, y: 0, z: 0 }, 0);
+      orbitFrame = requestAnimationFrame(orbit);
+    }
+    function select(node) {
+      stopOrbit();
+      document.getElementById('title').textContent = node.name;
+      document.getElementById('description').textContent = node.description;
+      const related = pairs.filter(([a,b]) => a === node.id || b === node.id).slice(0, 4).map(([a,b]) => concepts[a === node.id ? b : a][0]);
+      document.getElementById('relation').textContent = '关联知识点  /  ' + related.join(' · ');
+      card.classList.remove('hidden');
+      // 点选时展示关系卡片。镜头聚焦暂不开启，需与已发现的控制台异常一并排查。
+    }
+    try {
+      if (!window.ForceGraph3D) throw new Error('图谱组件未加载');
+      graph = ForceGraph3D({ controlType: 'orbit' })(document.getElementById('universe'))
+        .graphData({ nodes, links })
+        .backgroundColor('rgba(0,0,0,0)')
+        .showNavInfo(false)
+        .nodeLabel(() => '')
+        .nodeVal(node => node.weight * 3.8)
+        .nodeColor(node => ['#e5c789','#70d7e1','#a8a0ed'][node.group])
+        .nodeOpacity(0.94)
+        .linkColor(link => { const index = typeof link.source === 'object' ? link.source.group : nodes[link.source].group; return ['#d8ba7842','#6ccbd34c','#a49ce245'][index]; })
+        .linkWidth(0.75)
+        .linkOpacity(0.5)
+        .linkDirectionalParticles(reduced ? 0 : 1)
+        .linkDirectionalParticleWidth(1.4)
+        .linkDirectionalParticleSpeed(0.004)
+        .onNodeClick(select)
+        .onBackgroundClick(() => card.classList.add('hidden'));
+      graph.d3Force('charge').strength(-135);
+      graph.d3Force('link').distance(58);
+      graph.cameraPosition({ x: 0, y: 75, z: 420 });
+      graph.controls().addEventListener('start', stopOrbit);
+      graph.onEngineStop(() => { if (!reduced && !active && card.classList.contains('hidden') && !document.hidden) { active = true; orbit(); } });
+      addEventListener('resize', () => graph.width(innerWidth).height(innerHeight));
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { stopOrbit(); graph.pauseAnimation(); } else { graph.resumeAnimation(); } });
+      if (!reduced) {
+        import('https://esm.sh/three@0.180.0/examples/jsm/postprocessing/UnrealBloomPass.js')
+          .then(({ UnrealBloomPass }) => {
+            const bloom = new UnrealBloomPass();
+            bloom.strength = 0.85;
+            bloom.radius = 0.65;
+            bloom.threshold = 0.25;
+            graph.postProcessingComposer().addPass(bloom);
+          })
+          .catch(error => console.warn('光晕效果不可用，已保留基础 3D 图谱', error));
+      }
+    } catch (error) { console.error(error); fallback.classList.add('show'); }
+  </script>
+</body>
+</html>
