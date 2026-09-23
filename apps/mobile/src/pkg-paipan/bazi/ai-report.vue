@@ -521,7 +521,7 @@ onShow(() => {
 
       <view v-else-if="loading" class="state">
         <text class="state-title">小卜正在对照盘面、门派理论和古籍出处撰写报告…</text>
-        <text class="state-sub">通常需要几十秒，请勿离开页面</text>
+        <text class="state-sub">通常需要几十秒；离开后可从原排盘记录继续查看或重试</text>
       </view>
 
       <view v-else-if="paywall" class="paywall" data-testid="report-paywall">
