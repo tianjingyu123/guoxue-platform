@@ -256,6 +256,7 @@ export interface AiRelatedCard {
 
 export interface AiDialogueHistory {
   turns: { role: 'user' | 'assistant'; content: string; sectionId: string | null; evidenceIds: string[]; mode: string | null; createdAt: string }[]
+  previousTurns?: { role: 'user' | 'assistant'; content: string; createdAt: string }[]
   lastSectionId: string | null
   lastSectionTitle: string | null
   discussedSectionIds: string[]

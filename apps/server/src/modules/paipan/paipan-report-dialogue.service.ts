@@ -98,6 +98,10 @@ export class PaipanReportDialogueService {
 
     const report = await this.loadReport(userId, reportId);
     const answer = await this.answer(userId, reportId, report, question, input.sectionId);
+    const current = await this.loadReport(userId, reportId);
+    if (current.metadata?.generatedAt !== report.metadata?.generatedAt) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已更新，请基于新版报告重新提问");
+    }
     await this.saveTurns(userId, reportId, question, answer, input.channel ?? "text");
     // 这一轮里问过称呼就留痕：用户没答也算问过，否则下次对话又问一遍——
     // 追着问称呼比叫错更烦人。
@@ -108,12 +112,20 @@ export class PaipanReportDialogueService {
   /** 读取问答记录与进度（最近 50 条；讨论过的小节用于“接着上次聊”） */
   async history(userId: string, reportId: string) {
     const report = await this.loadReport(userId, reportId);
+    const generatedAt = this.generationTime(report);
     const turns = await this.prisma.reportDialogueTurn.findMany({
-      where: { reportId, userId },
+      where: { reportId, userId, ...(generatedAt ? { createdAt: { gte: generatedAt } } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
     const ordered = turns.reverse();
+    const previous = generatedAt
+      ? (await this.prisma.reportDialogueTurn.findMany({
+          where: { reportId, userId, createdAt: { lt: generatedAt } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })).reverse()
+      : [];
     const chapters = report.sections.filter((s) => s.type === "analysis" || s.type === "interpretation");
     const discussed = [...new Set(ordered.map((t) => t.sectionId).filter(Boolean) as string[])];
     const last = [...ordered].reverse().find((t) => t.sectionId);
@@ -127,6 +139,7 @@ export class PaipanReportDialogueService {
         mode: t.mode,
         createdAt: t.createdAt,
       })),
+      previousTurns: previous.map((t) => ({ role: t.role, content: t.content, createdAt: t.createdAt })),
       lastSectionId: last?.sectionId ?? null,
       lastSectionTitle: last?.sectionId ? chapters.find((c) => c.id === last.sectionId)?.title ?? null : null,
       discussedSectionIds: discussed,
@@ -252,8 +265,12 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
 【用户问题】${question}`;
 
     // 历史只取服务端记录（不含危机转介轮次），不信任客户端传入的历史
+    const generatedAt = this.generationTime(report);
     const stored = await this.prisma.reportDialogueTurn.findMany({
-      where: { reportId, userId, NOT: { mode: "crisis_referral" } },
+      where: {
+        reportId, userId, NOT: { mode: "crisis_referral" },
+        ...(generatedAt ? { createdAt: { gte: generatedAt } } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: MAX_HISTORY,
       select: { role: true, content: true },
@@ -325,6 +342,11 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+  }
+
+  private generationTime(report: StructuredReport): Date | null {
+    const time = new Date(report.metadata?.generatedAt ?? "");
+    return Number.isNaN(time.getTime()) ? null : time;
   }
 
   /** 页面带了小节就用该小节；否则按标题/要点关键词粗匹配，匹配不到交给模型判断 */

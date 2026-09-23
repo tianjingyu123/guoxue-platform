@@ -226,12 +226,15 @@ async function load(regenerate = false) {
     await ritual
     if (seq !== requestSeq) return
     doneSteps.value = preflight.value?.steps.length ?? 0
-    if (report.value?.id !== res.id) {
+    if (regenerate || report.value?.id !== res.id) {
       chatItems.value = []
       chatProgress.value = null
       historyLoadedFor = ''
+      previousChatItems.value = []
+      showPreviousChat.value = false
     }
     report.value = res
+    if (chatOpen.value) loadDialogue()
     track.custom('paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
     unveiling.value = true
     setTimeout(() => { unveiling.value = false }, 900)
@@ -291,18 +294,22 @@ const chatSending = ref(false)
 const chatSectionTitle = computed(() => chapters.value.find((c) => c.id === chatSectionId.value)?.title)
 
 const chatProgress = ref<AiDialogueHistory | null>(null)
+const previousChatItems = ref<ChatItem[]>([])
+const showPreviousChat = ref(false)
 let historyLoadedFor = ''
 
 /** 首次打开时加载服务端问答记录（历史由服务端维护，换设备也能接着聊） */
 async function loadDialogue() {
   const reportId = report.value?.id
-  if (!reportId || historyLoadedFor === reportId) return
+  const reportKey = report.value ? `${reportId}:${report.value.content.metadata.generatedAt}` : ''
+  if (!reportId || historyLoadedFor === reportKey) return
   try {
     const h = await aiReportApi.dialogue(reportId)
-    if (report.value?.id !== reportId) return
-    historyLoadedFor = reportId
+    if (!report.value || `${report.value.id}:${report.value.content.metadata.generatedAt}` !== reportKey) return
+    historyLoadedFor = reportKey
     chatProgress.value = h
     chatItems.value = h.turns.map((t) => ({ role: t.role, text: t.content }))
+    previousChatItems.value = (h.previousTurns ?? []).map((t) => ({ role: t.role, text: t.content }))
   } catch {
     // 记录读取失败不影响提问
   }
@@ -333,6 +340,8 @@ async function clearDialogue() {
     await aiReportApi.clearDialogue(reportId)
     chatItems.value = []
     chatProgress.value = null
+    previousChatItems.value = []
+    showPreviousChat.value = false
     historyLoadedFor = ''
     uni.showToast({ title: '已清空', icon: 'none' })
   } catch (e) {
@@ -1092,11 +1101,20 @@ onShow(() => {
             <text class="sheet-sub">{{ chatSectionTitle ? `正在聊：${chatSectionTitle}` : '围绕这份报告提问' }}</text>
           </view>
           <view class="sheet-tools">
-            <text v-if="chatItems.length" class="hint clear-link" @tap="clearDialogue">清空记录</text>
+            <text v-if="chatItems.length || previousChatItems.length" class="hint clear-link" @tap="clearDialogue">清空记录</text>
             <view class="hdr-back" @tap="chatOpen = false"><app-icon name="x" :size="36" color="#666666" /></view>
           </view>
         </view>
         <scroll-view scroll-y class="sheet-body" :scroll-into-view="`chat-${chatItems.length - 1}`">
+          <view v-if="previousChatItems.length" class="progress-tip">
+            <text class="hint" @tap="showPreviousChat = !showPreviousChat">旧版报告问答 {{ previousChatItems.length }} 条 · {{ showPreviousChat ? '收起' : '查看' }}</text>
+            <text class="hint">旧版问答不会用于当前报告的回答</text>
+          </view>
+          <template v-if="showPreviousChat">
+            <view v-for="(c, i) in previousChatItems" :key="`previous-${i}`" class="msg" :class="c.role === 'user' ? 'msg-user' : 'msg-bot'">
+              <text class="msg-text">{{ c.text }}</text>
+            </view>
+          </template>
           <view v-if="!chatItems.length" class="chat-empty">
             <text class="hint">可以问报告里看不懂的术语、某一节和自己生活的关系，或门派为什么看法不同。</text>
           </view>
