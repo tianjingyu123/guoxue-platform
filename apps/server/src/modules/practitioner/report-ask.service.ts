@@ -63,10 +63,16 @@ export class ReportAskService {
     // 频次闸门：客户匿名，只能按报告限；超出给出明确说法，让客户去找老师
     const key = this.quotaKey(report.id);
     // 原子自增 + 首次设 TTL（平台既有实现，含 Redis 不可用时的内存降级）
+    let reserved = false;
     const { count: used } = await this.redis
       .incrWithTtl(key, 86400)
+      .then((result) => { reserved = true; return result; })
       .catch(() => ({ count: 1, ttl: 86400 }));
+    const release = async () => {
+      if (reserved) await this.redis.decrFloorZero(key).catch(() => undefined);
+    };
     if (used > ReportAskService.DAILY_LIMIT) {
+      await release();
       throw new BusinessException(
         ErrorCode.RATE_LIMITED,
         "今天的提问次数已用完，如还有想问的，请直接联系老师",
@@ -111,12 +117,16 @@ export class ReportAskService {
         skipCache: true,
       });
     } catch (error: any) {
+      await release();
       this.logger.warn(`交付报告问答失败：${error?.message || error}`);
       throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试，或直接联系老师");
     }
 
     const answer = (res.content || "").trim();
-    if (!answer) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    if (!answer) {
+      await release();
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    }
 
     return {
       answer,

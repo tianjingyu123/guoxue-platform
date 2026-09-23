@@ -293,6 +293,14 @@ describe("RedisService", () => {
       const result = await service.incrWithTtl("rate:3", 60)
       expect(result.count).toBe(1)
     })
+
+    it("失败后释放预占次数，保持原到期时间且不降到负数", async () => {
+      await service.incrWithTtl("rate:release", 60)
+      const before = (service as any).memory.get("rate:release").expiry
+      expect(await service.decrFloorZero("rate:release")).toBe(0)
+      expect(await service.decrFloorZero("rate:release")).toBe(0)
+      expect((service as any).memory.get("rate:release").expiry).toBe(before)
+    })
   })
 
   // ═══════════════════ 边界场景 ═══════════════════

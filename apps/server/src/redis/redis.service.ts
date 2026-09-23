@@ -415,6 +415,23 @@ export class RedisService implements OnModuleDestroy {
     return { count, ttl: remaining > 0 ? remaining : 0 };
   }
 
+  /** 释放一次预占的限流额度，保留原 TTL，计数不会小于 0。 */
+  async decrFloorZero(key: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) {
+      return Number(await conn.eval(`
+        local count = tonumber(redis.call('GET', KEYS[1]) or '0')
+        if count <= 0 then return 0 end
+        return redis.call('DECR', KEYS[1])
+      `, 1, key));
+    }
+    const entry = this.memory.get(key);
+    if (!entry || Date.now() > entry.expiry) return 0;
+    const count = Math.max(0, (parseInt(entry.value, 10) || 0) - 1);
+    entry.value = String(count);
+    return count;
+  }
+
   // ───────── Sorted Set 操作 ─────────
 
   private zsetMemory = new Map<string, Array<{ member: string; score: number }>>();

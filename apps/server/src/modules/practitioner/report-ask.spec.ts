@@ -25,7 +25,10 @@ function setup(opts?: { report?: any; used?: number; brandName?: string }) {
     practitionerProfile: { findUnique: jest.fn(async () => ({ brandName: opts?.brandName ?? "明德堂" })) },
     user: { findUnique: jest.fn(async () => ({ nickname: "张老师" })) },
   };
-  const redis: any = { incrWithTtl: jest.fn(async () => ({ count: opts?.used ?? 1, ttl: 86400 })) };
+  const redis: any = {
+    incrWithTtl: jest.fn(async () => ({ count: opts?.used ?? 1, ttl: 86400 })),
+    decrFloorZero: jest.fn(async () => Math.max(0, (opts?.used ?? 1) - 1)),
+  };
   const gateway: any = { chat: jest.fn(async () => ({ content: "简单说，就是担子比力气重一些。（见「日主与格局」）", model: "m1" })) };
   return { svc: new ReportAskService(prisma, redis, gateway), prisma, redis, gateway };
 }
@@ -69,8 +72,18 @@ describe("交付报告问答", () => {
   });
 
   it("按报告限频：链接外泄也刷不动，且给客户明确说法", async () => {
-    const { svc } = setup({ used: ReportAskService.DAILY_LIMIT + 1 });
+    const { svc, redis } = setup({ used: ReportAskService.DAILY_LIMIT + 1 });
     await expect(svc.ask("tok-1", "问题")).rejects.toThrow("请直接联系老师");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+  });
+
+  it("模型失败或空回答释放预占次数，客户重试不白白消耗额度", async () => {
+    const { svc, redis, gateway } = setup();
+    gateway.chat.mockRejectedValueOnce(new Error("timeout"));
+    await expect(svc.ask("tok-1", "第一次提问")).rejects.toThrow("稍后再试");
+    gateway.chat.mockResolvedValueOnce({ content: "" });
+    await expect(svc.ask("tok-1", "第二次提问")).rejects.toThrow("稍后再试");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(2);
   });
 
   it("剩余次数随问随减，供页面提示", async () => {
