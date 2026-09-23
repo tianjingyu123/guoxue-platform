@@ -1235,7 +1235,7 @@ interface RawGroupBuyMember { avatar?: string; nickname?: string; isLeader?: boo
 interface RawGroupBuyGroup { groupId?: string; members?: RawGroupBuyMember[]; currentMembers?: number; minMembers?: number }
 interface RawGroupBuy { id?: string; product?: RawGroupBuyProduct | null; groupPrice?: number | string; minMembers?: number; joinedCount?: number; _count?: { participants?: number }; expireMinutes?: number; groups?: RawGroupBuyGroup[] }
 interface RawMyGroupBuy { groupBuyId?: string; groupBuy?: { productId?: string; groupPrice?: number | string; minMembers?: number; expireMinutes?: number } | null; joinedCount?: number; product?: RawGroupBuyProduct | null; status?: string; isLeader?: boolean }
-interface RawGroupResult { product?: RawGroupBuyProduct | null; members?: RawGroupBuyMember[]; paidAt?: string; orderId?: string; refundedAt?: string; refundAmount?: number | string; minMembers?: number; currentMembers?: number; groupId?: string }
+interface RawGroupResult { status?: string; product?: RawGroupBuyProduct | null; members?: RawGroupBuyMember[]; paidAt?: string; orderId?: string; refundedAt?: string; refundAmount?: number | string; minMembers?: number; currentMembers?: number; groupId?: string }
 interface RawCartItem { id?: string; productId?: string; product?: { title?: string; image?: string } | null; sku?: { specs?: unknown } | null; skuId?: string; unitPrice?: number | string; originalPrice?: number | string; quantity?: number; stock?: number; isValid?: boolean; invalidReason?: string }
 interface RawAddress { id?: string; name?: string; contactName?: string; phone?: string; contactPhone?: string; province?: string; city?: string; district?: string; address?: string; detail?: string; isDefault?: boolean }
 interface RawCoupon { id?: string; name?: string; type?: string; value?: number | string; minAmount?: number | string; validEnd?: string; scope?: string; discountRate?: number | string; discountAmount?: number | string; totalCount?: number; usedCount?: number }
@@ -1412,6 +1412,7 @@ function adaptGroupBuySuccess(r: RawGroupResult) {
 }
 /** 后端拼团结果(my-result) → 失败结果页（reason 统一 timeout·后端仅超时未成团一种失败；退款状态由 refundedAt 派生） */
 function adaptGroupBuyFail(r: RawGroupResult) {
+  if (r?.status !== 'REFUNDED') throw new Error('拼团尚未失败，请返回拼团订单查看当前状态')
   return {
     productCover: r?.product?.image || '',
     productName: r?.product?.title || '',
@@ -1420,9 +1421,8 @@ function adaptGroupBuyFail(r: RawGroupResult) {
     currentMembers: r?.currentMembers || 0,
     members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
     reason: 'timeout',
-    failedAt: fmtDateTime(r?.refundedAt || r?.paidAt),
+    failedAt: fmtDateTime(r?.refundedAt),
     refundAmount: shopNum(r?.refundAmount),
-    estimatedRefundTime: '1-3 个工作日',
     refundStatus: r?.refundedAt ? 'completed' : 'processing',
     orderId: r?.orderId || '',
     groupId: r?.groupId || '',
