@@ -44,6 +44,7 @@ const mockPrisma = {
   circleInviteCode: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   circleInvitation: { create: jest.fn(), count: jest.fn(), findMany: jest.fn() },
   circleAnnouncement: { findFirst: jest.fn() },
+  circleAnnouncementRead: { findUnique: jest.fn() },
   $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg))),
   // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
@@ -177,6 +178,26 @@ describe("CircleService", () => {
     it("不属于该圈子的公告返回不存在", async () => {
       mockPrisma.circleAnnouncement.findFirst.mockResolvedValue(null);
       await expect(svc.getAnnouncementById("c2", "a1")).rejects.toThrow(BusinessException);
+    });
+
+    it("只读取当前成员本人在该圈公告的已读状态", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ circleId: "c1", userId: "u1" });
+      mockPrisma.circleAnnouncement.findFirst.mockResolvedValue({ id: "a1" });
+      mockPrisma.circleAnnouncementRead.findUnique.mockResolvedValue({ id: "r1" });
+      await expect(svc.getAnnouncementReadStatus("c1", "a1", "u1")).resolves.toEqual({ isRead: true });
+      expect(mockPrisma.circleAnnouncementRead.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { announcementId_userId: { announcementId: "a1", userId: "u1" } },
+      }));
+    });
+
+    it("非成员或跨圈公告无法查询个人已读状态", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      await expect(svc.getAnnouncementReadStatus("c1", "a1", "u1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.circleAnnouncementRead.findUnique).not.toHaveBeenCalled();
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ circleId: "c1", userId: "u1" });
+      mockPrisma.circleAnnouncement.findFirst.mockResolvedValue(null);
+      await expect(svc.getAnnouncementReadStatus("c1", "other", "u1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.circleAnnouncementRead.findUnique).not.toHaveBeenCalled();
     });
   });
 

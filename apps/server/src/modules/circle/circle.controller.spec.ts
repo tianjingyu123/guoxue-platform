@@ -12,6 +12,7 @@ const mockCircleSvc = {
   getDetail: jest.fn().mockResolvedValue({ id: "c1", name: "国学研究圈", memberCount: 100 }),
   update: jest.fn().mockResolvedValue({ id: "c1", name: "更新名称" }),
   getAnnouncement: jest.fn().mockResolvedValue({ content: "欢迎加入" }),
+  getAnnouncementReadStatus: jest.fn().mockResolvedValue({ isRead: true }),
   setAnnouncement: jest.fn().mockResolvedValue({ content: "新公告" }),
   join: jest.fn().mockResolvedValue({ memberId: "m1", circleId: "c1" }),
   leave: jest.fn().mockResolvedValue({ success: true }),
@@ -92,6 +93,12 @@ describe("CircleController", () => {
   it("GET /circles/:id/announcement — 公告", async () => {
     const result: any = await ctrl.getAnnouncement("c1");
     expect(result.content).toBe("欢迎加入");
+  });
+
+  it("GET /circles/:id/announcements/:announcementId/read-status — 身份只取 JWT", async () => {
+    const req: any = { user: { id: "u1" } };
+    await expect(ctrl.getAnnouncementReadStatus("c1", "a1", req)).resolves.toEqual({ isRead: true });
+    expect(mockCircleSvc.getAnnouncementReadStatus).toHaveBeenCalledWith("c1", "a1", "u1");
   });
 
   it("PUT /circles/:id/announcement — 设置公告", async () => {

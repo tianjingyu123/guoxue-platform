@@ -91,6 +91,10 @@ export class CircleService {
     return this.coreSvc.getAnnouncementById(circleId, announcementId);
   }
 
+  getAnnouncementReadStatus(circleId: string, announcementId: string, userId: string) {
+    return this.coreSvc.getAnnouncementReadStatus(circleId, announcementId, userId);
+  }
+
   deleteAnnouncement(circleId: string, userId: string, announcementId: string) {
     return this.coreSvc.deleteAnnouncement(circleId, userId, announcementId);
   }

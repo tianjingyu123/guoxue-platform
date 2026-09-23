@@ -345,6 +345,21 @@ export class CircleCoreService {
     return announcement;
   }
 
+  /** 当前成员的公告已读状态；不把个人状态并入按圈缓存的公开公告。 */
+  async getAnnouncementReadStatus(circleId: string, announcementId: string, userId: string) {
+    await this.shared.ensureMember(circleId, userId);
+    const announcement = await this.prisma.circleAnnouncement.findFirst({
+      where: { id: announcementId, circleId },
+      select: { id: true },
+    });
+    if (!announcement) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+    const read = await this.prisma.circleAnnouncementRead.findUnique({
+      where: { announcementId_userId: { announcementId, userId } },
+      select: { id: true },
+    });
+    return { isRead: !!read };
+  }
+
   async deleteAnnouncement(circleId: string, userId: string, announcementId: string) {
     await this.shared.checkPermission(circleId, userId, "announcement.manage");
     // 校验公告确实属于该圈子，防止跨圈越权删除（IDOR）

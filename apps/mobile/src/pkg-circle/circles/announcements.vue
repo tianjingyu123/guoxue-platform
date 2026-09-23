@@ -3,14 +3,15 @@
  * 圈子公告详情（从原型 app/circles/[id]/announcements/[annoId]/page.tsx 高保真迁移）
  * 故宫红顶栏 + 圈子来源 + 置顶标识 + 富文本正文(块解析) + 其他公告 + 底部确认已读栏
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shareLink } from '@/utils/share'
 import { apiGet, apiPost } from '@/utils/request'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+import { getToken } from '@/utils/storage'
 
 interface Announcement {
   id: string
@@ -45,6 +46,10 @@ const circleName = ref('')
 const announcement = ref<Announcement | null>(null)
 const related = ref<Announcement[]>([])
 const isRead = ref(false)
+const loggedIn = ref(false)
+const readStatusLoading = ref(false)
+const readStatusError = ref(false)
+const readMemberRequired = ref(false)
 const loading = ref(true)
 const loadError = ref('')
 const menuSafeRight = getMiniProgramMenuSafeRight()
@@ -76,6 +81,22 @@ function adapt(raw: RawAnnouncement, splitTitle: boolean): Announcement {
   }
 }
 
+async function loadReadStatus() {
+  if (!loggedIn.value || !circleId.value || !announcement.value?.id) return
+  readStatusLoading.value = true
+  readStatusError.value = false
+  readMemberRequired.value = false
+  try {
+    const status = await apiGet<{ isRead: boolean }>(`/circles/${circleId.value}/announcements/${announcement.value.id}/read-status`)
+    isRead.value = status.isRead === true
+  } catch (error) {
+    readStatusError.value = true
+    readMemberRequired.value = ((error as Error)?.message || '').includes('请先加入圈子')
+  } finally {
+    readStatusLoading.value = false
+  }
+}
+
 async function load() {
   loading.value = true
   loadError.value = ''
@@ -92,6 +113,7 @@ async function load() {
     if (main?.content) {
       announcement.value = adapt(main, true)
       isRead.value = false
+      if (loggedIn.value) await loadReadStatus()
     } else {
       announcement.value = null
     }
@@ -111,7 +133,10 @@ onLoad((q) => {
   if (q?.circleId) circleId.value = String(q.circleId)
   if (q?.id) announcementId.value = String(q.id)
 })
-onMounted(load)
+onShow(() => {
+  loggedIn.value = !!getToken()
+  void load()
+})
 
 // 富文本块解析（替代 dangerouslySetInnerHTML，跨端安全）
 const blocks = computed<ContentBlock[]>(() => {
@@ -135,10 +160,19 @@ function fmtDate(s: string) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 async function markRead() {
+  if (!loggedIn.value) {
+    try { uni.setStorageSync('login:redirect', `/pkg-circle/circles/announcements?circleId=${encodeURIComponent(circleId.value)}&id=${encodeURIComponent(announcement.value?.id || '')}`) } catch { /* 登录仍可继续 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  if (readStatusLoading.value) return
+  if (readMemberRequired.value) { openCircle(); return }
+  if (readStatusError.value) { await loadReadStatus(); return }
   if (isRead.value || !announcement.value?.id) return
   try {
     await apiPost(`/circles/${circleId.value}/announcements/${announcement.value.id}/read`, {})
     isRead.value = true
+    readStatusError.value = false
     uni.showToast({ title: '已标记为已读', icon: 'success' })
   } catch {
     uni.showToast({ title: '未能同步已读状态，请稍后重试', icon: 'none' })
@@ -248,9 +282,9 @@ async function share() {
     <!-- 底部确认已读栏 -->
     <view v-if="announcement" class="an-foot">
       <view class="an-foot-back" @tap="openCircle"><text class="an-foot-back-t">返回圈子</text></view>
-      <view class="an-foot-read" :class="{ done: isRead }" @tap="markRead">
+      <view class="an-foot-read" :class="{ done: isRead || readStatusLoading }" @tap="markRead">
         <app-icon name="check" :size="28" :color="isRead ? '#999999' : '#ffffff'" />
-        <text class="an-foot-read-t" :class="{ done: isRead }">{{ isRead ? '已确认阅读' : '确认已读' }}</text>
+        <text class="an-foot-read-t" :class="{ done: isRead }">{{ !loggedIn ? '登录后确认已读' : readStatusLoading ? '核实已读状态…' : readMemberRequired ? '加入圈子后可确认已读' : readStatusError ? '状态未确认，点此重试' : isRead ? '已确认阅读' : '确认已读' }}</text>
       </view>
     </view>
   </view>

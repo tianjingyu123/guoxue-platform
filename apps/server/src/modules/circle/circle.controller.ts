@@ -255,6 +255,14 @@ export class CircleController {
     return this.circle.getAnnouncementById(circleId, announcementId);
   }
 
+  @Get(":id/announcements/:announcementId/read-status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取本人在该圈公告的已读状态" })
+  @ApiBearerAuth()
+  getAnnouncementReadStatus(@Param("id") circleId: string, @Param("announcementId") announcementId: string, @Req() req: Request) {
+    return this.circle.getAnnouncementReadStatus(circleId, announcementId, req.user.id);
+  }
+
   @Delete(":id/announcement/:announcementId")
   @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
