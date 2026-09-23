@@ -249,6 +249,17 @@ describe("PaipanReportService", () => {
     expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "career");
   });
 
+  it("报告关联他人原盘时拒绝交付正文，不查询购买权益", async () => {
+    const { svc, prisma, commerce } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "mislinked", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-other",
+      analyzeType: "REPORT_GENERAL", analysisContent: JSON.stringify({ metadata: { reportType: "general" }, sections: [] }),
+    });
+    prisma.paipanRecord.findUnique.mockResolvedValue({ userId: "u2" });
+    await expect(svc.getReport("u1", "mislinked")).rejects.toThrow("原排盘记录不存在");
+    expect(commerce.assertReportAccess).not.toHaveBeenCalled();
+  });
+
   it("报告目录只查询本人结构化报告，分页且不返回正文", async () => {
     const { svc, prisma } = setup();
     prisma.aiAnalysisRecord.findMany = jest.fn().mockResolvedValue([{

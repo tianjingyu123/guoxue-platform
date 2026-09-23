@@ -744,7 +744,7 @@ export class PaipanReportService {
    * 同时并行发起真正的生成请求，完成后整页揭幕——仪式感来自真实信息的逐步揭示，
    * 不是假进度条。小程序端不支持 SSE，因此不用流式推送。
    */
-  /** 报告生成权限（只校验归属，不调模型）；未注入门禁时视为免费 */
+  /** 报告生成权限（校验原盘归属与权益，不调模型） */
   async reportAccess(userId: string, paipanRecordId: string, reportType: string) {
     const type = REPORT_TITLES[reportType] ? reportType : "general";
     const record = await this.prisma.paipanRecord.findUnique({ where: { id: paipanRecordId }, select: { userId: true } });
@@ -1618,6 +1618,14 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     const content = this.safeParse(report.analysisContent);
     if (!content) {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
+    }
+    if (report.paipanRecordId) {
+      const source = await this.prisma.paipanRecord.findUnique({
+        where: { id: report.paipanRecordId }, select: { userId: true },
+      });
+      if (!source || source.userId !== userId) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "报告关联的原排盘记录不存在");
+      }
     }
     const accessType = content.metadata?.reportType ||
       (report.analyzeType?.startsWith("REPORT_") ? report.analyzeType.slice(7).toLowerCase() : "");

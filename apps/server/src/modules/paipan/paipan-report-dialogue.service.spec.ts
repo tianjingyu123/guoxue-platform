@@ -43,6 +43,7 @@ function setup(owner = "u1") {
   const turns: any[] = [];
   let t = 0;
   const prisma: any = {
+    paipanRecord: { findUnique: jest.fn().mockResolvedValue({ userId: "u1" }) },
     aiAnalysisRecord: {
       findUnique: jest.fn(async () => ({ id: "r1", userId: owner, scene: "paipan_report", analysisContent: JSON.stringify(report) })),
     },
@@ -189,6 +190,18 @@ describe("PaipanReportDialogueService", () => {
     const svc = new PaipanReportDialogueService(prisma, gateway, guide, commerce);
     await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
     await expect(svc.ask("u1", "r1", { question: "继续解释" })).rejects.toThrow("购买权益已撤销");
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("报告关联他人原盘时，不能读取问答或调用模型", async () => {
+    const { svc, prisma, gateway } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-other",
+      analysisContent: JSON.stringify({ ...report, metadata: { reportType: "general" } }),
+    });
+    prisma.paipanRecord.findUnique.mockResolvedValue({ userId: "u2" });
+    await expect(svc.history("u1", "r1")).rejects.toThrow("原排盘记录不存在");
+    await expect(svc.ask("u1", "r1", { question: "继续解释" })).rejects.toThrow("原排盘记录不存在");
     expect(gateway.chat).not.toHaveBeenCalled();
   });
 

@@ -344,6 +344,14 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+    if (record.paipanRecordId) {
+      const source = await this.prisma.paipanRecord.findUnique({
+        where: { id: record.paipanRecordId }, select: { userId: true },
+      });
+      if (!source || source.userId !== userId) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "报告关联的原排盘记录不存在");
+      }
+    }
     const accessType = content.metadata?.reportType ||
       (record.analyzeType?.startsWith("REPORT_") ? record.analyzeType.slice(7).toLowerCase() : "");
     if (record.paipanRecordId && accessType) {
