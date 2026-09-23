@@ -48,6 +48,13 @@ export class GrowthService {
     return Number.isFinite(x) ? x : 0;
   }
 
+  /** 今天或昨天有签到才算仍在连续签到；历史累计经验不因此清零。 */
+  private activeCheckinStreak(lastCheckin: string | null | undefined, streak: unknown): number {
+    const today = this.ymd(new Date());
+    const yesterday = this.ymd(new Date(Date.now() - 86_400_000));
+    return lastCheckin === today || lastCheckin === yesterday ? this.num(streak) : 0;
+  }
+
   /**
    * 入圈审批权限校验（治理权限矩阵 #8·2026-07-10 起接入）：
    * 圈主恒通过；其余角色按 CircleGovernanceConfig.rolePermissions 的 member.approve
@@ -196,7 +203,7 @@ export class GrowthService {
       month: m,
       today: this.ymd(new Date()),
       checkedToday: g?.lastCheckin === this.ymd(new Date()),
-      checkinStreak: this.num(g?.checkinStreak),
+      checkinStreak: this.activeCheckinStreak(g?.lastCheckin, g?.checkinStreak),
       totalCheckins: this.num(g?.totalCheckins),
       days: rows.map((r) => ({ date: r.checkinDate, expGained: this.num(r.expGained) })),
     };
@@ -204,7 +211,7 @@ export class GrowthService {
 
   // ── 成长 / 等级 ────────────────────────────────────
 
-  /** 我的成长（等级/总经验/进度/连续签到）+ 该圈等级排行榜 Top N */
+  /** 我的成长 + 该圈成长榜、有效连签榜各 Top N */
   async getGrowth(circleId: string, userId: string) {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
@@ -218,6 +225,7 @@ export class GrowthService {
               u."avatar"   AS "avatar",
               COALESCE(g."checkinExp", 0)    AS "checkinExp",
               COALESCE(g."checkinStreak", 0) AS "checkinStreak",
+              g."lastCheckin" AS "lastCheckin",
               (SELECT COUNT(*) FROM "Post" p WHERE p."circleId"=cm."circleId" AND p."userId"=cm."userId") AS "posts",
               (SELECT COUNT(*) FROM "Like" l WHERE l."targetType"='POST'
                  AND l."targetId" IN (SELECT id FROM "Post" p2 WHERE p2."circleId"=cm."circleId" AND p2."userId"=cm."userId")) AS "likes"
@@ -240,7 +248,7 @@ export class GrowthService {
           nickname: r.nickname ?? "学员",
           avatar: r.avatar ?? "",
           checkinExp,
-          checkinStreak: this.num(r.checkinStreak),
+          checkinStreak: this.activeCheckinStreak(r.lastCheckin, r.checkinStreak),
           posts,
           likes,
           totalExp,
@@ -251,6 +259,11 @@ export class GrowthService {
       .sort((a, b) => b.totalExp - a.totalExp);
 
     const leaderboard = ranked.slice(0, LEADERBOARD_TOP_N).map((x, i) => ({ rank: i + 1, ...x }));
+    const checkinRanked = ranked
+      .filter((x) => x.checkinStreak > 0)
+      .sort((a, b) => b.checkinStreak - a.checkinStreak || b.checkinExp - a.checkinExp || a.userId.localeCompare(b.userId));
+    const checkinLeaderboard = checkinRanked.slice(0, LEADERBOARD_TOP_N).map((x, i) => ({ rank: i + 1, ...x }));
+    const myCheckinIndex = checkinRanked.findIndex((x) => x.userId === userId);
     const myIndex = ranked.findIndex((x) => x.userId === userId);
     const mine = ranked[myIndex];
     const lv = computeLevel(mine?.totalExp ?? 0);
@@ -276,6 +289,8 @@ export class GrowthService {
         ...lv, // level, levelName, totalExp, nextLevelMinExp, expIntoLevel, progressPercent, isMax ...
       },
       leaderboard,
+      checkinLeaderboard,
+      myCheckinRank: myCheckinIndex >= 0 ? myCheckinIndex + 1 : 0,
     };
   }
 

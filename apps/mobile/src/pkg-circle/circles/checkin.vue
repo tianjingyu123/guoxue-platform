@@ -11,7 +11,7 @@
         <view class="ck-stat"><text class="ck-stat-num">{{ streak }}</text><text class="ck-stat-label">连续签到</text></view>
         <view class="ck-stat"><text class="ck-stat-num">{{ totalCheckins }}</text><text class="ck-stat-label">累计签到</text></view>
         <view class="ck-stat"><text class="ck-stat-num">{{ checkinExp }}</text><text class="ck-stat-label">签到经验</text></view>
-        <view class="ck-stat"><text class="ck-stat-num">#{{ rank || '-' }}</text><text class="ck-stat-label">圈内排名</text></view>
+        <view class="ck-stat"><text class="ck-stat-num">{{ rank ? `#${rank}` : '—' }}</text><text class="ck-stat-label">连签排名</text></view>
       </view>
     </view>
 
@@ -59,7 +59,7 @@
       <view v-if="activeTab === 'rank'" class="ck-section">
         <view v-if="rankList.length" class="ck-rank-card">
           <view v-for="(item, idx) in rankList" :key="item.userId" class="ck-rank-row" :class="{ noborder: idx === rankList.length - 1 }">
-            <view class="ck-rank-no" :class="rankClass(idx + 1)">{{ idx + 1 }}</view>
+            <view class="ck-rank-no" :class="rankClass(item.rank)">{{ item.rank }}</view>
             <image lazy-load class="ck-avatar" :src="item.avatar" mode="aspectFill" />
             <view class="ck-rank-info"><text class="ck-rank-name">{{ item.nickname }}</text><text class="ck-rank-total">Lv.{{ item.level }} {{ item.levelName }}</text></view>
             <view class="ck-rank-streak">
@@ -189,11 +189,13 @@ async function loadAll() {
       growthApi.growth(circleId.value),
       growthApi.calendar(circleId.value),
     ])
+    if (!Array.isArray(growth.checkinLeaderboard) || typeof growth.myCheckinRank !== 'number') {
+      throw new Error('签到榜暂未更新，请稍后重试')
+    }
     streak.value = growth.me.checkinStreak
     checkinExp.value = growth.me.checkinExp
-    rank.value = growth.me.rank
-    // 排行按连续签到天数降序（签到场景更贴切）
-    rankList.value = [...growth.leaderboard].sort((a, b) => b.checkinStreak - a.checkinStreak).slice(0, 20)
+    rank.value = growth.myCheckinRank
+    rankList.value = growth.checkinLeaderboard
 
     month.value = cal.month
     todayStr.value = cal.today

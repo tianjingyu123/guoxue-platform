@@ -103,3 +103,37 @@ describe("GrowthService checkin 原子性", () => {
     expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("GrowthService 连签榜口径", () => {
+  const localToday = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  it("独立按有效连签排名，不受成长榜前 20 名截断", async () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      userId: `high-${i}`, nickname: `成员${i}`, avatar: "", checkinExp: 1000 + i,
+      checkinStreak: 1, lastCheckin: localToday(), posts: 0, likes: 0,
+    }));
+    rows.push({ userId: "me", nickname: "我", avatar: "", checkinExp: 70, checkinStreak: 7, lastCheckin: localToday(), posts: 0, likes: 0 });
+    rows.push({ userId: "stale", nickname: "已断签", avatar: "", checkinExp: 2000, checkinStreak: 30, lastCheckin: "2020-01-01", posts: 0, likes: 0 });
+    const prisma: any = {
+      circleMember: { findUnique: jest.fn().mockResolvedValue({ joinedAt: new Date() }) },
+      $queryRawUnsafe: jest.fn().mockResolvedValueOnce(rows).mockResolvedValueOnce([{ c: 0 }]),
+    };
+    const result = await new GrowthService(prisma).getGrowth("circle-1", "me");
+    expect(result.leaderboard.some((item) => item.userId === "me")).toBe(false);
+    expect(result.checkinLeaderboard[0]).toMatchObject({ userId: "me", rank: 1, checkinStreak: 7 });
+    expect(result.checkinLeaderboard.some((item) => item.userId === "stale")).toBe(false);
+    expect(result.myCheckinRank).toBe(1);
+  });
+
+  it("断签后日历返回有效连签 0，累计签到次数不丢", async () => {
+    const prisma: any = {
+      $queryRawUnsafe: jest.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([{ lastCheckin: "2020-01-01", checkinStreak: 9, totalCheckins: 12 }]),
+    };
+    const result = await new GrowthService(prisma).getCheckinCalendar("circle-1", "me");
+    expect(result.checkinStreak).toBe(0);
+    expect(result.totalCheckins).toBe(12);
+  });
+});

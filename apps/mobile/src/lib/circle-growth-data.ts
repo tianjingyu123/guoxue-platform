@@ -44,6 +44,8 @@ export interface RankItem {
 export interface GrowthData {
   me: LevelMe
   leaderboard: RankItem[]
+  checkinLeaderboard: RankItem[]
+  myCheckinRank: number
 }
 
 export interface CheckinResult {
