@@ -135,7 +135,9 @@ onShareAppMessage(() => {
 
 /** 生成海报（复用 share-poster 现有能力） */
 function openPoster() {
-  navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`)
+  const code = isFreeCircle.value ? usableCode()?.code : undefined
+  if (isFreeCircle.value && !code) { uni.showToast({ title: '请先生成有效邀请码', icon: 'none' }); void load(); return }
+  navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${encodeURIComponent(circleId.value)}${code ? `&code=${encodeURIComponent(code)}` : ''}`)
 }
 
 function fmtJoinDate(iso: string): string {
@@ -177,7 +179,7 @@ onShow(() => { void load() })
 
     <template v-else>
       <!-- 邀请卡片预览：分享出去的样子（真实圈子信息） -->
-      <text class="iv-label center">分享出去的邀请卡片</text>
+      <text class="iv-label center">圈子分享预览</text>
       <view class="iv-poster">
         <view class="iv-poster-cover">
           <image v-if="circle.cover" :src="circle.cover" class="iv-poster-cover-img" mode="aspectFill" />
@@ -194,7 +196,7 @@ onShow(() => { void load() })
           </view>
         </view>
       </view>
-      <text class="iv-poster-note">{{ isFreeCircle ? '可生成分享海报，或发送含邀请码的邀请链接' : '可生成分享海报，或发送圈子介绍链接' }}</text>
+      <text class="iv-poster-note">{{ isFreeCircle ? '生成海报后，二维码将带上当前有效的邀请码' : '海报二维码指向圈子介绍页' }}</text>
 
       <!-- 我的专属邀请码 -->
       <text v-if="isFreeCircle" class="iv-label">我的专属邀请码</text>

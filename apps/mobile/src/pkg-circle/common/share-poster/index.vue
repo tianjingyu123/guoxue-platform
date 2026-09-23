@@ -1,9 +1,17 @@
 <template>
   <view class="poster-page">
     <!-- 加载态 -->
-    <view v-if="isLoading || !posterData" class="poster-loading">
+    <view v-if="isLoading" class="poster-loading">
       <view class="poster-loading__spinner" />
       <text class="poster-loading__text">加载中…</text>
+    </view>
+    <view v-else-if="loadError || !posterData" class="poster-error">
+      <text class="poster-error__title">海报暂时无法生成</text>
+      <text class="poster-error__detail">{{ loadError || '未取得可分享的内容' }}</text>
+      <view class="poster-error__actions">
+        <view class="poster-error__button" @tap="goBack">返回</view>
+        <view class="poster-error__button poster-error__button--primary" @tap="loadData">重试</view>
+      </view>
     </view>
 
     <template v-else>
@@ -166,6 +174,8 @@ const posterType = ref<PosterType>('invite')
 const targetId = ref<string | undefined>(undefined)
 /** 仅 type=post 需要（后端帖子详情端点要 circleId + postId） */
 const circleId = ref<string | undefined>(undefined)
+const requestedInviteCode = ref('')
+const verifiedInviteCode = ref('')
 
 const isLoading = ref(true)
 const posterData = ref<PosterData | null>(null)
@@ -206,7 +216,9 @@ const miniSharePath = computed(() => {
   const circle = encodeURIComponent(circleId.value || '')
   const paths: Record<PosterType, string> = {
     invite: '/pages/index/index',
-    circle: `/pkg-circle/circles/detail?id=${id}`,
+    circle: verifiedInviteCode.value
+      ? `/pkg-circle/circles/preview?id=${id}&code=${encodeURIComponent(verifiedInviteCode.value)}`
+      : `/pkg-circle/circles/detail?id=${id}`,
     post: `/pkg-circle/circles/post?id=${id}&circleId=${circle}`,
     article: `/pkg-circle/articles/detail?id=${id}`,
     video: `/pkg-video/detail/index?id=${id}`,
@@ -222,6 +234,7 @@ onLoad((q) => {
   if (q?.type) posterType.value = q.type as PosterType
   if (q?.targetId) targetId.value = String(q.targetId)
   if (q?.circleId) circleId.value = String(q.circleId)
+  if (q?.code) requestedInviteCode.value = String(q.code)
   const sys = uni.getSystemInfoSync()
   statusBarHeight.value = sys.statusBarHeight || 0
   loadData()
@@ -232,11 +245,17 @@ const loadError = ref('')
 async function loadData() {
   isLoading.value = true
   loadError.value = ''
+  posterData.value = null
+  posterTempPath.value = ''
+  verifiedInviteCode.value = ''
   try {
-    const res = await getPosterData(posterType.value, targetId.value, circleId.value)
+    const res = await getPosterData(posterType.value, targetId.value, circleId.value, requestedInviteCode.value)
     if (res.code === 200 && res.data) {
       posterData.value = res.data
+      verifiedInviteCode.value = requestedInviteCode.value
       setTimeout(() => drawPoster(), 100)
+    } else {
+      loadError.value = '未取得可分享的内容，请重试'
     }
   } catch (e) {
     // 绝不回退成假数据：错误的海报会被用户发到朋友圈
@@ -303,6 +322,11 @@ function drawPoster() {
    * 现按 data.link 用 uqrcodejs 现画指向真实内容的码（失败静默降级，不影响存图）。 */
   const QR = 72
   drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { padding: 4 })
+  ctx.setFillStyle(theme.sub)
+  ctx.setFontSize(9)
+  ctx.setTextAlign('center')
+  ctx.fillText(data.qrLabel, W - 32 - QR / 2, H - 15)
+  ctx.setTextAlign('left')
 
   /* 品牌朱印（视觉签名批1）：与预览区 brand-seal 同构，画在二维码左侧、底边对齐——
    * 预览 96rpx=48px、间距 12px，绝不与二维码/作者行重叠 */
@@ -427,6 +451,7 @@ function copyTone() {
 
 async function handleSave() {
   if (isSaving.value) return
+  if (!posterTempPath.value) { uni.showToast({ title: '海报生成中，请稍后再试', icon: 'none' }); return }
   isSaving.value = true
   // #ifdef H5
   try {
@@ -506,6 +531,25 @@ onMounted(() => {})
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.7);
 }
+.poster-error {
+  min-height: 100vh;
+  padding: 80rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.poster-error__title { color: #f5efe6; font-size: 36rpx; font-weight: 600; }
+.poster-error__detail { color: #bdae97; font-size: 26rpx; line-height: 1.6; margin-top: 20rpx; }
+.poster-error__actions { display: flex; gap: 20rpx; margin-top: 48rpx; }
+.poster-error__button {
+  min-width: 144rpx; min-height: 88rpx; padding: 0 24rpx;
+  border: 1rpx solid #d4af37; border-radius: 44rpx;
+  display: flex; align-items: center; justify-content: center;
+  color: #f5efe6; font-size: 27rpx;
+}
+.poster-error__button--primary { background: #d4af37; color: #1c1714; font-weight: 600; }
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -605,6 +649,8 @@ onMounted(() => {})
   display: flex;
   align-items: center;
   gap: 16rpx;
+  min-width: 0;
+  flex: 1;
 }
 .poster-card__avatar {
   width: 72rpx;
@@ -615,6 +661,7 @@ onMounted(() => {})
   display: flex;
   flex-direction: column;
   gap: 4rpx;
+  min-width: 0;
 }
 .poster-card__author-name {
   font-size: 26rpx;
@@ -622,6 +669,9 @@ onMounted(() => {})
 }
 .poster-card__author-from {
   font-size: 20rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* 印章+二维码组：印章底边与二维码图对齐（二维码下方还有 label，故印章抬起 label 高度） */
 .poster-card__stamp-area {
@@ -648,6 +698,7 @@ onMounted(() => {})
 }
 .poster-card__qr-label {
   font-size: 18rpx;
+  white-space: nowrap;
 }
 
 /* 离屏 canvas（隐藏在视图外但需可绘制） */

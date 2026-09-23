@@ -9,6 +9,7 @@
  */
 import { BRAND } from '@/lib/brand'
 import { circleDetailApi } from '@/lib/circle-detail-data'
+import { inviteApi } from '@/lib/circle-invite-data'
 import { articleApi } from '@/lib/article-data'
 import { liveApi } from '@/lib/live-data'
 import { shopApi } from '@/lib/shop-data'
@@ -162,9 +163,10 @@ interface RawPostForPoster {
  * 真连海报数据。
  * @param targetId 内容 id（uuid 字符串 —— 注意不是 number，圈子/文章 id 都是 uuid）
  * @param circleId 仅 type=post 需要（后端帖子详情端点要 circleId + postId 两个参数）
+ * @param inviteCode 仅免费圈邀请页传入；从圈主当前可用码列表核验后写入二维码和分享链接
  * 任一步失败上抛，由页面走错误态 —— 绝不回退成假数据（错误的海报会被发到朋友圈）。
  */
-export async function getPosterData(type: PosterType, targetId?: string, circleId?: string): Promise<PosterRes> {
+export async function getPosterData(type: PosterType, targetId?: string, circleId?: string, inviteCode?: string): Promise<PosterRes> {
   // 邀请海报：平台自我介绍，本就是静态品牌文案（非假数据）；链接指向平台首页
   if (type === 'invite' || !targetId) {
     const me = getStorage<{ nickname?: string; avatar?: string }>('userInfo')
@@ -187,6 +189,13 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
 
   if (type === 'circle') {
     const c = await circleDetailApi.detail(targetId)
+    if (inviteCode) {
+      if (c.type !== 'FREE') throw new Error('付费圈子不能使用邀请码海报')
+      const codes = await inviteApi.listCodes(targetId, { throwOnError: true })
+      if (!codes.some((code) => code.code === inviteCode && code.status === 'active')) {
+        throw new Error('邀请码已失效，请返回邀请页重新生成')
+      }
+    }
     return {
       code: 200,
       data: {
@@ -197,9 +206,11 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
         author: c.owner?.name || '',
         authorAvatar: c.owner?.avatar || '',
         qrcode: '',
-        qrLabel: '长按识别，加入圈子',
-        tag: '圈子',
-        link: h5Link(`pkg-circle/circles/detail?id=${targetId}`),
+        qrLabel: inviteCode ? '扫码入圈' : '扫码查看',
+        tag: inviteCode ? '邀请' : '圈子',
+        link: inviteCode
+          ? h5Link(`pkg-circle/circles/preview?id=${encodeURIComponent(targetId)}&code=${encodeURIComponent(inviteCode)}`)
+          : h5Link(`pkg-circle/circles/detail?id=${encodeURIComponent(targetId)}`),
       },
     }
   }
