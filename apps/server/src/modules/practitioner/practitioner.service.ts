@@ -395,13 +395,21 @@ export class PractitionerService {
   }
 
   /** 撤回交付链接 */
-  async unshareReport(userId: string, id: string) {
-    await this.getReport(userId, id);
-    const updated = await this.prisma.practitionerReport.update({
-      where: { id },
+  async unshareReport(userId: string, id: string, expectedToken?: string) {
+    const current = await this.getReport(userId, id);
+    if (expectedToken && current.shareToken !== expectedToken) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    }
+    if (!current.shareToken) {
+      return { success: true, updatedAt: current.updatedAt, shareToken: null, sharedAt: null, status: current.status };
+    }
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: current.shareToken },
       data: { shareToken: null, sharedAt: null, status: "final" },
     });
-    return { success: true, updatedAt: updated.updatedAt };
+    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    const latest = await this.getReport(userId, id);
+    return { success: true, updatedAt: latest.updatedAt, shareToken: latest.shareToken, sharedAt: latest.sharedAt, status: latest.status };
   }
 
   /** 公开：按令牌读一份报告（无需登录 · 只读 · 不返回 ownerId 等内部字段） */

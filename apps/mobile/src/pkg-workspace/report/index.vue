@@ -255,6 +255,7 @@ function copyShare() {
 
 async function unshare() {
   if (!report.value?.shareToken || sharing.value || unsharing.value) return
+  const expectedToken = report.value.shareToken
   unsharing.value = true
   try {
     const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
@@ -264,11 +265,21 @@ async function unshare() {
       fail: () => resolve(false),
     }))
     if (!confirmed) return
-    const result = await wsApi.unshareReport(id.value)
-    report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final', updatedAt: result.updatedAt }
-    uni.showToast({ title: '已撤回', icon: 'success' })
+    const result = await wsApi.unshareReport(id.value, expectedToken)
+    report.value = { ...report.value!, shareToken: result.shareToken, sharedAt: result.sharedAt, status: result.status, updatedAt: result.updatedAt }
+    uni.showToast({ title: result.shareToken ? '链接状态已更新' : '已撤回', icon: result.shareToken ? 'none' : 'success' })
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
+    const message = e?.message || '撤回失败'
+    if (message.includes('交付链接已更新')) {
+      uni.showModal({
+        title: '交付链接已有变化',
+        content: '另一设备已更新了交付状态，请重新加载后确认当前链接。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     unsharing.value = false
   }

@@ -163,8 +163,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "撤回交付链接" })
-  unshareReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.unshareReport(req.user.id, id);
+  unshareReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { shareToken?: string }) {
+    return this.svc.unshareReport(req.user.id, id, dto?.shareToken);
   }
 
   // ───────── 案例库 ─────────

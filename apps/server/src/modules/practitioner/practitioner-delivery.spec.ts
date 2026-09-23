@@ -7,7 +7,7 @@ function setup(shareToken: string | null) {
     practitionerReport: {
       findFirst: jest.fn(async () => ({ ...report })),
       updateMany: jest.fn(async ({ where, data }: any) => {
-        if (where.shareToken === null && report.shareToken !== null) return { count: 0 };
+        if (where.shareToken !== undefined && where.shareToken !== report.shareToken) return { count: 0 };
         if (where.updatedAt && where.updatedAt.getTime() !== report.updatedAt.getTime()) return { count: 0 };
         Object.assign(report, data, { updatedAt: new Date(report.updatedAt.getTime() + 1000) });
         return { count: 1 };
@@ -44,16 +44,40 @@ describe("从业者报告交付后锁定", () => {
   });
 
   it("交付标记为 delivered，撤回后回到可编辑的 final", async () => {
-    const { service, prisma } = setup(null);
+    const { service, prisma, report } = setup(null);
     await service.shareReport("teacher-1", "report-1");
     expect(prisma.practitionerReport.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "report-1", ownerId: "teacher-1", shareToken: null },
       data: expect.objectContaining({ status: "delivered" }),
     }));
-    await service.unshareReport("teacher-1", "report-1");
-    expect(prisma.practitionerReport.update).toHaveBeenLastCalledWith(expect.objectContaining({
+    const result = await service.unshareReport("teacher-1", "report-1", report.shareToken!);
+    expect(result.shareToken).toBeNull();
+    expect(prisma.practitionerReport.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { id: "report-1", ownerId: "teacher-1", shareToken: expect.any(String) },
       data: { shareToken: null, sharedAt: null, status: "final" },
     }));
+  });
+
+  it("旧设备不能撤回另一设备重新生成的交付链接", async () => {
+    const { service, report, prisma } = setup("old-token");
+    report.shareToken = "new-token";
+    await expect(service.unshareReport("teacher-1", "report-1", "old-token"))
+      .rejects.toThrow("交付链接已更新");
+    expect(report.shareToken).toBe("new-token");
+    expect(prisma.practitionerReport.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("撤回请求读取后链接才被替换时，条件更新仍保护新链接", async () => {
+    const { service, report, prisma } = setup("old-token");
+    const update = prisma.practitionerReport.updateMany.getMockImplementation();
+    prisma.practitionerReport.updateMany.mockImplementationOnce(async (args: any) => {
+      report.shareToken = "new-token";
+      return update(args);
+    });
+
+    await expect(service.unshareReport("teacher-1", "report-1", "old-token"))
+      .rejects.toThrow("交付链接已更新");
+    expect(report.shareToken).toBe("new-token");
   });
 
   it("并发生成交付链接时返回同一令牌，重复请求不刷新链接", async () => {
