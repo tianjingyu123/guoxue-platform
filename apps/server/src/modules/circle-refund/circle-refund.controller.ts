@@ -30,9 +30,9 @@ export class CircleRefundController {
   apply(
     @Param("circleId") circleId: string,
     @Req() req: Request,
-    @Body() body: { reason?: string; refundType?: "normal" | "full" },
+    @Body() body: { reason?: string; refundType?: "normal" | "full"; expectedActualRefund?: number },
   ) {
-    return this.svc.applyRefund(circleId, req.user.id, body.reason, body.refundType);
+    return this.svc.applyRefund(circleId, req.user.id, body.reason, body.refundType, body.expectedActualRefund);
   }
 
   @Get("my")

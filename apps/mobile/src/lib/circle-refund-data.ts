@@ -132,8 +132,8 @@ export const refundApi = {
     }
   },
   /** 提交申诉退款申请 — POST /circle-refund/apply/:circleId */
-  apply: (circleId: string, reason?: string) =>
-    apiPost(`/circle-refund/apply/${circleId}`, { reason }),
+  apply: (circleId: string, reason?: string, expectedActualRefund?: number) =>
+    apiPost(`/circle-refund/apply/${circleId}`, { reason, expectedActualRefund }),
   /** 我的退款申请 — GET /circle-refund/my */
   myRefunds: async (options: { throwOnError?: boolean } = {}): Promise<RefundRequestItem[]> => {
     try { return pickArray(await apiGet<RawRefundListResp>('/circle-refund/my')).map(adaptItem) } catch (error) { if (options.throwOnError) throw error; return [] }

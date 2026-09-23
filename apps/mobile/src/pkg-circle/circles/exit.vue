@@ -101,11 +101,24 @@ async function submit() {
   if (submitting.value || !preview.value) return
   submitting.value = true
   try {
+    const fresh = await refundApi.preview(circleId.value)
+    if (fresh.usedDays !== preview.value.usedDays
+      || Math.round(fresh.actualRefund * 100) !== Math.round(preview.value.actualRefund * 100)) {
+      preview.value = fresh
+      uni.showToast({ title: '退款金额已更新，请确认后重新提交', icon: 'none' })
+      return
+    }
     const reason = [selectedChip.value, reasonText.value.trim()].filter(Boolean).join('：')
-    await refundApi.apply(circleId.value, reason || undefined)
+    await refundApi.apply(circleId.value, reason || undefined, fresh.actualRefund)
     submitted.value = true
   } catch (e) {
-    uni.showToast({ title: errMsg(e) || '提交失败', icon: 'none' })
+    const message = errMsg(e)
+    if (message.includes('退款金额已变化')) {
+      try { preview.value = await refundApi.preview(circleId.value) } catch { /* 保留旧测算，用户可重新进入测算页 */ }
+      uni.showToast({ title: '退款金额已变化，请确认后重新提交', icon: 'none' })
+    } else {
+      uni.showToast({ title: message || '提交失败', icon: 'none' })
+    }
   } finally {
     submitting.value = false
   }

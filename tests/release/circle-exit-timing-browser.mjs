@@ -8,7 +8,9 @@ const origin = process.env.QA_ORIGIN
 if (!origin) throw new Error('缺少隔离 H5 地址')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const errors = []
-let applyCount = 0
+let usedDays = 22
+let rejectOnce = true
+const applications = []
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript(() => localStorage.setItem('auth_token', JSON.stringify({ type: 'string', data: 'local-fixture-only' })))
@@ -17,11 +19,19 @@ try {
     if (url.pathname.includes('/api/v1/')) {
       const path = url.pathname.split('/api/v1')[1]
       let data = {}
+      let status = 200
       if (path === '/circles/c1') data = { id: 'c1', name: '共读经典', description: '一起读书。', type: 'YEARLY', status: 'ACTIVE', memberCount: 12, postCount: 3, owner: { id: 'owner', nickname: '领读人' } }
       else if (path === '/circles/c1/join/status') data = { joined: true, role: 'member', joinedAt: '2026-09-01T00:00:00Z', expireAt: '2027-09-01T00:00:00Z' }
-      else if (path === '/circle-refund/preview/c1') data = { orderId: 'local-order', paidAmount: 365, dailyCost: 1, usedDays: 22, refundBase: 343, feeRate: 0.2, feeAmount: 68.6, actualRefund: 274.4 }
-      else if (path === '/circle-refund/apply/c1' && route.request().method() === 'POST') { applyCount++; data = { id: 'local-refund', actualRefund: 274.4 } }
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200, data, message: 'ok' }) })
+      else if (path === '/circle-refund/preview/c1') {
+        const refundBase = 365 - usedDays
+        data = { orderId: 'local-order', paidAmount: 365, dailyCost: 1, usedDays, refundBase, feeRate: 0.2, feeAmount: refundBase * 0.2, actualRefund: refundBase * 0.8 }
+      }
+      else if (path === '/circle-refund/apply/c1' && route.request().method() === 'POST') {
+        applications.push(route.request().postDataJSON())
+        if (rejectOnce) { rejectOnce = false; usedDays++; status = 400 }
+        else data = { id: 'local-refund', actualRefund: 272.8 }
+      }
+      return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code: status, data, message: status === 400 ? '退款金额已变化，请重新确认' : 'ok' }) })
     }
     if (url.origin === origin || url.protocol === 'data:') return route.continue()
     return route.abort()
@@ -36,11 +46,19 @@ try {
   await page.getByText('等待圈主处理').waitFor()
   await page.getByText('等待平台处理').waitFor()
   await page.getByText('以上为当前测算', { exact: false }).waitFor()
+  usedDays++
+  await page.getByText('提交退款申请').click()
+  await page.locator('.ex-calc-total-value').getByText('¥273.6').waitFor()
+  assert.equal(applications.length, 0, '测算变化后必须先重新确认，不能建申请')
+  await page.getByText('提交退款申请').click()
+  await page.locator('.ex-calc-total-value').getByText('¥272.8').waitFor()
+  assert.equal(applications.length, 1, '服务端再次变价应拒绝本次提交')
   await page.getByText('提交退款申请').click()
   await page.getByText('申请期间仍可使用现有圈内权益', { exact: false }).waitFor()
-  assert.equal(applyCount, 1)
+  assert.equal(applications.length, 2)
+  assert.equal(applications[1].expectedActualRefund, 272.8)
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: 8, simulatedApplications: applyCount, errors }))
+  console.log(JSON.stringify({ passed: 12, simulatedApplications: applications.length, errors }))
 } finally {
   await browser.close()
 }

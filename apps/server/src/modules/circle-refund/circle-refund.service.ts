@@ -37,14 +37,17 @@ export class CircleRefundService {
   ) {}
 
   /** 计算退款金额（不落库）：应退 = 已付 − 日费×已用天数；手续费 = 应退×20%；实退 = 应退 − 手续费 */
-  private async calcRefund(circleId: string, userId: string): Promise<RefundCalc> {
-    const member = await this.prisma.circleMember.findUnique({
+  private async calcRefund(
+    circleId: string, userId: string,
+    db: Pick<PrismaService, "circleMember" | "order"> = this.prisma,
+  ): Promise<RefundCalc> {
+    const member = await db.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "你不是该圈子成员");
 
     // 入圈订单 → 已付费用
-    const order = await this.prisma.order.findFirst({
+    const order = await db.order.findFirst({
       where: { userId, type: "CIRCLE_JOIN", targetId: circleId, status: "PAID" },
       orderBy: { createdAt: "desc" },
     });
@@ -78,29 +81,43 @@ export class CircleRefundService {
   }
 
   /** 提交退款申请（normal 走流程；full 全额退款引导客服） */
-  async applyRefund(circleId: string, userId: string, reason?: string, refundType: "normal" | "full" = "normal") {
+  async applyRefund(circleId: string, userId: string, reason?: string, refundType: "normal" | "full" = "normal", expectedActualRefund?: number) {
     if (refundType === "full") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "全额退款请联系平台客服处理");
     }
 
-    // 防重复：唯一索引兜底，先查友好提示
-    const existing = await this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT id FROM "CircleRefundRequest" WHERE "circleId"=$1 AND "userId"=$2 AND "refundStatus"='pending' LIMIT 1`,
-      circleId, userId,
-    );
-    if (existing.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "你有一笔待处理的退款申请，请勿重复提交");
+    // 锁定此圈的成员行，使两节点并发申请也按同一成员串行检查和建单。
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(
+        `SELECT id FROM "CircleMember" WHERE "circleId"=$1 AND "userId"=$2 FOR UPDATE`,
+        circleId, userId,
+      );
+      // 审核中及已进入退款执行的申请均不可重复提交；驳回/失败后仍可重申。
+      const existing = await tx.$queryRawUnsafe<any[]>(
+        `SELECT id FROM "CircleRefundRequest" WHERE "circleId"=$1 AND "userId"=$2 AND "refundStatus" IN ('pending','refunding') LIMIT 1`,
+        circleId, userId,
+      );
+      if (existing.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "你有一笔待处理的退款申请，请勿重复提交");
 
-    const calc = await this.calcRefund(circleId, userId);
-    const id = randomUUID();
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleRefundRequest"
-        ("id","circleId","userId","orderId","paidAmount","dailyCost","usedDays","refundBase","feeRate","feeAmount","actualRefund","reason","refundType","updatedAt")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'normal',CURRENT_TIMESTAMP)`,
-      id, circleId, userId, calc.orderId,
-      calc.paidAmount, calc.dailyCost, calc.usedDays, calc.refundBase, FEE_RATE, calc.feeAmount, calc.actualRefund,
-      reason ?? null,
-    );
-    return { id, ...calc, feeRate: FEE_RATE };
+      const calc = await this.calcRefund(circleId, userId, tx);
+      // 新客户端用预览金额作提交前置条件；旧客户端不传时沿用服务端现有计价规则。
+      if (expectedActualRefund !== undefined && (
+        typeof expectedActualRefund !== "number" || !Number.isFinite(expectedActualRefund)
+        || Math.round(expectedActualRefund * 100) !== Math.round(calc.actualRefund * 100)
+      )) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额已变化，请重新确认");
+      }
+      const id = randomUUID();
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleRefundRequest"
+          ("id","circleId","userId","orderId","paidAmount","dailyCost","usedDays","refundBase","feeRate","feeAmount","actualRefund","reason","refundType","updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'normal',CURRENT_TIMESTAMP)`,
+        id, circleId, userId, calc.orderId,
+        calc.paidAmount, calc.dailyCost, calc.usedDays, calc.refundBase, FEE_RATE, calc.feeAmount, calc.actualRefund,
+        reason ?? null,
+      );
+      return { id, ...calc, feeRate: FEE_RATE };
+    });
   }
 
   /** 圈主审核（通过则流转平台审核；驳回则结束，用户可重新申请） */
