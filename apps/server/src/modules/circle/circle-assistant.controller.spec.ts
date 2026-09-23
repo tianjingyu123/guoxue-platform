@@ -114,6 +114,19 @@ describe("CircleAssistantController", () => {
       expect(res.end).toHaveBeenCalled();
     });
 
+    it("检索命中摘要以元信息发送，不把知识原文写入 SSE", async () => {
+      const res = mockRes();
+      svc.askStream.mockImplementation((_question, _circleId, _userId, _history, onMatches) => {
+        return (async function* () {
+          onMatches?.({ circle: 2, global: 1 });
+          yield "回答";
+        })();
+      });
+      await ctrl.askStream("circle1", { question: "问" }, mockReq("u1"), res);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "meta", knowledgeMatches: { circle: 2, global: 1 } })}\n\n`);
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "chunk", content: "回答" })}\n\n`);
+    });
+
     it("流式提问带 history", async () => {
       const res = mockRes();
       svc.askStream.mockReturnValue(makeAsyncIterable(["带历史流式回答"]));
@@ -121,7 +134,7 @@ describe("CircleAssistantController", () => {
       const history = [{ role: "system" as const, content: "你是一个助手" }];
       await ctrl.askStream("circle1", { question: "问", history }, mockReq("u1"), res);
 
-      expect(svc.askStream).toHaveBeenCalledWith("问", "circle1", "u1", history);
+      expect(svc.askStream).toHaveBeenCalledWith("问", "circle1", "u1", history, expect.any(Function));
       expect(res.write).toHaveBeenCalledWith(
         `data: ${JSON.stringify({ type: "chunk", content: "带历史流式回答" })}\n\n`,
       );

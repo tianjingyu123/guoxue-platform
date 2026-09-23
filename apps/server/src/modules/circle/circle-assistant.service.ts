@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { RagService } from "../ai-gateway/rag.service";
+import { RagService, CircleKnowledgeMatches } from "../ai-gateway/rag.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
@@ -56,9 +56,10 @@ export class CircleAssistantService {
     circleId: string,
     userId?: string,
     history?: AiMessage[],
+    onMatches?: (matches: CircleKnowledgeMatches) => void,
   ): AsyncIterable<string> {
     await this.assertActiveMember(circleId, userId);
     this.logger.log(`圈主助理流式提问 [circle=${circleId}]`);
-    yield* this.rag.askCircleStream(question, circleId, userId, history);
+    yield* this.rag.askCircleStream(question, circleId, userId, history, onMatches);
   }
 }

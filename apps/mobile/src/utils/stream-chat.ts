@@ -29,6 +29,7 @@ export interface StreamMetaEvent {
   conversationId?: string
   disclaimer?: string
   recommendation?: unknown
+  knowledgeMatches?: { circle: number; global: number }
 }
 
 export interface StreamChatHandlers {
@@ -108,7 +109,7 @@ export async function streamChat(
     if (!trimmed.startsWith('data:')) return
     const jsonStr = trimmed.slice(5).trim()
     if (!jsonStr) return
-    let ev: { type?: string; content?: string; cardType?: string; payload?: unknown; message?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }
+    let ev: { type?: string; content?: string; cardType?: string; payload?: unknown; message?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown; knowledgeMatches?: { circle: number; global: number } }
     try {
       ev = JSON.parse(jsonStr)
     } catch {
@@ -123,7 +124,7 @@ export async function streamChat(
         if (ev.cardType) handlers.onCard?.({ cardType: ev.cardType, payload: ev.payload })
         break
       case 'meta':
-        handlers.onMeta?.({ conversationId: ev.conversationId, disclaimer: ev.disclaimer, recommendation: ev.recommendation })
+        handlers.onMeta?.({ conversationId: ev.conversationId, disclaimer: ev.disclaimer, recommendation: ev.recommendation, knowledgeMatches: ev.knowledgeMatches })
         break
       case 'error':
         serverError = ev.message || 'AI 服务异常'

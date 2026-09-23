@@ -38,6 +38,8 @@ interface RichChatMessage {
   disclaimer?: string
   /** 与本轮问题相关的真实平台内容 */
   recommendation?: Recommendation
+  /** 仅记录同一次检索的命中数量，不等同于模型已逐条引用。 */
+  knowledgeMatches?: { circle: number; global: number }
   /** 低置信商业推荐经用户同意后再展开 */
   recoConsented?: boolean
 }
@@ -52,6 +54,7 @@ export interface SimpleChatStreamHandlers {
   setDisclaimer: (d: string) => void
   /** 设置本轮结构化推荐（流末 meta） */
   setRecommendation: (recommendation: Recommendation) => void
+  setKnowledgeMatches: (matches: { circle: number; global: number }) => void
 }
 
 const props = defineProps<{
@@ -252,17 +255,28 @@ async function sendStreaming(t: string) {
       }
       scrollToBottom()
     },
+    setKnowledgeMatches: (matches) => {
+      const m = live()
+      if (m) m.knowledgeMatches = {
+        circle: Math.max(0, Math.min(5, Math.floor(Number(matches.circle) || 0))),
+        global: Math.max(0, Math.min(5, Math.floor(Number(matches.global) || 0))),
+      }
+    },
   }
 
   try {
     await props.resolveStream!(t, handlers)
     const m = live()
-    if (m && !m.content.trim()) m.content = '抱歉，本次没有生成内容，请换个问法试试。'
+    if (m && !m.content.trim()) {
+      m.content = '抱歉，本次没有生成内容，请换个问法试试。'
+      m.knowledgeMatches = undefined
+    }
     if (props.experienceKey === 'SERVICE') {
       track.custom('cs_reply_completed', { scene: 'customer_service', hasRecommendation: Boolean(m?.recommendation) })
     }
   } catch (e) {
     const m = live()
+    if (m) m.knowledgeMatches = undefined
     const errText = (e as Error)?.message || '请稍后再试'
     if (/额度|次数|用完|余额不足/u.test(errText)) {
       quotaExhausted.value = true
@@ -389,6 +403,13 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
               :experience="experience"
               :agent-name="agentName || title"
             />
+            <view v-if="msg.knowledgeMatches" class="knowledge-note" role="note">
+              <text class="knowledge-note__label">知识检索</text>
+              <text v-if="msg.knowledgeMatches.circle + msg.knowledgeMatches.global" class="knowledge-note__text">
+                本次检索到本圈 {{ msg.knowledgeMatches.circle }} 条、通用 {{ msg.knowledgeMatches.global }} 条；检索命中不代表回答已逐条引用。
+              </text>
+              <text v-else class="knowledge-note__text">未检索到直接相关的资料，本次回答来自通用知识。</text>
+            </view>
             <view v-if="msg.recommendation" class="service-recommend">
               <view v-if="msg.recommendation.presentation !== 'inline' && !msg.recoConsented" class="service-consent">
                 <text class="service-consent__text">{{ msg.recommendation.consentPrompt }}</text>
@@ -533,6 +554,9 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .card-wrap { flex: 1; min-width: 0; max-width: 86%; }
 .answer-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.knowledge-note { display: flex; align-items: flex-start; gap: 12rpx; padding: 14rpx 18rpx; border-radius: 16rpx; background: #edf4f2; color: #315f58; }
+.knowledge-note__label { flex-shrink: 0; font-size: 20rpx; font-weight: 700; }
+.knowledge-note__text { font-size: 20rpx; line-height: 1.5; }
 .service-recommend {
   display: flex; flex-direction: column; gap: 12rpx;
   padding: 18rpx;

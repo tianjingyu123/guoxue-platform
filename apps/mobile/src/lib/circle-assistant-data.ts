@@ -9,6 +9,7 @@ export interface AssistantSource {
   id: string
   content: string
   similarity: number
+  sourceType?: string
 }
 
 export interface AssistantReply {

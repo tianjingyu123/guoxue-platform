@@ -23,6 +23,16 @@ try {
     if (!url.pathname.includes('/api/v1/')) return url.origin === origin ? route.continue() : route.abort()
     const path = url.pathname.split('/api/v1')[1]
     const method = route.request().method()
+    if (path === '/circles/qa-circle/assistant/stream' && method === 'POST') {
+      const question = JSON.parse(route.request().postData() || '{}').question || ''
+      const empty = question.includes('入门')
+      const failed = question.includes('概念')
+      const events = failed
+        ? [{ type: 'meta', knowledgeMatches: { circle: 1, global: 0 } }, { type: 'error', message: '模拟流式失败' }]
+        : [{ type: 'meta', knowledgeMatches: empty ? { circle: 0, global: 0 } : { circle: 2, global: 1 } },
+          { type: 'chunk', content: empty ? '可先从基础内容读起。' : '本圈从古籍共读入门。' }, { type: 'done' }]
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') })
+    }
     let data = []
     let status = 200
     if (path === '/circles/qa-circle') data = { id: 'qa-circle', name: '古籍共读社', type: 'PAID', price: 88, owner: { id: 'owner' }, isJoined: member }
@@ -60,6 +70,13 @@ try {
   await entry.dispatchEvent('click')
   await page.waitForURL('**/pkg-circle/circles/assistant?circleId=qa-circle**')
   await page.getByText('古籍共读社 · 圈主助理', { exact: true }).first().waitFor({ timeout: 5000 })
+  await page.getByText('这个圈子主要讲什么？', { exact: true }).click()
+  await page.getByText('本次检索到本圈 2 条、通用 1 条；检索命中不代表回答已逐条引用。', { exact: true }).waitFor({ timeout: 10000 })
+  await page.getByText('推荐一些入门内容', { exact: true }).click()
+  await page.getByText('未检索到直接相关的资料，本次回答来自通用知识。', { exact: true }).waitFor({ timeout: 10000 })
+  await page.getByText('帮我解释一个概念', { exact: true }).click()
+  await page.getByText('模拟流式失败', { exact: false }).waitFor({ timeout: 10000 })
+  assert.equal(await page.locator('.knowledge-note').count(), 2, '失败回答不应继续展示检索摘要')
   const refreshed = page.waitForResponse(resp => resp.url().includes('/api/v1/circles/qa-circle') && resp.url().split('?')[0].endsWith('/qa-circle'))
   await page.getByRole('button', { name: '返回上一页' }).click()
   await page.waitForURL('**/pkg-circle/circles/detail?id=qa-circle')
@@ -87,5 +104,5 @@ try {
 
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('6组通过：未入圈先引导、成员进助理并保留阅读位置、过期先续费、助理独立打开返回原圈、成员状态失败不放行；真实业务写入0。')
+  console.log('9组通过：未入圈先引导、成员进助理并保留阅读位置、流式命中/零命中/失败摘要、过期先续费、助理独立打开返回原圈、成员状态失败不放行；真实业务写入0。')
 } finally { await browser.close() }

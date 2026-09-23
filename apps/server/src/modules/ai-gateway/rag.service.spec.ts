@@ -107,6 +107,16 @@ describe("RagService", () => {
   });
 
   describe("askCircleStream", () => {
+    it("同一次检索向流式调用方报告本圈与通用命中数量", async () => {
+      vector.searchGlobalKnowledge.mockResolvedValue([{ id: "global-1", content: "通用典籍", similarity: 0.7 }]);
+      gateway.chatStream = jest.fn(async function* () { yield "回答"; });
+      const onMatches = jest.fn();
+      const chunks: string[] = [];
+      for await (const chunk of svc.askCircleStream("提问", "c1", "u1", [], onMatches)) chunks.push(chunk);
+      expect(onMatches).toHaveBeenCalledWith({ circle: 2, global: 1 });
+      expect(chunks).toEqual(["回答"]);
+    });
+
     it("流式返回答案", async () => {
       gateway.chatStream = jest.fn(async function* () {
         yield "根据";

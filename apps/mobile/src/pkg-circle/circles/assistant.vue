@@ -47,6 +47,7 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
       {
         onChunk: (t) => { acc += t; handlers.appendText(t) },
         onMeta: (m) => {
+          if (m.knowledgeMatches) handlers.setKnowledgeMatches(m.knowledgeMatches)
           if (m.disclaimer) handlers.setDisclaimer(m.disclaimer)
           if (m.recommendation) handlers.setRecommendation(m.recommendation as Recommendation)
         },
@@ -56,6 +57,10 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
     const r = await assistantApi.ask(circleId.value, text, history.value) as Awaited<ReturnType<typeof assistantApi.ask>> & { recommendation?: Recommendation }
     acc = r.answer || '抱歉，我暂时无法回答这个问题。'
     handlers.appendText(acc)
+    handlers.setKnowledgeMatches({
+      circle: r.sources?.filter((source) => source.sourceType !== 'global').length ?? 0,
+      global: r.sources?.filter((source) => source.sourceType === 'global').length ?? 0,
+    })
     if (r.recommendation) handlers.setRecommendation(r.recommendation as Recommendation)
   }
   if (acc) pushHistory(text, acc.slice(0, 2000))

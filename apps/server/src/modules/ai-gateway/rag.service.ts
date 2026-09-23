@@ -19,6 +19,8 @@ interface RagAskResult {
   sources: KnowledgeChunk[];
 }
 
+export interface CircleKnowledgeMatches { circle: number; global: number }
+
 const RAG_SYSTEM_PROMPT = `你是一个专业的国学知识助手。请根据提供的知识库内容回答用户的问题。
 
 规则：
@@ -109,9 +111,14 @@ export class RagService {
     circleId: string,
     userId?: string,
     history?: AiMessage[],
+    onMatches?: (matches: CircleKnowledgeMatches) => void,
   ): AsyncIterable<string> {
     // 三级兜底检索：圈子专属（优先）+ 全局通用知识库
     const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
+    onMatches?.({
+      circle: chunks.filter((chunk) => chunk.sourceType !== "global").length,
+      global: chunks.filter((chunk) => chunk.sourceType === "global").length,
+    });
 
     const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
     const messages: AiMessage[] = [{ role: "system", content: systemPrompt }];

@@ -60,10 +60,11 @@ describe("CircleAssistantService", () => {
       mockRag.askCircleStream.mockReturnValue((async function* () { yield "流"; })());
 
       const chunks: string[] = [];
-      for await (const c of svc.askStream("hello", "circle-1", "user-1")) chunks.push(c);
+      const onMatches = jest.fn();
+      for await (const c of svc.askStream("hello", "circle-1", "user-1", undefined, onMatches)) chunks.push(c);
 
       expect(chunks).toEqual(["流"]);
-      expect(mockRag.askCircleStream).toHaveBeenCalledWith("hello", "circle-1", "user-1", undefined);
+      expect(mockRag.askCircleStream).toHaveBeenCalledWith("hello", "circle-1", "user-1", undefined, onMatches);
     });
 
     it("非成员拒绝", async () => {

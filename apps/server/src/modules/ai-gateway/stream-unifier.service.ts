@@ -37,9 +37,11 @@ export interface UnifiedStreamChunk {
   disclaimer?: string;
   /** type=meta：软性导流推荐（征求同意后展开） */
   recommendation?: unknown;
+  /** type=meta：本轮检索命中数量，不代表模型逐条引用。 */
+  knowledgeMatches?: { circle: number; global: number };
 }
 
-type StreamMeta = Pick<UnifiedStreamChunk, "conversationId" | "disclaimer" | "recommendation">;
+type StreamMeta = Pick<UnifiedStreamChunk, "conversationId" | "disclaimer" | "recommendation" | "knowledgeMatches">;
 type StreamMetaTiming = "before" | "after";
 
 /**
