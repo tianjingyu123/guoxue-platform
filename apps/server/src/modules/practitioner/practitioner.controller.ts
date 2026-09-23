@@ -74,8 +74,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "报告列表（含配额）" })
-  listReports(@Req() req: Request, @Query("status") status?: string, @Query("keyword") keyword?: string) {
-    return this.svc.listReports(req.user.id, { status, keyword });
+  listReports(@Req() req: Request, @Query("status") status?: string, @Query("keyword") keyword?: string, @Query("page") page?: string) {
+    return this.svc.listReports(req.user.id, { status, keyword, page });
   }
 
   @Post("reports")

@@ -30,6 +30,11 @@ const keyword = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const list = ref<ReportRecord[]>([])
+const total = ref(0)
+const page = ref(1)
+const loadingMore = ref(false)
+const hasMore = computed(() => list.value.length < total.value)
+let loadSeq = 0
 const quota = ref<{ used: number; limit: number | null; unlimited: boolean }>({ used: 0, limit: null, unlimited: false })
 
 const newOpen = ref(false)
@@ -45,18 +50,31 @@ const quotaText = computed(() =>
     : `已存 ${quota.value.used} / ${quota.value.limit} 份（免费版）`,
 )
 
-async function load() {
-  loading.value = true
+async function load(nextPage = 1) {
+  if (nextPage > 1 && (loading.value || loadingMore.value || !hasMore.value)) return
+  const seq = ++loadSeq
+  if (nextPage === 1) loading.value = true
+  else loadingMore.value = true
   failed.value = false
   try {
-    const res = await wsApi.listReports({ status: tab.value || undefined, keyword: keyword.value || undefined })
-    list.value = res.list ?? []
+    const res = await wsApi.listReports({ status: tab.value || undefined, keyword: keyword.value || undefined, page: nextPage })
+    if (seq !== loadSeq) return
+    list.value = nextPage === 1 ? (res.list ?? []) : [...list.value, ...(res.list ?? [])]
+    total.value = res.total ?? list.value.length
+    page.value = nextPage
     quota.value = res.quota ?? quota.value
   } catch {
-    failed.value = true
+    if (seq === loadSeq) failed.value = true
   } finally {
-    loading.value = false
+    if (seq === loadSeq) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
+}
+
+function loadMore() {
+  if (hasMore.value) load(page.value + 1)
 }
 
 onMounted(async () => {
@@ -207,7 +225,11 @@ function dateText(iso?: string): string {
       </view>
     </PaperCard>
 
-    <view v-if="failed" class="rs-failed" @tap="load">
+    <view v-if="hasMore && !loading" class="rs-more" @tap="loadMore">
+      <text class="rs-more-txt">{{ loadingMore ? '加载中…' : `加载更多（还有 ${total - list.length} 份）` }}</text>
+    </view>
+
+    <view v-if="failed" class="rs-failed" @tap="load()">
       <text class="rs-failed-txt">加载失败，点击重试</text>
     </view>
 
@@ -255,6 +277,9 @@ function dateText(iso?: string): string {
   gap: 24rpx;
   padding: 24rpx 24rpx 48rpx;
 }
+
+.rs-more { padding: 24rpx; text-align: center; }
+.rs-more-txt { font-size: 24rpx; color: #C41E3A; }
 
 .rs-top {
   display: flex;

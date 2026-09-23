@@ -130,9 +130,9 @@ export const wsApi = {
   saveBrand: (b: Partial<WorkspaceBrand>) => apiPut<any>('/practitioner/brand', b),
 
   // 报告
-  listReports: (q: { status?: string; keyword?: string } = {}) =>
-    apiGet<{ list: ReportRecord[]; total: number; quota: { used: number; limit: number | null; unlimited: boolean } }>(
-      `/practitioner/reports${qs(q)}`,
+  listReports: (q: { status?: string; keyword?: string; page?: number } = {}) =>
+    apiGet<{ list: ReportRecord[]; total: number; pagination: { page: number; pageSize: number; total: number }; quota: { used: number; limit: number | null; unlimited: boolean } }>(
+      `/practitioner/reports${qs({ ...q, page: q.page ? String(q.page) : undefined })}`,
     ),
   getReport: (id: string) => apiGet<ReportRecord>(`/practitioner/reports/${id}`),
   createReport: (r: Partial<ReportRecord>) => apiPost<ReportRecord>('/practitioner/reports', r),

@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "node:crypto";
+import { safePagination } from "../../common/pagination";
 
 /**
  * 从业者工作台（V0「从业者工作台」的真后端）
@@ -117,7 +118,7 @@ export class PractitionerService {
 
   // ───────────────────────── 报告工坊 ─────────────────────────
 
-  async listReports(userId: string, query: { status?: string; keyword?: string }) {
+  async listReports(userId: string, query: { status?: string; keyword?: string; page?: string | number }) {
     const where: any = { ownerId: userId };
     if (query.status) where.status = query.status;
     if (query.keyword) {
@@ -126,12 +127,19 @@ export class PractitionerService {
         { clientName: { contains: query.keyword } },
       ];
     }
-    const list = await this.prisma.practitionerReport.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-    });
-    return { list, total: list.length, quota: await this.reportQuota(userId) };
+    const { page, pageSize, skip } = safePagination(query.page, 20, 20);
+    const [list, total, quota] = await Promise.all([
+      this.prisma.practitionerReport.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.practitionerReport.count({ where }),
+      this.reportQuota(userId),
+    ]);
+    // 不平铺 page/pageSize：统一响应拦截器会把它识别为通用分页响应并丢弃 quota。
+    return { list, total, pagination: { page, pageSize, total }, quota };
   }
 
   /** 报告配额：会员不限，免费用户 FREE_REPORT_QUOTA 份 */
