@@ -26,7 +26,10 @@ try {
       if (route.request().method() !== 'GET') writes++
       const path = url.pathname.split('/api/v1')[1]
       let data = {}, status = 200
-      if (path === '/circles/qa-circle') data = { id: 'qa-circle', name: '测试圈子', type: 'FREE' }
+      if (path === '/circles/qa-circle/dashboard/overview') data = { name: '测试圈子', memberCount: 53 }
+      else if (path === '/circles/forbidden-circle/dashboard/overview') status = 403
+      else if (path.startsWith('/circles/forbidden-circle/')) pageRequests.push(`forbidden:${path}`)
+      else if (path === '/circles/qa-circle') data = { id: 'qa-circle', name: '测试圈子', type: 'FREE' }
       else if (path === '/circles/qa-circle/members') {
         const page = Number(url.searchParams.get('page'))
         pageRequests.push(`members:${page}`)
@@ -89,10 +92,17 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
   await page.screenshot({ path: resolve(out, 'content-actions-320.png') })
 
+  const blocked = await context.newPage()
+  blocked.on('pageerror', error => errors.push(error.message))
+  await blocked.goto(`${origin}/h5/pkg-circle/circles/manage?id=forbidden-circle`)
+  await blocked.getByText('暂无法进入管理页，请确认权限或稍后重试').waitFor()
+  assert.equal(await blocked.getByRole('tab', { name: '成员' }).count(), 0)
+  assert.equal(pageRequests.some(item => item.startsWith('forbidden:')), false)
+
   assert.deepEqual(pageRequests, ['members:1', 'members:2', 'members:2', 'posts:1', 'posts:2'])
   assert.deepEqual(errors, [])
   assert.equal(writes, 0)
-  console.log(JSON.stringify({ passed: 8, pageRequests, errors, writes }))
+  console.log(JSON.stringify({ passed: 11, pageRequests, errors, writes }))
 } finally {
   await browser.close()
 }

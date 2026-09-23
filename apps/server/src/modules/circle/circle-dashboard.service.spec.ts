@@ -3,6 +3,8 @@ import { ForbiddenException } from "@nestjs/common";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { InsightService } from "../track/insight.service";
+import { setCacheRedisService } from "../../common/cache.decorator";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   circle: { findUnique: jest.fn() },
@@ -102,6 +104,21 @@ describe("CircleDashboardService", () => {
       expect(Array.isArray(result.trends)).toBe(true);
       expect(result.trends.length).toBeGreaterThan(0);
     });
+  });
+
+  it.each(["getOverview", "getTrends"] as const)("%s 有圈主缓存时仍拒绝普通成员", async (method) => {
+    // 模拟线上 Redis 中已有圈主请求产生的敏感缓存，防止命中缓存绕过归属校验。
+    setCacheRedisService({ getJson: jest.fn().mockResolvedValue({ monthRevenue: 5000, trends: [] }) } as unknown as RedisService);
+    mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+    try {
+      await expect(svc[method]("c1", "member1")).rejects.toThrow(ForbiddenException);
+      expect(mockPrisma.circleMember.findUnique).toHaveBeenCalledWith({
+        where: { circleId_userId: { circleId: "c1", userId: "member1" } },
+        select: { role: true },
+      });
+    } finally {
+      setCacheRedisService(undefined as unknown as RedisService);
+    }
   });
 
   describe("getRevenueBreakdown", () => {

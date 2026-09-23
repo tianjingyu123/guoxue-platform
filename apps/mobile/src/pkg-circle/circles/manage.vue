@@ -27,6 +27,7 @@ import {
   type CircleOverview,
 } from '@/lib/circle-manage-data'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
+import { dashboardApi } from '@/pkg-circle/lib/circle-dashboard-data'
 
 type TabType = 'members' | 'posts' | 'settings'
 const tabs: { key: TabType; label: string }[] = [
@@ -39,6 +40,20 @@ const tabTitle: Record<TabType, string> = { members: '成员管理', posts: '内
 const circleId = ref('')
 const activeTab = ref<TabType>('members')
 const menuSafeRight = getMiniProgramMenuSafeRight()
+const accessState = ref<'checking' | 'granted' | 'failed'>('checking')
+
+async function verifyAccess() {
+  accessState.value = 'checking'
+  if (!circleId.value) { accessState.value = 'failed'; return }
+  try {
+    await dashboardApi.circleOverview(circleId.value)
+    accessState.value = 'granted'
+    if (activeTab.value !== 'settings') void loadOverview().catch(() => { overview.value = null })
+    switchTab(activeTab.value)
+  } catch {
+    accessState.value = 'failed'
+  }
+}
 
 // ─── 概览（settings 初值 + 成员数） ───
 const overview = ref<CircleOverview | null>(null)
@@ -498,9 +513,7 @@ onLoad((q) => {
   circleId.value = q?.id || q?.circleId || ''
   const t = q?.tab as TabType | undefined
   if (t && ['members', 'posts', 'settings'].includes(t)) activeTab.value = t
-  if (!circleId.value) { membersError.value = true; postsError.value = true; settingsError.value = true; return }
-  if (activeTab.value !== 'settings') void loadOverview().catch(() => { overview.value = null })
-  switchTab(activeTab.value)
+  void verifyAccess()
 })
 </script>
 
@@ -514,7 +527,13 @@ onLoad((q) => {
     </view>
 
     <!-- 分区切换 -->
-    <view class="seg">
+    <view v-if="accessState === 'checking'" class="state-view"><AppLoading /><text class="state-desc">正在核验管理权限</text></view>
+    <view v-else-if="accessState === 'failed'" class="state-view">
+      <app-icon name="lock" :size="64" color="#6E6E73" />
+      <text class="state-desc">暂无法进入管理页，请确认权限或稍后重试</text>
+      <view class="state-btn" role="button" tabindex="0" @tap="verifyAccess" @keydown.enter="verifyAccess"><text class="state-btn-txt">重试</text></view>
+    </view>
+    <view v-if="accessState === 'granted'" class="seg">
       <view
         v-for="t in tabs" :key="t.key"
         class="seg-item" :class="{ active: activeTab === t.key }"
@@ -525,7 +544,7 @@ onLoad((q) => {
       </view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <scroll-view v-if="accessState === 'granted'" scroll-y class="body">
       <!-- ═══════════ 成员分区 ═══════════ -->
       <template v-if="activeTab === 'members'">
         <!-- 搜索 -->
