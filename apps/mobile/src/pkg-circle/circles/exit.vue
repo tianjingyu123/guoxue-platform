@@ -124,7 +124,7 @@ onLoad((opt) => {
   <view v-if="submitted" class="ex-success">
     <view class="ex-success-icon"><app-icon name="check-circle" :size="44" color="#5B8A5E" /></view>
     <text class="ex-success-title">退款申请已提交</text>
-    <text class="ex-success-desc">将经过「圈主审核 → 平台审核」两步，通过后退款到账你的可提现余额。可在「我的退款」中随时查看进度。</text>
+    <text class="ex-success-desc">申请期间仍可使用现有圈内权益；经圈主、平台审核并完成退款后，金额进入可提现余额，成员身份才会取消。可在「我的退款」查看进度。</text>
     <view class="ex-success-actions">
       <view class="ex-sa-primary" @tap="navigateTo('/pkg-circle/circles/my-refunds')"><text class="ex-sa-primary-t">查看我的退款</text></view>
       <view class="ex-sa-plain" @tap="goBack"><text class="ex-sa-plain-t">返回</text></view>
@@ -158,19 +158,19 @@ onLoad((opt) => {
       <view v-if="infoError" class="ex-info-error" @tap="loadInfo">{{ infoError }}，点击重试</view>
 
       <!-- 失去的权益：如实告知，不夸大 -->
-      <text class="ex-label">退出后你将失去</text>
+      <text class="ex-label">退款完成后你将失去</text>
       <view class="ex-lose-list">
         <view class="ex-lose-item">
           <view class="ex-lose-icon"><app-icon name="x-circle" :size="30" color="#999999" /></view>
           <view class="ex-lose-main">
-            <text class="ex-lose-title">成员身份即刻取消</text>
+            <text class="ex-lose-title">成员身份在退款完成后取消</text>
             <text class="ex-lose-desc">圈内{{ circle ? ` ${fmt(circle.posts)} 条` : '' }}内容、直播与回放不再可见</text>
           </view>
         </view>
         <view class="ex-lose-item">
           <view class="ex-lose-icon"><app-icon name="x-circle" :size="30" color="#999999" /></view>
           <view class="ex-lose-main">
-            <text class="ex-lose-title">{{ remainingDays ? `剩余 ${remainingDays} 天会员权益终止` : '会员权益同步终止' }}</text>
+            <text class="ex-lose-title">{{ remainingDays ? `剩余 ${remainingDays} 天会员权益届时终止` : '会员权益届时终止' }}</text>
             <text class="ex-lose-desc">课程会员价、答疑优先响应同步失效</text>
           </view>
         </view>
@@ -191,7 +191,7 @@ onLoad((opt) => {
         <view class="ex-rule-list">
           <text class="ex-rule-li">· 申请退款时，按<text class="ex-rule-b">实际使用天数</text>折算扣除已使用部分费用</text>
           <text class="ex-rule-li">· 剩余金额收取 <text class="ex-rule-b">20% 手续费</text>后退还</text>
-          <text class="ex-rule-li">· 提交后经<text class="ex-rule-b">圈主审核 → 平台审核</text>两步，退款到账你的可提现余额</text>
+          <text class="ex-rule-li">· 提交后经<text class="ex-rule-b">圈主审核 → 平台审核</text>，退款完成后到账可提现余额并取消成员身份；申请或审核期间仍可使用现有权益</text>
           <text class="ex-rule-li">· 下一步会展示你的<text class="ex-rule-b">具体可退金额</text>，确认后再提交</text>
         </view>
       </view>
@@ -255,7 +255,7 @@ onLoad((opt) => {
             <text class="ex-calc-total-value">¥{{ formatPrice(preview.actualRefund) }}</text>
           </view>
         </view>
-        <text class="ex-calc-note">金额按提交申请当日实时计算；审核通过后退至你的可提现余额，可在「我的退款」中随时查看进度。</text>
+        <text class="ex-calc-note">以上为当前测算，最终申请金额以提交时重新计算的结果为准；审核通过并完成退款后进入可提现余额，可在「我的退款」查看进度。</text>
 
         <!-- 申请原因：选填，快捷标签 + 补充说明 -->
         <text class="ex-label">申请原因 · 选填</text>
@@ -282,13 +282,13 @@ onLoad((opt) => {
           <view class="ex-flow-step">
             <view class="ex-flow-dot"><text class="ex-flow-dot-t">1</text></view>
             <text class="ex-flow-name">圈主审核</text>
-            <text class="ex-flow-time">一般 3 天内</text>
+            <text class="ex-flow-time">等待圈主处理</text>
           </view>
           <view class="ex-flow-line" />
           <view class="ex-flow-step">
             <view class="ex-flow-dot"><text class="ex-flow-dot-t">2</text></view>
             <text class="ex-flow-name">平台审核</text>
-            <text class="ex-flow-time">一般 2 天内</text>
+            <text class="ex-flow-time">等待平台处理</text>
           </view>
           <view class="ex-flow-line" />
           <view class="ex-flow-step">

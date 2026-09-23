@@ -147,7 +147,7 @@ function toWithdraw() { navigateTo('/pkg-mine/wallet/withdraw') }
 function showRules() {
   uni.showModal({
     title: '退款规则',
-    content: '虚拟内容服务一经使用不支持无理由退款；申请时按实际使用天数折算扣费，剩余金额收取 20% 手续费后退还；经圈主与平台两步审核，通过后退款到账你的可提现余额。',
+    content: '虚拟内容服务一经使用不支持无理由退款；申请时按实际使用天数折算扣费，剩余金额收取 20% 手续费后退还；经圈主与平台审核并完成退款后，款项进入可提现余额，成员身份届时取消。申请和审核期间现有权益仍可使用。',
     showCancel: false,
     confirmText: '我知道了',
     confirmColor: '#C41E3A',
