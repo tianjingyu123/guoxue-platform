@@ -223,6 +223,7 @@ export interface AiReportContent {
 
 export interface AiReportResult {
   id: string
+  paipanRecordId: string | null
   content: AiReportContent
   version?: string
   createdAt: string

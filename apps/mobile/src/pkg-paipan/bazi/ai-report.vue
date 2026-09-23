@@ -43,6 +43,7 @@ const savedReportId = ref('')
 const requestedReportType = ref('general')
 const loading = ref(false)
 const error = ref('')
+const savedOpenFailed = ref(false)
 const report = ref<AiReportResult | null>(null)
 /** 防止慢请求返回时覆盖已切换的新盘/新请求 */
 let requestSeq = 0
@@ -219,6 +220,7 @@ async function load(regenerate = false) {
   const seq = ++requestSeq
   loading.value = true
   const openingSaved = !!savedReportId.value && !regenerate
+  savedOpenFailed.value = false
   track.custom(openingSaved ? 'paipan_report_reopen_start' : 'paipan_report_generate_start', { regenerate })
   error.value = ''
   unveiling.value = false
@@ -228,6 +230,9 @@ async function load(regenerate = false) {
       ? await aiReportApi.get(savedReportId.value)
       : await aiReportApi.generate(recordId.value, { reportType: requestedReportType.value, regenerate })
     if (seq !== requestSeq) return
+    if (res.paipanRecordId !== recordId.value || res.content.metadata.reportType !== requestedReportType.value) {
+      throw new Error('原报告与当前排盘或报告类型不匹配，请从原排盘恢复')
+    }
     await ritual
     if (seq !== requestSeq) return
     doneSteps.value = preflight.value?.steps.length ?? 0
@@ -239,6 +244,7 @@ async function load(regenerate = false) {
       showPreviousChat.value = false
     }
     report.value = res
+    savedReportId.value = res.id
     requestedReportType.value = res.content.metadata.reportType || requestedReportType.value
     if (chatOpen.value) loadDialogue()
     track.custom(openingSaved ? 'paipan_report_reopen_success' : 'paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
@@ -249,6 +255,7 @@ async function load(regenerate = false) {
     loadVoiceQuota()
   } catch (e) {
     if (seq !== requestSeq) return
+    savedOpenFailed.value = openingSaved
     track.custom(openingSaved ? 'paipan_report_reopen_failure' : 'paipan_report_generate_failure', { regenerate })
     error.value = (e as Error)?.message || (openingSaved ? '报告打开失败，请稍后重试' : '报告生成失败，请稍后重试')
   } finally {
@@ -457,6 +464,7 @@ function clearPrivateReport() {
   checkingAccess.value = false
   loading.value = false
   report.value = null
+  savedOpenFailed.value = false
   paywall.value = null
   pendingReportOrder.value = null
   preflight.value = null
@@ -468,6 +476,21 @@ function clearPrivateReport() {
   chatProgress.value = null
   historyLoadedFor = ''
   lastAccessEvent = ''
+}
+
+async function regenerateFromRecord() {
+  if (!savedOpenFailed.value || checkingAccess.value || loading.value || !recordId.value) return
+  const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+    title: '从原排盘继续',
+    content: '原报告暂时无法打开。可重新核对购买权益，并用原排盘恢复报告；不会再次创建订单。',
+    confirmText: '继续生成',
+    cancelText: '先不处理',
+    success: (r) => resolve(!!r.confirm),
+    fail: () => resolve(false),
+  }))
+  if (!proceed) return
+  savedReportId.value = ''
+  await checkAccessThenLoad()
 }
 
 async function checkAccessThenLoad() {
@@ -663,6 +686,7 @@ onShow(async () => {
         <view class="state-actions">
           <view v-if="needsLogin" class="btn btn-primary" @tap="navigateTo('/login')"><text class="btn-text-primary">去登录</text></view>
           <view v-else-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
+          <view v-if="savedOpenFailed && !needsLogin" class="btn" @tap="regenerateFromRecord"><text class="btn-text">从原排盘恢复报告</text></view>
           <view class="btn" @tap="navigateBack()"><text class="btn-text">返回查看盘面</text></view>
         </view>
       </view>

@@ -75,6 +75,7 @@ describe("PaipanReportService", () => {
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "deepseek-v4-flash", usage: { totalTokens: 900 } });
 
     const res = await svc.generateReport("u1", "rec-1");
+    expect(res.paipanRecordId).toBe("rec-1");
     const report = res.content;
 
     expect(gateway.chat).toHaveBeenCalledWith(expect.objectContaining({ scene: "paipan_report", skipCache: true }));
@@ -137,6 +138,7 @@ describe("PaipanReportService", () => {
     expect(gateway.chat).toHaveBeenCalledTimes(1);
     expect(second.reused).toBe(true);
     expect(second.id).toBe(first.id);
+    expect(second.paipanRecordId).toBe("rec-1");
 
     await svc.generateReport("u1", "rec-1", "general", { regenerate: true });
     expect(gateway.chat).toHaveBeenCalledTimes(2);
@@ -233,7 +235,9 @@ describe("PaipanReportService", () => {
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "m" });
     const { id } = await svc.generateReport("u1", "rec-1");
     await expect(svc.getReport("u2", id)).rejects.toThrow("无权访问");
-    expect((await svc.getReport("u1", id)).content.metadata.model).toBe("m");
+    const opened = await svc.getReport("u1", id);
+    expect(opened.content.metadata.model).toBe("m");
+    expect(opened.paipanRecordId).toBe("rec-1");
     commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
     await expect(svc.getReport("u1", id)).rejects.toThrow("购买权益已撤销");
   });

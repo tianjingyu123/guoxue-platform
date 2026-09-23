@@ -279,7 +279,7 @@ export class PaipanReportService {
       if (content?.metadata?.version === version) {
         // 盘面准备与依据检索期间权益也可能被撤销，复用前再核一次。
         await this.commerce.assertReportAccess(userId, paipanRecordId, type);
-        return { id: existing.id, content, version, createdAt: existing.createdAt, reused: true };
+        return { id: existing.id, paipanRecordId, content, version, createdAt: existing.createdAt, reused: true };
       }
     }
 
@@ -327,7 +327,7 @@ export class PaipanReportService {
     // 会员生成报告不按份送，改为会员期内每月赠送（决策人 2026-09-21）
 
     this.logger.log(`排盘报告已生成 ${saved.id} version=${version} model=${model} evidence=${evidence.length}`);
-    return { id: saved.id, content: report, version, createdAt: saved.createdAt, reused: false };
+    return { id: saved.id, paipanRecordId, content: report, version, createdAt: saved.createdAt, reused: false };
   }
 
   /**
@@ -1657,6 +1657,6 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
         ...content.sections.map((x: any) => String(x?.content || "")),
       ]);
     }
-    return { id: report.id, content, createdAt: report.createdAt };
+    return { id: report.id, paipanRecordId: report.paipanRecordId, content, createdAt: report.createdAt };
   }
 }
