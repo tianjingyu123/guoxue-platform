@@ -13,7 +13,6 @@ import LearningCourseCard from '@/components/courses/learning-course-card.vue'
 import SectionHeader from '@/components/courses/section-header.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
-import { courseApi } from '@/lib/course-data'
 import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
 import { useList } from '@/composables/useList'
 import type { CourseCardData } from '@/lib/card-utils'
@@ -81,12 +80,12 @@ function entryLabel(name: string) {
 }
 
 async function loadHeader() {
-  const [home, tabs] = await Promise.all([
-    courseApi.getHome(),
+  const [newest, tabs] = await Promise.allSettled([
+    coursesListApi.list({ page: 1, pageSize: 4, sort: 'newest' }),
     coursesListApi.getCategoryTabs(),
   ])
-  newCourses.value = (home.newCourses || []).slice(0, 4)
-  categoryTabs.value = tabs.length ? tabs : [{ id: 'all', name: '全部' }]
+  newCourses.value = newest.status === 'fulfilled' ? newest.value.items : []
+  if (tabs.status === 'fulfilled') categoryTabs.value = tabs.value.length ? tabs.value : [{ id: 'all', name: '全部' }]
 }
 
 onLoad(() => {

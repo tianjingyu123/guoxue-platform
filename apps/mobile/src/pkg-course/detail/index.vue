@@ -37,6 +37,8 @@ const course = ref<any>(null)
 const chapters = ref<any[]>([])
 // 评价列表，模板裸访问 user/rating 等字段，保留 any
 const reviews = ref<any[]>([])
+const reviewsLoading = ref(true)
+const reviewsError = ref(false)
 const recItems = ref<RecommendItem[]>([])
 // view_content 埋点防重复标记（重试/刷新只上报一次）
 const viewTracked = ref(false)
@@ -193,21 +195,41 @@ async function loadInstructorCert(uid?: string) {
   }
 }
 
+let detailLoadSeq = 0
+async function loadReviews(id: string, seq: number) {
+  reviewsLoading.value = true
+  reviewsError.value = false
+  try {
+    const result = await courseApi.getReviews(id)
+    if (seq === detailLoadSeq) reviews.value = result
+  } catch {
+    if (seq === detailLoadSeq) reviewsError.value = true
+  } finally {
+    if (seq === detailLoadSeq) reviewsLoading.value = false
+  }
+}
+
 async function loadData() {
+  const seq = ++detailLoadSeq
+  const id = courseId.value
   loading.value = true
   error.value = ''
   try {
-    const [detail, chaps, revs] = await Promise.all([
-      courseApi.getDetail(courseId.value),
-      courseApi.getChapters(courseId.value),
-      courseApi.getReviews(courseId.value),
+    const [detail, chaps] = await Promise.all([
+      courseApi.getDetail(id),
+      courseApi.getChapters(id),
     ])
+    if (seq !== detailLoadSeq) return
     course.value = detail
     chapters.value = chaps
-    reviews.value = revs
+    // 评价与推荐是附加内容，失败或慢响应不阻断课程、目录与购买入口。
+    void loadReviews(id, seq)
+    void recommendApi.getForScene('course_detail', String(id)).then((items) => {
+      if (seq === detailLoadSeq) recItems.value = items
+    })
     // 访问权限 + 收藏态并行回填（各自静默降级，不阻塞主内容，修复重进不回显/购买后不解锁）
-    void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
-    void courseApi.isFavorited(courseId.value).then((v) => { isLiked.value = v })
+    void courseApi.checkAccess(id).then((v) => { if (seq === detailLoadSeq) hasAccess.value = v })
+    void courseApi.isFavorited(id).then((v) => { if (seq === detailLoadSeq) isLiked.value = v })
     // F1 认证分级：讲师徽章并行拉取（fire-and-forget·内部自 catch 静默降级）
     void loadInstructorCert(detail?.instructor?.id)
     // 内容浏览埋点：详情加载成功才上报（真实标题），每次进入页面只上报一次（重试不重复）
@@ -215,16 +237,16 @@ async function loadData() {
       viewTracked.value = true
       track.custom('view_content', { type: 'course', id: courseId.value, title: detail.title })
     }
-    // 详情加载成功后拉取推荐（内置降级，无需 try/catch）
-    recItems.value = await recommendApi.getForScene('course_detail', String(courseId.value))
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
+    if (seq === detailLoadSeq) error.value = (e as Error)?.message || '加载失败'
   } finally {
-    loading.value = false
-    // ?tab=review：内容渲染后滚动定位评价区（只消费一次）
-    if (pendingReviewScroll && !error.value) {
-      pendingReviewScroll = false
-      scrollToReviews()
+    if (seq === detailLoadSeq) {
+      loading.value = false
+      // ?tab=review：内容渲染后滚动定位评价区（只消费一次）
+      if (pendingReviewScroll && !error.value) {
+        pendingReviewScroll = false
+        scrollToReviews()
+      }
     }
   }
 }
@@ -483,9 +505,16 @@ onMounted(() => {
               :color="i <= Math.round(course.rating) ? '#C9A96E' : '#EDE7DD'" :fill="i <= Math.round(course.rating)"
             />
           </view>
-          <text class="review-count">{{ reviews.length }} 条评价</text>
+          <text class="review-count">{{ reviewsLoading ? '评价加载中' : reviewsError ? '评价暂不可用' : `${reviews.length} 条评价` }}</text>
         </view>
-        <view v-if="reviews.length === 0" class="empty-line">
+        <view v-if="reviewsLoading" class="empty-line" role="status">
+          <text class="empty-txt">正在加载评价…</text>
+        </view>
+        <view v-else-if="reviewsError" class="empty-line" role="alert">
+          <text class="empty-txt">评价暂时无法加载</text>
+          <view class="review-retry" role="button" tabindex="0" aria-label="重新加载课程评价" @tap="loadReviews(courseId, detailLoadSeq)" @keydown.enter="loadReviews(courseId, detailLoadSeq)" @keydown.space.prevent="loadReviews(courseId, detailLoadSeq)"><text>重试</text></view>
+        </view>
+        <view v-else-if="reviews.length === 0" class="empty-line">
           <text class="empty-txt">暂无评价，购买后欢迎首评</text>
         </view>
         <template v-else>
@@ -510,8 +539,8 @@ onMounted(() => {
 
         <!-- 🔴 补入口：评价页（F3·含学员写评价）此前是**孤岛**——全项目没有任何地方能跳进去，
              详情页这块只是展示摘要。结果就是"能看别人的评价，但自己永远写不了"。 -->
-        <view class="review-more" @tap="goReviews">
-          <text class="review-more-t">{{ reviews.length ? '查看全部评价 · 写评价' : '写第一条评价' }}</text>
+        <view class="review-more" role="link" tabindex="0" aria-label="查看课程评价与写评价" @tap="goReviews" @keydown.enter="goReviews" @keydown.space.prevent="goReviews">
+          <text class="review-more-t">{{ reviewsError || reviewsLoading ? '查看评价 · 写评价' : reviews.length ? '查看全部评价 · 写评价' : '写第一条评价' }}</text>
           <app-icon name="chevron-right" :size="26" color="#999" />
         </view>
       </view>
@@ -743,6 +772,7 @@ onMounted(() => {
 /* 区块级空态 */
 .empty-line { padding: 40rpx 0; text-align: center; }
 .empty-txt { font-size: 26rpx; color: #999; }
+.review-retry { display: inline-flex; align-items: center; justify-content: center; min-width: 88rpx; min-height: 88rpx; padding: 0 16rpx; color: var(--brand); font-size: 26rpx; }
 .review-more {
   margin-top: 8rpx; padding-top: 24rpx;
   border-top: 1rpx solid #ede7dd;

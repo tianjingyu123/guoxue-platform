@@ -97,8 +97,8 @@
     <view class="card">
       <text class="card-title">价格明细</text>
       <view class="price-rows">
-        <view class="price-row"><text class="pr-label">商品总额</text><text class="pr-value">¥{{ order.totalAmount.toFixed(2) }}</text></view>
-        <view v-if="!order.isVirtual" class="price-row"><text class="pr-label">运费</text><text class="pr-value">包邮</text></view>
+        <view class="price-row"><text class="pr-label">订单金额</text><text class="pr-value">¥{{ order.totalAmount.toFixed(2) }}</text></view>
+        <view v-if="!order.isVirtual" class="price-row"><text class="pr-label">运费</text><text class="pr-value">订单未单列</text></view>
         <view v-if="order.coupon" class="price-row"><text class="pr-label">{{ order.coupon.name }}</text><text class="pr-value red">-¥{{ order.coupon.discount.toFixed(2) }}</text></view>
         <view class="price-row total"><text class="pr-label bold">实付金额</text><text class="pr-pay">¥{{ order.payAmount.toFixed(2) }}</text></view>
       </view>
