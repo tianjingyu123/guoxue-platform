@@ -30,7 +30,10 @@ describe("ClassicCompanionService", () => {
       classicChapter: {
         findUnique: jest.fn(async () => ({ id: "ch1", bookId: "b1", title: "学而", content, book: { title: "论语", author: "孔子", dynasty: "春秋" } })),
       },
-      classicCompanionSession: { upsert: jest.fn(async () => ({ id: "s1", summary: null, messageCount: 0 })) },
+      classicCompanionSession: {
+        upsert: jest.fn(async () => ({ id: "s1", summary: null, messageCount: 0 })),
+        update: jest.fn(async () => ({})),
+      },
       classicCompanionMessage: { findMany: jest.fn(async () => []), createMany: jest.fn() },
       $transaction: jest.fn(async () => []),
     };
@@ -76,6 +79,9 @@ describe("ClassicCompanionService", () => {
     const sysAll = messages.filter((m: any) => m.role === "system").map((m: any) => m.content).join("\n");
     expect(sysAll).toContain("你叫「小简」"); // 伴读是小简，不是小卜（各场景角色区分）
     expect(sysAll).toContain("竹简");
+    expect(sysAll).toContain("一句古文通常先用一句白话解释");
+    expect(sysAll).toContain("寒暄、单句释义或用户只求结论时，不主动追问");
+    expect(sysAll).not.toContain("一般 400–600 字");
     const ctx = messages.find((m: any) => String(m.content).includes("【当前正在阅读】"));
     expect(ctx.content).toContain("节选，围绕用户所问句子前后");
     expect(ctx.content).toContain("学而时习之，不亦说乎？");

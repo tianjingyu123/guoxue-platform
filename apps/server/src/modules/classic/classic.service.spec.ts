@@ -286,6 +286,12 @@ describe("ClassicService", () => {
       const result = await svc.translateClassical({ text: "学而时习之" });
       expect(result.translation).toBeTruthy();
       expect(result.notes).toHaveLength(1);
+      expect(mockTextAsset.getOrCreateTextAsset).toHaveBeenCalledWith(
+        expect.objectContaining({ promptVersion: "translate-v2" }), expect.any(Function), expect.any(Function),
+      );
+      const prompt = mockGateway.chat.mock.calls[0][0].messages[0].content as string;
+      expect(prompt).toContain("单句先用一句白话说清");
+      expect(prompt).toContain("单句最多 2 条");
     });
     it("带上下文翻译", async () => {
       mockGateway.chat.mockResolvedValue({

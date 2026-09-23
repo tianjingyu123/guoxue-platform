@@ -5,6 +5,7 @@ import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { classicsApi } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 import AiThinking from '@/components/classics/ai-thinking.vue'
+import AiReadableAnswer from '@/components/common/ai-readable-answer.vue'
 
 interface ChapterRef { id: string; title: string }
 
@@ -387,7 +388,7 @@ function interpretSelection() {
   if (!s || aiLoading.value) return
   if (!ensureAiLogin()) return
   aiOpen.value = true
-  sendAi(`请解读这一句的含义、背景与要点：「${trimForAsk(s, 200)}」`)
+  sendAi(`先用一句白话解释这句原文；只有理解这句确实需要时再补背景：「${trimForAsk(s, 200)}」`)
 }
 
 function ensureAiLogin(): boolean {
@@ -604,7 +605,7 @@ onLoad((q) => {
             </view>
             <view v-if="m.role === 'user'" class="ai-bubble-user"><text class="ai-bubble-user-txt">{{ m.content }}</text></view>
             <view v-else class="ai-bubble-assist">
-              <text class="ai-bubble-assist-txt">{{ m.content }}</text>
+              <ai-readable-answer :content="m.content" />
               <text v-if="m.disclaimer" class="ai-disclaimer">{{ m.disclaimer }}</text>
             </view>
           </view>
@@ -882,7 +883,6 @@ onLoad((q) => {
   padding: 24rpx 28rpx;
   border: 1rpx solid rgba(150, 130, 90, 0.16);
 }
-.ai-bubble-assist-txt { font-size: 27rpx; line-height: 1.7; color: #44403c; white-space: pre-wrap; }
 .ai-disclaimer {
   display: block;
   margin-top: 16rpx;

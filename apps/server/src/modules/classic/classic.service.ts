@@ -424,7 +424,7 @@ export class ClassicService {
       processingType: "translation",
       strategy: "vernacular_json",
       modelPolicy: "gateway:classic_translate",
-      promptVersion: "translate-v1",
+      promptVersion: "translate-v2",
       language: "zh-CN",
     };
   }
@@ -443,8 +443,8 @@ export class ClassicService {
       req,
       async () => {
         const contextHint = req.context ? `\n上下文提示：这段话出自「${req.context}」。请根据上下文做出准确翻译。` : "";
-        const prompt = `你是一位资深的古籍白话翻译专家。请将用户提供的文言文段落翻译成准确、流畅的现代白话文。
-保留原文的修辞风格和文化内涵，对关键词语给出注释。${contextHint}
+        const prompt = `你是一位古籍白话翻译专家。请将用户提供的文言文准确译成普通读者一眼能懂的现代白话。
+单句先用一句白话说清，不为显得专业而扩写背景；段落按原文顺序译清楚。只有容易误解的字词才给注释，单句最多 2 条，没有就返回空数组。保留必要的修辞与文化含义，不编造出处。${contextHint}
 必须使用以下JSON格式返回（不要包含其他文字，不要用markdown代码块包裹）：
 {
   "original": "原文",

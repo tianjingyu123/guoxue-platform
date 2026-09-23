@@ -225,6 +225,7 @@ const aiSeg = ref('')
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiResult = ref<{ translation: string; notes: string[]; source?: string } | null>(null)
+const aiNotesExpanded = ref(false)
 
 // ── 查词 ──
 const dictWord = ref('')
@@ -433,6 +434,7 @@ async function explain(seg: string) {
   aiSeg.value = seg
   resetPunct()
   aiResult.value = null
+  aiNotesExpanded.value = false
   aiError.value = ''
   aiThinkStart.value = Date.now()
   aiLoading.value = true
@@ -824,7 +826,17 @@ onLoad((q) => {
             </view>
             <view v-if="aiResult.notes.length" class="rd-ai-sec">
               <text class="rd-ai-label">字词注释</text>
-              <view v-for="(n, i) in aiResult.notes" :key="i" class="rd-ai-note"><text>· {{ n }}</text></view>
+              <view v-for="(n, i) in (aiNotesExpanded ? aiResult.notes : aiResult.notes.slice(0, 2))" :key="i" class="rd-ai-note"><text>· {{ n }}</text></view>
+              <view
+                v-if="aiResult.notes.length > 2"
+                class="rd-ai-notes-toggle"
+                role="button"
+                tabindex="0"
+                :aria-expanded="aiNotesExpanded"
+                @tap="aiNotesExpanded = !aiNotesExpanded"
+                @keydown.enter.prevent="aiNotesExpanded = !aiNotesExpanded"
+                @keydown.space.prevent="aiNotesExpanded = !aiNotesExpanded"
+              ><text>{{ aiNotesExpanded ? '收起字词注释' : `查看全部 ${aiResult.notes.length} 条注释` }}</text></view>
             </view>
             <view v-if="aiResult.source" class="rd-ai-src"><text>出处推测：{{ aiResult.source }}</text></view>
           </template>
@@ -1330,7 +1342,8 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-ai-sec { margin-bottom: 28rpx; }
 .rd-ai-label { display: block; font-size: 24rpx; font-weight: 600; color: var(--rd-brand,#a06a38); margin-bottom: 12rpx; }
 .rd-ai-trans { font-size: 30rpx; line-height: 1.9; color: var(--rd-fg,#2c2c2c); }
-.rd-ai-note { font-size: 26rpx; line-height: 1.7; color: var(--rd-fg,#444); margin-bottom: 6rpx; }
+.rd-ai-note { font-size: 28rpx; line-height: 1.7; color: var(--rd-fg,#444); margin-bottom: 6rpx; }
+.rd-ai-notes-toggle { display: flex; align-items: center; min-height: 72rpx; color: var(--rd-primary,#8b3748); font-size: 26rpx; font-weight: 600; }
 .rd-ai-src { margin-top: 12rpx; font-size: 22rpx; color: var(--rd-sub,#999); }
 
 /* 回跳高亮（书签定位后短暂点亮该段） */

@@ -7,7 +7,7 @@
         <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
       <view class="cp-hd-center">
-        <text class="cp-hd-title">小卜伴读</text>
+        <text class="cp-hd-title">小简伴读</text>
         <text class="cp-hd-sub">{{ headerSub }}</text>
       </view>
       <view class="cp-hd-btn" @tap="clearChat">
@@ -34,7 +34,7 @@
               <app-icon name="sparkles" :size="40" color="#ffffff" />
             </view>
             <view>
-              <text class="cp-intro-title">我是你的伴读小卜</text>
+              <text class="cp-intro-title">我是小简，陪你读这章</text>
               <text class="cp-intro-desc">正陪你研读{{ bookTitle ? `《${bookTitle}》` : '本篇' }}</text>
             </view>
           </view>
@@ -81,7 +81,15 @@
           <view v-else class="cp-assist-wrap">
             <view class="cp-card">
               <text v-if="m.content" class="cp-card-text">{{ companionVisibleText(m) }}</text>
-              <view v-if="!m.isStreaming && isLongCompanionAnswer(m)" class="cp-answer-toggle" @tap="m.expanded = !m.expanded">
+              <view
+                v-if="!m.isStreaming && isLongCompanionAnswer(m)"
+                class="cp-answer-toggle"
+                role="button"
+                tabindex="0"
+                :aria-expanded="Boolean(m.expanded)"
+                @tap="toggleAnswer(m)"
+                @keydown="onAnswerKeydown($event, m)"
+              >
                 <text class="cp-answer-toggle-text">{{ m.expanded ? '收起详解' : '展开详解' }}</text>
                 <app-icon :name="m.expanded ? 'chevron-up' : 'chevron-down'" :size="26" color="#6b5b7a" />
               </view>
@@ -161,6 +169,7 @@ import { vipApi } from '@/lib/vip-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
+import { presentAiAnswer } from '@/lib/ai-readable-answer'
 
 interface CompanionMessage {
   id: string
@@ -173,17 +182,20 @@ interface CompanionMessage {
   expanded?: boolean
 }
 
-const COMPANION_PREVIEW_LENGTH = 220
-
 function isLongCompanionAnswer(message: CompanionMessage) {
-  return message.role === 'assistant' && message.content.length > COMPANION_PREVIEW_LENGTH
+  return message.role === 'assistant' && Boolean(presentAiAnswer(message.content).detail)
 }
 
 function companionVisibleText(message: CompanionMessage) {
   if (!isLongCompanionAnswer(message) || message.expanded || message.isStreaming) return message.content
-  const head = message.content.slice(0, COMPANION_PREVIEW_LENGTH)
-  const naturalBreak = Math.max(head.lastIndexOf('。'), head.lastIndexOf('！'), head.lastIndexOf('？'), head.lastIndexOf('\n'))
-  return `${head.slice(0, naturalBreak > 90 ? naturalBreak + 1 : COMPANION_PREVIEW_LENGTH).trim()}…`
+  return presentAiAnswer(message.content).lead
+}
+
+function toggleAnswer(message: CompanionMessage) { message.expanded = !message.expanded }
+function onAnswerKeydown(event: KeyboardEvent, message: CompanionMessage) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  toggleAnswer(message)
 }
 
 const chapterId = ref('')
@@ -306,7 +318,7 @@ function scrollToBottom() {
 function ensureLogin(): boolean {
   if (getToken()) return true
   uni.showModal({
-    title: '需要登录', content: '登录后即可与小卜一起读书', confirmText: '去登录',
+    title: '需要登录', content: '登录后即可与小简一起读书', confirmText: '去登录',
     success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
   })
   return false

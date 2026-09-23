@@ -6,6 +6,9 @@ for (const relative of [
   'src/components/common/ai-readable-answer.vue',
   'src/components/common/ai-search-modal.vue',
   'src/pkg-classics/ai-assistant/index.vue',
+  'src/pkg-classics/companion/index.vue',
+  'src/pkg-classics/reader/index.vue',
+  'src/pkg-classics/audiobooks/player.vue',
 ]) {
   const filename = path.resolve(__dirname, '..', relative)
   const source = fs.readFileSync(filename, 'utf8')
