@@ -1767,7 +1767,7 @@ export const shopApi = {
    * 内容来源（佣-V2-P3）：显式传入 sourceContentType/Id 优先（直播/视频直跳结算 URL 透传）；
    * 未显式传入时回落会话内暂存来源（文章→商品详情→结算的间接链路），仅当商品匹配才带上。
    */
-  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string }): Promise<{ id: string; amount: number; status: string }> {
+  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string }): Promise<{ id: string; amount: number; status: string; reused?: boolean }> {
     const orderType = String(payload.type || 'PRODUCT').toUpperCase()
     const featureKey = orderType === 'MEMBER' ? 'member_purchase' : 'shop_checkout'
     if (!isClientFeatureEnabled(featureKey, true)) {
@@ -1778,7 +1778,7 @@ export const shopApi = {
     const source = (payload.sourceContentType && payload.sourceContentId)
       ? { type: payload.sourceContentType, id: payload.sourceContentId }
       : peekOrderSource(payload.targetId)
-    const res = await apiPost<{ id?: string; amount?: number | string; status?: string }>('/shop/orders', {
+    const res = await apiPost<{ id?: string; amount?: number | string; status?: string; reused?: boolean }>('/shop/orders', {
       type: orderType,
       targetId: payload.targetId,
       skuId: payload.skuId || undefined,
@@ -1791,7 +1791,7 @@ export const shopApi = {
       sourceContentType: source?.type,
       sourceContentId: source?.id,
     })
-    return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
+    return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING', reused: res.reused === true }
   },
 
   /**

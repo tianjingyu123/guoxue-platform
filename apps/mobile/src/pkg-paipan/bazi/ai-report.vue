@@ -477,7 +477,7 @@ async function buyReport() {
     const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
     pendingReportOrder.value = { id: order.id, amount: Number(order.amount) || offer.priceYuan || 0, targetId }
-    track.custom('paipan_report_order_created', { reportType: offer.reportType })
+    track.custom(order.reused ? 'paipan_report_order_resumed' : 'paipan_report_order_created', { reportType: offer.reportType })
     navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingReportOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })

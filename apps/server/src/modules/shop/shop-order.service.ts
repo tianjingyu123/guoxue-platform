@@ -234,7 +234,7 @@ export class ShopOrderService {
               throw new BusinessException(ErrorCode.BAD_REQUEST, "已有待支付订单，请先在订单中心完成或取消原订单");
             }
             // 已核销的券不能再次试算；待付订单保留创建时确认的金额与优惠条件。
-            if (dto.couponId) return pending;
+            if (dto.couponId) return { ...pending, reused: true };
             pendingDigitalOrder = pending;
           }
         }
@@ -262,7 +262,7 @@ export class ShopOrderService {
           if (Math.round(Number(pendingDigitalOrder.amount) * 100) !== Math.round(actualAmount * 100)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "原待支付订单金额已变化，请先在订单中心取消原订单后重新购买");
           }
-          return pendingDigitalOrder;
+          return { ...pendingDigitalOrder, reused: true };
         }
 
         // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──

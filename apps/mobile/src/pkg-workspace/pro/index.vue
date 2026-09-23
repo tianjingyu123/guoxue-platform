@@ -70,7 +70,7 @@ async function purchase() {
     const order = await shopApi.createOrder({ type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
     pendingOrder.value = { id: order.id, amount: Number(order.amount) || pro.value?.price || 0 }
-    track.custom('practitioner_pro_order_created', { renewal: !!pro.value?.isPro })
+    track.custom(order.reused ? 'practitioner_pro_order_resumed' : 'practitioner_pro_order_created', { renewal: !!pro.value?.isPro })
     navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请稍后重试', icon: 'none' })

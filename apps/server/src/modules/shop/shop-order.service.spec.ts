@@ -115,6 +115,7 @@ describe("ShopOrderService", () => {
       mockPrisma.order.findFirst.mockResolvedValue({ id: "original", amount, couponId: null, status: "PENDING" })
       const result = await svc.createOrder("u1", { type: type as any, targetId, amount: 1 })
       expect(result.id).toBe("original")
+      expect(result.reused).toBe(true)
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
         `digital-order:${type}:u1:${targetId}`,
@@ -141,6 +142,7 @@ describe("ShopOrderService", () => {
       mockPrisma.order.findFirst.mockResolvedValue({ id: "coupon-order", amount: 88, couponId: "coupon-1", status: "PENDING" })
       const result = await svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1, couponId: "coupon-1" })
       expect(result.id).toBe("coupon-order")
+      expect(result.reused).toBe(true)
       expect(mockPrisma.userCoupon.updateMany).not.toHaveBeenCalled()
       expect(mockPrisma.order.create).not.toHaveBeenCalled()
     })
