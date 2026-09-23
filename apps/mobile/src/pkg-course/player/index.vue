@@ -51,10 +51,26 @@ const autoNext = ref(true)
 const activeTab = ref<'catalog' | 'intro' | 'discuss'>('catalog')
 // 访问权限 + 课程概要（试看提示条 / 播放页内购买用，静默拉取不阻塞播放）
 const hasAccess = ref(false)
+const accessChecking = ref(true)
+const accessUnknown = ref(false)
+let accessRequestSeq = 0
+let paymentConfirmedHere = false
 const courseDetail = ref<any>(null)
 const showPurchase = ref(false)
 // 试看态：付费课未购（能进播放页的必是免费试看章节，后端 content 端点已鉴权）
-const trialMode = computed(() => !!courseDetail.value && !courseDetail.value.isFree && !hasAccess.value)
+const trialMode = computed(() => !!courseDetail.value && !courseDetail.value.isFree && !accessChecking.value && !accessUnknown.value && !hasAccess.value)
+
+async function refreshAccess() {
+  const seq = ++accessRequestSeq
+  const id = courseId.value
+  accessChecking.value = true
+  const state = await courseApi.getAccessState(id)
+  if (seq !== accessRequestSeq || id !== courseId.value) return 'unknown'
+  accessChecking.value = false
+  accessUnknown.value = state === 'unknown' || (paymentConfirmedHere && state === 'denied')
+  if (!accessUnknown.value) hasAccess.value = state === 'granted'
+  return state
+}
 // 图文态判定：以课程类型为主，空媒体+有正文为兼容兜底；TEXT/EBOOK 即使正文为空也
 // 必须进入诚实的图文空态，绝不能回退到 video 组件。
 const isArticleMode = computed(() => {
@@ -187,8 +203,7 @@ async function switchLesson(id: string) {
     .find((x) => x.l.id === id)
   if (target && lessonLocked(target.c, target.l)) {
     showChapterDrawer.value = false
-    if (courseDetail.value) showPurchase.value = true
-    else uni.showToast({ title: '请购买课程后观看', icon: 'none' })
+    showLockedLessonAction()
     return
   }
   switching.value = true
@@ -232,21 +247,28 @@ function lessonLocked(chapter: PlayerChapter, lesson: PlayerChapterLesson) {
   if (hasAccess.value || courseDetail.value?.isFree) return false
   return !lesson.isFree && !chapter.isFree
 }
+function showLockedLessonAction() {
+  if (accessChecking.value || accessUnknown.value) {
+    uni.showToast({ title: '课程权益待确认，请重试', icon: 'none' })
+    if (accessUnknown.value) void refreshAccess()
+  } else if (courseDetail.value) showPurchase.value = true
+  else uni.showToast({ title: '请购买课程后观看', icon: 'none' })
+}
 // 目录内点击课时：锁定（未购付费）→ 直接拉起购买面板（不再只弹 toast 断路）；否则一步切换播放
 function onDrawerLessonTap(chapter: PlayerChapter, lesson: PlayerChapterLesson) {
   if (lessonLocked(chapter, lesson)) {
     showChapterDrawer.value = false
-    if (courseDetail.value) showPurchase.value = true
-    else uni.showToast({ title: '请购买课程后观看', icon: 'none' })
+    showLockedLessonAction()
     return
   }
   switchLesson(lesson.id)
 }
-// 播放页内购买成功：立即解锁 + 隐藏试看条（目录锁态由 hasAccess 响应式解开）
-function onPurchased() {
+// 支付返回只表示交易成功，课程权限须回源确认后才能解锁目录。
+async function onPurchased() {
   showPurchase.value = false
-  hasAccess.value = true
-  uni.showToast({ title: '购买成功，已解锁全部章节', icon: 'success' })
+  paymentConfirmedHere = true
+  const state = await refreshAccess()
+  uni.showToast({ title: state === 'granted' ? '课程已开通' : '已支付，权限同步中', icon: state === 'granted' ? 'success' : 'none' })
 }
 
 function currentArticleCompleted() {
@@ -344,7 +366,7 @@ async function loadData() {
       void ensureArticleReadingProgress()
     }
     // 权限 + 课程概要 + 完课进度并行静默回填（不阻塞播放主链路）
-    void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
+    void refreshAccess()
     void courseApi.getDetail(courseId.value).then((d) => { courseDetail.value = d }).catch(() => { /* 静默：无概要则不显示试看条 */ })
     void refreshProgress()
   } catch (e) {
@@ -372,7 +394,7 @@ onShow(() => {
   if (!firstShowDone) { firstShowDone = true; return }
   if (!courseId.value) return
   if (isArticleMode.value) void ensureArticleReadingProgress()
-  void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
+  void refreshAccess()
 })
 </script>
 
@@ -418,6 +440,10 @@ onShow(() => {
         <app-icon name="chevron-down" :size="24" color="#6E6E73" />
       </view>
       <view class="a-nav-btn" />
+    </view>
+    <view v-if="accessUnknown && !courseDetail?.isFree" class="a-access-note">
+      <text>课程权益暂无法确认</text>
+      <view role="button" tabindex="0" aria-label="重试核验课程权益" @tap="refreshAccess" @keydown.enter="refreshAccess" @keydown.space.prevent="refreshAccess">重试</view>
     </view>
 
     <scroll-view scroll-y class="a-scroll">
@@ -619,6 +645,10 @@ onShow(() => {
         <view v-if="trialMode && started" class="trial-bar" @tap.stop>
           <text class="trial-txt">试看中 · 购买解锁全部 {{ lessonTotal }} 讲</text>
           <view class="trial-buy" @tap="showPurchase = true"><text class="trial-buy-t">¥{{ courseDetail?.price }} 购买</text></view>
+        </view>
+        <view v-else-if="accessUnknown && !courseDetail?.isFree && started" class="trial-bar" @tap.stop>
+          <text class="trial-txt">课程权益暂无法确认</text>
+          <view class="trial-buy" role="button" tabindex="0" aria-label="重试核验课程权益" @tap="refreshAccess" @keydown.enter="refreshAccess" @keydown.space.prevent="refreshAccess"><text class="trial-buy-t">重试</text></view>
         </view>
       </view>
       </view>
@@ -831,6 +861,8 @@ onShow(() => {
 .trial-txt { color: #fff; font-size: 26rpx; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .trial-buy { background: #C41E3A; border-radius: 999rpx; padding: 12rpx 28rpx; flex-shrink: 0; }
 .trial-buy-t { color: #fff; font-size: 24rpx; font-weight: 700; }
+.a-access-note { display: flex; justify-content: space-between; align-items: center; padding: 14rpx 28rpx; background: #FFF5E6; color: #744B17; font-size: 24rpx; }
+.a-access-note view { color: #8E4218; font-weight: 600; }
 
 /* ═══ 音频态 ═══ */
 .audio-stage { display: flex; flex-direction: column; align-items: center; padding: 52rpx 40rpx 48rpx; }
