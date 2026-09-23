@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { SearchService } from "./search.service";
-import { shouldSuppressContentGuide, wantsCircleResources, wantsCourseResources, wantsVideoResources } from "./ai-search-intent";
+import { shouldSuppressContentGuide, wantsCircleResources, wantsCourseResources, wantsProductResources, wantsVideoResources } from "./ai-search-intent";
 
 /**
  * 内容导览服务（S08）
@@ -21,7 +21,7 @@ export class ContentGuideService {
   ];
 
   private hasCards(result: Record<string, unknown>): boolean {
-    return ["articles", "classics", "courses", "circles", "contents", "videos"]
+    return ["articles", "classics", "courses", "circles", "contents", "videos", "products"]
       .some((key) => Array.isArray(result[key]) && (result[key] as unknown[]).length > 0);
   }
 
@@ -109,17 +109,26 @@ export class ContentGuideService {
       subtitle: (r) => r.description,
       cover: (r) => r.coverUrl,
     });
+    if (wantsProductResources(q)) push("product", res.products, {
+      id: (r) => r.id,
+      title: (r) => r.title,
+      subtitle: (r) => r.intro,
+      cover: (r) => r.images?.[0],
+      price: (r) => r.price,
+    });
 
     // 跨类型轮取；课程和圈子分别按用户明确意图进入候选。
     const priority: GuideCardType[] = wantsVideoResources(q)
-      ? ["video", "article", "classic", "content", "course", "circle"]
+      ? ["video", "article", "classic", "content", "course", "circle", "product"]
+      : wantsProductResources(q)
+        ? ["product", "article", "classic", "content", "course", "circle", "video"]
       : /课程|系统学|入门|学习路线/.test(q)
-      ? ["course", "article", "classic", "circle", "content", "video"]
+      ? ["course", "article", "classic", "circle", "content", "video", "product"]
       : /圈子|社群|交流|同好/.test(q)
-        ? ["circle", "article", "course", "classic", "content", "video"]
+        ? ["circle", "article", "course", "classic", "content", "video", "product"]
         : /原文|古籍|典籍|出处/.test(q)
-          ? ["classic", "article", "content", "course", "circle", "video"]
-          : ["article", "classic", "course", "circle", "content", "video"];
+          ? ["classic", "article", "content", "course", "circle", "video", "product"]
+          : ["article", "classic", "course", "circle", "content", "video", "product"];
     const cards: GuideCard[] = [];
     while (cards.length < limit && priority.some((type) => groups.get(type)?.length)) {
       for (const type of priority) {
@@ -148,12 +157,13 @@ export class ContentGuideService {
       case "circle": return `/pkg-circle/circles/detail?id=${encoded}`;
       case "content": return `/pkg-circle/articles/detail?id=${encoded}`;
       case "video": return `/pkg-video/detail/index?id=${encoded}`;
+      case "product": return `/pkg-mall/product/detail?id=${encoded}`;
       default: return `/`;
     }
   }
 }
 
-export type GuideCardType = "classic" | "article" | "course" | "circle" | "content" | "video";
+export type GuideCardType = "classic" | "article" | "course" | "circle" | "content" | "video" | "product";
 
 export interface GuideCard {
   type: GuideCardType;

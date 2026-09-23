@@ -4,7 +4,7 @@
  */
 import { apiGet, apiPostOptionalAuth } from '@/utils/request'
 
-export type AiGuideCardType = 'classic' | 'article' | 'course' | 'circle' | 'content' | 'video'
+export type AiGuideCardType = 'classic' | 'article' | 'course' | 'circle' | 'content' | 'video' | 'product'
 
 export interface AiGuideCard {
   type: AiGuideCardType

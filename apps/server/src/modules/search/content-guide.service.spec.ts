@@ -67,9 +67,10 @@ describe("ContentGuideService", () => {
       circles: [{ id: "g1", name: "圈" }],
       contents: [{ id: "t1", title: "内容" }],
       videos: [{ id: "v1", title: "视频" }],
+      products: [{ id: "p1", title: "商品" }],
     });
-    const result = await svc.guide("推荐入门课程和圈子，再看视频", 10);
-    expect(result.cards).toHaveLength(6);
+    const result = await svc.guide("推荐入门课程和圈子，再看视频与商品", 10);
+    expect(result.cards).toHaveLength(7);
     for (const card of result.cards) {
       expect(routes.has(card.target.split("?")[0])).toBe(true);
     }
@@ -124,6 +125,7 @@ describe("ContentGuideService", () => {
       courses: [{ id: "k1", title: "论语课" }],
       circles: [{ id: "g1", name: "论语圈" }],
       videos: [{ id: "v1", title: "论语视频" }],
+      products: [{ id: "p1", title: "论语商品" }],
       contents: [],
     });
     const result = await svc.guide("论语中的仁是什么意思");
@@ -139,6 +141,18 @@ describe("ContentGuideService", () => {
     expect(result.cards).toEqual([expect.objectContaining({
       type: "video", id: "v1", target: "/pkg-video/detail/index?id=v1", subtitle: "三分钟导览",
     })]);
+  });
+
+  it("明确找商品时才返回商品卡和价格快照", async () => {
+    mockSearch.search.mockResolvedValue({
+      classics: [], articles: [], courses: [], circles: [], contents: [], videos: [],
+      products: [{ id: "p1", title: "国学文创", intro: "文房用品", images: ["/cover.webp"], price: "39.9" }],
+    });
+    const result = await svc.guide("找国学商品");
+    expect(result.cards).toEqual([expect.objectContaining({
+      type: "product", id: "p1", target: "/pkg-mall/product/detail?id=p1", price: 39.9,
+    })]);
+    expect((await svc.guide("论语中的仁是什么意思")).cards).toEqual([]);
   });
 
   it("自然问句零命中时按明确主题补检一次", async () => {

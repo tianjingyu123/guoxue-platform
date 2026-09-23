@@ -29,3 +29,8 @@ export function wantsCircleResources(query: string): boolean {
 export function wantsVideoResources(query: string): boolean {
   return /视频|短视频|看.{0,8}(演示|讲解|教学)|播放.{0,8}(演示|讲解)/.test(query);
 }
+
+/** 商品属于商业入口，只在用户明确找商品或购物时出现。 */
+export function wantsProductResources(query: string): boolean {
+  return /商品|商城|购物|选购|买.{0,8}(书|文创|香|器具|摆件)/.test(query);
+}
