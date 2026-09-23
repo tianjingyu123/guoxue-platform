@@ -96,6 +96,10 @@ export class CourseLearningService {
     });
     if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
 
+    // 进度属于课程权益的一部分；退款或有效期结束后不能继续写入。
+    const hasAccess = await this.purchaseSvc.checkAccess(userId, chapter.courseId);
+    if (!hasAccess) throw new BusinessException(ErrorCode.FORBIDDEN, "当前无课程学习权限");
+
     const completed = dto.progress >= 100;
 
     if (dto.progress >= 50) {
