@@ -203,7 +203,7 @@ export interface RefundTimelineNode { status: string; title: string; description
 export interface RefundDetail {
   id: string; orderId: string; orderNo: string
   type: 'refund_only' | 'return_refund'
-  status: 'submitted' | 'merchant_review' | 'platform_review' | 'refunding' | 'completed'
+  status: 'merchant_review' | 'return_pending' | 'refunding' | 'completed' | 'rejected' | 'cancelled'
   reason: string; amount: number; description: string
   product?: OrderProduct
   timeline: RefundTimelineNode[]
@@ -582,16 +582,26 @@ function adaptDisputeDetail(a: RawAfterSale): DisputeDetail {
 /** 后端 AfterSale(enriched) → 前端退款进度（退款页与纠纷页共用售后子系统） */
 function adaptRefundDetail(a: RawAfterSale): RefundDetail {
   const statusMap: Record<string, RefundDetail['status']> = {
-    PENDING: 'merchant_review', PROCESSING: 'platform_review',
-    APPROVED: 'refunding', COMPLETED: 'completed', REJECTED: 'submitted', CANCELLED: 'submitted',
+    PENDING: 'merchant_review', PROCESSING: 'refunding',
+    APPROVED: 'return_pending', COMPLETED: 'completed', REJECTED: 'rejected', CANCELLED: 'cancelled',
   }
-  const tl = buildAfterSaleTimeline(a)
+  const status = statusMap[a.status || ''] || 'merchant_review'
+  const applied = { status: 'submitted', title: '提交申请', description: '退款申请已提交', time: fmtTime(a.createdAt), isCurrent: false }
+  const last = {
+    merchant_review: { title: '审核中', description: '退款申请正在审核' },
+    return_pending: { title: '待退货', description: '退货退款申请已同意，请按售后说明退回商品' },
+    refunding: { title: '退款处理中', description: '退款已提交支付渠道，到账时间以渠道为准' },
+    completed: { title: '退款处理完成', description: '退款渠道已确认处理完成，请核对原支付账户' },
+    rejected: { title: '申请未通过', description: '本次退款申请未通过，请查看售后详情或联系客服' },
+    cancelled: { title: '申请已撤销', description: '本次退款申请已撤销' },
+  }[status]
+  const tl = [applied, { status, ...last, time: fmtTime(a.updatedAt), isCurrent: true }]
   return {
     id: a.id || '',
     orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
-    type: a.type === 'return' ? 'return_refund' : 'refund_only',
-    status: statusMap[a.status || ''] || 'submitted',
+    type: a.type === 'return' || a.type === 'refund_with_return' ? 'return_refund' : 'refund_only',
+    status,
     reason: cleanText(a.reason),
     amount: num(a.amount ?? a.order?.amount),
     description: cleanText(a.reason),
@@ -759,9 +769,9 @@ export const orderApi = {
    *  P1-4：空 id 禁兜底取 list[0]——那是把别的订单的退款张冠李戴给用户看（资金信息错配），直接走错误态 */
   async refundProgress(orderId: string): Promise<RefundDetail> {
     if (!orderId) throw new Error('暂无该订单的退款记录')
-    const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100`)
+    const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100&orderId=${encodeURIComponent(orderId)}`)
     const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
-    const matched = list.find((a) => a.orderId === orderId)
+    const matched = list.find((a) => a.orderId === orderId && ['refund', 'return', 'refund_only', 'refund_with_return'].includes(String(a.type)))
     if (!matched) throw new Error('暂无该订单的退款记录')
     return adaptRefundDetail(matched)
   },

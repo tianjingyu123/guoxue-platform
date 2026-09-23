@@ -46,6 +46,16 @@ describe("ShopCouponService", () => {
 
   it("应被定义", () => expect(svc).toBeDefined());
 
+  it("我的售后按当前用户和订单精确筛选", async () => {
+    mockPrisma.afterSale.findMany.mockResolvedValue([]);
+    mockPrisma.afterSale.count.mockResolvedValue(0);
+    await svc.getUserAfterSales("u1", 1, 20, "order-1");
+    expect(mockPrisma.afterSale.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1", orderId: "order-1" },
+    }));
+    expect(mockPrisma.afterSale.count).toHaveBeenCalledWith({ where: { userId: "u1", orderId: "order-1" } });
+  });
+
   describe("batchGrantCoupon", () => {
     const activeCoupon = {
       id: "c1",

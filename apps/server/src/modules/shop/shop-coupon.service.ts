@@ -255,9 +255,9 @@ export class ShopCouponService {
     });
   }
 
-  async getUserAfterSales(userId: string, rawPage = 1, rawPageSize = 20) {
+  async getUserAfterSales(userId: string, rawPage = 1, rawPageSize = 20, orderId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where = { userId };
+    const where = { userId, ...(orderId ? { orderId } : {}) };
     const [items, total] = await Promise.all([
       this.prisma.afterSale.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.afterSale.count({ where }),

@@ -1111,8 +1111,9 @@ export class ShopController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  myAfterSales(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.couponSvc.getUserAfterSales(req.user.id, +page, +pageSize);
+  @ApiQuery({ name: "orderId", required: false })
+  myAfterSales(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("orderId") orderId?: string) {
+    return this.couponSvc.getUserAfterSales(req.user.id, +page, +pageSize, orderId);
   }
 
   @Get("after-sales/:id")
