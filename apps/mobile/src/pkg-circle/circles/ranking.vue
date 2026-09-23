@@ -63,12 +63,11 @@ onMounted(load)
 
 <template>
   <view class="rk">
-    <!-- 渐变顶部 -->
+    <!-- 标题与指标切换 -->
     <view class="rk-top" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="rk-head">
-        <view class="rk-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+        <view class="rk-back" role="button" tabindex="0" aria-label="返回" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#1D1D1F" /></view>
         <text class="rk-title">圈子排行榜</text>
-        <app-icon name="trophy" :size="44" color="#FCD34D" />
       </view>
       <view class="rk-tabs">
         <view v-for="tab in tabs" :key="tab.value" class="rk-tab" :class="{ on: activeTab === tab.value }" role="tab" tabindex="0" :aria-selected="activeTab === tab.value" @tap="switchTab(tab.value)" @keydown.enter="switchTab(tab.value)">
@@ -100,7 +99,7 @@ onMounted(load)
         </view>
         <!-- 第1名 -->
         <view class="rk-pod rk-pod-1" role="button" tabindex="0" :aria-label="`查看第1名${top3[0].name}`" @tap="openCircle(top3[0].id)" @keydown.enter="openCircle(top3[0].id)">
-          <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#F59E0B" /></view>
+          <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#826329" /></view>
           <view class="rk-pod-avatar-wrap">
             <view class="rk-pod-avatar gold"><smart-cover :src="top3[0]?.cover" :title="top3[0]?.name" type="circle" deco :deco-size="50" /></view>
             <view class="rk-pod-rank gold">1</view>
@@ -144,50 +143,52 @@ onMounted(load)
 </template>
 
 <style scoped lang="scss">
-.rk { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
-.rk-top { background: linear-gradient(135deg, var(--brand), #8B0000); padding: 24rpx 32rpx 128rpx; padding-top: calc(48rpx + var(--status-bar-height, 0px)); }
-.rk-head { display: flex; align-items: center; gap: 24rpx; margin-bottom: 48rpx; }
+.rk { min-height: 100vh; background: var(--circle-canvas, #F5F5F7); }
+.rk-top { background: var(--circle-surface, #fff); padding: 16rpx 32rpx 28rpx; padding-top: calc(32rpx + var(--status-bar-height, 0px)); border-bottom: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 24rpx; }
 .rk-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rk-title { flex: 1; font-size: 40rpx; font-weight: 700; color: #fff; }
-.rk-tabs { display: flex; background: rgba(255,255,255,0.1); border-radius: 24rpx; padding: 8rpx; gap: 8rpx; }
+.rk-title { flex: 1; font-size: 36rpx; font-weight: 650; color: var(--circle-ink, #1D1D1F); }
+.rk-tabs { display: flex; background: var(--circle-surface-soft, #F8F8FA); border-radius: 20rpx; padding: 6rpx; gap: 6rpx; }
 .rk-tab { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 16rpx; text-align: center; }
-.rk-tab.on { background: #fff; }
-.rk-tab-txt { font-size: 28rpx; font-weight: 500; color: rgba(255,255,255,0.8); }
-.rk-tab-txt.on { color: var(--brand, var(--brand)); }
+.rk-tab.on { background: #fff; box-shadow: 0 2rpx 8rpx rgba(31,35,41,.08); }
+.rk-tab-txt { font-size: 28rpx; font-weight: 500; color: var(--circle-secondary, #6E6E73); }
+.rk-tab-txt.on { color: var(--circle-ink, #1D1D1F); font-weight: 650; }
 /* 三态 */
 .rk-state { display: flex; flex-direction: column; align-items: center; gap: 24rpx; padding: 160rpx 0; }
-.rk-state-txt { font-size: 28rpx; color: #999; }
+.rk-state-txt { font-size: 28rpx; color: var(--circle-secondary, #6E6E73); }
 .rk-state-btn { min-height: 44px; padding: 0 48rpx; display: flex; align-items: center; border-radius: 999rpx; background: var(--brand, var(--brand)); color: #fff; font-size: 26rpx; }
 /* 台阶 */
-.rk-podium { display: flex; justify-content: center; gap: 16rpx; padding: 0 32rpx; margin-top: -80rpx; align-items: flex-end; }
-.rk-pod { flex: 1; max-width: 220rpx; display: flex; flex-direction: column; align-items: center; background: var(--card, #fff); border-radius: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06); padding-bottom: 24rpx; }
-.rk-pod-2 { margin-top: 48rpx; padding-top: 16rpx; border: 2rpx solid var(--border, #EDE8E0); }
-.rk-pod-1 { border: 2rpx solid #FDE68A; }
-.rk-pod-crown { width: 100%; background: rgba(251,191,36,0.2); padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }
+.rk-podium { display: flex; justify-content: center; gap: 16rpx; padding: 0 32rpx; margin-top: 28rpx; align-items: flex-end; }
+.rk-pod { flex: 1; max-width: 220rpx; display: flex; flex-direction: column; align-items: center; background: var(--circle-surface, #fff); border-radius: 24rpx; box-shadow: 0 8rpx 28rpx rgba(31,35,41,.06); padding-bottom: 24rpx; }
+.rk-pod-2 { margin-top: 32rpx; padding-top: 16rpx; border: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-pod-1 { border: 1rpx solid rgba(130,99,41,.35); }
+.rk-pod-crown { width: 100%; background: #F9F6EE; padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }
 .rk-pod-avatar-wrap { position: relative; margin-bottom: 16rpx; }
-.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 4rpx solid #CBD5E1; overflow: hidden; }
-.rk-pod-avatar.gold { width: 128rpx; height: 128rpx; border-color: #FBBF24; }
-.rk-pod-avatar.silver { border-color: #CBD5E1; }
-.rk-pod-avatar.bronze { border-color: #FDBA74; }
+.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 2rpx solid #D8DCE1; overflow: hidden; }
+.rk-pod-avatar.gold { width: 128rpx; height: 128rpx; border-color: #B6A079; }
+.rk-pod-avatar.silver { border-color: #BFC6CC; }
+.rk-pod-avatar.bronze { border-color: #CBB5A4; }
 .rk-pod-rank { position: absolute; bottom: -8rpx; right: -8rpx; width: 40rpx; height: 40rpx; border-radius: 999rpx; font-size: 22rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; }
-.rk-pod-rank.gold { background: #FBBF24; color: #78350F; }
-.rk-pod-rank.silver { background: #94A3B8; }
-.rk-pod-rank.bronze { background: #FB923C; }
-.rk-pod-name { font-size: 24rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); text-align: center; padding: 0 8rpx; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-pod-value { font-size: 28rpx; font-weight: 700; color: var(--brand, var(--brand)); margin-top: 4rpx; }
-.rk-pod-value.gold { font-size: 32rpx; color: #D97706; }
-.rk-pod-sub { font-size: 20rpx; color: #999; }
+.rk-pod-rank.gold { background: #826329; }
+.rk-pod-rank.silver { background: #87919B; }
+.rk-pod-rank.bronze { background: #A77B61; }
+.rk-pod-name { font-size: 24rpx; font-weight: 500; color: var(--circle-ink, #1D1D1F); text-align: center; padding: 0 8rpx; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-pod-value { font-size: 28rpx; font-weight: 700; color: var(--circle-ink, #1D1D1F); margin-top: 4rpx; }
+.rk-pod-value.gold { font-size: 32rpx; color: #826329; }
+.rk-pod-sub { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
+.rk-pod:active { background: #F8F8FA; }
+.rk-pod:focus-visible, .rk-tab:focus-visible, .rk-back:focus-visible { outline: 2px solid #2B6F68; outline-offset: 2px; }
 /* 列表 */
 .rk-list { padding: 32rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.rk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: var(--card, #fff); border-radius: 24rpx; border: 2rpx solid var(--border, #EDE8E0); }
-.rk-row-rank { width: 48rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
+.rk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: var(--circle-surface, #fff); border-radius: 24rpx; border: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.rk-row-rank { width: 48rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: var(--circle-secondary, #6E6E73); flex-shrink: 0; }
 .rk-row-avatar { width: 88rpx; height: 88rpx; border-radius: 20rpx; flex-shrink: 0; overflow: hidden; }
 .rk-row-main { flex: 1; min-width: 0; }
 .rk-row-name-row { display: flex; align-items: center; gap: 12rpx; }
-.rk-row-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280rpx; }
-.rk-row-cat { font-size: 20rpx; padding: 2rpx 12rpx; background: #F5F0E8; color: #999; border-radius: 8rpx; flex-shrink: 0; }
-.rk-row-owner { font-size: 24rpx; color: #999; margin-top: 4rpx; }
+.rk-row-name { font-size: 28rpx; font-weight: 500; color: var(--circle-ink, #1D1D1F); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280rpx; }
+.rk-row-cat { font-size: 22rpx; padding: 2rpx 12rpx; background: #F2F5F4; color: #2B6F68; border-radius: 8rpx; flex-shrink: 0; }
+.rk-row-owner { font-size: 24rpx; color: var(--circle-secondary, #6E6E73); margin-top: 4rpx; }
 .rk-row-val { text-align: right; flex-shrink: 0; }
-.rk-row-value { display: block; font-size: 28rpx; font-weight: 700; color: var(--brand, var(--brand)); }
-.rk-row-sub { font-size: 20rpx; color: #999; }
+.rk-row-value { display: block; font-size: 28rpx; font-weight: 700; color: var(--circle-ink, #1D1D1F); }
+.rk-row-sub { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
 </style>
