@@ -40,6 +40,24 @@ describe("ConsultCallService · 评价与账单申诉", () => {
 
   const mockGetCall = (call: Record<string, unknown>) => prisma.$queryRawUnsafe.mockResolvedValueOnce([call]);
 
+  it("我的通话分页：仅查本人参与的记录，返回总数和稳定排序", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([{ id: "call-21" }]).mockResolvedValueOnce([{ count: 63n }]);
+    const result = await svc.myCallsPage("user-1", "2", "20");
+    expect(result).toEqual({ items: [{ id: "call-21" }], total: 63, page: 2, pageSize: 20 });
+    expect(prisma.$queryRawUnsafe.mock.calls[0][0]).toContain('ORDER BY c."createdAt" DESC, c."id" DESC');
+    expect(prisma.$queryRawUnsafe.mock.calls[0].slice(1)).toEqual(["user-1", 20, 20]);
+    expect(prisma.$queryRawUnsafe.mock.calls[1][0]).toContain('WHERE "callerId" = $1 OR "expertId" = $1');
+    expect(prisma.$queryRawUnsafe.mock.calls[1][1]).toBe("user-1");
+  });
+
+  it("我的通话分页：非法页码归一化，大页被限制", async () => {
+    prisma.$queryRawUnsafe.mockResolvedValueOnce([]).mockResolvedValueOnce([{ count: 0n }]);
+    const result = await svc.myCallsPage("user-1", "invalid", "999999");
+    expect(result.page).toBe(1);
+    expect(result.pageSize).toBe(100);
+    expect(prisma.$queryRawUnsafe.mock.calls[0].slice(1)).toEqual(["user-1", 100, 0]);
+  });
+
   // ───────── 评价 rate ─────────
 
   it("评价成功：仅 ENDED·24h 内·首次 → 原子 UPDATE（ratedAt IS NULL 锚点）并回传评价", async () => {

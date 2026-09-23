@@ -40,6 +40,9 @@ interface CallActionResult { [k: string]: unknown }
 export const callApi = {
   /** 我的通话记录 GET /consult-calls/my */
   myCalls: () => apiGet<ConsultCallRecord[]>('/consult-calls/my'),
+  /** 圈子咨询订单使用的完整分页记录；旧 /my 接口保持兼容。 */
+  myCallsPage: (page = 1, pageSize = 20) =>
+    apiGet<{ items: ConsultCallRecord[]; total: number; page: number; pageSize: number }>(`/consult-calls/my-page?page=${page}&pageSize=${pageSize}`),
   /** 发起通话（预扣 + 返回 TRTC 配置）POST /consult-calls/initiate */
   initiate: (body: { circleId: string; expertId: string; type: 'VOICE' | 'VIDEO' }) =>
     apiPost<CallActionResult>('/consult-calls/initiate', body),

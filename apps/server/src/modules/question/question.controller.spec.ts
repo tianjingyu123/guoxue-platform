@@ -11,6 +11,7 @@ const mockQuestionSvc = {
   reject: jest.fn().mockResolvedValue({ id: "q1", status: "REJECTED" }),
   peek: jest.fn().mockResolvedValue({ id: "q1", canView: true }),
   listQuestions: jest.fn().mockResolvedValue([{ id: "q1", title: "八字问题" }]),
+  listMyQuestions: jest.fn().mockResolvedValue({ questions: [{ id: "q1" }], total: 1 }),
   getQuestion: jest.fn().mockResolvedValue({ id: "q1", title: "八字问题", answer: "..." }),
   refundExpiredQuestions: jest.fn().mockResolvedValue({ refunded: 3 }),
 };
@@ -68,6 +69,13 @@ describe("QuestionController", () => {
     const result: any = await ctrl.listQuestions(q);
     expect(result).toHaveLength(1);
     expect(mockQuestionSvc.listQuestions).toHaveBeenCalledWith(q);
+  });
+
+  it("GET /question/my — 以认证用户身份查询本人记录", async () => {
+    const req: any = { user: { id: "signed-in" } };
+    const q: any = { participantId: "another-user", page: 1 };
+    await ctrl.listMyQuestions(req, q);
+    expect(mockQuestionSvc.listMyQuestions).toHaveBeenCalledWith("signed-in", q);
   });
 
   it("GET /question/:id — 问答详情（登录用户，传 currentUserId）", async () => {

@@ -330,10 +330,22 @@ export const questionApi = {
     return mapQuestion(await apiPost<RawPaidQuestion>('/question/ask', body))
   },
 
-  /** 问答列表 — GET /question（仅 circleId/status/isPublic 维度，无用户维度） */
+  /** 公开问答列表 — 服务端只返回公开条目且不含付费答案。 */
   list: async (params: QuestionListQuery): Promise<{ items: PaidQuestion[]; total: number; page: number; pageSize: number }> => {
     const res = await apiGet<RawQuestionListResp>(`/question${buildQuery(params)}`)
     const arr = Array.isArray(res?.questions) ? res.questions : (Array.isArray(res) ? res : [])
+    return {
+      items: arr.map(mapQuestion),
+      total: Number(res?.total) || arr.length,
+      page: Number(res?.page) || 1,
+      pageSize: Number(res?.pageSize) || arr.length,
+    }
+  },
+
+  /** 本人咨询记录 — 服务端由登录态确定用户，查询串中的用户 ID 不作为授权依据。 */
+  listMine: async (params: QuestionListQuery): Promise<{ items: PaidQuestion[]; total: number; page: number; pageSize: number }> => {
+    const res = await apiGet<RawQuestionListResp>(`/question/my${buildQuery(params)}`)
+    const arr = Array.isArray(res?.questions) ? res.questions : []
     return {
       items: arr.map(mapQuestion),
       total: Number(res?.total) || arr.length,

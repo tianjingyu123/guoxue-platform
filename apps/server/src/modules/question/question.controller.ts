@@ -65,6 +65,13 @@ export class QuestionController {
     return this.svc.listQuestions(q);
   }
 
+  @Get("my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的付费问答列表（仅登录者本人）" })
+  listMyQuestions(@Req() req: Request, @Query() q: QuestionQueryDto) {
+    return this.svc.listMyQuestions(req.user.id, q);
+  }
+
   @Get(":id")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "问答详情", description: "查看单条付费问答的完整信息；非当事人/未围观时 answer 受付费墙保护" })

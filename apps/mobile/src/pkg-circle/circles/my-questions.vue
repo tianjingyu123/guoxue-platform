@@ -2,13 +2,13 @@
 /**
  * 我的问答（提问者视角）— V0 circle-consult-my.html 还原（2026-07-10 批④）
  * 结构：顶栏+状态筛选(全部/待回答/已回答) → 问答条目卡（达人行+状态徽章+问题+底部金币/围观/退款信息行）。
- * 数据：GET /question?circleId&askerId（后端 askerId 维度精确筛选）。
- * 口径（后端为准）：待回答显示 72h 超时自动退款倒计时（后端固定 72h）；
+ * 数据：GET /question/my?circleId&askerId（后端根据 JWT 锁定本人）。
+ * 口径（后端为准）：待回答显示 48h 超时自动退款倒计时；
  *   已回答且公开显示围观人数（peekCount 真字段）；V0「分成 +9 金币(40%)」金额无后端字段→不显示；
  *   未公开问答显示「仅自己与达人可见」（isPublic 真字段）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
@@ -20,6 +20,12 @@ const myId = ref('')
 const loading = ref(true)
 const error = ref('')
 const all = ref<PaidQuestion[]>([])
+const page = ref(0)
+const total = ref(0)
+const loadingMore = ref(false)
+const moreError = ref('')
+const PAGE_SIZE = 20
+const hasMore = computed(() => page.value > 0 && all.value.length < total.value)
 
 const filterTabs: { key: QFilter; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -62,16 +68,41 @@ async function load() {
   if (!myId.value) { error.value = '请先登录'; loading.value = false; return }
   loading.value = true
   error.value = ''
+  page.value = 0
+  total.value = 0
+  all.value = []
+  moreError.value = ''
   try {
     // circleId 可选：圈内进入=本圈记录；「圈子·我的」板块入口不带 circleId=跨圈全量（后端 QueryDto 支持）
-    const res = await questionApi.list({ circleId: circleId.value || undefined, askerId: myId.value, page: 1, pageSize: 100 })
+    const res = await questionApi.listMine({ circleId: circleId.value || undefined, askerId: myId.value, page: 1, pageSize: PAGE_SIZE })
     all.value = res.items
+    page.value = 1
+    total.value = res.total
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
+
+async function loadMore() {
+  if (!hasMore.value || loadingMore.value) return
+  loadingMore.value = true
+  moreError.value = ''
+  try {
+    const next = page.value + 1
+    const res = await questionApi.listMine({ circleId: circleId.value || undefined, askerId: myId.value, page: next, pageSize: PAGE_SIZE })
+    all.value = all.value.concat(res.items)
+    total.value = res.items.length ? res.total : all.value.length
+    page.value = next
+  } catch (e) {
+    moreError.value = (e as Error)?.message || '加载更多失败'
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+onReachBottom(() => { if (hasMore.value && !moreError.value) void loadMore() })
 
 function openDetail(id: string) { navigateTo(`/pkg-circle/circles/question-detail?id=${id}`) }
 
@@ -104,9 +135,10 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
       <text class="mq-state-t">{{ error }}</text>
       <view class="mq-retry" @tap="load"><text class="mq-retry-t">重试</text></view>
     </view>
-    <view v-else-if="filtered.length === 0" class="mq-state"><text class="mq-state-t">暂无问答记录</text></view>
+    <view v-else-if="filtered.length === 0 && !hasMore" class="mq-state"><text class="mq-state-t">暂无问答记录</text></view>
 
     <template v-else>
+      <view v-if="filtered.length === 0" class="mq-state"><text class="mq-state-t">当前已加载记录中没有此状态，继续查看后续记录</text></view>
       <view v-for="q in filtered" :key="q.id" class="mq-item" @tap="openDetail(q.id)">
         <view class="mq-head">
           <view class="mq-expert">
@@ -129,6 +161,7 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
           <text v-else-if="q.status !== 'ANSWERED'" class="mq-refund">{{ q.priceCoin }} 金币已退回钱包</text>
         </view>
       </view>
+      <view v-if="hasMore || moreError" class="mq-more" @tap="loadMore">{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点击重试' : '查看更多问答记录' }}</view>
     </template>
   </view>
 </template>
@@ -157,6 +190,7 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
 .mq-state-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
 .mq-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
 .mq-retry-t { font-size: 26rpx; color: #fff; }
+.mq-more { margin: 24rpx 32rpx; min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: #fff; color: var(--brand, #c41e3a); font-size: 26rpx; }
 .mq-skel { width: 100%; height: 220rpx; border-radius: 36rpx; background: #ede7dd; }
 
 /* 问答条目 */

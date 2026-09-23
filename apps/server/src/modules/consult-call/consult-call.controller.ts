@@ -50,6 +50,14 @@ export class ConsultCallController {
     return this.svc.myCalls(req.user.id);
   }
 
+  @Get("my-page")
+  @ApiOperation({ summary: "分页查询我的通话记录" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  myCallsPage(@Req() req: Request, @Query("page") page?: string, @Query("pageSize") pageSize?: string) {
+    return this.svc.myCallsPage(req.user.id, page, pageSize);
+  }
+
   // ───────── 评价与账单申诉（待办 #31） ─────────
 
   @Post(":id/rate")

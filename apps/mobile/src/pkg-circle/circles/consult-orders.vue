@@ -2,7 +2,7 @@
 /**
  * 咨询订单 · 图文＋通话聚合 — V0 circle-consult-orders.html 还原（2026-07-10 批④）
  * 结构：顶栏+状态筛选(全部/已完成/待处理/已退款) → 累计卡 → 「我提问的」「我回答的」分组订单流。
- * 数据：图文 GET /question?circleId&participantId（asker OR answerer）+ 通话 GET /consult-calls/my
+ * 数据：图文 GET /question/my（JWT 本人参与）+ 通话 GET /consult-calls/my-page
  *       （按 circleId 过滤·记录仅当事人可见），前端合并排序分组。
  * 口径（后端为准·记台账）：
  *  - 我回答的图文收入：实际入账按平台分成规则结算（比例走 SettlementRule·无前端可读字段）→
@@ -11,7 +11,7 @@
  *  - V0「累计回答/分成收入」无可靠聚合字段 → 第二格改为真实「咨询总笔数」。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
@@ -41,6 +41,20 @@ const myId = ref('')
 const loading = ref(true)
 const error = ref('')
 const orders = ref<OrderItem[]>([])
+const qaRows = ref<OrderItem[]>([])
+const callRows = ref<OrderItem[]>([])
+const qaPage = ref(0)
+const callPage = ref(0)
+const qaTotal = ref(0)
+const callTotal = ref(0)
+const callFetched = ref(0)
+const qaError = ref('')
+const callError = ref('')
+const moreQaError = ref('')
+const moreCallError = ref('')
+const loadingMoreQa = ref(false)
+const loadingMoreCall = ref(false)
+const PAGE_SIZE = 20
 
 const filterTabs: { key: Filter; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -136,28 +150,87 @@ const totalSpent = computed(() =>
   }, 0),
 )
 const totalCount = computed(() => orders.value.length)
+const allLoaded = computed(() => !qaError.value && !callError.value && qaRows.value.length >= qaTotal.value && callFetched.value >= callTotal.value)
+const hasMoreQa = computed(() => qaPage.value > 0 && qaRows.value.length < qaTotal.value)
+const hasMoreCalls = computed(() => callPage.value > 0 && callFetched.value < callTotal.value)
+
+function mergeOrders() {
+  orders.value = [...qaRows.value, ...callRows.value].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  )
+}
+
+async function loadQaPage() {
+  if (loadingMoreQa.value || (qaPage.value > 0 && !hasMoreQa.value)) return
+  loadingMoreQa.value = true
+  moreQaError.value = ''
+  try {
+    const next = qaPage.value + 1
+    const result = await questionApi.listMine({ circleId: circleId.value || undefined, participantId: myId.value, page: next, pageSize: PAGE_SIZE })
+    qaRows.value = next === 1 ? result.items.map(mapQa) : qaRows.value.concat(result.items.map(mapQa))
+    qaTotal.value = result.total
+    if (next > 1 && !result.items.length) qaTotal.value = qaRows.value.length
+    qaPage.value = next
+    qaError.value = ''
+    mergeOrders()
+  } catch (e) {
+    const message = (e as Error)?.message || '图文咨询加载失败'
+    if (!qaPage.value) qaError.value = message
+    else moreQaError.value = message
+  } finally {
+    loadingMoreQa.value = false
+  }
+}
+
+async function loadCallPage() {
+  if (loadingMoreCall.value || (callPage.value > 0 && !hasMoreCalls.value)) return
+  loadingMoreCall.value = true
+  moreCallError.value = ''
+  try {
+    const next = callPage.value + 1
+    const result = await callApi.myCallsPage(next, PAGE_SIZE)
+    const pageRows = circleId.value ? result.items.filter(c => c.circleId === circleId.value) : result.items
+    callRows.value = next === 1 ? pageRows.map(mapCall) : callRows.value.concat(pageRows.map(mapCall))
+    callFetched.value = next === 1 ? result.items.length : callFetched.value + result.items.length
+    callTotal.value = result.total
+    if (next > 1 && !result.items.length) callTotal.value = callFetched.value
+    callPage.value = next
+    callError.value = ''
+    mergeOrders()
+  } catch (e) {
+    const message = (e as Error)?.message || '通话记录加载失败'
+    if (!callPage.value) callError.value = message
+    else moreCallError.value = message
+  } finally {
+    loadingMoreCall.value = false
+  }
+}
 
 async function load() {
   if (!myId.value) { error.value = '请先登录'; loading.value = false; return }
   loading.value = true
   error.value = ''
-  try {
-    // circleId 可选：圈内进入=本圈订单；「圈子·我的」板块入口不带 circleId=跨圈全量（后端 QueryDto 支持）
-    const [qres, calls] = await Promise.all([
-      questionApi.list({ circleId: circleId.value || undefined, participantId: myId.value, page: 1, pageSize: 100 }),
-      callApi.myCalls().catch(() => [] as ConsultCallRecord[]),
-    ])
-    const qaItems = qres.items.map(mapQa)
-    const callItems = (circleId.value ? calls.filter(c => c.circleId === circleId.value) : calls).map(mapCall)
-    orders.value = [...qaItems, ...callItems].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+  qaRows.value = []
+  callRows.value = []
+  qaPage.value = 0
+  callPage.value = 0
+  qaTotal.value = 0
+  callTotal.value = 0
+  callFetched.value = 0
+  qaError.value = ''
+  callError.value = ''
+  moreQaError.value = ''
+  moreCallError.value = ''
+  orders.value = []
+  await Promise.all([loadQaPage(), loadCallPage()])
+  if (qaError.value && callError.value) error.value = '咨询记录加载失败，请重试'
+  loading.value = false
 }
+
+onReachBottom(() => {
+  if (hasMoreQa.value && !moreQaError.value) void loadQaPage()
+  if (hasMoreCalls.value && !moreCallError.value) void loadCallPage()
+})
 
 function openDetail(o: OrderItem) {
   if (o.kind === 'qa') navigateTo(`/pkg-circle/circles/question-detail?id=${o.id}`)
@@ -193,17 +266,25 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
       <text class="cor-state-t">{{ error }}</text>
       <view class="cor-retry" @tap="load"><text class="cor-retry-t">重试</text></view>
     </view>
-    <view v-else-if="orders.length === 0" class="cor-state"><text class="cor-state-t">暂无咨询订单</text></view>
+    <view v-else-if="orders.length === 0 && !qaError && !callError" class="cor-state"><text class="cor-state-t">暂无咨询订单</text></view>
 
     <template v-else>
+      <view v-if="qaError" class="cor-warning">
+        <text class="cor-warning-t">图文咨询未加载：{{ qaError }}</text>
+        <view class="cor-warning-action" @tap="loadQaPage">重试</view>
+      </view>
+      <view v-if="callError" class="cor-warning">
+        <text class="cor-warning-t">通话记录未加载：{{ callError }}</text>
+        <view class="cor-warning-action" @tap="loadCallPage">重试</view>
+      </view>
       <!-- 累计数据 -->
-      <view class="cor-total">
+      <view v-if="orders.length" class="cor-total">
         <view class="cor-total-item">
-          <text class="cor-total-label">累计咨询消费</text>
+          <text class="cor-total-label">{{ allLoaded ? '咨询已付及托管' : '已显示的已付及托管' }}</text>
           <text class="cor-total-num">{{ totalSpent }}<text class="cor-total-unit"> 金币</text></text>
         </view>
         <view class="cor-total-item bordered">
-          <text class="cor-total-label">咨询总笔数</text>
+          <text class="cor-total-label">{{ allLoaded ? '咨询总笔数' : '已显示笔数' }}</text>
           <text class="cor-total-num">{{ totalCount }}<text class="cor-total-unit"> 笔</text></text>
         </view>
       </view>
@@ -241,6 +322,12 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
           </view>
         </view>
       </template>
+      <view v-if="hasMoreQa || moreQaError" class="cor-more" @tap="loadQaPage">
+        {{ loadingMoreQa ? '正在加载图文咨询…' : moreQaError ? `图文咨询加载失败，点击重试` : '查看更多图文咨询' }}
+      </view>
+      <view v-if="hasMoreCalls || moreCallError" class="cor-more" @tap="loadCallPage">
+        {{ loadingMoreCall ? '正在加载通话记录…' : moreCallError ? '通话记录加载失败，点击重试' : '查看更多通话记录' }}
+      </view>
     </template>
   </view>
 </template>
@@ -269,6 +356,10 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
 .cor-state-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
 .cor-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
 .cor-retry-t { font-size: 26rpx; color: #fff; }
+.cor-warning { margin: 24rpx 32rpx; padding: 24rpx; display: flex; align-items: center; gap: 16rpx; border-radius: 20rpx; background: #fff4e8; }
+.cor-warning-t { flex: 1; font-size: 24rpx; color: #775022; }
+.cor-warning-action { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; color: var(--brand, #c41e3a); font-size: 26rpx; }
+.cor-more { margin: 24rpx 32rpx; min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: #fff; color: var(--brand, #c41e3a); font-size: 26rpx; }
 .cor-skel { width: 100%; height: 170rpx; border-radius: 36rpx; background: #ede7dd; }
 
 /* 累计卡 */

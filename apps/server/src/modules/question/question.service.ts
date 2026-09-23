@@ -186,6 +186,9 @@ export class QuestionService {
   async peek(userId: string, questionId: string) {
     const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (!question.isPublic && userId !== question.askerId && userId !== question.answererId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    }
     if (question.status !== "ANSWERED") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题尚未回答");
     if (question.peekPriceCoin <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题不支持围观");
 
@@ -317,18 +320,43 @@ export class QuestionService {
     });
   }
 
-  /** 圈子问答列表 */
+  /** 公开问答列表：忽略客户端传入的用户筛选与 isPublic=false，绝不带出付费答案。 */
   async listQuestions(dto: { circleId?: string; status?: string; isPublic?: boolean; askerId?: string; answererId?: string; participantId?: string; page?: number; pageSize?: number }) {
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
-    const where: Prisma.PaidQuestionWhereInput = {};
+    const where: Prisma.PaidQuestionWhereInput = { isPublic: true };
     if (dto.circleId) where.circleId = dto.circleId;
     if (dto.status) where.status = dto.status;
-    if (dto.askerId) where.askerId = dto.askerId;
-    if (dto.answererId) where.answererId = dto.answererId;
-    // 参与者维度（我提问的 + 我回答的）；由调用方在 askerId/answererId/participantId 中择一使用
-    if (dto.participantId) where.OR = [{ askerId: dto.participantId }, { answererId: dto.participantId }];
     if ((dto as any).stationId !== undefined) where.stationId = (dto as any).stationId || null;
 
+    const [questions, total] = await Promise.all([
+      this.prisma.paidQuestion.findMany({
+        where,
+        select: {
+          id: true, circleId: true, askerId: true, answererId: true,
+          questionTitle: true, question: true, images: true,
+          priceCoin: true, peekPriceCoin: true, peekCount: true,
+          isPublic: true, status: true, answeredAt: true, createdAt: true,
+          asker: { select: { id: true, nickname: true, avatar: true } },
+          answerer: { select: { id: true, nickname: true, avatar: true } },
+          circle: { select: { id: true, name: true } },
+        },
+        skip,
+        take: pageSize,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      this.prisma.paidQuestion.count({ where }),
+    ]);
+    return { questions, total, page, pageSize };
+  }
+
+  /** 本人问答记录：身份只取 JWT，不信任查询串中的 askerId/answererId/participantId。 */
+  async listMyQuestions(userId: string, dto: { circleId?: string; status?: string; askerId?: string; answererId?: string; page?: number; pageSize?: number }) {
+    const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
+    const where: Prisma.PaidQuestionWhereInput = dto.askerId
+      ? { askerId: userId }
+      : dto.answererId ? { answererId: userId } : { OR: [{ askerId: userId }, { answererId: userId }] };
+    if (dto.circleId) where.circleId = dto.circleId;
+    if (dto.status) where.status = dto.status;
     const [questions, total] = await Promise.all([
       this.prisma.paidQuestion.findMany({
         where,
@@ -339,7 +367,7 @@ export class QuestionService {
         },
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.paidQuestion.count({ where }),
     ]);
@@ -365,6 +393,9 @@ export class QuestionService {
       },
     });
     if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (!question.isPublic && currentUserId !== question.askerId && currentUserId !== question.answererId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    }
 
     const canViewAnswer = await this.canViewAnswer(question, currentUserId);
     if (!canViewAnswer && question.answer != null) {

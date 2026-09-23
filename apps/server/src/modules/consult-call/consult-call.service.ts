@@ -7,6 +7,7 @@ import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 import { buildTrtcConfig } from "./trtc-sig.util";
 
 /**
@@ -315,5 +316,28 @@ export class ConsultCallService {
        ORDER BY c."createdAt" DESC LIMIT 50`,
       userId,
     );
+  }
+
+  /** 新列表端点按用户分批读取；保留旧 /my 数组契约供已有页面使用。 */
+  async myCallsPage(userId: string, rawPage?: string, rawPageSize?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const [items, counts] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT c.*,
+           caller."nickname" AS "callerName", caller."avatar" AS "callerAvatar",
+           expert."nickname" AS "expertName", expert."avatar" AS "expertAvatar"
+         FROM "ConsultCall" c
+         LEFT JOIN "User" caller ON caller."id" = c."callerId"
+         LEFT JOIN "User" expert ON expert."id" = c."expertId"
+         WHERE c."callerId" = $1 OR c."expertId" = $1
+         ORDER BY c."createdAt" DESC, c."id" DESC LIMIT $2 OFFSET $3`,
+        userId, pageSize, skip,
+      ),
+      this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+        `SELECT COUNT(*) AS count FROM "ConsultCall" WHERE "callerId" = $1 OR "expertId" = $1`,
+        userId,
+      ),
+    ]);
+    return { items, total: Number(counts[0]?.count || 0), page, pageSize };
   }
 }
