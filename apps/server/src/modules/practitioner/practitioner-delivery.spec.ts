@@ -80,6 +80,31 @@ describe("从业者报告交付后锁定", () => {
     expect(report.shareToken).toBe("new-token");
   });
 
+  it("客户打开报告期间老师撤回链接时，不再交付正文", async () => {
+    const { service, prisma, report } = setup("live-token");
+    prisma.practitionerReport.findUnique = jest.fn(async ({ where }: any) =>
+      report.shareToken === where.shareToken ? { ...report } : null);
+    prisma.user = { findUnique: jest.fn(async () => {
+      report.shareToken = null;
+      return { nickname: "张老师", avatar: null };
+    }) };
+
+    await expect(service.getSharedReport("live-token")).rejects.toThrow("已被撤回");
+    expect(prisma.practitionerReport.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("有效交付链接仍能读取报告，响应不包含内部归属字段", async () => {
+    const { service, prisma, report } = setup("live-token");
+    prisma.practitionerReport.findUnique = jest.fn(async ({ where }: any) =>
+      report.shareToken === where.shareToken ? { ...report } : null);
+    prisma.user = { findUnique: jest.fn(async () => ({ nickname: "张老师", avatar: null })) };
+
+    const shared = await service.getSharedReport("live-token");
+    expect(shared.title).toBe("原稿");
+    expect(shared.brand.brandName).toBe("张老师");
+    expect(shared).not.toHaveProperty("ownerId");
+  });
+
   it("并发生成交付链接时返回同一令牌，重复请求不刷新链接", async () => {
     const { service, prisma, report } = setup(null);
     let reads = 0;

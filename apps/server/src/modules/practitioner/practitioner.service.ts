@@ -421,6 +421,11 @@ export class PractitionerService {
       where: { id: r.ownerId },
       select: { nickname: true, avatar: true },
     });
+    const stillShared = await this.prisma.practitionerReport.findUnique({
+      where: { shareToken: token },
+      select: { id: true },
+    });
+    if (stillShared?.id !== r.id) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
     return {
       title: r.title,
       typeLabel: r.typeLabel,
