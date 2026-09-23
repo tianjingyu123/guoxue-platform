@@ -64,3 +64,42 @@ describe("GrowthService reviewJoinRequest 治理接线", () => {
     expect(prisma.circleRuleAck.findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe("GrowthService checkin 原子性", () => {
+  let svc: GrowthService;
+  let prisma: any;
+
+  beforeEach(() => {
+    prisma = {
+      circleMember: { findUnique: jest.fn().mockResolvedValue({ id: "member-1" }) },
+      $queryRawUnsafe: jest.fn().mockResolvedValueOnce([]).mockResolvedValue([{ checkinExp: 10, checkinStreak: 1, totalCheckins: 1 }]),
+      $executeRawUnsafe: jest.fn().mockResolvedValue(1),
+      $transaction: jest.fn(async (run: (tx: any) => Promise<unknown>) => run(prisma)),
+    };
+    svc = new GrowthService(prisma);
+  });
+
+  it("签到记录和经验在同一事务内写入", async () => {
+    const result = await svc.checkin("circle-1", "user-1");
+    expect(result.alreadyChecked).toBe(false);
+    expect(result.expGained).toBe(10);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRawUnsafe.mock.calls[0][0]).toContain('INSERT INTO "CircleCheckin"');
+    expect(prisma.$executeRawUnsafe.mock.calls[1][0]).toContain('INSERT INTO "CircleMemberGrowth"');
+  });
+
+  it("唯一索引报告已签到时不重复累加经验", async () => {
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
+    const result = await svc.checkin("circle-1", "user-1");
+    expect(result.alreadyChecked).toBe(true);
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+  });
+
+  it("成长写入失败时不返回签到成功", async () => {
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(1).mockRejectedValueOnce(new Error("growth write failed"));
+    await expect(svc.checkin("circle-1", "user-1")).rejects.toThrow("growth write failed");
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2);
+  });
+});

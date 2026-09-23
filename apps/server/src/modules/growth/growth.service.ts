@@ -134,13 +134,30 @@ export class GrowthService {
     const bonus = CHECKIN_STREAK_BONUS[streak] ?? 0;
     const expGained = CHECKIN_BASE_EXP + bonus;
 
-    // 插入签到记录（唯一索引兜底幂等：并发下若已存在则 affected=0）
-    const inserted = await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleCheckin" ("id","circleId","userId","checkinDate","expGained","createdAt")
-       VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
-       ON CONFLICT ("circleId","userId","checkinDate") DO NOTHING`,
-      randomUUID(), circleId, userId, today, expGained,
-    );
+    // 签到记录和成长经验必须一起提交；成长写入失败时回滚唯一签到记录，允许安全重试。
+    // 唯一索引兜底幂等：并发下若已存在则 affected=0，不再次累加经验。
+    const inserted = await this.prisma.$transaction(async (tx) => {
+      const affected = await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleCheckin" ("id","circleId","userId","checkinDate","expGained","createdAt")
+         VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
+         ON CONFLICT ("circleId","userId","checkinDate") DO NOTHING`,
+        randomUUID(), circleId, userId, today, expGained,
+      );
+      if (affected === 0) return 0;
+
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CircleMemberGrowth" ("id","circleId","userId","checkinExp","checkinStreak","lastCheckin","totalCheckins","updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,1,CURRENT_TIMESTAMP)
+         ON CONFLICT ("circleId","userId") DO UPDATE SET
+           "checkinExp" = "CircleMemberGrowth"."checkinExp" + $4,
+           "checkinStreak" = $5,
+           "lastCheckin" = $6,
+           "totalCheckins" = "CircleMemberGrowth"."totalCheckins" + 1,
+           "updatedAt" = CURRENT_TIMESTAMP`,
+        randomUUID(), circleId, userId, expGained, streak, today,
+      );
+      return affected;
+    });
     if (inserted === 0) {
       const cur = await this.getGrowthRow(circleId, userId);
       return {
@@ -152,19 +169,6 @@ export class GrowthService {
         checkinExp: this.num(cur?.checkinExp),
       };
     }
-
-    // upsert 成长行：经验累加、连续天数置为计算值、记录今日、总签到 +1
-    await this.prisma.$executeRawUnsafe(
-      `INSERT INTO "CircleMemberGrowth" ("id","circleId","userId","checkinExp","checkinStreak","lastCheckin","totalCheckins","updatedAt")
-       VALUES ($1,$2,$3,$4,$5,$6,1,CURRENT_TIMESTAMP)
-       ON CONFLICT ("circleId","userId") DO UPDATE SET
-         "checkinExp" = "CircleMemberGrowth"."checkinExp" + $4,
-         "checkinStreak" = $5,
-         "lastCheckin" = $6,
-         "totalCheckins" = "CircleMemberGrowth"."totalCheckins" + 1,
-         "updatedAt" = CURRENT_TIMESTAMP`,
-      randomUUID(), circleId, userId, expGained, streak, today,
-    );
 
     const after = await this.getGrowthRow(circleId, userId);
     return {
