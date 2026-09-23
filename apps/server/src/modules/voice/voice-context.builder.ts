@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { XiaobuCommerceService } from "./xiaobu-commerce.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PERSONAS } from "../dialogue/dialogue-personas";
@@ -11,7 +12,7 @@ import { MAX_CONTEXT_CHARS, MinimalVoiceContext, VoiceScene } from "./provider/v
  * 小卜语音场景上下文（S01/S02/S06/S07/S08）
  *
  * 职责只有两件：
- * 1. **归属校验**：报告只给本人、圈子只给有效成员、段落只给已发布古籍；身份一律来自 JWT，不接受客户端传 userId。
+ * 1. **归属与权益校验**：报告只给当前有权的本人、圈子只给有效成员、段落只给已发布古籍；身份一律来自 JWT。
  * 2. **最小上下文**：只把当前场景必需的内容交给供应商，出生信息、手机号、笔记、完整聊天记录都不进。
  *
  * 语音由小智完整生成回答，这里给的是「正在讨论什么」，不是替它写答案。
@@ -86,7 +87,7 @@ function enforceBudget(ctx: MinimalVoiceContext): MinimalVoiceContext {
 
 @Injectable()
 export class VoiceContextBuilder {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly commerce: XiaobuCommerceService) {}
 
   async resolve(userId: string, req: VoiceContextRequest): Promise<ResolvedVoiceContext> {
     switch (req.scene) {
@@ -132,16 +133,27 @@ export class VoiceContextBuilder {
     if (!req.contextId) throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少报告编号");
     const report = await this.prisma.aiAnalysisRecord.findUnique({
       where: { id: req.contextId },
-      select: { id: true, userId: true, scene: true, analysisContent: true, paipanRecordId: true, paipanRecord: { select: { clientName: true } } },
+      select: {
+        id: true, userId: true, scene: true, analysisContent: true, analyzeType: true, paipanRecordId: true,
+        paipanRecord: { select: { clientName: true, userId: true } },
+      },
     });
     if (!report || report.scene !== "paipan_report") throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
     if (report.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该报告");
+    if (report.paipanRecordId && (!report.paipanRecord || report.paipanRecord.userId !== userId)) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "报告关联的原排盘记录不存在");
+    }
 
     let content: any = null;
     try {
       content = JSON.parse(report.analysisContent);
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
+    }
+    const accessType = content?.metadata?.reportType ||
+      (report.analyzeType?.startsWith("REPORT_") ? report.analyzeType.slice(7).toLowerCase() : "");
+    if (report.paipanRecordId && accessType) {
+      await this.commerce.assertReportAccess(userId, report.paipanRecordId, accessType);
     }
     const sections: any[] = Array.isArray(content?.sections) ? content.sections : [];
     const outline: any[] = Array.isArray(content?.dialogueOutline) ? content.dialogueOutline : [];
