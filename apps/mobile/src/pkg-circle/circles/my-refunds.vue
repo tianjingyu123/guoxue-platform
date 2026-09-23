@@ -11,21 +11,25 @@ import { goBack, navigateTo } from '@/utils/router'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { formatPrice } from '@/utils/format'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 const list = ref<RefundRequestItem[]>([])
 const eligibleCircles = ref<MyCircle[]>([])
 const balance = ref(0)
 const loading = ref(true)
 const error = ref('')
+const circlesLoadError = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 async function load() {
   loading.value = true
   error.value = ''
+  circlesLoadError.value = false
   try {
     const [refunds, wallet, circles] = await Promise.all([
-      refundApi.myRefunds(),
-      refundApi.wallet(),
-      circleApi.getMyCircles().catch(() => []),
+      refundApi.myRefunds({ throwOnError: true }),
+      refundApi.wallet({ throwOnError: true }),
+      circleApi.getMyCircles().catch(() => { circlesLoadError.value = true; return [] }),
     ])
     list.value = refunds
     balance.value = wallet.balance
@@ -157,8 +161,8 @@ onMounted(load)
 <template>
   <view class="rf-page">
     <!-- 顶栏 -->
-    <view class="rf-topbar">
-      <view class="rf-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="rf-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="rf-back" role="button" aria-label="返回我的圈子" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="rf-title">会员与售后</text>
     </view>
 
@@ -166,7 +170,7 @@ onMounted(load)
     <view class="rf-wallet">
       <view class="rf-wallet-main">
         <text class="rf-wallet-label">可提现余额</text>
-        <text class="rf-wallet-amount">¥{{ formatPrice(balance) }}</text>
+        <text class="rf-wallet-amount">{{ loading || error ? '暂未确认' : `¥${formatPrice(balance)}` }}</text>
       </view>
       <view class="rf-wallet-btn" @tap="toWithdraw"><text class="rf-wallet-btn-t">去提现</text></view>
     </view>
@@ -231,6 +235,13 @@ onMounted(load)
       </view>
       <app-icon name="chevron-right" :size="28" color="#B7B1A8" />
     </view>
+    <view v-else-if="!loading && !error && circlesLoadError" class="rf-member-care" role="button" aria-label="重试加载会员事项" @tap="load">
+      <view class="rf-member-care-copy">
+        <text class="rf-member-care-title">会员事项暂时无法加载</text>
+        <text class="rf-member-care-sub">点此重试，不影响上方退款记录</text>
+      </view>
+      <app-icon name="refresh-cw" :size="28" color="#6E6E73" />
+    </view>
   </view>
 </template>
 
@@ -246,7 +257,7 @@ onMounted(load)
   background: rgba(250, 248, 245, 0.88); backdrop-filter: blur(24rpx);
 }
 .rf-back {
-  width: 64rpx; height: 64rpx; border-radius: 999rpx;
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }

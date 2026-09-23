@@ -146,7 +146,7 @@ export const refundApi = {
   ownerReview: (id: string, approve: boolean, rejectReason?: string) =>
     apiPost(`/circle-refund/${id}/owner-review`, { approve, rejectReason }),
   /** 我的余额钱包 — GET /circle-refund/wallet */
-  wallet: async (): Promise<WalletInfo> => {
+  wallet: async (options: { throwOnError?: boolean } = {}): Promise<WalletInfo> => {
     try {
       const r = await apiGet<RawWallet>('/circle-refund/wallet')
       const txns = Array.isArray(r?.transactions) ? r.transactions : []
@@ -157,7 +157,8 @@ export const refundApi = {
           remark: t.remark ?? '', createdAt: t.createdAt,
         })),
       }
-    } catch {
+    } catch (error) {
+      if (options.throwOnError) throw error
       return { balance: 0, transactions: [] }
     }
   },

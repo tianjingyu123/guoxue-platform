@@ -15,6 +15,7 @@ import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
 import { growthApi, type JoinRequestItem } from '@/lib/circle-growth-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 type ReviewType = 'join' | 'refund'
 type StateTab = 'pending' | 'processed'
@@ -25,6 +26,7 @@ const stateTab = ref<StateTab>('pending')
 
 const loading = ref(true)
 const loadError = ref(false)
+const refundsError = ref(false)
 const joinRequests = ref<JoinRequestItem[]>([])
 const refunds = ref<RefundRequestItem[]>([])
 const submittingId = ref<string | null>(null)
@@ -36,19 +38,22 @@ const rejectReason = ref('')
 const pendingJoin = computed(() => joinRequests.value.filter((r) => r.status === 'PENDING'))
 const processedJoin = computed(() => joinRequests.value.filter((r) => r.status !== 'PENDING'))
 const pendingRefunds = computed(() => refunds.value.filter((r) => r.ownerStatus === 'pending'))
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 async function load() {
   if (!circleId.value) { loading.value = false; loadError.value = true; return }
   loading.value = true
   loadError.value = false
+  refundsError.value = false
   try {
     const [jRes, rRes] = await Promise.allSettled([
       growthApi.joinRequests(circleId.value),
-      refundApi.ownerPending(),
+      refundApi.ownerPending({ throwOnError: true }),
     ])
     if (jRes.status === 'rejected') throw new Error('load failed')
     joinRequests.value = jRes.value
-    refunds.value = rRes.status === 'fulfilled' ? rRes.value.filter((r) => r.circleId === circleId.value) : []
+    if (rRes.status === 'rejected') refundsError.value = true
+    else refunds.value = rRes.value.filter((r) => r.circleId === circleId.value)
   } catch {
     loadError.value = true
   } finally {
@@ -141,8 +146,8 @@ onLoad((q) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
-      <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="back-btn" role="button" aria-label="返回管理中心" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">审核</text>
     </view>
 
@@ -234,12 +239,17 @@ onLoad((q) => {
 
       <!-- ═══ 退款初审 ═══ -->
       <template v-else>
-        <view v-if="!pendingRefunds.length" class="state-view">
+        <view v-if="refundsError" class="state-view">
+          <app-icon name="alert-circle" :size="64" color="#C9A96E" />
+          <text class="state-desc">退款申请暂时无法加载，未确认是否有待审事项</text>
+          <view class="state-btn" role="button" aria-label="重新加载退款申请" @tap="load"><text class="state-btn-txt">重试</text></view>
+        </view>
+        <view v-else-if="!pendingRefunds.length" class="state-view">
           <app-icon name="check" :size="64" color="#5B8A5E" />
           <text class="state-title">暂无待审退款</text>
           <text class="state-desc">成员发起退款申请后会在这里等待你初审</text>
         </view>
-        <view v-for="r in pendingRefunds" :key="r.id" class="card">
+        <view v-for="r in refundsError ? [] : pendingRefunds" :key="r.id" class="card">
           <view class="applicant">
             <view class="avatar-wrap">
               <image v-if="r.userAvatar" lazy-load :src="r.userAvatar" class="avatar" mode="aspectFill" />
@@ -305,7 +315,7 @@ onLoad((q) => {
   padding-top: calc(var(--status-bar-height, 0px) + 28rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
 }
-.back-btn { display: flex; align-items: center; }
+.back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
 
 /* 类型双 Tab */
@@ -404,7 +414,7 @@ onLoad((q) => {
 .state-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; padding: 120rpx 80rpx; }
 .state-title { font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin-top: 8rpx; }
 .state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
-.state-btn { margin-top: 24rpx; height: 72rpx; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.state-btn { margin-top: 24rpx; min-height: 44px; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .state-btn-txt { color: #ffffff; font-size: 26rpx; font-weight: 500; }
 
 /* 拒绝理由弹层 */
