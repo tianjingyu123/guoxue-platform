@@ -63,13 +63,36 @@
           </view>
           <view v-else class="ai-assist-wrap">
             <view class="ai-card ai-card--assist">
-              <text class="ai-card-text">{{ m.content }}</text>
+              <ai-readable-answer :content="m.content" />
             </view>
             <view class="ai-card-ops ai-card-ops--bare">
               <view class="ai-op" @tap="regenerate"><app-icon name="rotate-ccw" :size="28" color="#999999" /></view>
               <view class="ai-op" @tap="rate(m.id, true)"><app-icon name="thumbs-up" :size="28" :color="liked[m.id] === true ? '#22c55e' : '#999999'" /></view>
               <view class="ai-op" @tap="rate(m.id, false)"><app-icon name="thumbs-down" :size="28" :color="liked[m.id] === false ? '#ef4444' : '#999999'" /></view>
               <view class="ai-op" @tap="copyMsg(m.content)"><app-icon name="copy" :size="28" color="#999999" /></view>
+            </view>
+            <view v-if="m.cards?.length" class="ai-guide">
+              <text class="ai-guide-title">接着读</text>
+              <view
+                v-for="card in m.cards"
+                :key="`${card.type}:${card.id}`"
+                class="ai-guide-item"
+                role="button"
+                tabindex="0"
+                :aria-label="`打开${card.title}`"
+                @tap="openGuideCard(card)"
+                @keydown="onGuideKeydown($event, card)"
+              >
+                <image v-if="card.cover" class="ai-guide-cover" :src="card.cover" mode="aspectFill" lazy-load />
+                <view v-else class="ai-guide-seal"><text>{{ cardLabel(card.type) }}</text></view>
+                <view class="ai-guide-info">
+                  <text class="ai-guide-kind">{{ cardLabel(card.type) }}</text>
+                  <text class="ai-guide-name">{{ card.title }}</text>
+                  <text v-if="card.subtitle" class="ai-guide-summary">{{ card.subtitle }}</text>
+                  <text v-if="card.price && card.price > 0" class="ai-guide-price">收费内容，以详情页为准</text>
+                </view>
+                <text class="ai-guide-arrow">›</text>
+              </view>
             </view>
           </view>
         </view>
@@ -121,15 +144,24 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AiReadableAnswer from '@/components/common/ai-readable-answer.vue'
 import { classicsApi } from '@/lib/classics-data'
+import { aiSearchApi, type AiGuideCard, type AiGuideCardType } from '@/lib/ai-search-data'
+import { canOpenAiGuideTarget, selectReadingGuideCards, shouldShowLearningGuide } from '@/lib/ai-reading-guide'
 import { getToken } from '@/utils/storage'
+import { track } from '@/composables/useTrack'
 
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  cards?: AiGuideCard[]
 }
+
+const CARD_LABELS: Record<AiGuideCardType, string> = { classic: '古籍', article: '文章', course: '课程', circle: '圈子', content: '内容' }
+function cardLabel(type: AiGuideCardType) { return CARD_LABELS[type] }
 
 const suggestedQuestions = [
   '《论语》中“仁”到底是什么意思？',
@@ -143,6 +175,8 @@ const inputValue = ref('')
 const isLoading = ref(false)
 const liked = ref<Record<string, boolean | null>>({})
 const scrollAnchor = ref('')
+let conversationVersion = 0
+onUnload(() => { conversationVersion++ })
 
 function goBack() {
   uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })
@@ -155,7 +189,9 @@ function pickQuestion(q: string) {
 function clearChat() {
   if (!messages.value.length) return
   uni.showModal({
-    title: '清空对话', content: '确定清空当前对话记录吗？', confirmColor: '#C41E3A', success: (r) => { if (r.confirm) messages.value = [] },
+    title: '清空对话', content: '确定清空当前对话记录吗？', confirmColor: '#C41E3A', success: (r) => {
+      if (r.confirm) { conversationVersion++; messages.value = []; isLoading.value = false }
+    },
   })
 }
 
@@ -181,6 +217,7 @@ async function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isLoading.value) return
   if (!ensureLogin()) return
+  const version = conversationVersion
 
   messages.value.push({ id: Date.now().toString(), role: 'user', content: text })
   inputValue.value = ''
@@ -189,13 +226,41 @@ async function handleSend() {
 
   try {
     const r = await classicsApi.askAI(text)
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: r?.answer || '抱歉，我暂时无法回答这个问题。' })
+    if (version !== conversationVersion) return
+    const message: ChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: r?.answer || '暂时没有找到合适的解答，请换个问法。' }
+    messages.value.push(message)
+    if (r?.answer && shouldShowLearningGuide(text)) void attachGuide(message.id, text, version)
   } catch (e) {
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。' })
+    if (version !== conversationVersion) return
+    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: (e as Error)?.message || '暂时连不上古籍助手，请稍后重试。' })
   } finally {
-    isLoading.value = false
-    scrollToBottom()
+    if (version === conversationVersion) { isLoading.value = false; scrollToBottom() }
   }
+}
+
+async function attachGuide(messageId: string, question: string, version: number) {
+  try {
+    const result = await aiSearchApi.guide(question)
+    if (version !== conversationVersion) return
+    const message = messages.value.find((item) => item.id === messageId)
+    if (!message) return
+    message.cards = selectReadingGuideCards(result.cards || [], question)
+    if (message.cards.length) scrollToBottom()
+  } catch {
+    // 公开内容导览是增强能力，不影响已完成的古籍解答。
+  }
+}
+
+function openGuideCard(card: AiGuideCard) {
+  if (!canOpenAiGuideTarget(card.target)) return
+  track.custom('classic_ai_content_open', { type: card.type, id: card.id })
+  uni.navigateTo({ url: card.target })
+}
+
+function onGuideKeydown(event: KeyboardEvent, card: AiGuideCard) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  openGuideCard(card)
 }
 
 function copyMsg(content: string) {
@@ -280,12 +345,17 @@ function regenerate() {
 .ai-card--assist {
   border-top-left-radius: 8rpx;
 }
-.ai-card-text {
-  font-size: 28rpx;
-  line-height: 1.6;
-  color: #1a1a1a;
-  white-space: pre-wrap;
-}
+.ai-guide { margin-top: 18rpx; }
+.ai-guide-title { display: block; margin-bottom: 12rpx; color: #6f5660; font-size: 25rpx; font-weight: 700; }
+.ai-guide-item { display: flex; align-items: center; gap: 16rpx; min-height: 116rpx; margin-top: 10rpx; padding: 12rpx; border: 1rpx solid #ebe6df; border-radius: 16rpx; background: #fff; }
+.ai-guide-cover { width: 84rpx; height: 92rpx; flex-shrink: 0; border-radius: 8rpx; }
+.ai-guide-seal { width: 84rpx; height: 92rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8rpx; background: #f3ede6; color: #7b4b52; font-family: "Songti SC", "STSong", serif; font-size: 24rpx; }
+.ai-guide-info { flex: 1; min-width: 0; }
+.ai-guide-kind { display: block; color: #8c7374; font-size: 21rpx; }
+.ai-guide-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #252a34; font-size: 27rpx; font-weight: 600; }
+.ai-guide-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #737985; font-size: 22rpx; }
+.ai-guide-price { display: block; color: #845331; font-size: 21rpx; }
+.ai-guide-arrow { color: #a42b3c; font-size: 34rpx; }
 .ai-card-ops {
   display: flex;
   align-items: center;

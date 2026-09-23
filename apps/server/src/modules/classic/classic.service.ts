@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { CreateAnnotationDto } from "./classic.dto";
 import { JwtService } from "@nestjs/jwt";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 import { TextDerivedAssetService, TextAssetRequest } from "./text-derived-asset.service";
 import { createHash } from "node:crypto";
 import {
@@ -545,12 +546,12 @@ export class ClassicService {
 
   // ── 古籍AI问答（自由对话） ──
   async askClassic(question: string) {
-    const prompt = `你是一位博学儒雅的国学与古籍专家，贯通经史子集、释道医卜。
+    const prompt = withUserAnswerExperience(`你是一位博学儒雅的国学与古籍专家，贯通经史子集、释道医卜。
 请用通俗易懂的白话，准确且有据地回答用户关于古籍、传统文化的问题。要求：
-1. 引用相关古籍原文或观点时，注明出处书名（如《论语·学而》）；
-2. 深入浅出、生动有趣，让古籍学习不再枯燥难懂，必要时举例或打比方；
-3. 若问题超出古籍与传统文化范畴，礼貌地引导回国学话题；
-4. 回答条理清晰，控制在 500 字以内。`;
+1. 单句古文先给一句白话解释；用户只打招呼时简短回应，不展开讲课。
+2. 引用原文或观点时尽量注明可核对的书名、篇名；出处不确定就明确说不确定，不编造原句。
+3. 复杂问题先说关键结论，再用少量依据和贴近生活的例子解释；不要为了凑字数罗列典故。
+4. 若问题超出古籍与传统文化范畴，简短说明边界，并指向更合适的功能。`);
     const result = await this.gateway.chat({
       scene: "classic_qa",
       messages: [

@@ -74,7 +74,7 @@
           </view>
           <view class="ai-answer-body">
             <text v-if="isSearching" class="ai-answer-text">正在整理回答与相关内容…</text>
-            <text v-else class="ai-answer-text">{{ response }}</text>
+            <ai-readable-answer v-else :content="response" />
           </view>
         </view>
         <view v-if="cards.length" class="ai-results">
@@ -122,8 +122,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AiReadableAnswer from '@/components/common/ai-readable-answer.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { aiSearchApi, type AiGuideCard, type AiGuideCardType } from '@/lib/ai-search-data'
+import { canOpenAiGuideTarget } from '@/lib/ai-reading-guide'
 import { BRAND } from '@/lib/brand'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
@@ -185,7 +187,7 @@ function openLogin() {
 }
 
 function openCard(card: AiGuideCard) {
-  if (!/^\/(pkg-classics\/detail\/index|pkg-circle\/(articles|circles)\/detail|pkg-course\/detail\/index)\?id=[^&#]+$/.test(card.target)) return
+  if (!canOpenAiGuideTarget(card.target)) return
   track.custom('ai_search_content_open', { type: card.type, id: card.id })
   onClose()
   navigateTo(card.target)

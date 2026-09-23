@@ -49,6 +49,19 @@ describe("ClassicService", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
+  describe("askClassic", () => {
+    it("按问题难度控制篇幅，并要求不确定出处不编造", async () => {
+      mockGateway.chat.mockResolvedValue({ content: "仁，就是能体谅并善待他人。" });
+      const result = await svc.askClassic("仁是什么意思？");
+      expect(result.answer).toBe("仁，就是能体谅并善待他人。");
+      const systemPrompt = mockGateway.chat.mock.calls[0][0].messages[0].content as string;
+      expect(systemPrompt).toContain("寒暄、确认、简单事实");
+      expect(systemPrompt).toContain("单句古文先给一句白话解释");
+      expect(systemPrompt).toContain("出处不确定就明确说不确定");
+      expect(systemPrompt).not.toContain("控制在 500 字以内");
+    });
+  });
+
   describe("listBooks", () => {
     it("返回分页书籍列表", async () => {
       mockPrisma.classicBook.findMany.mockResolvedValue([{ id: "b1", title: "论语" }]);
