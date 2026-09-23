@@ -196,5 +196,5 @@ export const wsApi = {
 
 /** 开通/续费从业者会员：走商城订单（在线支付 → 回调开通，与书院会员互不影响） */
 export function createProOrder() {
-  return apiPost<{ id: string; amount: number }>('/shop/orders', { type: 'PRACTITIONER_PRO' })
+  return apiPost<{ id: string; amount: number }>('/shop/orders', { type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', amount: 1 })
 }

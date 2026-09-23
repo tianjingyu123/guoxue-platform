@@ -99,6 +99,74 @@ describe("ShopOrderService", () => {
     })
   })
 
+  describe("数字服务待付订单恢复", () => {
+    beforeEach(() => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null)
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 98 })
+      mockPrisma.paipanRecord = { findUnique: jest.fn().mockResolvedValue({ userId: "u1" }) }
+      mockPrisma.entitlementLedger = { findMany: jest.fn().mockResolvedValue([]) }
+    })
+
+    it.each([
+      ["XIAOBU_REPORT", "record-1:general", 29],
+      ["XIAOBU_MEMBER", "MONTHLY", 150],
+      ["PRACTITIONER_PRO", "practitioner_pro_monthly", 98],
+    ])("%s 同标的再次下单复用原待付单", async (type, targetId, amount) => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "original", amount, couponId: null, status: "PENDING" })
+      const result = await svc.createOrder("u1", { type: type as any, targetId, amount: 1 })
+      expect(result.id).toBe("original")
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `digital-order:${type}:u1:${targetId}`,
+      )
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+      expect(mockRedis.del).toHaveBeenCalledWith(`digital-order:create:${type}:u1:${targetId}`)
+    })
+
+    it("原单金额与当前定价不同则提示先取消，不另建可扣款订单", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "old-price", amount: 88, couponId: null, status: "PENDING" })
+      await expect(svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1 }))
+        .rejects.toThrow("金额已变化")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("优惠券不同不复用原单，也不自动创建第二张订单", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "coupon-order", amount: 88, couponId: "coupon-1", status: "PENDING" })
+      await expect(svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1 }))
+        .rejects.toThrow("已有待支付订单")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("同一优惠券重复进入时复用已核销到原单的价格", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "coupon-order", amount: 88, couponId: "coupon-1", status: "PENDING" })
+      const result = await svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1, couponId: "coupon-1" })
+      expect(result.id).toBe("coupon-order")
+      expect(mockPrisma.userCoupon.updateMany).not.toHaveBeenCalled()
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("没有原待付单时正常创建一张订单", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue(null)
+      mockPrisma.order.create.mockResolvedValue({ id: "new-order", amount: 98, status: "PENDING" })
+      const result = await svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1 })
+      expect(result.id).toBe("new-order")
+      expect(mockPrisma.order.create).toHaveBeenCalledTimes(1)
+    })
+
+    it("同标的并发建单锁冲突时拒绝第二笔", async () => {
+      mockRedis.setNX.mockResolvedValueOnce(false)
+      await expect(svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "practitioner_pro_monthly", amount: 1 }))
+        .rejects.toThrow("支付订单正在创建")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("从业者会员拒绝伪造标的，避免绕开同标的待付单锁", async () => {
+      await expect(svc.createOrder("u1", { type: "PRACTITIONER_PRO", targetId: "another-plan", amount: 1 }))
+        .rejects.toThrow("档位不存在")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+  })
+
   // ═══════════════════ 白标贺卡（供-P2） ═══════════════════
 
   describe("白标贺卡 giftCardMeta（供-P2）", () => {
