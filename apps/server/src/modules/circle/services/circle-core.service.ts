@@ -11,6 +11,7 @@ import { CreateCircleDto, UpdateCircleDto, AdminUpdateCircleDto } from "../circl
 import { Prisma, CircleType, CircleStatus } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
 import { publicQuarantinedIds } from "../../../common/public-content-quarantine";
+import { CircleGovernanceService } from "../governance/circle-governance.service";
 
 /**
  * 圈子-核心域（从 circle.service 拆出·纯搬家不改逻辑）。
@@ -24,6 +25,7 @@ export class CircleCoreService {
     private redis: RedisService,
     private audit: AuditService,
     private shared: CircleSharedService,
+    private governance: CircleGovernanceService,
   ) {}
 
   // ───────── 圈子 CRUD ─────────
@@ -372,13 +374,25 @@ export class CircleCoreService {
   // ───────── 圈子邀请 ─────────
 
   async generateInviteCode(circleId: string, userId: string, maxUses = 0) {
+    const requestedUses = Number(maxUses);
+    if (!Number.isSafeInteger(requestedUses) || requestedUses < 0 || requestedUses > 10000) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "邀请码使用次数无效");
+    }
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member) throw new BusinessException(ErrorCode.CIRCLE_NOT_MEMBER, "你不是该圈子成员");
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId }, select: { type: true } });
+    if (circle?.type !== "FREE") {
+      throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "付费圈子请分享预览页，由好友完成支付");
+    }
 
     const existing = await this.prisma.circleInviteCode.findFirst({
-      where: { circleId, userId, expiredAt: { gte: new Date() } },
+      where: {
+        circleId, userId, maxUses: requestedUses,
+        ...(requestedUses > 0 ? { useCount: { lt: requestedUses } } : {}),
+        OR: [{ expiredAt: null }, { expiredAt: { gte: new Date() } }],
+      },
       orderBy: { createdAt: "desc" },
     });
     if (existing) return existing;
@@ -388,13 +402,16 @@ export class CircleCoreService {
     const code = `${prefix}${random}`;
 
     return this.prisma.circleInviteCode.create({
-      data: { circleId, userId, code, maxUses },
+      data: { circleId, userId, code, maxUses: requestedUses },
     });
   }
 
-  async joinByInviteCode(code: string, inviteeId: string) {
+  async joinByInviteCode(code: string, inviteeId: string, expectedCircleId?: string) {
     const inviteCode = await this.prisma.circleInviteCode.findUnique({ where: { code } });
     if (!inviteCode) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码无效");
+    if (expectedCircleId && inviteCode.circleId !== expectedCircleId) {
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码不属于当前圈子");
+    }
     if (inviteCode.expiredAt && new Date(inviteCode.expiredAt) < new Date()) {
       throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码已过期");
     }
@@ -405,6 +422,10 @@ export class CircleCoreService {
     const circle = await this.prisma.circle.findUnique({ where: { id: inviteCode.circleId } });
     if (!circle || circle.status !== "ACTIVE") {
       throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    }
+    // 邀请码不属于付费权益，不能绕过付费入圈。
+    if (circle.type !== "FREE") {
+      throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "付费圈子请先完成支付");
     }
 
     const existingMember = await this.prisma.circleMember.findUnique({
@@ -420,14 +441,22 @@ export class CircleCoreService {
     if (ban) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "你已被移出该圈子且被限制重新加入，如有异议可在处理通知中申诉");
     }
+    await this.governance.assertRuleAck(inviteCode.circleId, inviteeId);
 
     await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.circleInviteCode.updateMany({
+        where: {
+          id: inviteCode.id,
+          OR: [{ expiredAt: null }, { expiredAt: { gte: new Date() } }],
+          ...(inviteCode.maxUses > 0 ? { useCount: { lt: inviteCode.maxUses } } : {}),
+        },
+        data: { useCount: { increment: 1 } },
+      });
+      if (claimed.count !== 1) {
+        throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码已过期或已达使用上限");
+      }
       await tx.circleMember.create({
         data: { circleId: inviteCode.circleId, userId: inviteeId, role: "MEMBER" },
-      });
-      await tx.circleInviteCode.update({
-        where: { id: inviteCode.id },
-        data: { useCount: { increment: 1 } },
       });
       await tx.circleInvitation.create({
         data: {

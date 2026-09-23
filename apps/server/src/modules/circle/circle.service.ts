@@ -105,8 +105,8 @@ export class CircleService {
     return this.coreSvc.generateInviteCode(circleId, userId, maxUses);
   }
 
-  joinByInviteCode(code: string, inviteeId: string) {
-    return this.coreSvc.joinByInviteCode(code, inviteeId);
+  joinByInviteCode(code: string, inviteeId: string, expectedCircleId?: string) {
+    return this.coreSvc.joinByInviteCode(code, inviteeId, expectedCircleId);
   }
 
   listMyInviteCodes(circleId: string, userId: string) {

@@ -375,10 +375,12 @@ export const circleDetailApi = {
       }))
     } catch { return [] }
   },
-  // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}
-  // code=好友邀请码（可选）：随 join 一并传后端。⚠️ 后端是否消费 code 字段未核实——若未接则透传无副作用，仅作申请备注；归因/奖励需后端配合接线
-  join: (id: string, code?: string) =>
-    apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`, code ? { code } : undefined),
+  // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}。
+  join: (id: string) =>
+    apiPost<{ success?: boolean; status?: string; message?: string; circleId?: string }>(`/circles/${id}/join`),
+  // 邀请码走独立入口，服务端核验圈子、限次、圈规与归因；不可透传给普通 join。
+  joinByInviteCode: (code: string, circleId: string) =>
+    apiPost<{ success?: boolean; status?: string; message?: string; circleId?: string }>(`/circles/join-by-code`, { code, circleId }),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
   /**
    * 查询当前用户入圈状态 — GET /circles/:id/join/status（需登录，权威判断是否已加入 / 角色）。

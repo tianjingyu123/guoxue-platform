@@ -9,10 +9,11 @@
  *       V0 记录行「+30 金币/待生效」奖励列 → 仅显加入时间；海报二维码为占位图标（复用 share-poster 现有能力）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { buildH5Url } from '@/utils/share'
+import { useShare } from '@/composables/useShare'
 import { inviteApi, type InviteCodeItem, type InviteRecord } from '@/lib/circle-invite-data'
 import { circleDetailApi, type CircleDetail } from '@/lib/circle-detail-data'
 import { mineApi } from '@/lib/mine-data'
@@ -29,24 +30,28 @@ const me = ref<{ nickname: string; avatar: string } | null>(null)
 
 const generating = ref(false)
 const copied = ref(false)
+const { toAppMessage } = useShare()
 
 /** 当前可用邀请码（无过期/未用尽的第一个） */
 const activeCode = computed(() => codes.value.find((c) => c.status === 'active') || null)
 const totalUsed = computed(() => codes.value.reduce((s, c) => s + c.usedCount, 0))
+const isFreeCircle = computed(() => circle.value?.type === 'FREE')
 
 async function load() {
   isLoading.value = true
   error.value = ''
   try {
-    const [c, list, stats] = await Promise.all([
-      circleDetailApi.detail(circleId.value),
-      inviteApi.listCodes(circleId.value),
-      inviteApi.getStats(circleId.value),
-    ])
+    const c = await circleDetailApi.detail(circleId.value)
     circle.value = c
-    codes.value = list
-    totalInvited.value = stats.total
-    records.value = stats.records
+    if (c.type === 'FREE') {
+      const [list, stats] = await Promise.all([
+        inviteApi.listCodes(circleId.value, { throwOnError: true }),
+        inviteApi.getStats(circleId.value),
+      ])
+      codes.value = list
+      totalInvited.value = stats.total
+      records.value = stats.records
+    }
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -62,10 +67,14 @@ async function generateCode() {
   generating.value = true
   try {
     await inviteApi.generate(circleId.value, 0)
-    codes.value = await inviteApi.listCodes(circleId.value)
-    uni.showToast({ title: '邀请码已生成', icon: 'success' })
+    try {
+      codes.value = await inviteApi.listCodes(circleId.value, { throwOnError: true })
+      uni.showToast({ title: '邀请码已生成', icon: 'success' })
+    } catch {
+      uni.showToast({ title: '已提交生成，请刷新查看', icon: 'none' })
+    }
   } catch {
-    uni.showToast({ title: '生成失败，请重试', icon: 'none' })
+    uni.showToast({ title: '暂无法确认生成结果，请刷新查看', icon: 'none' })
   } finally {
     generating.value = false
   }
@@ -80,20 +89,23 @@ function copyCode() {
   })
 }
 
-/** 分享给好友：复制邀请链接（H5/App）；小程序引导右上角分享 */
+/** 分享给好友：邀请码直接进入预览页，省去再次查找或手填。 */
 function shareLink() {
-  const code = activeCode.value?.code
-  if (!code) { uni.showToast({ title: '请先生成邀请码', icon: 'none' }); return }
-  // #ifdef MP-WEIXIN
-  uni.showToast({ title: '请点击右上角分享', icon: 'none' })
-  // #endif
-  // #ifndef MP-WEIXIN
-  // 链接进圈子预览页；邀请码以文案携带（预览页无自动核销邀请码参数，避免造假查询参数）
-  const url = buildH5Url('pkg-circle/circles/preview', { id: circleId.value })
-  const text = `邀请你加入「${circle.value?.name || '圈子'}」：${url} 邀请码 ${code}`
+  const code = isFreeCircle.value ? activeCode.value?.code : undefined
+  if (isFreeCircle.value && !code) { uni.showToast({ title: '请先生成邀请码', icon: 'none' }); return }
+  const url = buildH5Url('pkg-circle/circles/preview', { id: circleId.value, code })
+  const text = `邀请你加入「${circle.value?.name || '圈子'}」：${url}`
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '邀请文案已复制', icon: 'none' }) })
-  // #endif
 }
+
+onShareAppMessage(() => {
+  const code = isFreeCircle.value ? activeCode.value?.code : undefined
+  return toAppMessage({
+    title: `${code ? '邀请你加入' : '来看看'}「${circle.value?.name || '圈子'}」`,
+    path: `/pkg-circle/circles/preview?id=${encodeURIComponent(circleId.value)}${code ? `&code=${encodeURIComponent(code)}` : ''}`,
+    cover: circle.value?.cover,
+  })
+})
 
 /** 生成海报（复用 share-poster 现有能力） */
 function openPoster() {
@@ -105,6 +117,11 @@ function fmtJoinDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日加入`
+}
+
+function codeValidity(code: InviteCodeItem): string {
+  const remaining = code.maxUses > 0 ? `还可使用 ${Math.max(0, code.maxUses - code.usedCount)} 次` : '不限次数'
+  return code.expiresAt ? `${remaining} · 有效至 ${code.expiresAt.slice(0, 10)}` : `${remaining} · 暂无到期日`
 }
 
 function formatCount(n: number): string { return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n) }
@@ -151,14 +168,14 @@ onMounted(load)
           </view>
         </view>
       </view>
-      <text class="iv-poster-note">可生成分享海报，或复制邀请码、邀请链接发给好友</text>
+      <text class="iv-poster-note">{{ isFreeCircle ? '可生成分享海报，或发送含邀请码的邀请链接' : '可生成分享海报，或发送圈子介绍链接' }}</text>
 
       <!-- 我的专属邀请码 -->
-      <text class="iv-label">我的专属邀请码</text>
-      <view class="iv-code-card">
+      <text v-if="isFreeCircle" class="iv-label">我的专属邀请码</text>
+      <view v-if="isFreeCircle" class="iv-code-card">
         <template v-if="activeCode">
           <view class="iv-code-main">
-            <text class="iv-code-sub">{{ activeCode.maxUses > 0 ? `可用 ${activeCode.maxUses} 次 · 已用 ${activeCode.usedCount}` : '长期有效 · 不限次数' }}</text>
+            <text class="iv-code-sub">{{ codeValidity(activeCode) }}</text>
             <text class="iv-code-value">{{ activeCode.code }}</text>
           </view>
           <view class="iv-code-copy" :class="{ ok: copied }" @tap="copyCode">
@@ -178,24 +195,25 @@ onMounted(load)
 
       <!-- 邀请说明（V0 奖励规则降级：无奖励结算后端，只写真实机制，不做金额承诺） -->
       <text class="iv-label">邀请说明</text>
-      <view class="iv-rule-card">
+      <view v-if="isFreeCircle" class="iv-rule-card">
         <view class="iv-rule-row">
           <view class="iv-rule-num"><text class="iv-rule-num-t">1</text></view>
           <text class="iv-rule-t">好友凭你的邀请码可直接加入圈子，无需审批</text>
         </view>
         <view class="iv-rule-row">
           <view class="iv-rule-num"><text class="iv-rule-num-t">2</text></view>
-          <text class="iv-rule-t">邀请码长期有效，可重复使用，随时可复制分享</text>
+          <text class="iv-rule-t">邀请码失效后可重新生成，分享链接会自动填入有效邀请码</text>
         </view>
         <view class="iv-rule-row">
           <view class="iv-rule-num"><text class="iv-rule-num-t">3</text></view>
           <text class="iv-rule-t">通过你的邀请码加入的好友会记入下方邀请记录</text>
         </view>
       </view>
+      <view v-else class="iv-rule-card"><text class="iv-rule-t">好友可先了解圈子，再按页面价格完成加入。分享不会跳过付款。</text></view>
 
       <!-- 我的邀请：真实统计三格 -->
-      <text class="iv-label">我的邀请</text>
-      <view class="iv-stats-row">
+      <text v-if="isFreeCircle" class="iv-label">我的邀请</text>
+      <view v-if="isFreeCircle" class="iv-stats-row">
         <view class="iv-stat-cell">
           <text class="iv-stat-num">{{ totalInvited }}</text>
           <text class="iv-stat-label">已邀请</text>
@@ -211,7 +229,7 @@ onMounted(load)
       </view>
 
       <!-- 邀请记录 -->
-      <view v-if="records.length" class="iv-record-card">
+      <view v-if="isFreeCircle && records.length" class="iv-record-card">
         <view v-for="r in records" :key="r.id" class="iv-record-row">
           <image v-if="r.avatar" :src="r.avatar" class="iv-record-avatar" mode="aspectFill" lazy-load />
           <view v-else class="iv-record-avatar ph"><app-icon name="user" :size="30" color="#999999" /></view>
@@ -221,14 +239,20 @@ onMounted(load)
           </view>
         </view>
       </view>
-      <view v-else class="iv-record-card empty">
+      <view v-else-if="isFreeCircle" class="iv-record-card empty">
         <text class="iv-record-empty-t">还没有邀请记录，把邀请码分享给好友吧</text>
       </view>
 
       <!-- 吸底分享栏 -->
       <view class="iv-share-bar">
         <view class="iv-share-btn secondary" @tap="openPoster"><text class="iv-share-btn-t">生成海报</text></view>
-        <view class="iv-share-btn primary" @tap="shareLink"><text class="iv-share-btn-t light">分享给好友</text></view>
+        <!-- #ifdef MP-WEIXIN -->
+        <button v-if="!isFreeCircle || activeCode" class="iv-share-btn primary" open-type="share"><text class="iv-share-btn-t light">分享给好友</text></button>
+        <view v-else class="iv-share-btn primary" @tap="shareLink"><text class="iv-share-btn-t light">分享给好友</text></view>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <view class="iv-share-btn primary" @tap="shareLink"><text class="iv-share-btn-t light">复制邀请链接</text></view>
+        <!-- #endif -->
       </view>
     </template>
   </view>
@@ -371,6 +395,7 @@ onMounted(load)
   display: flex; gap: 20rpx;
 }
 .iv-share-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; }
+.iv-share-btn::after { border: 0; }
 .iv-share-btn.secondary { border: 1rpx solid var(--separator, #EDE7DD); background: var(--bg-card, #fff); }
 .iv-share-btn.primary { background: var(--brand, #C41E3A); }
 .iv-share-btn-t { font-size: 28rpx; font-weight: 600; color: var(--text-primary, #2C2C2C); }

@@ -41,7 +41,7 @@ const mockPrisma = {
   // 治理 #10：加入前禁入校验（默认无移出禁入记录）
   circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
   // 邀请码入圈（治理旁路禁入拦截测试用）
-  circleInviteCode: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+  circleInviteCode: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   circleInvitation: { create: jest.fn(), count: jest.fn(), findMany: jest.fn() },
   circleAnnouncement: { findFirst: jest.fn() },
   $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg))),
@@ -215,12 +215,31 @@ describe("CircleService", () => {
   });
 
   // 治理 #10 旁路补全（2026-07-11）：邀请码入圈的禁入拦截
+  describe("generateInviteCode 免费圈边界", () => {
+    it("无到期日的现有邀请码可复用，不重复生成", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ id: "member-1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ type: "FREE" });
+      mockPrisma.circleInviteCode.findFirst.mockResolvedValue({ id: "code-1", code: "ABC123" });
+      const result = await coreSvc.generateInviteCode("c1", "u1");
+      expect(result.code).toBe("ABC123");
+      expect(mockPrisma.circleInviteCode.findFirst.mock.calls[0][0].where.OR).toContainEqual({ expiredAt: null });
+      expect(mockPrisma.circleInviteCode.create).not.toHaveBeenCalled();
+    });
+
+    it("付费圈不生成会绕过付款的入圈码", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ id: "member-1" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ type: "YEARLY" });
+      await expect(coreSvc.generateInviteCode("c1", "u1")).rejects.toThrow("请分享预览页");
+      expect(mockPrisma.circleInviteCode.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("joinByInviteCode 禁入拦截", () => {
     const inviteCode = { id: "ic1", code: "ABC123", circleId: "c1", userId: "inviter", expiredAt: null, maxUses: 0, useCount: 0 };
 
     it("被移出且禁入者不能靠邀请码绕回", async () => {
       mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
       mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ id: "v1" });
       await expect(coreSvc.joinByInviteCode("ABC123", "banned-user")).rejects.toThrow("限制重新加入");
@@ -233,12 +252,46 @@ describe("CircleService", () => {
 
     it("无禁入记录：邀请码正常入圈", async () => {
       mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
       mockPrisma.circleMember.create.mockResolvedValue({ id: "m1" });
       const res = await coreSvc.joinByInviteCode("ABC123", "u9");
       expect(res.success).toBe(true);
       expect(mockPrisma.circleMember.create).toHaveBeenCalled();
+      expect(mockPrisma.circleInviteCode.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: "ic1" }),
+      }));
+    });
+
+    it("付费圈的邀请码不能绕过付款建成员", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "PAID" });
+      await expect(coreSvc.joinByInviteCode("ABC123", "u9", "c1")).rejects.toThrow("先完成支付");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
+    });
+
+    it("邀请链接中的圈子与邀请码不一致时不加入任何圈子", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
+      await expect(coreSvc.joinByInviteCode("ABC123", "u9", "other-circle")).rejects.toThrow("不属于当前圈子");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
+    });
+
+    it("需要确认圈规时，邀请码也不能跳过确认", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue(inviteCode);
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      mockGovernance.assertRuleAck.mockRejectedValueOnce(new Error("RULE_ACK_REQUIRED"));
+      await expect(coreSvc.joinByInviteCode("ABC123", "u9", "c1")).rejects.toThrow("RULE_ACK_REQUIRED");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
+    });
+
+    it("限次邀请码在事务内抢占失败时不建成员", async () => {
+      mockPrisma.circleInviteCode.findUnique.mockResolvedValue({ ...inviteCode, maxUses: 1 });
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue(null);
+      mockPrisma.circleInviteCode.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(coreSvc.joinByInviteCode("ABC123", "u9", "c1")).rejects.toThrow("已过期或已达使用上限");
+      expect(mockPrisma.circleMember.create).not.toHaveBeenCalled();
     });
   });
 

@@ -199,6 +199,10 @@ export const circleGovernanceApi = {
     }
   },
 
+  /** 入圈前确认当前圈规，服务端保存条文快照。 */
+  ackRules: (circleId: string) =>
+    apiPost<{ success: boolean; ruleCount: number }>(`/circle-governance/${circleId}/rules/ack`),
+
   // —— 圈主侧：圈规 CRUD 与模板 ——
 
   createRule: (circleId: string, text: string) =>

@@ -278,8 +278,8 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "通过邀请码加入圈子" })
   @ApiBearerAuth()
-  joinByInviteCode(@Body("code") code: string, @Req() req: Request) {
-    return this.circle.joinByInviteCode(code, req.user.id);
+  joinByInviteCode(@Body("code") code: string, @Req() req: Request, @Body("circleId") circleId?: string) {
+    return this.circle.joinByInviteCode(code, req.user.id, circleId);
   }
 
   @Get(":id/invite-codes")

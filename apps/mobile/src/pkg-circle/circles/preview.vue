@@ -21,6 +21,7 @@ import {
   type CircleDetail, type CirclePost,
 } from '@/lib/circle-detail-data'
 import { growthApi } from '@/lib/circle-growth-data'
+import { circleGovernanceApi, type CircleRuleItem } from '@/lib/circle-governance-data'
 
 const circleId = ref('')
 const circle = ref<CircleDetail | null>(null)
@@ -40,6 +41,12 @@ const showPurchase = ref(false)
 // 邀请码（C1 链路兑换口）：分享链接 ?code= 自动填入，或点「有邀请码？」手动输入；join 时随请求携带
 const inviteCode = ref('')
 const showCodeInput = ref(false)
+const showRulesAck = ref(false)
+const rulesLoading = ref(false)
+const rulesError = ref('')
+const rules = ref<CircleRuleItem[]>([])
+const rulesChecked = ref(false)
+const acknowledging = ref(false)
 
 const isLoggedIn = () => !!getToken()
 const joinLabel = computed(() => {
@@ -154,7 +161,10 @@ async function doFreeJoin() {
   if (joining.value) return
   joining.value = true
   try {
-    const r = await circleDetailApi.join(circleId.value, inviteCode.value.trim() || undefined)
+    const r = inviteCode.value.trim()
+      ? await circleDetailApi.joinByInviteCode(inviteCode.value.trim(), circleId.value)
+      : await circleDetailApi.join(circleId.value)
+    if (r?.circleId && r.circleId !== circleId.value) throw new Error('邀请码不属于当前圈子，请核对后重试')
     if (r?.success === false) throw new Error(r.message || '加入失败，请重试')
     if (String(r?.status).toLowerCase() === 'pending') {
       applied.value = true
@@ -168,7 +178,11 @@ async function doFreeJoin() {
       }
     }
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '加入失败，请重试', icon: 'none' })
+    if (String((e as Error)?.message || '').includes('RULE_ACK_REQUIRED')) {
+      void openRulesAck()
+    } else {
+      uni.showToast({ title: (e as Error)?.message || '加入失败，请重试', icon: 'none' })
+    }
   } finally {
     joining.value = false
   }
@@ -179,6 +193,36 @@ async function onPurchased() {
   paidAwaitingAccess.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
   await checkMembership()
+}
+
+async function openRulesAck() {
+  showRulesAck.value = true
+  rulesChecked.value = false
+  rulesLoading.value = true
+  rulesError.value = ''
+  try {
+    const result = await circleGovernanceApi.getRules(circleId.value)
+    rules.value = result.rules
+    if (!result.rules.length) rulesError.value = '暂时无法读取需要确认的圈规，请稍后重试'
+  } catch {
+    rulesError.value = '圈规加载失败，请重试'
+  } finally {
+    rulesLoading.value = false
+  }
+}
+
+async function confirmRulesAck() {
+  if (acknowledging.value || !rulesChecked.value || !rules.value.length) return
+  acknowledging.value = true
+  try {
+    await circleGovernanceApi.ackRules(circleId.value)
+    showRulesAck.value = false
+    await doFreeJoin()
+  } catch (e) {
+    rulesError.value = (e as Error)?.message || '确认失败，请重试'
+  } finally {
+    acknowledging.value = false
+  }
 }
 
 function enterCircle() { redirectTo(`/pkg-circle/circles/detail?id=${encodeURIComponent(circleId.value)}`) }
@@ -283,7 +327,7 @@ onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
     </template>
 
     <!-- 邀请码兑换口（C1 链路：好友有码却无处输）：点击展开输入行，join 时随请求携带 -->
-    <view v-if="!isJoined" class="jp-invite">
+    <view v-if="!isJoined && joinMode !== 'paid'" class="jp-invite">
       <view v-if="!showCodeInput" class="jp-invite-entry" @tap="showCodeInput = true">
         <app-icon name="ticket" :size="28" color="#C9A96E" />
         <text class="jp-invite-entry-t">{{ inviteCode ? `已填写邀请码 ${inviteCode} · 点击修改` : '有邀请码？点此填写' }}</text>
@@ -334,12 +378,56 @@ onShow(() => { if (circle.value && !isLoading.value) void checkMembership() })
       biz-type="CIRCLE" :allow-qty="false"
       @close="showPurchase = false" @paid="onPurchased"
     />
+
+    <view v-if="showRulesAck" class="jp-rules-overlay" role="dialog" aria-label="确认圈规">
+      <view class="jp-rules-sheet">
+        <view class="jp-rules-head">
+          <text class="jp-rules-title">加入前请确认圈规</text>
+          <view class="jp-rules-close" role="button" aria-label="关闭" @tap="showRulesAck = false"><app-icon name="x" :size="32" color="#6e6e73" /></view>
+        </view>
+        <text class="jp-rules-subtitle">请先阅读本圈规则，确认后将继续加入。</text>
+        <view v-if="rulesLoading" class="jp-rules-state">圈规加载中…</view>
+        <view v-else-if="rulesError" class="jp-rules-state">
+          <text>{{ rulesError }}</text>
+          <view class="jp-rules-retry" role="button" @tap="openRulesAck">重新加载</view>
+        </view>
+        <scroll-view v-else scroll-y class="jp-rules-list">
+          <view v-for="(rule, index) in rules" :key="rule.id" class="jp-rules-item">
+            <text class="jp-rules-number">{{ index + 1 }}</text><text class="jp-rules-text">{{ rule.text }}</text>
+          </view>
+        </scroll-view>
+        <view v-if="!rulesLoading && !rulesError" class="jp-rules-confirm" role="checkbox" :aria-checked="rulesChecked" @tap="rulesChecked = !rulesChecked">
+          <view class="jp-rules-check" :class="{ checked: rulesChecked }"><text v-if="rulesChecked">✓</text></view>
+          <text>我已阅读并同意本圈规则</text>
+        </view>
+        <view class="jp-rules-submit" :class="{ disabled: !rulesChecked || rulesLoading || !!rulesError || acknowledging }" role="button" @tap="confirmRulesAck">
+          {{ acknowledging ? '确认中…' : '确认并继续加入' }}
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <style scoped lang="scss">
 .jp-page { min-height: 100vh; background: var(--circle-canvas, #f5f5f7); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; --brand: var(--circle-accent, #2b6f68); --brand-soft: #e9f1ef; --gold: var(--circle-accent, #2b6f68); --text-primary: var(--circle-ink, #1d1d1f); --bg-card: #fff; }
 .jp-page.has-bar { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
+.jp-rules-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(20, 25, 30, .45); display: flex; align-items: flex-end; }
+.jp-rules-sheet { width: 100%; box-sizing: border-box; max-height: 84vh; padding: 28rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 28rpx 28rpx 0 0; background: #fff; display: flex; flex-direction: column; gap: 20rpx; }
+.jp-rules-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.jp-rules-title { font-size: 34rpx; font-weight: 700; color: #1d1d1f; }
+.jp-rules-close { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.jp-rules-subtitle { font-size: 26rpx; color: #6e6e73; }
+.jp-rules-state { min-height: 180rpx; display: flex; align-items: center; flex-direction: column; justify-content: center; gap: 16rpx; color: #6e6e73; font-size: 26rpx; }
+.jp-rules-retry { min-height: 44px; display: flex; align-items: center; color: #2b6f68; font-weight: 600; }
+.jp-rules-list { max-height: 42vh; }
+.jp-rules-item { display: flex; gap: 18rpx; padding: 20rpx 0; border-bottom: 1rpx solid rgba(60,60,67,.12); }
+.jp-rules-number { flex-shrink: 0; color: #2b6f68; font-weight: 700; }
+.jp-rules-text { flex: 1; font-size: 27rpx; line-height: 1.6; color: #1d1d1f; }
+.jp-rules-confirm { min-height: 44px; display: flex; align-items: center; gap: 16rpx; color: #1d1d1f; font-size: 26rpx; }
+.jp-rules-check { width: 38rpx; height: 38rpx; box-sizing: border-box; border: 2rpx solid #8e8e93; border-radius: 10rpx; display: flex; align-items: center; justify-content: center; }
+.jp-rules-check.checked { border-color: #2b6f68; background: #2b6f68; color: #fff; }
+.jp-rules-submit { min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 14rpx; background: #2b6f68; color: #fff; font-size: 28rpx; font-weight: 600; }
+.jp-rules-submit.disabled { opacity: .45; }
 .jp-payment-note { margin: 32rpx 40rpx; }
 .jp-payment-period { display: block; font-size: 26rpx; color: var(--circle-ink); }
 
