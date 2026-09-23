@@ -131,7 +131,7 @@ describe("CircleAssistantController", () => {
       const res = mockRes();
       svc.askStream.mockReturnValue(makeAsyncIterable(["带历史流式回答"]));
 
-      const history = [{ role: "system" as const, content: "你是一个助手" }];
+      const history = [{ role: "user" as const, content: "上一问" }];
       await ctrl.askStream("circle1", { question: "问", history }, mockReq("u1"), res);
 
       expect(svc.askStream).toHaveBeenCalledWith("问", "circle1", "u1", history, expect.any(Function));

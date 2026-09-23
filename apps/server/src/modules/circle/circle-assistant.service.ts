@@ -17,6 +17,21 @@ export interface AssistantReply {
 export class CircleAssistantService {
   private readonly logger = new Logger(CircleAssistantService.name);
 
+  /** 客户端历史仅作为对话上下文，不允许伪造系统消息或无限扩大模型输入。 */
+  private sanitizeHistory(history?: AiMessage[]): AiMessage[] | undefined {
+    if (history === undefined) return undefined;
+    if (!Array.isArray(history)) return [];
+    return history
+      .filter((message) =>
+        message != null &&
+        (message.role === "user" || message.role === "assistant") &&
+        typeof message.content === "string" &&
+        message.content.trim().length > 0,
+      )
+      .slice(-12)
+      .map((message) => ({ role: message.role, content: message.content.trim().slice(0, 2000) }));
+  }
+
   constructor(
     private readonly rag: RagService,
     private readonly prisma: PrismaService,
@@ -47,7 +62,7 @@ export class CircleAssistantService {
   ): Promise<AssistantReply> {
     await this.assertActiveMember(circleId, userId);
     this.logger.log(`圈主助理提问 [circle=${circleId}]`);
-    return this.rag.askCircle(question, circleId, userId, history);
+    return this.rag.askCircle(question, circleId, userId, this.sanitizeHistory(history));
   }
 
   /** 向圈主助理提问（流式） */
@@ -60,6 +75,6 @@ export class CircleAssistantService {
   ): AsyncIterable<string> {
     await this.assertActiveMember(circleId, userId);
     this.logger.log(`圈主助理流式提问 [circle=${circleId}]`);
-    yield* this.rag.askCircleStream(question, circleId, userId, history, onMatches);
+    yield* this.rag.askCircleStream(question, circleId, userId, this.sanitizeHistory(history), onMatches);
   }
 }

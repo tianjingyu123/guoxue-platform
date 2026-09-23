@@ -39,7 +39,7 @@ export class CircleAssistantController {
   @ApiBearerAuth()
   async ask(
     @Param("circleId") circleId: string,
-    @Body() body: { question: string; history?: Array<{ role: "system" | "user" | "assistant"; content: string }> },
+    @Body() body: { question: string; history?: Array<{ role: "user" | "assistant"; content: string }> },
     @Req() req: Request,
   ) {
     const userId = req.user?.id;
@@ -57,7 +57,7 @@ export class CircleAssistantController {
   @ApiBearerAuth()
   async askStream(
     @Param("circleId") circleId: string,
-    @Body() body: { question: string; history?: Array<{ role: "system" | "user" | "assistant"; content: string }> },
+    @Body() body: { question: string; history?: Array<{ role: "user" | "assistant"; content: string }> },
     @Req() req: Request,
     @Res() res: Response,
   ) {

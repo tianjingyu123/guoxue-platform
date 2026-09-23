@@ -17,7 +17,7 @@ export interface AssistantReply {
   sources: AssistantSource[]
 }
 
-export type AssistantHistory = Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+export type AssistantHistory = Array<{ role: 'user' | 'assistant'; content: string }>
 
 export const assistantApi = {
   /** 向圈主助理提问（非流式） */
