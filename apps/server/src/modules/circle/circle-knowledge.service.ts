@@ -244,8 +244,21 @@ export class CircleKnowledgeService {
     });
     if (existKnowledge) return null;
 
+    // 精华帖有每日与每六小时两条扫描路径；同一来源的同一内容无需重复排队。
+    const pendingCandidate = await this.prisma.circleKnowledgeCandidate.findFirst({
+      where: {
+        circleId: params.circleId,
+        sourceType: params.sourceType,
+        sourceId: params.sourceId || null,
+        contentHash,
+        status: "pending",
+      },
+      select: { id: true },
+    });
+    if (pendingCandidate) return null;
+
     // 相似度检测
-    const { isDuplicate, similarTo } = await this.checkSimilarity(params.circleId, params.content);
+    const { similarTo } = await this.checkSimilarity(params.circleId, params.content);
 
     return this.prisma.circleKnowledgeCandidate.create({
       data: {
@@ -256,7 +269,7 @@ export class CircleKnowledgeService {
         contentHash,
         similarityScore: similarTo?.score,
         similarToId: similarTo?.id,
-        status: isDuplicate ? "pending" : "pending",
+        status: "pending",
       },
     });
   }

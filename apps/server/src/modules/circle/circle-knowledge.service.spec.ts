@@ -218,6 +218,17 @@ describe("CircleKnowledgeService", () => {
       expect(result).toBeNull();
     });
 
+    it("同一来源同一内容已有待确认候选时不重复入队", async () => {
+      mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.circleKnowledgeCandidate.findFirst.mockResolvedValueOnce({ id: "existing" });
+      const result = await svc.addCandidate({ circleId: "c1", sourceType: "post", sourceId: "p1", content: "标题\n正文" });
+      expect(result).toBeNull();
+      expect(mockPrisma.circleKnowledgeCandidate.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ circleId: "c1", sourceType: "post", sourceId: "p1", status: "pending" }),
+      }));
+      expect(mockPrisma.circleKnowledgeCandidate.create).not.toHaveBeenCalled();
+    });
+
     it("获取候选列表", async () => {
       mockPrisma.circleKnowledgeCandidate.findMany.mockResolvedValue([{ id: "c1" }]);
       mockPrisma.circleKnowledgeCandidate.count.mockResolvedValue(1);
