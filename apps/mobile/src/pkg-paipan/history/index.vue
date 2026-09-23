@@ -148,7 +148,7 @@ function open(r: RecentChart) {
               <text class="ph-title">{{ r.clientName || '未命名排盘' }}的报告</text>
               <text class="ph-tool">{{ REPORT_LABEL[r.reportType] || r.reportType }}</text>
             </view>
-            <text class="ph-summary">{{ r.outputSummary || '点击继续阅读与提问' }}</text>
+            <text class="ph-summary">查看报告</text>
           </view>
           <view class="ph-right"><text class="ph-time">{{ reportDate(r.createdAt) }}</text><AppIcon name="chevron-right" :size="16" color="#B8AA9A" /></view>
         </view>

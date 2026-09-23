@@ -1574,7 +1574,7 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     }
   }
 
-  /** 仅返回本人报告的目录信息，不读取报告正文或加密生辰。 */
+  /** 仅返回本人报告的目录信息；摘要也属于付费解读，不能在权益门禁外下发。 */
   async listReports(userId: string, rawPage?: string) {
     const parsed = Number(rawPage);
     const page = Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10000) : 1;
@@ -1587,7 +1587,6 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
           id: true,
           paipanRecordId: true,
           analyzeType: true,
-          outputSummary: true,
           createdAt: true,
           paipanRecord: { select: { clientName: true, paipanType: true } },
         },
