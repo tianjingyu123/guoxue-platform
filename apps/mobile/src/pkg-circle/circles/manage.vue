@@ -75,6 +75,10 @@ const filteredMembers = computed(() => {
   if (kw) list = list.filter((m) => m.name.includes(kw))
   return list
 })
+function clearMemberFilters() {
+  memberSearch.value = ''
+  roleFilter.value = 'all'
+}
 /** userId → 嘉宾分账信息（成员行 meta 与嘉宾分账卡共用） */
 const guestByUserId = computed(() => {
   const map: Record<string, CircleGuest> = {}
@@ -536,7 +540,8 @@ onLoad((q) => {
             <view
               v-for="f in roleFilters" :key="f.key"
               class="filter" :class="{ active: roleFilter === f.key }"
-              @tap="roleFilter = f.key"
+              role="button" tabindex="0" :aria-pressed="roleFilter === f.key"
+              @tap="roleFilter = f.key" @keydown.enter="roleFilter = f.key"
             >
               <text class="filter-txt">{{ f.label }}</text>
             </view>
@@ -544,7 +549,7 @@ onLoad((q) => {
         </scroll-view>
 
         <!-- 成员洞察入口 -->
-        <view class="insight-row" @tap="go(`/pkg-circle/circles/members-insight?id=${circleId}`)">
+        <view class="insight-row" role="button" tabindex="0" aria-label="查看成员洞察" @tap="go(`/pkg-circle/circles/members-insight?id=${circleId}`)" @keydown.enter="go(`/pkg-circle/circles/members-insight?id=${circleId}`)">
           <app-icon name="bar-chart-3" :size="32" color="#6E6E73" />
           <text class="insight-txt"><text class="insight-b">成员洞察</text> · 活跃 / 消费 / 兴趣画像与行为时间线</text>
           <app-icon name="chevron-right" :size="28" color="#999999" />
@@ -560,13 +565,14 @@ onLoad((q) => {
         <view v-else-if="!filteredMembers.length" class="state-view">
           <app-icon name="users" :size="64" color="#CCCCCC" />
           <text class="state-desc">{{ memberSearch || roleFilter !== 'all' ? '已加载成员中没有匹配项' : '还没有成员' }}</text>
+          <view v-if="memberSearch || roleFilter !== 'all'" class="state-btn secondary" role="button" tabindex="0" @tap="clearMemberFilters" @keydown.enter="clearMemberFilters"><text class="state-btn-txt secondary-txt">清除筛选</text></view>
         </view>
 
         <template v-else>
           <text class="section-label">成员列表 · 已加载 {{ members.length }}/{{ memberTotal }}</text>
           <view class="list">
             <view v-for="m in filteredMembers" :key="m.id" class="member-block">
-              <view class="member-row" @tap="m.role !== 'owner' && toggleMenu(m.id)">
+              <view class="member-row" :role="m.role !== 'owner' ? 'button' : undefined" :tabindex="m.role !== 'owner' ? 0 : undefined" :aria-label="m.role !== 'owner' ? `管理成员${m.name}` : undefined" @tap="m.role !== 'owner' && toggleMenu(m.id)" @keydown.enter="m.role !== 'owner' && toggleMenu(m.id)">
                 <view class="avatar-wrap" :class="{ 'ring-gold': m.role === 'owner' }">
                   <smart-avatar :src="m.avatar" :name="m.name" class="avatar" />
                 </view>
@@ -583,10 +589,10 @@ onLoad((q) => {
               </view>
               <!-- 行内操作 -->
               <view v-if="openMenuId === m.id" class="row-actions">
-                <view v-if="m.role !== 'admin'" class="row-action" @tap="setRole(m, 'ADMIN')"><text class="row-action-txt">设为管理员</text></view>
-                <view v-if="m.role !== 'guest'" class="row-action" @tap="setRole(m, 'GUEST')"><text class="row-action-txt">设为嘉宾</text></view>
-                <view v-if="m.role !== 'member'" class="row-action" @tap="setRole(m, 'MEMBER')"><text class="row-action-txt">设为普通成员</text></view>
-                <view class="row-action danger" @tap="askRemoveMember(m)"><text class="row-action-txt danger-txt">移出圈子</text></view>
+                <view v-if="m.role !== 'admin'" class="row-action" role="button" tabindex="0" @tap="setRole(m, 'ADMIN')" @keydown.enter="setRole(m, 'ADMIN')"><text class="row-action-txt">设为管理员</text></view>
+                <view v-if="m.role !== 'guest'" class="row-action" role="button" tabindex="0" @tap="setRole(m, 'GUEST')" @keydown.enter="setRole(m, 'GUEST')"><text class="row-action-txt">设为嘉宾</text></view>
+                <view v-if="m.role !== 'member'" class="row-action" role="button" tabindex="0" @tap="setRole(m, 'MEMBER')" @keydown.enter="setRole(m, 'MEMBER')"><text class="row-action-txt">设为普通成员</text></view>
+                <view class="row-action danger" role="button" tabindex="0" @tap="askRemoveMember(m)" @keydown.enter="askRemoveMember(m)"><text class="row-action-txt danger-txt">移出圈子</text></view>
               </view>
             </view>
           </view>
@@ -640,7 +646,8 @@ onLoad((q) => {
             <view
               v-for="f in postFilters" :key="f.key"
               class="filter" :class="{ active: postFilter === f.key }"
-              @tap="postFilter = f.key"
+              role="button" tabindex="0" :aria-pressed="postFilter === f.key"
+              @tap="postFilter = f.key" @keydown.enter="postFilter = f.key"
             >
               <text class="filter-txt">{{ f.label }}</text>
             </view>
@@ -656,6 +663,7 @@ onLoad((q) => {
         <view v-else-if="!filteredPosts.length" class="state-view">
           <app-icon name="file-text" :size="64" color="#CCCCCC" />
           <text class="state-desc">{{ postFilter !== 'all' ? '已加载内容中没有匹配项' : '圈子里还没有帖子' }}</text>
+          <view v-if="postFilter !== 'all'" class="state-btn secondary" role="button" tabindex="0" @tap="postFilter = 'all'" @keydown.enter="postFilter = 'all'"><text class="state-btn-txt secondary-txt">查看全部内容</text></view>
         </view>
 
         <template v-else>
@@ -673,13 +681,13 @@ onLoad((q) => {
             </view>
             <text class="post-text">{{ p.content }}</text>
             <view class="post-actions">
-              <view class="pa-btn" :class="{ on: p.isPinned }" @tap="togglePin(p)">
+              <view class="pa-btn" :class="{ on: p.isPinned }" role="button" tabindex="0" @tap="togglePin(p)" @keydown.enter="togglePin(p)">
                 <text class="pa-txt" :class="{ 'on-txt': p.isPinned }">{{ p.isPinned ? '取消置顶' : '置顶' }}</text>
               </view>
-              <view class="pa-btn" :class="p.isEssence ? 'on' : 'gold'" @tap="toggleEssence(p)">
+              <view class="pa-btn" :class="p.isEssence ? 'on' : 'gold'" role="button" tabindex="0" @tap="toggleEssence(p)" @keydown.enter="toggleEssence(p)">
                 <text class="pa-txt" :class="p.isEssence ? 'on-txt' : 'gold-txt'">{{ p.isEssence ? '取消精华' : '设为精华' }}</text>
               </view>
-              <view class="pa-del" @tap="askDeletePost(p)"><text class="pa-del-txt">删除</text></view>
+              <view class="pa-del" role="button" tabindex="0" @tap="askDeletePost(p)" @keydown.enter="askDeletePost(p)"><text class="pa-del-txt">删除</text></view>
             </view>
           </view>
           <text class="page-hint">已加载 {{ posts.length }}/{{ postTotal }} 条内容<template v-if="hasMorePosts && postFilter !== 'all'">；当前筛选仅覆盖已加载内容</template></text>
@@ -870,7 +878,7 @@ onLoad((q) => {
 .filters-scroll { width: 100%; white-space: nowrap; margin-top: 24rpx; }
 .filters { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
 .filter {
-  flex-shrink: 0; height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  flex-shrink: 0; min-height: 44px; padding: 0 28rpx; border-radius: 999rpx;
   display: inline-flex; align-items: center;
   background: var(--bg-card, #ffffff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
@@ -921,7 +929,7 @@ onLoad((q) => {
 /* 行内操作 */
 .row-actions { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 0 32rpx 26rpx 140rpx; }
 .row-action {
-  height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  min-height: 44px; padding: 0 24rpx; border-radius: 999rpx;
   background: var(--bg-warm, #f8f4ec);
   display: flex; align-items: center;
 }
@@ -964,11 +972,11 @@ onLoad((q) => {
   overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
 }
 .post-actions {
-  display: flex; gap: 16rpx; margin-top: 24rpx; padding-top: 24rpx;
+  display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; padding-top: 24rpx;
   border-top: 1rpx solid var(--separator, #ede7dd); align-items: center;
 }
 .pa-btn {
-  height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  min-height: 44px; padding: 0 24rpx; border-radius: 999rpx;
   background: var(--bg-warm, #f8f4ec);
   display: flex; align-items: center;
 }
@@ -978,7 +986,7 @@ onLoad((q) => {
 .pa-txt { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
 .on-txt { color: var(--brand, #c41e3a); font-weight: 500; }
 .gold-txt { color: var(--gold, #c9a96e); }
-.pa-del { margin-left: auto; padding: 8rpx 12rpx; }
+.pa-del { min-height: 44px; margin-left: auto; padding: 0 12rpx; display: flex; align-items: center; }
 .pa-del-txt { font-size: 24rpx; color: var(--text-tertiary, #999999); text-decoration: underline; text-underline-offset: 6rpx; }
 
 /* 推荐电子书入口 */
@@ -1087,8 +1095,11 @@ onLoad((q) => {
 /* 三态 */
 .state-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16rpx; padding: 100rpx 80rpx; }
 .state-desc { font-size: 26rpx; color: var(--text-tertiary, #999999); text-align: center; }
-.state-btn { margin-top: 16rpx; height: 72rpx; padding: 0 48rpx; border-radius: 36rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
+.state-btn { margin-top: 16rpx; min-height: 44px; padding: 0 48rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; }
 .state-btn-txt { color: #ffffff; font-size: 26rpx; font-weight: 500; }
+.state-btn.secondary { background: var(--circle-surface, #fff); border: 1rpx solid var(--circle-border-soft, #ECECF0); }
+.state-btn-txt.secondary-txt { color: var(--circle-ink, #1D1D1F); }
+.filter:focus-visible, .insight-row:focus-visible, .member-row:focus-visible, .row-action:focus-visible, .pa-btn:focus-visible, .pa-del:focus-visible, .state-btn:focus-visible { outline: 2px solid #2B6F68; outline-offset: 2px; }
 
 /* 确认弹窗 */
 .mask {

@@ -1,10 +1,13 @@
 /** 圈主管理分页隔离验证：所有业务接口均为本地夹具，无真实写入。 */
 import { createRequire } from 'node:module'
+import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
 
 const { chromium } = createRequire(import.meta.url)(resolve(process.env.QA_NODE_MODULES, 'playwright'))
 const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197'
+const out = resolve('artifacts/circle-management-20260922')
+await mkdir(out, { recursive: true })
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const errors = []
 const pageRequests = []
@@ -64,16 +67,32 @@ try {
   await page.getByText('成员列表 · 已加载 53/53').waitFor()
   assert.equal(await page.getByRole('button', { name: '加载更多成员' }).count(), 0)
 
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.locator('.filters').first().getByRole('button', { name: '嘉宾' }).click()
+  await page.getByText('已加载成员中没有匹配项').waitFor()
+  await page.getByRole('button', { name: '清除筛选' }).click()
+  await page.getByText('成员列表 · 已加载 53/53').waitFor()
+  assert.ok((await page.locator('.filter').first().boundingBox()).height >= 44)
+  await page.getByRole('button', { name: '管理成员成员0' }).click()
+  assert.ok((await page.locator('.row-action').first().boundingBox()).height >= 44)
+
   await page.getByRole('tab', { name: '内容' }).click()
   await page.getByText('已加载 50/53 条内容').waitFor()
   await page.getByRole('button', { name: '加载更多内容' }).click()
   await page.getByText('已加载 53/53 条内容').waitFor()
   assert.equal(await page.getByRole('button', { name: '加载更多内容' }).count(), 0)
+  await page.locator('.filters').last().getByRole('button', { name: '精华' }).click()
+  await page.getByText('已加载内容中没有匹配项').waitFor()
+  await page.getByRole('button', { name: '查看全部内容' }).click()
+  await page.getByText('已加载 53/53 条内容').waitFor()
+  assert.ok((await page.locator('.pa-btn').first().boundingBox()).height >= 44)
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+  await page.screenshot({ path: resolve(out, 'content-actions-320.png') })
 
   assert.deepEqual(pageRequests, ['members:1', 'members:2', 'members:2', 'posts:1', 'posts:2'])
   assert.deepEqual(errors, [])
   assert.equal(writes, 0)
-  console.log(JSON.stringify({ passed: 4, pageRequests, errors, writes }))
+  console.log(JSON.stringify({ passed: 8, pageRequests, errors, writes }))
 } finally {
   await browser.close()
 }
