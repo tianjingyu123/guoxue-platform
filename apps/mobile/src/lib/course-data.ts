@@ -69,7 +69,7 @@ export interface LearnProgress { courseId: string; completedLessons: string[]; t
 export interface LearnLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface LearnChapter { id: string; title: string; duration: number; isFree: boolean; lessons: LearnLesson[] }
 export interface LearnNote { id: string; content: string; chapterId: string; chapterTitle: string; lessonTitle: string; timestamp?: number; createdAt: string }
-export interface LearnQuestion { id: string; content: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; answers: number; isAnswered: boolean }
+export interface LearnQuestion { id: string; content: string; answer: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; isAnswered: boolean; status: string }
 
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
@@ -177,7 +177,7 @@ interface RawProgress { chapterId?: string; completed?: boolean; progress?: numb
 /** 后端课程评价 */
 interface RawReview { id?: string; user?: RawUserLite | null; rating?: number | string; content?: string; reply?: string; createdAt?: string | null }
 /** 后端课程提问 */
-interface RawQuestion { id?: string; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; answerCount?: number; status?: string; _count?: RawCount | null }
+interface RawQuestion { id?: string; question?: string; answer?: string | null; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; status?: string }
 /** 后端作业（含 user/chapter/course join） */
 interface RawWork { id?: string; userId?: string; user?: RawUserLite | null; chapterId?: string; chapter?: { title?: string } | null; course?: { title?: string } | null; content?: string; createdAt?: string | null; score?: number | null; feedback?: string }
 /** 后端结业证书 */
@@ -310,6 +310,17 @@ export interface CreatedCourse {
   chapterCount: number
   reviewCount: number
   createdAt: string
+}
+
+function adaptLearnQuestion(q: RawQuestion): LearnQuestion {
+  return {
+    id: q.id || '', content: q.question || q.content || '', answer: q.answer || '',
+    author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
+    chapterTitle: q.chapter?.title || '',
+    createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
+    isAnswered: !!q.answer,
+    status: q.status || 'PENDING',
+  }
 }
 
 export const courseApi = {
@@ -541,15 +552,14 @@ export const courseApi = {
       lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id || '')?.completed }],
     }))
     const qList = questionsRaw?.questions ?? toList<RawQuestion>(questionsRaw)
-    const learnQuestionsData: LearnQuestion[] = qList.map((q) => ({
-      id: q.id || '', content: q.content || '',
-      author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
-      chapterTitle: q.chapter?.title || '',
-      createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
-      answers: toNum(q.answerCount ?? q._count?.answers),
-      isAnswered: q.status === 'ANSWERED' || !!q.answerCount,
-    }))
+    const learnQuestionsData: LearnQuestion[] = qList.map(adaptLearnQuestion)
     return { course: learnCourseData, progress: learnProgressData, chapters: learnChaptersData, notes: [], questions: learnQuestionsData }
+  },
+
+  /** 课程问答单独读取；错误向页面传递，避免把接口失败展示为“还没有提问”。 */
+  async getQuestions(id: string, page = 1): Promise<{ questions: LearnQuestion[]; total: number }> {
+    const result = await apiGet<{ questions?: RawQuestion[]; total?: number }>(`/courses/${encodeURIComponent(id)}/questions?page=${page}&pageSize=20`)
+    return { questions: (result.questions || []).map(adaptLearnQuestion), total: toNum(result.total) }
   },
 
   /** 学生提问 — POST /courses/:id/questions（需登录·后端 AskQuestionDto={question,chapterId?}） */

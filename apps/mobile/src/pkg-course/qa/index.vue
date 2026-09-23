@@ -3,14 +3,11 @@
  * F4 课程问答（课内问答独立页）
  * 视觉：V0 阶段二视觉稿 f4-qa.html（问答流正常态 + 我要提问半屏弹层）+ f-pages-states.html（空态/骨架）
  * 真连：
- *   - courseApi.getLearnData(courseId).questions → 问答列表（唯一含问答列表的方法）
+ *   - courseApi.getQuestions(courseId, page) → 问答分页列表
  *   - courseApi.askQuestion(courseId, question, chapterId?) → 提交提问
  *
  * 诚实降级说明：
- *   后端问答列表（RawQuestion / LearnQuestion）只有 answers(回答数量) 与 isAnswered(是否已答)，
- *   无「讲师回答正文」字段。故 V0 视觉稿中的「讲师回答块（头像+金标+回答正文）」无法真连——
- *   本页对已答问题展示「已解答 · N 条回答」金色标识，对未答问题展示「等待讲师回答」，不臆造回答内容。
- *   若后续后端补出回答正文/讲师信息字段，可在此页扩展回答块。
+ *   后端返回 question、answer 与状态；回答人身份没有公开资料，不标记为讲师。
  */
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -29,6 +26,10 @@ const courseId = ref('')
 const loading = ref(true)
 const error = ref('')
 const questions = ref<LearnQuestion[]>([])
+const page = ref(1)
+const total = ref(0)
+const moreLoading = ref(false)
+const moreError = ref(false)
 
 // 提问弹层
 const showAsk = ref(false)
@@ -44,12 +45,32 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const data = await courseApi.getLearnData(courseId.value)
+    const data = await courseApi.getQuestions(courseId.value)
     questions.value = data.questions
+    total.value = data.total
+    page.value = 1
+    moreError.value = false
   } catch {
     error.value = '问答加载失败，请稍后重试'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadMore() {
+  if (moreLoading.value || questions.value.length >= total.value) return
+  moreLoading.value = true
+  moreError.value = false
+  try {
+    const next = page.value + 1
+    const data = await courseApi.getQuestions(courseId.value, next)
+    questions.value = [...questions.value, ...data.questions.filter((q) => !questions.value.some((old) => old.id === q.id))]
+    page.value = next
+    total.value = data.questions.length ? data.total : questions.value.length
+  } catch {
+    moreError.value = true
+  } finally {
+    moreLoading.value = false
   }
 }
 
@@ -130,7 +151,7 @@ async function submitAsk() {
         <app-icon name="message-circle" :size="88" color="#C9A96E" :stroke-width="1.5" />
       </view>
       <text class="empty-title serif">还没有提问</text>
-      <text class="empty-desc">对课程内容有疑惑？{{ '\n' }}讲师在等你的第一个问题</text>
+      <text class="empty-desc">对课程内容有疑惑？{{ '\n' }}在这里提交你的第一个问题</text>
       <view class="empty-btn" hover-class="btn-press" @tap="openAsk">
         <text class="empty-btn-txt">我要提问</text>
       </view>
@@ -154,18 +175,20 @@ async function submitAsk() {
           <app-icon name="message-square" :size="22" color="#999999" />
           <text class="q-chapter-txt">{{ q.chapterTitle }}</text>
         </view>
-        <!-- 已答标识（后端无回答正文·诚实降级为「已解答·N条回答」金标）-->
+        <!-- 回答正文来自问答接口，不推断回答人身份。 -->
         <view v-if="q.isAnswered" class="answered">
           <app-icon name="badge-check" :size="26" color="#C9A96E" :fill="false" />
-          <text class="answered-txt">
-            讲师已解答<text v-if="q.answers > 0" class="answered-count"> · {{ q.answers }} 条回答</text>
-          </text>
+          <text class="answered-txt">已解答</text>
         </view>
+        <text v-if="q.isAnswered" class="answer-text">{{ q.answer }}</text>
         <!-- 待答态 -->
         <view v-else class="pending">
           <app-icon name="clock" :size="24" color="#999999" />
-          <text class="pending-txt">等待讲师回答</text>
+          <text class="pending-txt">{{ q.status === 'CLOSED' ? '问题已关闭' : '等待解答' }}</text>
         </view>
+      </view>
+      <view v-if="questions.length < total" class="retry-btn more-btn" role="button" tabindex="0" :aria-label="moreLoading ? '正在加载更多问题' : '加载更多问题'" @tap="loadMore" @keydown.enter="loadMore" @keydown.space.prevent="loadMore">
+        <text class="retry-text">{{ moreLoading ? '加载中…' : moreError ? '加载失败，点此重试' : '查看更多问题' }}</text>
       </view>
     </view>
 
@@ -195,7 +218,7 @@ async function submitAsk() {
           :disabled="submitting"
           auto-height
         />
-        <text class="sheet-note">讲师回答后会通知你</text>
+        <text class="sheet-note">提交后可在课程问答查看处理进度</text>
         <view class="btn-submit" :class="{ disabled: submitting || !askText.trim() }" hover-class="btn-press" @tap="submitAsk">
           <text class="btn-submit-txt">{{ submitting ? '提交中…' : '提交问题' }}</text>
         </view>
@@ -248,6 +271,8 @@ async function submitAsk() {
 .answered { display: flex; align-items: center; gap: 10rpx; background: rgba(201,169,110,0.14); border-radius: 16rpx; padding: 16rpx 20rpx; }
 .answered-txt { font-size: 26rpx; font-weight: 600; color: #8A6D3B; }
 .answered-count { font-weight: 400; color: #8A6D3B; }
+.answer-text { font-size: 28rpx; color: #4A4A4A; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.more-btn { align-self: center; }
 
 /* ── 待答态 ── */
 .pending { display: flex; align-items: center; gap: 10rpx; }
