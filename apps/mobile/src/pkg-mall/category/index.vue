@@ -21,8 +21,10 @@ const sortBy = ref('default')
 const showSortMenu = ref(false)
 const showFilter = ref(false)
 const searchQuery = ref('')
-const priceMin = ref(0)
-const priceMax = ref(1000)
+const priceMin = ref<number | undefined>()
+const priceMax = ref<number | undefined>()
+const draftPriceMin = ref('')
+const draftPriceMax = ref('')
 
 useOverlayScrollLock(
   () => showSortMenu.value,
@@ -51,7 +53,7 @@ function categoryDisplayName(name: string) {
 }
 
 const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
-const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000)
+const hasFilter = computed(() => priceMin.value !== undefined || priceMax.value !== undefined)
 
 // 分类/搜索/价格/排序全部作为查询参数下沉后端；切任一条件即重载第一页
 const { list: categoryProducts, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<CategoryProduct>({
@@ -60,8 +62,8 @@ const { list: categoryProducts, loading, error, isEmpty, loadStatus, refresh, lo
     pageSize,
     category: activeCategory.value,
     keyword: searchQuery.value || undefined,
-    priceMin: priceMin.value > 0 ? priceMin.value : undefined,
-    priceMax: priceMax.value < 1000 ? priceMax.value : undefined,
+    priceMin: priceMin.value,
+    priceMax: priceMax.value,
     sort: sortBy.value,
   }),
 })
@@ -97,10 +99,40 @@ function toProductCard(p: CategoryProduct): ProductCardData {
   }
 }
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }
-function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceMax.value = max }
-function applyFilter() { showFilter.value = false; refresh() }
-function resetFilter() { priceMin.value = 0; priceMax.value = 1000 }
-function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter(); refresh() }
+function openFilter() {
+  draftPriceMin.value = priceMin.value?.toString() ?? ''
+  draftPriceMax.value = priceMax.value?.toString() ?? ''
+  showFilter.value = true
+}
+function pickQuickPrice(min: number, max: number) { draftPriceMin.value = String(min); draftPriceMax.value = String(max) }
+function applyFilter() {
+  const minText = draftPriceMin.value.trim()
+  const maxText = draftPriceMax.value.trim()
+  const validPrice = (value: string) => !value || /^\d+(?:\.\d{1,2})?$/.test(value)
+  if (!validPrice(minText) || !validPrice(maxText)) {
+    uni.showToast({ title: '请输入有效价格（最多两位小数）', icon: 'none' })
+    return
+  }
+  const min = minText ? Number(minText) : undefined
+  const max = maxText ? Number(maxText) : undefined
+  if (min !== undefined && max !== undefined && min > max) {
+    uni.showToast({ title: '最低价不能高于最高价', icon: 'none' })
+    return
+  }
+  priceMin.value = min
+  priceMax.value = max
+  showFilter.value = false
+  refresh()
+}
+function resetFilter() { draftPriceMin.value = ''; draftPriceMax.value = '' }
+function resetAll() {
+  activeCategory.value = 'all'
+  searchQuery.value = ''
+  priceMin.value = undefined
+  priceMax.value = undefined
+  resetFilter()
+  refresh()
+}
 function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   event.preventDefault()
@@ -252,8 +284,8 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
             aria-haspopup="dialog"
             :aria-expanded="showFilter ? 'true' : 'false'"
             tabindex="0"
-            @tap="showFilter = true"
-            @keydown="activateOnKeyboard($event, () => { showFilter = true })"
+            @tap="openFilter"
+            @keydown="activateOnKeyboard($event, openFilter)"
           >
             <AppIcon name="filter" :size="28" :color="hasFilter ? 'var(--brand)' : 'var(--text-soft)'" />
             <text class="filter-text" :class="{ 'filter-text-on': hasFilter }">筛选</text>
@@ -307,24 +339,24 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
         <view class="fp-group">
           <text class="fp-label">价格区间</text>
           <view class="fp-price-row">
-            <input v-model.number="priceMin" class="fp-input" aria-label="最低价格" type="number" placeholder="最低价" placeholder-class="search-ph" />
+            <input v-model="draftPriceMin" class="fp-input" aria-label="最低价格" type="digit" placeholder="最低价" placeholder-class="search-ph" />
             <text class="fp-dash">-</text>
-            <input v-model.number="priceMax" class="fp-input" aria-label="最高价格" type="number" placeholder="最高价" placeholder-class="search-ph" />
+            <input v-model="draftPriceMax" class="fp-input" aria-label="最高价格" type="digit" placeholder="最高价" placeholder-class="search-ph" />
           </view>
           <view class="fp-quick" role="radiogroup" aria-label="快捷价格区间">
             <view
               v-for="([min, max]) in quickPrices"
               :key="`${min}-${max}`"
               class="fp-quick-tag"
-              :class="{ 'fp-quick-tag-on': priceMin === min && priceMax === max }"
+              :class="{ 'fp-quick-tag-on': draftPriceMin === String(min) && draftPriceMax === String(max) }"
               role="radio"
               :aria-label="`${min} 元至 ${max} 元`"
-              :aria-checked="priceMin === min && priceMax === max ? 'true' : 'false'"
+              :aria-checked="draftPriceMin === String(min) && draftPriceMax === String(max) ? 'true' : 'false'"
               tabindex="0"
               @tap="pickQuickPrice(min, max)"
               @keydown="activateOnKeyboard($event, () => pickQuickPrice(min, max))"
             >
-              <text class="fp-quick-text" :class="{ 'fp-quick-text-on': priceMin === min && priceMax === max }">¥{{ min }}-{{ max }}</text>
+              <text class="fp-quick-text" :class="{ 'fp-quick-text-on': draftPriceMin === String(min) && draftPriceMax === String(max) }">¥{{ min }}-{{ max }}</text>
             </view>
           </view>
         </view>
