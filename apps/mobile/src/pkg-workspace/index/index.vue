@@ -44,6 +44,7 @@ const tab = ref('home')
 const session = ref<Appointment | null>(null)
 /** 从排盘结果页带入的报告种子（挂载时一次性消费） */
 const seedId = ref<string | null>(null)
+const clientId = ref<string | null>(null)
 const statusBarHeight = ref(0)
 const proTip = ref('')
 
@@ -101,6 +102,11 @@ function goNotices() {
   uni.navigateTo({ url: '/pkg-notices/index/index' })
 }
 
+function openClient(id: string) {
+  clientId.value = id
+  tab.value = 'clients'
+}
+
 function back() {
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack()
@@ -139,11 +145,12 @@ function back() {
         <WorkbenchHome
           v-if="tab === 'home'"
           @navigate="(t: string) => (tab = t)"
+          @open-client="openClient"
           @start-consult="(a: Appointment) => (session = a)"
         />
         <PaipanCenter v-else-if="tab === 'paipan'" @generate-report="tab = 'reports'" />
         <ReportStudio v-else-if="tab === 'reports'" :initial-id="seedId" @consumed="seedId = null" />
-        <ClientManager v-else-if="tab === 'clients'" />
+        <ClientManager v-else-if="tab === 'clients'" :initial-id="clientId" @consumed="clientId = null" />
         <PractitionerMe v-else-if="tab === 'me'" />
       </template>
     </scroll-view>

@@ -189,6 +189,7 @@ export const wsApi = {
   // 客户档案 —— 复用 CRM（不另起炉灶）
   listClients: (q: { keyword?: string; tag?: string } = {}) => apiGet<any>(`/crm/clients${qs(q)}`),
   getClient: (id: string) => apiGet<any>(`/crm/clients/${id}`),
+  markReminderDone: (id: string) => apiPut<any>(`/crm/reminders/${id}/done`, {}),
   createClient: (c: Record<string, unknown>) => apiPost<any>('/crm/clients', c),
   updateClient: (id: string, c: Record<string, unknown>) => apiPut<any>(`/crm/clients/${id}`, c),
   deleteClient: (id: string) => apiDelete<any>(`/crm/clients/${id}`),

@@ -20,6 +20,9 @@ import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { wsApi } from '../lib/workspace-api'
 
+const props = defineProps<{ initialId?: string | null }>()
+const emit = defineEmits<{ (e: 'consumed'): void }>()
+
 const loading = ref(true)
 const failed = ref(false)
 const list = ref<any[]>([])
@@ -59,7 +62,13 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  await load()
+  if (props.initialId) {
+    await openDetail(props.initialId)
+    emit('consumed')
+  }
+})
 onShow(() => {
   if (!loading.value) load()
 })
@@ -74,6 +83,17 @@ async function openDetail(id: string) {
     uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
   } finally {
     detailLoading.value = false
+  }
+}
+
+async function completeReminder(id: string) {
+  if (!detail.value?.id) return
+  try {
+    await wsApi.markReminderDone(id)
+    await openDetail(detail.value.id)
+    uni.showToast({ title: '已完成回访', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
   }
 }
 
@@ -308,6 +328,15 @@ function dateText(iso?: string | null): string {
               <text class="cm-log-type">{{ l.type }}</text>
               <text class="cm-log-note">{{ l.note || '—' }}</text>
               <text v-if="l.amount" class="cm-log-amount">¥{{ l.amount }}</text>
+            </view>
+          </view>
+          <view v-if="detail.reminders?.length" class="cm-logs">
+            <text class="cm-logs-title">待跟进提醒</text>
+            <view v-for="r in detail.reminders" :key="r.id" class="cm-log">
+              <text class="cm-log-note">{{ r.aiDraft || '联系客户，完成本次回访' }}</text>
+              <view class="cm-btn cm-btn--ghost" @tap="completeReminder(r.id)">
+                <text class="cm-btn-txt cm-btn-txt--ghost">标记完成</text>
+              </view>
             </view>
           </view>
         </template>

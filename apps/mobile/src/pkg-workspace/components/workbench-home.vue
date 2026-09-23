@@ -6,7 +6,7 @@
  * 🔴 全部真数据（GET /practitioner/home）。V0 原稿是写死的「玄一先生 · 服务3742人 · 好评99%」，
  * 按「假数据直接删除」的规矩不搬——新老师进来就该是 0，那才是真的。
  */
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -16,6 +16,7 @@ import { wsApi, type Appointment } from '../lib/workspace-api'
 
 const emit = defineEmits<{
   (e: 'navigate', tab: string): void
+  (e: 'open-client', id: string): void
   (e: 'start-consult', a: Appointment): void
 }>()
 
@@ -24,6 +25,9 @@ const failed = ref(false)
 const stats = ref<{ key: string; label: string; value: string; hint?: string }[]>([])
 const appts = ref<Appointment[]>([])
 const reminders = ref<any[]>([])
+const recentReports = ref<{ id: string; title: string; clientName: string; status: string }[]>([])
+const unfinishedReports = computed(() => recentReports.value.filter((r) => r.status === 'draft' || r.status === 'final'))
+const pendingQuestions = computed(() => Number(stats.value.find((s) => s.key === 'pending')?.value ?? 0))
 const profile = ref<{ name: string; avatarText: string; title: string; joinDays: number; reportCount: number; clientCount: number }>({
   name: '', avatarText: '', title: '', joinDays: 0, reportCount: 0, clientCount: 0,
 })
@@ -72,6 +76,7 @@ async function load() {
     stats.value = home.stats ?? []
     appts.value = home.appointments ?? []
     reminders.value = home.reminders ?? []
+    recentReports.value = home.recentReports ?? []
     isPro.value = !!home.pro?.isPro
     proLabel.value = home.pro?.isPro ? `专业版 · 剩 ${home.pro.daysLeft} 天` : '免费版'
     profile.value = {
@@ -100,6 +105,14 @@ function onQuick(key: string) {
     return
   }
   emit('navigate', key)
+}
+
+function openReport(id: string) {
+  uni.navigateTo({ url: `/pkg-workspace/report/index?id=${encodeURIComponent(id)}` })
+}
+
+function openQuestions() {
+  uni.navigateTo({ url: '/pkg-circle/circles/consult-orders?filter=pending' })
 }
 
 function openAdd() {
@@ -198,6 +211,25 @@ async function finishAppt(a: Appointment) {
       </PaperCard>
     </view>
 
+    <!-- 今天需要继续的工作，直接回到原任务 -->
+    <PaperCard v-if="pendingQuestions || unfinishedReports.length" padding="lg">
+      <SectionTitle title="待继续" subtitle="从上次停下的地方接着做" />
+      <view v-if="pendingQuestions" class="wh-task" @tap="openQuestions">
+        <view class="wh-task-body">
+          <text class="wh-task-title">待回答咨询</text>
+          <text class="wh-task-sub">{{ pendingQuestions }} 条待处理 · 打开咨询订单</text>
+        </view>
+        <AppIcon name="chevron-right" :size="28" color="#B8AA9A" />
+      </view>
+      <view v-for="r in unfinishedReports" :key="r.id" class="wh-task" @tap="openReport(r.id)">
+        <view class="wh-task-body">
+          <text class="wh-task-title">{{ r.title }}</text>
+          <text class="wh-task-sub">{{ r.status === 'draft' ? '继续写报告' : '已定稿 · 核对后交付' }}</text>
+        </view>
+        <AppIcon name="chevron-right" :size="28" color="#B8AA9A" />
+      </view>
+    </PaperCard>
+
     <!-- 快捷入口 -->
     <PaperCard padding="lg">
       <SectionTitle title="快捷入口" />
@@ -255,7 +287,7 @@ async function finishAppt(a: Appointment) {
         <text class="wh-empty-txt">暂无待跟进的提醒</text>
       </view>
       <view v-else class="wh-reminders">
-        <view v-for="r in reminders" :key="r.id" class="wh-reminder" @tap="emit('navigate', 'clients')">
+        <view v-for="r in reminders" :key="r.id" class="wh-reminder" @tap="emit('open-client', r.clientId)">
           <view class="wh-reminder-icon">
             <AppIcon :name="REMINDER_ICON[r.kind] || 'bell'" :size="32" color="#C41E3A" />
           </view>
@@ -491,6 +523,19 @@ async function finishAppt(a: Appointment) {
 }
 
 /* 快捷入口 */
+.wh-task {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid rgba(58, 42, 30, 0.08);
+}
+
+.wh-task:last-child { border-bottom: 0; }
+.wh-task-body { flex: 1; min-width: 0; }
+.wh-task-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 28rpx; font-weight: 600; color: #3A2A1E; }
+.wh-task-sub { display: block; margin-top: 6rpx; font-size: 22rpx; color: #9A8C7E; }
+
 .wh-quick {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

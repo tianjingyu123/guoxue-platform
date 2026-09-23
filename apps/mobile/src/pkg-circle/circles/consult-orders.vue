@@ -147,7 +147,20 @@ async function load() {
       questionApi.list({ circleId: circleId.value || undefined, participantId: myId.value, page: 1, pageSize: 100 }),
       callApi.myCalls().catch(() => [] as ConsultCallRecord[]),
     ])
-    const qaItems = qres.items.map(mapQa)
+    const qaById = new Map(qres.items.map((q) => [q.id, q]))
+    // 从工作台“待回答”进入时，补齐跨圈的全部待答单；普通订单流仍按原有首屏口径加载。
+    if (filter.value === 'pending') {
+      let page = 1
+      let total = 0
+      do {
+        const pending = await questionApi.list({ answererId: myId.value, status: 'PENDING', page, pageSize: 100 })
+        for (const q of pending.items) qaById.set(q.id, q)
+        total = pending.total
+        if (!pending.items.length) break
+        page++
+      } while ((page - 1) * 100 < total)
+    }
+    const qaItems = [...qaById.values()].map(mapQa)
     const callItems = (circleId.value ? calls.filter(c => c.circleId === circleId.value) : calls).map(mapCall)
     orders.value = [...qaItems, ...callItems].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -164,7 +177,10 @@ function openDetail(o: OrderItem) {
   else if (o.bucket !== 'pending') navigateTo(`/pkg-circle/circles/call-end?id=${o.id}`)
 }
 
-onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
+onLoad((opt) => {
+  circleId.value = (opt?.circleId || opt?.id || '') as string
+  if (opt?.filter === 'pending') filter.value = 'pending'
+})
 onMounted(() => { myId.value = getCurrentUserId(); load() })
 </script>
 

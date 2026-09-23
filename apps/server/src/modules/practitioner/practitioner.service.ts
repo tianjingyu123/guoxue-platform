@@ -634,7 +634,7 @@ export class PractitionerService {
         // 平台内待回答的付费提问（老师的另一条真实待办）
         this.prisma.paidQuestion.count({ where: { answererId: userId, status: "PENDING" } }),
         this.prisma.practitionerReport.findMany({
-          where: { ownerId: userId },
+          where: { ownerId: userId, status: { in: ["draft", "final"] } },
           orderBy: { updatedAt: "desc" },
           take: 5,
           select: { id: true, title: true, typeLabel: true, clientName: true, status: true, updatedAt: true },
