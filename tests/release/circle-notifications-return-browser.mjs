@@ -21,6 +21,10 @@ try {
     if (url.pathname.includes('/api/v1/')) {
       if (route.request().method() !== 'GET') writes++
       const path = url.pathname.split('/api/v1')[1]
+      if (path === '/notifications/notice-1/read') {
+        await new Promise(resolve => setTimeout(resolve, 250))
+        return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 503, message: '本地模拟已读写入失败' }) })
+      }
       let data = {}
       if (path === '/notifications/circle') {
         reads++
@@ -50,9 +54,15 @@ try {
   await page.getByText('交易').first().click()
   await page.getByText('此分类暂无通知').waitFor()
   await page.getByText('可切换其他分类查看圈内消息。').waitFor()
+  isRead = false
+  await page.getByText('全部', { exact: true }).click()
+  await page.locator('.cn-dot').waitFor()
+  await page.getByText('测试回复通知').click()
+  await page.waitForFunction(() => document.querySelectorAll('.cn-dot').length === 0)
+  await page.locator('.cn-dot').waitFor()
   assert.deepEqual(errors, [])
-  assert.equal(writes, 0)
-  console.log(JSON.stringify({ passed: 7, reads, writes, errors }))
+  assert.equal(writes, 1)
+  console.log(JSON.stringify({ passed: 9, reads, fixtureWrites: writes, errors }))
 } finally {
   await browser.close()
 }

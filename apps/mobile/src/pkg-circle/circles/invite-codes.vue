@@ -8,8 +8,8 @@
  *       → 奖励规则区不展示任何金额承诺，仅保留邀请功能本体与真实统计；
  *       V0 记录行「+30 金币/待生效」奖励列 → 仅显加入时间；海报二维码为占位图标（复用 share-poster 现有能力）。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { buildH5Url } from '@/utils/share'
@@ -26,39 +26,65 @@ const circle = ref<CircleDetail | null>(null)
 const codes = ref<InviteCodeItem[]>([])
 const totalInvited = ref(0)
 const records = ref<InviteRecord[]>([])
+const statsError = ref(false)
 const me = ref<{ nickname: string; avatar: string } | null>(null)
 
 const generating = ref(false)
 const copied = ref(false)
 const { toAppMessage } = useShare()
+let requestSeq = 0
 
-/** 当前可用邀请码（无过期/未用尽的第一个） */
+/** 页面展示最近一次读取结果；实际复制与分享时再次核验有效期。 */
 const activeCode = computed(() => codes.value.find((c) => c.status === 'active') || null)
+function usableCode(): InviteCodeItem | null {
+  return codes.value.find((c) => c.status === 'active'
+    && (!c.expiresAt || new Date(c.expiresAt).getTime() > Date.now())
+    && (c.maxUses <= 0 || c.usedCount < c.maxUses)) || null
+}
 const totalUsed = computed(() => codes.value.reduce((s, c) => s + c.usedCount, 0))
 const isFreeCircle = computed(() => circle.value?.type === 'FREE')
 
 async function load() {
-  isLoading.value = true
+  if (!circleId.value) { error.value = '缺少圈子信息，请返回重试'; isLoading.value = false; return }
+  const seq = ++requestSeq
+  if (!circle.value) isLoading.value = true
   error.value = ''
   try {
     const c = await circleDetailApi.detail(circleId.value)
+    if (seq !== requestSeq) return
     circle.value = c
     if (c.type === 'FREE') {
-      const [list, stats] = await Promise.all([
+      const [listResult, statsResult] = await Promise.allSettled([
         inviteApi.listCodes(circleId.value, { throwOnError: true }),
         inviteApi.getStats(circleId.value),
       ])
-      codes.value = list
-      totalInvited.value = stats.total
-      records.value = stats.records
+      if (seq !== requestSeq) return
+      if (listResult.status === 'rejected') throw listResult.reason
+      codes.value = listResult.value
+      if (statsResult.status === 'fulfilled') {
+        statsError.value = false
+        totalInvited.value = statsResult.value.total
+        records.value = statsResult.value.records
+      } else {
+        statsError.value = true
+        totalInvited.value = 0
+        records.value = []
+      }
+    } else {
+      statsError.value = false
+      codes.value = []
+      records.value = []
     }
   } catch {
-    error.value = '加载失败，请重试'
+    if (seq === requestSeq) error.value = '加载失败，请重试'
   } finally {
-    isLoading.value = false
+    if (seq === requestSeq) isLoading.value = false
   }
   // 邀请人信息（海报预览行）尽力而为，失败不影响主流程
-  try { me.value = await mineApi.getProfile() } catch { me.value = null }
+  try {
+    const profile = await mineApi.getProfile()
+    if (seq === requestSeq) me.value = profile
+  } catch { if (seq === requestSeq) me.value = null }
 }
 
 /** 生成邀请码（后端 get-or-create 口径按 expiredAt 判断，仅在无可用码时手动触发；maxUses=0 不限次数） */
@@ -81,8 +107,8 @@ async function generateCode() {
 }
 
 function copyCode() {
-  const code = activeCode.value?.code
-  if (!code) return
+  const code = usableCode()?.code
+  if (!code) { uni.showToast({ title: '邀请码可能已失效，正在刷新', icon: 'none' }); void load(); return }
   uni.setClipboardData({
     data: code,
     success: () => { copied.value = true; setTimeout(() => (copied.value = false), 2000) },
@@ -91,15 +117,15 @@ function copyCode() {
 
 /** 分享给好友：邀请码直接进入预览页，省去再次查找或手填。 */
 function shareLink() {
-  const code = isFreeCircle.value ? activeCode.value?.code : undefined
-  if (isFreeCircle.value && !code) { uni.showToast({ title: '请先生成邀请码', icon: 'none' }); return }
+  const code = isFreeCircle.value ? usableCode()?.code : undefined
+  if (isFreeCircle.value && !code) { uni.showToast({ title: '邀请码可能已失效，请刷新或重新生成', icon: 'none' }); void load(); return }
   const url = buildH5Url('pkg-circle/circles/preview', { id: circleId.value, code })
   const text = `邀请你加入「${circle.value?.name || '圈子'}」：${url}`
   uni.setClipboardData({ data: text, success: () => uni.showToast({ title: '邀请文案已复制', icon: 'none' }) })
 }
 
 onShareAppMessage(() => {
-  const code = isFreeCircle.value ? activeCode.value?.code : undefined
+  const code = isFreeCircle.value ? usableCode()?.code : undefined
   return toAppMessage({
     title: `${code ? '邀请你加入' : '来看看'}「${circle.value?.name || '圈子'}」`,
     path: `/pkg-circle/circles/preview?id=${encodeURIComponent(circleId.value)}${code ? `&code=${encodeURIComponent(code)}` : ''}`,
@@ -127,7 +153,7 @@ function codeValidity(code: InviteCodeItem): string {
 function formatCount(n: number): string { return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n) }
 
 onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
-onMounted(load)
+onShow(() => { void load() })
 </script>
 
 <template>
@@ -213,7 +239,11 @@ onMounted(load)
 
       <!-- 我的邀请：真实统计三格 -->
       <text v-if="isFreeCircle" class="iv-label">我的邀请</text>
-      <view v-if="isFreeCircle" class="iv-stats-row">
+      <view v-if="isFreeCircle && statsError" class="iv-record-card empty">
+        <text class="iv-record-empty-t">邀请统计暂时无法加载，邀请码仍可正常分享</text>
+        <view class="iv-retry" @tap="load"><text class="iv-retry-t">重新加载</text></view>
+      </view>
+      <view v-if="isFreeCircle && !statsError" class="iv-stats-row">
         <view class="iv-stat-cell">
           <text class="iv-stat-num">{{ totalInvited }}</text>
           <text class="iv-stat-label">已邀请</text>
@@ -229,7 +259,7 @@ onMounted(load)
       </view>
 
       <!-- 邀请记录 -->
-      <view v-if="isFreeCircle && records.length" class="iv-record-card">
+      <view v-if="isFreeCircle && !statsError && records.length" class="iv-record-card">
         <view v-for="r in records" :key="r.id" class="iv-record-row">
           <image v-if="r.avatar" :src="r.avatar" class="iv-record-avatar" mode="aspectFill" lazy-load />
           <view v-else class="iv-record-avatar ph"><app-icon name="user" :size="30" color="#999999" /></view>
@@ -239,7 +269,7 @@ onMounted(load)
           </view>
         </view>
       </view>
-      <view v-else-if="isFreeCircle" class="iv-record-card empty">
+      <view v-else-if="isFreeCircle && !statsError" class="iv-record-card empty">
         <text class="iv-record-empty-t">还没有邀请记录，把邀请码分享给好友吧</text>
       </view>
 

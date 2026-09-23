@@ -119,7 +119,10 @@ function openItem(n: CircleNotification) {
     n.isRead = true
     unread.value.ALL = Math.max(0, unread.value.ALL - 1)
     unread.value[n.category] = Math.max(0, (unread.value[n.category] ?? 0) - 1)
-    circleNotificationsApi.markRead(n.id).catch(() => { /* 已读失败不打断浏览 */ })
+    circleNotificationsApi.markRead(n.id).catch(() => {
+      // 写入失败时从服务端恢复真实已读状态，避免本地一直显示为已读。
+      void load()
+    })
   }
   const route = n.targetType ? TARGET_ROUTE[n.targetType] : undefined
   if (route && (n.targetId || n.targetType === 'CIRCLE_VIOLATION')) {
