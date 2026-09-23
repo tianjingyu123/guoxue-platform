@@ -291,7 +291,7 @@ export class BotController {
   ) {
     // 门控与非流式 chat 完全同参（每日限次 + AI 计费额度），且先于 SSE 头发送，
     // 额度耗尽时以普通错误响应返回购买引导
-    const bot = await this.svc.precheckChat(id, req.user.id);
+    const { bot, quotaTicket } = await this.svc.precheckChat(id, req.user.id);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -300,9 +300,9 @@ export class BotController {
     res.flushHeaders();
 
     // 富事件流：chunk 文本增量 + meta（conversationId 续聊/免责声明/软性导流），审计落库在 service 内闭环
-    const obs = this.svc.chatStreamRich(bot, req.user.id, dto);
+    const obs = this.svc.chatStreamRich(bot, req.user.id, dto, quotaTicket);
 
-    obs.subscribe({
+    const sub = obs.subscribe({
       next: (ev) => {
         res.write(this.sse.encode(ev));
       },
@@ -316,6 +316,7 @@ export class BotController {
         res.end();
       },
     });
+    res.on("close", () => sub.unsubscribe());
   }
 
   @Get(":id/chat-history/:conversationId")

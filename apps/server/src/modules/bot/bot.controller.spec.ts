@@ -6,8 +6,10 @@ import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { EventEmitter } from "events";
+import { Observable } from "rxjs";
 
-const mockSSE = {} as any;
+const mockSSE = { encode: jest.fn((value: unknown) => JSON.stringify(value)) } as any;
 const mockCozeSvc = { createBot: jest.fn(), listBots: jest.fn(), getBot: jest.fn(), updateBot: jest.fn(), deleteBot: jest.fn() };
 
 const mockBotSvc = {
@@ -24,6 +26,8 @@ const mockBotSvc = {
   chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？" }),
   getBotForChat: jest.fn().mockResolvedValue({ botId: "bot1", apiKey: "key123" }),
   chatStream: jest.fn().mockReturnValue(jest.fn()),
+  precheckChat: jest.fn(),
+  chatStreamRich: jest.fn(),
   getChatHistory: jest.fn().mockResolvedValue([{ role: "user", content: "你好" }]),
   getBotApprovalList: jest.fn().mockResolvedValue([{ circleId: "c1", status: "PENDING" }]),
   approveBot: jest.fn().mockResolvedValue({ circleId: "c1", approved: true }),
@@ -53,6 +57,19 @@ describe("BotController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("SSE 客户端退出时取消模型流订阅", async () => {
+    const res = Object.assign(new EventEmitter(), {
+      setHeader: jest.fn(), flushHeaders: jest.fn(), write: jest.fn(), end: jest.fn(),
+    });
+    const teardown = jest.fn();
+    mockBotSvc.precheckChat.mockResolvedValue({ bot: { id: "b1" }, quotaTicket: { kind: "paid" } });
+    mockBotSvc.chatStreamRich.mockReturnValue(new Observable(() => teardown));
+    await ctrl.chatStream({ user: { id: "u1" } } as any, res as any, "b1", { query: "你好" } as any);
+    expect(mockBotSvc.chatStreamRich).toHaveBeenCalledWith({ id: "b1" }, "u1", { query: "你好" }, { kind: "paid" });
+    res.emit("close");
+    expect(teardown).toHaveBeenCalledTimes(1);
+  });
 
   it("POST /bots — 创建智能体", async () => {
     const dto: any = { name: "国学助手", type: "ASSISTANT" };

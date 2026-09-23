@@ -5,6 +5,7 @@ import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
+import { Observable, of, throwError } from "rxjs";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
 jest.mock("../../common/crypto.util", () => ({
@@ -43,7 +44,7 @@ const mockPrisma = {
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn() };
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn(), chatStreamEx: jest.fn() };
 const mockReco = {
   build: jest.fn().mockResolvedValue({ content: "", recommendation: null }),
   parseProtocol: jest.fn((content: string) => ({ clean: content.replace(/<!--RECO:[\s\S]*?-->/g, "").trim(), intents: [] })),
@@ -109,9 +110,10 @@ describe("BotService", () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 1, paidRemaining: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
       expect(await svc.consumeQuota("b1", "u1")).toBe("trial");
-      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { freeUsed: { increment: 1 } } }),
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ freeUsed: { lt: 3 } }), data: { freeUsed: { increment: 1 } } }),
       );
     });
 
@@ -119,7 +121,7 @@ describe("BotService", () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 5 });
-      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
       expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
     });
 
@@ -129,6 +131,105 @@ describe("BotService", () => {
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 0 });
       mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 0 });
       await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+    });
+
+    it("并发争用最后一次试用时转入付费额度，不超发试用", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(1,
+        expect.objectContaining({ where: expect.objectContaining({ freeUsed: { lt: 3 } }) }),
+      );
+    });
+  });
+
+  describe("模型失败后的额度回退", () => {
+    const setup = () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue({
+        id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze",
+        status: "ACTIVE", isFree: false, dailyLimit: 5, pricePer10Coin: 100, freeUses: 0,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null });
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 0, paidRemaining: 2 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.userBotQuota.update.mockResolvedValue({});
+      mockPrisma.botChatLog.count.mockResolvedValue(0);
+      mockPrisma.botChatLog.create.mockResolvedValue({ id: "log-1" });
+      mockReco.build.mockImplementation(async (content: string) => ({ content, recommendation: null }));
+    };
+
+    it("非流式模型报错退还已扣追问次数，且不写成功日志", async () => {
+      setup();
+      mockCoze.chat.mockRejectedValue(new Error("模型超时"));
+      await expect(svc.chat("b1", "u1", { query: "你好" } as any)).rejects.toThrow("模型超时");
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledWith({
+        where: { id: "q1" }, data: { paidRemaining: { increment: 1 } },
+      });
+      expect(mockPrisma.botChatLog.create).not.toHaveBeenCalled();
+    });
+
+    it("非流式空回答退还额度", async () => {
+      setup();
+      mockCoze.chat.mockResolvedValue({ content: "  ", conversationId: "c1", chatId: "h1" });
+      await expect(svc.chat("b1", "u1", { query: "你好" } as any)).rejects.toThrow(/暂未生成回答/);
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("试用次数在模型失败后退回试用，不误充付费额度", async () => {
+      setup();
+      mockPrisma.botConfig.findUnique.mockResolvedValue({
+        id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze",
+        status: "ACTIVE", isFree: false, dailyLimit: 5, pricePer10Coin: 100, freeUses: 3,
+      });
+      mockCoze.chat.mockRejectedValue(new Error("模型超时"));
+      await expect(svc.chat("b1", "u1", { query: "你好" } as any)).rejects.toThrow("模型超时");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { id: "q1", freeUsed: { gt: 0 } }, data: { freeUsed: { decrement: 1 } },
+      });
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
+    });
+
+    it("流式模型报错退还额度且只退一次", async () => {
+      setup();
+      mockCoze.chatStreamEx.mockReturnValue(throwError(() => new Error("流中断")));
+      const { bot, quotaTicket } = await svc.precheckChat("b1", "u1");
+      await new Promise<void>((resolve) => svc.chatStreamRich(bot, "u1", { query: "你好" } as any, quotaTicket)
+        .subscribe({ error: () => resolve() }));
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("流式空回答退还额度", async () => {
+      setup();
+      mockCoze.chatStreamEx.mockReturnValue(of({ type: "meta", conversationId: "c1" }));
+      const { bot, quotaTicket } = await svc.precheckChat("b1", "u1");
+      await new Promise<void>((resolve) => svc.chatStreamRich(bot, "u1", { query: "你好" } as any, quotaTicket)
+        .subscribe({ error: () => resolve() }));
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.botChatLog.create).not.toHaveBeenCalled();
+    });
+
+    it("用户在任何文本产出前关闭流，退还额度", async () => {
+      setup();
+      mockCoze.chatStreamEx.mockReturnValue(new Observable(() => undefined));
+      const { bot, quotaTicket } = await svc.precheckChat("b1", "u1");
+      const sub = svc.chatStreamRich(bot, "u1", { query: "你好" } as any, quotaTicket).subscribe();
+      sub.unsubscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("流式已产出文本后用户退出不退额度", async () => {
+      setup();
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => {
+        subscriber.next({ type: "chunk", content: "已回答" });
+      }));
+      const { bot, quotaTicket } = await svc.precheckChat("b1", "u1");
+      const sub = svc.chatStreamRich(bot, "u1", { query: "你好" } as any, quotaTicket).subscribe();
+      sub.unsubscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
     });
   });
 

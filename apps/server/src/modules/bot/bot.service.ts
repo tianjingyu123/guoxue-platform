@@ -28,6 +28,9 @@ const PUBLIC_HIDDEN_BOT_TYPES = [
   "GOODS_RECOMMENDER",
 ] as const;
 
+type QuotaKind = "free_bot" | "member" | "trial" | "paid";
+type QuotaTicket = { kind: QuotaKind; quotaId?: string; refunded: boolean };
+
 /**
  * 平台智能体统一协作协议。
  * 具体知识仍由各智能体自己的 systemPrompt 决定；这里仅统一角色体验、回答结构和跨专业分流边界。
@@ -72,30 +75,57 @@ export class BotService {
   }
 
   /** 追问额度检查与消耗（chat 与 chat/stream 共用）；耗尽抛出购买/开通会员引导 */
-  async consumeQuota(botConfigId: string, userId: string): Promise<"free_bot" | "member" | "trial" | "paid"> {
+  async consumeQuota(botConfigId: string, userId: string): Promise<QuotaKind> {
+    return (await this.reserveQuota(botConfigId, userId)).kind;
+  }
+
+  /** 保留本次消耗凭据；模型未产出有效回答时按凭据退还，避免误退另一种额度。 */
+  private async reserveQuota(botConfigId: string, userId: string): Promise<QuotaTicket> {
     const bot = await this.getBotOrThrow(botConfigId);
-    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return "free_bot"; // 免费智能体（仍受既有 dailyLimit 约束）
-    if (await this.isActiveMember(userId)) return "member"; // 会员权益：全部智能体免费
+    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return { kind: "free_bot", refunded: false };
+    if (await this.isActiveMember(userId)) return { kind: "member", refunded: false };
 
     const quota = await this.prisma.userBotQuota.upsert({
       where: { userId_botConfigId: { userId, botConfigId } },
       create: { userId, botConfigId },
       update: {},
     });
-    if (quota.freeUsed < (bot.freeUses ?? 0)) {
-      await this.prisma.userBotQuota.update({ where: { id: quota.id }, data: { freeUsed: { increment: 1 } } });
-      return "trial";
+    if ((bot.freeUses ?? 0) > 0) {
+      const trial = await this.prisma.userBotQuota.updateMany({
+        where: { id: quota.id, freeUsed: { lt: bot.freeUses } },
+        data: { freeUsed: { increment: 1 } },
+      });
+      if (trial.count > 0) return { kind: "trial", quotaId: quota.id, refunded: false };
     }
     // 原子条件扣减，防并发透支
     const consumed = await this.prisma.userBotQuota.updateMany({
       where: { id: quota.id, paidRemaining: { gt: 0 } },
       data: { paidRemaining: { decrement: 1 } },
     });
-    if (consumed.count > 0) return "paid";
+    if (consumed.count > 0) return { kind: "paid", quotaId: quota.id, refunded: false };
     throw new BusinessException(
       ErrorCode.BAD_REQUEST,
       `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
     );
+  }
+
+  private async refundQuota(ticket?: QuotaTicket): Promise<void> {
+    if (!ticket || ticket.refunded || !ticket.quotaId) return;
+    ticket.refunded = true;
+    try {
+      if (ticket.kind === "trial") {
+        await this.prisma.userBotQuota.updateMany({
+          where: { id: ticket.quotaId, freeUsed: { gt: 0 } },
+          data: { freeUsed: { decrement: 1 } },
+        });
+      } else if (ticket.kind === "paid") {
+        await this.prisma.userBotQuota.update({
+          where: { id: ticket.quotaId }, data: { paidRemaining: { increment: 1 } },
+        });
+      }
+    } catch (err) {
+      this.logger.error(`智能体追问额度退还失败 quotaId=${ticket.quotaId}: ${(err as Error).message}`);
+    }
   }
 
   /** 我的追问额度（对话页展示余量与定价） */
@@ -389,17 +419,25 @@ export class BotService {
     }
 
     // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
-    await this.consumeQuota(botConfigId, userId);
-
-    const result = bot.runtime === "local"
-      ? await this.localChat(bot, userId, dto)
-      : await this.coze.chat({
+    const quotaTicket = await this.reserveQuota(botConfigId, userId);
+    let result: Awaited<ReturnType<typeof this.localChat>> | Awaited<ReturnType<CozeService["chat"]>>;
+    try {
+      result = bot.runtime === "local"
+        ? await this.localChat(bot, userId, dto)
+        : await this.coze.chat({
           botId: bot.botId,
           apiKey: bot.apiKey,
           userId,
           query: dto.query,
           conversationId: dto.conversationId,
         });
+      if (typeof result.content !== "string" || !result.content.trim()) {
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "智能体暂未生成回答，请稍后重试");
+      }
+    } catch (err) {
+      await this.refundQuota(quotaTicket);
+      throw err;
+    }
 
     // 向导式推荐：解析模型协议(优先)/平台兜底 → 匹配真实内容 → 按意图置信度直展或征求同意
     // content 已剥离协议标记，落库与展示均用净文本
@@ -446,8 +484,8 @@ export class BotService {
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
     }
-    await this.consumeQuota(botConfigId, userId);
-    return bot;
+    const quotaTicket = await this.reserveQuota(botConfigId, userId);
+    return { bot, quotaTicket };
   }
 
   /**
@@ -460,10 +498,13 @@ export class BotService {
     bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null },
     userId: string,
     dto: ChatDto,
+    quotaTicket?: QuotaTicket,
   ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
     return new Observable((subscriber) => {
+      let settled = false;
       let full = ""; // 完整原始回复（含协议标记，用于导流解析与审计）
       let held = ""; // 尾部滞留缓冲：疑似 `<!--` 协议标记开头后暂停外发
+      let emittedText = false; // 客户端真正收到可见文字后，主动退出不回退次数
       let conversationId = dto.conversationId || "";
       let chatId: string | undefined;
 
@@ -472,7 +513,10 @@ export class BotService {
         const idx = s.indexOf("<!--");
         if (idx >= 0) {
           // 命中协议标记起点：之前的照发，标记及其后全部滞留（协议约定标记在回复末尾）
-          if (idx > 0) subscriber.next({ type: "chunk", content: s.slice(0, idx) });
+          if (idx > 0) {
+            emittedText ||= !!s.slice(0, idx).trim();
+            subscriber.next({ type: "chunk", content: s.slice(0, idx) });
+          }
           held = s.slice(idx);
           return;
         }
@@ -484,16 +528,25 @@ export class BotService {
             break;
           }
         }
-        if (cut > 0) subscriber.next({ type: "chunk", content: s.slice(0, cut) });
+        if (cut > 0) {
+          emittedText ||= !!s.slice(0, cut).trim();
+          subscriber.next({ type: "chunk", content: s.slice(0, cut) });
+        }
         held = s.slice(cut);
       };
 
       // 数据源按运行时分发：local 走自建 ai-gateway(DeepSeek 流式)，coze 保持现状。
       // 两者产出同样的事件流 {type:'meta',conversationId} | {type:'chunk',content}，外层 emitSafe/reco/审计对两者通用。
-      const source$ =
-        bot.runtime === "local"
+      let source$: Observable<CozeStreamEvent>;
+      try {
+        source$ = bot.runtime === "local"
           ? this.localChatStream(bot, userId, dto)
           : this.coze.chatStreamEx({ botId: bot.botId, apiKey: bot.apiKey, userId, query: dto.query, conversationId: dto.conversationId });
+      } catch (err) {
+        settled = true;
+        void this.refundQuota(quotaTicket).finally(() => subscriber.error(err));
+        return;
+      }
 
       const sub = source$
         .subscribe({
@@ -508,8 +561,12 @@ export class BotService {
               emitSafe(held + ev.content);
             }
           },
-          error: (err) => subscriber.error(err),
+          error: (err) => {
+            settled = true;
+            void this.refundQuota(quotaTicket).finally(() => subscriber.error(err));
+          },
           complete: () => {
+            settled = true;
             void (async () => {
               try {
                 // 向导式推荐解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
@@ -521,6 +578,11 @@ export class BotService {
                   this.logger.warn(`流式智能体推荐降级: ${(err as Error).message}`);
                   cleanContent = this.reco.parseProtocol(full).clean;
                   recommendation = null;
+                }
+                if (!cleanContent.trim()) {
+                  await this.refundQuota(quotaTicket);
+                  subscriber.error(new BusinessException(ErrorCode.THIRD_AI_FAILED, "智能体暂未生成回答，请稍后重试"));
+                  return;
                 }
                 // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
                 const alreadySent = full.length - held.length;
@@ -551,7 +613,10 @@ export class BotService {
             })();
           },
         });
-      return () => sub.unsubscribe();
+      return () => {
+        sub.unsubscribe();
+        if (!settled && !emittedText) void this.refundQuota(quotaTicket);
+      };
     });
   }
 
