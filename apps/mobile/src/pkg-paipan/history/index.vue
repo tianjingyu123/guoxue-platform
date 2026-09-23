@@ -15,11 +15,56 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { navigateTo } from '@/utils/router'
 import { recentCharts, chartCounts, RECENT_TOOLS, type RecentChart } from '@/lib/paipan/recent-charts'
+import { aiReportApi, type MyAiReport } from '@/lib/paipan/ai-report-data'
+import { getToken } from '@/utils/storage'
 
 const all = ref<RecentChart[]>([])
 const counts = ref<Record<string, number>>({})
 const filter = ref('')
 const keyword = ref('')
+const reports = ref<MyAiReport[]>([])
+const reportTotal = ref(0)
+const reportPage = ref(0)
+const reportLoading = ref(false)
+const reportError = ref(false)
+let reportRequest = 0
+
+async function loadReports(append = false) {
+  if (!getToken()) {
+    reportRequest++
+    reports.value = []
+    reportTotal.value = 0
+    reportPage.value = 0
+    reportLoading.value = false
+    reportError.value = false
+    return
+  }
+  if (reportLoading.value) return
+  const seq = ++reportRequest
+  const page = append ? reportPage.value + 1 : 1
+  reportLoading.value = true
+  reportError.value = false
+  try {
+    const result = await aiReportApi.mine(page)
+    if (seq !== reportRequest) return
+    reports.value = append ? [...reports.value, ...result.items] : result.items
+    reportTotal.value = result.total
+    reportPage.value = result.page
+  } catch {
+    if (seq === reportRequest) reportError.value = true
+  } finally {
+    if (seq === reportRequest) reportLoading.value = false
+  }
+}
+
+function openReport(r: MyAiReport) {
+  if (r.paipanRecordId) navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(r.paipanRecordId)}&reportId=${encodeURIComponent(r.id)}`)
+}
+
+function reportDate(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 /** 有记录的工具才出现在筛选条上（没记录的工具列出来只是噪音） */
 const tabs = computed(() => {
@@ -45,7 +90,7 @@ function load() {
 }
 
 onMounted(load)
-onShow(load)
+onShow(() => { load(); loadReports() })
 
 function open(r: RecentChart) {
   navigateTo(r.href)
@@ -84,6 +129,33 @@ function open(r: RecentChart) {
     </scroll-view>
 
     <scroll-view class="ph-body" scroll-y :show-scrollbar="false">
+      <view class="ph-report-heading">
+        <text class="ph-report-title">我的报告</text>
+        <text class="ph-report-count">{{ reportTotal ? `${reportTotal} 份 · 登录账号可跨设备查看` : '登录账号可跨设备查看' }}</text>
+      </view>
+      <PaperCard v-if="reports.length" padding="none">
+        <view
+          v-for="r in reports"
+          :key="r.id"
+          class="ph-item ph-report-item"
+          @tap="openReport(r)"
+        >
+          <view class="ph-avatar">书</view>
+          <view class="ph-info">
+            <view class="ph-row">
+              <text class="ph-title">{{ r.clientName || '未命名排盘' }}的报告</text>
+              <text v-if="r.paipanType" class="ph-tool">{{ r.paipanType }}</text>
+            </view>
+            <text class="ph-summary">{{ r.outputSummary || '点击继续阅读与提问' }}</text>
+          </view>
+          <view class="ph-right"><text class="ph-time">{{ reportDate(r.createdAt) }}</text><AppIcon name="chevron-right" :size="16" color="#B8AA9A" /></view>
+        </view>
+      </PaperCard>
+      <view v-if="reports.length < reportTotal || reportError" class="ph-more" @tap="loadReports(reports.length > 0)">
+        <text>{{ reportLoading ? '加载中…' : reportError ? '加载失败，点击重试' : '查看更多报告' }}</text>
+      </view>
+      <view v-else-if="reportLoading" class="ph-more"><text>正在加载报告…</text></view>
+      <view class="ph-report-heading"><text class="ph-report-title">本机排盘记录</text><text class="ph-report-count">按工具筛选</text></view>
       <PaperCard v-if="!all.length" padding="lg">
         <view class="ph-empty">
           <AppIcon name="history" :size="44" color="#D5C9B8" />
@@ -312,4 +384,9 @@ function open(r: RecentChart) {
 .ph-space {
   height: 40rpx;
 }
+.ph-report-heading { display: flex; justify-content: space-between; align-items: center; gap: 12rpx; margin: 8rpx 0 16rpx; }
+.ph-report-title { font-size: 28rpx; font-weight: 700; color: #3A2A1E; }
+.ph-report-count { font-size: 20rpx; color: #9A8C7E; }
+.ph-report-item + .ph-report-item { border-top: 1rpx solid rgba(58, 42, 30, 0.08); }
+.ph-more { padding: 22rpx; text-align: center; font-size: 24rpx; color: #C41E3A; }
 </style>

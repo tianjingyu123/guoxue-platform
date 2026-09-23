@@ -39,6 +39,7 @@ import {
 } from '@/lib/paipan/ai-report-data'
 
 const recordId = ref('')
+const savedReportId = ref('')
 const loading = ref(false)
 const error = ref('')
 const report = ref<AiReportResult | null>(null)
@@ -216,12 +217,15 @@ async function load(regenerate = false) {
   if (!recordId.value) return
   const seq = ++requestSeq
   loading.value = true
-  track.custom('paipan_report_generate_start', { regenerate })
+  const openingSaved = !!savedReportId.value && !regenerate
+  track.custom(openingSaved ? 'paipan_report_reopen_start' : 'paipan_report_generate_start', { regenerate })
   error.value = ''
   unveiling.value = false
-  const ritual = runRitual(seq)
+  const ritual = openingSaved ? Promise.resolve() : runRitual(seq)
   try {
-    const res = await aiReportApi.generate(recordId.value, { regenerate })
+    const res = openingSaved
+      ? await aiReportApi.get(savedReportId.value)
+      : await aiReportApi.generate(recordId.value, { regenerate })
     if (seq !== requestSeq) return
     await ritual
     if (seq !== requestSeq) return
@@ -235,7 +239,7 @@ async function load(regenerate = false) {
     }
     report.value = res
     if (chatOpen.value) loadDialogue()
-    track.custom('paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
+    track.custom(openingSaved ? 'paipan_report_reopen_success' : 'paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
     unveiling.value = true
     setTimeout(() => { unveiling.value = false }, 900)
     loadRelated(res.id)
@@ -243,8 +247,8 @@ async function load(regenerate = false) {
     loadVoiceQuota()
   } catch (e) {
     if (seq !== requestSeq) return
-    track.custom('paipan_report_generate_failure', { regenerate })
-    error.value = (e as Error)?.message || '报告生成失败，请稍后重试'
+    track.custom(openingSaved ? 'paipan_report_reopen_failure' : 'paipan_report_generate_failure', { regenerate })
+    error.value = (e as Error)?.message || (openingSaved ? '报告打开失败，请稍后重试' : '报告生成失败，请稍后重试')
   } finally {
     if (seq === requestSeq) loading.value = false
   }
@@ -506,6 +510,7 @@ const memberFrom = computed(() => {
 
 onLoad((q) => {
   recordId.value = String(q?.recordId || '')
+  savedReportId.value = String(q?.reportId || '')
   if (!recordId.value) {
     error.value = '缺少排盘记录，请先保存排盘后再生成报告'
     return

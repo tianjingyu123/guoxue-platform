@@ -261,6 +261,15 @@ export class PaipanController {
     return this.paipanReport.reportAccess(req.user.id, recordId, reportType || "general");
   }
 
+  /** 本人已生成的报告；放在 report/:id 之前，避免将 mine 当作报告 ID。 */
+  @Get("report/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "分页获取本人已生成的排盘报告" })
+  @ApiBearerAuth()
+  myReports(@Req() req: Request, @Query("page") page?: string) {
+    return this.paipanReport.listReports(req.user.id, page);
+  }
+
   /** 获取排盘报告详情（校验用户归属） */
   @Get("report/:id")
   @UseGuards(JwtAuthGuard)

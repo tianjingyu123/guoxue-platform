@@ -1574,6 +1574,40 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     }
   }
 
+  /** 仅返回本人报告的目录信息，不读取报告正文或加密生辰。 */
+  async listReports(userId: string, rawPage?: string) {
+    const parsed = Number(rawPage);
+    const page = Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10000) : 1;
+    const pageSize = 20;
+    const where = { userId, scene: "paipan_report", analyzeType: "REPORT_GENERAL" };
+    const [rows, total] = await Promise.all([
+      this.prisma.aiAnalysisRecord.findMany({
+        where,
+        select: {
+          id: true,
+          paipanRecordId: true,
+          outputSummary: true,
+          createdAt: true,
+          paipanRecord: { select: { clientName: true, paipanType: true } },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.aiAnalysisRecord.count({ where }),
+    ]);
+    return {
+      items: rows.map(({ paipanRecord, ...row }) => ({
+        ...row,
+        clientName: paipanRecord?.clientName ?? null,
+        paipanType: paipanRecord?.paipanType ?? null,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
   /** 获取报告详情（校验用户归属） */
   async getReport(userId: string, reportId: string) {
     const report = await this.prisma.aiAnalysisRecord.findUnique({ where: { id: reportId } });
