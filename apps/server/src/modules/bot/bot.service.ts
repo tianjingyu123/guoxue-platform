@@ -631,6 +631,7 @@ export class BotService {
     dto: { query: string; conversationId?: string },
   ): Observable<CozeStreamEvent> {
     return new Observable((subscriber) => {
+      const abortController = new AbortController();
       void (async () => {
         try {
           // conversationId：local 自管——续聊沿用传入的，首次用与 botChatLog 一致的新 id
@@ -638,6 +639,7 @@ export class BotService {
           subscriber.next({ type: "meta", conversationId: convId }); // 先下发供前端续聊 + 外层审计取用
           // 组装 messages：system(人设) + 历史 + 当前 query（历史仅续聊时按 conversationId 拉取）
           const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
+          if (subscriber.closed) return;
           const messages: AiMessage[] = [
             ...(bot.systemPrompt ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }] : []),
             ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
@@ -647,8 +649,9 @@ export class BotService {
             scene: "agent-chat",
             userId,
             messages,
-            options: { temperature: 0.55, maxTokens: 1000 },
+            options: { temperature: 0.55, maxTokens: 1000, signal: abortController.signal },
           })) {
+            if (subscriber.closed) return;
             if (chunk) subscriber.next({ type: "chunk", content: chunk });
           }
           subscriber.complete();
@@ -656,6 +659,7 @@ export class BotService {
           subscriber.error(err);
         }
       })();
+      return () => abortController.abort();
     });
   }
 

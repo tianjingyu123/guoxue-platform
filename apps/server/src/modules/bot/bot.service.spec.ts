@@ -231,6 +231,20 @@ describe("BotService", () => {
       await new Promise((resolve) => setImmediate(resolve));
       expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
     });
+
+    it("本地模型流取消订阅会向 AI 网关传递中止信号", async () => {
+      const gateway = (svc as any).aiGateway;
+      gateway.chatStream.mockImplementation(async function* (req: any) {
+        yield "已回答";
+        await new Promise((resolve) => req.options.signal.addEventListener("abort", resolve));
+      });
+      const sub = (svc as any).localChatStream({ id: "b1", systemPrompt: "助手" }, "u1", { query: "你好" }).subscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      const signal = gateway.chatStream.mock.calls[0][0].options.signal as AbortSignal;
+      expect(signal.aborted).toBe(false);
+      sub.unsubscribe();
+      expect(signal.aborted).toBe(true);
+    });
   });
 
   describe("purchaseUses — 购买追问包", () => {

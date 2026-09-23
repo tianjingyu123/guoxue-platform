@@ -167,6 +167,7 @@ export class CozeService {
     additionalParams?: Record<string, unknown>;
   }): Observable<CozeStreamEvent> {
     return new Observable((subscriber) => {
+      const abortController = new AbortController();
       const body: Record<string, unknown> = {
         bot_id: params.botId,
         user_id: params.userId,
@@ -189,6 +190,7 @@ export class CozeService {
       (async () => {
         try {
           const apiKey = await this.resolveApiKey(params.apiKey);
+          if (subscriber.closed) return;
           const tokenMs = Date.now() - t0;
           const resp = await fetch(`${this.baseUrl}/chat`, {
             method: "POST",
@@ -198,7 +200,7 @@ export class CozeService {
             },
             body: JSON.stringify(body),
             // 流式回答整体可能超 10s，用较宽裕超时仅防"永不响应"挂死，避免截断正常长回答
-            signal: AbortSignal.timeout(120000),
+            signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(120000)]),
           });
           const fetchMs = Date.now() - t0;
 
@@ -222,7 +224,7 @@ export class CozeService {
 
           for (;;) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done || subscriber.closed) break;
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
@@ -287,6 +289,7 @@ export class CozeService {
           subscriber.error(err as Error);
         }
       })();
+      return () => abortController.abort();
     });
   }
 

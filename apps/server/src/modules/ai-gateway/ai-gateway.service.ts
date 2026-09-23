@@ -200,6 +200,8 @@ export class AiGatewayService {
         yield chunk;
       }
     } catch (err) {
+      // 用户主动离开页面时不切换备用模型，避免后台继续产生无用请求。
+      if (req.options?.signal?.aborted) throw err;
       const reason = err instanceof AiTimeoutError ? "超时" : "失败";
       this.metrics.recordAiCall(req.scene, actualModel, false, Date.now() - startedAt);
       if (fallbackModel && fallbackModel !== model) {
