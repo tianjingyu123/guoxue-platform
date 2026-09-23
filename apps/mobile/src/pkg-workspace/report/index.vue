@@ -12,7 +12,7 @@
  */
 import { ref, computed } from 'vue'
 import { buildH5Url } from '@/utils/share'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -39,6 +39,53 @@ function isFactChapter(chapter: ReportChapter): boolean {
 }
 
 const dirty = ref(false)
+const leaving = ref(false)
+let approvedBack = false
+
+function goBack() {
+  approvedBack = true
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack({ fail: () => { approvedBack = false } })
+  } else {
+    uni.reLaunch({ url: '/pages/paipan/index', fail: () => { approvedBack = false } })
+  }
+  // 某些端的程序导航不会再次触发 onBackPress，避免放行标记残留。
+  setTimeout(() => { approvedBack = false }, 500)
+}
+
+function backFromEditor() {
+  if (leaving.value) return
+  if (saving.value || sharing.value || unsharing.value || rewriting.value || drafting.value) {
+    uni.showToast({ title: '请等当前操作完成后再返回', icon: 'none' })
+    return
+  }
+  if (!dirty.value) {
+    goBack()
+    return
+  }
+  leaving.value = true
+  uni.showActionSheet({
+    itemList: ['保存并返回', '放弃本页修改'],
+    success: async (result) => {
+      if (result.tapIndex === 0) {
+        if (await save()) goBack()
+      } else if (result.tapIndex === 1) {
+        goBack()
+      }
+    },
+    complete: () => { leaving.value = false },
+  })
+}
+
+onBackPress(() => {
+  if (approvedBack) {
+    approvedBack = false
+    return false
+  }
+  if (!dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) return false
+  backFromEditor()
+  return true
+})
 
 /**
  * 交付链接的域名固定用线上 H5 —— 客户是在自己手机的浏览器里打开的，
@@ -300,21 +347,19 @@ async function unshare() {
   }
 }
 
-function preview() {
+async function preview() {
   if (rewriting.value || drafting.value || sharing.value || saving.value) {
     uni.showToast({ title: '请等当前操作完成后再预览', icon: 'none' })
     return
   }
-  if (dirty.value) {
-    uni.showToast({ title: '请先保存', icon: 'none' })
-    return
-  }
+  if (dirty.value && !(await save())) return
   uni.navigateTo({ url: `/pkg-workspace/report/preview?id=${id.value}` })
 }
 
 /** 归档到案例库（做过的单子沉淀下来） */
-function archive() {
-  if (!report.value) return
+async function archive() {
+  if (!report.value || rewriting.value || drafting.value || sharing.value || saving.value) return
+  if (dirty.value && !(await save())) return
   uni.navigateTo({
     url: `/pkg-workspace/cases/index?fromReport=${id.value}&title=${encodeURIComponent(report.value.title)}&clientName=${encodeURIComponent(report.value.clientName)}`,
   })
@@ -323,7 +368,7 @@ function archive() {
 
 <template>
   <view class="re">
-    <ToolHeader title="报告编辑" :subtitle="report?.typeLabel || ''" />
+    <ToolHeader title="报告编辑" :subtitle="report?.typeLabel || ''" @back="backFromEditor" />
 
     <view v-if="loading" class="re-skeleton" />
     <view v-else-if="failed" class="re-fallback">
