@@ -25,8 +25,8 @@ const mockPrisma = {
     update: jest.fn(),
     findFirst: jest.fn(),
   },
-  post: { findMany: jest.fn() },
-  paidQuestion: { findMany: jest.fn() },
+  post: { findMany: jest.fn(), findUnique: jest.fn() },
+  paidQuestion: { findMany: jest.fn(), findUnique: jest.fn() },
   comment: { findMany: jest.fn() },
   circle: { findUnique: jest.fn() },
   // 治理 #8：knowledge.manage 矩阵位鉴权（assertManager）
@@ -227,7 +227,7 @@ describe("CircleKnowledgeService", () => {
 
     it("确认候选", async () => {
       mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
-        id: "c1", circleId: "c1", sourceType: "article", content: "内容",
+        id: "c1", circleId: "c1", sourceType: "article", content: "内容", status: "pending",
       });
       mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
       mockPrisma.circleKnowledge.create.mockResolvedValue({ id: "k1" });
@@ -237,6 +237,65 @@ describe("CircleKnowledgeService", () => {
 
       const result = await svc.confirmCandidate("c1", "c1", "admin1");
       expect(result.status).toBe("confirmed");
+    });
+
+    it("已处理的候选不可重复确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "article", status: "confirmed",
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("已处理");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("来源帖子已编辑或下架时拒绝确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", content: "旧标题\n旧内容", status: "pending",
+      });
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "新标题", content: "旧内容", status: "PUBLISHED", isEssence: true,
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("重新采集");
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "旧标题", content: "旧内容", status: "HIDDEN", isEssence: true,
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("重新采集");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("来源精华帖未变化时允许确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", content: "标题\n正文", status: "pending",
+      });
+      mockPrisma.post.findUnique.mockResolvedValue({
+        circleId: "c1", title: "标题", content: "正文", status: "PUBLISHED", isEssence: true,
+      });
+      mockPrisma.circleKnowledge.findUnique.mockResolvedValue(null);
+      mockPrisma.circleKnowledge.create.mockResolvedValue({ id: "k1", content: "标题\n正文" });
+      mockPrisma.circleKnowledgeCandidate.update.mockResolvedValue({ id: "cand1", status: "confirmed" });
+      mockVector.embed.mockResolvedValue([[0.1]]);
+      mockVector.storeCircleKnowledge.mockResolvedValue(undefined);
+
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).resolves.toMatchObject({ status: "confirmed" });
+      expect(mockPrisma.circleKnowledge.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("私密或撤回答疑不可确认", async () => {
+      mockPrisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "expert_qa", sourceId: "q1", content: "提炼内容", status: "pending",
+      });
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({
+        circleId: "c1", status: "ANSWERED", isPublic: false, answer: "回答",
+      });
+      await expect(svc.confirmCandidate("c1", "cand1", "admin1")).rejects.toThrow("不能入库");
+      expect(mockPrisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("问答采集仅扫描公开回答", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([]);
+      await svc.extractFromExpertAnswers("c1");
+      expect(mockPrisma.paidQuestion.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ isPublic: true, status: "ANSWERED" }),
+      }));
     });
 
     it("拒绝候选", async () => {
