@@ -21,6 +21,7 @@ import { nowTime, type RecommendItem, type Recommendation } from '@/lib/agent-da
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
 import { resolveAgentReferral } from '@/lib/agent-routing'
 import { track } from '@/composables/useTrack'
+import { aiSearchApi, type AiGuideCard } from '@/lib/ai-search-data'
 
 /** 富消息模型（本组件内部渲染用） */
 interface RichChatMessage {
@@ -151,6 +152,45 @@ function scrollThrottled() {
 let seq = 1
 function nextId(): number { return Date.now() + seq++ }
 
+const GUIDE_INTENT_RE = /找|推荐|哪里|入门|学习|课程|原文|古籍|阅读|圈子|社群|学伴|怎么学|如何学/
+const GUIDE_BLOCK_RE = /退款|退费|投诉|举报|故障|崩溃|打不开|无法使用/
+const GUIDE_TARGET_RE = /^\/(pkg-classics\/detail\/index|pkg-circle\/(articles|circles)\/detail|pkg-course\/detail\/index)\?id=[^&#]+$/
+
+/** 智玄在完成回答后补上真实内容入口，不改模型正文与付费会话。 */
+async function attachContentGuide(question: string, messageId: number) {
+  if (props.experienceKey !== 'GUIDE' || !GUIDE_INTENT_RE.test(question) || GUIDE_BLOCK_RE.test(question)) return
+  try {
+    const result = await aiSearchApi.guide(question)
+    const items: RecommendItem[] = (result.cards || [])
+      .filter((card: AiGuideCard) => GUIDE_TARGET_RE.test(card.target)
+        && (!['course', 'circle'].includes(card.type) || typeof card.price === 'number'))
+      .slice(0, 2)
+      .map((card: AiGuideCard) => ({
+        type: card.type === 'content' ? 'article' : card.type,
+        data: {
+          id: card.id, title: card.title, cover: card.cover, intro: card.subtitle,
+          href: card.target, price: card.price, reason: '与你刚才的学习方向相关',
+        },
+      }))
+    if (!items.length) return
+    const message = messages.value.find((item) => item.id === messageId)
+    if (!message || message.recommendation) return
+    const hasCommerce = items.some((item) => ['course', 'circle'].includes(item.type))
+    message.recommendation = {
+      presentation: 'inline',
+      title: '接着可以看',
+      lead: '从平台已发布的内容里找到这些入口。',
+      consentPrompt: '',
+      commercialDisclosure: hasCommerce ? '含课程或圈子，价格与权益以详情页为准' : undefined,
+      items,
+    }
+    track.custom('guide_content_offered', { itemTypes: items.map((item) => item.type) })
+    scrollToBottom()
+  } catch {
+    // 导览是增强能力，不影响已经完成的回答。
+  }
+}
+
 async function send(text: string) {
   const t = text.trim()
   if (!t || loading.value) return
@@ -230,7 +270,9 @@ async function sendStreaming(t: string) {
   try {
     await props.resolveStream!(t, handlers)
     const m = live()
+    const hasAnswer = Boolean(m?.content.trim())
     if (m && !m.content.trim()) m.content = '抱歉，本次没有生成内容，请换个问法试试。'
+    if (hasAnswer && m) void attachContentGuide(t, m.id)
     if (props.experienceKey === 'SERVICE') {
       track.custom('cs_reply_completed', { scene: 'customer_service', hasRecommendation: Boolean(m?.recommendation) })
     }
@@ -252,7 +294,9 @@ async function sendLegacy(t: string) {
   await new Promise((r) => setTimeout(r, props.delay ?? 1000))
   try {
     const reply = await props.resolveReply!(t)
-    messages.value.push({ id: nextId(), role: 'assistant', content: reply, time: nowTime() })
+    const message = { id: nextId(), role: 'assistant' as const, content: reply, time: nowTime() }
+    messages.value.push(message)
+    if (reply.trim()) void attachContentGuide(t, message.id)
     if (props.experienceKey === 'SERVICE') {
       track.custom('cs_reply_completed', { scene: 'customer_service', hasRecommendation: false })
     }
@@ -287,6 +331,9 @@ function openRecommendation(item: RecommendItem) {
       itemId: String(item.data?.id || item.data?.href || ''),
       hasPrice: Number(item.data?.price || 0) > 0,
     })
+  }
+  if (props.experienceKey === 'GUIDE') {
+    track.custom('guide_content_open', { type: item.type, id: String(item.data?.id || '') })
   }
   if (item.data?.href) navigateTo(item.data.href)
   else if (item.type === 'agent') navigateTo('/agents')

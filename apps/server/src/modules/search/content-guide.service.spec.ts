@@ -87,4 +87,25 @@ describe("ContentGuideService", () => {
     const result = await svc.guide("测", 2);
     expect(result.cards.length).toBeLessThanOrEqual(2);
   });
+
+  it("学习问题优先课程，并在类型之间轮取", async () => {
+    mockSearch.search.mockResolvedValue({
+      classics: [{ id: "b1", title: "八字原典" }, { id: "b2", title: "另一原典" }],
+      articles: [{ id: "a1", title: "八字文章" }],
+      courses: [{ id: "c1", title: "八字入门课", price: "99" }],
+      circles: [{ id: "g1", name: "学习圈", price: "0" }],
+      contents: [],
+    });
+    const result = await svc.guide("八字如何入门", 4);
+    expect(result.cards.map((card) => card.type)).toEqual(["course", "article", "classic", "circle"]);
+    expect(result.cards[0].price).toBe(99);
+  });
+
+  it("自然问句零命中时按明确主题补检一次", async () => {
+    mockSearch.search.mockResolvedValueOnce({ articles: [], classics: [], courses: [], circles: [], contents: [] });
+    mockSearch.search.mockResolvedValueOnce({ articles: [{ id: "a1", title: "论语入门" }] });
+    const result = await svc.guide("我想知道论语中的仁是什么意思", 4);
+    expect(mockSearch.search).toHaveBeenNthCalledWith(2, { q: "论语", page: 1, pageSize: 20 });
+    expect(result.cards[0].id).toBe("a1");
+  });
 });

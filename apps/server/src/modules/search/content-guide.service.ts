@@ -13,14 +13,31 @@ import { SearchService } from "./search.service";
 export class ContentGuideService {
   constructor(private readonly search: SearchService) {}
 
+  private readonly topics = [
+    "梅花易数", "紫微斗数", "道德经", "三字经", "千字文", "弟子规", "万年历",
+    "八字", "四柱", "紫微", "周易", "易经", "论语", "诗词", "书法", "茶道",
+    "古琴", "风水", "奇门", "六爻", "节气", "国学", "礼仪", "蒙学",
+  ];
+
+  private hasCards(result: Record<string, unknown>): boolean {
+    return ["articles", "classics", "courses", "circles", "contents"]
+      .some((key) => Array.isArray(result[key]) && (result[key] as unknown[]).length > 0);
+  }
+
   /** 把全局搜索结果映射成统一来源卡片 */
   async guide(query: string, topK = 8): Promise<GuideResult> {
-    const q = (query || "").trim();
+    const q = String(query || "").trim().slice(0, 200);
     if (!q) return { query: "", cards: [] };
+    const limit = Math.min(Math.max(Number(topK) || 4, 1), 8);
 
-    const raw = await this.search.search({ q, page: 1, pageSize: 20 });
+    let raw = await this.search.search({ q, page: 1, pageSize: 20 });
+    // 自然问句通常不会完整出现在标题中；零命中时用明确出现的主题词补检一次。
+    if (!this.hasCards(raw as Record<string, unknown>)) {
+      const topic = this.topics.find((item) => q.includes(item));
+      if (topic && topic !== q) raw = await this.search.search({ q: topic, page: 1, pageSize: 20 });
+    }
 
-    const cards: GuideCard[] = [];
+    const groups = new Map<GuideCardType, GuideCard[]>();
     const push = (
       type: GuideCardType,
       list: any[],
@@ -29,17 +46,25 @@ export class ContentGuideService {
         title: (r: any) => string;
         subtitle?: (r: any) => string;
         cover?: (r: any) => string | undefined;
+        price?: (r: any) => number | string | null;
       },
     ) => {
       for (const r of list || []) {
+        const id = String(fields.id(r) || "").trim();
+        const title = String(fields.title(r) || "").trim();
+        if (!id || !title) continue;
+        const cards = groups.get(type) || [];
         cards.push({
           type,
-          id: String(fields.id(r)),
-          title: String(fields.title(r) || "").trim(),
+          id,
+          title,
           subtitle: fields.subtitle ? String(fields.subtitle(r) || "").trim() : undefined,
           cover: fields.cover ? fields.cover(r) : undefined,
-          target: this.buildTarget(type, String(fields.id(r))),
+          price: fields.price && Number.isFinite(Number(fields.price(r)))
+            ? Math.max(0, Number(fields.price(r))) : undefined,
+          target: this.buildTarget(type, id),
         });
+        groups.set(type, cards);
       }
     };
 
@@ -61,12 +86,14 @@ export class ContentGuideService {
       title: (r) => r.title,
       subtitle: (r) => r.intro,
       cover: (r) => r.cover,
+      price: (r) => r.price,
     });
     push("circle", res.circles, {
       id: (r) => r.id,
       title: (r) => r.name,
       subtitle: (r) => r.intro,
       cover: (r) => r.cover,
+      price: (r) => r.price,
     });
     push("content", res.contents, {
       id: (r) => r.id,
@@ -75,7 +102,23 @@ export class ContentGuideService {
       cover: (r) => r.cover,
     });
 
-    return { query: q, cards: cards.slice(0, topK) };
+    // 跨类型轮取：避免某一类的前五条占满导览位，让文章、课程、圈子均有发现机会。
+    const priority: GuideCardType[] = /课程|系统学|入门|学习路线/.test(q)
+      ? ["course", "article", "classic", "circle", "content"]
+      : /圈子|社群|交流|同好/.test(q)
+        ? ["circle", "article", "course", "classic", "content"]
+        : /原文|古籍|典籍|出处/.test(q)
+          ? ["classic", "article", "content", "course", "circle"]
+          : ["article", "classic", "course", "circle", "content"];
+    const cards: GuideCard[] = [];
+    while (cards.length < limit && priority.some((type) => groups.get(type)?.length)) {
+      for (const type of priority) {
+        const next = groups.get(type)?.shift();
+        if (next) cards.push(next);
+        if (cards.length >= limit) break;
+      }
+    }
+    return { query: q, cards };
   }
 
   /**
@@ -107,6 +150,8 @@ export interface GuideCard {
   title: string;
   subtitle?: string;
   cover?: string;
+  /** 当前检索时的价格快照，权益及最终价格以详情页为准 */
+  price?: number;
   /** 前端导航目标路径 */
   target: string;
 }

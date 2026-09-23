@@ -105,6 +105,18 @@ describe("RecommendationService（场景化向导推荐）", () => {
     });
   });
 
+  it("古籍推荐必须满足已审计的可商用许可", async () => {
+    prisma.classicBook.findFirst.mockResolvedValue(null);
+    await service.match([{ type: "classic", query: "周易" }]);
+    expect(prisma.classicBook.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        status: "PUBLISHED",
+        deletedAt: null,
+        copyrights: expect.objectContaining({ some: expect.objectContaining({ auditedAt: { not: null } }) }),
+      }),
+    }));
+  });
+
   it("明确购买意图时允许商品直接出现，并透明标注商业属性", async () => {
     prisma.article.findFirst.mockResolvedValue(null);
     prisma.product.findFirst.mockResolvedValue({

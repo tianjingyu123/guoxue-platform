@@ -179,7 +179,7 @@ export class SearchService {
       },
       Circle: {
         table: "Circle", fields: "coalesce(name,'') || ' ' || coalesce(intro,'')",
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
@@ -249,7 +249,7 @@ export class SearchService {
       },
       Circle: {
         table: "Circle", searchFields: ["name", "intro"],
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", searchFields: ["title"],

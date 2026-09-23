@@ -37,13 +37,17 @@ const mockPrisma = {
     findUnique: jest.fn(),
   },
   user: { findUnique: jest.fn() },
+  botChatLog: { count: jest.fn(), create: jest.fn() },
   userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
   // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false) };
-const mockReco = { build: jest.fn().mockResolvedValue({ content: "", recommendation: null }) };
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn() };
+const mockReco = {
+  build: jest.fn().mockResolvedValue({ content: "", recommendation: null }),
+  parseProtocol: jest.fn((content: string) => ({ clean: content.replace(/<!--RECO:[\s\S]*?-->/g, "").trim(), intents: [] })),
+};
 
 describe("BotService", () => {
   let svc: BotService;
@@ -62,6 +66,27 @@ describe("BotService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("推荐检索故障时保留已生成的回答并剥离协议标记", async () => {
+    mockPrisma.botConfig.findUnique.mockResolvedValue({
+      id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc",
+      runtime: "coze", status: "ACTIVE", isFree: true, dailyLimit: 5, pricePer10Coin: 0,
+    });
+    mockPrisma.botChatLog.count.mockResolvedValue(0);
+    mockPrisma.botChatLog.create.mockResolvedValue({ id: "log-1" });
+    mockCoze.chat.mockResolvedValue({
+      content: '先读原文。<!--RECO:[{"type":"classic","query":"论语"}]-->',
+      conversationId: "conv-1", chatId: "chat-1",
+    });
+    mockReco.build.mockRejectedValueOnce(new Error("检索超时"));
+
+    const result = await svc.chat("b1", "u1", { query: "论语是什么" } as any);
+    expect(result.content).toBe("先读原文。");
+    expect(result.recommendation).toBeNull();
+    expect(mockPrisma.botChatLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ response: "先读原文。" }),
+    }));
+  });
 
   describe("consumeQuota — AI 计费（会员免费/试用/追问包）", () => {
     const PAID_BOT = { id: "b1", name: "命理助手", botId: "coze-1", apiKey: "enc", pricePer10Coin: 100, freeUses: 3, status: "ACTIVE" };

@@ -20,6 +20,7 @@ import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
 import { resolveAgentReferral } from '@/lib/agent-routing'
 import { gotoComplaint } from '@/lib/trust-entry'
+import { track } from '@/composables/useTrack'
 
 const loading = ref(true)
 const error = ref('')
@@ -265,6 +266,7 @@ function sendCore(text: string) {
 
 /** 额度耗尽/回复失败的统一错误处理（流式与降级共用，保持原有购买引导/失败气泡逻辑一致） */
 function handleSendError(e: unknown, text: string) {
+  track.custom('agent_reply_failed', { agentId: agentId.value })
   const msg = (e as Error)?.message || ''
   if (msg.includes('追问次数已用完')) {
     // 额度耗尽：刷新额度并弹购买引导弹窗
@@ -328,6 +330,7 @@ async function sendCoreStream(text: string) {
     if (done) done.isStreaming = false
     isTyping.value = false
     consumeQuotaLocal()
+    track.custom('agent_reply_completed', { agentId: agentId.value, hasRecommendation: Boolean(done?.recommendation) })
     scrollToBottom()
   } catch (e) {
     isTyping.value = false
@@ -356,6 +359,7 @@ function sendCoreFallback(text: string) {
       simulateStreaming(reply, id, recommendation)
       // 发送成功：本地余量同步减 1
       consumeQuotaLocal()
+      track.custom('agent_reply_completed', { agentId: agentId.value, hasRecommendation: Boolean(recommendation) })
     } catch (e) {
       isTyping.value = false
       freeRemaining.value += 1 // 失败不消耗额度，回退发送前的本地预扣
@@ -484,14 +488,17 @@ function openVoiceCall() {
 // 低置信商业推荐：同意/拒绝查看
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
+  track.custom('agent_recommend_consent', { agentId: agentId.value })
   scrollToBottom()
 }
 function declineReco(msg: ChatMessage) {
   msg.recommendation = undefined
+  track.custom('agent_recommend_declined', { agentId: agentId.value })
 }
 
 // 推荐卡片点击 → 跳转对应板块
 function openRecommend(item: RecommendItem) {
+  track.custom('agent_recommend_open', { agentId: agentId.value, type: item.type, id: String(item.data?.id || '') })
   if (item.data?.href) navigateTo(item.data.href)
   else if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
