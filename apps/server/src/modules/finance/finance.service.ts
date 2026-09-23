@@ -362,7 +362,7 @@ export class FinanceService {
 
     return this.prisma.$transaction(async (tx) => {
       // 同一订单申请串行化；无需新增唯一索引和生产 DDL，也能阻断双击/并发重复开票。
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `invoice:${orderId}`);
+      await tx.$queryRawUnsafe("SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", `invoice:${orderId}`);
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
       if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作他人订单");

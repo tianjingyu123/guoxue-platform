@@ -54,7 +54,7 @@ describe("ShopOrderService", () => {
       expect(mockPrisma.order.create).toHaveBeenCalledTimes(1)
       expect(mockPrisma.product.updateMany).toHaveBeenCalledTimes(1)
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT pg_advisory_xact_lock(hashtext($1))", "product-order:u1:request-0001",
+        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", "product-order:u1:request-0001",
       )
     })
 
@@ -861,7 +861,7 @@ describe("ShopOrderService", () => {
 
       expect(result.id).toBe("o-pending")
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
         "station-order:u1:st1",
       )
       expect(mockPrisma.order.create).not.toHaveBeenCalled()
@@ -930,7 +930,7 @@ describe("ShopOrderService", () => {
 
       expect(result.id).toBe("op-pending")
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
         "operator-order:u1:SILVER",
       )
       expect(mockPrisma.order.create).not.toHaveBeenCalled()

@@ -67,7 +67,7 @@ describe("AbTestService", () => {
 
     expect(created.status).toBe(AbTestStatus.DRAFT);
     expect(tx.$queryRawUnsafe).toHaveBeenCalledWith(
-      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
       "recommend.ab.configs.v1",
     );
     expect(tx.configSystem.upsert).toHaveBeenCalledTimes(1);

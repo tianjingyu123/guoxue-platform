@@ -135,10 +135,9 @@ export class ShopCouponService {
       await this.lockCouponIssuance(tx, couponId);
       const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
       if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-      this.assertCouponIssuable(coupon);
-
       const existing = await tx.userCoupon.findFirst({ where: { userId, couponId, used: false } });
       if (existing) return existing;
+      this.assertCouponIssuable(coupon);
 
       await this.incrementIssuedCount(tx, couponId, 1);
       return tx.userCoupon.create({ data: { userId, couponId } });
@@ -176,7 +175,7 @@ export class ShopCouponService {
 
   private async lockCouponIssuance(tx: Prisma.TransactionClient, couponId: string) {
     await tx.$queryRawUnsafe(
-      "SELECT pg_advisory_xact_lock(hashtext($1))::text",
+      "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
       `coupon-issue:${couponId}`,
     );
   }
@@ -223,8 +222,8 @@ export class ShopCouponService {
 
     return this.prisma.$transaction(async (tx) => {
       // 同一订单串行申请，避免双击/双端并发创建两张可退款售后单。
-      // 锁函数返回 PostgreSQL void，显式转为 text，避免 Prisma 反序列化失败。
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))::text", `after-sale:${orderId}`);
+      // 锁函数返回 PostgreSQL void；选择常量整数，避免 Prisma 反序列化失败。
+      await tx.$queryRawUnsafe("SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", `after-sale:${orderId}`);
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
       if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");

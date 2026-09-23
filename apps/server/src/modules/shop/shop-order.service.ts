@@ -256,7 +256,7 @@ export class ShopOrderService {
       return await this.prisma.$transaction(async (tx) => {
         if (clientRequestId) {
           // 数据库事务锁串行化同用户同键；唯一约束是最后防线，失败事务不会占键。
-          await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `product-order:${userId}:${clientRequestId}`);
+          await tx.$queryRawUnsafe("SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", `product-order:${userId}:${clientRequestId}`);
           const existing = await tx.order.findFirst({ where: { userId, clientRequestId } });
           if (existing) {
             if (existing.requestFingerprint !== requestFingerprint) {
@@ -269,7 +269,7 @@ export class ShopOrderService {
           // PostgreSQL 事务级锁是 Redis 降级/多实例场景的最终防线；事务结束自动释放。
           const dbLockName = (dto.type === "STATION_MASTER" ? "station-order:" : "operator-order:")
             + userId + ":" + dto.targetId;
-          await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", dbLockName);
+          await tx.$queryRawUnsafe("SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", dbLockName);
           const pending = await tx.order.findFirst({
             where: { userId, type: dto.type as any, targetId: dto.targetId, status: "PENDING" },
             orderBy: { createdAt: "desc" },
