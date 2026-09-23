@@ -1786,7 +1786,7 @@ export const shopApi = {
    * 内容来源（佣-V2-P3）：显式传入 sourceContentType/Id 优先（直播/视频直跳结算 URL 透传）；
    * 未显式传入时回落会话内暂存来源（文章→商品详情→结算的间接链路），仅当商品匹配才带上。
    */
-  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string }): Promise<{ id: string; amount: number; status: string }> {
+  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string; clientRequestId?: string }): Promise<{ id: string; amount: number; status: string }> {
     const orderType = String(payload.type || 'PRODUCT').toUpperCase()
     const featureKey = orderType === 'MEMBER' ? 'member_purchase' : 'shop_checkout'
     if (!isClientFeatureEnabled(featureKey, true)) {
@@ -1804,6 +1804,7 @@ export const shopApi = {
       amount: Math.max(1, Number(payload.quantity) || 1),
       couponId: payload.couponId || undefined,
       addressId: payload.addressId || undefined,
+      clientRequestId: payload.clientRequestId || undefined,
       // 推荐归因：携带最近分享链接的临时推荐人（7天窗口·临时优先于永久归属，永久归属由后端回填）
       tempReferrerId: getTempReferrer(),
       // 内容来源（佣-V2-P3·纯记录）：LIVE/ARTICLE/VIDEO 场景下单归因

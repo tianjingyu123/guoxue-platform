@@ -96,6 +96,10 @@
       <view style="height: 140rpx;" />
     </scroll-view>
 
+    <view v-if="pendingAttempt" class="pending-attempt">
+      <text>上次下单结果待确认。重复提交会沿用原请求。</text>
+      <view role="link" tabindex="0" aria-label="查看我的订单" @tap="navigateTo('/pkg-order/list/index')" @keydown.enter="navigateTo('/pkg-order/list/index')" @keydown.space.prevent="navigateTo('/pkg-order/list/index')">查看订单 ›</view>
+    </view>
     <!-- 底部支付栏 -->
     <view class="footer">
       <view class="footer-total">
@@ -171,6 +175,7 @@ import { existingOrderCashierRoute, isHuifuChannel } from '@/utils/existing-orde
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
+import { requestKeysFor, hasPendingCheckoutAttempt, clearCheckoutAttempt } from '@/lib/checkout-request-keys'
 
 const loading = ref(true)
 const error = ref('')
@@ -185,8 +190,10 @@ const showAddress = ref(false)
 const showCoupon = ref(false)
 const showTimeout = ref(false)
 const submitting = ref(false)
-// 多商品逐单创建时，缓存已成功建单（key=productId:skuId），失败重试跳过已建单，避免首商品重复下单产生孤儿单
+const pendingAttempt = ref(hasPendingCheckoutAttempt())
+// 多商品逐单创建时，缓存已成功建单；失败重试只复用同一结算选择下的订单。
 const createdOrders = new Map<string, { id: string; amount: number }>()
+let createdOrderSelection = ''
 
 // 结算来源：立即购买(productId+skuId+quantity) 或 购物车结算(itemIds)
 const source = ref<{ productId?: string; skuId?: string; quantity?: number; itemIds?: string[] }>({})
@@ -306,8 +313,25 @@ onMounted(async () => {
 })
 onUnmounted(() => { if (timer) clearInterval(timer) })
 
-function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
-function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
+function canChangeOrderSelection() {
+  if (hasPendingCheckoutAttempt()) {
+    uni.showToast({ title: '上次下单结果待确认，请先到我的订单核对', icon: 'none' })
+    return false
+  }
+  if (!createdOrders.size && !submitting.value) return true
+  uni.showToast({ title: createdOrders.size ? '已有订单生成，请先完成当前订单' : '订单提交中，请稍候', icon: 'none' })
+  return false
+}
+function selectAddress(a: ShippingAddress) {
+  if (!canChangeOrderSelection()) return
+  currentAddress.value = a
+  showAddress.value = false
+}
+function selectCoupon(c: CheckoutCoupon | null) {
+  if (!canChangeOrderSelection()) return
+  selectedCoupon.value = c
+  showCoupon.value = false
+}
 
 // 无地址时从卡片直接进入新增页；已有地址时保留地址选择弹层。
 function onAddressCardTap() {
@@ -336,6 +360,15 @@ async function submitOrder() {
   if (submitting.value) return
   if (!items.value.length) { uni.showToast({ title: '没有可结算的商品', icon: 'none' }); return }
   if (!currentAddress.value) { uni.showToast({ title: '请选择收货地址', icon: 'none' }); return }
+  const selection = JSON.stringify({
+    addressId: currentAddress.value.id,
+    couponId: selectedCoupon.value?.id,
+    items: items.value.map((it) => [it.productId, it.skuId, it.quantity]),
+  })
+  if (createdOrders.size && selection !== createdOrderSelection) {
+    uni.showToast({ title: '结算内容已变化，请到我的订单处理已生成订单', icon: 'none' })
+    return
+  }
   if (!estimate.value) {
     await refreshEstimate()
     if (!estimate.value) { uni.showToast({ title: '价格与运费核算失败，请重试', icon: 'none' }); return }
@@ -350,12 +383,15 @@ async function submitOrder() {
     const option = h5PaymentOptions(typeof navigator === 'undefined' ? '' : navigator.userAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === payMethod.value)
     if (!option?.enabled) throw new Error(option?.reason || '请选择当前可用的支付方式')
     // #endif
+    // 请求发出前落本地键；若响应丢失，同一结算内容再次提交仍可由服务端返回原单。
+    const requestKeys = requestKeysFor(selection, items.value.length)
+    pendingAttempt.value = true
     const couponId = selectedCoupon.value?.id
     // 后端为单商品下单（无合并支付）：多商品逐个创建订单，券仅用于第一单；先支付第一笔，其余在「我的订单」继续支付
     const orders: { id: string; amount: number }[] = []
     for (let i = 0; i < items.value.length; i++) {
       const it = items.value[i]
-      const key = `${it.productId}:${it.skuId || ''}`
+      const key = String(i)
       // 已成功建过的订单（上次提交中途失败留下）直接复用，不再重复下单
       const cached = createdOrders.get(key)
       if (cached) { orders.push(cached); continue }
@@ -366,15 +402,22 @@ async function submitOrder() {
         quantity: it.quantity,
         couponId: i === 0 ? couponId : undefined,
         addressId: currentAddress.value.id,
+        clientRequestId: requestKeys[i],
         // 内容场景来源（佣-V2-P3）：直播/文章/视频入口透传，随订单落库
         sourceContentType: contentSource.value.type,
         sourceContentId: contentSource.value.id,
       })
+      if (order.status !== 'PENDING' && order.status !== 'PAID') {
+        throw new Error('原订单状态已变化，请到我的订单核对后再结算')
+      }
       const rec = { id: order.id, amount: order.amount }
+      if (!createdOrderSelection) createdOrderSelection = selection
       createdOrders.set(key, rec) // 建单成功立即缓存，失败重试时该商品跳过
       orders.push(rec)
     }
     const first = orders[0]
+    clearCheckoutAttempt()
+    pendingAttempt.value = false
     if (orders.length > 1) {
       uni.showToast({ title: `已创建${orders.length}笔订单，先支付第一笔`, icon: 'none' })
     }
@@ -458,6 +501,8 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .ft-saved { font-size: 22rpx; color: #16A34A; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, var(--brand), #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
+.pending-attempt { padding: 18rpx 30rpx; background: #FFF5E6; color: #744B17; font-size: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.pending-attempt view { flex-shrink: 0; color: #8E4218; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }
 .sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }

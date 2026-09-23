@@ -69,8 +69,7 @@ export class ShopOrderService {
       type: dto.type, targetId: dto.targetId, skuId: dto.skuId || null,
       quantity: Math.max(1, Math.floor(Number(dto.amount) || 1)),
       couponId: dto.couponId || null, addressId: dto.addressId || null,
-      tempReferrerId: dto.tempReferrerId || null,
-      sourceContentType: dto.sourceContentType || null, sourceContentId: dto.sourceContentId || null,
+      // 推荐与内容来源可能在弱网重试期间自然过期；复用首次已提交订单，不改首次归因。
       pageId: (dto as any).pageId || null,
     })).digest("hex") : undefined;
     const reuseOrder = async () => {
