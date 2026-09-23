@@ -8,7 +8,7 @@ describe("工作台报告列表分页", () => {
         count: jest.fn().mockResolvedValue(87),
       },
     };
-    const service = new PractitionerService(prisma);
+    const service = new PractitionerService(prisma, {} as any);
     jest.spyOn(service as any, "reportQuota").mockResolvedValue({ used: 120, limit: null, unlimited: true });
 
     const result = await service.listReports("teacher-1", { status: "draft", keyword: "陈", page: "3" });

@@ -10,7 +10,7 @@ function setup(shareToken: string | null) {
       update: jest.fn(async ({ data }: any) => ({ ...report, ...data })),
     },
   };
-  return { service: new PractitionerService(prisma), prisma };
+  return { service: new PractitionerService(prisma, {} as any), prisma };
 }
 
 describe("从业者报告交付后锁定", () => {

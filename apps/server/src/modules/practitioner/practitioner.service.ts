@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "node:crypto";
 import { safePagination } from "../../common/pagination";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
 
 /**
  * 从业者工作台（V0「从业者工作台」的真后端）
@@ -24,7 +25,7 @@ export class PractitionerService {
   /** 免费用户可保留的报告份数（超出需开通会员） */
   static readonly FREE_REPORT_QUOTA = 3;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private commerce: XiaobuCommerceService) {}
 
   // ───────────────────────── 会员与档案 ─────────────────────────
 
@@ -212,6 +213,20 @@ export class PractitionerService {
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+
+    // 与报告阅读共用权益口径；关联缺失时不能凭旧报告 ID 绕过当前权益。
+    const reportType = String(content?.metadata?.reportType ||
+      (rec.analyzeType?.startsWith("REPORT_") ? rec.analyzeType.slice(7).toLowerCase() : ""));
+    if (!rec.paipanRecordId || !reportType) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "报告缺少权益关联，暂无法导入工作台");
+    }
+    await this.commerce.assertReportAccess(userId, rec.paipanRecordId, reportType);
+
+    // 同一源报告只需一份工作台草稿。先查已有件再核配额，避免已达上限时回不到原稿。
+    const imported = await this.prisma.practitionerReport.findFirst({
+      where: { ownerId: userId, paipan: { path: ["sourceReportId"], equals: rec.id } },
+    });
+    if (imported) return imported;
 
     const paipanType = String(content?.metadata?.paipanType || "bazi");
     const TYPE_LABEL: Record<string, string> = {
