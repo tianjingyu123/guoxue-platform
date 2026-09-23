@@ -313,7 +313,19 @@ export class XiaozhiConnection {
         allowPendingVendorForMockRelay: true,
       });
     } catch (e: any) {
+      if (this.finished) return;
       return this.helloThenAlert(friendlyDeviceMessage(e?.message), "session_rejected");
+    }
+    // 设备可能在签发会话的异步等待中断开；此时收尾已运行过，需主动结束迟到的会话。
+    if (this.finished) {
+      if (started?.available && started.session?.id) {
+        try {
+          await this.deps.sessions.end(this.auth.userId, started.session.id, { reason: "user_hangup", clientEstimatedSeconds: 0 });
+        } catch (e: any) {
+          this.deps.logger.warn(`小智终端迟到会话收尾失败（清理任务会兜底）：${e?.message || e}`);
+        }
+      }
+      return;
     }
     if (!started?.available) {
       return this.helloThenAlert(started?.userMessage || "语音服务暂未开放", "provider_unavailable");
@@ -326,6 +338,7 @@ export class XiaozhiConnection {
       where: { id: this.sessionId! },
       select: { providerSessionId: true, requestId: true },
     });
+    if (this.finished) return;
     if (!this.deps.provider.openDeviceStream || !row?.providerSessionId) {
       return this.helloThenAlert("小卜语音暂未开放，你可以先用热卜 App 和小卜文字交流。", "relay_unsupported");
     }
@@ -337,7 +350,16 @@ export class XiaozhiConnection {
         timeoutMs: 5000,
       });
     } catch (e: any) {
+      if (this.finished) return;
       return this.helloThenAlert("语音服务连接失败，请稍后再试", "relay_failed");
+    }
+    if (this.finished) {
+      try {
+        this.stream.close("device_disconnect");
+      } catch {
+        /* 中继可能已自行断开 */
+      }
+      return;
     }
     this.stream.onEvent((e) => this.onStreamEvent(e));
     const d = this.stream.downlink;
@@ -349,6 +371,7 @@ export class XiaozhiConnection {
       audio_params: { format: "opus", sample_rate: d.sampleRate, channels: d.channels, frame_duration: d.frameDurationMs },
     });
     const cfg = await this.deps.quota.getConfig();
+    if (this.finished) return;
     this.idleMs = Math.max(15, cfg.idleTimeoutSeconds || 60) * 1000;
     this.touch(true);
     if (this.deps.link) {

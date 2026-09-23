@@ -336,6 +336,48 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     d.ws.close();
   });
 
+  it("设备在会话签发等待中断开：迟到的会话请求停费并等待用量回调", async () => {
+    const original = sessions.startForDevice.bind(sessions);
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    let entered = false;
+    let issuedId = "";
+    (sessions as any).startForDevice = async (...args: any[]) => {
+      entered = true;
+      await blocked;
+      const issued = await (original as any)(...args);
+      if (issued?.available) issuedId = issued.session.id;
+      return issued;
+    };
+    try {
+      const token = (await ota() as any).websocket.token;
+      const d = await device(token);
+      hello(d.ws);
+      await waitFor(() => entered);
+      const closed = new Promise((resolve) => d.ws.once("close", resolve));
+      d.ws.close();
+      await closed;
+      release();
+      await waitFor(() => !!issuedId);
+      let status = "";
+      for (let i = 0; i < 100; i++) {
+        status = (await prisma.voiceSession.findUniqueOrThrow({ where: { id: issuedId } })).status;
+        if (status === "ending" || status === "ended" || status === "cancelled") break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(status).toBe("ending");
+      const ending = await prisma.voiceSession.findUniqueOrThrow({ where: { id: issuedId } });
+      const cb = provider.buildCallback({ eventId: `${tag}-late-disconnect`, providerSessionId: ending.providerSessionId!, correlationId: ending.requestId, usedSeconds: 0, isFinal: true });
+      await sessions.handleUsageCallback("mock", cb.headers, cb.rawBody);
+      const ended = await prisma.voiceSession.findUniqueOrThrow({ where: { id: issuedId } });
+      expect(ended.status).toBe("ended");
+      expect(d.texts).toEqual([]);
+    } finally {
+      release();
+      (sessions as any).startForDevice = original;
+    }
+  });
+
   it("批量登记：逐条回报；已登记、本批重复（不同写法的同一 MAC）、格式错误各自失败，不影响其它；只回显末 4 位", async () => {
     const r = await devices.registerBatch("it-admin", {
       productSku: `${tag}-sku`,
