@@ -123,6 +123,24 @@ describe("模拟设备中继（回放）", () => {
     expect(events[events.length - 1].type).toBe("tts_stop");
   });
 
+  it("回放定时器迟到时有限补帧，保持顺序且不提前结束", () => {
+    s.control({ type: "listen_start", mode: "auto" });
+    for (let i = 0; i < 12; i++) s.pushAudio(speech(i));
+    for (let i = 0; i < 9; i++) s.pushAudio(silence());
+    expect(events.filter((e) => e.type === "audio")).toHaveLength(3);
+    // 模拟进程被其他任务占用，墙上时间跳过 240ms，回调只执行一次。
+    jest.setSystemTime(Date.now() + 240);
+    jest.advanceTimersByTime(60);
+    const firstBatch = events.filter((e) => e.type === "audio") as any[];
+    expect(firstBatch).toHaveLength(6);
+    expect(firstBatch.map((e) => e.opus[0])).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(events.some((e) => e.type === "tts_stop")).toBe(false);
+    jest.advanceTimersByTime(60 * 7);
+    const audio = events.filter((e) => e.type === "audio") as any[];
+    expect(audio.map((e) => e.opus[0])).toEqual(Array.from({ length: 12 }, (_, i) => i));
+    expect(events[events.length - 1].type).toBe("tts_stop");
+  });
+
   it("首批预送期间立即打断，不继续发送余下音频", () => {
     s.onEvent((e) => {
       if (e.type === "audio") s.control({ type: "abort", reason: "test" });

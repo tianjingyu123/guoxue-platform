@@ -108,13 +108,16 @@ export class MockEchoDeviceStream implements DeviceStream {
     let i = 0;
     // 先送最多 3 帧，给设备约 180ms 的解码余量；其余仍按帧长下发。
     // stop 保持在原音频时长之后，避免设备还没播完就切回聆听。
-    let ticks = 0;
+    const startedAt = Date.now();
     this.playTimer = setInterval(() => {
-      ticks++;
-      if (i < frames.length) {
+      const elapsedFrames = Math.max(0, Math.floor((Date.now() - startedAt) / this.frameMs));
+      // 定时器偶发迟到时有限补帧，恢复设备的预缓冲；单次最多 3 帧，避免把长时间积压瞬间灌入设备。
+      const target = Math.min(frames.length, elapsedFrames + 3);
+      const batchEnd = Math.min(target, i + 3);
+      while (i < batchEnd && this.playTimer) {
         this.emit({ type: "audio", opus: frames[i++] });
       }
-      if (ticks >= frames.length) this.stopPlayback();
+      if (elapsedFrames >= frames.length && i >= frames.length) this.stopPlayback();
     }, this.frameMs);
     this.emit({ type: "tts_start" });
     this.emit({ type: "tts_sentence", text: "【模拟】回放你刚才说的话" });
