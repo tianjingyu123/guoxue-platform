@@ -77,6 +77,14 @@ describe("交付报告问答", () => {
     expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
   });
 
+  it("计数服务报错时暂停问答，避免无上限调用模型", async () => {
+    const { svc, redis, gateway } = setup();
+    redis.incrWithTtl.mockRejectedValueOnce(new Error("redis unavailable"));
+
+    await expect(svc.ask("tok-1", "问题")).rejects.toThrow("稍后再试");
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
   it("模型失败或空回答释放预占次数，客户重试不白白消耗额度", async () => {
     const { svc, redis, gateway } = setup();
     gateway.chat.mockRejectedValueOnce(new Error("timeout"));
@@ -99,6 +107,22 @@ describe("交付报告问答", () => {
     const { svc } = setup({ used: ReportAskService.DAILY_LIMIT - 2 });
     const r = await svc.ask("tok-1", "问题");
     expect(r.remaining).toBe(2);
+  });
+
+  it("每日次数在北京时间零点重置，而非 UTC 零点", async () => {
+    jest.useFakeTimers();
+    try {
+      const { svc, redis } = setup();
+      jest.setSystemTime(new Date("2026-09-23T15:59:59.000Z"));
+      await svc.ask("tok-1", "午夜前的问题");
+      expect(redis.incrWithTtl).toHaveBeenNthCalledWith(1, "report-ask:pr-1:2026-09-23", 1);
+
+      jest.setSystemTime(new Date("2026-09-23T16:00:00.000Z"));
+      await svc.ask("tok-1", "午夜后的问题");
+      expect(redis.incrWithTtl).toHaveBeenNthCalledWith(2, "report-ask:pr-1:2026-09-24", 86400);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("链接撤回后不再作答；空问题与超长问题拒绝", async () => {

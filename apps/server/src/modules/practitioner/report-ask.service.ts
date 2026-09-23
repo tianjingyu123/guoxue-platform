@@ -47,9 +47,17 @@ export class ReportAskService {
   }
 
   /** 剩余可问次数（供前端展示，用完给客户一个明确说法而不是干等） */
-  private quotaKey(reportId: string) {
-    const day = new Date().toISOString().slice(0, 10);
-    return `report-ask:${reportId}:${day}`;
+  private quotaWindow(reportId: string) {
+    // “今日”按平台统一的北京时间计算，键在下一个北京时间零点过期。
+    const dayMs = 86400_000;
+    const shanghaiOffsetMs = 8 * 3600_000;
+    const shanghaiTime = Date.now() + shanghaiOffsetMs;
+    const dayStart = Math.floor(shanghaiTime / dayMs) * dayMs;
+    const day = new Date(dayStart).toISOString().slice(0, 10);
+    return {
+      key: `report-ask:${reportId}:${day}`,
+      ttlSeconds: Math.max(1, Math.ceil((dayStart + dayMs - shanghaiTime) / 1000)),
+    };
   }
 
   async ask(token: string, question: string, history?: { role: string; content: string }[]) {
@@ -61,13 +69,17 @@ export class ReportAskService {
     if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
 
     // 频次闸门：客户匿名，只能按报告限；超出给出明确说法，让客户去找老师
-    const key = this.quotaKey(report.id);
+    const { key, ttlSeconds } = this.quotaWindow(report.id);
     // 原子自增 + 首次设 TTL（平台既有实现，含 Redis 不可用时的内存降级）
     let reserved = false;
-    const { count: used } = await this.redis
-      .incrWithTtl(key, 86400)
-      .then((result) => { reserved = true; return result; })
-      .catch(() => ({ count: 1, ttl: 86400 }));
+    let used: number;
+    try {
+      ({ count: used } = await this.redis.incrWithTtl(key, ttlSeconds));
+      reserved = true;
+    } catch (error: any) {
+      this.logger.warn(`交付报告问答计数失败：${error?.message || error}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    }
     const release = async () => {
       if (reserved) await this.redis.decrFloorZero(key).catch(() => undefined);
     };

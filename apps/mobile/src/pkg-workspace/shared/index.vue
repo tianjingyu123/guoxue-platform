@@ -77,6 +77,16 @@ async function sendAsk() {
       })
     })
     const body = res?.data
+    if (res.statusCode === 404 || res.statusCode === 410) {
+      data.value = null
+      askItems.value = []
+      askInput.value = ''
+      notFound.value = true
+      return
+    }
+    if (res.statusCode === 429 && typeof body?.message === 'string' && body.message.includes('今天的提问次数已用完')) {
+      askRemaining.value = 0
+    }
     if (res.statusCode !== 200 || !body?.data) {
       throw new Error(body?.message || '暂时没能回答，请稍后再试')
     }
@@ -118,14 +128,19 @@ async function loadReport() {
     })
     const body = res?.data
     if (res.statusCode === 404 || res.statusCode === 410) {
+      data.value = null
+      askItems.value = []
       notFound.value = true
     } else if (res.statusCode !== 200 || !body?.data) {
+      data.value = null
       loadFailed.value = true
     } else {
       data.value = body.data
+      askRemaining.value = null
       drawQr()
     }
   } catch {
+    data.value = null
     loadFailed.value = true
   } finally {
     loading.value = false
@@ -233,7 +248,8 @@ function dateText(iso?: string): string {
             <text class="sr-ask-send-txt">{{ asking ? '…' : '发送' }}</text>
           </view>
         </view>
-        <text v-if="askRemaining !== null && askRemaining <= 5" class="sr-ask-left">今日还可提问 {{ askRemaining }} 次</text>
+        <text v-if="askRemaining === 0" class="sr-ask-left">今日提问次数已用完，如还有疑问，请直接联系老师；次日重新打开报告可继续提问</text>
+        <text v-else-if="askRemaining !== null && askRemaining <= 5" class="sr-ask-left">今日还可提问 {{ askRemaining }} 次</text>
       </view>
 
       <!-- 扫码在线查阅：纸质版与电子版印在这里，客户扫码即可随时打开并提问 -->
