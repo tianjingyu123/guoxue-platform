@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { SearchService } from "./search.service";
-import { shouldSuppressContentGuide, wantsCircleResources, wantsCourseResources } from "./ai-search-intent";
+import { shouldSuppressContentGuide, wantsCircleResources, wantsCourseResources, wantsVideoResources } from "./ai-search-intent";
 
 /**
  * 内容导览服务（S08）
@@ -21,7 +21,7 @@ export class ContentGuideService {
   ];
 
   private hasCards(result: Record<string, unknown>): boolean {
-    return ["articles", "classics", "courses", "circles", "contents"]
+    return ["articles", "classics", "courses", "circles", "contents", "videos"]
       .some((key) => Array.isArray(result[key]) && (result[key] as unknown[]).length > 0);
   }
 
@@ -103,15 +103,23 @@ export class ContentGuideService {
       subtitle: (r) => [r.author, r.dynasty].filter(Boolean).join(" · ") || r.excerpt,
       cover: (r) => r.cover,
     });
+    if (wantsVideoResources(q)) push("video", res.videos, {
+      id: (r) => r.id,
+      title: (r) => r.title,
+      subtitle: (r) => r.description,
+      cover: (r) => r.coverUrl,
+    });
 
     // 跨类型轮取；课程和圈子分别按用户明确意图进入候选。
-    const priority: GuideCardType[] = /课程|系统学|入门|学习路线/.test(q)
-      ? ["course", "article", "classic", "circle", "content"]
+    const priority: GuideCardType[] = wantsVideoResources(q)
+      ? ["video", "article", "classic", "content", "course", "circle"]
+      : /课程|系统学|入门|学习路线/.test(q)
+      ? ["course", "article", "classic", "circle", "content", "video"]
       : /圈子|社群|交流|同好/.test(q)
-        ? ["circle", "article", "course", "classic", "content"]
+        ? ["circle", "article", "course", "classic", "content", "video"]
         : /原文|古籍|典籍|出处/.test(q)
-          ? ["classic", "article", "content", "course", "circle"]
-          : ["article", "classic", "course", "circle", "content"];
+          ? ["classic", "article", "content", "course", "circle", "video"]
+          : ["article", "classic", "course", "circle", "content", "video"];
     const cards: GuideCard[] = [];
     while (cards.length < limit && priority.some((type) => groups.get(type)?.length)) {
       for (const type of priority) {
@@ -139,12 +147,13 @@ export class ContentGuideService {
       case "course": return `/pkg-course/detail/index?id=${encoded}`;
       case "circle": return `/pkg-circle/circles/detail?id=${encoded}`;
       case "content": return `/pkg-circle/articles/detail?id=${encoded}`;
+      case "video": return `/pkg-video/detail/index?id=${encoded}`;
       default: return `/`;
     }
   }
 }
 
-export type GuideCardType = "classic" | "article" | "course" | "circle" | "content";
+export type GuideCardType = "classic" | "article" | "course" | "circle" | "content" | "video";
 
 export interface GuideCard {
   type: GuideCardType;

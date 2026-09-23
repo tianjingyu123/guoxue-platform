@@ -188,7 +188,7 @@ export class SearchService {
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", fields: "coalesce(nickname,'')",
@@ -258,7 +258,7 @@ export class SearchService {
       },
       Video: {
         table: "Video", searchFields: ["title"],
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", searchFields: ["nickname"],

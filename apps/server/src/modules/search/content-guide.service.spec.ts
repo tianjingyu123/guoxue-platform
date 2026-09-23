@@ -66,9 +66,10 @@ describe("ContentGuideService", () => {
       courses: [{ id: "k1", title: "课" }],
       circles: [{ id: "g1", name: "圈" }],
       contents: [{ id: "t1", title: "内容" }],
+      videos: [{ id: "v1", title: "视频" }],
     });
-    const result = await svc.guide("推荐入门课程和圈子", 10);
-    expect(result.cards).toHaveLength(5);
+    const result = await svc.guide("推荐入门课程和圈子，再看视频", 10);
+    expect(result.cards).toHaveLength(6);
     for (const card of result.cards) {
       expect(routes.has(card.target.split("?")[0])).toBe(true);
     }
@@ -122,10 +123,22 @@ describe("ContentGuideService", () => {
       articles: [],
       courses: [{ id: "k1", title: "论语课" }],
       circles: [{ id: "g1", name: "论语圈" }],
+      videos: [{ id: "v1", title: "论语视频" }],
       contents: [],
     });
     const result = await svc.guide("论语中的仁是什么意思");
     expect(result.cards.map((card) => card.type)).toEqual(["classic"]);
+  });
+
+  it("明确找视频时才返回公开搜索中的视频及真实详情入口", async () => {
+    mockSearch.search.mockResolvedValue({
+      classics: [], articles: [], courses: [], circles: [], contents: [],
+      videos: [{ id: "v1", title: "论语讲解视频", description: "三分钟导览", coverUrl: "/cover.webp" }],
+    });
+    const result = await svc.guide("找论语讲解视频");
+    expect(result.cards).toEqual([expect.objectContaining({
+      type: "video", id: "v1", target: "/pkg-video/detail/index?id=v1", subtitle: "三分钟导览",
+    })]);
   });
 
   it("自然问句零命中时按明确主题补检一次", async () => {

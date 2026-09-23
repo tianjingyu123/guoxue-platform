@@ -156,7 +156,7 @@ const loginRequired = ref(false)
 let requestVersion = 0
 
 const CARD_LABELS: Record<AiGuideCardType, string> = {
-  classic: '古籍', article: '文章', course: '课程', circle: '圈子', content: '内容',
+  classic: '古籍', article: '文章', course: '课程', circle: '圈子', content: '内容', video: '视频',
 }
 function cardLabel(type: AiGuideCardType) { return CARD_LABELS[type] }
 
@@ -185,7 +185,7 @@ function openLogin() {
 }
 
 function openCard(card: AiGuideCard) {
-  if (!/^\/(pkg-classics\/detail\/index|pkg-circle\/(articles|circles)\/detail|pkg-course\/detail\/index)\?id=[^&#]+$/.test(card.target)) return
+  if (!/^\/(pkg-classics\/detail\/index|pkg-circle\/(articles|circles)\/detail|pkg-course\/detail\/index|pkg-video\/detail\/index)\?id=[^&#]+$/.test(card.target)) return
   track.custom('ai_search_content_open', { type: card.type, id: card.id })
   onClose()
   navigateTo(card.target)

@@ -24,3 +24,8 @@ export function wantsCourseResources(query: string): boolean {
 export function wantsCircleResources(query: string): boolean {
   return /圈子|社群|同好|交流|讨论|推荐.{0,8}圈/.test(query);
 }
+
+/** 视频只在明确观看/演示意图下进入导览，避免普通知识问答被媒体卡打断。 */
+export function wantsVideoResources(query: string): boolean {
+  return /视频|短视频|看.{0,8}(演示|讲解|教学)|播放.{0,8}(演示|讲解)/.test(query);
+}
