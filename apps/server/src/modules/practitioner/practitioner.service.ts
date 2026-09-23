@@ -382,21 +382,31 @@ export class PractitionerService {
    * 令牌即凭证 —— 拿到链接的人（客户，通常没有本平台账号）无需登录即可查看这一份报告。
    * 因此令牌必须是高熵随机（非自增/非可猜），且只暴露这一份报告的内容。
    */
-  async shareReport(userId: string, id: string) {
+  async shareReport(userId: string, id: string, expectedVersion?: string) {
     await this.requirePro(userId, "交付报告给客户");
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再交付");
+    }
     const r = await this.getReport(userId, id);
+    if (expectedUpdatedAt && r.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
     if (r.shareToken) return { shareToken: r.shareToken, sharedAt: r.sharedAt };
 
     const token = randomBytes(16).toString("hex");
     const sharedAt = new Date();
     const updated = await this.prisma.practitionerReport.updateMany({
-      where: { id, ownerId: userId, shareToken: null },
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
       data: { shareToken: token, sharedAt, status: "delivered" },
     });
     if (updated.count) return { shareToken: token, sharedAt };
 
     // 另一请求已先完成交付时，返回同一有效链接，避免双击得到作废令牌。
     const current = await this.getReport(userId, id);
+    if (expectedUpdatedAt && current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
     if (current.shareToken) return { shareToken: current.shareToken, sharedAt: current.sharedAt };
     throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新后重试交付");
   }

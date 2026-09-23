@@ -156,8 +156,8 @@ export class PractitionerController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "生成只读交付链接（会员专属）" })
   @ApiResponse({ status: 403, description: "非会员" })
-  shareReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.shareReport(req.user.id, id);
+  shareReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { updatedAt?: string }) {
+    return this.svc.shareReport(req.user.id, id, dto?.updatedAt);
   }
 
   @Delete("reports/:id/share")

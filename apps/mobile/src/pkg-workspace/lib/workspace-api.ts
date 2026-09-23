@@ -143,7 +143,7 @@ export const wsApi = {
     apiPost<ReportRecord>('/practitioner/reports/import-xiaobu', p),
   updateReport: (id: string, r: Partial<ReportRecord>) => apiPut<ReportRecord>(`/practitioner/reports/${id}`, r),
   deleteReport: (id: string, updatedAt: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`, { updatedAt }),
-  shareReport: (id: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`),
+  shareReport: (id: string, updatedAt: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`, { updatedAt }),
   unshareReport: (id: string, shareToken: string) => apiDelete<{ success: boolean; updatedAt: string; shareToken: string | null; sharedAt: string | null; status: ReportRecord['status'] }>(`/practitioner/reports/${id}/share`, { shareToken }),
   sharedReport: (token: string) => apiGet<any>(`/practitioner/reports/shared/${token}`),
   /** 客户就这份交付报告提问（无需登录，令牌即凭证；回答以老师助理的身份） */

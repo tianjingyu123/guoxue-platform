@@ -65,9 +65,9 @@ describe("从业者报告交付后锁定", () => {
 
   it("交付标记为 delivered，撤回后回到可编辑的 final", async () => {
     const { service, prisma, report } = setup(null);
-    await service.shareReport("teacher-1", "report-1");
+    await service.shareReport("teacher-1", "report-1", report.updatedAt.toISOString());
     expect(prisma.practitionerReport.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: "report-1", ownerId: "teacher-1", shareToken: null },
+      where: { id: "report-1", ownerId: "teacher-1", shareToken: null, updatedAt: expect.any(Date) },
       data: expect.objectContaining({ status: "delivered" }),
     }));
     const result = await service.unshareReport("teacher-1", "report-1", report.shareToken!);
@@ -76,6 +76,28 @@ describe("从业者报告交付后锁定", () => {
       where: { id: "report-1", ownerId: "teacher-1", shareToken: expect.any(String) },
       data: { shareToken: null, sharedAt: null, status: "final" },
     }));
+  });
+
+  it("旧编辑页不能把另一设备刚保存的正文交付", async () => {
+    const { service, prisma, report } = setup(null);
+    const oldVersion = report.updatedAt.toISOString();
+    report.updatedAt = new Date(report.updatedAt.getTime() + 1000);
+    await expect(service.shareReport("teacher-1", "report-1", oldVersion))
+      .rejects.toThrow("报告状态已变化");
+    expect(prisma.practitionerReport.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("读取后另一设备才保存时，条件交付不会放出未经预览的新稿", async () => {
+    const { service, prisma, report } = setup(null);
+    const oldVersion = report.updatedAt.toISOString();
+    const update = prisma.practitionerReport.updateMany.getMockImplementation();
+    prisma.practitionerReport.updateMany.mockImplementationOnce(async (args: any) => {
+      report.updatedAt = new Date(report.updatedAt.getTime() + 1000);
+      return update(args);
+    });
+    await expect(service.shareReport("teacher-1", "report-1", oldVersion))
+      .rejects.toThrow("报告状态已变化");
+    expect(report.shareToken).toBeNull();
   });
 
   it("旧设备不能撤回另一设备重新生成的交付链接", async () => {

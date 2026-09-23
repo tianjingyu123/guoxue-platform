@@ -305,11 +305,25 @@ async function share() {
       if (!proceed) return
     }
     if (dirty.value && !(await save('final'))) return
-    const res = await wsApi.shareReport(id.value)
+    if (!report.value?.updatedAt) {
+      uni.showToast({ title: '报告版本缺失，请重新加载后再交付', icon: 'none' })
+      return
+    }
+    const res = await wsApi.shareReport(id.value, report.value.updatedAt)
     report.value = { ...report.value!, shareToken: res.shareToken, sharedAt: res.sharedAt, status: 'delivered' }
     copyShare()
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+    const message = e?.message || '生成失败'
+    if (message.includes('报告状态已变化')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备修改了报告或交付状态。重新加载后请再次预览，再决定是否交付。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     sharing.value = false
   }
