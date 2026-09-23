@@ -235,8 +235,9 @@ export class XiaozhiConnection {
   private lastTouch = 0;
   private closedListeners: (() => void)[] = [];
   private finished = false;
+  private lastDownlinkAt = 0;
   /** 统计（测试与日志用）：只计数，不保存任何音频 */
-  readonly stats = { uplinkFrames: 0, downlinkFrames: 0, utterances: 0 };
+  readonly stats = { uplinkFrames: 0, downlinkFrames: 0, utterances: 0, lateDownlinkGaps: 0, maxDownlinkGapMs: 0 };
 
   constructor(
     private readonly ws: MiniWsConnection,
@@ -410,16 +411,24 @@ export class XiaozhiConnection {
         this.send({ type: "llm", emotion: e.emotion, text: "" });
         break;
       case "tts_start":
+        this.lastDownlinkAt = 0;
         this.send({ type: "tts", state: "start" });
         break;
       case "tts_sentence":
         this.send({ type: "tts", state: "sentence_start", text: e.text });
         break;
       case "audio":
+        if (this.lastDownlinkAt) {
+          const gap = Date.now() - this.lastDownlinkAt;
+          this.stats.maxDownlinkGapMs = Math.max(this.stats.maxDownlinkGapMs, gap);
+          if (gap > (this.stream?.downlink.frameDurationMs || 60) * 1.5) this.stats.lateDownlinkGaps++;
+        }
+        this.lastDownlinkAt = Date.now();
         this.stats.downlinkFrames++;
         this.ws.sendBinary(packAudio(e.opus, this.binaryVersion));
         break;
       case "tts_stop":
+        this.lastDownlinkAt = 0;
         this.send({ type: "tts", state: "stop" });
         break;
       case "user_activity":
@@ -477,7 +486,7 @@ export class XiaozhiConnection {
       }
     }
     this.deps.logger.log(
-      `小智终端断开：设备 …${this.auth.serialHint} 原因 ${reason} 上行 ${this.stats.uplinkFrames} 帧 下行 ${this.stats.downlinkFrames} 帧 ${this.stats.utterances} 轮`,
+      `小智终端断开：设备 …${this.auth.serialHint} 原因 ${reason} 上行 ${this.stats.uplinkFrames} 帧 下行 ${this.stats.downlinkFrames} 帧 ${this.stats.utterances} 轮 下行间隔峰值 ${this.stats.maxDownlinkGapMs}ms 迟发 ${this.stats.lateDownlinkGaps} 次`,
     );
     for (const cb of this.closedListeners) cb();
   }

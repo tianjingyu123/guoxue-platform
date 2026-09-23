@@ -75,18 +75,23 @@ describe("模拟设备中继（回放）", () => {
     jest.useRealTimers();
   });
 
-  it("auto 模式：说话后静音 ≥700ms 判定说完 → 模拟 stt、tts 开始/字幕、逐帧回放原音频、tts 结束", () => {
+  it("auto 模式：连续静音 540ms 后回放，首批音频预送且结束时间不提前", () => {
     expect(s.downlink).toEqual({ codec: "opus", sampleRate: 16000, channels: 1, frameDurationMs: 60 });
     s.control({ type: "listen_start", mode: "auto" });
     for (let i = 0; i < 10; i++) s.pushAudio(speech(i));
-    for (let i = 0; i < 12; i++) s.pushAudio(silence()); // 720ms
+    for (let i = 0; i < 8; i++) s.pushAudio(silence()); // 480ms
+    expect(events.some((e) => e.type === "tts_start")).toBe(false);
+    s.pushAudio(silence()); // 540ms
     const stt = events.find((e) => e.type === "stt") as any;
     expect(stt).toMatchObject({ isMock: true });
     expect(stt.text).toMatch(/模拟/);
     expect(events.map((e) => e.type).slice(0, 5)).toEqual(["user_activity", "stt", "emotion", "tts_start", "tts_sentence"]);
+    expect(events.filter((e) => e.type === "audio")).toHaveLength(3);
     // 播放期间的上行音频不收（设备在播放态也不会发）
     s.pushAudio(speech(99));
-    jest.advanceTimersByTime(60 * 12);
+    jest.advanceTimersByTime(60 * 9);
+    expect(events.some((e) => e.type === "tts_stop")).toBe(false);
+    jest.advanceTimersByTime(60);
     const audio = events.filter((e) => e.type === "audio") as any[];
     expect(audio).toHaveLength(10); // 尾部静音被裁掉
     expect(audio.map((a) => a.opus[0])).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -98,7 +103,7 @@ describe("模拟设备中继（回放）", () => {
     for (let round = 0; round < 2; round++) {
       s.control({ type: "listen_start", mode: "auto" });
       for (let i = 0; i < 5; i++) s.pushAudio(speech(i));
-      for (let i = 0; i < 12; i++) s.pushAudio(silence());
+      for (let i = 0; i < 9; i++) s.pushAudio(silence());
       jest.advanceTimersByTime(60 * 10);
     }
     expect(s.replies).toBe(2);
@@ -108,13 +113,25 @@ describe("模拟设备中继（回放）", () => {
   it("打断：播放中收到 abort 立即停止下发并发 tts_stop", () => {
     s.control({ type: "listen_start", mode: "auto" });
     for (let i = 0; i < 20; i++) s.pushAudio(speech(i));
-    for (let i = 0; i < 12; i++) s.pushAudio(silence());
+    for (let i = 0; i < 9; i++) s.pushAudio(silence());
     jest.advanceTimersByTime(60 * 3);
     s.control({ type: "abort", reason: "wake_word_detected" });
     const n = events.filter((e) => e.type === "audio").length;
     jest.advanceTimersByTime(60 * 30);
     expect(events.filter((e) => e.type === "audio").length).toBe(n);
     expect(n).toBeLessThan(20);
+    expect(events[events.length - 1].type).toBe("tts_stop");
+  });
+
+  it("首批预送期间立即打断，不继续发送余下音频", () => {
+    s.onEvent((e) => {
+      if (e.type === "audio") s.control({ type: "abort", reason: "test" });
+    });
+    s.control({ type: "listen_start", mode: "auto" });
+    for (let i = 0; i < 5; i++) s.pushAudio(speech(i));
+    for (let i = 0; i < 9; i++) s.pushAudio(silence());
+    jest.advanceTimersByTime(600);
+    expect(events.filter((e) => e.type === "audio")).toHaveLength(1);
     expect(events[events.length - 1].type).toBe("tts_stop");
   });
 

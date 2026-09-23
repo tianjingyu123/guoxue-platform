@@ -13,7 +13,7 @@ import { DeviceStream, DeviceStreamControl, DeviceStreamEvent, DeviceStreamReque
  *   或累计到 MAX_UTTERANCE_MS 强制截断；整段都是静音则丢弃、继续听
  */
 export const SILENT_FRAME_BYTES = 10;
-export const END_SILENCE_MS = 700;
+export const END_SILENCE_MS = 540;
 export const MAX_UTTERANCE_MS = 6000;
 
 export class MockEchoDeviceStream implements DeviceStream {
@@ -105,17 +105,20 @@ export class MockEchoDeviceStream implements DeviceStream {
     const seconds = ((frames.length * this.frameMs) / 1000).toFixed(1);
     this.emit({ type: "stt", text: `【模拟识别】收到约 ${seconds} 秒语音（非真实语音服务）`, isMock: true });
     this.emit({ type: "emotion", emotion: "neutral" });
-    this.emit({ type: "tts_start" });
-    this.emit({ type: "tts_sentence", text: "【模拟】回放你刚才说的话" });
     let i = 0;
-    // 按帧长匀速下发，模拟真实流式合成；设备端有播放缓冲
+    // 先送最多 3 帧，给设备约 180ms 的解码余量；其余仍按帧长下发。
+    // stop 保持在原音频时长之后，避免设备还没播完就切回聆听。
+    let ticks = 0;
     this.playTimer = setInterval(() => {
+      ticks++;
       if (i < frames.length) {
         this.emit({ type: "audio", opus: frames[i++] });
-        return;
       }
-      this.stopPlayback();
+      if (ticks >= frames.length) this.stopPlayback();
     }, this.frameMs);
+    this.emit({ type: "tts_start" });
+    this.emit({ type: "tts_sentence", text: "【模拟】回放你刚才说的话" });
+    for (; i < Math.min(3, frames.length) && this.playTimer; i++) this.emit({ type: "audio", opus: frames[i] });
   }
 
   private stopPlayback() {
