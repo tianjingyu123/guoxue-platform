@@ -106,7 +106,7 @@ export class ClientReportService {
           clientName: report.clientName,
           userId,
         });
-        out.push({ ...ch, body: r.text, rewritten: true });
+        out.push({ ...ch, body: r.text, rewritten: true, ai: true });
       } catch (error: any) {
         this.logger.warn(`交付稿改写失败（保留原文）：${error?.message || error}`);
         out.push(ch);

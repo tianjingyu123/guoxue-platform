@@ -49,8 +49,10 @@ describe("交付稿改写", () => {
     const chapters = r.report.chapters as any[];
     expect(chapters[0].body).toBe("四柱：庚午 辛巳 癸未 丁巳"); // 盘面数据原样
     expect(chapters[1].body).toBe("真太阳时未校正"); // 校验章原样
+    expect(chapters[0].ai).toBeUndefined();
     expect(chapters[2].body).toContain("改写后");
     expect(chapters[2].rewritten).toBe(true);
+    expect(chapters[2].ai).toBe(true);
   });
 
   it("盘面事实按标记跳过：老师改了标题也不会被当文案重写", async () => {
@@ -80,6 +82,8 @@ describe("交付稿改写", () => {
     expect(r.rewritten).toBe(1);
     const chapters = r.report.chapters as any[];
     expect(chapters[0].body).toBe("原文甲"); // 失败的那章保留原文
+    expect(chapters[0].ai).toBeUndefined();
+    expect(chapters[1].ai).toBe(true);
   });
 
   it("空章节与他人报告的拒绝", async () => {

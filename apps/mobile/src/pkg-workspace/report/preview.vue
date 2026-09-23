@@ -18,6 +18,11 @@ const brand = ref<any>(null)
 
 const DEFAULT_DISCLAIMER = '本报告为传统文化解读，仅供参考，不构成医疗、投资、法律或其他专业决策依据。'
 
+function dateText(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日`
+}
+
 async function load() {
   if (!reportId.value) {
     failed.value = true
@@ -29,7 +34,7 @@ async function load() {
   try {
     const [r, p] = await Promise.all([wsApi.getReport(reportId.value), wsApi.profile()])
     report.value = r
-    brand.value = p.brand
+    brand.value = { ...p.brand, brandName: p.brand?.brandName?.trim() || p.name?.trim() || '' }
   } catch {
     failed.value = true
   } finally {
@@ -51,7 +56,7 @@ onLoad((q) => {
 
 <template>
   <view class="rp">
-    <ToolHeader title="报告预览" subtitle="客户看到的样子" />
+    <ToolHeader title="报告预览" subtitle="正文与落款核对" />
 
     <view v-if="loading" class="rp-loading">
       <text class="rp-loading-txt">载入中…</text>
@@ -70,12 +75,12 @@ onLoad((q) => {
     <scroll-view v-else class="rp-body" scroll-y :show-scrollbar="false">
       <view class="rp-notice">
         <AppIcon name="eye" :size="14" color="#8A6914" />
-        <text class="rp-notice-txt">这是客户视角的预览。生成交付链接后，客户看到的就是这个样子。</text>
+        <text class="rp-notice-txt">请核对正文与落款。交付后客户页还会提供提问、扫码查阅和打印入口。</text>
       </view>
 
       <!-- 封面 -->
       <view class="rp-cover">
-        <text class="rp-cover-brand">{{ brand?.brandName || '热卜国学' }}</text>
+        <text class="rp-cover-brand">{{ brand?.brandName || report.typeLabel || '命理咨询报告' }}</text>
         <view class="rp-cover-line" />
         <text class="rp-cover-title">{{ report.title }}</text>
         <text class="rp-cover-type">{{ report.typeLabel }}</text>
@@ -100,13 +105,15 @@ onLoad((q) => {
           <text class="rp-ch-title">{{ c.title }}</text>
         </view>
         <text class="rp-ch-body">{{ c.body || '（本章暂无内容）' }}</text>
+        <text v-if="c.ai" class="rp-ai-note">本章由 AI 起草，请结合盘面与实际情况核对</text>
       </view>
 
       <!-- 落款 -->
       <view class="rp-sign">
         <view class="rp-sign-left">
           <text v-if="brand?.title" class="rp-sign-title">{{ brand.title }}</text>
-          <text class="rp-sign-brand">{{ brand?.brandName || '热卜国学' }}</text>
+          <text class="rp-sign-brand">{{ brand?.brandName || '' }}</text>
+          <text v-if="report.sharedAt" class="rp-sign-contact">{{ dateText(report.sharedAt) }}</text>
           <text v-if="brand?.contact" class="rp-sign-contact">{{ brand.contact }}</text>
         </view>
         <view v-if="brand?.sealText" class="rp-seal">
@@ -338,6 +345,8 @@ onLoad((q) => {
   color: #3A2A1E;
   white-space: pre-wrap;
 }
+
+.rp-ai-note { display: block; margin-top: 16rpx; font-size: 21rpx; color: #9A8C7E; }
 
 .rp-sign {
   display: flex;

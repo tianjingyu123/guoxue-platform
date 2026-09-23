@@ -360,7 +360,7 @@ export class PractitionerService {
       chapters: r.chapters,
       sharedAt: r.sharedAt,
       brand: {
-        brandName: profile?.brandName ?? author?.nickname ?? "",
+        brandName: profile?.brandName?.trim() || author?.nickname?.trim() || "",
         title: profile?.title ?? "",
         sealText: profile?.sealText ?? "",
         slogan: profile?.slogan ?? "",
