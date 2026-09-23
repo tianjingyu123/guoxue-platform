@@ -4,7 +4,7 @@
  * 后端 POST /paipan/report/generate：盘面事实由排盘引擎确定性生成，依据来自真实古籍/知识检索，
  * 解读由热卜模型网关生成；失败时不会保存占位报告。
  */
-import { apiDelete, apiGet, apiPost } from '@/utils/request'
+import { apiDelete, apiGet, apiGetPaged, apiPost } from '@/utils/request'
 
 export interface AiReportReference {
   evidenceId: string
@@ -223,10 +223,20 @@ export interface AiReportContent {
 
 export interface AiReportResult {
   id: string
+  paipanRecordId: string | null
   content: AiReportContent
   version?: string
   createdAt: string
   reused?: boolean
+}
+
+export interface MyAiReport {
+  id: string
+  paipanRecordId: string | null
+  clientName: string | null
+  paipanType: string | null
+  reportType: string
+  createdAt: string
 }
 
 export interface AiDialogueTurn {
@@ -256,6 +266,7 @@ export interface AiRelatedCard {
 
 export interface AiDialogueHistory {
   turns: { role: 'user' | 'assistant'; content: string; sectionId: string | null; evidenceIds: string[]; mode: string | null; createdAt: string }[]
+  previousTurns?: { role: 'user' | 'assistant'; content: string; createdAt: string }[]
   lastSectionId: string | null
   lastSectionTitle: string | null
   discussedSectionIds: string[]
@@ -278,6 +289,10 @@ export interface MyVoiceQuota {
 }
 
 export const aiReportApi = {
+  /** 跨设备找回已生成的本人报告目录。 */
+  mine(page = 1): Promise<{ items: MyAiReport[]; total: number; page: number; pageSize: number }> {
+    return apiGetPaged<MyAiReport>(`/paipan/report/mine?page=${page}`)
+  },
   /** 我的语音时长余额 */
   myVoiceQuota(): Promise<MyVoiceQuota> {
     return apiGet<MyVoiceQuota>('/voice/my-quota')

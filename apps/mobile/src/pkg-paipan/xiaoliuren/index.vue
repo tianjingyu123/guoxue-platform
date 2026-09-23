@@ -16,9 +16,10 @@ import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
   PALACES, GRID_ORDER, PALACE_WX, WX_TEXT, WX_BAR, GAN_WX, ZHI_WX,
   PALACE_INFO, LIUQIN_INFO, LIUSHEN_INFO, RISHI_DUAN,
-  getSizhu, getKong, getLunar, paiPan,
-  type PalaceResult,
+  getSizhu, getKong, getLunar,
+  type PalaceResult, type PaipanResult,
 } from './xiaoliuren-data'
+import { computePaipan } from '@/lib/paipan/engine-client'
 
 type SchoolType = 'daojia' | 'jiangshi' | 'jiangshi2'
 type QikeMode = 'time' | 'number'
@@ -75,20 +76,50 @@ function parseNumbers(raw: string): number[] {
 }
 const numbersValid = computed(() => qikeMode.value !== 'number' || parseNumbers(numbers.value).length > 0)
 
+/** 起课结果：掐指推算在服务端（第 4 步），四柱/农历仍在本地算用于展示 */
+const result = ref<PaipanResult | null>(null)
+const submitting = ref(false)
+
+async function fetchResult(): Promise<PaipanResult> {
+  const t = dateTime.value
+  return computePaipan<PaipanResult>('xiaoliuren', {
+    year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute,
+    school: school.value,
+    numbers: numbersArr.value,
+  })
+}
+
+/** 取到结果才切到结果相；失败留在表单相并提示（网络问题可直接再点「开始排盘」） */
+async function openResult(save: boolean) {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const r = await fetchResult()
+    result.value = r
+    selectedPalace.value = null
+    phase.value = 'result'
+    if (!save) return
+    // 落本地记录（落宫结果一并存下，记录卡不必重算）
+    saveXiaoliurenHistory({
+      matter: matter.value,
+      year: dateTime.value.year, month: dateTime.value.month, day: dateTime.value.day,
+      hour: dateTime.value.hour, minute: dateTime.value.minute,
+      school: school.value,
+      qikeMode: qikeMode.value,
+      numbers: qikeMode.value === 'number' ? numbers.value : undefined,
+      palace: PALACES[r.hourPalace],
+    })
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    uni.showToast({ title: msg.startsWith('参数') ? '起课参数无效' : '排盘服务暂时不可用，请稍后重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
+
 function handleSubmit() {
   if (!numbersValid.value) return
-  selectedPalace.value = null
-  phase.value = 'result'
-  // 落本地记录（落宫结果一并存下，记录卡不必重算）
-  saveXiaoliurenHistory({
-    matter: matter.value,
-    year: dateTime.value.year, month: dateTime.value.month, day: dateTime.value.day,
-    hour: dateTime.value.hour, minute: dateTime.value.minute,
-    school: school.value,
-    qikeMode: qikeMode.value,
-    numbers: qikeMode.value === 'number' ? numbers.value : undefined,
-    palace: PALACES[result.value.hourPalace],
-  })
+  openResult(true)
 }
 
 /** 从记录页回放（带参进来直接出盘） */
@@ -101,7 +132,7 @@ onLoad((opts: Record<string, string> = {}) => {
     school.value = r.school
     qikeMode.value = r.qikeMode
     numbers.value = r.numbers || ''
-    phase.value = 'result'
+    openResult(false)
   } catch {
     // 参数坏了就停在表单相
   }
@@ -121,16 +152,6 @@ const numbersArr = computed(() => {
   return list.length > 0 ? list : null
 })
 
-const result = computed(() =>
-  paiPan({
-    school: school.value,
-    lunarMonth: lunar.value.m,
-    lunarDay: lunar.value.d,
-    hourNum: sizhu.value.hour.zi + 1,
-    numbers: numbersArr.value,
-    sizhu: sizhu.value,
-  }),
-)
 
 const schoolLabel = computed(() => (school.value === 'daojia' ? '道家' : school.value === 'jiangshi' ? '江氏' : '江氏2'))
 const modeDetail = computed(() =>
@@ -147,10 +168,10 @@ const jieqiText = computed(() => {
   const t = dateTime.value
   return formatJieqiRange(new Date(t.year, t.month - 1, t.day, t.hour, t.minute))
 })
-const duanText = computed(() => RISHI_DUAN[`${PALACES[result.value.dayPalace]}+${PALACES[result.value.hourPalace]}`] || '')
-const sel = computed<PalaceResult | null>(() => (selectedPalace.value !== null ? result.value.palaces[selectedPalace.value] : null))
+const duanText = computed(() => (result.value ? RISHI_DUAN[`${PALACES[result.value.dayPalace]}+${PALACES[result.value.hourPalace]}`] || '' : ''))
+const sel = computed<PalaceResult | null>(() => (selectedPalace.value !== null && result.value ? result.value.palaces[selectedPalace.value] : null))
 
-const gridPalaces = computed(() => GRID_ORDER.map((idx) => ({ idx, p: result.value.palaces[idx] })))
+const gridPalaces = computed(() => (result.value ? GRID_ORDER.map((idx) => ({ idx, p: result.value!.palaces[idx] })) : []))
 
 function togglePalace(idx: number) {
   selectedPalace.value = selectedPalace.value === idx ? null : idx
@@ -342,7 +363,7 @@ function handleBack() {
           @tap="handleSubmit"
         >
           <text class="submit-text">
-            开始排盘
+            {{ submitting ? '排盘中…' : '开始排盘' }}
           </text>
         </view>
 
@@ -355,7 +376,7 @@ function handleBack() {
 
       <!-- ═══ 排盘结果 ═══ -->
       <view
-        v-else
+        v-else-if="result"
         class="inner"
       >
         <!-- 信息表 -->

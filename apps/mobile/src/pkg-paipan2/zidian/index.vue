@@ -7,14 +7,15 @@
  * 取舍：①V0 的 CSV 导出（Blob + a.download）小程序无从落地 → 改为「复制表格文本」到剪贴板；
  *       ②AI 解读走自家 DeepSeek（POST /zidian/ai），返回结构与 V0 的 zod schema 一致。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import StrokeOrder from './components/stroke-order.vue'
 import { navigateTo } from '@/utils/router'
 import { apiPost } from '@/utils/request'
 import { queryText, type ZidianResult } from '../lib/zidian-data'
-import { filterChars, plazaFacets, type PlazaChar } from '../lib/zidian-engine'
+import type { PlazaChar } from '../lib/zidian-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '国学字典'
@@ -122,17 +123,42 @@ const fLuck = ref('')
 const fGender = ref('')
 const fStructure = ref('')
 const fRadical = ref('')
-const facets = plazaFacets() // 纯本地字库统计，无需请求
+/**
+ * 选字广场（第 4 步：字库与筛选只在服务端）。
+ * 分面（结构/部首选项）首屏取一次；筛选结果按组合缓存——来回切换不重复请求，也避免触发接口限流。
+ * 连续切换筛选只认最后一次请求。
+ */
+const facets = ref<{ structures: { code: string; label: string; count: number }[]; radicals: { radical: string; count: number }[] }>({ structures: [], radicals: [] })
+computePaipan<typeof facets.value>('zidian-facets', {}).then((f) => { facets.value = f }).catch(() => { /* 分面取不到时只是少了两组选项，不影响查字 */ })
 
-const plazaChars = computed<PlazaChar[]>(() =>
-  filterChars({
+const plazaChars = ref<PlazaChar[]>([])
+const plazaLoading = ref(false)
+const PLAZA_CACHE = new Map<string, PlazaChar[]>()
+let plazaSeq = 0
+async function loadPlaza() {
+  const q = {
     wuxing: fWuxing.value || undefined,
     luck: fLuck.value || undefined,
     gender: fGender.value || undefined,
     structure: fStructure.value || undefined,
     radical: fRadical.value || undefined,
-  }),
-)
+  }
+  const key = JSON.stringify(q)
+  const hit = PLAZA_CACHE.get(key)
+  if (hit) { plazaChars.value = hit; return }
+  const seq = ++plazaSeq
+  plazaLoading.value = true
+  try {
+    const list = await computePaipan<PlazaChar[]>('zidian-plaza', q)
+    PLAZA_CACHE.set(key, list)
+    if (seq === plazaSeq) plazaChars.value = list
+  } catch {
+    if (seq === plazaSeq) uni.showToast({ title: '选字广场暂时不可用，请稍后重试', icon: 'none' })
+  } finally {
+    if (seq === plazaSeq) plazaLoading.value = false
+  }
+}
+watch([fWuxing, fLuck, fGender, fStructure, fRadical], loadPlaza, { immediate: true })
 const hasFilter = computed(() => !!(fWuxing.value || fLuck.value || fGender.value || fStructure.value || fRadical.value))
 function resetFilter() {
   fWuxing.value = ''
@@ -442,7 +468,8 @@ function resetFilter() {
           <text v-if="c.poem" class="p-poem">「{{ c.poem.quote }}」</text>
         </view>
       </view>
-      <view v-if="!plazaChars.length" class="hint">无符合条件的字，请放宽筛选</view>
+      <view v-if="plazaLoading && !plazaChars.length" class="hint">正在加载…</view>
+      <view v-else-if="!plazaChars.length" class="hint">无符合条件的字，请放宽筛选</view>
     </template>
 
     <Disclaimer

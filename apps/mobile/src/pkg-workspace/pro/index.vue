@@ -8,30 +8,22 @@
  * 价格不写死：后端 CommissionConfig(practitioner_pro_monthly).rateA 是真源，
  * 改价改后台就行，前端不用发版。
  *
- * 支付链路照抄书院会员页（pkg-profile/vip）：创建订单 → 微信 Native 扫码 → 轮询订单状态。
- * 渠道未就绪就诚实降级，不假装成功。
+ * 支付走平台统一收银页；到账以订单回调为准，返回时读取最新会员状态。
  */
-import { getCurrentInstance, nextTick, ref, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { shopApi } from '@/lib/shop-data'
-import { drawQrToCanvas } from '@/utils/qrcode'
+import { navigateTo } from '@/utils/router'
+import { track } from '@/composables/useTrack'
 import { wsApi, type ProStatus } from '../lib/workspace-api'
 
-const instance = getCurrentInstance()?.proxy
-const QR_PX = 176
 const loading = ref(true)
 const pro = ref<ProStatus | null>(null)
 const purchasing = ref(false)
-const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
-const payFailure = ref('')
-const payOrderKept = ref(false)
-const qrReady = ref(false)
-const POLL_MAX = 40
-const pollCount = ref(0)
-let pollTimer: ReturnType<typeof setTimeout> | null = null
+const pendingOrder = ref<{ id: string; amount: number } | null>(null)
 
 /** 会员权益（对应后端的分级闸门，别在这里写后端没实现的承诺） */
 const PERKS = [
@@ -41,10 +33,9 @@ const PERKS = [
 ]
 
 /** 免费本来就能用的（别让老师以为不买就什么都干不了） */
-const FREE = ['全部 24 个排盘工具', '客户档案与回访提醒', '收入账本（平台 + 线下手记）', '案例库沉淀', '报告草稿 3 份']
+const FREE = ['排盘工具', '客户档案与回访提醒', '收入账本（平台 + 线下手记）', '案例库沉淀', '报告草稿 3 份']
 
-onLoad(load)
-onUnmounted(stopPolling)
+onShow(load)
 
 async function load() {
   loading.value = true
@@ -60,88 +51,32 @@ async function load() {
 async function purchase() {
   if (purchasing.value) return
   purchasing.value = true
-  payFailure.value = ''
-  payOrderKept.value = false
+  track.custom('practitioner_pro_buy_click', { renewal: !!pro.value?.isPro })
   try {
+    if (pendingOrder.value) {
+      const previous = pendingOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (state.status === 'PENDING') {
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingOrder.value = null
+      if (state.paid) { await load(); return }
+    }
     // 服务端按 CommissionConfig 真价计费，前端传的任何金额都无效（防篡改）
     const order = await shopApi.createOrder({ type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-    payOrderKept.value = true
-    const pay = await shopApi.payOrderNative(order.id)
-    if (!pay.codeUrl) throw new Error('微信支付未返回付款二维码，请稍后重试')
-    payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
-    qrReady.value = false
-    await nextTick()
-    renderPayQr()
-    startPolling(order.id)
+    pendingOrder.value = { id: order.id, amount: Number(order.amount) || pro.value?.price || 0 }
+    track.custom(order.reused ? 'practitioner_pro_order_resumed' : 'practitioner_pro_order_created', { renewal: !!pro.value?.isPro })
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}`)
   } catch (e) {
-    payFailure.value = (e as Error)?.message || '支付发起失败，请稍后重试'
+    uni.showToast({ title: (e as Error)?.message || '下单失败，请稍后重试', icon: 'none' })
   } finally {
     purchasing.value = false
   }
-}
-
-function renderPayQr() {
-  const value = payPending.value?.codeUrl
-  if (!value) return
-  try {
-    const ctx = uni.createCanvasContext('practitionerPayQr', instance)
-    const ok = drawQrToCanvas(ctx, value, 8, 8, QR_PX - 16, {})
-    ctx.draw(false, () => { qrReady.value = ok })
-  } catch {
-    qrReady.value = false
-  }
-}
-
-function startPolling(orderId: string) {
-  stopPolling()
-  pollCount.value = 0
-  const tick = async () => {
-    pollCount.value++
-    try {
-      const st = await shopApi.getOrderPayState(orderId)
-      if (st.paid) {
-        payPending.value = null
-        uni.showToast({ title: '已开通', icon: 'success' })
-        await load()
-        return
-      }
-    } catch {
-      /* 单次查询失败不中断轮询 */
-    }
-    if (pollCount.value >= POLL_MAX) {
-      uni.showToast({ title: '未检测到支付结果，可稍后在订单中查看', icon: 'none' })
-      payPending.value = null
-      return
-    }
-    pollTimer = setTimeout(tick, 3000)
-  }
-  pollTimer = setTimeout(tick, 3000)
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer)
-    pollTimer = null
-  }
-}
-
-function copyCode() {
-  if (!payPending.value) return
-  uni.setClipboardData({
-    data: payPending.value.codeUrl,
-    success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }),
-  })
-}
-
-function openWechatPay() {
-  if (!payPending.value) return
-  // #ifdef H5
-  window.location.href = payPending.value.codeUrl
-  // #endif
-  // #ifndef H5
-  copyCode()
-  // #endif
 }
 
 function dateText(iso?: string | null): string {
@@ -241,35 +176,6 @@ function dateText(iso?: string | null): string {
       <view class="pro-space" />
     </scroll-view>
 
-    <!-- 扫码支付 -->
-    <view v-if="payPending" class="pro-mask" @tap="payPending = null; stopPolling()">
-      <view class="pro-sheet" @tap.stop>
-        <text class="pro-sheet-title">请使用微信扫码支付</text>
-        <text class="pro-sheet-amount">¥{{ payPending.amount }}</text>
-        <text class="pro-sheet-tip">请使用微信扫描二维码完成支付</text>
-        <view class="pro-qr-wrap">
-          <canvas id="practitionerPayQr" canvas-id="practitionerPayQr" class="pro-qr" />
-          <text v-if="!qrReady" class="pro-qr-loading">二维码生成中…</text>
-        </view>
-        <view class="pro-btn pro-btn--ghost" @tap="openWechatPay">
-          <text class="pro-btn-txt pro-btn-txt--ghost">在微信中打开</text>
-        </view>
-        <text class="pro-copy" @tap="copyCode">无法打开？复制支付链接</text>
-        <text class="pro-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
-      </view>
-    </view>
-
-    <!-- 支付失败：展示真实错误；只有订单确实建成时才提示已保留 -->
-    <view v-if="payFailure" class="pro-mask" @tap="payFailure = ''">
-      <view class="pro-modal" @tap.stop>
-        <text class="pro-modal-title">支付未发起</text>
-        <text class="pro-modal-desc">{{ payFailure }}</text>
-        <text v-if="payOrderKept" class="pro-order-tip">订单已安全保留，可稍后重新发起支付；系统不会把未付款订单当作已开通。</text>
-        <view class="pro-btn pro-btn--primary" @tap="payFailure = ''">
-          <text class="pro-btn-txt pro-btn-txt--primary">知道了</text>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -526,77 +432,4 @@ function dateText(iso?: string | null): string {
   height: 40rpx;
 }
 
-/* 弹层 */
-.pro-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48rpx;
-}
-
-.pro-sheet,
-.pro-modal {
-  width: 100%;
-  padding: 40rpx;
-  border-radius: 24rpx;
-  background: #FDFAF4;
-  box-sizing: border-box;
-}
-
-.pro-sheet-title,
-.pro-modal-title {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #3A2A1E;
-  text-align: center;
-}
-
-.pro-sheet-amount {
-  display: block;
-  margin-top: 16rpx;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #C41E3A;
-  text-align: center;
-}
-
-.pro-sheet-tip,
-.pro-modal-desc {
-  display: block;
-  margin-top: 20rpx;
-  font-size: 24rpx;
-  line-height: 1.7;
-  color: #7A6C5E;
-}
-
-.pro-qr-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 352rpx;
-  height: 352rpx;
-  margin: 24rpx auto 0;
-  border-radius: 20rpx;
-  background: #fff;
-  overflow: hidden;
-}
-
-.pro-qr { width: 352rpx; height: 352rpx; }
-.pro-qr-loading { position: absolute; font-size: 22rpx; color: #9A8C7E; }
-.pro-copy { display: block; margin-top: 18rpx; text-align: center; font-size: 22rpx; color: #9A8C7E; }
-.pro-order-tip { display: block; margin-top: 14rpx; font-size: 22rpx; line-height: 1.6; color: #9A8C7E; }
-
-.pro-poll {
-  display: block;
-  margin-top: 20rpx;
-  font-size: 21rpx;
-  color: #B8AA9A;
-  text-align: center;
-}
 </style>

@@ -137,6 +137,7 @@
         <template v-else-if="order.isVirtual && order.status !== 'cancelled'">
           <view v-if="order.canReview" class="fbtn outline" @tap="goReview"><text>去评价</text></view>
           <view v-if="isCourseOrder" class="fbtn primary" @tap="goLearn"><text>立即学习</text></view>
+          <view v-if="serviceNext" class="fbtn primary" @tap="continueService"><text>{{ serviceNext.label }}</text></view>
         </template>
         <template v-else-if="order.status === 'pending_ship'">
           <view class="fbtn ghost" @tap="goAfterSale"><text>申请退款</text></view>
@@ -181,6 +182,7 @@ import { existingOrderCashierRoute, type HuifuChannel } from '@/utils/existing-o
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
+import { paidOrderNext } from '@/lib/paid-order-next'
 
 const loading = ref(false)
 const error = ref('')
@@ -206,6 +208,14 @@ const status = computed(() => {
 })
 
 const isCourseOrder = computed(() => order.value?.orderType === 'COURSE')
+const serviceNext = computed(() => {
+  const current = order.value
+  if (!current || !['pending_ship', 'pending_receive', 'completed'].includes(current.status)) return null
+  return paidOrderNext(current.orderType, current.targetId)
+})
+function continueService() {
+  if (serviceNext.value) navigateTo(serviceNext.value.path)
+}
 function goLearn() {
   const cid = order.value?.products[0]?.id
   if (cid) navigateTo(`/courses/${cid}/player`)

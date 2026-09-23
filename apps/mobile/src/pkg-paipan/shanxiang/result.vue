@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 山向奇门结果页——自 V0 app/shanxiang/result/page.tsx 还原
- * onLoad 解析 payload（deg/y/name）本地重算 paiShanxiang：
+ * onLoad 解析 payload（deg/y/name）交服务端排盘（POST /paipan/engine/shanxiang，算法只在服务端）：
  * 盘面信息表（山向/干支/黄泉/局 + 旬首值符值使空亡马星）+ 洛书九宫盘 + 白话总断 + 关联工具导流。
  * 取舍：AI 深断区块本批砍掉；V0 九宫 aspect-square 触 X5 红线（禁 aspect-ratio）改固定高度；
  *       排盘成功自动写入本地记录（key: rebu:shanxiang-history，以 ts 去重，上限 50）；
@@ -15,7 +15,8 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { paiShanxiang, type ShanxiangResult } from '@/pkg-paipan/lib/shanxiang-engine'
+import type { ShanxiangResult } from '@/pkg-paipan/lib/shanxiang-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '山向奇门排盘'
@@ -51,13 +52,33 @@ onLoad((opts: Record<string, string> = {}) => {
     if (!Number.isFinite(deg) || !Number.isFinite(year)) throw new Error('invalid params')
     custName.value = p.name ? String(p.name) : ''
     useYear.value = year
-    const r = paiShanxiang(deg, year)
-    result.value = r
-    saveRecord(Number(p.ts) || Date.now(), p, r)
+    pending = p
+    compute()
   } catch {
     invalid.value = true
   }
 })
+
+const loading = ref(false)
+const netError = ref(false)
+let pending: Record<string, unknown> | null = null
+async function compute() {
+  const p = pending
+  if (!p) return
+  loading.value = true
+  netError.value = false
+  try {
+    const r = await computePaipan<ShanxiangResult>('shanxiang', { deg: p.deg, y: p.y })
+    result.value = r
+    saveRecord(Number(p.ts) || Date.now(), p, r)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = true
+  } finally {
+    loading.value = false
+  }
+}
 
 /** 排盘记录自动留存（以 ts 去重，重开历史不重复写；上限 50） */
 function saveRecord(id: number, params: Record<string, unknown>, r: ShanxiangResult) {
@@ -135,6 +156,8 @@ const xunshouText = computed(() => result.value?.chart.xunshou.name.slice(0, 2) 
 
     <!-- 参数无效 -->
     <param-error v-if="invalid" text="参数无效，请重新排盘" action-text="返回起盘" @action="navigateTo('/pkg-paipan/shanxiang/index')" />
+    <param-error v-else-if="netError" text="排盘服务暂时不可用，请稍后重试" action-text="重新排盘" @action="compute" />
+    <view v-else-if="loading" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <scroll-view v-else-if="result" scroll-y class="body">
       <!-- 盘面信息表 -->
@@ -249,6 +272,9 @@ const xunshouText = computed(() => result.value?.chart.xunshou.name.slice(0, 2) 
 .body { flex: 1; height: 0; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* ── 盘面信息表 ── */
 .info { background: var(--card); border-bottom: 1rpx solid var(--line); }

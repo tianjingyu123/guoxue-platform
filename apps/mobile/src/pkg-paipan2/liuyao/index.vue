@@ -2,7 +2,7 @@
 /**
  * 六爻排盘·起卦入口页（自 V0 app/liuyao/page.tsx 还原）
  * 七种起卦方式：手动指定 / 在线摇卦 / 卦名起卦 / 数字起卦1 / 数字起卦2 / 时间起卦 / 自动起卦。
- * 结果页本地装卦（pkg-paipan2/lib/liuyao-engine，73/73 黄金测试通过），零后端依赖。
+ * 结果页由服务端装卦（POST /paipan/engine/liuyao，2026-09-21 第 4 步迁移；原 shared liuyao-engine 原样，73/73 黄金测试）。
  *
  * ⚠️ 本页替代旧的 pkg-paipan/liuyao/*：旧页走 lib/liuyao-result-data.ts 的
  *    `if (true) return _mockLiuyaoResult` 硬编码假盘（后端真算法被短路），已随本次重做删除。
@@ -19,7 +19,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { QIGUA_METHODS, METHOD_NOTES, BAGUA_OPTIONS, type QiguaMethodKey } from '@/pkg-paipan2/lib/liuyao-data'
-import { randomCoinThrow } from '@/pkg-paipan2/lib/liuyao-engine'
+import { randomCoinThrow } from '@/pkg-paipan2/lib/liuyao-types'
 import { toSolarSafe } from '@/pkg-paipan2/lib/date-convert'
 import {
   loadLiuyaoHistory,

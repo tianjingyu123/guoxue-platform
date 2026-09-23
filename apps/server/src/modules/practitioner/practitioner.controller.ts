@@ -40,8 +40,13 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "工作台首页聚合（今日日程/待办/本月收入/最近报告）" })
-  getHome(@Req() req: Request) {
-    return this.svc.getHome(req.user.id);
+  getHome(
+    @Req() req: Request,
+    @Query("dayStart") dayStart?: string,
+    @Query("dayEnd") dayEnd?: string,
+    @Query("monthStart") monthStart?: string,
+  ) {
+    return this.svc.getHome(req.user.id, { dayStart, dayEnd, monthStart });
   }
 
   @Get("profile")
@@ -75,8 +80,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "报告列表（含配额）" })
-  listReports(@Req() req: Request, @Query("status") status?: string, @Query("keyword") keyword?: string) {
-    return this.svc.listReports(req.user.id, { status, keyword });
+  listReports(@Req() req: Request, @Query("status") status?: string, @Query("keyword") keyword?: string, @Query("page") page?: string) {
+    return this.svc.listReports(req.user.id, { status, keyword, page });
   }
 
   @Post("reports")
@@ -120,11 +125,12 @@ export class PractitionerController {
   @Post("reports/ai-draft")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "AI 起草某一章节（盘面由前端引擎算好后传入·AI 只写解读）" })
+  @ApiOperation({ summary: "AI 起草本人报告中的解读章节（使用服务端存档盘面）" })
   aiDraft(
-    @Body() dto: { chapterTitle: string; reportTypeLabel: string; clientName: string; paipan: unknown; hint?: string },
+    @Req() req: Request,
+    @Body() dto: { reportId: string; chapterKey: string; hint?: string },
   ) {
-    return this.ai.draftChapter(dto);
+    return this.ai.draftChapter(req.user.id, dto);
   }
 
   @Get("reports/:id")
@@ -148,8 +154,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除报告" })
-  deleteReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.deleteReport(req.user.id, id);
+  deleteReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { updatedAt?: string }) {
+    return this.svc.deleteReport(req.user.id, id, dto?.updatedAt);
   }
 
   @Post("reports/:id/share")
@@ -157,8 +163,8 @@ export class PractitionerController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "生成只读交付链接（会员专属）" })
   @ApiResponse({ status: 403, description: "非会员" })
-  shareReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.shareReport(req.user.id, id);
+  shareReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { updatedAt?: string }) {
+    return this.svc.shareReport(req.user.id, id, dto?.updatedAt);
   }
 
   @Delete("reports/:id/share")
@@ -166,8 +172,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "撤回交付链接" })
-  unshareReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.unshareReport(req.user.id, id);
+  unshareReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { shareToken?: string }) {
+    return this.svc.unshareReport(req.user.id, id, dto?.shareToken);
   }
 
   // ───────── 案例库 ─────────

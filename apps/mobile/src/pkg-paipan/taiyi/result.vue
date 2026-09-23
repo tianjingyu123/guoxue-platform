@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 太乙神数·结果页（自 V0 app/taiyi/result/page.tsx 还原）
- * onLoad 解析 payload 后本地调太乙引擎重算（@/pkg-paipan/lib/taiyi-engine），无后端依赖。
+ * onLoad 解析 payload 后调服务端排盘（POST /paipan/engine/taiyi）；算法只在服务端，前端不含引擎源码。
  * 结构：课体信息表 → 十六神盘 → 白话总断 → 知识 Tab（格局/数占/太乙秘书/十六神）→ 导流 → 合规声明。
  * 取舍：V0 的 AI 深断区块按批次规范砍掉；导流仅保留奇门遁甲（金口诀页面本批未还原，避免死链）。
  */
@@ -13,7 +13,8 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import TaiyiBoard from './components/taiyi-board.vue'
-import { paiTaiyi, type TaiyiResult } from '@/pkg-paipan/lib/taiyi-engine'
+import type { TaiyiResult } from '@/pkg-paipan/lib/taiyi-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { navigateTo } from '@/utils/router'
 import { saveTaiyiHistory, type TaiyiParams, type TaiyiPanShi, type TaiyiSuanFa } from './taiyi-history'
 
@@ -54,6 +55,11 @@ type TabKey = (typeof TABS)[number]['key']
 const result = ref<TaiyiResult | null>(null)
 const topic = ref('')
 const loadError = ref('')
+const loading = ref(false)
+/** 服务端请求失败（区别于参数错误：前者给「重新排盘」，后者给「返回起课」） */
+const netError = ref(false)
+/** 最近一次合法入参：请求失败时「重试」用 */
+let lastParams: TaiyiParams | null = null
 const tab = ref<TabKey>('geju')
 
 const PAN_SHI_SET: TaiyiPanShi[] = ['year', 'month', 'day', 'hour']
@@ -73,22 +79,44 @@ onLoad((q: Record<string, string> = {}) => {
     if (!year || !month || !day || Number.isNaN(hour) || Number.isNaN(minute)) {
       throw new Error('排盘参数不完整')
     }
-    // 逐字段构造 Date，规避各端字符串解析差异
+    // 逐字段校验日期真实存在（服务端同样校验，这里先挡掉明显坏参）
     const date = new Date(year, month - 1, day, hour, minute)
     if (Number.isNaN(date.getTime())) throw new Error('排盘时间无效')
 
-    const r = paiTaiyi({ date, panShi, suanFa })
-    result.value = r
-    topic.value = String(p.topic || '').slice(0, 30)
-    // 记入本地排盘记录（index 起课与深链进入均覆盖）
-    saveTaiyiHistory(
-      { topic: topic.value, year, month, day, hour, minute, panShi, suanFa },
-      `${r.dunType}${r.juNumber}局`,
-    )
+    lastParams = { topic: String(p.topic || '').slice(0, 30), year, month, day, hour, minute, panShi, suanFa }
+    topic.value = lastParams.topic
+    compute()
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效，请重新起课'
   }
 })
+
+/** 服务端排盘；失败时展示可重试的错误态（网络失败不是参数错，按钮文案随之不同） */
+async function compute() {
+  if (!lastParams) return
+  const { topic: t, ...input } = lastParams
+  loading.value = true
+  loadError.value = ''
+  netError.value = false
+  try {
+    const r = await computePaipan<TaiyiResult>('taiyi', input)
+    result.value = r
+    // 记入本地排盘记录（index 起课与深链进入均覆盖）
+    saveTaiyiHistory({ topic: t, ...input }, `${r.dunType}${r.juNumber}局`)
+  } catch (e) {
+    netError.value = true
+    // 服务端参数校验（「参数 xx 无效」）原样给出；其余（网络/5xx/限流）统一成用户能懂的话
+    const msg = (e as Error)?.message || ''
+    loadError.value = msg.startsWith('参数') ? msg : '排盘服务暂时不可用，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+function onErrorAction() {
+  if (netError.value) compute()
+  else goInput()
+}
 
 function goInput() {
   navigateTo('/pkg-paipan/taiyi/index')
@@ -142,7 +170,8 @@ function onShare() {
     />
 
     <!-- 参数错误态 -->
-    <param-error v-if="loadError" :text="loadError" action-text="返回起课" @action="goInput" />
+    <param-error v-if="loadError" :text="loadError" :action-text="netError ? '重新排盘' : '返回起课'" @action="onErrorAction" />
+    <view v-else-if="loading" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <!-- 主体 -->
     <scroll-view v-else-if="result" scroll-y class="body">
@@ -274,6 +303,9 @@ $serif: Georgia, 'Songti SC', serif;
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 课体信息表 */
 .tr { display: flex; align-items: stretch; }

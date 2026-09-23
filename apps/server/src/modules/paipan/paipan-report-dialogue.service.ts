@@ -7,6 +7,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { ContentGuideService, type GuideCard } from "../search/content-guide.service";
 import type { DialogueOutlineItem, Reference, ReportSection, StructuredReport } from "./paipan-report.service";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
 
 /**
  * 小卜 · 围绕报告的问答（S07 第二步，文字版；语音接通后沿用同一套规则）
@@ -56,6 +57,7 @@ export class PaipanReportDialogueService {
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
     private readonly guide: ContentGuideService,
+    private readonly commerce: XiaobuCommerceService,
     /** 可选：称呼记忆。缺它时对话照常，只是一律用「你」 */
     @Optional() private readonly names?: PreferredNameService,
   ) {}
@@ -98,6 +100,10 @@ export class PaipanReportDialogueService {
 
     const report = await this.loadReport(userId, reportId);
     const answer = await this.answer(userId, reportId, report, question, input.sectionId);
+    const current = await this.loadReport(userId, reportId);
+    if (current.metadata?.generatedAt !== report.metadata?.generatedAt) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已更新，请基于新版报告重新提问");
+    }
     await this.saveTurns(userId, reportId, question, answer, input.channel ?? "text");
     // 这一轮里问过称呼就留痕：用户没答也算问过，否则下次对话又问一遍——
     // 追着问称呼比叫错更烦人。
@@ -108,12 +114,20 @@ export class PaipanReportDialogueService {
   /** 读取问答记录与进度（最近 50 条；讨论过的小节用于“接着上次聊”） */
   async history(userId: string, reportId: string) {
     const report = await this.loadReport(userId, reportId);
+    const generatedAt = this.generationTime(report);
     const turns = await this.prisma.reportDialogueTurn.findMany({
-      where: { reportId, userId },
+      where: { reportId, userId, ...(generatedAt ? { createdAt: { gte: generatedAt } } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
     const ordered = turns.reverse();
+    const previous = generatedAt
+      ? (await this.prisma.reportDialogueTurn.findMany({
+          where: { reportId, userId, createdAt: { lt: generatedAt } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })).reverse()
+      : [];
     const chapters = report.sections.filter((s) => s.type === "analysis" || s.type === "interpretation");
     const discussed = [...new Set(ordered.map((t) => t.sectionId).filter(Boolean) as string[])];
     const last = [...ordered].reverse().find((t) => t.sectionId);
@@ -127,6 +141,7 @@ export class PaipanReportDialogueService {
         mode: t.mode,
         createdAt: t.createdAt,
       })),
+      previousTurns: previous.map((t) => ({ role: t.role, content: t.content, createdAt: t.createdAt })),
       lastSectionId: last?.sectionId ?? null,
       lastSectionTitle: last?.sectionId ? chapters.find((c) => c.id === last.sectionId)?.title ?? null : null,
       discussedSectionIds: discussed,
@@ -252,8 +267,12 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
 【用户问题】${question}`;
 
     // 历史只取服务端记录（不含危机转介轮次），不信任客户端传入的历史
+    const generatedAt = this.generationTime(report);
     const stored = await this.prisma.reportDialogueTurn.findMany({
-      where: { reportId, userId, NOT: { mode: "crisis_referral" } },
+      where: {
+        reportId, userId, NOT: { mode: "crisis_referral" },
+        ...(generatedAt ? { createdAt: { gte: generatedAt } } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: MAX_HISTORY,
       select: { role: true, content: true },
@@ -318,13 +337,32 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     if (record.userId !== userId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该报告");
     }
+    let content: StructuredReport;
     try {
-      const content = JSON.parse(record.analysisContent);
+      content = JSON.parse(record.analysisContent);
       if (!Array.isArray(content?.sections)) throw new Error("bad");
-      return content as StructuredReport;
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+    if (record.paipanRecordId) {
+      const source = await this.prisma.paipanRecord.findUnique({
+        where: { id: record.paipanRecordId }, select: { userId: true },
+      });
+      if (!source || source.userId !== userId) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "报告关联的原排盘记录不存在");
+      }
+    }
+    const accessType = content.metadata?.reportType ||
+      (record.analyzeType?.startsWith("REPORT_") ? record.analyzeType.slice(7).toLowerCase() : "");
+    if (record.paipanRecordId && accessType) {
+      await this.commerce.assertReportAccess(userId, record.paipanRecordId, accessType);
+    }
+    return content;
+  }
+
+  private generationTime(report: StructuredReport): Date | null {
+    const time = new Date(report.metadata?.generatedAt ?? "");
+    return Number.isNaN(time.getTime()) ? null : time;
   }
 
   /** 页面带了小节就用该小节；否则按标题/要点关键词粗匹配，匹配不到交给模型判断 */

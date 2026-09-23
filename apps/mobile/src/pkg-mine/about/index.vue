@@ -170,6 +170,31 @@
         </view>
       </view>
 
+      <!-- 开源致谢：起名字库的标注参考了以下开放数据（开放汉语字典为 CC BY 3.0，许可要求署名） -->
+      <text class="section-title">
+        开源致谢
+      </text>
+      <view class="contact-card">
+        <view
+          v-for="c in CREDITS"
+          :key="c.name"
+          class="contact-row"
+          @tap="copyContact(c.url, '链接')"
+        >
+          <view class="contact-copy">
+            <text class="contact-label">
+              {{ c.name }}
+            </text>
+            <text class="contact-sub">
+              {{ c.use }} · {{ c.license }}
+            </text>
+          </view>
+          <text class="copy-label">
+            复制链接
+          </text>
+        </view>
+      </view>
+
       <view class="footer-copy">
         <text>{{ BRAND.copyright }}</text>
         <text>Copyright © {{ currentYear }} {{ BRAND.name }}</text>
@@ -186,6 +211,15 @@ import { navigateTo } from '@/utils/router'
 
 const logoSrc = '/static/logo.webp'
 const currentYear = new Date().getFullYear()
+
+/** 开源致谢（起名字库的标注依据，见 artifacts/naming-lexicon/README.md） */
+const CREDITS = [
+  { name: '开放汉语字典（開放詞典）', use: '起名用字释义参考', license: 'CC BY 3.0', url: 'https://github.com/kfcd/hyzd' },
+  { name: 'Unicode Unihan 数据库', use: '汉字读音', license: 'Unicode License V3', url: 'https://www.unicode.org/charts/unihan.html' },
+  { name: 'chinese-poetry 中华古诗词数据库', use: '典籍用字统计与核验引文', license: 'MIT · © 2016 JackeyGao', url: 'https://github.com/chinese-poetry/chinese-poetry' },
+  { name: 'Chinese-Names-Corpus（萌名）', use: '姓名样本用字与同名热度统计', license: 'Apache-2.0', url: 'https://github.com/wainshine/Chinese-Names-Corpus' },
+  { name: '中文维基文库', use: '《周易》引文核对', license: '公版原典／站点版权条款', url: 'https://zh.wikisource.org/wiki/周易' },
+]
 
 const features = [
   { icon: 'book-open', title: '古籍与工具', desc: '阅读经典原文，使用经过校验的传统文化工具' },

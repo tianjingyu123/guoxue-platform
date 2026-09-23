@@ -42,6 +42,7 @@ const loading = ref(true)
 const error = ref('')
 const orders = ref<OrderItem[]>([])
 const qaRows = ref<OrderItem[]>([])
+const answerRows = ref<OrderItem[]>([])
 const callRows = ref<OrderItem[]>([])
 const qaPage = ref(0)
 const callPage = ref(0)
@@ -158,7 +159,8 @@ const hasMoreQa = computed(() => qaPage.value > 0 && qaRows.value.length < qaTot
 const hasMoreCalls = computed(() => callPage.value > 0 && callFetched.value < callTotal.value)
 
 function mergeOrders() {
-  orders.value = [...qaRows.value, ...callRows.value].sort(
+  const qaIds = new Set(qaRows.value.map(item => item.id))
+  orders.value = [...qaRows.value, ...answerRows.value.filter(item => !qaIds.has(item.id)), ...callRows.value].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   )
 }
@@ -214,6 +216,7 @@ async function load() {
   loading.value = true
   error.value = ''
   qaRows.value = []
+  answerRows.value = []
   callRows.value = []
   qaPage.value = 0
   callPage.value = 0
@@ -226,6 +229,25 @@ async function load() {
   moreCallError.value = ''
   orders.value = []
   await Promise.all([loadQaPage(), loadCallPage()])
+  if (filter.value === 'pending') {
+    // 工作台待答入口还需包含由我回答的跨圈订单，不影响原列表的分页游标。
+    try {
+      const pendingRows = new Map<string, OrderItem>()
+      let page = 1
+      let total = 0
+      do {
+        const result = await questionApi.list({ answererId: myId.value, status: 'PENDING', page, pageSize: 100 })
+        for (const item of result.items) pendingRows.set(item.id, mapQa(item))
+        total = result.total
+        if (!result.items.length) break
+        page++
+      } while ((page - 1) * 100 < total)
+      answerRows.value = [...pendingRows.values()]
+      mergeOrders()
+    } catch (e) {
+      moreQaError.value = (e as Error)?.message || '待回答记录加载失败'
+    }
+  }
   if (qaError.value && callError.value) error.value = '咨询记录加载失败，请重试'
   loading.value = false
 }
@@ -240,7 +262,10 @@ function openDetail(o: OrderItem) {
   else if (o.bucket !== 'pending') navigateTo(`/pkg-circle/circles/call-end?id=${o.id}`)
 }
 
-onLoad((opt) => { circleId.value = (opt?.circleId || opt?.id || '') as string })
+onLoad((opt) => {
+  circleId.value = (opt?.circleId || opt?.id || '') as string
+  if (opt?.filter === 'pending') filter.value = 'pending'
+})
 // 从回答/拒答详情返回时重新读取真实状态，避免旧的“待我回答”继续留在列表。
 onShow(() => { myId.value = getCurrentUserId(); void load() })
 </script>

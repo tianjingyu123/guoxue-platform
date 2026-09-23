@@ -25,7 +25,10 @@ function setup(opts?: { report?: any; used?: number; brandName?: string }) {
     practitionerProfile: { findUnique: jest.fn(async () => ({ brandName: opts?.brandName ?? "明德堂" })) },
     user: { findUnique: jest.fn(async () => ({ nickname: "张老师" })) },
   };
-  const redis: any = { incrWithTtl: jest.fn(async () => ({ count: opts?.used ?? 1, ttl: 86400 })) };
+  const redis: any = {
+    incrWithTtl: jest.fn(async () => ({ count: opts?.used ?? 1, ttl: 86400 })),
+    decrFloorZero: jest.fn(async () => Math.max(0, (opts?.used ?? 1) - 1)),
+  };
   const gateway: any = { chat: jest.fn(async () => ({ content: "简单说，就是担子比力气重一些。（见「日主与格局」）", model: "m1" })) };
   return { svc: new ReportAskService(prisma, redis, gateway), prisma, redis, gateway };
 }
@@ -69,14 +72,57 @@ describe("交付报告问答", () => {
   });
 
   it("按报告限频：链接外泄也刷不动，且给客户明确说法", async () => {
-    const { svc } = setup({ used: ReportAskService.DAILY_LIMIT + 1 });
+    const { svc, redis } = setup({ used: ReportAskService.DAILY_LIMIT + 1 });
     await expect(svc.ask("tok-1", "问题")).rejects.toThrow("请直接联系老师");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+  });
+
+  it("计数服务报错时暂停问答，避免无上限调用模型", async () => {
+    const { svc, redis, gateway } = setup();
+    redis.incrWithTtl.mockRejectedValueOnce(new Error("redis unavailable"));
+
+    await expect(svc.ask("tok-1", "问题")).rejects.toThrow("稍后再试");
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("模型失败或空回答释放预占次数，客户重试不白白消耗额度", async () => {
+    const { svc, redis, gateway } = setup();
+    gateway.chat.mockRejectedValueOnce(new Error("timeout"));
+    await expect(svc.ask("tok-1", "第一次提问")).rejects.toThrow("稍后再试");
+    gateway.chat.mockResolvedValueOnce({ content: "" });
+    await expect(svc.ask("tok-1", "第二次提问")).rejects.toThrow("稍后再试");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(2);
+  });
+
+  it("老师资料查询失败时恢复提问次数，不调用模型", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    prisma.practitionerProfile.findUnique.mockRejectedValueOnce(new Error("database unavailable"));
+
+    await expect(svc.ask("tok-1", "问题")).rejects.toThrow("database unavailable");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+    expect(gateway.chat).not.toHaveBeenCalled();
   });
 
   it("剩余次数随问随减，供页面提示", async () => {
     const { svc } = setup({ used: ReportAskService.DAILY_LIMIT - 2 });
     const r = await svc.ask("tok-1", "问题");
     expect(r.remaining).toBe(2);
+  });
+
+  it("每日次数在北京时间零点重置，而非 UTC 零点", async () => {
+    jest.useFakeTimers();
+    try {
+      const { svc, redis } = setup();
+      jest.setSystemTime(new Date("2026-09-23T15:59:59.000Z"));
+      await svc.ask("tok-1", "午夜前的问题");
+      expect(redis.incrWithTtl).toHaveBeenNthCalledWith(1, "report-ask:pr-1:2026-09-23", 1);
+
+      jest.setSystemTime(new Date("2026-09-23T16:00:00.000Z"));
+      await svc.ask("tok-1", "午夜后的问题");
+      expect(redis.incrWithTtl).toHaveBeenNthCalledWith(2, "report-ask:pr-1:2026-09-24", 86400);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("链接撤回后不再作答；空问题与超长问题拒绝", async () => {
@@ -87,6 +133,29 @@ describe("交付报告问答", () => {
     await expect(svc.ask("tok-1", "   ")).rejects.toThrow("请先输入问题");
     await expect(svc.ask("tok-1", "问".repeat(201))).rejects.toThrow("问题太长");
     expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("模型生成期间撤回分享链接时不交付答案，并恢复提问次数", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      prisma.practitionerReport.findUnique.mockResolvedValueOnce(null);
+      return { content: "这段解读的答案" };
+    });
+
+    await expect(svc.ask("tok-1", "这段是什么意思？")).rejects.toThrow("已被撤回");
+    expect(prisma.practitionerReport.findUnique).toHaveBeenCalledTimes(2);
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+  });
+
+  it("交付前无法确认分享状态时不返回答案，并恢复提问次数", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      prisma.practitionerReport.findUnique.mockRejectedValueOnce(new Error("database unavailable"));
+      return { content: "这段解读的答案" };
+    });
+
+    await expect(svc.ask("tok-1", "这段是什么意思？")).rejects.toThrow("database unavailable");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
   });
 
   it("带最近几轮上下文，但不无限增长", async () => {

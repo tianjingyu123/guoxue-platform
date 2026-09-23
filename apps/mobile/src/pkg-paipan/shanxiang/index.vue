@@ -12,7 +12,7 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { FACING_SEQ } from '@/pkg-paipan/lib/shanxiang-engine'
+import { FACING_SEQ } from '@/pkg-paipan/lib/shanxiang-types'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '山向奇门'

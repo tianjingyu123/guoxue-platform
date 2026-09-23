@@ -84,7 +84,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/paipan/hepan': '/pkg-paipan/hepan/index',
   '/paipan/hepan/result': '/pkg-paipan/hepan/result',
   '/paipan/hepan/history': '/pkg-paipan/hepan/history/index',
-  // 六爻：2026-07-14 重做为 V0 版并迁至 pkg-paipan2（与 liuyao-engine 同分包，本地装卦，73/73 黄金测试）。
+  // 六爻：2026-07-14 重做为 V0 版并迁至 pkg-paipan2（2026-09-21 起装卦在服务端）。
   // 旧的 pkg-paipan/liuyao/* + lib/liuyao-result-data.ts 是 `if(true) return _mock` 假盘，已删除。
   '/paipan/liuyao': '/pkg-paipan2/liuyao/index',
   '/paipan/liuyao/result': '/pkg-paipan2/liuyao/result',

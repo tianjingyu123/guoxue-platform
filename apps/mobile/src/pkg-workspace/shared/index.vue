@@ -15,6 +15,7 @@ import { drawQrToCanvas } from '@/utils/qrcode'
 const instance = getCurrentInstance()
 const loading = ref(true)
 const notFound = ref(false)
+const loadFailed = ref(false)
 const data = ref<any>(null)
 
 /**
@@ -57,6 +58,10 @@ const askRemaining = ref<number | null>(null)
 async function sendAsk() {
   const q = askInput.value.trim()
   if (!q || asking.value || !shareToken.value) return
+  if (askRemaining.value === 0) {
+    uni.showToast({ title: '今日提问次数已用完', icon: 'none' })
+    return
+  }
   askInput.value = ''
   askItems.value.push({ role: 'user', text: q })
   asking.value = true
@@ -72,16 +77,25 @@ async function sendAsk() {
       })
     })
     const body = res?.data
+    if (res.statusCode === 404 || res.statusCode === 410) {
+      data.value = null
+      askItems.value = []
+      askInput.value = ''
+      notFound.value = true
+      return
+    }
+    if (res.statusCode === 429 && typeof body?.message === 'string' && body.message.includes('今天的提问次数已用完')) {
+      askRemaining.value = 0
+    }
     if (res.statusCode !== 200 || !body?.data) {
       throw new Error(body?.message || '暂时没能回答，请稍后再试')
     }
     askItems.value.push({ role: 'assistant', text: body.data.answer })
     askRemaining.value = body.data.remaining ?? null
   } catch (e) {
-    askItems.value.push({
-      role: 'assistant',
-      text: (e as Error)?.message || '暂时没能回答，请稍后再试，或直接联系老师。',
-    })
+    askItems.value.pop()
+    askInput.value = q
+    uni.showToast({ title: (e as Error)?.message || '暂时没能回答，请稍后重试', icon: 'none' })
   } finally {
     asking.value = false
   }
@@ -91,14 +105,16 @@ async function sendAsk() {
 const DEFAULT_DISCLAIMER =
   '本报告为传统文化解读，仅供参考，不构成医疗、投资、法律或其他专业决策依据。'
 
-onLoad(async (q) => {
-  const token = (q?.token as string) || ''
-  shareToken.value = token
+async function loadReport() {
+  const token = shareToken.value
   if (!token) {
     notFound.value = true
     loading.value = false
     return
   }
+  loading.value = true
+  notFound.value = false
+  loadFailed.value = false
   try {
     // 用 uni.request 直连而非 apiGet：这是公开页，客户没有登录态，
     // 走带鉴权拦截的请求层会在 401 时把人踢去登录页。
@@ -111,17 +127,29 @@ onLoad(async (q) => {
       })
     })
     const body = res?.data
-    if (res.statusCode !== 200 || !body?.data) {
+    if (res.statusCode === 404 || res.statusCode === 410) {
+      data.value = null
+      askItems.value = []
       notFound.value = true
+    } else if (res.statusCode !== 200 || !body?.data) {
+      data.value = null
+      loadFailed.value = true
     } else {
       data.value = body.data
-    drawQr()
+      askRemaining.value = null
+      drawQr()
     }
   } catch {
-    notFound.value = true
+    data.value = null
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
+}
+
+onLoad((q) => {
+  shareToken.value = (q?.token as string) || ''
+  loadReport()
 })
 
 function dateText(iso?: string): string {
@@ -142,6 +170,13 @@ function dateText(iso?: string): string {
       <AppIcon name="file-text" :size="48" color="#D5C9B8" />
       <text class="sr-404-txt">报告不存在或已被撤回</text>
       <text class="sr-404-sub">请联系为你出具报告的老师</text>
+    </view>
+
+    <view v-else-if="loadFailed" class="sr-404">
+      <AppIcon name="alert-circle" :size="48" color="#C41E3A" />
+      <text class="sr-404-txt">报告暂时无法加载</text>
+      <text class="sr-404-sub">检查网络后重试</text>
+      <view class="sr-retry" @tap="loadReport">重新加载</view>
     </view>
 
     <scroll-view v-else class="sr-body" scroll-y :show-scrollbar="false">
@@ -172,6 +207,7 @@ function dateText(iso?: string): string {
           <text class="sr-ch-title">{{ c.title }}</text>
         </view>
         <text class="sr-ch-body">{{ c.body || '（本章暂无内容）' }}</text>
+        <text v-if="c.ai" class="sr-ai-note">本章由 AI 起草，请结合盘面与实际情况核对</text>
       </view>
 
       <!-- 落款 -->
@@ -203,7 +239,7 @@ function dateText(iso?: string): string {
             v-model="askInput"
             class="sr-ask-input"
             type="text"
-            :disabled="asking"
+            :disabled="asking || askRemaining === 0"
             placeholder="例如：报告里说的「身弱」是什么意思？"
             confirm-type="send"
             @confirm="sendAsk"
@@ -212,7 +248,8 @@ function dateText(iso?: string): string {
             <text class="sr-ask-send-txt">{{ asking ? '…' : '发送' }}</text>
           </view>
         </view>
-        <text v-if="askRemaining !== null && askRemaining <= 5" class="sr-ask-left">今日还可提问 {{ askRemaining }} 次</text>
+        <text v-if="askRemaining === 0" class="sr-ask-left">今日提问次数已用完，如还有疑问，请直接联系老师；次日重新打开报告可继续提问</text>
+        <text v-else-if="askRemaining !== null && askRemaining <= 5" class="sr-ask-left">今日还可提问 {{ askRemaining }} 次</text>
       </view>
 
       <!-- 扫码在线查阅：纸质版与电子版印在这里，客户扫码即可随时打开并提问 -->
@@ -402,6 +439,10 @@ function dateText(iso?: string): string {
   color: #3A2A1E;
   white-space: pre-wrap;
 }
+
+.sr-retry { padding: 16rpx 32rpx; border-radius: 12rpx; background: #C41E3A; color: #fff; font-size: 24rpx; }
+
+.sr-ai-note { display: block; margin-top: 16rpx; font-size: 21rpx; color: #9A8C7E; }
 
 /* 落款 */
 .sr-sign {

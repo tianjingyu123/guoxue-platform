@@ -15,7 +15,7 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import { navigateBack } from '@/utils/router'
 import { caseApi, LIFE_DIMENSIONS, type CaseRewardPlan, type LifeEvent } from '@/pkg-paipan/lib/case-data'
-import { computeBazi } from '@/pkg-paipan/lib/bazi-engine'
+import { fourPillars, trueSolarTime } from '@/lib/paipan/ganzhi'
 
 const GANS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
 const ZHIS = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
@@ -101,19 +101,20 @@ const events = ref<LifeEvent[]>([])
 const commentary = ref('')
 const consent = ref(false)
 
-/** 由生辰真算四柱（与排盘同一个引擎，不另造口径） */
+/**
+ * 由生辰真算四柱（与排盘同一个干支引擎，不另造口径）
+ *
+ * 2026-09-21 第 4 步：原调 `computeBazi` 只为取四柱，而八字组装层已迁服务端。
+ * 这里是它的等价展开——computeBazi 未传城市时按北京经度 116.4 做真太阳时修正
+ * （它判 `useTrueSolar !== false`，本页没传即为开），再取四柱；性别不影响四柱。
+ * 等价性已对拍：1900–2026 关键年逐日、其余年抽日 × 24 时，四柱八字串零差异。
+ */
 const computed4 = computed(() => {
   if (mode.value !== 'birth') return null
   try {
-    const r: any = computeBazi({
-      year: birth.value.year,
-      month: birth.value.month,
-      day: birth.value.day,
-      hour: birth.value.hour,
-      minute: 0,
-      gender: gender.value === 'female' ? '女' : '男',
-    } as any)
-    const sz = r?.siZhu ?? r?.sizhu
+    const { year, month, day, hour } = birth.value
+    const t = trueSolarTime(new Date(year, month - 1, day, hour, 0), 116.4)
+    const sz = fourPillars(t.getFullYear(), t.getMonth() + 1, t.getDate(), t.getHours(), t.getMinutes())
     if (!sz) return null
     return {
       year: `${sz.year.gan}${sz.year.zhi}`,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 金口诀结果页——自 V0 app/jinkoujue/result/page.tsx 还原
- * onLoad 解析 payload 本地重算：课体信息表 / 四位课盘（人元·贵神·将神·地分）/ 白话总断 /
+ * onLoad 解析 payload 交服务端排课（POST /paipan/engine/jinkoujue，算法只在服务端）：课体信息表 / 四位课盘（人元·贵神·将神·地分）/ 白话总断 /
  * 四位神煞 / 课体判定 / 知识库八板块（本课命中联动高亮）。
  * 取舍：V0「AI 深断本课」按钮本批砍掉；V0 底部六爻跳转项目无此页，改为大六壬；保存写本地排盘记录。
  */
@@ -11,7 +11,8 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { paiJinKouJue, type JkjResult, type DifenMethod } from '@/pkg-paipan/lib/jinkoujue-engine'
+import type { JkjResult, DifenMethod } from '@/pkg-paipan/lib/jinkoujue-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { JKJ_KNOWLEDGE, type KnowledgeEntry } from '@/pkg-paipan/lib/jinkoujue-data'
 
 const HISTORY_KEY = 'rebu:jinkoujue-history'
@@ -44,6 +45,10 @@ interface JkjQuery {
 const q = ref<JkjQuery | null>(null)
 const result = ref<JkjResult | null>(null)
 const invalid = ref(false)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数失效：前者可「重新排课」） */
+const netError = ref('')
+let pending: JkjQuery | null = null
 
 onLoad((opts: Record<string, string> = {}) => {
   try {
@@ -64,24 +69,30 @@ onLoad((opts: Record<string, string> = {}) => {
     if (Number.isNaN(d.getTime()) || !query.year) throw new Error('bad date')
     if (query.dm === 'number' && !(Number.isFinite(query.dn) && (query.dn as number) >= 1)) throw new Error('bad number')
     if (query.dm !== 'number' && !query.dz) throw new Error('bad difen')
-    // 随机地分在入口页已落定为 dz；此处一律按已定支/报数重算，保证重开一致
-    result.value = paiJinKouJue({
-      date: d,
-      topic: query.topic || undefined,
-      difenMethod: query.dm === 'number' ? 'number' : 'manual',
-      difenZhi: query.dz,
-      difenNumber: query.dn,
-      jiangMethod: query.jm,
-      guirenSchool: query.gs,
-      guiType: query.gt,
-    })
-    // 展示口径仍按原起法（自选/报数/随机）
-    if (query.dm === 'random') result.value.difen.method = '随机'
-    q.value = query
+    // 随机地分在入口页已落定为 dz；服务端按已定支/报数重算并把展示口径改回「随机」，保证重开一致
+    pending = query
+    compute()
   } catch {
     invalid.value = true
   }
 })
+
+async function compute() {
+  const query = pending
+  if (!query) return
+  loading.value = true
+  netError.value = ''
+  try {
+    result.value = await computePaipan<JkjResult>('jinkoujue', { ...query })
+    q.value = query
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = '排课服务暂时不可用，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 function onBack() {
   const pages = getCurrentPages()
@@ -169,6 +180,14 @@ function handleShare() {
         <text class="err-btn-text">重新起课</text>
       </view>
     </view>
+
+    <view v-else-if="netError" class="err">
+      <text class="err-text">{{ netError }}</text>
+      <view class="err-btn" @tap="compute">
+        <text class="err-btn-text">重新排课</text>
+      </view>
+    </view>
+    <view v-else-if="loading" class="err"><text class="err-text">正在排课…</text></view>
 
     <scroll-view v-else-if="result" scroll-y class="body">
       <view class="body-inner">

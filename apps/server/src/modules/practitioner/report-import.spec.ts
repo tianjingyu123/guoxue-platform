@@ -14,7 +14,7 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
     JSON.stringify({
       title: "八字综合解读",
       summary: "癸水生于巳月，财旺身弱。",
-      metadata: { paipanType: "bazi" },
+      metadata: { paipanType: "bazi", reportType: "general" },
       facts: { siZhu: "庚午年 辛巳月 癸未日 丁巳时" },
       chartView: { pillars: [{ gan: "庚", zhi: "午" }] },
       sections: [
@@ -33,6 +33,11 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
     });
 
   const prisma: any = {
+    $transaction: jest.fn(async (callback: (db: any) => Promise<any>) => callback(prisma)),
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    paipanRecord: {
+      findUnique: jest.fn(async () => ({ userId: opts?.ownerId ?? "teacher-1", clientName: "张某" })),
+    },
     aiAnalysisRecord: {
       findUnique: jest.fn(async () => ({
         id: "xb-1",
@@ -40,6 +45,8 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
         scene: "paipan_report",
         analysisContent: content,
         inputSummary: "庚午年 辛巳月 癸未日 丁巳时 偏财格",
+        paipanRecordId: "rec-1",
+        analyzeType: "REPORT_GENERAL",
       })),
     },
     practitionerProfile: {
@@ -49,6 +56,7 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
     },
     practitionerReport: {
       count: jest.fn(async () => opts?.reportCount ?? 0),
+      findFirst: jest.fn(async () => created.find((r) => r.ownerId === "teacher-1" && r.paipan?.sourceReportId === "xb-1") ?? null),
       create: jest.fn(async ({ data }: any) => {
         const row = { id: `pr${created.length + 1}`, ...data };
         created.push(row);
@@ -56,7 +64,8 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
       }),
     },
   };
-  return { svc: new PractitionerService(prisma), prisma, created };
+  const commerce: any = { assertReportAccess: jest.fn().mockResolvedValue({ granted: true }) };
+  return { svc: new PractitionerService(prisma, commerce), prisma, created, commerce };
 }
 
 describe("小卜报告导入工作台", () => {
@@ -86,6 +95,9 @@ describe("小卜报告导入工作台", () => {
     // 引擎算定的章节带标记：老师改了标题，交付稿改写也不会把盘面数据当文案重写
     expect(chapters[0].deterministic).toBe(true);
     expect(chapters[1].deterministic).toBe(false);
+    expect(chapters[0].ai).toBe(false);
+    expect(chapters[1].ai).toBe(true);
+    expect(chapters[2].ai).toBe(true);
   });
 
   it("依据出处一并带入，老师自行决定是否保留", async () => {
@@ -149,5 +161,63 @@ describe("小卜报告导入工作台", () => {
 
     const pro = setup({ pro: true, reportCount: 99 });
     await expect(pro.svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).resolves.toBeTruthy();
+  });
+
+  it("没有手填客户称呼时沿用本人原盘姓名，不读取生辰", async () => {
+    const { svc, prisma } = setup({ pro: true });
+    const r: any = await svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" });
+    expect(r.clientName).toBe("张某");
+    expect(prisma.paipanRecord.findUnique).toHaveBeenCalledWith({
+      where: { id: "rec-1" }, select: { userId: true, clientName: true },
+    });
+  });
+
+  it("报告关联的原盘不属于本人时拒绝导入", async () => {
+    const { svc, prisma, commerce } = setup({ pro: true });
+    prisma.paipanRecord.findUnique.mockResolvedValueOnce({ userId: "another-user", clientName: "不应显示" });
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).rejects.toThrow("原排盘记录不存在");
+    expect(commerce.assertReportAccess).not.toHaveBeenCalled();
+    expect(prisma.practitionerReport.create).not.toHaveBeenCalled();
+  });
+
+  it("重复导入返回原工作台稿，不再次占用免费配额", async () => {
+    const { svc, prisma, created } = setup({ pro: false, reportCount: 2 });
+    const first = await svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" });
+    prisma.practitionerReport.count.mockResolvedValue(3);
+    const again = await svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" });
+    expect(again.id).toBe(first.id);
+    expect(created).toHaveLength(1);
+    expect(prisma.practitionerReport.findFirst).toHaveBeenCalledWith({
+      where: { ownerId: "teacher-1", paipan: { path: ["sourceReportId"], equals: "xb-1" } },
+    });
+  });
+
+  it("手工新建占用最后一份免费配额后，导入不能再超额建稿", async () => {
+    const { svc, prisma, created } = setup({ pro: false });
+    prisma.practitionerReport.count.mockImplementation(async () => 2 + created.length);
+    await svc.createReport("teacher-1", {
+      type: "bazi", typeLabel: "八字命书", title: "手工报告", clientName: "客户",
+    });
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" }))
+      .rejects.toThrow("开通从业者会员");
+    expect(created).toHaveLength(1);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it("退款后当前权益失效时拒绝重新导入", async () => {
+    const { svc, commerce, prisma } = setup({ pro: true });
+    commerce.assertReportAccess.mockRejectedValue(new Error("购买权益已撤销"));
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).rejects.toThrow("购买权益已撤销");
+    expect(prisma.practitionerReport.create).not.toHaveBeenCalled();
+  });
+
+  it("旧报告缺少权益关联时拒绝导入", async () => {
+    const { svc, prisma } = setup({ pro: true });
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValueOnce({
+      id: "xb-1", userId: "teacher-1", scene: "paipan_report",
+      analysisContent: JSON.stringify({ metadata: { paipanType: "bazi" }, sections: [] }),
+    });
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).rejects.toThrow("缺少权益关联");
+    expect(prisma.practitionerReport.create).not.toHaveBeenCalled();
   });
 });

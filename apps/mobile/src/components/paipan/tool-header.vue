@@ -6,6 +6,7 @@
  */
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { getCurrentInstance } from 'vue'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -30,11 +31,10 @@ const emit = defineEmits<{
   (e: 'help'): void
 }>()
 
-// 是否被父级监听（vue3：绑定的事件会挂到 attrs 上）
-import { useAttrs } from 'vue'
-const attrs = useAttrs()
-const hasCustomBack = () => !!attrs.onBack
-const hasCustomShare = () => !!attrs.onShare
+// 已在 emits 声明的事件不会进入 attrs，须读取当前组件 vnode 上的监听器。
+const instance = getCurrentInstance()
+const hasCustomBack = () => !!instance?.vnode.props?.onBack
+const hasCustomShare = () => !!instance?.vnode.props?.onShare
 
 function handleBack() {
   if (hasCustomBack()) { emit('back'); return }

@@ -27,9 +27,15 @@ const STATUS_LABEL: Record<string, string> = { draft: '草稿', final: '已定�
 
 const tab = ref('')
 const keyword = ref('')
+const searchDraft = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const list = ref<ReportRecord[]>([])
+const total = ref(0)
+const page = ref(1)
+const loadingMore = ref(false)
+const hasMore = computed(() => list.value.length < total.value)
+let loadSeq = 0
 const quota = ref<{ used: number; limit: number | null; unlimited: boolean }>({ used: 0, limit: null, unlimited: false })
 
 const newOpen = ref(false)
@@ -38,6 +44,7 @@ const nType = ref(REPORT_TYPES[0].key)
 const nClient = ref('')
 const nBirth = ref('')
 const creating = ref(false)
+const deletingId = ref('')
 
 const quotaText = computed(() =>
   quota.value.unlimited
@@ -45,18 +52,42 @@ const quotaText = computed(() =>
     : `已存 ${quota.value.used} / ${quota.value.limit} 份（免费版）`,
 )
 
-async function load() {
-  loading.value = true
+async function load(nextPage = 1) {
+  if (nextPage > 1 && (loading.value || loadingMore.value || !hasMore.value)) return
+  const seq = ++loadSeq
+  if (nextPage === 1) loading.value = true
+  else loadingMore.value = true
   failed.value = false
   try {
-    const res = await wsApi.listReports({ status: tab.value || undefined, keyword: keyword.value || undefined })
-    list.value = res.list ?? []
+    const res = await wsApi.listReports({ status: tab.value || undefined, keyword: keyword.value || undefined, page: nextPage })
+    if (seq !== loadSeq) return
+    list.value = nextPage === 1 ? (res.list ?? []) : [...list.value, ...(res.list ?? [])]
+    total.value = res.total ?? list.value.length
+    page.value = nextPage
     quota.value = res.quota ?? quota.value
   } catch {
-    failed.value = true
+    if (seq === loadSeq) failed.value = true
   } finally {
-    loading.value = false
+    if (seq === loadSeq) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
+}
+
+function loadMore() {
+  if (hasMore.value) load(page.value + 1)
+}
+
+function searchReports() {
+  keyword.value = searchDraft.value.trim()
+  load()
+}
+
+function clearSearch() {
+  searchDraft.value = ''
+  keyword.value = ''
+  load()
 }
 
 onMounted(async () => {
@@ -80,6 +111,7 @@ function goPro() {
 }
 
 async function createReport() {
+  if (creating.value) return
   if (!nClient.value.trim()) {
     uni.showToast({ title: '请填客户称呼', icon: 'none' })
     return
@@ -115,20 +147,32 @@ async function createReport() {
   }
 }
 
-function confirmDelete(r: ReportRecord) {
-  uni.showModal({
-    title: '删除报告',
-    content: `确定删除「${r.title}」？删除后不可恢复。`,
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        await wsApi.deleteReport(r.id)
-        await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
-      }
-    },
-  })
+async function confirmDelete(r: ReportRecord) {
+  if (deletingId.value) return
+  deletingId.value = r.id
+  try {
+    const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
+      title: '删除报告',
+      content: r.shareToken || r.status === 'delivered'
+        ? `确定删除「${r.title}」？客户将无法再打开已交付链接，报告也无法恢复。`
+        : `确定删除「${r.title}」？删除后不可恢复。`,
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    }))
+    if (!confirmed) return
+    if (!r.updatedAt) {
+      uni.showToast({ title: '报告版本缺失，请刷新列表后再删除', icon: 'none' })
+      await load()
+      return
+    }
+    await wsApi.deleteReport(r.id, r.updatedAt)
+    await load()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+    if (e?.message?.includes('报告状态已变化')) await load()
+  } finally {
+    deletingId.value = ''
+  }
 }
 
 function dateText(iso?: string): string {
@@ -158,6 +202,13 @@ function dateText(iso?: string): string {
         <AppIcon name="chevron-right" :size="14" color="#B8860B" />
       </view>
     </PaperCard>
+
+    <view class="rs-search">
+      <AppIcon name="search" :size="24" color="#9A8C7E" />
+      <input v-model="searchDraft" class="rs-search-input" placeholder="搜报告标题或客户称呼" confirm-type="search" @confirm="searchReports" />
+      <text v-if="searchDraft" class="rs-search-action" @tap="clearSearch">清除</text>
+      <text class="rs-search-action" @tap="searchReports">搜索</text>
+    </view>
 
     <!-- 筛选 -->
     <view class="rs-tabs">
@@ -207,7 +258,11 @@ function dateText(iso?: string): string {
       </view>
     </PaperCard>
 
-    <view v-if="failed" class="rs-failed" @tap="load">
+    <view v-if="hasMore && !loading" class="rs-more" @tap="loadMore">
+      <text class="rs-more-txt">{{ loadingMore ? '加载中…' : `加载更多（还有 ${total - list.length} 份）` }}</text>
+    </view>
+
+    <view v-if="failed" class="rs-failed" @tap="load()">
       <text class="rs-failed-txt">加载失败，点击重试</text>
     </view>
 
@@ -255,6 +310,12 @@ function dateText(iso?: string): string {
   gap: 24rpx;
   padding: 24rpx 24rpx 48rpx;
 }
+
+.rs-more { padding: 24rpx; text-align: center; }
+.rs-more-txt { font-size: 24rpx; color: #C41E3A; }
+.rs-search { display: flex; align-items: center; gap: 14rpx; min-height: 76rpx; padding: 0 22rpx; border-radius: 14rpx; background: #FDFAF4; }
+.rs-search-input { flex: 1; min-width: 0; font-size: 26rpx; color: #3A2A1E; }
+.rs-search-action { padding: 14rpx 4rpx; font-size: 24rpx; color: #C41E3A; }
 
 .rs-top {
   display: flex;

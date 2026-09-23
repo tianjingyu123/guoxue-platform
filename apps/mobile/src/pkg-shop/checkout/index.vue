@@ -17,15 +17,6 @@
     </view>
 
     <template v-else>
-    <!-- 超时倒计时条 -->
-    <view class="timer-bar" :class="{ urgent: isUrgent }">
-      <view class="timer-left">
-        <app-icon name="clock" :size="28" :color="isUrgent ? '#EF4444' : '#FF6B35'" />
-        <text class="timer-text" :class="{ urgent: isUrgent }">请在 {{ countdown.m }}:{{ countdown.s }} 内完成支付</text>
-      </view>
-      <text v-if="isUrgent" class="timer-warn">即将超时</text>
-    </view>
-
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
       <view class="address-card" @tap="onAddressCardTap">
@@ -149,21 +140,12 @@
       </view>
     </view>
 
-    <!-- 超时警告 -->
-    <view v-if="showTimeout" class="mask center">
-      <view class="dialog" @tap.stop>
-        <app-icon name="clock" :size="80" color="#FF8800" />
-        <text class="dialog-title">支付超时</text>
-        <text class="dialog-desc">订单支付时间已超时，请重新下单</text>
-        <view class="dialog-btn" @tap="onTimeout"><text>重新下单</text></view>
-      </view>
-    </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type ShippingAddress, type CheckoutCoupon, type OrderEstimate } from '@/lib/shop-data'
@@ -188,7 +170,6 @@ const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
-const showTimeout = ref(false)
 const submitting = ref(false)
 const pendingAttempt = ref(hasPendingCheckoutAttempt())
 // 多商品逐单创建时，缓存已成功建单；失败重试只复用同一结算选择下的订单。
@@ -295,23 +276,9 @@ onLoad((q) => {
   if (SOURCE_TYPES.includes(srcType) && srcId) contentSource.value = { type: srcType, id: srcId }
 })
 
-// 15分钟倒计时
-const remain = ref(15 * 60 * 1000)
-const countdown = computed(() => formatCountdown(remain.value))
-const isUrgent = computed(() => remain.value <= 180 * 1000)
-let timer: ReturnType<typeof setInterval> | null = null
 onMounted(async () => {
   await fetchCheckoutData()
-  timer = setInterval(() => {
-    remain.value -= 1000
-    if (remain.value <= 0) {
-      remain.value = 0
-      showTimeout.value = true
-      if (timer) clearInterval(timer)
-    }
-  }, 1000)
 })
-onUnmounted(() => { if (timer) clearInterval(timer) })
 
 function canChangeOrderSelection() {
   if (hasPendingCheckoutAttempt()) {
@@ -437,16 +404,11 @@ async function submitOrder() {
     submitting.value = false
   }
 }
-function onTimeout() { redirectTo('/shop/pay-timeout') }
 </script>
 
 <style lang="scss" scoped>
 .checkout { min-height: 100vh; background: #F5F5F5; display: flex; flex-direction: column; }
 
-.timer-bar { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 30rpx; background: #FFF5E6; &.urgent { background: #FEF2F2; } }
-.timer-left { display: flex; align-items: center; gap: 12rpx; }
-.timer-text { font-size: 26rpx; color: #FF6B35; &.urgent { color: #EF4444; } }
-.timer-warn { font-size: 22rpx; color: #EF4444; }
 .content { flex: 1; }
 .address-card { display: flex; align-items: center; gap: 16rpx; background: #FFFFFF; margin: 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .address-info { flex: 1; display: flex; flex-direction: column; gap: 10rpx; }
@@ -510,11 +472,6 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .addr-option-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .co-name { font-size: 28rpx; color: #1A1A1A; display: block; }
 .co-min { font-size: 24rpx; color: #999999; }
-.dialog { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 20rpx; }
-.dialog-title { font-size: 34rpx; font-weight: 600; color: #1A1A1A; }
-.dialog-desc { font-size: 28rpx; color: #666666; text-align: center; }
-.dialog-btn { margin-top: 12rpx; width: 100%; height: 88rpx; border-radius: 44rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.dialog-btn text { color: #FFFFFF; font-size: 30rpx; }
 
 /* 加载态 */
 .loading-zone { padding: 20rpx; display: flex; flex-direction: column; gap: 20rpx; }

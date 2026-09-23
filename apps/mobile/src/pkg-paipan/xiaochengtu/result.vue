@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 小成图结果页——自 V0 app/xiaochengtu/result/page.tsx 还原
- * onLoad 解析 payload（起卦输入）本地重算 paiXiaoChengTu：
+ * onLoad 解析 payload（起卦输入）交服务端排盘（POST /paipan/engine/xiaochengtu，算法只在服务端）：
  * 盘面信息表（卦式/日期/节气/四柱/空亡/神煞）+ 本卦变卦 + 九宫格（点选看象意）+ 起卦算式 + 白话总断。
  * 取舍：AI 深断区块本批砍掉；升降箭头由 lucide 图标改「↑/↓」文字符号（图标库无 arrow-down）；
  *       V0 九宫 aspect-square 触 X5 红线（禁 aspect-ratio）改固定高度；动爻 ring 改 box-shadow 红晕；
@@ -18,12 +18,8 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import HexFigure from './components/hex-figure.vue'
 import TriFigure from './components/tri-figure.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  paiXiaoChengTu,
-  type XctResult,
-  type XctPalace,
-  type XctCastMethod,
-} from '../lib/xiaochengtu-engine'
+import type { XctResult, XctPalace } from '../lib/xiaochengtu-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 
 const HISTORY_KEY = 'rebu:xiaochengtu-history'
 
@@ -59,6 +55,10 @@ const PATTERN_NOTE: Record<string, string> = {
 
 const result = ref<XctResult | null>(null)
 const invalid = ref(false)
+const loading = ref(false)
+/** 服务端请求失败（区别于参数无效：前者可「重新排盘」，后者「返回起卦」） */
+const netError = ref('')
+let lastPayload: Record<string, unknown> | null = null
 const selected = ref(3)
 
 onLoad((opts: Record<string, string> = {}) => {
@@ -70,26 +70,33 @@ onLoad((opts: Record<string, string> = {}) => {
       Number(p.hour) || 0, Number(p.minute) || 0,
     )
     if (Number.isNaN(d.getTime())) throw new Error('invalid date')
-    const linesStr = typeof p.lines === 'string' && /^[01]{6}$/.test(p.lines) ? p.lines : ''
-    const r = paiXiaoChengTu({
-      date: d,
-      method: String(p.m ?? 'time') as XctCastMethod,
-      zhonggong: p.zg === 'zhengyu' ? 'zhengyu' : 'sizheng',
-      topic: p.topic ? String(p.topic) : undefined,
-      upper: p.u !== undefined ? Number(p.u) : undefined,
-      lower: p.l !== undefined ? Number(p.l) : undefined,
-      dong: p.dong !== undefined ? Number(p.dong) : undefined,
-      lines: linesStr ? linesStr.split('').map((c) => c === '1') : undefined,
-      num1: p.n1 !== undefined ? Number(p.n1) : undefined,
-      num2: p.n2 !== undefined ? Number(p.n2) : undefined,
-      num3: p.n3 !== undefined ? Number(p.n3) : undefined,
-    })
-    result.value = r
-    saveRecord(Number(p.ts) || Date.now(), p, r)
+    lastPayload = p
+    compute()
   } catch {
     invalid.value = true
   }
 })
+
+/** payload 原样交服务端（ts 只用于本地记录去重，不参与排盘） */
+async function compute() {
+  const p = lastPayload
+  if (!p) return
+  const { ts: _ts, ...input } = p
+  loading.value = true
+  netError.value = ''
+  try {
+    const r = await computePaipan<XctResult>('xiaochengtu', input)
+    result.value = r
+    saveRecord(Number(p.ts) || Date.now(), p, r)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    // 服务端参数校验（「参数 xx 无效」）按参数无效处理；其余（网络/5xx/限流）可重试
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = '排盘服务暂时不可用，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 /** 排盘记录自动留存（以起卦 ts 去重，重开历史不重复写） */
 function saveRecord(id: number, params: Record<string, unknown>, r: XctResult) {
@@ -147,6 +154,8 @@ function isRising(gua: string) { return RISING.has(gua) }
 
     <!-- 参数无效 -->
     <param-error v-if="invalid" text="参数无效，请重新起卦" action-text="返回起卦" @action="navigateTo('/pkg-paipan/xiaochengtu/index')" />
+    <param-error v-else-if="netError" :text="netError" action-text="重新排盘" @action="compute" />
+    <view v-else-if="loading" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <scroll-view
       v-else-if="result && sel"
@@ -451,6 +460,9 @@ function isRising(gua: string) { return RISING.has(gua) }
 .inner { padding: 24rpx 32rpx 96rpx; display: flex; flex-direction: column; gap: 28rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* ── 盘面信息表 ── */
 .info { border-radius: 24rpx; overflow: hidden; }

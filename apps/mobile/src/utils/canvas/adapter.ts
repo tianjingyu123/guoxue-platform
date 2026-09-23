@@ -24,10 +24,22 @@ export function getCanvas(selector: string, width: number, height: number, comp?
         const node = res?.[0]?.node
         if (!node) { reject(new Error(`canvas node 未找到: ${selector}`)); return }
         const ctx = node.getContext('2d') as CanvasRenderingContext2D
-        const dpr = uni.getSystemInfoSync().pixelRatio || 2
-        node.width = width * dpr
-        node.height = height * dpr
-        ctx.scale(dpr, dpr)
+        // H5 / App(webview) 的 uni <canvas> 组件自带 hidpi：画布缓冲已是「CSS 尺寸 × pixelRatio」，且 lineTo/arc/fillText 等
+        // 绘制方法被包装成「坐标 × pixelRatio」（ctx.__hidpi__ 为 true）。此时再按 dpr 放大会变成 dpr² 倍，
+        // 图形整体偏向右下并被裁掉（2026-09-21 合盘雷达图实测：dpr2 放大 4 倍、dpr3 放大 9 倍）。
+        // 这种情况下只需把「逻辑尺寸」映射到「CSS 尺寸」：两者相等（合盘雷达 300×240）则不缩放；
+        // 不等（节气海报按 750×1000 绘制、CSS 宽 100%）则按比例缩小。
+        // 只有小程序 Canvas 2D 这种「原生 node、无包装」的情况才需要自己按 dpr 放大缓冲。
+        if ((ctx as any).__hidpi__) {
+          const cssW = Number(res[0]?.width) || width
+          const cssH = Number(res[0]?.height) || height
+          if (cssW !== width || cssH !== height) ctx.scale(cssW / width, cssH / height)
+        } else {
+          const dpr = uni.getSystemInfoSync().pixelRatio || 2
+          node.width = width * dpr
+          node.height = height * dpr
+          ctx.scale(dpr, dpr)
+        }
         resolve({ canvas: node, ctx, width, height })
       })
   })

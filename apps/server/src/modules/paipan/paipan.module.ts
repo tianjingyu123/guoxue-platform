@@ -1,3 +1,5 @@
+import { PaipanEngineController, PaipanEngineThrottleGuard } from "./engine/paipan-engine.controller";
+import { PaipanEngineService } from "./engine/paipan-engine.service";
 import { Module } from "@nestjs/common";
 import { PaipanService } from "./paipan.service";
 import { PaipanController } from "./paipan.controller";
@@ -26,8 +28,8 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
 @Module({
   // VoiceModule：报告生成后要发放附带的 30 分钟语音时长（VoiceModule 不反向依赖 paipan，无循环）
   imports: [AiGatewayModule, CoinModule, SearchModule, VoiceModule],
-  controllers: [PaipanController, CoupleController, BaziKnowledgeController, ZiweiKnowledgeController, PaipanReportKnowledgeController],
-  providers: [PreferredNameService, PaipanService, PaipanAiService, PaipanReportService, PaipanReportKnowledgeService, PaipanReportKnowledgeSeeder, PaipanReportDialogueService, PaipanCaseFeedbackService, CoupleService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder, PaipanRuntimeService, NativePaipanGuard],
+  controllers: [PaipanController, PaipanEngineController, CoupleController, BaziKnowledgeController, ZiweiKnowledgeController, PaipanReportKnowledgeController],
+  providers: [PreferredNameService, PaipanEngineService, PaipanEngineThrottleGuard, PaipanService, PaipanAiService, PaipanReportService, PaipanReportKnowledgeService, PaipanReportKnowledgeSeeder, PaipanReportDialogueService, PaipanCaseFeedbackService, CoupleService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder, PaipanRuntimeService, NativePaipanGuard],
   exports: [PaipanService, PaipanAiService, PaipanReportService, PaipanCaseFeedbackService, BaziKnowledgeService, ZiweiKnowledgeService],
 })
 export class PaipanModule {}

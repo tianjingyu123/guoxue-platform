@@ -203,16 +203,41 @@ const STAR_META: Record<number, { star: string; wuxing: WuXing; positionName: st
   9: { star: "九紫右弼星", wuxing: "fire", positionName: "喜神位", keywords: ["添丁", "喜庆", "姻缘"], luck: "good" },
 }
 
+/**
+ * 九宫飞泊：各宫星数 = 中宫数 + (该宫洛书本数 − 5)，顺飞。
+ *
+ * 🔴 2026-09-20 修：原表 **9 宫错了 8 宫**（只有中宫的 0 偏移是对的）。
+ * 原值 巽3 离-1 坤1 震2 兑-2 艮-3 坎4 乾-4 —— 是把一整套正确的偏移量
+ * **安到了错的宫上**（集合对、配对全错）。
+ *
+ * 判据不靠外部资料，两条都在仓库里：
+ *
+ * ① **洛书幻方**：九宫任一行、任一列、两条对角线之和恒为 15。
+ *    原表在中宫=5 时排出 `8 4 6 / 7 5 3 / 2 9 1`（巽离坤/震中兑/艮坎乾），
+ *    八条线里 **7 条不等于 15**，而正解 `4 9 2 / 3 5 7 / 8 1 6` 条条为 15。
+ * ② **本仓自相矛盾**：`feigong-engine.ts` 的 `PALACE_NAME` / `PALACE_FANGWEI`
+ *    写的是 坎1正北、艮8东北、震3正东、巽4东南、离9正南、坤2西南、兑7正西、乾6西北——
+ *    正确的洛书配位。同一个仓库里两处说法对不上，必有一处错。
+ *
+ * ⚠️ 为什么之前没被发现：**「九数 1–9 各出现一次」这条一直是成立的**。
+ * 那是**计数型**不变量，只约束「有多少」，不约束「哪个数落在哪个宫」——
+ * 与穿山七十二龙那次栽的是同一个坑。有判别力的不变量必须把「格子」和「它的位置」绑起来，
+ * 幻方求和正是这样一条。
+ *
+ * 后果是实打实的：盘面按方位标着文昌位／正财位／五黄煞，用户照着摆书桌床位。
+ * 中宫=5 时原表把四绿文昌放到正南（应东南）、八白正财放到东南（应东北）、
+ * 九紫喜神放到正北（应正南）。
+ */
 const PALACE_ORDER: { palace: string; direction: string; key: FlyingStarChart["stars"][number]["key"]; offset: number }[] = [
-  { palace: "巽宫", direction: "东南", key: "SE", offset: 3 },
-  { palace: "离宫", direction: "正南", key: "S", offset: -1 },
-  { palace: "坤宫", direction: "西南", key: "SW", offset: 1 },
-  { palace: "震宫", direction: "正东", key: "E", offset: 2 },
-  { palace: "中宫", direction: "中", key: "CENTER", offset: 0 },
-  { palace: "兑宫", direction: "正西", key: "W", offset: -2 },
-  { palace: "艮宫", direction: "东北", key: "NE", offset: -3 },
-  { palace: "坎宫", direction: "正北", key: "N", offset: 4 },
-  { palace: "乾宫", direction: "西北", key: "NW", offset: -4 },
+  { palace: "巽宫", direction: "东南", key: "SE", offset: -1 },     // 洛书 4
+  { palace: "离宫", direction: "正南", key: "S", offset: 4 },       // 洛书 9
+  { palace: "坤宫", direction: "西南", key: "SW", offset: -3 },     // 洛书 2
+  { palace: "震宫", direction: "正东", key: "E", offset: -2 },      // 洛书 3
+  { palace: "中宫", direction: "中", key: "CENTER", offset: 0 },    // 洛书 5
+  { palace: "兑宫", direction: "正西", key: "W", offset: 2 },       // 洛书 7
+  { palace: "艮宫", direction: "东北", key: "NE", offset: 3 },      // 洛书 8
+  { palace: "坎宫", direction: "正北", key: "N", offset: -4 },      // 洛书 1
+  { palace: "乾宫", direction: "西北", key: "NW", offset: 1 },      // 洛书 6
 ]
 
 const CN_NUM_STAR: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }

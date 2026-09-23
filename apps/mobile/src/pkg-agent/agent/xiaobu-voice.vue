@@ -211,8 +211,15 @@ function useText() {
 
 function openTopup() {
   // 圈子场景带上圈子编号：在圈内充值的时长收入由圈主与平台五五分成
-  const q = scene.value === 'circle_assistant' && contextId.value ? `?circleId=${encodeURIComponent(contextId.value)}` : ''
-  navigateTo(`/pkg-agent/agent/xiaobu-voice-topup${q}`)
+  const q = new URLSearchParams()
+  if (scene.value === 'circle_assistant' && contextId.value) q.set('circleId', contextId.value)
+  if (['report_dialogue', 'circle_assistant'].includes(scene.value) && contextId.value) {
+    q.set('returnVoiceScene', scene.value)
+    q.set('returnVoiceContextId', contextId.value)
+    if (scene.value === 'report_dialogue' && sectionId.value) q.set('returnVoiceSectionId', sectionId.value)
+  }
+  const query = q.toString()
+  navigateTo(`/pkg-agent/agent/xiaobu-voice-topup${query ? `?${query}` : ''}`)
 }
 
 function openHistory() {

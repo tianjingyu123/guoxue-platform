@@ -1,0 +1,425 @@
+{
+  "input_sha256": {
+    "shijing.json": "3c7ca54d59424542ada99adfcc85420287fbbd5c8a511e9baf705cb2b04051e7",
+    "chuci.json": "5069e733d93781cecd55405c6d4699a7c17125b3f13cf79810d68792482e5b9b",
+    "lunyu.json": "bc336a3839706377892719db44c48a09794a493190535a42bf1c7d4c4233e96c",
+    "mengzi.json": "349888018acd0b3fea58de92e53403b8c77640d84b1ae9d37360d5ff1966bcdc",
+    "daxue.json": "1939dfeb2cb8fde6c96fb5ce6bd1cff93df05460027c90c685f4863b05c550e8",
+    "zhongyong.json": "2962a8b52bf78c010b051622b8803a956b461813ae0ed86148e4851e7d605ed8",
+    "唐诗三百首.json": "d77a145f7470da2ed2f79515944563c062ffc43fceda07f195a36ead66b7e5c7",
+    "宋词三百首.json": "ca5d74f7fdb9d5a6acc22a7c8b4395228cad4bb8be53df44c19ba83ab6983b20",
+    "qianjiashi.json": "cf34d01ed29528052da5d96543e725ab67814a6cb093183808c889400ff62417",
+    "guwenguanzhi.json": "ba10ec02849d58bebcc8da575dda3da07a1123e2a31dab3f734acd95d48c5cac",
+    "caocao.json": "3c44e2fd296ca99b61b73f6f276e6d6272e9ae54d5ed2adfd77dc90752f85332",
+    "纳兰性德诗集.json": "5f86295be820c517a7d44c10db6e8dcfa04cfd3da4c8be06cd346a2b7860fc67",
+    "zhouyi/中孚.txt": "d61da365e37c5e41ce60429337ccbd3ef23acb10e5e1d4aee1f35c0f4c66c9be",
+    "zhouyi/乾.txt": "e8b8c4a93f7e1f86e00e83635a12423da0e134ec463ea21837f6a41b41661156",
+    "zhouyi/井.txt": "34f78ff12497ad2d99e182c2fe5f072af9e27549fbd326b257c8cfcacc50fd21",
+    "zhouyi/兌.txt": "0ecebe0d070dcd3cdf07019a3f1d578cbcd4d1bb441c48b8536bb596e3e49850",
+    "zhouyi/剝.txt": "a719d564a93cd90a6474efe2515e070e2bc1537394eaeb85f3f92fe2da5d7ef3",
+    "zhouyi/升.txt": "93e1dc68658655b3f7848ad602a105ea69c48698a7a66982c688ee4999745009",
+    "zhouyi/同人.txt": "9a9e6ac2ce8032856b0f061a594440d684b9a6e9ebb3e7db36212a726f66471b",
+    "zhouyi/否.txt": "f77270d71abb3e775b473769162c8ba82b523e733930e80f2cf260f6fa3ff4cf",
+    "zhouyi/咸.txt": "2af1a796adc503c8d4e699506a8266ca9d26927f3e1927f0077ae174486023c1",
+    "zhouyi/噬嗑.txt": "db8345f6caa1e34ad0add5951b6546db6ff1168375e5220e3efd8c4f6badf830",
+    "zhouyi/困.txt": "bf6317455d24514e3663a47f299d2ebf43a08995c560ac3d68912f98c3e398d9",
+    "zhouyi/坎.txt": "da7aee1d247bc4ce1592fdafbf9d4b17fb3207ed5fa1e875963fa8e913b8f46c",
+    "zhouyi/坤.txt": "a229442f54886cd2b21b1b6ab19cb377c4c59e5fcd8ac6b75f44b846459ca881",
+    "zhouyi/大壯.txt": "674310af5463d01e36e6b8b11bb3e5dd7591b63ac381917e42391e2f2724ab7a",
+    "zhouyi/大有.txt": "49b73707fe9e51e2e4efde66b960c5ae267f5b8eefcd1e752ee55fa7dd93db5a",
+    "zhouyi/大畜.txt": "8eb67508919828e639e9fbb6513318b183102e5412488007c35a562d3919f0a7",
+    "zhouyi/大象.txt": "3891cea3ba0e8f4aec296f33554e8418c894ea82fa8f394fc0d192a8115e0d02",
+    "zhouyi/大過.txt": "ad4b9ded3baa7aff3ad1b90e4e034e331ca8c54cf84ba19208836bff5cc9f41b",
+    "zhouyi/夬.txt": "1dbda1e9e07a19fe4ff04491bf7f99b3b9c501702773972d647745c2c5f4b0aa",
+    "zhouyi/姤.txt": "0ad9c15852f82af7ee896aea1b53a3a28bdb922c4b2e484fb1f4f8dc29c2eb5d",
+    "zhouyi/家人.txt": "0179c8e76f2ef04ee811c1acf142f707d29083fe324de7c4cd086ceb47f79c99",
+    "zhouyi/小畜.txt": "f42cf7bcf0de765e5f997192eb4c9945a19487dfb20bd3ccadb704c52f02cdf4",
+    "zhouyi/小象.txt": "2e682084c020e09b485d83d4160940bc976560225701756bf1f9e1ded54c21e4",
+    "zhouyi/小過.txt": "7ab47c03fc3e16fd20c550bdcc825ba2e666591a70da6b6800cb9c30ad1e3436",
+    "zhouyi/履.txt": "d86ef9a395ed5891e1bda0287c0f2b0397400b21d09e613d34c9eae4f48100e8",
+    "zhouyi/屯.txt": "9683da38374211851362493c9a51489b50792b7ac6ab075d242c27ad7eabd48e",
+    "zhouyi/巽.txt": "79e94364967282b18bcfec37796580eae17c3af103d87a626fc1d959abced2fe",
+    "zhouyi/師.txt": "131b206cbc0995b1adfdab9560e66d7843fd85e3172bb4e9f89bb37e4665c1f9",
+    "zhouyi/序卦.txt": "ef7cf749e2ec0f36a49d95160e88d5bc0411f4ef10689c2b193065cb103c6bc1",
+    "zhouyi/彖.txt": "0f1ada3560bb75756e570d567ce5b63728250570d88b950e0a58c019d9e43638",
+    "zhouyi/復.txt": "81af912f4f2b2e80cd7e532e96ced7ddd4f2009a2e76358abac80c8c3ddf0c51",
+    "zhouyi/恒.txt": "f83bd210dfac9669fab947e02479a45bcff367da4ea21d29192c6afe8216d8c1",
+    "zhouyi/損.txt": "4a666d00946a3e1b263073fe01b4fc6c43005081345f1fef5edd7ad3631406e5",
+    "zhouyi/文言.txt": "d716811c64d43bada3e4f542cd55a5ab6e83e0a98587fd08112ef2b1565c186e",
+    "zhouyi/旅.txt": "d5fb1000d0ba4ae8e1a8aff0f3888fdfe37db39650a4a29ba8b91e0e4080b39c",
+    "zhouyi/无妄.txt": "8b0c1cccd695ebeb46b21bb7dd2cd4fb6a7921f5310c0d4ff7238b1c07a99012",
+    "zhouyi/既濟.txt": "e9099522d8013177a9316c8fc499a10b80d50edd18b3401cbd79b2d31ab58d78",
+    "zhouyi/明夷.txt": "806bac05f2b162ccc57709315d392de0c1ec55c76e6805c086ca1f0eec907eb9",
+    "zhouyi/晉.txt": "bd51d51f3a62784288fd183a0b610e0862f99e19289e75a1d8c735acf287db68",
+    "zhouyi/未濟.txt": "b12a283926d6a25db17f50c4b490fc417ecd66e8578b5bec757b7b6581e16911",
+    "zhouyi/歸妹.txt": "03a725d580b54c4fb9279c88fbed6ee3f8a0198d4bb06bda8005e4fa96a4a8da",
+    "zhouyi/比.txt": "bfa9eb4716a7c703479f6e6a7e4a9b15ab71ba78bd9c9912ded75e40f8b16554",
+    "zhouyi/泰.txt": "ecd49dba63369af09ab717293badc4b5823106b89c25ee5ebed44466817616e7",
+    "zhouyi/渙.txt": "198a4a36895852ef5012d78d8b34adbbf463f22d094899c38f37e149e8094efc",
+    "zhouyi/漸.txt": "46da172e6576ba774f6c61741a2d566014f5e5fc90c1065251cb80ccd89b28d7",
+    "zhouyi/益.txt": "06c7cedf7e76fcc3cde93e19595b0eeaeae87a617c4672764c327eb1d8089013",
+    "zhouyi/睽.txt": "c1d6fa887f02fe3cd5cd6f1cb26c19c681e6d3411baaffa0b63bf67205f754c1",
+    "zhouyi/節.txt": "a017661595c6358621214894a41885648d4e2fe71af0d43ebd9f7b3f66517bcf",
+    "zhouyi/繫辭上.txt": "9508017c95ea4c05b246d51343a2bc469a8c14d18df1c804396c29852c0dec61",
+    "zhouyi/繫辭下.txt": "15c150d7c7c32ddd0cb859bdb01dd54d22d3e5fe9658ce65c93d6e7c5580b652",
+    "zhouyi/臨.txt": "beadffbfc5356c83e7068507a7446efbe4c175eeec1c3845ec634e288f3217cc",
+    "zhouyi/艮.txt": "0fb0d5820dfb140cb97ede2657770f56d925b622c117fd570a5dd8dfee418d77",
+    "zhouyi/萃.txt": "0c75443453aa21e178d88f3ca69fb92bb275f1a3369e4d6c36ff4f9638e7c960",
+    "zhouyi/蒙.txt": "54ad0a6054afd8ccb62053c8149a6b4c66b7cb9a7e77fe8b31c4d874b97fa276",
+    "zhouyi/蠱.txt": "b823e1f7c186f7ae3ea27e22955595a873311c8c8f1c00a1b09d00f887df6a5a",
+    "zhouyi/觀.txt": "82a41830c878c010fb1164b131c2a3b8ba18cbb4592d46f5d38abc120cf2e9e7",
+    "zhouyi/解.txt": "1692cdd39a4394193a1d2e6bf9b18e540d1b04f62ab995e7ffffbdfedf7db51c",
+    "zhouyi/訟.txt": "59292dbcac74e3f4a3d70cf783736326b42bfb1c0b822d419dcec5d77520ef09",
+    "zhouyi/說卦.txt": "7da093e48ca915aa517c914541b9cf49f3d1b5afc5a10b70ae5fba460d0faab5",
+    "zhouyi/謙.txt": "2ffb3b0269b10fe966f76b4dd96b49503733677215fa6b9df7414a0a903d3700",
+    "zhouyi/豐.txt": "34a7435e6f633a3921adfc6416d4d5d1ca4fcb466369f4c35950aa66f419bbef",
+    "zhouyi/豫.txt": "444b5d44cc6d7005b0d43a9ef97fff42b8b82f30d2d8c4740c2418820d177b36",
+    "zhouyi/賁.txt": "f7418a0d3805c366e3afc6e9c7fb32c0c1da7883bf714cbe6235fe477365773c",
+    "zhouyi/蹇.txt": "4fca7850987f383c2a66b195c5c35c5f39be0c41877c5607013d6a9858d7066b",
+    "zhouyi/遯.txt": "978fac550393f8f1c7710cce5596ab698183877f18b7fbea9473172952e7ab46",
+    "zhouyi/隨.txt": "4efab4ca14190c6d78e8a9a51ca51eb6ad73003166b9c89a0785f44e49c1071e",
+    "zhouyi/雜卦.txt": "103297014c4250878a8248cc21c17b32a42e3e55fda21f3103862de50fcd55cb",
+    "zhouyi/離.txt": "4b4e7fdfa364bfa441d9d1b3ceb4037d5f6ed7da4e3f144d95393674cfec010a",
+    "zhouyi/需.txt": "48abe6009474bf5afe40505001079457df8326910b7c5fac4125a5a7a356fe76",
+    "zhouyi/震.txt": "0084d1f85a25ac2556fe40e4fccc6a03b0ddfc75723291a2b56564c1ac593bee",
+    "zhouyi/革.txt": "06ae513abe4310a8e54515ef9425f92a197ad60db172e931a6051a6e9c0bba1e",
+    "zhouyi/頤.txt": "fc7603fd1bd8e4d73bca4a6b12a322021754fce2f493c3e83b592b4abb7ab982",
+    "zhouyi/鼎.txt": "4705977c9a85a039a0ddf61ffb9e7baa6208def15b4d41934cb823046e6b5ec3"
+  },
+  "source_records": 1850,
+  "unique_records": 1818,
+  "exact_duplicates": [
+    {
+      "kept": "唐 · 王建《故行宫》",
+      "other": "唐 · 元稹《行宫》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 杜荀鹤《春宫怨》",
+      "other": "唐 · 杜荀鹤《春宫怨》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 王昌龄《横吹曲辞 出塞 一》",
+      "other": "唐 · 王昌龄《出塞二首 一》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 杜荀鹤《春宫怨》",
+      "other": "唐 · 周朴《春宫怨》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 张泌《寄人 一》",
+      "other": "唐 · 张佖《寄人二首  其一》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 李白《清平调 一》",
+      "other": "唐 · 李白《杂曲歌辞 清平调 一》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《清平调 二》",
+      "other": "唐 · 李白《杂曲歌辞 清平调 二》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 贾岛《寻隐者不遇》",
+      "other": "唐 · 孙革《访羊尊师》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 李白《横吹曲辞 关山月》",
+      "other": "唐 · 李白《关山月》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《清平调 一》",
+      "other": "唐 · 李白《清平调词三首 一》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《子夜吴歌 春歌》",
+      "other": "唐 · 李白《相和歌辞 子夜四时歌四首 春歌》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《子夜吴歌 秋歌》",
+      "other": "唐 · 李白《相和歌辞 子夜四时歌四首 秋歌》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《子夜吴歌 冬歌》",
+      "other": "唐 · 李白《相和歌辞 子夜四时歌四首 冬歌》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 孟郊《游子吟》",
+      "other": "唐 · 孟郊《杂曲歌辞 游子吟》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 王涯《秋夜曲》",
+      "other": "唐 · 王涯《杂曲歌辞 秋夜曲》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 朱斌《登楼》",
+      "other": "唐 · 王之涣《登鹳雀楼》",
+      "origin": "唐诗三百首.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 孟浩然《春晓》",
+      "other": "唐 · 孟浩然《春眠》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 朱斌《登楼》",
+      "other": "唐 · 王之涣《登鹳雀楼》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": true
+    },
+    {
+      "kept": "唐 · 金昌绪《春怨》",
+      "other": "唐 · 金昌绪《伊州歌》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 王维《辋川集 竹里馆》",
+      "other": "唐 · 王维《竹里馆》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 韦应物《秋夜寄丘二十二员外》",
+      "other": "唐 · 韦应物《秋夜寄丘员外》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 贾岛《寻隐者不遇》",
+      "other": "唐 · 贾岛《寻隐者不遇》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 杜审言《和晋陵陆丞早春游望》",
+      "other": "唐 · 杜审言《和晋陵陆承相》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 王湾《次北固山下》",
+      "other": "唐 · 王湾《次北固山下》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 杜甫《旅夜书怀》",
+      "other": "唐 · 杜甫《旅夜书怀》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 李白《清平调 一》",
+      "other": "唐 · 李白《清平调词》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 韩翃《寒食》",
+      "other": "唐 · 韩翃《寒食》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 韦应物《滁州西涧》",
+      "other": "唐 · 韦应物《滁州西涧》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 刘禹锡《金陵五题 乌衣巷》",
+      "other": "唐 · 刘禹锡《乌衣巷》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "唐 · 杜牧《泊秦淮》",
+      "other": "唐 · 杜牧《秦淮夜泊》",
+      "origin": "qianjiashi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "楚辞 · 卜居",
+      "other": "屈原《卜居》",
+      "origin": "guwenguanzhi.json",
+      "attribution_conflict": false
+    },
+    {
+      "kept": "清 · 纳兰性德《菩萨蛮·回文》",
+      "other": "清 · 纳兰性德《菩萨蛮·雾窗寒对遥天暮》",
+      "origin": "纳兰性德诗集.json",
+      "attribution_conflict": false
+    }
+  ],
+  "same_label_variants": {
+    "唐 · 李商隐《隋宫》": [
+      "98b6eb5588791f1b",
+      "8bf15545eaf7ed47"
+    ],
+    "唐 · 李商隐《无题二首 一》": [
+      "abc100fd9ffa3061",
+      "6daf7e5a379c7e89"
+    ],
+    "唐 · 王维《送别》": [
+      "655e83cd6dd2fc08",
+      "9c43068ba4a56ffd"
+    ],
+    "唐 · 杜牧《秋夕》": [
+      "8332b1f52275e71b",
+      "0bf3eeee36028561"
+    ],
+    "唐 · 王维《过香积寺》": [
+      "58a2c7a163aa6e33",
+      "66cd108a32f692ab"
+    ],
+    "唐 · 王维《终南山》": [
+      "951847d3b42d120b",
+      "8e6be299956b1756"
+    ],
+    "唐 · 王维《积雨辋川庄作》": [
+      "81f136faa5ef862e",
+      "483e80fdc76894d8"
+    ],
+    "唐 · 崔颢《黄鹤楼》": [
+      "8f941c41c0288cbe",
+      "c926ac8c87b664a8"
+    ],
+    "唐 · 杜甫《春宿左省》": [
+      "d32e49ae78712e45",
+      "23aa093d2ce0ec88"
+    ],
+    "唐 · 杜甫《登岳阳楼》": [
+      "d406e930272b0c76",
+      "e8c527344547b85e"
+    ],
+    "唐 · 王勃《杜少府之任蜀州》": [
+      "2e5c2733e618097d",
+      "02c84927f0b05fed"
+    ],
+    "唐 · 张继《枫桥夜泊》": [
+      "ff4f77f91a7f655a",
+      "8a6f5d393c2ff8b5"
+    ],
+    "唐 · 岑参《寄左省杜拾遗》": [
+      "0b50be456d653154",
+      "a989b3d84bd93d66"
+    ],
+    "唐 · 李白《静夜思》": [
+      "cc9d8fe1bcac368b",
+      "9d68fef608c1ae60"
+    ],
+    "唐 · 李白《送友人》": [
+      "38fb67ed27235763",
+      "005f4de54c277184"
+    ],
+    "宋 · 晏几道《蝶恋花》": [
+      "98119ca656de0369",
+      "43deae0282128818",
+      "d1078d08b1f0b1de"
+    ],
+    "宋 · 晏几道《阮郎归》": [
+      "192680d2ec0f9723",
+      "2095072889b5bcaa"
+    ],
+    "宋 · 刘克庄《贺新郎》": [
+      "3e3f9ce3c1bb2b75",
+      "c231b226ba5be70c"
+    ],
+    "宋 · 秦观《满庭芳》": [
+      "5bec94f63ae78aa0",
+      "dd4516034d61c190"
+    ],
+    "宋 · 无名氏《青玉案》": [
+      "974c92473c5a5f61",
+      "ac197064b763f603"
+    ],
+    "宋 · 吴文英《高阳台》": [
+      "8a1c1fab18ecc73f",
+      "be7e2b3557ab17c9"
+    ],
+    "宋 · 陈与义《临江仙》": [
+      "d1bca776c518ff9b",
+      "eef678072172afc1"
+    ],
+    "宋 · 晏殊《浣溪沙》": [
+      "21fbe711772685d9",
+      "b4b1dba59e31b756"
+    ],
+    "宋 · 晏殊《清平乐》": [
+      "a7c6be8e18dc20d5",
+      "71d956b0b8ae18a9"
+    ],
+    "宋 · 晏殊《木兰花・玉楼春》": [
+      "3945ec223f0c1a97",
+      "3568fe5106353fa5"
+    ],
+    "宋 · 晏殊《踏莎行》": [
+      "f1f21e4f8ad840a3",
+      "89a8bd612bc327d4"
+    ],
+    "宋 · 欧阳修《玉楼春》": [
+      "ad75fe6c6f29c002",
+      "ea00f310ab19b0cf",
+      "a4a48eae72d73616"
+    ],
+    "宋 · 吴文英《浣溪沙》": [
+      "727cb6536d34c753",
+      "3110692ef04dde52"
+    ],
+    "宋 · 吴文英《祝英台近》": [
+      "329cf14ca494cbf0",
+      "712ac02155288a8e"
+    ],
+    "宋 · 辛弃疾《贺新郎》": [
+      "42be86441a59ff9d",
+      "581656265ec4bb8a"
+    ],
+    "宋 · 陈克《菩萨蛮》": [
+      "97671690745f9867",
+      "5425cca0ad8a15a4"
+    ]
+  },
+  "by_group": {
+    "诗经": 305,
+    "楚辞": 65,
+    "四书": 36,
+    "唐诗": 350,
+    "宋词": 280,
+    "千家诗": 205,
+    "古文观止": 221,
+    "曹操": 26,
+    "纳兰": 257,
+    "周易": 73
+  }
+}

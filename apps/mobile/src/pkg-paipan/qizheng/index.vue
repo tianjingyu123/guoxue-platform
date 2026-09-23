@@ -18,7 +18,7 @@ import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { cityLongitude } from '@/pkg-paipan/lib/bazi-engine'
+import { cityLongitude } from '@/pkg-paipan/lib/bazi-display'
 import {
   loadQizhengHistory,
   clearQizhengHistory,

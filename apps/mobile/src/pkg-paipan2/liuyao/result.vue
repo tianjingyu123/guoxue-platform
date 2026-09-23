@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 六爻排盘·结果页（自 V0 app/liuyao/result/page.tsx 还原）
- * onLoad 解析 payload 后本地装卦（@/pkg-paipan2/lib/liuyao-engine，73/73 黄金测试通过），零后端依赖。
+ * onLoad 解析 payload 后交服务端装卦（POST /paipan/engine/liuyao；算法 73/73 黄金测试通过，只在服务端运行）。
  * 结构：四柱旬空条 → 卦名/卦宫 → 六爻盘面（六神·纳甲六亲·爻画·世应·动爻·伏神）
  *       → 要点提示 → 解卦 → 卦辞 → 爻位详批弹层 → 合规声明。
  *
@@ -15,7 +15,8 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { computeLiuyao } from '@/pkg-paipan2/lib/liuyao-engine'
+import type { LiuyaoFullResult } from '@/pkg-paipan2/lib/liuyao-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { QIGUA_METHODS, type LiuyaoResultLine, type QiguaMethodKey } from '@/pkg-paipan2/lib/liuyao-data'
 import { saveLiuyaoHistory, type LiuyaoParams } from './liuyao-history'
 import { aiReportApi } from '@/lib/paipan/ai-report-data'
@@ -25,21 +26,37 @@ const loadError = ref('')
 const params = ref<LiuyaoParams | null>(null)
 const detailLine = ref<LiuyaoResultLine | null>(null)
 
-const result = computed(() => {
+/** 装卦结果（服务端） */
+const result = ref<LiuyaoFullResult | null>(null)
+const loading = ref(false)
+/** 服务端请求失败：区别于参数错误，可「重新装卦」 */
+const netError = ref(false)
+
+async function compute() {
   const p = params.value
-  if (!p) return null
-  return computeLiuyao({
-    year: p.year,
-    month: p.month,
-    day: p.day,
-    hour: p.hour,
-    minute: p.minute,
-    methodKey: p.methodKey,
-    coins: p.coins,
-    numberInput: p.numberInput,
-    guaPick: p.guaPick,
-  })
-})
+  if (!p) return
+  loading.value = true
+  netError.value = false
+  loadError.value = ''
+  try {
+    const r = await computePaipan<LiuyaoFullResult>('liuyao', {
+      year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute,
+      methodKey: p.methodKey, coins: p.coins, numberInput: p.numberInput, guaPick: p.guaPick,
+    })
+    result.value = r
+    const moving = r.chart.lines.filter((l) => l.movingMark).length
+    saveLiuyaoHistory(
+      p,
+      `${r.chart.benShort} → ${r.chart.bianShort}${moving ? ` · ${moving}爻动` : ' · 静卦'}`,
+    )
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    loadError.value = netError.value ? '装卦服务暂时不可用，请稍后重试' : '起卦参数无效'
+  } finally {
+    loading.value = false
+  }
+}
 
 const methodLabel = computed(
   () => QIGUA_METHODS.find((m) => m.key === params.value?.methodKey)?.label ?? '',
@@ -87,19 +104,7 @@ onLoad((q: Record<string, string> = {}) => {
       guaPick: raw.guaPick as LiuyaoParams['guaPick'],
     }
     params.value = p
-
-    const r = computeLiuyao({
-      year, month, day, hour, minute,
-      methodKey: mk,
-      coins: p.coins,
-      numberInput: p.numberInput,
-      guaPick: p.guaPick,
-    })
-    const moving = r.chart.lines.filter((l) => l.movingMark).length
-    saveLiuyaoHistory(
-      p,
-      `${r.chart.benShort} → ${r.chart.bianShort}${moving ? ` · ${moving}爻动` : ' · 静卦'}`,
-    )
+    compute()
   } catch (e) {
     loadError.value = (e as Error).message || '起卦参数无效'
   }
@@ -167,9 +172,12 @@ function onShare() {
     <!-- 错误态 -->
     <view v-if="loadError" class="status">
       <text class="status-text">{{ loadError }}</text>
-      <view class="status-btn" @tap="navigateTo('/paipan/liuyao')">
-        <text class="status-btn-text">返回起卦</text>
+      <view class="status-btn" @tap="netError ? compute() : navigateTo('/paipan/liuyao')">
+        <text class="status-btn-text">{{ netError ? '重新装卦' : '返回起卦' }}</text>
       </view>
+    </view>
+    <view v-else-if="loading" class="status">
+      <text class="status-text">正在装卦…</text>
     </view>
 
     <scroll-view v-else-if="result && params" scroll-y class="body">
@@ -454,16 +462,19 @@ $serif: Georgia, 'Songti SC', serif;
 .ln-lq { font-family: $serif; font-size: 26rpx; color: var(--text-ink); }
 .ln-fu { font-size: 20rpx; color: var(--brand); }
 
-/* 爻画 */
+/* 爻画
+   卦象是本页的主体，原先爻画 72×12rpx——比同页六亲文字（28rpx）还小，
+   在整行里只占约两成宽度，主体反而最不显眼，上下留白却有 32rpx。
+   现放大到 120×20rpx 并加宽容器，使卦象成为视觉重心。 */
 .ln-fig {
-  width: 100rpx; flex-shrink: 0;
+  width: 152rpx; flex-shrink: 0;
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  height: 44rpx;
+  height: 52rpx;
 }
-.yao-yang { width: 72rpx; height: 12rpx; border-radius: 3rpx; background: var(--text-ink); }
-.yao-yin { width: 72rpx; display: flex; justify-content: space-between; }
-.yao-half { width: 30rpx; height: 12rpx; border-radius: 3rpx; background: var(--text-ink); }
+.yao-yang { width: 120rpx; height: 20rpx; border-radius: 4rpx; background: var(--text-ink); }
+.yao-yin { width: 120rpx; display: flex; justify-content: space-between; }
+.yao-half { width: 50rpx; height: 20rpx; border-radius: 4rpx; background: var(--text-ink); }
 .yao-dim { background: rgba(44, 44, 44, 0.35); }
 .ln-move {
   position: absolute; right: -2rpx; top: 0;

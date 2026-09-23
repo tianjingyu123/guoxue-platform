@@ -80,6 +80,9 @@ function handleSubmit() {
     payload.fixPosition = fixPosition.value
   }
   if (blockChars.value) payload.blockChars = blockChars.value
+  // 抽样种子：服务端字库扩充后组合以万计、按种子抽样。每次起名生成一个，随记录保存——
+  // 同八字同姓的不同用户拿到不同的一批名字（缓解重名），从记录重开时又能复现同一批
+  payload.seed = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
   navigateTo(`/pkg-paipan2/qiming/result?payload=${encodeURIComponent(JSON.stringify(payload))}`)
 }
 
@@ -104,6 +107,7 @@ function openRecord(r: QimingHistoryRecord) {
     payload.fixPosition = r.fixPosition ?? 'middle'
   }
   if (r.blockChars) payload.blockChars = r.blockChars
+  if (r.seed) payload.seed = r.seed // 旧记录没有种子时由服务端按输入派生，结果与当时一致
   navigateTo(`/pkg-paipan2/qiming/result?payload=${encodeURIComponent(JSON.stringify(payload))}`)
 }
 

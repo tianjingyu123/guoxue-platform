@@ -77,6 +77,10 @@ export const orderTypeMeta: Record<string, { label: string; icon: string }> = {
   COURSE: { label: '课程订单', icon: 'book-open' },
   MEMBER: { label: '会员订单', icon: 'gift' },
   BUNDLE: { label: '权益包', icon: 'package' },
+  XIAOBU_REPORT: { label: '小卜报告', icon: 'file-text' },
+  XIAOBU_MEMBER: { label: '小卜AI会员', icon: 'gift' },
+  VOICE_MINUTES: { label: '语音时长', icon: 'mic' },
+  PRACTITIONER_PRO: { label: '从业者会员', icon: 'briefcase' },
 }
 
 /* ============================================================
@@ -97,6 +101,7 @@ export interface OrderLogisticsBrief {
   timeline: { time: string; content: string }[]
 }
 export interface OrderDetail extends OrderListItem {
+  targetId?: string
   address?: OrderAddress
   payMethod?: string
   logistics?: OrderLogisticsBrief
@@ -454,6 +459,7 @@ function adaptOrderDetail(o: RawOrder): OrderDetail {
   const base = adaptOrderListItem(o)
   return {
     ...base,
+    targetId: o.targetId,
     // 后端 Order 模型无收货地址/备注字段 → 不提供，详情页 v-if 降级隐藏
     payMethod: o.payMethod === 'WECHAT' ? '微信支付' : o.payMethod === 'ALIPAY' ? '支付宝' : (o.payMethod || undefined),
   }

@@ -14,12 +14,13 @@ import {
   MOUNTAINS,
   BAGUA,
   HEXAGRAM_NAMES,
-  CHUANSHAN_72,
   TIANYUAN_MOUNTAINS,
   TRIGRAM_LINES,
   mountainCenterDeg,
   type PlateStyle,
 } from '@/pkg-paipan3/lib/luopan-data'
+// 穿山七十二龙取共享包单一真源（前端曾自行生成，8空亡/64甲子/4条重复）
+import { RING_CHUAN_SHAN_72 } from '@/pkg-paipan3/lib/luopan-rings'
 
 const props = withDefaults(
   defineProps<{
@@ -163,11 +164,20 @@ const parts = computed(() => {
       })
     : []
 
-  // 穿山七十二龙：每 5° 一格，格中心偏移 2.5°
+  // 穿山七十二龙：每 5° 一格，数据取自共享包单一真源。
+  // startDeg 是第 0 格的**起始边**（壬山初 337.5°），故格中心再偏半格 2.5°。
+  // jiXiong 为珠宝(吉)/火坑(凶)/空亡，是本层真正要给用户看的东西，只显干支等于没给。
   const dragons = g.show72
-    ? CHUANSHAN_72.map((name, i) => {
-        const deg = i * 5 + 2.5
-        return { key: i, name, kong: name === '空', style: T(deg, g.ring72) }
+    ? RING_CHUAN_SHAN_72.cells.map((c, i) => {
+        const deg = (RING_CHUAN_SHAN_72.startDeg + i * 5 + 2.5) % 360
+        return {
+          key: i,
+          name: c.text,
+          kong: c.jiXiong === '空亡',
+          ji: c.jiXiong === '吉',
+          xiong: c.jiXiong === '凶',
+          style: T(deg, g.ring72),
+        }
       })
     : []
 
@@ -247,7 +257,10 @@ const sitLineStyle = computed(() => {
 
     <!-- 穿山七十二龙 -->
     <view v-for="d in parts.dragons" :key="`d${d.key}`" class="cell cell-dragon" :style="d.style">
-      <text class="glyph dragon" :class="{ 'dragon-kong': d.kong }">{{ d.name }}</text>
+      <text
+        class="glyph dragon"
+        :class="{ 'dragon-kong': d.kong, 'dragon-ji': d.ji, 'dragon-xiong': d.xiong }"
+      >{{ d.name }}</text>
     </view>
 
     <!-- 三合中针/缝针 -->
@@ -373,6 +386,9 @@ $lp-pool: #fdfaf0;
   color: $lp-ink;
 }
 .dragon-kong { color: $lp-line; }
+/* 珠宝(可坐)/火坑(不可坐)：本层真正的判读结果，只显干支等于没给 */
+.dragon-ji { color: #1a7f4b; }
+.dragon-xiong { color: #a3341f; }
 
 .cell-needle { width: 44rpx; height: 26rpx; }
 .needle-ch {

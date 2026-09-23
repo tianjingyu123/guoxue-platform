@@ -13,7 +13,7 @@ import { calculateZhuGe } from "./zhuge.calculator";
  *
  * 这不是精度问题——**三分之二以上的签文写了也没人看得到**。
  *
- * 正法见前端 `pkg-paipan2/lib/zhuge-engine.ts`：
+ * 正法见`modules/paipan/engine/zhuge-engine.ts`（原前端引擎，2026-09-21 迁入服务端）：
  * 三字康熙笔画**各取个位**组成三位数，超 384 循环减 384。
  * 这是**第 9 次「前端对·后端错」**。
  */

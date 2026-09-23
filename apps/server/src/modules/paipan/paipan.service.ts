@@ -932,7 +932,7 @@ export class PaipanService {
     // **月将错一位（给寅，应丑）**，盘面却完整无异常。实测 2022–2027 稳定复现。
     // 并入「45 天后」那张年表即可补全（实测 2020–2030 最大陈旧度 39.4 → 31.3 天，
     // 31.3 正是相邻中气的真实最大间隔）。shared 引擎里另有一道 32 天守卫会拦住漏改。
-    // ⚠️ `apps/mobile/src/pkg-paipan/lib/jinkoujue-engine.ts` 有一份同样的建表代码，**两处要一起改**。
+    // ⚠️ `modules/paipan/engine/jinkoujue-engine.ts`（原前端金口诀包装，2026-09-21 迁入服务端）有一份同样的建表代码，**两处要一起改**。
     const zhongqiTable: Record<string, number> = {};
     const later = new Date(d.getTime() + 45 * 86400000);
     const tables = [

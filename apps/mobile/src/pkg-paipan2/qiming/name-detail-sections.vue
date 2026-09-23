@@ -46,14 +46,14 @@ const guaLinesTopFirst = computed(() => [...props.detail.mingGua.lines].reverse(
 
 <template>
   <view class="nds">
-    <!-- 八字契合（喜用补益，引古籍） -->
+    <!-- 八字契合需出生资料，资料不足时只展示说明 -->
     <view class="sec sec-amber">
       <view class="sec-hd">
         <app-icon name="sparkles" :size="28" color="#b45309" />
-        <text class="sec-title sec-title-amber">八字契合</text>
+        <text class="sec-title sec-title-amber">八字契合参考</text>
       </view>
       <text class="sec-p">{{ detail.baziFit.note }}</text>
-      <view class="quote-line quote-line-amber">
+      <view v-if="detail.baziFit.source && detail.baziFit.quote" class="quote-line quote-line-amber">
         <text class="quote-text">《{{ detail.baziFit.source }}》：「{{ detail.baziFit.quote }}」</text>
       </view>
     </view>
@@ -201,11 +201,11 @@ const guaLinesTopFirst = computed(() => [...props.detail.mingGua.lines].reverse(
       <text class="sec-p">{{ detail.shengxiao.note }}</text>
     </view>
 
-    <!-- 重名热度 -->
+    <!-- 开源姓名样本热度 -->
     <view class="sec">
       <view class="sec-hd">
         <app-icon name="book-open" :size="28" color="var(--brand)" />
-        <text class="sec-title">重名热度</text>
+        <text class="sec-title">同名样本参考</text>
       </view>
       <text class="sec-p">{{ detail.duplicateNote }}</text>
     </view>

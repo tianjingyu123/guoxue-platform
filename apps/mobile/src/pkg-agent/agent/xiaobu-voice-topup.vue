@@ -19,7 +19,19 @@ const picked = ref(0)
 const buying = ref(false)
 /** 从圈子语音页进入时带的圈子编号：服务端校验后记圈主分成，无效则按普通充值处理 */
 const circleId = ref('')
-onLoad((q) => { circleId.value = String(q?.circleId || '') })
+const returnVoiceScene = ref('')
+const returnVoiceContextId = ref('')
+const returnVoiceSectionId = ref('')
+onLoad((q) => {
+  circleId.value = String(q?.circleId || '')
+  const scene = String(q?.returnVoiceScene || '')
+  const contextId = String(q?.returnVoiceContextId || '')
+  if (['report_dialogue', 'circle_assistant'].includes(scene) && contextId) {
+    returnVoiceScene.value = scene
+    returnVoiceContextId.value = contextId
+    returnVoiceSectionId.value = scene === 'report_dialogue' ? String(q?.returnVoiceSectionId || '') : ''
+  }
+})
 
 async function load() {
   loading.value = true
@@ -49,7 +61,17 @@ async function buy() {
     })
     if (!order.id) throw new Error('订单创建失败')
     const pack = info.value?.packs.find((p) => p.minutes === picked.value)
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pack?.amountYuan || 0}`)
+    const payQuery = new URLSearchParams({
+      orderId: order.id,
+      method: 'wechat',
+      amount: String(Number(order.amount) || pack?.amountYuan || 0),
+    })
+    if (returnVoiceScene.value && returnVoiceContextId.value) {
+      payQuery.set('returnVoiceScene', returnVoiceScene.value)
+      payQuery.set('returnVoiceContextId', returnVoiceContextId.value)
+      if (returnVoiceSectionId.value) payQuery.set('returnVoiceSectionId', returnVoiceSectionId.value)
+    }
+    navigateTo(`/shop/paying?${payQuery.toString()}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

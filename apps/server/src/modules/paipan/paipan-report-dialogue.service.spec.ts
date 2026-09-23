@@ -43,6 +43,7 @@ function setup(owner = "u1") {
   const turns: any[] = [];
   let t = 0;
   const prisma: any = {
+    paipanRecord: { findUnique: jest.fn().mockResolvedValue({ userId: "u1" }) },
     aiAnalysisRecord: {
       findUnique: jest.fn(async () => ({ id: "r1", userId: owner, scene: "paipan_report", analysisContent: JSON.stringify(report) })),
     },
@@ -53,7 +54,12 @@ function setup(owner = "u1") {
       }),
       findMany: jest.fn(async ({ where, take }: any) =>
         turns
-          .filter((x) => x.reportId === where.reportId && x.userId === where.userId && (!where.NOT || x.mode !== where.NOT.mode))
+          .filter((x) =>
+            x.reportId === where.reportId && x.userId === where.userId &&
+            (!where.NOT || x.mode !== where.NOT.mode) &&
+            (!where.createdAt?.gte || x.createdAt >= where.createdAt.gte) &&
+            (!where.createdAt?.lt || x.createdAt < where.createdAt.lt),
+          )
           .sort((a, b) => b.createdAt - a.createdAt)
           .slice(0, take)),
       deleteMany: jest.fn(async ({ where }: any) => {
@@ -65,7 +71,8 @@ function setup(owner = "u1") {
   };
   const gateway: any = { chat: jest.fn() };
   const guide: any = { guide: jest.fn(async (q: string) => ({ query: q, cards: [{ type: "article", id: `a-${q}`, title: `${q}入门`, target: `/pkg-circle/articles/detail?id=a-${q}` }, { type: "article", id: "shared", title: "共同文章", target: "/pkg-circle/articles/detail?id=shared" }] })) };
-  return { svc: new PaipanReportDialogueService(prisma, gateway, guide), prisma, gateway, turns, guide };
+  const commerce: any = { assertReportAccess: jest.fn() };
+  return { svc: new PaipanReportDialogueService(prisma, gateway, guide, commerce), prisma, gateway, turns, guide };
 }
 
 describe("PaipanReportDialogueService", () => {
@@ -171,6 +178,75 @@ describe("PaipanReportDialogueService", () => {
     expect(h.nextSectionId).toBe("s3");
     expect((await svc.clearHistory("u1", "r1")).deleted).toBe(2);
     expect(turns).toHaveLength(1);
+  });
+
+  it("报告购买权益撤销后，不能继续读取或提问", async () => {
+    const { prisma, gateway, guide } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-1",
+      analysisContent: JSON.stringify({ ...report, metadata: { reportType: "general" } }),
+    });
+    const commerce: any = { assertReportAccess: jest.fn().mockRejectedValue(new Error("购买权益已撤销")) };
+    const svc = new PaipanReportDialogueService(prisma, gateway, guide, commerce);
+    await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
+    await expect(svc.ask("u1", "r1", { question: "继续解释" })).rejects.toThrow("购买权益已撤销");
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("报告关联他人原盘时，不能读取问答或调用模型", async () => {
+    const { svc, prisma, gateway } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-other",
+      analysisContent: JSON.stringify({ ...report, metadata: { reportType: "general" } }),
+    });
+    prisma.paipanRecord.findUnique.mockResolvedValue({ userId: "u2" });
+    await expect(svc.history("u1", "r1")).rejects.toThrow("原排盘记录不存在");
+    await expect(svc.ask("u1", "r1", { question: "继续解释" })).rejects.toThrow("原排盘记录不存在");
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("旧报告正文缺类型时问答仍按存档分析类型核验权益", async () => {
+    const { prisma, gateway, guide } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-1",
+      analyzeType: "REPORT_LOVE", analysisContent: JSON.stringify(report),
+    });
+    const commerce: any = { assertReportAccess: jest.fn().mockRejectedValue(new Error("购买权益已撤销")) };
+    const svc = new PaipanReportDialogueService(prisma, gateway, guide, commerce);
+    await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "love");
+  });
+
+  it("重新生成后旧版问答可查看，但不参与新版进度或模型上下文", async () => {
+    const { svc, prisma, gateway, turns } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report",
+      analysisContent: JSON.stringify({ ...report, metadata: { generatedAt: new Date(2000).toISOString() } }),
+    });
+    turns.push(
+      { reportId: "r1", userId: "u1", role: "user", content: "旧版问题", sectionId: "s2", mode: "question", createdAt: new Date(1000) },
+      { reportId: "r1", userId: "u1", role: "assistant", content: "旧版结论", sectionId: "s2", mode: "answer", createdAt: new Date(1001) },
+      { reportId: "r1", userId: "u1", role: "user", content: "新版问题", sectionId: "s3", mode: "question", createdAt: new Date(3000) },
+    );
+    const h = await svc.history("u1", "r1");
+    expect(h.turns.map((t) => t.content)).toEqual(["新版问题"]);
+    expect(h.previousTurns.map((t) => t.content)).toEqual(["旧版问题", "旧版结论"]);
+    expect(h.discussedSectionIds).toEqual(["s3"]);
+    gateway.chat.mockResolvedValue({ model: "m", content: JSON.stringify({ answer: "新版回答", evidenceIds: [] }) });
+    await svc.ask("u1", "r1", { question: "继续说说" });
+    const messages = gateway.chat.mock.calls[0][0].messages;
+    expect(messages.some((m: any) => String(m.content).includes("旧版问题") || String(m.content).includes("旧版结论"))).toBe(false);
+    expect(messages.some((m: any) => m.content === "新版问题")).toBe(true);
+  });
+
+  it("提问期间报告更新时不交付旧版回答，也不写入新版记录", async () => {
+    const { svc, prisma, gateway } = setup();
+    prisma.aiAnalysisRecord.findUnique
+      .mockResolvedValueOnce({ id: "r1", userId: "u1", scene: "paipan_report", analysisContent: JSON.stringify({ ...report, metadata: { generatedAt: "2026-09-01T00:00:00.000Z" } }) })
+      .mockResolvedValueOnce({ id: "r1", userId: "u1", scene: "paipan_report", analysisContent: JSON.stringify({ ...report, metadata: { generatedAt: "2026-09-02T00:00:00.000Z" } }) });
+    gateway.chat.mockResolvedValue({ model: "m", content: JSON.stringify({ answer: "旧版回答", evidenceIds: [] }) });
+    await expect(svc.ask("u1", "r1", { question: "继续说说" })).rejects.toThrow("报告已更新");
+    expect(prisma.reportDialogueTurn.createMany).not.toHaveBeenCalled();
   });
 
   it("记录保存失败不影响回答", async () => {

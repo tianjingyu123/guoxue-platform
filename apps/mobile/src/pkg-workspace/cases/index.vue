@@ -7,11 +7,12 @@
  * 所以分类 + 关键词检索是这页的骨架，不是装饰。
  */
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
-import { wsApi, type CaseRecord } from '../lib/workspace-api'
+import { wsApi, type CaseRecord, type ReportRecord } from '../lib/workspace-api'
 
 const CATEGORIES = [
   { key: '', label: '全部' },
@@ -36,6 +37,7 @@ useOverlayScrollLock(() => editOpen.value)
 const saving = ref(false)
 /** 非空即编辑态，空即新建态 —— 新建与编辑共用一个弹层，字段完全一样 */
 const editingId = ref<string | null>(null)
+const sourceReportId = ref('')
 const fTitle = ref('')
 const fClient = ref('')
 const fCategory = ref(PICKABLE[0].key)
@@ -56,17 +58,15 @@ function money(n: unknown): string {
 
 function dateText(iso?: string): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+  const date = iso.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.replace(/-/g, '.') : ''
 }
 
 /** 后端存的是 ISO，picker 只认 YYYY-MM-DD */
 function toPickerDate(iso?: string): string {
   if (!iso) return todayDate()
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return todayDate()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const date = iso.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayDate()
 }
 
 async function load() {
@@ -86,6 +86,32 @@ async function load() {
 }
 
 onMounted(load)
+onLoad(async (query) => {
+  const reportId = typeof query?.fromReport === 'string' ? query.fromReport : ''
+  if (!reportId) return
+  try {
+    const report = await wsApi.getReport(reportId)
+    openCreate()
+    sourceReportId.value = report.id
+    fTitle.value = report.title
+    fClient.value = report.clientName
+    fCategory.value = categoryForReport(report)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '来源报告无法打开', icon: 'none' })
+  }
+})
+
+function categoryForReport(report: ReportRecord): string {
+  if (report.type === 'hepan') return 'hehun'
+  if (report.type === 'zeji') return 'zeji'
+  if (report.toolKey === 'liuyao') return 'liuyao'
+  return 'bazi'
+}
+
+function openSourceReport(c: CaseRecord) {
+  if (!c.reportId) return
+  uni.navigateTo({ url: `/pkg-workspace/report/index?id=${encodeURIComponent(c.reportId)}` })
+}
 
 function pickCategory(key: string) {
   category.value = key
@@ -98,6 +124,7 @@ function onDateChange(e: any) {
 
 function openCreate() {
   editingId.value = null
+  sourceReportId.value = ''
   fTitle.value = ''
   fClient.value = ''
   fCategory.value = PICKABLE[0].key
@@ -110,6 +137,7 @@ function openCreate() {
 
 function openEdit(c: CaseRecord) {
   editingId.value = c.id
+  sourceReportId.value = c.reportId ?? ''
   fTitle.value = c.title
   fClient.value = c.clientName ?? ''
   fCategory.value = c.category || PICKABLE[0].key
@@ -121,6 +149,7 @@ function openEdit(c: CaseRecord) {
 }
 
 async function submit() {
+  if (saving.value) return
   if (!fTitle.value.trim()) {
     uni.showToast({ title: '请填案例标题', icon: 'none' })
     return
@@ -132,6 +161,7 @@ async function submit() {
     .filter(Boolean)
   const fee = Number(fFee.value)
   const payload: Partial<CaseRecord> = {
+    ...(!editingId.value && sourceReportId.value ? { reportId: sourceReportId.value } : {}),
     title: fTitle.value.trim(),
     clientName: fClient.value.trim() || undefined,
     category: fCategory.value,
@@ -252,6 +282,7 @@ function confirmDelete(c: CaseRecord) {
               </view>
               <text class="cs-card-fee">¥{{ money(c.fee) }}</text>
             </view>
+            <text v-if="c.reportId" class="cs-report-link" @tap.stop="openSourceReport(c)">查看来源报告 ›</text>
           </view>
         </PaperCard>
       </template>
@@ -265,6 +296,7 @@ function confirmDelete(c: CaseRecord) {
     <view v-if="editOpen" class="cs-mask" @tap="editOpen = false" @touchmove.self.prevent>
       <view class="cs-sheet" @tap.stop @touchmove.stop>
         <text class="cs-sheet-title">{{ editingId ? '编辑案例' : '新建案例' }}</text>
+        <text v-if="sourceReportId" class="cs-label">已关联来源报告</text>
 
         <text class="cs-label">案例标题</text>
         <input v-model="fTitle" class="cs-input" placeholder="如：庚金身弱 · 转行择时" placeholder-class="cs-ph" />
@@ -507,6 +539,13 @@ function confirmDelete(c: CaseRecord) {
   font-size: 28rpx;
   font-weight: 700;
   color: #C41E3A;
+}
+
+.cs-report-link {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #8A6914;
 }
 
 /* 空态 */

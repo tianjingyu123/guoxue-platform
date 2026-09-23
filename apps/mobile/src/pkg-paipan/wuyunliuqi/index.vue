@@ -18,8 +18,8 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { computeWuyun, currentStepIndex } from '@/pkg-paipan/lib/wuyunliuqi-engine'
-import { COMPLIANCE_TEXT } from '@/pkg-paipan/lib/wuyunliuqi-data'
+import { COMPLIANCE_TEXT, currentStepIndex, type WuyunResult } from '@/pkg-paipan/lib/wuyunliuqi-types'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { CONSTITUTIONS, constitutionOf, type ConstitutionKey, type ClimateTag } from '@/pkg-paipan/lib/constitution'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -43,17 +43,37 @@ function shiftYear(delta: number) {
   year.value = next
 }
 
-const result = computed(() => computeWuyun(year.value, new Date()))
+// ─── 运气推算走服务端（第 4 步：算法只在服务端）；now 传当前时刻用于判定「当令」气步 ───
+const result = ref<WuyunResult | null>(null)
+const loading = ref(false)
+const loadError = ref('')
+/** 快速连点年份时只认最后一次请求，丢弃过期响应 */
+let reqSeq = 0
+async function load() {
+  const seq = ++reqSeq
+  loading.value = true
+  loadError.value = ''
+  try {
+    const r = await computePaipan<WuyunResult>('wuyunliuqi', { year: year.value, now: Date.now() })
+    if (seq !== reqSeq) return
+    result.value = r
+    resetStep()
+  } catch {
+    if (seq === reqSeq) loadError.value = '运气推算暂时不可用，请稍后重试'
+  } finally {
+    if (seq === reqSeq) loading.value = false
+  }
+}
 
 // ─── 气步选择：当年默认当令气步，其余年份默认三之气（司天） ───
 const selectedStep = ref(1)
 function resetStep() {
-  selectedStep.value = year.value === nowYear ? (currentStepIndex(result.value) ?? 3) : 3
+  selectedStep.value = year.value === nowYear && result.value ? (currentStepIndex(result.value) ?? 3) : 3
 }
-resetStep()
-watch(year, resetStep)
+load()
+watch(year, load)
 
-const step = computed(() => result.value.steps.find((s) => s.step === selectedStep.value) ?? result.value.steps[2])
+const step = computed(() => result.value?.steps.find((s) => s.step === selectedStep.value) ?? result.value?.steps[2])
 
 function prevStep() {
   selectedStep.value = selectedStep.value > 1 ? selectedStep.value - 1 : 6
@@ -71,6 +91,7 @@ const QI_CLIMATE_TAG: Record<string, ClimateTag> = {
   风: '风', 君火: '热', 相火: '热', 湿: '湿', 燥: '燥', 寒: '寒',
 }
 const consCaution = computed(() => {
+  if (!step.value) return null
   const tag = QI_CLIMATE_TAG[step.value.guest.qi]
   if (tag && cons.value.sensitive.includes(tag)) {
     return `${step.value.label}客气为${step.value.guest.name}（主${tag}），正是${cons.value.name}的敏感时段，需格外注意防护。`
@@ -82,7 +103,7 @@ const consCaution = computed(() => {
 function goComingSoon(name: string) {
   navigateTo('/pkg-paipan/tools/coming-soon?name=' + encodeURIComponent(name))
 }
-const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replace(/（.*）/, '')).join(' · '))
+const dietNames = computed(() => (step.value?.guest.diets ?? []).map((d) => d.name.replace(/（.*）/, '')).join(' · '))
 </script>
 
 <template>
@@ -112,7 +133,7 @@ const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replac
             />
           </view>
           <view class="year-center">
-            <text class="year-text">{{ result.year }} · {{ result.ganzhi }}年</text>
+            <text class="year-text">{{ year }}{{ result && result.year === year ? ` · ${result.ganzhi}年` : '' }}</text>
             <text
               v-if="year === nowYear"
               class="year-now"
@@ -132,6 +153,14 @@ const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replac
           </view>
         </view>
 
+        <!-- 服务端推算：首次加载/失败态（切年份时保留上一年内容，避免整页闪白） -->
+        <view v-if="!result && loading" class="engine-loading"><text class="engine-loading-text">正在推算…</text></view>
+        <view v-else-if="!result && loadError" class="engine-loading engine-error">
+          <text class="engine-loading-text">{{ loadError }}</text>
+          <view class="engine-retry" @tap="load"><text class="engine-retry-text">重新推算</text></view>
+        </view>
+
+        <template v-if="result && step">
         <!-- 岁运 Hero -->
         <paper-card padding="md">
           <view class="hero">
@@ -483,6 +512,10 @@ const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replac
                 <text class="row-text">{{ cons.emotion }}</text>
               </view>
             </view>
+            <!-- 🔴 2026-09-21 补：本页同样展示体质调养要点，却缺免责声明，
+                 而节气页的 health-module.vue 是有的（同一份 constitution.ts 数据）。
+                 健康类内容两处口径必须一致。 -->
+            <text class="cons-tip">养生内容仅供参考，不构成医疗建议。身体不适请及时就医。</text>
           </view>
         </paper-card>
 
@@ -535,6 +568,8 @@ const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replac
             </view>
           </view>
         </view>
+
+        </template>
 
         <disclaimer
           variant="custom"
@@ -717,6 +752,11 @@ const dietNames = computed(() => step.value.guest.diets.map((d) => d.name.replac
 .sum-text { display: block; margin-top: 16rpx; font-size: 24rpx; line-height: 1.8; color: var(--text); }
 
 .cons-note { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--text-soft); }
+.engine-loading { min-height: 50vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft); letter-spacing: 2rpx; }
+.engine-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
+.engine-retry-text { font-size: 26rpx; color: #fff; }
+.cons-tip { display: block; margin-top: 20rpx; font-size: 20rpx; line-height: 1.6; color: var(--text-soft); }
 .cons-chips { margin-top: 20rpx; display: flex; flex-wrap: wrap; gap: 12rpx; }
 .cons-chip {
   border-radius: 999rpx; border: 1rpx solid var(--line);

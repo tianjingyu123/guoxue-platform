@@ -75,6 +75,7 @@ describe("PaipanReportService", () => {
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "deepseek-v4-flash", usage: { totalTokens: 900 } });
 
     const res = await svc.generateReport("u1", "rec-1");
+    expect(res.paipanRecordId).toBe("rec-1");
     const report = res.content;
 
     expect(gateway.chat).toHaveBeenCalledWith(expect.objectContaining({ scene: "paipan_report", skipCache: true }));
@@ -137,6 +138,7 @@ describe("PaipanReportService", () => {
     expect(gateway.chat).toHaveBeenCalledTimes(1);
     expect(second.reused).toBe(true);
     expect(second.id).toBe(first.id);
+    expect(second.paipanRecordId).toBe("rec-1");
 
     await svc.generateReport("u1", "rec-1", "general", { regenerate: true });
     expect(gateway.chat).toHaveBeenCalledTimes(2);
@@ -229,10 +231,79 @@ describe("PaipanReportService", () => {
   });
 
   it("getReport 校验归属与场景", async () => {
-    const { svc, gateway } = setup();
+    const { svc, gateway, commerce } = setup();
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "m" });
     const { id } = await svc.generateReport("u1", "rec-1");
     await expect(svc.getReport("u2", id)).rejects.toThrow("无权访问");
-    expect((await svc.getReport("u1", id)).content.metadata.model).toBe("m");
+    const opened = await svc.getReport("u1", id);
+    expect(opened.content.metadata.model).toBe("m");
+    expect(opened.paipanRecordId).toBe("rec-1");
+    commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+    await expect(svc.getReport("u1", id)).rejects.toThrow("购买权益已撤销");
+  });
+
+  it("模型生成期间权益被撤销时，不保存也不交付新报告", async () => {
+    const { svc, gateway, prisma, commerce } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+      return { content: modelJson(), model: "m1" };
+    });
+    await expect(svc.generateReport("u1", "rec-1")).rejects.toThrow("购买权益已撤销");
+    expect(prisma.aiAnalysisRecord.create).not.toHaveBeenCalled();
+    expect(prisma.aiAnalysisRecord.update).not.toHaveBeenCalled();
+  });
+
+  it("复用旧报告前权益被撤销时，不返回已存正文", async () => {
+    const { svc, gateway, prisma, commerce, store } = setup();
+    gateway.chat.mockResolvedValue({ content: modelJson(), model: "m1" });
+    await svc.generateReport("u1", "rec-1");
+    prisma.aiAnalysisRecord.findFirst.mockImplementationOnce(async () => {
+      commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+      return store[0];
+    });
+    await expect(svc.generateReport("u1", "rec-1")).rejects.toThrow("购买权益已撤销");
+    expect(gateway.chat).toHaveBeenCalledTimes(1);
+  });
+
+  it("旧报告正文缺类型时从存档分析类型补推权益门禁", async () => {
+    const { svc, prisma, commerce } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValueOnce({
+      id: "old", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-1",
+      analyzeType: "REPORT_CAREER", analysisContent: JSON.stringify({ metadata: {}, sections: [] }),
+    });
+    commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+    await expect(svc.getReport("u1", "old")).rejects.toThrow("购买权益已撤销");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "career");
+  });
+
+  it("报告关联他人原盘时拒绝交付正文，不查询购买权益", async () => {
+    const { svc, prisma, commerce } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "mislinked", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-other",
+      analyzeType: "REPORT_GENERAL", analysisContent: JSON.stringify({ metadata: { reportType: "general" }, sections: [] }),
+    });
+    prisma.paipanRecord.findUnique.mockResolvedValue({ userId: "u2" });
+    await expect(svc.getReport("u1", "mislinked")).rejects.toThrow("原排盘记录不存在");
+    expect(commerce.assertReportAccess).not.toHaveBeenCalled();
+  });
+
+  it("报告目录只查询本人结构化报告，分页且不返回正文", async () => {
+    const { svc, prisma } = setup();
+    prisma.aiAnalysisRecord.findMany = jest.fn().mockResolvedValue([{
+      id: "report-1", paipanRecordId: "rec-1", analyzeType: "REPORT_CAREER", createdAt: new Date(),
+      paipanRecord: { clientName: "张某", paipanType: "BAZI" },
+    }]);
+    prisma.aiAnalysisRecord.count = jest.fn().mockResolvedValue(21);
+
+    const result = await svc.listReports("u1", "2");
+    expect(prisma.aiAnalysisRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "u1", scene: "paipan_report", analyzeType: { startsWith: "REPORT_" } },
+      skip: 20,
+      take: 20,
+      select: expect.not.objectContaining({ analysisContent: true }),
+    }));
+    expect(result).toMatchObject({ total: 21, page: 2, pageSize: 20, items: [{ clientName: "张某", paipanType: "BAZI", reportType: "career" }] });
+    expect(result.items[0]).not.toHaveProperty("paipanRecord");
+    expect(prisma.aiAnalysisRecord.findMany.mock.calls[0][0].select).not.toHaveProperty("outputSummary");
   });
 });

@@ -11,7 +11,7 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { ZHI } from '@/pkg-paipan/lib/jinkoujue-engine'
+import { ZHI } from '@/pkg-paipan/lib/jinkoujue-types'
 
 const HISTORY_KEY = 'rebu:jinkoujue-history'
 
@@ -38,7 +38,12 @@ const dateTime = ref({
 const difenMethod = ref<DifenMethod>('manual')
 const difenZhiIdx = ref(0)
 const difenNumber = ref('')
-const jiangMethod = ref<'jie' | 'zhong'>('jie')
+// 默认中气（太阳过宫）。2026-09-20 改，原默认交节。依据：
+// ① 竞品默认即中气，实测 2026-09-20（白露后、秋分前，两法在此日分歧可区分）
+//    给「月将 巳(中气)」；交节法此时给辰（酉之六合）。
+// ② 月将本义是太阳所在之宫，按中气换是大六壬正统，金口诀源出大六壬。
+// 两法实现都在（engine 的 LIUHE / ZHONGQI_JIANG），界面上用户仍可切换 —— 这里改的只是默认值。
+const jiangMethod = ref<'jie' | 'zhong'>('zhong')
 const guirenSchool = ref<'A' | 'B'>('A')
 const guiType = ref<'auto' | 'day' | 'night'>('auto')
 const showHistory = ref(false)

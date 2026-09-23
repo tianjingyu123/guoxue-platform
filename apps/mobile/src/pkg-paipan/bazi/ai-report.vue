@@ -14,7 +14,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { wsApi } from '@/pkg-workspace/lib/workspace-api'
 import { shopApi } from '@/lib/shop-data'
-import { getToken } from '@/utils/storage'
+import { getToken, getUserInfo } from '@/utils/storage'
+import { track } from '@/composables/useTrack'
 import {
   aiReportApi,
   referenceReaderUrl,
@@ -38,8 +39,11 @@ import {
 } from '@/lib/paipan/ai-report-data'
 
 const recordId = ref('')
+const savedReportId = ref('')
+const requestedReportType = ref('general')
 const loading = ref(false)
 const error = ref('')
+const savedOpenFailed = ref(false)
 const report = ref<AiReportResult | null>(null)
 /** 防止慢请求返回时覆盖已切换的新盘/新请求 */
 let requestSeq = 0
@@ -196,11 +200,6 @@ function sectionSeals(sec: AiReportSection) {
 const preflight = ref<AiReportPreflight | null>(null)
 const doneSteps = ref(0)
 const unveiling = ref(false)
-const STEP_MS = 700
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms))
-}
 
 async function runRitual(seq: number) {
   preflight.value = null
@@ -209,15 +208,10 @@ async function runRitual(seq: number) {
     const pf = await aiReportApi.preflight(recordId.value)
     if (seq !== requestSeq) return
     preflight.value = pf
+    // 预检已返回的步骤有真实结果，最后的模型组织阶段仍在进行。
+    doneSteps.value = Math.max(0, pf.steps.length - 1)
   } catch {
     return // 推演数据拿不到不影响生成，页面回落到普通等待文案
-  }
-  // 逐步点亮；最后一步（组织成书）留给模型返回后再点亮
-  for (let i = 0; i < (preflight.value?.steps.length ?? 0) - 1; i++) {
-    if (seq !== requestSeq) return
-    await sleep(STEP_MS)
-    if (seq !== requestSeq) return
-    doneSteps.value = i + 1
   }
 }
 
@@ -225,19 +219,35 @@ async function load(regenerate = false) {
   if (!recordId.value) return
   const seq = ++requestSeq
   loading.value = true
+  const openingSaved = !!savedReportId.value && !regenerate
+  savedOpenFailed.value = false
+  track.custom(openingSaved ? 'paipan_report_reopen_start' : 'paipan_report_generate_start', { regenerate })
   error.value = ''
   unveiling.value = false
-  const ritual = runRitual(seq)
+  const ritual = openingSaved ? Promise.resolve() : runRitual(seq)
   try {
-    const res = await aiReportApi.generate(recordId.value, { regenerate })
+    const res = openingSaved
+      ? await aiReportApi.get(savedReportId.value)
+      : await aiReportApi.generate(recordId.value, { reportType: requestedReportType.value, regenerate })
     if (seq !== requestSeq) return
-    // 等推演动作走完再揭幕，避免「还没看清就结束了」
+    if (res.paipanRecordId !== recordId.value || res.content.metadata.reportType !== requestedReportType.value) {
+      throw new Error('原报告与当前排盘或报告类型不匹配，请从原排盘恢复')
+    }
     await ritual
     if (seq !== requestSeq) return
     doneSteps.value = preflight.value?.steps.length ?? 0
-    if (preflight.value) await sleep(420)
-    if (seq !== requestSeq) return
+    if (regenerate || report.value?.id !== res.id) {
+      chatItems.value = []
+      chatProgress.value = null
+      historyLoadedFor = ''
+      previousChatItems.value = []
+      showPreviousChat.value = false
+    }
     report.value = res
+    savedReportId.value = res.id
+    requestedReportType.value = res.content.metadata.reportType || requestedReportType.value
+    if (chatOpen.value) loadDialogue()
+    track.custom(openingSaved ? 'paipan_report_reopen_success' : 'paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
     unveiling.value = true
     setTimeout(() => { unveiling.value = false }, 900)
     loadRelated(res.id)
@@ -245,7 +255,9 @@ async function load(regenerate = false) {
     loadVoiceQuota()
   } catch (e) {
     if (seq !== requestSeq) return
-    error.value = (e as Error)?.message || '报告生成失败，请稍后重试'
+    savedOpenFailed.value = openingSaved
+    track.custom(openingSaved ? 'paipan_report_reopen_failure' : 'paipan_report_generate_failure', { regenerate })
+    error.value = (e as Error)?.message || (openingSaved ? '报告打开失败，请稍后重试' : '报告生成失败，请稍后重试')
   } finally {
     if (seq === requestSeq) loading.value = false
   }
@@ -286,7 +298,7 @@ function openReference(r: AiReportReference) {
 }
 
 // ── 问小卜（文字问答）：按报告提纲与依据回答；语音接通前先用文字 ──
-interface ChatItem { role: 'user' | 'assistant'; text: string; answer?: AiDialogueAnswer; failed?: boolean }
+interface ChatItem { role: 'user' | 'assistant'; text: string; answer?: AiDialogueAnswer; failed?: boolean; retryQuestion?: string }
 const chatOpen = ref(false)
 const chatSectionId = ref<string | undefined>()
 const chatItems = ref<ChatItem[]>([])
@@ -295,18 +307,22 @@ const chatSending = ref(false)
 const chatSectionTitle = computed(() => chapters.value.find((c) => c.id === chatSectionId.value)?.title)
 
 const chatProgress = ref<AiDialogueHistory | null>(null)
+const previousChatItems = ref<ChatItem[]>([])
+const showPreviousChat = ref(false)
 let historyLoadedFor = ''
 
 /** 首次打开时加载服务端问答记录（历史由服务端维护，换设备也能接着聊） */
 async function loadDialogue() {
   const reportId = report.value?.id
-  if (!reportId || historyLoadedFor === reportId) return
+  const reportKey = report.value ? `${reportId}:${report.value.content.metadata.generatedAt}` : ''
+  if (!reportId || historyLoadedFor === reportKey) return
   try {
     const h = await aiReportApi.dialogue(reportId)
-    if (report.value?.id !== reportId) return
-    historyLoadedFor = reportId
+    if (!report.value || `${report.value.id}:${report.value.content.metadata.generatedAt}` !== reportKey) return
+    historyLoadedFor = reportKey
     chatProgress.value = h
     chatItems.value = h.turns.map((t) => ({ role: t.role, text: t.content }))
+    previousChatItems.value = (h.previousTurns ?? []).map((t) => ({ role: t.role, text: t.content }))
   } catch {
     // 记录读取失败不影响提问
   }
@@ -337,6 +353,8 @@ async function clearDialogue() {
     await aiReportApi.clearDialogue(reportId)
     chatItems.value = []
     chatProgress.value = null
+    previousChatItems.value = []
+    showPreviousChat.value = false
     historyLoadedFor = ''
     uni.showToast({ title: '已清空', icon: 'none' })
   } catch (e) {
@@ -350,12 +368,14 @@ async function sendQuestion(text?: string) {
   chatItems.value.push({ role: 'user', text: question })
   chatInput.value = ''
   chatSending.value = true
+  track.custom('paipan_report_ask_start', { hasSection: !!chatSectionId.value })
   const reportId = report.value.id
   try {
     const answer = await aiReportApi.ask(reportId, { question, sectionId: chatSectionId.value })
     if (report.value?.id !== reportId) return
     if (answer.sectionId) chatSectionId.value = answer.sectionId
     chatItems.value.push({ role: 'assistant', text: answer.answer, answer })
+    track.custom('paipan_report_ask_success', { hasSection: !!answer.sectionId })
     // 更新进度（已讨论小节 / 下一节）
     if (answer.sectionId && chatProgress.value && !chatProgress.value.discussedSectionIds.includes(answer.sectionId)) {
       chatProgress.value.discussedSectionIds.push(answer.sectionId)
@@ -364,10 +384,22 @@ async function sendQuestion(text?: string) {
       chatProgress.value.nextSectionTitle = next?.title ?? null
     }
   } catch (e) {
-    chatItems.value.push({ role: 'assistant', text: (e as Error)?.message || '小卜暂时没能回答，请稍后再问', failed: true })
+    track.custom('paipan_report_ask_failure', { hasSection: !!chatSectionId.value })
+    chatItems.value.push({ role: 'assistant', text: (e as Error)?.message || '小卜暂时没能回答，请稍后再问', failed: true, retryQuestion: question })
   } finally {
     chatSending.value = false
   }
+}
+
+function retryQuestion(index: number) {
+  const item = chatItems.value[index]
+  if (!item?.failed || !item.retryQuestion || chatSending.value) return
+  const question = item.retryQuestion
+  chatItems.value.splice(index, 1)
+  if (chatItems.value[index - 1]?.role === 'user' && chatItems.value[index - 1].text === question) {
+    chatItems.value.splice(index - 1, 1)
+  }
+  sendQuestion(question)
 }
 
 function askXiaobu(sectionId: string, question?: string) {
@@ -388,6 +420,7 @@ async function useAsClientReport() {
   toWorkbench.value = true
   try {
     const created = await wsApi.importXiaobuReport({ reportId: rid })
+    track.custom('paipan_report_import_workbench')
     uni.showToast({ title: '已存入工作台，可编辑后交付', icon: 'none' })
     setTimeout(() => navigateTo(`/pkg-workspace/report/index?id=${created.id}`), 600)
   } catch (e) {
@@ -413,34 +446,116 @@ function openVoice() {
 const paywall = ref<AiReportAccess | null>(null)
 const checkingAccess = ref(false)
 const buyingReport = ref(false)
+const pendingReportOrder = ref<{ id: string; amount: number; targetId: string } | null>(null)
+const needsLogin = ref(false)
+let lastAccessEvent = ''
+let accessSeq = 0
+let sessionToken = ''
+let sessionUserId = ''
+
+function currentUserId() {
+  return String(getUserInfo<{ id?: string }>()?.id || '')
+}
+
+function clearPrivateReport() {
+  // 登录态变化后，旧请求不能再把上一账号的报告写回页面。
+  requestSeq++
+  accessSeq++
+  checkingAccess.value = false
+  loading.value = false
+  report.value = null
+  savedOpenFailed.value = false
+  paywall.value = null
+  pendingReportOrder.value = null
+  preflight.value = null
+  related.value = []
+  voiceQuota.value = null
+  chatOpen.value = false
+  chatItems.value = []
+  previousChatItems.value = []
+  chatProgress.value = null
+  historyLoadedFor = ''
+  lastAccessEvent = ''
+}
+
+async function regenerateFromRecord() {
+  if (!savedOpenFailed.value || checkingAccess.value || loading.value || !recordId.value) return
+  const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+    title: '从原排盘继续',
+    content: '原报告暂时无法打开。可重新核对购买权益，并用原排盘恢复报告；不会再次创建订单。',
+    confirmText: '继续生成',
+    cancelText: '先不处理',
+    success: (r) => resolve(!!r.confirm),
+    fail: () => resolve(false),
+  }))
+  if (!proceed) return
+  savedReportId.value = ''
+  await checkAccessThenLoad()
+}
 
 async function checkAccessThenLoad() {
   if (!recordId.value || checkingAccess.value) return
+  if (!getToken()) {
+    clearPrivateReport()
+    needsLogin.value = true
+    error.value = '登录后才能生成属于你的报告'
+    return
+  }
+  const seq = ++accessSeq
+  const ownerId = sessionUserId
   checkingAccess.value = true
+  needsLogin.value = false
   error.value = ''
   try {
-    const access = await aiReportApi.access(recordId.value)
+    const access = await aiReportApi.access(recordId.value, requestedReportType.value)
+    if (seq !== accessSeq || !getToken() || (ownerId && currentUserId() !== ownerId)) return
+    const accessEvent = `${access.granted}:${access.via}:${access.reportType}`
+    if (accessEvent !== lastAccessEvent) {
+      track.custom('paipan_report_access', { state: access.granted ? 'granted' : 'paywall', via: access.via || 'none', reportType: access.reportType })
+      lastAccessEvent = accessEvent
+    }
     if (access.granted) {
       paywall.value = null
+      pendingReportOrder.value = null
       load()
     } else {
       paywall.value = access
     }
   } catch (e) {
+    if (seq !== accessSeq) return
     error.value = (e as Error)?.message || '加载失败，请稍后重试'
   } finally {
-    checkingAccess.value = false
+    if (seq === accessSeq) checkingAccess.value = false
   }
 }
 
 async function buyReport() {
   if (buyingReport.value || !paywall.value) return
+  const offer = paywall.value
   buyingReport.value = true
+  track.custom('paipan_report_buy_click', { reportType: offer.reportType })
   try {
+    const targetId = `${recordId.value}:${offer.reportType}`
+    if (pendingReportOrder.value?.targetId === targetId) {
+      const previous = pendingReportOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (!paywall.value) return
+      if (state.status === 'PENDING') {
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingReportOrder.value = null
+      if (state.paid) { await checkAccessThenLoad(); return }
+    }
     // 金额由服务端计算（29 元），targetId = 排盘记录:报告类型
-    const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId: `${recordId.value}:${paywall.value.reportType}`, quantity: 1 })
+    const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || paywall.value.priceYuan || 0}`)
+    pendingReportOrder.value = { id: order.id, amount: Number(order.amount) || offer.priceYuan || 0, targetId }
+    track.custom(order.reused ? 'paipan_report_order_resumed' : 'paipan_report_order_created', { reportType: offer.reportType })
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingReportOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {
@@ -449,21 +564,27 @@ async function buyReport() {
 }
 
 function openMember() {
-  navigateTo('/pkg-agent/agent/xiaobu-member')
+  navigateTo(`/pkg-agent/agent/xiaobu-member?recordId=${encodeURIComponent(`${recordId.value}:${requestedReportType.value}`)}`)
 }
 
 const memberFrom = computed(() => {
   const plans = paywall.value?.memberPlans || []
-  return plans.length ? Math.min(...plans.map((p) => p.priceYuan)) : 0
+  return plans.length ? Math.min(...plans.map((p) => p.priceYuan)) : null
 })
 
 onLoad((q) => {
   recordId.value = String(q?.recordId || '')
+  savedReportId.value = String(q?.reportId || '')
+  const type = String(q?.reportType || 'general')
+  requestedReportType.value = ['general', 'career', 'love', 'wealth', 'health'].includes(type) ? type : 'general'
   if (!recordId.value) {
     error.value = '缺少排盘记录，请先保存排盘后再生成报告'
     return
   }
-  if (!getToken()) {
+  sessionToken = getToken()
+  sessionUserId = currentUserId()
+  if (!sessionToken) {
+    needsLogin.value = true
     error.value = '登录后才能生成属于你的报告'
     return
   }
@@ -471,8 +592,41 @@ onLoad((q) => {
 })
 
 // 从收银页或会员页返回：仍停在购买选项时重新检查一次
-onShow(() => {
+onShow(async () => {
+  if (!recordId.value) return
+  const currentToken = getToken()
+  if (currentToken !== sessionToken) {
+    const userId = currentUserId()
+    const accountChanged = !sessionToken || !currentToken || !userId || !sessionUserId || userId !== sessionUserId
+    if (accountChanged) clearPrivateReport()
+    sessionToken = currentToken
+    sessionUserId = userId
+    if (!currentToken) {
+      needsLogin.value = true
+      error.value = '登录后才能生成属于你的报告'
+      return
+    }
+    if (accountChanged) {
+      checkAccessThenLoad()
+      return
+    }
+  }
+  if (!currentToken) return
   if (paywall.value && !loading.value) checkAccessThenLoad()
+  else if (report.value && !loading.value) {
+    const currentId = report.value.id
+    try {
+      const access = await aiReportApi.access(recordId.value, report.value.content.metadata.reportType || requestedReportType.value)
+      if (!access.granted && report.value?.id === currentId) {
+        report.value = null
+        chatOpen.value = false
+        chatItems.value = []
+        paywall.value = access
+      }
+    } catch {
+      // 网络异常时保留已读正文；服务端详情与提问接口仍独立核验权益。
+    }
+  }
 })
 </script>
 
@@ -502,7 +656,7 @@ onShow(() => {
 
       <view v-else-if="loading" class="state">
         <text class="state-title">小卜正在对照盘面、门派理论和古籍出处撰写报告…</text>
-        <text class="state-sub">通常需要几十秒，请勿离开页面</text>
+        <text class="state-sub">通常需要几十秒；离开后可从原排盘记录继续查看或重试</text>
       </view>
 
       <view v-else-if="paywall" class="paywall" data-testid="report-paywall">
@@ -521,7 +675,7 @@ onShow(() => {
         <view class="pw-card" data-testid="report-member" @tap="openMember">
           <view class="pw-row">
             <text class="pw-name">开通小卜AI会员</text>
-            <text class="pw-price pw-price-soft">¥{{ memberFrom }} 起</text>
+            <text v-if="memberFrom !== null" class="pw-price pw-price-soft">¥{{ memberFrom }} 起</text>
           </view>
           <text class="pw-desc">会员期内报告免费、不限次数，每月赠送 {{ paywall.memberMonthlyVoiceMinutes }} 分钟 AI 语音对话</text>
         </view>
@@ -530,7 +684,9 @@ onShow(() => {
       <view v-else-if="error" class="state">
         <text class="state-title">{{ error }}</text>
         <view class="state-actions">
-          <view v-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
+          <view v-if="needsLogin" class="btn btn-primary" @tap="navigateTo('/login')"><text class="btn-text-primary">去登录</text></view>
+          <view v-else-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
+          <view v-if="savedOpenFailed && !needsLogin" class="btn" @tap="regenerateFromRecord"><text class="btn-text">从原排盘恢复报告</text></view>
           <view class="btn" @tap="navigateBack()"><text class="btn-text">返回查看盘面</text></view>
         </view>
       </view>
@@ -1054,11 +1210,20 @@ onShow(() => {
             <text class="sheet-sub">{{ chatSectionTitle ? `正在聊：${chatSectionTitle}` : '围绕这份报告提问' }}</text>
           </view>
           <view class="sheet-tools">
-            <text v-if="chatItems.length" class="hint clear-link" @tap="clearDialogue">清空记录</text>
+            <text v-if="chatItems.length || previousChatItems.length" class="hint clear-link" @tap="clearDialogue">清空记录</text>
             <view class="hdr-back" @tap="chatOpen = false"><app-icon name="x" :size="36" color="#666666" /></view>
           </view>
         </view>
         <scroll-view scroll-y class="sheet-body" :scroll-into-view="`chat-${chatItems.length - 1}`">
+          <view v-if="previousChatItems.length" class="progress-tip">
+            <text class="hint" @tap="showPreviousChat = !showPreviousChat">旧版报告问答 {{ previousChatItems.length }} 条 · {{ showPreviousChat ? '收起' : '查看' }}</text>
+            <text class="hint">旧版问答不会用于当前报告的回答</text>
+          </view>
+          <template v-if="showPreviousChat">
+            <view v-for="(c, i) in previousChatItems" :key="`previous-${i}`" class="msg" :class="c.role === 'user' ? 'msg-user' : 'msg-bot'">
+              <text class="msg-text">{{ c.text }}</text>
+            </view>
+          </template>
           <view v-if="!chatItems.length" class="chat-empty">
             <text class="hint">可以问报告里看不懂的术语、某一节和自己生活的关系，或门派为什么看法不同。</text>
           </view>
@@ -1067,6 +1232,7 @@ onShow(() => {
           </view>
           <view v-for="(c, i) in chatItems" :id="`chat-${i}`" :key="i" class="msg" :class="c.role === 'user' ? 'msg-user' : 'msg-bot'">
             <text class="msg-text" :class="{ 'msg-failed': c.failed }">{{ c.text }}</text>
+            <text v-if="c.failed && c.retryQuestion" class="term-ask" @tap="retryQuestion(i)">重试这个问题</text>
             <view v-if="c.answer && (c.answer.sectionTitle || c.answer.references.length)" class="msg-meta">
               <text class="seal seal-pan small-seal">盘</text>
               <text v-if="c.answer.references.some((r) => r.kind === 'school_theory')" class="seal seal-pai small-seal">派</text>

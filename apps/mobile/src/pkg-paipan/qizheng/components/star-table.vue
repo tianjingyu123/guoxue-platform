@@ -4,7 +4,7 @@
  * 列：星曜 / 宫位 / 宿度 / 行（迟留伏逆）/ 化曜 / 垣（庙陷）/ 恩用（恩用仇难）
  * 取舍：V0 的 <table> → flex 行（.tr/.th/.td），小程序无表格语义
  */
-import type { QizhengResult } from '@/pkg-paipan/lib/qizheng-engine'
+import type { QizhengResult } from '@/pkg-paipan/lib/qizheng-types'
 
 defineProps<{ result: QizhengResult }>()
 

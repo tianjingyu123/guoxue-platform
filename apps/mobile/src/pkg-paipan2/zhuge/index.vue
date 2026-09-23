@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
  * 诸葛神数入口页——自 V0 app/zhuge/page.tsx 还原
- * 心诚仪式：安静默想所问之事，随心输入三个汉字 → 结果页本地重算
+ * 心诚仪式：安静默想所问之事，随心输入三个汉字 → 结果页由服务端起卦
  * 取舍：①开始前先试算一次，接住引擎「不在康熙字典库」错误 toast 提示换字（引擎已弃 cnchar 改直查康熙字典库）
  *       ②补测算历史弹层（本地 rebu:zhuge-history · 上限 50，沿用梅花易数范式）
  *       ③性能（2026-07-17 审计）：签库+康熙笔画共约 968KB JSON 随 zhuge-engine 静态引入，
  *         未摇签先下全量数据——输入页改动态 import()（点「开始」才加载引擎），
  *         result 页保持静态引（引擎打进独立 chunk，两处共享同一份，不重复下载）
+ *       ④2026-09-21 第 4 步：引擎与 384 签文库迁至服务端，前端不再下载这 968KB，预检改为一次服务端起卦
  */
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { ref, computed } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -33,19 +35,14 @@ async function submit() {
   if (!valid.value || submitting) return
   submitting = true
   try {
-    // 摇签动作后才动态加载引擎（签库+康熙笔画数据随 chunk 此刻才下载）
-    const { paiZhuge } = await import('@/pkg-paipan2/lib/zhuge-engine')
-    // 预检：生僻字不在康熙字典库时提前拦截（占卜须准确，不静默兜底）
-    try {
-      paiZhuge(trimmed.value)
-    } catch (e) {
-      uni.showToast({ title: e instanceof Error ? e.message : '起卦失败，请换字再测', icon: 'none' })
-      return
-    }
+    // 预检：生僻字不在康熙字典库时提前拦截（占卜须准确，不静默兜底）。
+    // 签库与笔画表已在服务端（第 4 步），预检即一次服务端起卦；报错原文如「…不在康熙字典库中，请换字再测」
+    await computePaipan('zhuge', { input: trimmed.value })
     navigateTo(`/pkg-paipan2/zhuge/result?input=${encodeURIComponent(trimmed.value)}`)
-  } catch {
-    // 弱网下引擎 chunk 加载失败：给明确提示，可重试
-    uni.showToast({ title: '网络不佳，加载签库失败，请重试', icon: 'none' })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    const isInputError = /康熙字典|三个汉字|参数/.test(msg)
+    uni.showToast({ title: isInputError ? msg : '网络不佳，起卦失败，请重试', icon: 'none' })
   } finally {
     submitting = false
   }

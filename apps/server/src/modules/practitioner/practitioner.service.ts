@@ -3,6 +3,9 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "node:crypto";
+import { safePagination } from "../../common/pagination";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
+import { Prisma } from "@prisma/client";
 
 /**
  * 从业者工作台（V0「从业者工作台」的真后端）
@@ -23,7 +26,7 @@ export class PractitionerService {
   /** 免费用户可保留的报告份数（超出需开通会员） */
   static readonly FREE_REPORT_QUOTA = 3;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private commerce: XiaobuCommerceService) {}
 
   // ───────────────────────── 会员与档案 ─────────────────────────
 
@@ -117,7 +120,7 @@ export class PractitionerService {
 
   // ───────────────────────── 报告工坊 ─────────────────────────
 
-  async listReports(userId: string, query: { status?: string; keyword?: string }) {
+  async listReports(userId: string, query: { status?: string; keyword?: string; page?: string | number }) {
     const where: any = { ownerId: userId };
     if (query.status) where.status = query.status;
     if (query.keyword) {
@@ -126,21 +129,38 @@ export class PractitionerService {
         { clientName: { contains: query.keyword } },
       ];
     }
-    const list = await this.prisma.practitionerReport.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-    });
-    return { list, total: list.length, quota: await this.reportQuota(userId) };
+    const { page, pageSize, skip } = safePagination(query.page, 20, 20);
+    const [list, total, quota] = await Promise.all([
+      this.prisma.practitionerReport.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.practitionerReport.count({ where }),
+      this.reportQuota(userId),
+    ]);
+    // 不平铺 page/pageSize：统一响应拦截器会把它识别为通用分页响应并丢弃 quota。
+    return { list, total, pagination: { page, pageSize, total }, quota };
   }
 
   /** 报告配额：会员不限，免费用户 FREE_REPORT_QUOTA 份 */
-  private async reportQuota(userId: string) {
-    const [pro, used] = await Promise.all([
-      this.isPro(userId),
-      this.prisma.practitionerReport.count({ where: { ownerId: userId } }),
+  private async reportQuota(userId: string, db: Prisma.TransactionClient = this.prisma) {
+    const [profile, used] = await Promise.all([
+      db.practitionerProfile.findUnique({ where: { userId }, select: { proExpireAt: true } }),
+      db.practitionerReport.count({ where: { ownerId: userId } }),
     ]);
+    const pro = !!profile?.proExpireAt && profile.proExpireAt > new Date();
     return { used, limit: pro ? null : PractitionerService.FREE_REPORT_QUOTA, unlimited: pro };
+  }
+
+  /** 同一老师的手建与导入共用锁，避免并发重复导入或越过免费配额。 */
+  private withReportWriteLock<T>(userId: string, action: (db: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async (db) => {
+      // 事务级咨询锁在提交后自动释放；哈希碰撞只会导致额外串行，不会串错数据。
+      await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`practitioner-report:${userId}`}))`;
+      return action(db);
+    });
   }
 
   async getReport(userId: string, id: string) {
@@ -150,28 +170,30 @@ export class PractitionerService {
   }
 
   async createReport(userId: string, dto: any) {
-    const q = await this.reportQuota(userId);
-    if (!q.unlimited && q.used >= (q.limit ?? 0)) {
-      throw new BusinessException(
-        ErrorCode.FORBIDDEN,
-        `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
-      );
-    }
-    return this.prisma.practitionerReport.create({
-      data: {
-        ownerId: userId,
-        clientId: dto.clientId ?? null,
-        toolKey: dto.toolKey ?? null,
-        type: dto.type,
-        typeLabel: dto.typeLabel,
-        title: dto.title,
-        clientName: dto.clientName,
-        clientBirth: dto.clientBirth ?? null,
-        status: dto.status ?? "draft",
-        style: dto.style ?? "classic",
-        paipan: dto.paipan ?? undefined,
-        chapters: dto.chapters ?? undefined,
-      },
+    return this.withReportWriteLock(userId, async (db) => {
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: dto.clientId ?? null,
+          toolKey: dto.toolKey ?? null,
+          type: dto.type,
+          typeLabel: dto.typeLabel,
+          title: dto.title,
+          clientName: dto.clientName,
+          clientBirth: dto.clientBirth ?? null,
+          status: dto.status ?? "draft",
+          style: dto.style ?? "classic",
+          paipan: dto.paipan ?? undefined,
+          chapters: dto.chapters ?? undefined,
+        },
+      });
     });
   }
 
@@ -204,6 +226,21 @@ export class PractitionerService {
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+
+    // 与报告阅读共用权益口径；关联缺失时不能凭旧报告 ID 绕过当前权益。
+    const reportType = String(content?.metadata?.reportType ||
+      (rec.analyzeType?.startsWith("REPORT_") ? rec.analyzeType.slice(7).toLowerCase() : ""));
+    if (!rec.paipanRecordId || !reportType) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "报告缺少权益关联，暂无法导入工作台");
+    }
+    const sourceChart = await this.prisma.paipanRecord.findUnique({
+      where: { id: rec.paipanRecordId },
+      select: { userId: true, clientName: true },
+    });
+    if (!sourceChart || sourceChart.userId !== userId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "原排盘记录不存在");
+    }
+    await this.commerce.assertReportAccess(userId, rec.paipanRecordId, reportType);
 
     const paipanType = String(content?.metadata?.paipanType || "bazi");
     const TYPE_LABEL: Record<string, string> = {
@@ -246,51 +283,66 @@ export class PractitionerService {
            */
           deterministic: !!x.deterministic,
           fromXiaobu: true,
+          // 客户预览与公开页读 ai 字段；盘面事实不标 AI，模型解读初稿须披露。
+          ai: !x.deterministic && (x.type === "analysis" || x.type === "interpretation"),
         };
       });
 
-    const q = await this.reportQuota(userId);
-    if (!q.unlimited && q.used >= (q.limit ?? 0)) {
-      throw new BusinessException(
-        ErrorCode.FORBIDDEN,
-        `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
-      );
-    }
+    return this.withReportWriteLock(userId, async (db) => {
+      // 拿到锁后再查已有件：两台设备同时首次导入时，后到者直接回到先建的稿。
+      const imported = await db.practitionerReport.findFirst({
+        where: { ownerId: userId, paipan: { path: ["sourceReportId"], equals: rec.id } },
+      });
+      if (imported) return imported;
 
-    return this.prisma.practitionerReport.create({
-      data: {
-        ownerId: userId,
-        clientId: input.clientId ?? null,
-        toolKey: paipanType,
-        type: paipanType,
-        typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
-        title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
-        clientName: input.clientName?.trim() || "未命名客户",
-        status: "draft",
-        style: "classic",
-        // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
-        // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
-        paipan: {
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: input.clientId ?? null,
           toolKey: paipanType,
-          toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
-          // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
-          // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
-          summary: rec.inputSummary || "",
-          data: {
-            facts: content?.facts ?? null,
-            chartView: content?.chartView ?? null,
-          },
-          sourceReportId: rec.id,
-        } as any,
-        chapters: chapters as any,
-      },
+          type: paipanType,
+          typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+          title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
+          clientName: input.clientName?.trim() || sourceChart.clientName?.trim() || "未命名客户",
+          status: "draft",
+          style: "classic",
+          // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
+          // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
+          paipan: {
+            toolKey: paipanType,
+            toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+            // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
+            // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
+            summary: rec.inputSummary || "",
+            data: {
+              facts: content?.facts ?? null,
+              chartView: content?.chartView ?? null,
+            },
+            sourceReportId: rec.id,
+          } as any,
+          chapters: chapters as any,
+        },
+      });
     });
   }
 
   async updateReport(userId: string, id: string, dto: any) {
     await this.getReport(userId, id); // 归属校验（他人的 id 与不存在同样 404）
-    return this.prisma.practitionerReport.update({
-      where: { id },
+    const expectedUpdatedAt = dto.updatedAt === undefined ? undefined : new Date(dto.updatedAt);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再保存");
+    }
+    // 客户链接读取当前正文；交付后只能先撤回，避免编辑中的内容即时暴露给客户。
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
       data: {
         title: dto.title,
         type: dto.type,
@@ -304,11 +356,24 @@ export class PractitionerService {
         chapters: dto.chapters ?? undefined,
       },
     });
+    if (!updated.count) {
+      const current = await this.getReport(userId, id);
+      if (current.shareToken) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再修改");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已在其他设备修改，请保留本页内容并重新加载后再保存");
+    }
+    return this.getReport(userId, id);
   }
 
-  async deleteReport(userId: string, id: string) {
+  async deleteReport(userId: string, id: string, expectedVersion?: string) {
     await this.getReport(userId, id);
-    await this.prisma.practitionerReport.delete({ where: { id } });
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请刷新列表后再删除");
+    }
+    const deleted = await this.prisma.practitionerReport.deleteMany({
+      where: { id, ownerId: userId, updatedAt: expectedUpdatedAt },
+    });
+    if (!deleted.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新列表后确认再删除");
     return { success: true };
   }
 
@@ -317,25 +382,51 @@ export class PractitionerService {
    * 令牌即凭证 —— 拿到链接的人（客户，通常没有本平台账号）无需登录即可查看这一份报告。
    * 因此令牌必须是高熵随机（非自增/非可猜），且只暴露这一份报告的内容。
    */
-  async shareReport(userId: string, id: string) {
+  async shareReport(userId: string, id: string, expectedVersion?: string) {
     await this.requirePro(userId, "交付报告给客户");
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再交付");
+    }
     const r = await this.getReport(userId, id);
-    const token = r.shareToken ?? randomBytes(16).toString("hex");
-    const updated = await this.prisma.practitionerReport.update({
-      where: { id },
-      data: { shareToken: token, sharedAt: new Date(), status: r.status === "draft" ? "delivered" : r.status },
+    if (expectedUpdatedAt && r.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
+    if (r.shareToken) return { shareToken: r.shareToken, sharedAt: r.sharedAt };
+
+    const token = randomBytes(16).toString("hex");
+    const sharedAt = new Date();
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
+      data: { shareToken: token, sharedAt, status: "delivered" },
     });
-    return { shareToken: updated.shareToken, sharedAt: updated.sharedAt };
+    if (updated.count) return { shareToken: token, sharedAt };
+
+    // 另一请求已先完成交付时，返回同一有效链接，避免双击得到作废令牌。
+    const current = await this.getReport(userId, id);
+    if (expectedUpdatedAt && current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请重新加载并预览后再交付");
+    }
+    if (current.shareToken) return { shareToken: current.shareToken, sharedAt: current.sharedAt };
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新后重试交付");
   }
 
   /** 撤回交付链接 */
-  async unshareReport(userId: string, id: string) {
-    await this.getReport(userId, id);
-    await this.prisma.practitionerReport.update({
-      where: { id },
-      data: { shareToken: null, sharedAt: null },
+  async unshareReport(userId: string, id: string, expectedToken?: string) {
+    const current = await this.getReport(userId, id);
+    if (expectedToken && current.shareToken !== expectedToken) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    }
+    if (!current.shareToken) {
+      return { success: true, updatedAt: current.updatedAt, shareToken: null, sharedAt: null, status: current.status };
+    }
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: current.shareToken },
+      data: { shareToken: null, sharedAt: null, status: "final" },
     });
-    return { success: true };
+    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "交付链接已更新，请重新加载后再撤回");
+    const latest = await this.getReport(userId, id);
+    return { success: true, updatedAt: latest.updatedAt, shareToken: latest.shareToken, sharedAt: latest.sharedAt, status: latest.status };
   }
 
   /** 公开：按令牌读一份报告（无需登录 · 只读 · 不返回 ownerId 等内部字段） */
@@ -347,6 +438,11 @@ export class PractitionerService {
       where: { id: r.ownerId },
       select: { nickname: true, avatar: true },
     });
+    const stillShared = await this.prisma.practitionerReport.findUnique({
+      where: { shareToken: token },
+      select: { id: true },
+    });
+    if (stillShared?.id !== r.id) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
     return {
       title: r.title,
       typeLabel: r.typeLabel,
@@ -357,7 +453,7 @@ export class PractitionerService {
       chapters: r.chapters,
       sharedAt: r.sharedAt,
       brand: {
-        brandName: profile?.brandName ?? author?.nickname ?? "",
+        brandName: profile?.brandName?.trim() || author?.nickname?.trim() || "",
         title: profile?.title ?? "",
         sealText: profile?.sealText ?? "",
         slogan: profile?.slogan ?? "",
@@ -375,7 +471,11 @@ export class PractitionerService {
     const where: any = { ownerId: userId };
     if (query.category && query.category !== "all") where.category = query.category;
     if (query.keyword) {
-      where.OR = [{ title: { contains: query.keyword } }, { clientName: { contains: query.keyword } }];
+      where.OR = [
+        { title: { contains: query.keyword } },
+        { clientName: { contains: query.keyword } },
+        { tags: { has: query.keyword } },
+      ];
     }
     const list = await this.prisma.practitionerCase.findMany({
       where,
@@ -386,6 +486,13 @@ export class PractitionerService {
   }
 
   async createCase(userId: string, dto: any) {
+    if (dto.reportId) {
+      const source = await this.prisma.practitionerReport.findFirst({
+        where: { id: dto.reportId, ownerId: userId },
+        select: { id: true },
+      });
+      if (!source) throw new BusinessException(ErrorCode.NOT_FOUND, "来源报告不存在");
+    }
     return this.prisma.practitionerCase.create({
       data: {
         ownerId: userId,
@@ -445,12 +552,14 @@ export class PractitionerService {
 
   async createAppointment(userId: string, dto: any) {
     if (!dto.startAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写预约时间");
+    const startAt = new Date(dto.startAt);
+    if (Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
     return this.prisma.practitionerAppointment.create({
       data: {
         ownerId: userId,
         clientId: dto.clientId ?? null,
         clientName: dto.clientName,
-        startAt: new Date(dto.startAt),
+        startAt,
         service: dto.service,
         channel: dto.channel ?? "到店",
         status: dto.status ?? "pending",
@@ -463,12 +572,14 @@ export class PractitionerService {
   async updateAppointment(userId: string, id: string, dto: any) {
     const a = await this.prisma.practitionerAppointment.findFirst({ where: { id, ownerId: userId } });
     if (!a) throw new BusinessException(ErrorCode.NOT_FOUND, "预约不存在");
+    const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
+    if (startAt && Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
     return this.prisma.practitionerAppointment.update({
       where: { id },
       data: {
         clientId: dto.clientId,
         clientName: dto.clientName,
-        startAt: dto.startAt ? new Date(dto.startAt) : undefined,
+        startAt,
         service: dto.service,
         channel: dto.channel,
         status: dto.status,
@@ -600,11 +711,28 @@ export class PractitionerService {
   // ───────────────────────── 工作台首页聚合 ─────────────────────────
 
   /** 今日概览：日程、待办提醒、本月收入、客户数 —— 一次拿全，首页不打散请求 */
-  async getHome(userId: string) {
+  async getHome(userId: string, period?: { dayStart?: string; dayEnd?: string; monthStart?: string }) {
     const now = new Date();
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dayEnd = new Date(dayStart.getTime() + 86400000);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    let monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (period?.dayStart || period?.dayEnd || period?.monthStart) {
+      if (!period.dayStart || !period.dayEnd || !period.monthStart) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围不完整，请刷新重试");
+      }
+      const start = new Date(period.dayStart);
+      const end = new Date(period.dayEnd);
+      const month = new Date(period.monthStart);
+      const dayLength = end.getTime() - start.getTime();
+      if ([start, end, month].some((d) => Number.isNaN(d.getTime())) ||
+          dayLength < 23 * 3600_000 || dayLength > 25 * 3600_000 ||
+          month.getTime() > start.getTime() || start.getTime() - month.getTime() > 31 * 86400_000) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围无效，请刷新重试");
+      }
+      dayStart = start;
+      dayEnd = end;
+      monthStart = month;
+    }
 
     const [appointments, reminders, clientCount, monthCommission, monthManual, pendingQuestions, reports] =
       await Promise.all([
@@ -614,7 +742,7 @@ export class PractitionerService {
         }),
         // 客户回访提醒（CRM 已有 ClientReminder：生日/回访/事件）
         this.prisma.clientReminder.findMany({
-          where: { ownerId: userId, status: "PENDING", dueAt: { lte: dayEnd } },
+          where: { ownerId: userId, status: "PENDING", dueAt: { lt: dayEnd } },
           orderBy: { dueAt: "asc" },
           take: 10,
           include: { client: { select: { name: true } } },
@@ -631,7 +759,7 @@ export class PractitionerService {
         // 平台内待回答的付费提问（老师的另一条真实待办）
         this.prisma.paidQuestion.count({ where: { answererId: userId, status: "PENDING" } }),
         this.prisma.practitionerReport.findMany({
-          where: { ownerId: userId },
+          where: { ownerId: userId, status: { in: ["draft", "final"] } },
           orderBy: { updatedAt: "desc" },
           take: 5,
           select: { id: true, title: true, typeLabel: true, clientName: true, status: true, updatedAt: true },

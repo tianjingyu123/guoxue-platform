@@ -12,8 +12,7 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { analyzeName } from '@/pkg-paipan2/lib/xingming-engine'
-import { computeBazi } from '@/pkg-paipan2/lib/bazi-engine'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import type { NameDetail } from '@/pkg-paipan2/lib/qiming-data'
 import NameDetailSections from '@/pkg-paipan2/qiming/name-detail-sections.vue'
 import { saveXingmingHistory } from './history'
@@ -56,6 +55,47 @@ const detail = ref<NameDetail | null>(null)
 const errMsg = ref('')
 const birthInfo = ref<{ shengxiao?: string; xingzuo?: string; birthText?: string }>({})
 const saved = ref(false)
+/** 服务端请求失败（区别于参数无效：可「重新推演」） */
+const netError = ref(false)
+let pendingPayload: Record<string, string> | null = null
+
+/**
+ * 姓名解析在服务端（第 4 步）：服务端按生辰排八字取生肖/农历（立春分界），再 analyzeName；
+ * 星座与生辰文案是纯展示，仍在本地拼。
+ */
+async function compute() {
+  const p = pendingPayload
+  if (!p) return
+  errMsg.value = ''
+  netError.value = false
+  try {
+    const r = await computePaipan<{ birth: { shengxiao: string; lunarDate: string } | null; detail: NameDetail }>('xingming', {
+      name: fullName.value, gender: gender.value, birth: p.birth ?? '', city: p.city || undefined,
+    })
+    const birth = parseBirth(p.birth ?? '')
+    birthInfo.value = birth && r.birth
+      ? {
+          shengxiao: r.birth.shengxiao,
+          xingzuo: xingzuoOf(birth.month, birth.day),
+          birthText: `${birth.year}年${birth.month}月${birth.day}日 ${birth.hour}时${birth.minute}分（${r.birth.lunarDate.replace(/^.*?年/, '')}）`,
+        }
+      : {}
+    detail.value = r.detail
+    // 进入页面即自动留存历史（保存按钮为显式确认）
+    saveXingmingHistory({
+      name: fullName.value,
+      gender: gender.value,
+      birth: p.birth ?? '',
+      city: p.city || undefined,
+      district: p.district || undefined,
+      score: r.detail.candidate.score,
+    })
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    netError.value = !msg.startsWith('参数')
+    errMsg.value = netError.value ? '推演服务暂时不可用，请稍后重试' : '参数无效，请返回重新填写。'
+  }
+}
 
 /** 解析 "YYYY-MM-DD HH:mm" */
 function parseBirth(birth: string): { year: number; month: number; day: number; hour: number; minute: number } | null {
@@ -75,37 +115,8 @@ onLoad((opts: Record<string, string> = {}) => {
     fullName.value = name
     gender.value = p.gender === '女' ? '女' : '男'
 
-    // 生肖/农历生辰（立春分界，与 V0 lunar-typescript 口径一致）
-    const birth = parseBirth(p.birth ?? '')
-    if (birth) {
-      try {
-        const bazi = computeBazi({
-          name: '',
-          gender: gender.value,
-          ...birth,
-          city: p.city || undefined,
-          useTrueSolar: false,
-        })
-        birthInfo.value = {
-          shengxiao: bazi.zodiac,
-          xingzuo: xingzuoOf(birth.month, birth.day),
-          birthText: `${birth.year}年${birth.month}月${birth.day}日 ${birth.hour}时${birth.minute}分（${bazi.lunarDate.replace(/^.*?年/, '')}）`,
-        }
-      } catch {
-        birthInfo.value = {}
-      }
-    }
-
-    detail.value = analyzeName({ fullName: name, gender: gender.value, shengxiao: birthInfo.value.shengxiao })
-    // 进入页面即自动留存历史（保存按钮为显式确认）
-    saveXingmingHistory({
-      name,
-      gender: gender.value,
-      birth: p.birth ?? '',
-      city: p.city || undefined,
-      district: p.district || undefined,
-      score: detail.value.candidate.score,
-    })
+    pendingPayload = p
+    compute()
   } catch {
     errMsg.value = '参数解析失败，请返回重新填写。'
   }
@@ -137,8 +148,8 @@ function onBack() {
     <!-- 错误态 -->
     <view v-if="!detail || !c" class="error-wrap">
       <text class="error-text">{{ errMsg || '推演中…' }}</text>
-      <view v-if="errMsg" class="error-btn" @tap="retry">
-        <text class="error-btn-text">返回重填</text>
+      <view v-if="errMsg" class="error-btn" @tap="netError ? compute() : retry()">
+        <text class="error-btn-text">{{ netError ? '重新推演' : '返回重填' }}</text>
       </view>
     </view>
 

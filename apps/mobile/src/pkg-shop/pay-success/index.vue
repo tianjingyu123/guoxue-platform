@@ -11,8 +11,12 @@
       <text class="verify-title">暂时无法确认支付成功</text>
       <text class="verify-desc">{{ errorMessage }}</text>
       <view class="verify-actions">
-        <view class="action-btn primary" @tap="goOrders">
-          <app-icon name="shopping-bag" :size="36" color="#fff" />
+        <view v-if="orderInfo.orderId && canRetryVerification" class="action-btn primary" @tap="verifyPayment">
+          <app-icon name="refresh-cw" :size="36" color="#fff" />
+          <text>重新核验</text>
+        </view>
+        <view class="action-btn ghost" @tap="goOrders">
+          <app-icon name="shopping-bag" :size="36" color="#2C2C2C" />
           <text>查看订单</text>
         </view>
         <view class="action-btn ghost" @tap="goHome">
@@ -20,7 +24,7 @@
           <text>返回首页</text>
         </view>
       </view>
-      <text class="verify-help">若已完成付款，请稍后在订单中心刷新状态；请勿重复支付。</text>
+      <text class="verify-help">若已完成付款，可在此重新核验或稍后查看订单；请勿重复支付。</text>
     </view>
 
     <template v-else>
@@ -40,7 +44,7 @@
       <text class="hero-title" :class="{ show: showAnim }">支付成功</text>
       <view class="hero-amount" :class="{ show: showAnim }">
         <text class="amt">¥{{ orderInfo.amount.toFixed(2) }}</text>
-        <text class="amt-desc">{{ orderInfo.payMethod }} · {{ orderInfo.itemCount }}件商品</text>
+        <text class="amt-desc">{{ orderInfo.payMethod }} · {{ nextAction?.title || `${orderInfo.itemCount}件商品` }}</text>
       </view>
     </view>
 
@@ -70,11 +74,15 @@
 
       <!-- 操作按钮 -->
       <view class="actions" :class="{ show: showAnim }">
+        <view v-if="nextAction" class="action-btn primary" @tap="goPurchasedService">
+          <app-icon name="file-text" :size="36" color="#fff" />
+          <text>{{ nextAction.label }}</text>
+        </view>
         <view v-if="returnLiveRoomId" class="action-btn live" @tap="backToLive">
           <app-icon name="radio" :size="36" color="#fff" />
           <text>返回直播间</text>
         </view>
-        <view class="action-btn primary" @tap="goOrder">
+        <view class="action-btn" :class="nextAction ? 'ghost' : 'primary'" @tap="goOrder">
           <app-icon name="shopping-bag" :size="36" color="#fff" />
           <text>查看订单</text>
         </view>
@@ -85,7 +93,7 @@
       </view>
 
       <!-- 推荐入口 -->
-      <view class="recommend" :class="{ show: showAnim }">
+      <view v-if="!nextAction" class="recommend" :class="{ show: showAnim }">
         <text class="rec-title">猜你喜欢</text>
         <view class="rec-card" @tap="goShop">
           <view class="rec-icon"><app-icon name="gift" :size="36" color="#fff" /></view>
@@ -107,11 +115,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { computed, ref, reactive } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import BrandSeal from '@/components/common/brand-seal.vue'
 import { redirectTo, reLaunch } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { paidOrderNext } from '@/lib/paid-order-next'
+import { track } from '@/composables/useTrack'
 
 const orderInfo = reactive({
   orderId: '',
@@ -119,28 +129,64 @@ const orderInfo = reactive({
   payMethod: '在线支付',
   paidAt: '',
   itemCount: 1,
+  type: '',
+  targetId: '',
 })
 const copied = ref(false)
 const showAnim = ref(false)
 const submitting = ref(false)
 const viewState = ref<'loading' | 'success' | 'error'>('loading')
 const errorMessage = ref('')
+const canRetryVerification = ref(true)
 const returnLiveRoomId = ref('')
+const returnRecordId = ref('')
+const returnVoiceScene = ref('')
+const returnVoiceContextId = ref('')
+const returnVoiceSectionId = ref('')
+const nextAction = computed(() => paidOrderNext(orderInfo.type, orderInfo.targetId, returnRecordId.value, {
+  scene: returnVoiceScene.value,
+  contextId: returnVoiceContextId.value,
+  sectionId: returnVoiceSectionId.value,
+}))
+let verifying = false
 
-onLoad(async (q) => {
+onLoad((q) => {
   orderInfo.orderId = String(q?.orderId || '').trim()
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
+  returnRecordId.value = String(q?.returnRecordId || '').trim()
+  returnVoiceScene.value = String(q?.returnVoiceScene || '').trim()
+  returnVoiceContextId.value = String(q?.returnVoiceContextId || '').trim()
+  returnVoiceSectionId.value = String(q?.returnVoiceSectionId || '').trim()
   if (!orderInfo.orderId) {
     viewState.value = 'error'
     errorMessage.value = '缺少订单信息，无法核验支付结果。'
+    canRetryVerification.value = false
     return
   }
+  void verifyPayment()
+})
+
+// 从订单页返回或微信回调稍晚时，可以只读核验同一订单，不再次发起支付。
+onShow(() => {
+  if (viewState.value === 'error' && canRetryVerification.value && orderInfo.orderId) void verifyPayment()
+})
+
+async function verifyPayment() {
+  if (verifying || !orderInfo.orderId || viewState.value === 'success') return
+  verifying = true
+  viewState.value = 'loading'
+  errorMessage.value = ''
   try {
     // 同一次订单查询同时返回摘要和真实状态，只有已支付状态才能进入成功页。
     const s = await shopApi.getOrderSummary(orderInfo.orderId)
     if (!s.paid) {
       viewState.value = 'error'
-      errorMessage.value = '订单尚未支付完成，请到订单中心查看最新状态。'
+      canRetryVerification.value = s.status !== 'REFUNDED' && s.status !== 'CANCELLED'
+      errorMessage.value = s.status === 'REFUNDED'
+        ? '该订单已退款，请到订单中心查看处理记录。'
+        : s.status === 'CANCELLED'
+          ? '该订单已取消，请到订单中心查看。'
+          : '订单尚未显示到账，支付回调可能仍在处理，请稍后重新核验。'
       return
     }
     orderInfo.orderId = s.orderId
@@ -148,14 +194,18 @@ onLoad(async (q) => {
     orderInfo.payMethod = s.payMethod
     orderInfo.paidAt = s.paidAt || '支付时间待同步'
     orderInfo.itemCount = s.itemCount
+    orderInfo.type = s.type || ''
+    orderInfo.targetId = s.targetId || ''
     viewState.value = 'success'
     setTimeout(() => { showAnim.value = true }, 100)
   } catch (e) {
     console.warn('[pay-success] 支付结果核验失败', e)
     viewState.value = 'error'
-    errorMessage.value = '订单状态查询失败，请到订单中心确认后再继续。'
+    errorMessage.value = '订单状态查询失败，请稍后重新核验或到订单中心查看。'
+  } finally {
+    verifying = false
   }
-})
+}
 
 function handleCopy() {
   if (copied.value || !orderInfo.orderId) return
@@ -172,6 +222,13 @@ function goOrder() {
   submitting.value = true
   // 走订单详情真路由 /orders/:id（原 /shop/orders/:id 无映射为死链）
   reLaunch(`/orders/${orderInfo.orderId}?paymentReturn=1`)
+  setTimeout(() => { submitting.value = false }, 500)
+}
+function goPurchasedService() {
+  if (submitting.value || !nextAction.value) return
+  track.custom('paid_service_continue', { orderType: orderInfo.type })
+  submitting.value = true
+  redirectTo(nextAction.value.path)
   setTimeout(() => { submitting.value = false }, 500)
 }
 function backToLive() {

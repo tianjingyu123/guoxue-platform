@@ -1,13 +1,13 @@
 /**
  * 阴盘奇门·共享核心（阴盘奇门 / 阴盘命理奇门两工具共用）
  * 视图模型转换、移星换斗、月将/外圈神将、宫位断语字典。
- * 盘面计算全部走 @/pkg-paipan/lib/qimen-engine（黄金案例已验证），此处只做展示层。
+ * 盘面计算在服务端（2026-09-21 第 4 步迁移，原 shared qimen-engine 原样），此处只做展示层。
  */
 import {
   type QimenResult,
   RING_PALACES,
   PALACE_DIZHI,
-} from '@/pkg-paipan/lib/qimen-engine'
+} from '@/pkg-paipan/lib/qimen-consts'
 import { findTerm } from '@/lib/paipan/jieqi'
 
 // ─── 基础常量 ───

@@ -27,6 +27,8 @@ const OPERATOR_LEVELS = ["SILVER", "GOLD", "DIAMOND", "BLACK_GOLD"];
  * 站长/运营商本身就是分销角色，不排除会被自己的分销比例打折（实测 4999 → 3999.2）。
  */
 const FRANCHISE_ORDER_TYPES = ["STATION_MASTER", "OPERATOR"];
+/** 单次购买／续费在原待付单完成前复用同一订单，防止换设备后重复创建可扣款订单。 */
+const RESUMABLE_DIGITAL_ORDER_TYPES = new Set([XIAOBU_REPORT_ORDER_TYPE, XIAOBU_MEMBER_ORDER_TYPE, "PRACTITIONER_PRO"]);
 
 interface FreightQuote {
   shippingFee: number;
@@ -124,6 +126,9 @@ export class ShopOrderService {
       actualAmount = (await priceMemberOrder(this.prisma, dto.targetId)).amountYuan;
     } else if (dto.type === "PRACTITIONER_PRO") {
       // 从业者会员（工作台专业版）月付：价格真源 CommissionConfig.rateA，禁硬编码
+      if (dto.targetId !== "practitioner_pro_monthly") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "从业者会员档位不存在");
+      }
       actualAmount = await this.resolveBillingPrice("practitioner_pro_monthly", "从业者会员");
     } else if (dto.type === "OPERATOR") {
       // 运营商开通/续期：targetId = 档位（SILVER/GOLD/DIAMOND/BLACK_GOLD）。价格真源 CommissionConfig.rateA。
@@ -251,12 +256,15 @@ export class ShopOrderService {
     // 尤其自购立减——站长本身是分销角色，不排除的话他买运营商资格会被自己的分销比例打折（实测 4999→3999.2，平台白丢 1000）。
     const isFranchiseFee = FRANCHISE_ORDER_TYPES.includes(dto.type);
 
-    // 分站年租和运营商资格均属可续期服务：同用户/同标的下单串行化，只保留一张可支付订单。
+    // 数字服务与资格费同用户、同标的串行下单，避免跨设备重复创建可扣款订单。
+    const resumableDigital = RESUMABLE_DIGITAL_ORDER_TYPES.has(dto.type);
     const recurringOrderLockKey = dto.type === "STATION_MASTER"
       ? "station-order:create:" + userId + ":" + dto.targetId
       : dto.type === "OPERATOR"
         ? "operator-order:create:" + userId + ":" + dto.targetId
-        : null;
+        : resumableDigital
+          ? "digital-order:create:" + dto.type + ":" + userId + ":" + dto.targetId
+          : null;
     if (recurringOrderLockKey) {
       const locked = await this.redis.setNX(recurringOrderLockKey, "1", 30);
       if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付订单正在创建，请稍后重试");
@@ -275,16 +283,25 @@ export class ShopOrderService {
             return existing;
           }
         }
-        if (dto.type === "STATION_MASTER" || dto.type === "OPERATOR") {
+        let pendingDigitalOrder: any = null;
+        if (dto.type === "STATION_MASTER" || dto.type === "OPERATOR" || resumableDigital) {
           // PostgreSQL 事务级锁是 Redis 降级/多实例场景的最终防线；事务结束自动释放。
-          const dbLockName = (dto.type === "STATION_MASTER" ? "station-order:" : "operator-order:")
+          const dbLockName = (dto.type === "STATION_MASTER" ? "station-order:" : dto.type === "OPERATOR" ? "operator-order:" : "digital-order:" + dto.type + ":")
             + userId + ":" + dto.targetId;
           await tx.$queryRawUnsafe("SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))", dbLockName);
           const pending = await tx.order.findFirst({
             where: { userId, type: dto.type as any, targetId: dto.targetId, status: "PENDING" },
             orderBy: { createdAt: "desc" },
           });
-          if (pending) return pending;
+          if (pending) {
+            if (!resumableDigital) return pending;
+            if ((pending.couponId ?? null) !== (dto.couponId ?? null)) {
+              throw new BusinessException(ErrorCode.BAD_REQUEST, "已有待支付订单，请先在订单中心完成或取消原订单");
+            }
+            // 已核销的券不能再次试算；待付订单保留创建时确认的金额与优惠条件。
+            if (dto.couponId) return { ...pending, reused: true };
+            pendingDigitalOrder = pending;
+          }
         }
 
         // 优惠券校验与折扣计算（服务端计算，防篡改；计算逻辑与 estimateOrder 共用同一实现）
@@ -308,6 +325,13 @@ export class ShopOrderService {
         // 运费独立于商品优惠计算：优惠券/自购立减只抵商品，运费按下单前展示的同一模板快照计入实付。
         if (dto.type === "PRODUCT") {
           actualAmount = Math.round((actualAmount + freightQuote.shippingFee) * 100) / 100;
+        }
+
+        if (pendingDigitalOrder) {
+          if (Math.round(Number(pendingDigitalOrder.amount) * 100) !== Math.round(actualAmount * 100)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "原待支付订单金额已变化，请先在订单中心取消原订单后重新购买");
+          }
+          return { ...pendingDigitalOrder, reused: true };
         }
 
         // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──

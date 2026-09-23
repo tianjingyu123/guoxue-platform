@@ -1242,7 +1242,7 @@ interface RawCoupon { id?: string; name?: string; type?: string; value?: number 
 interface RawUserCoupon { id?: string; couponId?: string; used?: boolean; coupon?: RawCoupon | null }
 interface RawFlashItem { productId?: string; product?: { title?: string; image?: string; originalPrice?: number | string; price?: number | string } | null; flashPrice?: number | string; stock?: number; sold?: number }
 interface RawFlashSale { id?: string; name?: string; startTime?: string; endTime?: string; items?: RawFlashItem[] }
-interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
+interface RawShopOrder { id?: string; type?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
 
 /* —— 订单试算（结算页价格明细预估·与后端定价引擎同口径） —— */
 interface RawOrderEstimate { goodsAmount?: number | string; shippingFee?: number | string; couponDiscount?: number | string; selfDiscount?: number | string; payableAmount?: number | string }
@@ -1786,7 +1786,7 @@ export const shopApi = {
    * 内容来源（佣-V2-P3）：显式传入 sourceContentType/Id 优先（直播/视频直跳结算 URL 透传）；
    * 未显式传入时回落会话内暂存来源（文章→商品详情→结算的间接链路），仅当商品匹配才带上。
    */
-  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string; clientRequestId?: string }): Promise<{ id: string; amount: number; status: string }> {
+  async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string; clientRequestId?: string }): Promise<{ id: string; amount: number; status: string; reused?: boolean }> {
     const orderType = String(payload.type || 'PRODUCT').toUpperCase()
     const featureKey = orderType === 'MEMBER' ? 'member_purchase' : 'shop_checkout'
     if (!isClientFeatureEnabled(featureKey, true)) {
@@ -1797,7 +1797,7 @@ export const shopApi = {
     const source = (payload.sourceContentType && payload.sourceContentId)
       ? { type: payload.sourceContentType, id: payload.sourceContentId }
       : peekOrderSource(payload.targetId)
-    const res = await apiPost<{ id?: string; amount?: number | string; status?: string }>('/shop/orders', {
+    const res = await apiPost<{ id?: string; amount?: number | string; status?: string; reused?: boolean }>('/shop/orders', {
       type: orderType,
       targetId: payload.targetId,
       skuId: payload.skuId || undefined,
@@ -1811,7 +1811,7 @@ export const shopApi = {
       sourceContentType: source?.type,
       sourceContentId: source?.id,
     })
-    return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING' }
+    return { id: res.id || '', amount: shopNum(res.amount), status: res.status || 'PENDING', reused: res.reused === true }
   },
 
   /**
@@ -1877,13 +1877,14 @@ export const shopApi = {
    */
   async getOrderPayState(orderId: string, fresh = false): Promise<{ status: string; paid: boolean; type?: string; targetId?: string }> {
     const res = await apiGet<{ status?: string; type?: string; targetId?: string }>(`/shop/orders/${encodeURIComponent(orderId)}${fresh ? '/current' : ''}`)
-    const status = res?.status || 'PENDING'
+    // 响应缺少状态时保持未知，收银页不能把异常响应当成待付而再次唤起支付。
+    const status = res?.status || 'UNKNOWN'
     // type/targetId 供支付页做业务兑现（圈子入圈/续费是双段模式，支付后需 confirm 建成员关系）
     return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status), type: res?.type, targetId: res?.targetId }
   },
 
   /** 支付成功页订单摘要 — GET /shop/orders/:id（真查金额/支付方式/支付时间/件数，替代硬编码展示） */
-  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number; status: string; paid: boolean }> {
+  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number; status: string; paid: boolean; type?: string; targetId?: string }> {
     const o = await apiGet<RawShopOrder>(`/shop/orders/${orderId}`)
     const methodMap: Record<string, string> = { WECHAT: '微信支付', ALIPAY: '支付宝', UNIONPAY: '银联支付', HUIFU: '汇付支付', COIN: '国学币' }
     const paidAt = o?.paidAt ? new Date(o.paidAt) : null
@@ -1897,6 +1898,8 @@ export const shopApi = {
       itemCount: Math.max(1, Number(o?.quantity) || 1),
       status,
       paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status),
+      type: o?.type,
+      targetId: o?.targetId,
     }
   },
 

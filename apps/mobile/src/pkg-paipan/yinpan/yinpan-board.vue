@@ -11,7 +11,7 @@ import {
   PALACE_NAMES,
   PALACE_DIZHI,
   RING_PALACES,
-} from '@/pkg-paipan/lib/qimen-engine'
+} from '@/pkg-paipan/lib/qimen-consts'
 import {
   type PalaceData,
   type OuterRingItem,

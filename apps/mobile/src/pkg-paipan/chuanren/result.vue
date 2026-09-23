@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 奇门穿壬·结果页——自 V0 app/chuanren/result/page.tsx 还原
- * onLoad 解析 payload 本地重算：信息表 → 双盘（外圈十二支 + 内九宫）→ 四课三传 → 白话总断。
+ * onLoad 解析 payload 后请服务端排盘（POST /paipan/engine/chuanren，2026-09-21 第 4 步迁移）：信息表 → 双盘（外圈十二支 + 内九宫）→ 四课三传 → 白话总断。
  * 取舍：AI 双盘深断区块本批砍掉；起课成功自动写入本地排盘记录（key: rebu:chuanren-history）。
  *       双盘外圈 V0 用 grid [auto_1fr_auto]，改嵌套 flex（角位留白 + 侧列纵排）等效还原。
  */
@@ -11,14 +11,9 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  paiChuanren,
-  OUTER_LAYOUT,
-  SHENGXIAO,
-  type ChuanrenResult,
-  type Shengxiao,
-} from '@/pkg-paipan/lib/chuanren-engine'
-import type { QimenPalace } from '@/pkg-paipan/lib/qimen-engine'
+import { OUTER_LAYOUT, type ChuanrenResult } from '@/pkg-paipan/lib/chuanren-types'
+import type { QimenPalace } from '@guoxue/shared/paipan/qimen-engine'
+import { computePaipan } from '@/lib/paipan/engine-client'
 import { saveChuanrenHistory, type ChuanrenParams } from './chuanren-history'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -53,27 +48,38 @@ onLoad((opts: Record<string, string> = {}) => {
     }
     const d = new Date(params.year, params.month - 1, params.day, params.hour, params.minute)
     if (Number.isNaN(d.getTime()) || !params.year) throw new Error('bad date')
-    const nianming = params.nm && (SHENGXIAO as readonly string[]).includes(params.nm)
-      ? (params.nm as Shengxiao)
-      : undefined
-    const res = paiChuanren({
-      date: d,
-      yongshenType: params.ys,
-      customYongshen: params.cys,
-      guiren: params.gr,
-      nianming,
-      topic: params.topic || undefined,
-    })
+    pending = params
+    compute()
+  } catch {
+    invalid.value = true
+  }
+})
+
+/** 服务端排盘（第 4 步：算法只在服务端）；年命校验等与原本地逻辑一致，由服务端完成 */
+const loading = ref(false)
+const netError = ref(false)
+let pending: ChuanrenParams | null = null
+async function compute() {
+  const params = pending
+  if (!params) return
+  loading.value = true
+  netError.value = false
+  try {
+    const res = await computePaipan<ChuanrenResult>('chuanren', { ...params })
     r.value = res
     q.value = params
     saveChuanrenHistory(
       params,
       `${res.qimen.ju.label} · ${res.liuren.yuejiang.zhi}将${res.liuren.sizhu.hour.zhi}时`,
     )
-  } catch {
-    invalid.value = true
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (msg.startsWith('参数')) invalid.value = true
+    else netError.value = true
+  } finally {
+    loading.value = false
   }
-})
+}
 
 // ─── 派生展示 ───
 const infoRows = computed<[string, string][]>(() => {
@@ -83,7 +89,7 @@ const infoRows = computed<[string, string][]>(() => {
   const { qimen, liuren } = res
   return [
     ['日期', `${p.year}年${pad(p.month)}月${pad(p.day)}日 ${pad(p.hour)}:${pad(p.minute)}（${liuren.lunarText}）`],
-    ['局数', qimen.ju.label],
+    ['局数', `${qimen.ju.label} · ${res.juInfo.yuan} · ${res.juInfo.method}定局`],
     ['值符 / 值使', `${qimen.zhifu.star}${qimen.zhifu.palace}宫 / ${qimen.zhishi.men}${qimen.zhishi.palace}宫`],
     ['旬首 / 空亡 / 马星', `${qimen.xunshou.name} / ${qimen.xunshou.kong} / ${qimen.maXing}`],
     ['月将 / 贵人', `${liuren.yuejiang.zhi}（${liuren.yuejiang.name}）/ ${res.guirenLabel}临${liuren.guiren.zhi}`],
@@ -139,6 +145,8 @@ function goInput() {
 
     <!-- 参数错误态 -->
     <param-error v-if="invalid" text="参数无效，请重新排盘。" action-text="返回奇门穿壬" @action="goInput" />
+    <param-error v-else-if="netError" text="排盘服务暂时不可用，请稍后重试" action-text="重新排盘" @action="compute" />
+    <view v-else-if="loading" class="engine-loading"><text class="engine-loading-text">正在排盘…</text></view>
 
     <scroll-view v-else-if="r" scroll-y class="body">
       <view class="body-inner">
@@ -333,6 +341,9 @@ $serif: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
 .body-inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
+/* 服务端排盘加载态 */
+.engine-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+.engine-loading-text { font-size: 26rpx; color: var(--text-soft, #999); letter-spacing: 2rpx; }
 
 /* 通用卡片 */
 .card {

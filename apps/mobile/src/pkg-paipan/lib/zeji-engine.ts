@@ -149,28 +149,46 @@ export interface ZejiDay {
 
 const WEEK_CN = ['日', '一', '二', '三', '四', '五', '六']
 
+/** 黄道六神（十二天神中的吉神）—— 黄道/黑道是天神的二值属性，由月支+日支定，与建除、宜忌条数无关 */
+const HUANGDAO_SHEN = new Set(['青龙', '明堂', '金匮', '天德', '玉堂', '司命'])
+
 /**
  * 吉度打分 —— 规则全部写在这里，看得见摸得着：
  *   命中「宜」                 +55（基准分：这天本就宜办此事）
- *   黄道吉日（建除+天神）      +20 / 黑道 −18
+ *   综合吉度 good（建除+天神+宜忌数量）+20 / bad −18
  *   天神为吉                   +8
  *   吉神数量                   每个 +2（最多 +12）
  *   凶煞数量                   每个 −2（最多 −12）
  *   宜项越多说明日子越通达      (宜数−忌数) 每 1 项 +1（区间 −5 ~ +5）
  * 命中「忌」的日子直接淘汰，不打分。
+ *
+ * 🔴 2026-09-20：原先把 `dayLuck()` 的 good 直接写成「黄道吉日」——但 `dayLuck` 是
+ *    建除 + 天神吉凶 + 宜忌条数的**复合启发式**，而黄道/黑道在术上是天神的**二值属性**。
+ *    全枚举 1461 天实测：**246 天（16.8%）**天神本是黑道（勾陈/白虎/天牢…）却被判 good，
+ *    于是同一句话里印出「黄道吉日（成日 · 勾陈）」这种自相矛盾的理由。
+ *    现改为：黄道/黑道按天神如实标注，复合吉度另起一条说清它是由什么构成的。
  */
 function scoreDay(lunar: Lunar, hitTerms: string[]): { score: number; reasons: string[] } {
   const reasons: string[] = []
   let score = 55
   reasons.push(`黄历载明宜「${hitTerms.join('、')}」`)
 
+  // 黄道/黑道：只看天神，不掺建除与宜忌条数
+  const tianShen = lunar.getDayTianShen()
+  reasons.push(
+    HUANGDAO_SHEN.has(tianShen)
+      ? `黄道日（天神${tianShen}）`
+      : `黑道日（天神${tianShen}），谨慎择用`,
+  )
+
+  // 综合吉度：另一套口径，说清它由什么构成，不再冒用「黄道」二字
   const luck = dayLuck(lunar)
   if (luck === 'good') {
     score += 20
-    reasons.push(`黄道吉日（${lunar.getZhiXing()}日 · ${lunar.getDayTianShen()}）`)
+    reasons.push(`综合吉度佳（${lunar.getZhiXing()}日 · 天神${lunar.getDayTianShenLuck()} · 宜多忌少）`)
   } else if (luck === 'bad') {
     score -= 18
-    reasons.push(`黑道日（${lunar.getZhiXing()}日 · ${lunar.getDayTianShen()}），谨慎择用`)
+    reasons.push(`综合吉度差（${lunar.getZhiXing()}日 · 天神${lunar.getDayTianShenLuck()} · 忌多宜少）`)
   }
 
   if (lunar.getDayTianShenLuck() === '吉') score += 8

@@ -181,7 +181,7 @@ export const VERIFIED_TOOLS = new Set([
    *
    * 现有三重判据把关：内部不变量（三之气≡司天、终之气≡在泉、太少交替）、
    * 《素问》同化定数（天符12/岁会8/太乙天符4/同天符6/同岁会6，按甲子一轮逐年点名）、
-   * 以及与前端 `pkg-paipan/lib/wuyunliuqi-engine.ts` 逐条对照——
+   * 以及与`modules/paipan/engine/wuyunliuqi-engine.ts`（原前端引擎，2026-09-21 迁入服务端） 逐条对照——
    * 前端这几处本来就是对的，这是第 6 次「后端错·前端对」。
    */
   "wuyun-liuqi",
@@ -308,7 +308,7 @@ export const REMOVED_WRONG: Record<string, string> = {
   // 源码里另有两处「简化」注释（`简化：天盘=本卦之各变爻卦`、
   // `简化：按动爻偏移`）——这个气味已第五次命中。
   //
-  // 前端 `pkg-paipan/lib/xiaochengtu-engine.ts` 是对的且注明「已对照竞品黄金基准
+  // 前端引擎（2026-09-21 已迁至 `modules/paipan/engine/xiaochengtu-engine.ts`） 是对的且注明「已对照竞品黄金基准
   // 逐宫验证」，载有真正的霍斐然布卦法（本卦上卦→离9、下卦→坎1，变卦上卦→震3、
   // 下卦→兑7，本互上→巽4、下→坤2，变互上→艮8、下→乾6，中宫四正/正隅归藏，
   // 吉凶取卦气升降四式而非阖辟）。重建时照它移植，不要再自行推演。

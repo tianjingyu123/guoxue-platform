@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { getReportTemplate, modelSections, templateBrief, type ReportTemplate } from "./report-template";
@@ -243,11 +243,8 @@ export class PaipanReportService {
     private prisma: PrismaService,
     private gateway: AiGatewayService,
     private reportKnowledge: PaipanReportKnowledgeService,
-    /**
-     * 报告付费门禁（决策人 2026-09-21：单份 29 元或小卜AI会员）。模块内总是注入；
-     * 可选只为兼容大量以三参数构造本服务的单测（不传即不设门禁）
-     */
-    @Optional() private readonly commerce?: XiaobuCommerceService,
+    /** 报告权益门禁为必需依赖；缺失时服务不能启动。 */
+    private readonly commerce: XiaobuCommerceService,
   ) {}
 
   async generateReport(
@@ -264,7 +261,7 @@ export class PaipanReportService {
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
     // 付费门禁在任何模型调用与复用之前：未购买且非会员不生成
-    await this.commerce?.assertReportAccess(userId, paipanRecordId, type);
+    await this.commerce.assertReportAccess(userId, paipanRecordId, type);
 
     const plan = await this.prepareChart(record);
     const { paipanType, facts } = plan;
@@ -280,7 +277,9 @@ export class PaipanReportService {
     if (existing && !options?.regenerate) {
       const content = this.safeParse(existing.analysisContent);
       if (content?.metadata?.version === version) {
-        return { id: existing.id, content, version, createdAt: existing.createdAt, reused: true };
+        // 盘面准备与依据检索期间权益也可能被撤销，复用前再核一次。
+        await this.commerce.assertReportAccess(userId, paipanRecordId, type);
+        return { id: existing.id, paipanRecordId, content, version, createdAt: existing.createdAt, reused: true };
       }
     }
 
@@ -297,6 +296,9 @@ export class PaipanReportService {
     });
     report.chartView = plan.chartView;
     report.glossary = this.glossaryOf(paipanType, [report.summary, ...report.sections.map((x) => x.content)]);
+
+    // 模型调用可能耗时较长；若期间退款或会员到期，不保存、更不返回刚生成的付费正文。
+    await this.commerce.assertReportAccess(userId, paipanRecordId, type);
 
     const data = {
       analysisContent: JSON.stringify(report),
@@ -325,7 +327,7 @@ export class PaipanReportService {
     // 会员生成报告不按份送，改为会员期内每月赠送（决策人 2026-09-21）
 
     this.logger.log(`排盘报告已生成 ${saved.id} version=${version} model=${model} evidence=${evidence.length}`);
-    return { id: saved.id, content: report, version, createdAt: saved.createdAt, reused: false };
+    return { id: saved.id, paipanRecordId, content: report, version, createdAt: saved.createdAt, reused: false };
   }
 
   /**
@@ -747,13 +749,13 @@ export class PaipanReportService {
    * 同时并行发起真正的生成请求，完成后整页揭幕——仪式感来自真实信息的逐步揭示，
    * 不是假进度条。小程序端不支持 SSE，因此不用流式推送。
    */
-  /** 报告生成权限（只校验归属，不调模型）；未注入门禁时视为免费 */
+  /** 报告生成权限（校验原盘归属与权益，不调模型） */
   async reportAccess(userId: string, paipanRecordId: string, reportType: string) {
     const type = REPORT_TITLES[reportType] ? reportType : "general";
     const record = await this.prisma.paipanRecord.findUnique({ where: { id: paipanRecordId }, select: { userId: true } });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
-    const access = this.commerce ? await this.commerce.reportAccess(userId, paipanRecordId, type) : { granted: true, via: "free" as const };
+    const access = await this.commerce.reportAccess(userId, paipanRecordId, type);
     return { recordId: paipanRecordId, reportType: type, ...access };
   }
 
@@ -1574,6 +1576,41 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     }
   }
 
+  /** 仅返回本人报告的目录信息；摘要也属于付费解读，不能在权益门禁外下发。 */
+  async listReports(userId: string, rawPage?: string) {
+    const parsed = Number(rawPage);
+    const page = Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10000) : 1;
+    const pageSize = 20;
+    const where = { userId, scene: "paipan_report", analyzeType: { startsWith: "REPORT_" } };
+    const [rows, total] = await Promise.all([
+      this.prisma.aiAnalysisRecord.findMany({
+        where,
+        select: {
+          id: true,
+          paipanRecordId: true,
+          analyzeType: true,
+          createdAt: true,
+          paipanRecord: { select: { clientName: true, paipanType: true } },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.aiAnalysisRecord.count({ where }),
+    ]);
+    return {
+      items: rows.map(({ paipanRecord, analyzeType, ...row }) => ({
+        ...row,
+        reportType: analyzeType.slice(7).toLowerCase(),
+        clientName: paipanRecord?.clientName ?? null,
+        paipanType: paipanRecord?.paipanType ?? null,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
   /** 获取报告详情（校验用户归属） */
   async getReport(userId: string, reportId: string) {
     const report = await this.prisma.aiAnalysisRecord.findUnique({ where: { id: reportId } });
@@ -1586,6 +1623,19 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     const content = this.safeParse(report.analysisContent);
     if (!content) {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
+    }
+    if (report.paipanRecordId) {
+      const source = await this.prisma.paipanRecord.findUnique({
+        where: { id: report.paipanRecordId }, select: { userId: true },
+      });
+      if (!source || source.userId !== userId) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "报告关联的原排盘记录不存在");
+      }
+    }
+    const accessType = content.metadata?.reportType ||
+      (report.analyzeType?.startsWith("REPORT_") ? report.analyzeType.slice(7).toLowerCase() : "");
+    if (report.paipanRecordId && accessType) {
+      await this.commerce.assertReportAccess(userId, report.paipanRecordId, accessType);
     }
     // 旧报告没有图形数据：按原盘现场补算（确定性计算，不调模型、不改存档）
     if (!content.chartView && report.paipanRecordId) {
@@ -1607,6 +1657,6 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
         ...content.sections.map((x: any) => String(x?.content || "")),
       ]);
     }
-    return { id: report.id, content, createdAt: report.createdAt };
+    return { id: report.id, paipanRecordId: report.paipanRecordId, content, createdAt: report.createdAt };
   }
 }

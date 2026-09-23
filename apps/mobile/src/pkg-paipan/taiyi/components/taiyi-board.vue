@@ -5,11 +5,11 @@
  *       X5 红线禁 writing-mode/aspect-ratio，改为 5×5 方形宫格环（借鉴紫微十二宫盘手法）：
  *       外环 16 格 = 十六神槽位（子居正上、顺时针一圈，艮巽坤乾恰落四角），
  *       中央 3×3 = 中宫（入中宫之星 + 星色图例）。
- *       圈层信息折叠进单元格：支位/卦名 + 十六神名 + 洛书宫数 + 落宫星。
- *       多槽宫（8/4/2/6 宫各占三槽）的落宫星统一显示在四维角格（V0 显示在首槽，角格更宽裕）。
+ *       圈层信息折叠进单元格：支位/卦名 + 十六神名 + 太乙九宫数 + 落宫星。
+ *       多槽宫（艮3/巽9/坤7/乾1 各占三槽）的落宫星统一显示在四维角格（V0 显示在首槽，角格更宽裕）。
  */
 import { computed } from 'vue'
-import { GOD16, SLOT16, SLOT_PALACE, type TaiyiResult } from '@/pkg-paipan/lib/taiyi-engine'
+import { GOD16, SLOT16, SLOT_PALACE, type TaiyiResult } from '@/pkg-paipan/lib/taiyi-types'
 
 const props = defineProps<{ r: TaiyiResult }>()
 
@@ -39,7 +39,8 @@ const SLOT_POS = [
 ]
 
 /** 每宫落星的显示槽位：单槽宫在本格，三槽宫收拢到四维角格 */
-const PALACE_DISPLAY_SLOT: Record<number, number> = { 1: 0, 8: 2, 3: 4, 4: 6, 9: 8, 2: 10, 7: 12, 6: 14 }
+// 太乙九宫：坎8 子 · 艮3 · 震4 卯 · 巽9 · 离2 午 · 坤7 · 兑6 酉 · 乾1（★26 起按太乙九宫，不再用洛书）
+const PALACE_DISPLAY_SLOT: Record<number, number> = { 8: 0, 3: 2, 4: 4, 9: 6, 2: 8, 7: 10, 6: 12, 1: 14 }
 
 /** 星色（同 V0）：太乙绿 · 文昌赭 · 始击朱 · 将星/五福墨灰 */
 const COLOR_TAIYI = '#15803d'

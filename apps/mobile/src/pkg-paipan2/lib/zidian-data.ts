@@ -8,7 +8,16 @@
  * 后端不可达时不阻断：仍返回本地算的全部字段，释义位显示兜底文案（hasExplanation=false）。
  */
 import { apiGet } from '@/utils/request'
-import { lookupText, lookupChar, type RemoteEntry, type ZidianResult } from './zidian-engine'
+import { computePaipan } from '@/lib/paipan/engine-client'
+import type { RemoteEntry, ZidianResult } from './zidian-types'
+
+/**
+ * 本地字段补全（康熙笔画/五行/结构/数理/生肖宜忌/起名用字）已迁至服务端（第 4 步）：
+ * 远端词条照旧从 /zidian/lookup 取，连同文字交 /paipan/engine/zidian-text 补全。
+ */
+async function enrich(text: string, remotes: RemoteEntry[]): Promise<ZidianResult[]> {
+  return computePaipan<ZidianResult[]>('zidian-text', { text, remotes })
+}
 
 const LOOKUP_CACHE = new Map<string, RemoteEntry>()
 
@@ -30,8 +39,9 @@ async function fetchRemote(chars: string[]): Promise<RemoteEntry[]> {
 export async function queryChar(ch: string): Promise<ZidianResult | null> {
   const char = ch.trim().charAt(0)
   if (!char) return null
-  const [remote] = await fetchRemote([char])
-  return lookupChar(char, remote)
+  const remotes = await fetchRemote([char])
+  const [r] = await enrich(char, remotes)
+  return r ?? null
 }
 
 /** 查一段文字/姓名（逐字拆解，最多 8 字） */
@@ -39,7 +49,7 @@ export async function queryText(text: string): Promise<ZidianResult[]> {
   const chars = [...text.replace(/[^一-鿿]/g, '')].slice(0, 8)
   if (!chars.length) return []
   const remotes = await fetchRemote(chars)
-  return lookupText(chars.join(''), remotes)
+  return enrich(chars.join(''), remotes)
 }
 
 /** 按拼音检索（去声调前缀匹配，后端返回最多 50 字） */
@@ -48,11 +58,13 @@ export async function searchByPinyin(pinyin: string): Promise<ZidianResult[]> {
   if (!q) return []
   try {
     const res = await apiGet<{ results: RemoteEntry[] }>(`/zidian/search?pinyin=${encodeURIComponent(q)}`)
+    const list = res?.results ?? []
+    for (const r of list) LOOKUP_CACHE.set(r.char, r)
+    // 服务端补全一次最多 8 字，分批
     const out: ZidianResult[] = []
-    for (const r of res?.results ?? []) {
-      LOOKUP_CACHE.set(r.char, r)
-      const item = lookupChar(r.char, r)
-      if (item) out.push(item)
+    for (let i = 0; i < list.length; i += 8) {
+      const chunk = list.slice(i, i + 8)
+      out.push(...(await enrich(chunk.map((r) => r.char).join(''), chunk)))
     }
     return out
   } catch {

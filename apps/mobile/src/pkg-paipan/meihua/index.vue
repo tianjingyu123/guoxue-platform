@@ -165,13 +165,13 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header history-href="/paipan/meihua/history" title="梅花易数" subtitle="观物取象 · 体用生克" share>
-      <template #actions>
-        <view class="th-history-btn" @tap="openHistory">
-          <app-icon name="history" :size="36" color="var(--text-ink)" />
-        </view>
-      </template>
-    </tool-header>
+    <!--
+      顶栏此前有**两个一模一样的历史图标**：`history-href` 属性自带一个（跳转历史页），
+      #actions 插槽里又手动放了一个（打开底部弹层）。两个图标外观相同、行为却不同，
+      用户无从分辨。保留 tool-header 的标准入口（跳转历史页），移除插槽里的重复按钮；
+      页内「排盘记录」按钮仍走弹层，两种入口形式不同、不会混淆。
+    -->
+    <tool-header history-href="/paipan/meihua/history" title="梅花易数" subtitle="观物取象 · 体用生克" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">

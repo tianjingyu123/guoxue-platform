@@ -276,7 +276,8 @@ function handleShare() {
 .hdr-title { font-size: 30rpx; font-weight: 700; color: var(--text-ink); }
 .hdr-spacer { width: 40rpx; }
 
-.banner { background: var(--brand); padding: 40rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
+/* 标题区收紧（线二第3处同一尺度）：只砍上下留白，标题字号 44rpx 与分享入口均不动 */
+.banner { background: var(--brand); padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
 .banner-title { font-size: 44rpx; font-weight: 700; color: #fff; letter-spacing: 4rpx; }
 .banner-share { display: flex; align-items: center; gap: 6rpx; }
 .banner-share-text { font-size: 26rpx; color: rgba(255,255,255,0.9); }
@@ -286,10 +287,11 @@ function handleShare() {
 
 .card { background: var(--card); border-radius: 32rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); border: 2rpx solid rgba(0,0,0,0.04); overflow: hidden; }
 
-.row { padding: 28rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
+/* 行距按八字输入页同一尺度收紧（28rpx→20rpx）：不动字号、不动选项按钮点击区 */
+.row { padding: 20rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
 .row-border { border-bottom: 2rpx solid rgba(0,0,0,0.06); }
 .row-tap:active { background: rgba(0,0,0,0.02); }
-.row-col { flex-direction: column; align-items: flex-start; gap: 24rpx; }
+.row-col { flex-direction: column; align-items: flex-start; gap: 16rpx; }
 .row-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink); flex-shrink: 0; }
 .row-input { flex: 1; margin-left: 24rpx; text-align: right; font-size: 28rpx; color: var(--text-soft); }
 .row-input-ph { color: rgba(153,153,153,0.5); }

@@ -12,7 +12,7 @@
  */
 import { ref, computed } from 'vue'
 import { buildH5Url } from '@/utils/share'
-import { onLoad } from '@dcloudio/uni-app'
+import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -23,6 +23,9 @@ const id = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const saving = ref(false)
+const sharing = ref(false)
+const unsharing = ref(false)
+const copying = ref(false)
 const report = ref<ReportRecord | null>(null)
 const chapters = ref<ReportChapter[]>([])
 const isPro = ref(false)
@@ -32,7 +35,58 @@ const drafting = ref('')
 /** 展开的章节（默认全展开，写作时更顺手） */
 const collapsed = ref<Record<string, boolean>>({})
 
+function isFactChapter(chapter: ReportChapter): boolean {
+  return chapter.deterministic === true || /盘面事实|起盘校验|起卦校验|起局校验|起课校验/.test(chapter.title)
+}
+
 const dirty = ref(false)
+const leaving = ref(false)
+let approvedBack = false
+
+function goBack() {
+  approvedBack = true
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack({ fail: () => { approvedBack = false } })
+  } else {
+    uni.reLaunch({ url: '/pages/paipan/index', fail: () => { approvedBack = false } })
+  }
+  // 某些端的程序导航不会再次触发 onBackPress，避免放行标记残留。
+  setTimeout(() => { approvedBack = false }, 500)
+}
+
+function backFromEditor() {
+  if (leaving.value) return
+  if (saving.value || sharing.value || unsharing.value || rewriting.value || drafting.value) {
+    uni.showToast({ title: '请等当前操作完成后再返回', icon: 'none' })
+    return
+  }
+  if (!dirty.value) {
+    goBack()
+    return
+  }
+  leaving.value = true
+  uni.showActionSheet({
+    itemList: ['保存并返回', '放弃本页修改'],
+    success: async (result) => {
+      if (result.tapIndex === 0) {
+        if (await save()) goBack()
+      } else if (result.tapIndex === 1) {
+        goBack()
+      }
+    },
+    complete: () => { leaving.value = false },
+  })
+}
+
+onBackPress(() => {
+  if (approvedBack) {
+    approvedBack = false
+    return false
+  }
+  if (!dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) return false
+  backFromEditor()
+  return true
+})
 
 /**
  * 交付链接的域名固定用线上 H5 —— 客户是在自己手机的浏览器里打开的，
@@ -48,6 +102,16 @@ const shareUrl = computed(() =>
 onLoad((q) => {
   id.value = (q?.id as string) || ''
   load()
+})
+onShow(async () => {
+  if (!report.value) return
+  const [reportResult, proResult] = await Promise.allSettled([wsApi.getReport(id.value), wsApi.pro()])
+  if (proResult.status === 'fulfilled') isPro.value = proResult.value.isPro
+  // 回到页面时刷新另一设备的撤回／换链状态；请求期间开始编辑则保留本地稿。
+  if (reportResult.status === 'fulfilled' && !dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) {
+    report.value = reportResult.value
+    chapters.value = (reportResult.value.chapters ?? []).map((c) => ({ ...c }))
+  }
 })
 
 /** 兜底按钮：有 id 则重试加载，无 id（缺参）则返回上一页 */
@@ -69,6 +133,7 @@ async function load() {
     report.value = r
     chapters.value = (r.chapters ?? []).map((c) => ({ ...c }))
     isPro.value = pro.isPro
+    dirty.value = false
   } catch {
     failed.value = true
   } finally {
@@ -77,6 +142,7 @@ async function load() {
 }
 
 function onEdit(i: number, e: any) {
+  if (report.value?.shareToken || saving.value || sharing.value || rewriting.value || drafting.value === chapters.value[i]?.key) return
   chapters.value[i].body = e.detail.value
   // 老师动过手的章节就不再算 AI 初稿——署的是他的名，责任也是他的
   if (chapters.value[i].ai) chapters.value[i].ai = false
@@ -87,7 +153,7 @@ function onEdit(i: number, e: any) {
 // 盘面事实章不动（那是排盘数据），改完仍是草稿，老师可以继续改。
 const rewriting = ref(false)
 async function rewriteForClient() {
-  if (!report.value || rewriting.value) return
+  if (!report.value || saving.value || rewriting.value || drafting.value || sharing.value || report.value.shareToken) return
   const ok = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '改写成给客户看的话',
@@ -97,18 +163,32 @@ async function rewriteForClient() {
       fail: () => resolve(false),
     })
   })
-  if (!ok) return
+  if (!ok || saving.value || drafting.value || sharing.value || report.value?.shareToken) return
+  if (dirty.value && !(await save())) return
+  if (drafting.value || sharing.value || report.value?.shareToken) return
   rewriting.value = true
   uni.showLoading({ title: '正在改写…', mask: true })
   try {
     const res = await wsApi.rewriteForClient(report.value.id)
     report.value = res.report
+    chapters.value = (res.report.chapters ?? []).map((c) => ({ ...c }))
+    dirty.value = false
     uni.showToast({
       title: res.failed ? `已改写 ${res.rewritten} 章，${res.failed} 章未成功` : `已改写 ${res.rewritten} 章`,
       icon: 'none',
     })
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '改写失败，请稍后重试', icon: 'none' })
+    const message = (e as Error)?.message || '改写失败，请稍后重试'
+    if (message.includes('其他设备修改')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备保存了新的内容。重新加载后可继续改写。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     uni.hideLoading()
     rewriting.value = false
@@ -117,50 +197,80 @@ async function rewriteForClient() {
 
 async function aiDraft(i: number) {
   const c = chapters.value[i]
-  if (drafting.value) return
+  if (!c || isFactChapter(c) || saving.value || drafting.value || rewriting.value || sharing.value || report.value?.shareToken) return
+  if (!report.value?.paipan && !c.body.trim()) return
   if (c.body.trim()) {
     const ok = await new Promise<boolean>((resolve) =>
       uni.showModal({
         title: '覆盖本章正文？',
-        content: '本章已有内容，AI 起草会覆盖它。',
+        content: report.value?.paipan ? '本章已有内容，AI 起草会覆盖它。' : 'AI 将按本章原稿润色，不补充新的盘面判断，并会覆盖当前正文。',
         success: (r) => resolve(r.confirm),
       }),
     )
-    if (!ok) return
+    if (!ok || saving.value || rewriting.value || sharing.value || report.value?.shareToken) return
   }
+  // 手建报告的本章要点必须先落库，服务端才会以这份原稿为依据润色。
+  if (dirty.value && !(await save())) return
+  if (rewriting.value || sharing.value || report.value?.shareToken) return
   drafting.value = c.key
   try {
     const res = await wsApi.aiDraft({
-      chapterTitle: c.title,
-      reportTypeLabel: report.value!.typeLabel,
-      clientName: report.value!.clientName,
-      // 盘面原样传给 AI —— 它据此解读，不自己推算
-      paipan: report.value!.paipan ?? {},
+      reportId: report.value!.id,
+      chapterKey: c.key,
     })
     chapters.value[i].body = res.text
     chapters.value[i].ai = true
     dirty.value = true
   } catch (e: any) {
-    uni.showToast({ title: e?.message || 'AI 起草失败', icon: 'none' })
+    const message = e?.message || 'AI 起草失败'
+    if (message.includes('其他设备修改') || message.includes('报告已交付')) {
+      uni.showModal({
+        title: '报告状态已变化',
+        content: '另一设备已更新这份报告，请重新加载后再继续。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     drafting.value = ''
   }
 }
 
-async function save(status?: 'draft' | 'final') {
-  if (!report.value) return
+async function save(status?: 'draft' | 'final'): Promise<boolean> {
+  if (!report.value || saving.value || rewriting.value || drafting.value || report.value.shareToken) return false
+  if (!report.value.updatedAt) {
+    uni.showToast({ title: '报告版本缺失，请重新加载后再保存', icon: 'none' })
+    return false
+  }
   saving.value = true
   try {
     const r = await wsApi.updateReport(id.value, {
       title: report.value.title,
       chapters: chapters.value,
       status: status ?? report.value.status,
+      updatedAt: report.value.updatedAt,
     })
-    report.value = { ...report.value, status: r.status }
+    report.value = r
+    chapters.value = (r.chapters ?? []).map((c) => ({ ...c }))
     dirty.value = false
     uni.showToast({ title: status === 'final' ? '已定稿' : '已保存', icon: 'success' })
+    return true
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+    const message = e?.message || '保存失败'
+    if (message.includes('其他设备修改')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备已保存新内容。重新加载会放弃本页未保存的修改，请先复制需要保留的文字。',
+        confirmText: '重新加载',
+        cancelText: '留在本页',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
+    return false
   } finally {
     saving.value = false
   }
@@ -168,6 +278,7 @@ async function save(status?: 'draft' | 'final') {
 
 /** 交付：生成只读链接（会员专属；后端也有闸门） */
 async function share() {
+  if (!report.value || report.value.shareToken || sharing.value || unsharing.value || saving.value || rewriting.value || drafting.value) return
   if (!isPro.value) {
     uni.showModal({
       title: '交付报告需要会员',
@@ -179,61 +290,122 @@ async function share() {
     })
     return
   }
-  if (dirty.value) await save('final')
+  sharing.value = true
   try {
-    const res = await wsApi.shareReport(id.value)
+    const emptyCount = chapters.value.filter((c) => !c.body.trim()).length
+    if (emptyCount) {
+      const proceed = await new Promise<boolean>((resolve) => uni.showModal({
+        title: '报告还有空白章节',
+        content: `有 ${emptyCount} 章尚未填写，客户会看到空白内容。确认仍要交付吗？`,
+        confirmText: '仍要交付',
+        cancelText: '继续编辑',
+        success: (r) => resolve(!!r.confirm),
+        fail: () => resolve(false),
+      }))
+      if (!proceed) return
+    }
+    if (dirty.value && !(await save('final'))) return
+    if (!report.value?.updatedAt) {
+      uni.showToast({ title: '报告版本缺失，请重新加载后再交付', icon: 'none' })
+      return
+    }
+    const res = await wsApi.shareReport(id.value, report.value.updatedAt)
     report.value = { ...report.value!, shareToken: res.shareToken, sharedAt: res.sharedAt, status: 'delivered' }
     copyShare()
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+    const message = e?.message || '生成失败'
+    if (message.includes('报告状态已变化')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备修改了报告或交付状态。重新加载后请再次预览，再决定是否交付。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
+  } finally {
+    sharing.value = false
   }
 }
 
-function copyShare() {
-  if (!shareUrl.value) return
-  uni.setClipboardData({
-    data: shareUrl.value,
-    success: () => uni.showToast({ title: '链接已复制，发给客户即可', icon: 'none' }),
-  })
+async function copyShare() {
+  const expectedToken = report.value?.shareToken
+  if (!expectedToken || copying.value) return
+  copying.value = true
+  try {
+    const latest = await wsApi.getReport(id.value)
+    if (latest.shareToken !== expectedToken) {
+      report.value = latest
+      chapters.value = (latest.chapters ?? []).map((c) => ({ ...c }))
+      uni.showToast({ title: '交付链接已变化，请确认后再复制', icon: 'none' })
+      return
+    }
+    uni.setClipboardData({
+      data: buildH5Url('pkg-workspace/shared/index', { token: expectedToken }),
+      success: () => uni.showToast({ title: '链接已复制，发给客户即可', icon: 'none' }),
+    })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '无法核对链接，请稍后重试', icon: 'none' })
+  } finally {
+    copying.value = false
+  }
 }
 
-function unshare() {
-  uni.showModal({
-    title: '撤回交付链接',
-    content: '撤回后客户将无法再打开这份报告。',
-    success: async (r) => {
-      if (!r.confirm) return
-      try {
-        await wsApi.unshareReport(id.value)
-        report.value = { ...report.value!, shareToken: null, sharedAt: null }
-        uni.showToast({ title: '已撤回', icon: 'success' })
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
-      }
-    },
-  })
+async function unshare() {
+  if (!report.value?.shareToken || sharing.value || unsharing.value) return
+  const expectedToken = report.value.shareToken
+  unsharing.value = true
+  try {
+    const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
+      title: '撤回交付链接',
+      content: '撤回后客户将无法再打开这份报告。',
+      success: (r) => resolve(!!r.confirm),
+      fail: () => resolve(false),
+    }))
+    if (!confirmed) return
+    const result = await wsApi.unshareReport(id.value, expectedToken)
+    report.value = { ...report.value!, shareToken: result.shareToken, sharedAt: result.sharedAt, status: result.status, updatedAt: result.updatedAt }
+    uni.showToast({ title: result.shareToken ? '链接状态已更新' : '已撤回', icon: result.shareToken ? 'none' : 'success' })
+  } catch (e: any) {
+    const message = e?.message || '撤回失败'
+    if (message.includes('交付链接已更新')) {
+      uni.showModal({
+        title: '交付链接已有变化',
+        content: '另一设备已更新了交付状态，请重新加载后确认当前链接。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
+  } finally {
+    unsharing.value = false
+  }
 }
 
-function preview() {
-  if (dirty.value) {
-    uni.showToast({ title: '请先保存', icon: 'none' })
+async function preview() {
+  if (rewriting.value || drafting.value || sharing.value || saving.value) {
+    uni.showToast({ title: '请等当前操作完成后再预览', icon: 'none' })
     return
   }
+  if (dirty.value && !(await save())) return
   uni.navigateTo({ url: `/pkg-workspace/report/preview?id=${id.value}` })
 }
 
 /** 归档到案例库（做过的单子沉淀下来） */
-function archive() {
-  if (!report.value) return
+async function archive() {
+  if (!report.value || rewriting.value || drafting.value || sharing.value || saving.value) return
+  if (dirty.value && !(await save())) return
   uni.navigateTo({
-    url: `/pkg-workspace/cases/index?fromReport=${id.value}&title=${encodeURIComponent(report.value.title)}&clientName=${encodeURIComponent(report.value.clientName)}`,
+    url: `/pkg-workspace/cases/index?fromReport=${encodeURIComponent(id.value)}`,
   })
 }
 </script>
 
 <template>
   <view class="re">
-    <ToolHeader title="报告编辑" :subtitle="report?.typeLabel || ''" />
+    <ToolHeader title="报告编辑" :subtitle="report?.typeLabel || ''" @back="backFromEditor" />
 
     <view v-if="loading" class="re-skeleton" />
     <view v-else-if="failed" class="re-fallback">
@@ -251,7 +423,7 @@ function archive() {
       <scroll-view class="re-body" scroll-y :show-scrollbar="false">
         <!-- 抬头 -->
         <PaperCard gold padding="lg">
-          <input v-model="report.title" class="re-title-input" @input="dirty = true" />
+          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken || saving || sharing || rewriting" @input="dirty = true" />
           <view class="re-meta">
             <text class="re-meta-item">{{ report.clientName }}</text>
             <text v-if="report.clientBirth" class="re-meta-item">{{ report.clientBirth }}</text>
@@ -260,6 +432,10 @@ function archive() {
             </text>
           </view>
         </PaperCard>
+
+        <view v-if="report.shareToken" class="re-delivered-notice">
+          客户链接已生效，当前内容已锁定。需要修改时，请先在下方撤回交付，修改并预览后再生成链接。
+        </view>
 
         <!-- 盘面（只读快照） -->
         <PaperCard v-if="report.paipan" padding="lg">
@@ -276,7 +452,7 @@ function archive() {
           <view class="re-nopaipan">
             <AppIcon name="info" :size="16" color="#B8860B" />
             <text class="re-nopaipan-txt">
-              这份报告没有盘面（手动新建的）。想要图文并茂，请去排盘中心起盘，在结果页点「生成报告」。
+              这份手建报告没有盘面。可先写下本章要点，再用 AI 润色；若要依据盘面起草，请从排盘结果创建报告。
             </text>
           </view>
         </PaperCard>
@@ -289,10 +465,10 @@ function archive() {
               <text class="re-ch-title">{{ c.title }}</text>
               <text v-if="c.ai" class="re-ch-ai">AI 初稿</text>
             </view>
-            <view class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
+            <view v-if="!report.shareToken && !isFactChapter(c) && (report.paipan || c.body.trim())" class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
               <AppIcon name="sparkles" :size="14" :color="drafting === c.key ? '#B8AA9A' : '#C41E3A'" />
               <text class="re-ch-draft-txt" :class="{ 're-ch-draft-txt--busy': drafting === c.key }">
-                {{ drafting === c.key ? '起草中…' : 'AI 起草' }}
+                {{ drafting === c.key ? '处理中…' : report.paipan ? 'AI 起草' : 'AI 润色' }}
               </text>
             </view>
           </view>
@@ -305,6 +481,7 @@ function archive() {
             placeholder-class="re-ph"
             auto-height
             :maxlength="-1"
+            :disabled="!!report.shareToken || saving || sharing || rewriting || drafting === c.key"
             @input="onEdit(i, $event)"
           />
           <text v-else-if="c.body" class="re-ch-fold">{{ c.body.slice(0, 40) }}…</text>
@@ -323,13 +500,13 @@ function archive() {
                 <text class="re-btn-txt re-btn-txt--ghost">复制链接</text>
               </view>
               <view class="re-btn re-btn--ghost" @tap="unshare">
-                <text class="re-btn-txt re-btn-txt--ghost">撤回交付</text>
+                <text class="re-btn-txt re-btn-txt--ghost">{{ unsharing ? '撤回中…' : '撤回交付' }}</text>
               </view>
             </view>
           </view>
           <view v-else class="re-btn re-btn--gold" @tap="share">
             <AppIcon name="share-2" :size="16" color="#fff" />
-            <text class="re-btn-txt re-btn-txt--primary">{{ isPro ? '定稿并生成交付链接' : '开通会员以交付报告' }}</text>
+            <text class="re-btn-txt re-btn-txt--primary">{{ sharing ? '生成中…' : isPro ? '定稿并生成交付链接' : '开通会员以交付报告' }}</text>
           </view>
         </PaperCard>
 
@@ -342,7 +519,7 @@ function archive() {
           <AppIcon name="book-marked" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">归档案例</text>
         </view>
-        <view class="re-bar-btn" @tap="rewriteForClient">
+        <view v-if="!report.shareToken" class="re-bar-btn" @tap="rewriteForClient">
           <AppIcon name="wand-2" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">{{ rewriting ? '改写中…' : '改成客户口径' }}</text>
         </view>
@@ -350,10 +527,10 @@ function archive() {
           <AppIcon name="eye" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">预览</text>
         </view>
-        <view class="re-bar-save" @tap="save()">
+        <view v-if="!report.shareToken" class="re-bar-save" @tap="save()">
           <text class="re-bar-save-txt">{{ saving ? '保存中…' : dirty ? '保存' : '已保存' }}</text>
         </view>
-        <view class="re-bar-final" @tap="save('final')">
+        <view v-if="!report.shareToken" class="re-bar-final" @tap="save('final')">
           <text class="re-bar-final-txt">定稿</text>
         </view>
       </view>
@@ -378,6 +555,15 @@ function archive() {
 
 .re-body > view {
   margin-bottom: 24rpx;
+}
+
+.re-delivered-notice {
+  padding: 24rpx 28rpx;
+  border-radius: 16rpx;
+  background: #FFF6E5;
+  color: #76551D;
+  font-size: 25rpx;
+  line-height: 1.6;
 }
 
 .re-skeleton {

@@ -7,7 +7,7 @@
  * 会员期与当月赠送由支付回调在同一事务里登记。会员期内续买从到期日往后顺延。
  */
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -18,6 +18,9 @@ const loading = ref(true)
 const error = ref('')
 const picked = ref('')
 const buying = ref(false)
+const pendingOrder = ref<{ id: string; amount: number; planKey: string } | null>(null)
+const returnRecordId = ref('')
+onLoad((q) => { returnRecordId.value = String(q?.recordId || '') })
 
 const pickedPlan = computed(() => info.value?.plans.find((p) => p.key === picked.value) || null)
 
@@ -38,8 +41,10 @@ async function load() {
     info.value = await xiaobuVoiceApi.xiaobuMember()
     const plans = info.value.plans
     if (plans.length && !plans.some((p) => p.key === picked.value)) {
-      // 默认选年会员（第二档），没有则第一档
-      picked.value = plans[Math.min(1, plans.length - 1)].key
+      // 首次进入先选总支付金额最低的档位，较长周期由用户主动选择。
+      picked.value = plans.reduce((best, plan) =>
+        plan.priceYuan < best.priceYuan || (plan.priceYuan === best.priceYuan && plan.months < best.months) ? plan : best,
+      ).key
     }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -50,12 +55,29 @@ async function load() {
 
 async function buy() {
   if (buying.value || !pickedPlan.value) return
+  const plan = pickedPlan.value
   buying.value = true
   try {
+    if (pendingOrder.value?.planKey === plan.key) {
+      const previous = pendingOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (state.status === 'PENDING') {
+        const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}${returnQuery}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingOrder.value = null
+      if (state.paid) { await load(); return }
+    }
     // 金额由服务端按档位计算，这里的数量固定 1
-    const order = await shopApi.createOrder({ type: 'XIAOBU_MEMBER', targetId: pickedPlan.value.key, quantity: 1 })
+    const order = await shopApi.createOrder({ type: 'XIAOBU_MEMBER', targetId: plan.key, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pickedPlan.value.priceYuan}`)
+    pendingOrder.value = { id: order.id, amount: Number(order.amount) || plan.priceYuan, planKey: plan.key }
+    const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}${returnQuery}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

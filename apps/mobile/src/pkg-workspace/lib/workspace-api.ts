@@ -19,6 +19,8 @@ export interface ReportChapter {
   body: string
   /** 是否 AI 生成（交付页要显式披露） */
   ai?: boolean
+  /** 排盘引擎算定的事实章，不交给模型改写 */
+  deterministic?: boolean
 }
 
 /** 盘面快照：由前端已交叉验证的排盘引擎算好后原样存档，报告图文并茂用 */
@@ -124,15 +126,16 @@ function qs(q: Record<string, string | undefined>): string {
 /* ───────────── 接口 ───────────── */
 
 export const wsApi = {
-  home: () => apiGet<any>('/practitioner/home'),
+  home: (period?: { dayStart: string; dayEnd: string; monthStart: string }) =>
+    apiGet<any>(`/practitioner/home${qs(period ?? {})}`),
   profile: () => apiGet<any>('/practitioner/profile'),
   pro: () => apiGet<ProStatus>('/practitioner/pro'),
   saveBrand: (b: Partial<WorkspaceBrand>) => apiPut<any>('/practitioner/brand', b),
 
   // 报告
-  listReports: (q: { status?: string; keyword?: string } = {}) =>
-    apiGet<{ list: ReportRecord[]; total: number; quota: { used: number; limit: number | null; unlimited: boolean } }>(
-      `/practitioner/reports${qs(q)}`,
+  listReports: (q: { status?: string; keyword?: string; page?: number } = {}) =>
+    apiGet<{ list: ReportRecord[]; total: number; pagination: { page: number; pageSize: number; total: number }; quota: { used: number; limit: number | null; unlimited: boolean } }>(
+      `/practitioner/reports${qs({ ...q, page: q.page ? String(q.page) : undefined })}`,
     ),
   getReport: (id: string) => apiGet<ReportRecord>(`/practitioner/reports/${id}`),
   createReport: (r: Partial<ReportRecord>) => apiPost<ReportRecord>('/practitioner/reports', r),
@@ -140,9 +143,9 @@ export const wsApi = {
   importXiaobuReport: (p: { reportId: string; clientId?: string; clientName?: string; title?: string }) =>
     apiPost<ReportRecord>('/practitioner/reports/import-xiaobu', p),
   updateReport: (id: string, r: Partial<ReportRecord>) => apiPut<ReportRecord>(`/practitioner/reports/${id}`, r),
-  deleteReport: (id: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`),
-  shareReport: (id: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`),
-  unshareReport: (id: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}/share`),
+  deleteReport: (id: string, updatedAt: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`, { updatedAt }),
+  shareReport: (id: string, updatedAt: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`, { updatedAt }),
+  unshareReport: (id: string, shareToken: string) => apiDelete<{ success: boolean; updatedAt: string; shareToken: string | null; sharedAt: string | null; status: ReportRecord['status'] }>(`/practitioner/reports/${id}/share`, { shareToken }),
   sharedReport: (token: string) => apiGet<any>(`/practitioner/reports/shared/${token}`),
   /** 客户就这份交付报告提问（无需登录，令牌即凭证；回答以老师助理的身份） */
   askShared: (token: string, question: string, history?: { role: string; content: string }[]) =>
@@ -157,7 +160,7 @@ export const wsApi = {
       `/practitioner/reports/${id}/rewrite-for-client`,
       {},
     ),
-  aiDraft: (p: { chapterTitle: string; reportTypeLabel: string; clientName: string; paipan: unknown; hint?: string }) =>
+  aiDraft: (p: { reportId: string; chapterKey: string; hint?: string }) =>
     apiPost<{ text: string }>('/practitioner/reports/ai-draft', p, undefined, 60000),
 
   // 案例库
@@ -189,6 +192,7 @@ export const wsApi = {
   // 客户档案 —— 复用 CRM（不另起炉灶）
   listClients: (q: { keyword?: string; tag?: string } = {}) => apiGet<any>(`/crm/clients${qs(q)}`),
   getClient: (id: string) => apiGet<any>(`/crm/clients/${id}`),
+  markReminderDone: (id: string) => apiPut<any>(`/crm/reminders/${id}/done`, {}),
   createClient: (c: Record<string, unknown>) => apiPost<any>('/crm/clients', c),
   updateClient: (id: string, c: Record<string, unknown>) => apiPut<any>(`/crm/clients/${id}`, c),
   deleteClient: (id: string) => apiDelete<any>(`/crm/clients/${id}`),
@@ -196,5 +200,5 @@ export const wsApi = {
 
 /** 开通/续费从业者会员：走商城订单（在线支付 → 回调开通，与书院会员互不影响） */
 export function createProOrder() {
-  return apiPost<{ id: string; amount: number }>('/shop/orders', { type: 'PRACTITIONER_PRO' })
+  return apiPost<{ id: string; amount: number }>('/shop/orders', { type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', amount: 1 })
 }

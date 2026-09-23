@@ -41,7 +41,7 @@ function hit(x: Partial<any> & { id: string }): any {
 
 function svcWith(hits: any[]) {
   const knowledge = new PaipanReportKnowledgeService({} as any);
-  const svc: any = new PaipanReportService({} as any, {} as any, knowledge);
+  const svc: any = new PaipanReportService({} as any, {} as any, knowledge, {} as any);
   svc.lastHits = hits;
   return { svc, knowledge };
 }

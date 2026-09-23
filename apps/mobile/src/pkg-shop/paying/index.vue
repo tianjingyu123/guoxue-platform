@@ -105,6 +105,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, reLaunch } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
+import { orderPaymentAction } from '@/lib/payment-recovery'
 import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
 import { getUserInfo } from '@/utils/storage'
@@ -133,6 +134,10 @@ const rechargeOrderNo = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
 const returnLiveRoomId = ref('')
+const returnRecordId = ref('')
+const returnVoiceScene = ref('')
+const returnVoiceContextId = ref('')
+const returnVoiceSectionId = ref('')
 const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
@@ -157,6 +162,8 @@ async function onHuifuAlipayPaid(order: AlipayOrderState) {
   reLaunch(paidBusinessTarget(order))
 }
 // #endif
+let checkingOrder = false
+let leaving = false
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -204,6 +211,10 @@ onLoad((q) => {
   amount.value = (q?.amount as string) || '0'
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   oauthCallbackCode.value = String(q?.code || '').trim()
+  returnRecordId.value = String(q?.returnRecordId || '').trim()
+  returnVoiceScene.value = String(q?.returnVoiceScene || '').trim()
+  returnVoiceContextId.value = String(q?.returnVoiceContextId || '').trim()
+  returnVoiceSectionId.value = String(q?.returnVoiceSectionId || '').trim()
   if (isRecharge.value) {
     if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
       status.value = 'failed'
@@ -230,8 +241,47 @@ onLoad((q) => {
     return
   }
   // #endif
-  startPaying()
+  // 所有入口先核对原订单；微信 H5 回跳即使仍待付也只等待回调。
+  void checkOrderBeforePay(q?.paymentReturn === '1')
 })
+
+async function checkOrderBeforePay(returnedFromProvider = false) {
+  if (checkingOrder || submitting.value || leaving) return
+  checkingOrder = true
+  status.value = 'confirming'
+  failReason.value = ''
+  clearTimers('all')
+  try {
+    const st = await shopApi.getOrderPayState(orderId.value)
+    if (leaving) return
+    const action = orderPaymentAction(st.status, st.paid, returnedFromProvider)
+    if (action === 'deliver') {
+      await completePaidOrder(st, false)
+    } else if (action === 'closed') {
+      status.value = 'failed'
+      failReason.value = st.status === 'REFUNDED' ? '该订单已退款，请查看订单详情' : '该订单已取消，请重新下单'
+    } else if (action === 'pay') {
+      void startPaying()
+    } else {
+      resumePolling()
+    }
+  } catch (e) {
+    // 状态不可知时只查原订单，不能盲目唤起第二笔付款。
+    console.warn('[paying] 支付前订单核验失败，继续查原订单', e)
+    if (!leaving) resumePolling()
+  } finally {
+    checkingOrder = false
+  }
+}
+
+function resumePolling() {
+  status.value = 'confirming'
+  countdown.value = 180
+  pollCount = 0
+  clearTimers('all')
+  startCountdown()
+  startPolling(300)
+}
 
 async function startPaying() {
   // 真守卫：发起阶段进行中忽略重复触发（handleRetry 快速连点 / onLoad 重入），杜绝多个 pollTimer 泄漏与重复下单
@@ -269,6 +319,7 @@ async function startPaying() {
     } else {
       p = await shopApi.payOrderJsapi(orderId.value)
     }
+    if (leaving) return
     await new Promise<void>((resolve, reject) => {
       uni.requestPayment({
         provider: 'wxpay',
@@ -303,7 +354,7 @@ async function startPaying() {
    *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
    *    只复用本人当前支付公众号的 H5 身份，不能混用小程序或APP的 openid。
    * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
-   *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
+   *    携带 redirect_url 回跳当前页；回跳后页面重新加载，只核对原订单，
    *    轮询订单状态恢复（已支付则进成功态）。
    * 无商户证书/H5 支付域名未配置时后端返回结构化 400，错误文案透出到失败态。
    */
@@ -324,6 +375,7 @@ async function startPaying() {
         } else {
           p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
         }
+        if (leaving) return
         await invokeWechatJsapiPay(p)
         if (!isRecharge.value) h5PaymentConfirmed = true
       } catch (e) {
@@ -352,7 +404,13 @@ async function startPaying() {
         const result = await shopApi.payOrderH5(orderId.value)
         mwebUrl = result.mwebUrl || ''
       }
+      if (leaving) return
       if (mwebUrl) {
+        if (!isRecharge.value) {
+          const url = new URL(returnUrl)
+          url.searchParams.set('paymentReturn', '1')
+          returnUrl = url.toString()
+        }
         window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(returnUrl)
       } else {
         throw new Error('支付下单失败，请稍后重试')
@@ -388,7 +446,7 @@ async function startPaying() {
   return
   // #endif
     // 首查用 600ms 短延迟：支付唤起成功后回调多在 1~2s 内到账，快探能把感知等待压到 ~1s
-    startPolling(600)
+    if (!leaving && (status.value === 'paying' || status.value === 'confirming')) startPolling(600)
   } finally {
     // 发起阶段结束即释放守卫（无论：成功唤起 / 用户取消早返回 / 失败早返回 / 外部浏览器外跳），
     // 之后的「支付中/确认中→结果」由倒计时与轮询驱动，不再依赖 submitting
@@ -587,6 +645,7 @@ function startCountdown() {
 function startPolling(delayMs?: number) {
   const delay = delayMs ?? (pollCount < 6 ? 1000 : 3000)
   pollTimer = setTimeout(async () => {
+    if (leaving) return
     // 放行 paying 与 confirming 两态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
     // 唯有已进 success/failed/timeout/cancelled 结果态才停（否则重复跳转/重复兑现）
     if (status.value !== 'paying' && status.value !== 'confirming') return
@@ -617,19 +676,15 @@ function startPolling(delayMs?: number) {
         if (fresh) lastH5CurrentRead = Date.now()
         // #endif
         const st = await shopApi.getOrderPayState(orderId.value, fresh)
+        if (leaving || (status.value !== 'paying' && status.value !== 'confirming')) return
         if (st.paid) {
-          await settleCircleIfNeeded(st)
-          status.value = 'success'
-          track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
+          await completePaidOrder(st, true)
+          return
+        }
+        if (st.status === 'CANCELLED' || st.status === 'REFUNDED') {
+          status.value = 'failed'
+          failReason.value = st.status === 'REFUNDED' ? '该订单已退款，请查看订单详情' : '该订单已取消，请重新下单'
           clearTimers('all')
-          if (!returnLiveRoomId.value) {
-            reLaunch(paidBusinessTarget(st))
-            return
-          }
-          const liveReturn = returnLiveRoomId.value
-            ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}`
-            : ''
-          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}${liveReturn}`), 900)
           return
         }
       }
@@ -645,6 +700,23 @@ function startPolling(delayMs?: number) {
   }, delay)
 }
 
+async function completePaidOrder(st: { type?: string; targetId?: string }, newlyObserved: boolean) {
+  await settleCircleIfNeeded(st)
+  if (leaving) return
+  status.value = 'success'
+  if (newlyObserved) track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
+  clearTimers('all')
+  const successQuery = new URLSearchParams({ orderId: orderId.value })
+  if (returnLiveRoomId.value) successQuery.set('returnLiveRoomId', returnLiveRoomId.value)
+  if (returnRecordId.value) successQuery.set('returnRecordId', returnRecordId.value)
+  if (returnVoiceScene.value && returnVoiceContextId.value) {
+    successQuery.set('returnVoiceScene', returnVoiceScene.value)
+    successQuery.set('returnVoiceContextId', returnVoiceContextId.value)
+    if (returnVoiceSectionId.value) successQuery.set('returnVoiceSectionId', returnVoiceSectionId.value)
+  }
+  setTimeout(() => { if (!leaving) redirectTo(`/shop/pay-success?${successQuery.toString()}`) }, 900)
+}
+
 function clearTimers(which: 'cd' | 'poll' | 'all') {
   if ((which === 'cd' || which === 'all') && cdTimer) { clearInterval(cdTimer); cdTimer = null }
   if ((which === 'poll' || which === 'all') && pollTimer) { clearTimeout(pollTimer); pollTimer = null }
@@ -657,6 +729,7 @@ function returnTarget() {
 function handleCancel() {
   if (cancelling) return
   cancelling = true
+  leaving = true
   clearTimers('all')
   if (returnLiveRoomId.value) {
     const pages = getCurrentPages()
@@ -673,25 +746,21 @@ function handleCancel() {
   setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
-  if (submitting.value) return
+  if (submitting.value || checkingOrder) return
   failReason.value = ''
   if (isRecharge.value && rechargeOrderNo.value) {
     // 已创建微信单时只继续查原单，绝不再建第二笔，避免用户晚付导致重复扣款。
-    status.value = 'confirming'
-    countdown.value = 180
-    pollCount = 0
-    clearTimers('all')
-    startCountdown()
-    startPolling(300)
+    resumePolling()
     return
   }
-  startPaying()
+  if (isRecharge.value) { void startPaying(); return }
+  void checkOrderBeforePay()
 }
 function goOrder() {
   reLaunch(returnTarget())
 }
 
-onUnmounted(() => clearTimers('all'))
+onUnmounted(() => { leaving = true; clearTimers('all') })
 </script>
 
 <style lang="scss" scoped>

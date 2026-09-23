@@ -47,9 +47,17 @@ export class ReportAskService {
   }
 
   /** 剩余可问次数（供前端展示，用完给客户一个明确说法而不是干等） */
-  private quotaKey(reportId: string) {
-    const day = new Date().toISOString().slice(0, 10);
-    return `report-ask:${reportId}:${day}`;
+  private quotaWindow(reportId: string) {
+    // “今日”按平台统一的北京时间计算，键在下一个北京时间零点过期。
+    const dayMs = 86400_000;
+    const shanghaiOffsetMs = 8 * 3600_000;
+    const shanghaiTime = Date.now() + shanghaiOffsetMs;
+    const dayStart = Math.floor(shanghaiTime / dayMs) * dayMs;
+    const day = new Date(dayStart).toISOString().slice(0, 10);
+    return {
+      key: `report-ask:${reportId}:${day}`,
+      ttlSeconds: Math.max(1, Math.ceil((dayStart + dayMs - shanghaiTime) / 1000)),
+    };
   }
 
   async ask(token: string, question: string, history?: { role: string; content: string }[]) {
@@ -61,23 +69,40 @@ export class ReportAskService {
     if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
 
     // 频次闸门：客户匿名，只能按报告限；超出给出明确说法，让客户去找老师
-    const key = this.quotaKey(report.id);
+    const { key, ttlSeconds } = this.quotaWindow(report.id);
     // 原子自增 + 首次设 TTL（平台既有实现，含 Redis 不可用时的内存降级）
-    const { count: used } = await this.redis
-      .incrWithTtl(key, 86400)
-      .catch(() => ({ count: 1, ttl: 86400 }));
+    let reserved = false;
+    let used: number;
+    try {
+      ({ count: used } = await this.redis.incrWithTtl(key, ttlSeconds));
+      reserved = true;
+    } catch (error: any) {
+      this.logger.warn(`交付报告问答计数失败：${error?.message || error}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    }
+    const release = async () => {
+      if (reserved) await this.redis.decrFloorZero(key).catch(() => undefined);
+    };
     if (used > ReportAskService.DAILY_LIMIT) {
+      await release();
       throw new BusinessException(
         ErrorCode.RATE_LIMITED,
         "今天的提问次数已用完，如还有想问的，请直接联系老师",
       );
     }
 
-    const profile = await this.prisma.practitionerProfile.findUnique({ where: { userId: report.ownerId } });
-    const author = await this.prisma.user.findUnique({
-      where: { id: report.ownerId },
-      select: { nickname: true },
-    });
+    let profile: { brandName: string | null } | null;
+    let author: { nickname: string | null } | null;
+    try {
+      profile = await this.prisma.practitionerProfile.findUnique({ where: { userId: report.ownerId } });
+      author = await this.prisma.user.findUnique({
+        where: { id: report.ownerId },
+        select: { nickname: true },
+      });
+    } catch (error) {
+      await release();
+      throw error;
+    }
     const brandName = profile?.brandName || author?.nickname || "";
 
     const chapters = Array.isArray(report.chapters) ? (report.chapters as any[]) : [];
@@ -111,12 +136,32 @@ export class ReportAskService {
         skipCache: true,
       });
     } catch (error: any) {
+      await release();
       this.logger.warn(`交付报告问答失败：${error?.message || error}`);
       throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试，或直接联系老师");
     }
 
     const answer = (res.content || "").trim();
-    if (!answer) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    if (!answer) {
+      await release();
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
+    }
+
+    // 模型生成可能持续较久；老师在此期间撤回或更换链接时，不再交付答案。
+    let sharedReport: { id: string } | null;
+    try {
+      sharedReport = await this.prisma.practitionerReport.findUnique({
+        where: { shareToken: token },
+        select: { id: true },
+      });
+    } catch (error) {
+      await release();
+      throw error;
+    }
+    if (sharedReport?.id !== report.id) {
+      await release();
+      throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
+    }
 
     return {
       answer,

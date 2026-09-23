@@ -52,7 +52,7 @@ function setup() {
       },
     ]),
   };
-  return { svc: new PaipanReportService(prisma, gateway, knowledge), prisma, gateway, knowledge, store };
+  return { svc: new PaipanReportService(prisma, gateway, knowledge, { assertReportAccess: jest.fn() } as any), prisma, gateway, knowledge, store };
 }
 
 const modelJson = () =>
