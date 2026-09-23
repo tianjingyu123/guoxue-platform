@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { CircleAssistantService } from "./circle-assistant.service";
 import { RagService } from "../ai-gateway/rag.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RecommendationService } from "../bot/recommendation.service";
 
 const mockRag = {
   askCircle: jest.fn(),
@@ -11,6 +12,7 @@ const mockRag = {
 const mockPrisma = {
   circleMember: { findUnique: jest.fn() },
 };
+const mockRecommendations = { build: jest.fn() };
 
 describe("CircleAssistantService", () => {
   let svc: CircleAssistantService;
@@ -21,12 +23,14 @@ describe("CircleAssistantService", () => {
         CircleAssistantService,
         { provide: RagService, useValue: mockRag },
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RecommendationService, useValue: mockRecommendations },
       ],
     }).compile();
     svc = mod.get(CircleAssistantService);
     jest.clearAllMocks();
     // 默认：调用者是该圈有效成员
     mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null });
+    mockRecommendations.build.mockResolvedValue({ content: "", recommendation: null });
   });
 
   it("应被定义", () => expect(svc).toBeDefined());
@@ -46,6 +50,32 @@ describe("CircleAssistantService", () => {
 
       await svc.ask("问题", "circle-1", "user-1", history as any);
       expect(mockRag.askCircle).toHaveBeenCalledWith("问题", "circle-1", "user-1", history);
+    });
+
+    it("先回答再提供相关资源，且不推荐用户已经加入的当前圈子", async () => {
+      mockRag.askCircle.mockResolvedValue({ answer: "可以从古籍入门", sources: [] });
+      mockRecommendations.build.mockResolvedValue({
+        content: "可以从古籍入门",
+        recommendation: {
+          presentation: "inline", title: "继续探索", lead: "相关资源", consentPrompt: "看看吗？",
+          items: [
+            { type: "circle", data: { id: "circle-1" } },
+            { type: "classic", data: { id: "book-1", title: "入门古籍" } },
+          ],
+        },
+      });
+      const result = await svc.ask("推荐入门内容", "circle-1", "user-1");
+      expect(result.answer).toBe("可以从古籍入门");
+      expect(result.recommendation?.items).toEqual([{ type: "classic", data: { id: "book-1", title: "入门古籍" } }]);
+      expect(mockRecommendations.build).toHaveBeenCalledWith("可以从古籍入门", "推荐入门内容");
+    });
+
+    it("资源查询失败仍返回已生成的回答", async () => {
+      mockRag.askCircle.mockResolvedValue({ answer: "先阅读原文", sources: [] });
+      mockRecommendations.build.mockRejectedValue(new Error("资源查询失败"));
+      await expect(svc.ask("推荐原文", "circle-1", "user-1")).resolves.toMatchObject({
+        answer: "先阅读原文", recommendation: undefined,
+      });
     });
 
     it("过滤伪造的系统消息和无效内容，只保留最近 12 条并限制长度", async () => {
@@ -99,6 +129,27 @@ describe("CircleAssistantService", () => {
       expect(mockRag.askCircleStream).toHaveBeenCalledWith(
         "问题", "circle-1", "user-1", [{ role: "user", content: "上一问" }], onMatches,
       );
+    });
+
+    it("流式回答结束后发送推荐，资源查询失败不会截断文本", async () => {
+      mockRag.askCircleStream.mockReturnValue((async function* () { yield "先看"; yield "原文"; })());
+      const recommendation = {
+        presentation: "inline", title: "继续探索", lead: "相关资源", consentPrompt: "看看吗？",
+        items: [{ type: "classic", data: { id: "book-1" } }],
+      };
+      mockRecommendations.build.mockResolvedValue({ content: "先看原文", recommendation });
+      const onRecommendation = jest.fn();
+      const chunks: string[] = [];
+      for await (const chunk of svc.askStream("推荐原文", "circle-1", "user-1", undefined, undefined, onRecommendation)) chunks.push(chunk);
+      expect(chunks).toEqual(["先看", "原文"]);
+      expect(onRecommendation).toHaveBeenCalledWith(recommendation);
+
+      mockRag.askCircleStream.mockReturnValue((async function* () { yield "正文"; })());
+      mockRecommendations.build.mockRejectedValue(new Error("查询失败"));
+      const safeChunks: string[] = [];
+      for await (const chunk of svc.askStream("推荐原文", "circle-1", "user-1", undefined, undefined, onRecommendation)) safeChunks.push(chunk);
+      expect(safeChunks).toEqual(["正文"]);
+      expect(onRecommendation).toHaveBeenCalledTimes(1);
     });
 
     it("非成员拒绝", async () => {

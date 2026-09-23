@@ -29,11 +29,12 @@ import { AuditModule } from "../audit/audit.module";
 import { TrackModule } from "../track/track.module";
 import { CirclePublishGrantController } from "./circle-publish-grant.controller";
 import { CirclePublishGrantService } from "./circle-publish-grant.service";
+import { RecommendationService } from "../bot/recommendation.service";
 
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
   controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
-  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
+  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, RecommendationService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
   exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
 })
 export class CircleModule {}

@@ -72,6 +72,8 @@ export class CircleAssistantController {
     try {
       for await (const chunk of this.assistant.askStream(body.question, circleId, userId, body.history, (knowledgeMatches) => {
         res.write(this.sse.encode({ type: "meta", knowledgeMatches }));
+      }, (recommendation) => {
+        res.write(this.sse.encode({ type: "meta", recommendation }));
       })) {
         res.write(this.sse.encode({ type: "chunk", content: chunk }));
       }

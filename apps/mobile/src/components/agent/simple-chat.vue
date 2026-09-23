@@ -415,7 +415,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
               <text v-if="msg.knowledgeMatches.circle + msg.knowledgeMatches.global" class="knowledge-note__text">
                 本次检索到本圈 {{ msg.knowledgeMatches.circle }} 条、通用 {{ msg.knowledgeMatches.global }} 条；检索命中不代表回答已逐条引用。
               </text>
-              <text v-else class="knowledge-note__text">未检索到直接相关的资料，本次回答来自通用知识。</text>
+              <text v-else class="knowledge-note__text">未检索到直接相关的资料；请结合原文核实回答。</text>
             </view>
             <view v-if="msg.recommendation" class="service-recommend">
               <view v-if="msg.recommendation.presentation !== 'inline' && !msg.recoConsented" class="service-consent">

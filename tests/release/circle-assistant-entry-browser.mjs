@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
 
 const { chromium } = createRequire(import.meta.url)(resolve(process.env.QA_NODE_MODULES, 'playwright'))
-const origin = 'http://127.0.0.1:5197'
+const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197'
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const errors = []
 let member = false
@@ -31,7 +31,12 @@ try {
       const events = failed
         ? [{ type: 'meta', knowledgeMatches: { circle: 1, global: 0 } }, { type: 'error', message: question.includes('额度') ? '模拟额度耗尽' : '模拟流式失败' }]
         : [{ type: 'meta', knowledgeMatches: empty ? { circle: 0, global: 0 } : { circle: 2, global: 1 } },
-          { type: 'chunk', content: empty ? '可先从基础内容读起。' : longAnswer ? '本圈的共读路径从经典原文开始，再配合注释与讨论理解语境。'.repeat(8) : '本圈从古籍共读入门。' }, { type: 'done' }]
+          { type: 'chunk', content: empty ? '可先从基础内容读起。' : longAnswer ? '本圈的共读路径从经典原文开始，再配合注释与讨论理解语境。'.repeat(8) : '本圈从古籍共读入门。' },
+          ...(empty ? [{ type: 'meta', recommendation: {
+            presentation: 'inline', title: '顺着问题继续', lead: '相关资源', consentPrompt: '要看看吗？',
+            items: [{ type: 'classic', data: { id: 'qa-book', title: '入门古籍', href: '/classics/qa-book' } }],
+          } }] : []),
+          { type: 'done' }]
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('') })
     }
     let data = []
@@ -81,7 +86,8 @@ try {
   await page.getByRole('button', { name: '发送消息' }).click()
   await page.locator('.answer-art').waitFor({ timeout: 10000 })
   await page.getByText('推荐一些入门内容', { exact: true }).click()
-  await page.getByText('未检索到直接相关的资料，本次回答来自通用知识。', { exact: true }).waitFor({ timeout: 10000 })
+  await page.getByText('未检索到直接相关的资料；请结合原文核实回答。', { exact: true }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: '原典：入门古籍，翻开古籍' }).waitFor({ timeout: 10000 })
   await page.getByText('帮我解释一个概念', { exact: true }).click()
   await page.getByText('模拟流式失败', { exact: false }).waitFor({ timeout: 10000 })
   assert.equal(await page.locator('.knowledge-note').count(), 3, '失败回答不应继续展示检索摘要')
@@ -116,5 +122,5 @@ try {
 
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('12组通过：成员引导与返回滚动、长短回答层级、流式命中/零命中/失败摘要、无付费额度不诱导购买、过期续费与状态失败保护；真实业务写入0。')
+  console.log('13组通过：成员引导与返回滚动、长短回答层级、流式命中/零命中/失败摘要、相关资源推荐、无付费额度不诱导购买、过期续费与状态失败保护；真实业务写入0。')
 } finally { await browser.close() }
