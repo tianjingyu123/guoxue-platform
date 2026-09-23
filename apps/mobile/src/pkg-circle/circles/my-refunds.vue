@@ -19,27 +19,33 @@ const eligibleCircles = ref<MyCircle[]>([])
 const balance = ref(0)
 const loading = ref(true)
 const error = ref('')
+const walletLoading = ref(true)
+const walletError = ref(false)
 const circlesLoadError = ref(false)
 const menuSafeRight = getMiniProgramMenuSafeRight()
+let requestSeq = 0
 
 async function load() {
+  const seq = ++requestSeq
   loading.value = true
+  walletLoading.value = true
   error.value = ''
+  walletError.value = false
   circlesLoadError.value = false
-  try {
-    const [refunds, wallet, circles] = await Promise.all([
-      refundApi.myRefunds({ throwOnError: true }),
-      refundApi.wallet({ throwOnError: true }),
-      circleApi.getMyCircles().catch(() => { circlesLoadError.value = true; return [] }),
-    ])
-    list.value = refunds
-    balance.value = wallet.balance
-    eligibleCircles.value = circles.filter((c) => c.role === 'member')
-  } catch {
-    error.value = '加载失败'
-  } finally {
-    loading.value = false
-  }
+  const [refunds, wallet, circles] = await Promise.allSettled([
+    refundApi.myRefunds({ throwOnError: true }),
+    refundApi.wallet({ throwOnError: true }),
+    circleApi.getMyCircles(),
+  ])
+  if (seq !== requestSeq) return
+  if (refunds.status === 'fulfilled') list.value = refunds.value
+  else error.value = '退款记录暂时无法加载'
+  if (wallet.status === 'fulfilled') balance.value = wallet.value.balance
+  else walletError.value = true
+  if (circles.status === 'fulfilled') eligibleCircles.value = circles.value.filter((c) => c.role === 'member')
+  else { circlesLoadError.value = true; eligibleCircles.value = [] }
+  walletLoading.value = false
+  loading.value = false
 }
 
 type BadgeKind = 'pending' | 'refunding' | 'done' | 'rejected'
@@ -182,11 +188,12 @@ onShow(() => { void load() })
     <view class="rf-wallet">
       <view class="rf-wallet-main">
         <text class="rf-wallet-label">可提现余额</text>
-        <text class="rf-wallet-amount">{{ loading || error ? '暂未确认' : `¥${formatPrice(balance)}` }}</text>
+        <text class="rf-wallet-amount">{{ walletLoading || walletError ? '暂未确认' : `¥${formatPrice(balance)}` }}</text>
       </view>
       <view class="rf-wallet-btn" @tap="toWithdraw"><text class="rf-wallet-btn-t">去提现</text></view>
     </view>
-    <text class="rf-wallet-note">余额与提现由平台钱包统一管理，提现明细见个人中心。</text>
+    <text v-if="walletError" class="rf-wallet-note rf-wallet-retry" role="button" @tap="load">余额暂时无法读取，点此重试</text>
+    <text v-else class="rf-wallet-note">余额与提现由平台钱包统一管理，提现明细见个人中心。</text>
 
     <!-- 加载态 -->
     <view v-if="loading" class="rf-state">
@@ -296,6 +303,7 @@ onShow(() => { void load() })
 .rf-wallet-btn:active { opacity: 0.85; }
 .rf-wallet-btn-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #c41e3a); }
 .rf-wallet-note { display: block; margin: 16rpx 44rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999); }
+.rf-wallet-retry { color: var(--brand, #c41e3a); min-height: 44px; display: flex; align-items: center; }
 
 /* 三态 */
 .rf-state { padding: 40rpx 32rpx; }

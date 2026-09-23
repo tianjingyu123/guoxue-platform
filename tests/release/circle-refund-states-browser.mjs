@@ -9,6 +9,7 @@ const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let refundsFail = true
 let ownerFail = true
 let circlesCalls = 0
+let walletCalls = 0
 let writes = 0
 const errors = []
 const json = (data, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify({ code: status, data, message: status === 200 ? 'ok' : '模拟接口故障' }) })
@@ -22,9 +23,12 @@ try {
     if (route.request().method() !== 'GET') writes++
     if (path === '/circle-refund/my') {
       if (refundsFail) { refundsFail = false; return route.fulfill(json(null, 503)) }
-      return route.fulfill(json({ data: [] }))
+      return route.fulfill(json({ data: [{ id: 'refund-fixture', circleId: 'qa', circleName: '共读圈', ownerStatus: 'approved', adminStatus: 'approved', refundStatus: 'refunding', actualRefund: 18, createdAt: '2026-09-22T00:00:00Z' }] }))
     }
-    if (path === '/circle-refund/wallet') return route.fulfill(json({ balance: 23, transactions: [] }))
+    if (path === '/circle-refund/wallet') {
+      if (++walletCalls === 2) return route.fulfill(json(null, 503))
+      return route.fulfill(json({ balance: 23, transactions: [] }))
+    }
     if (path === '/circles/my') {
       if (++circlesCalls === 2) return route.fulfill(json(null, 503))
       return route.fulfill(json([]))
@@ -39,13 +43,18 @@ try {
   const page = await context.newPage()
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(`${origin}/h5/pkg-circle/circles/my-refunds`)
-  await page.getByText('加载失败', { exact: true }).waitFor({ timeout: 15000 })
+  await page.getByText('退款记录暂时无法加载').waitFor({ timeout: 15000 })
   assert.equal(await page.getByText('暂无退款记录').count(), 0, '售后接口故障不能展示暂无退款')
-  assert.equal(await page.getByText('暂未确认').count(), 1, '查询失败不能展示默认 0 元余额')
+  await page.getByText('¥23').waitFor()
   await page.getByText('重试', { exact: true }).click()
-  await page.getByText('暂无退款记录').waitFor()
+  await page.getByText('退款处理中').waitFor()
+  assert.equal(await page.getByText('暂无退款记录').count(), 0, '钱包故障不能遮住已取得的退款记录')
+  await page.getByText('暂未确认', { exact: true }).waitFor()
+  await page.getByText('余额暂时无法读取，点此重试').waitFor()
   await page.getByText('会员事项暂时无法加载').waitFor()
-  await page.getByRole('button', { name: '重试加载会员事项' }).click()
+  await page.getByRole('button', { name: '余额暂时无法读取，点此重试' }).click()
+  await page.getByText('¥23').waitFor()
+  await page.getByText('退款处理中').waitFor()
   await page.getByText('会员事项暂时无法加载').waitFor({ state: 'detached' })
 
   await page.goto(`${origin}/h5/pkg-circle/circles/join-requests?id=qa&type=refund`)
