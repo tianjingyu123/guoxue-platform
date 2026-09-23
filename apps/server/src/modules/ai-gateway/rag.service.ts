@@ -8,6 +8,7 @@ import { AiMessage } from "./adapters/base.adapter";
 import { PrismaService } from "../../prisma/prisma.service";
 import { buildCircleReferralPrompt, detectReferral, referralCard } from "../dialogue/dialogue-policy";
 import { buildRoleAnglePrompt } from "../dialogue/circle-member-roles";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
 /**
  * 圈子助理的语义缓存域：圈 + 问话人角色（+ 用了称呼的用户单独成域）。
@@ -113,7 +114,7 @@ export class RagService {
     // 1. 三级兜底检索：圈子专属知识（优先）+ 全局通用知识库（searchFederated 本地不降权、全局降权 0.3）
     const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
 
-    const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
+    const systemPrompt = withUserAnswerExperience(await this.getSystemPrompt("circle_assistant", { circleId }));
     const messages: AiMessage[] = [{ role: "system", content: systemPrompt }];
 
     if (chunks.length > 0) {
@@ -161,7 +162,7 @@ export class RagService {
     // 三级兜底检索：圈子专属（优先）+ 全局通用知识库
     const chunks = await this.searchFederated(question, circleId, 5).catch(() => [] as KnowledgeChunk[]);
 
-    const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
+    const systemPrompt = withUserAnswerExperience(await this.getSystemPrompt("circle_assistant", { circleId }));
     const messages: AiMessage[] = [{ role: "system", content: systemPrompt }];
 
     if (chunks.length > 0) {
@@ -304,7 +305,7 @@ export class RagService {
       .map((c, i) => `[参考${i + 1}] [${c.sourceType}] ${c.content}`)
       .join("\n\n");
 
-    const systemPrompt = await this.getSystemPrompt("circle_assistant", { circleId });
+    const systemPrompt = withUserAnswerExperience(await this.getSystemPrompt("circle_assistant", { circleId }));
     const messages: AiMessage[] = [
       { role: "system", content: systemPrompt },
       { role: "system", content: `知识库内容（含全局典籍）：\n${contextText}` },

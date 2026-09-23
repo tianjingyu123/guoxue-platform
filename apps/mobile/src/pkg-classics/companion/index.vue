@@ -80,7 +80,11 @@
           </view>
           <view v-else class="cp-assist-wrap">
             <view class="cp-card">
-              <text v-if="m.content" class="cp-card-text">{{ m.content }}</text>
+              <text v-if="m.content" class="cp-card-text">{{ companionVisibleText(m) }}</text>
+              <view v-if="!m.isStreaming && isLongCompanionAnswer(m)" class="cp-answer-toggle" @tap="m.expanded = !m.expanded">
+                <text class="cp-answer-toggle-text">{{ m.expanded ? '收起详解' : '展开详解' }}</text>
+                <app-icon :name="m.expanded ? 'chevron-up' : 'chevron-down'" :size="26" color="#6b5b7a" />
+              </view>
               <!-- 流式空气泡：首个 chunk 到达前的研读动画（内容到来后即被替换） -->
               <view v-else-if="m.isStreaming" class="cp-loading">
                 <view class="cp-dots"><view class="cp-dot" /><view class="cp-dot" /><view class="cp-dot" /></view>
@@ -165,6 +169,21 @@ interface CompanionMessage {
   disclaimer?: string
   // 流式增量填充中（H5 真流式：空气泡→逐块追加；完成/降级时为 false）
   isStreaming?: boolean
+  /** 长回答默认只露出结论，用户需要时再展开。 */
+  expanded?: boolean
+}
+
+const COMPANION_PREVIEW_LENGTH = 220
+
+function isLongCompanionAnswer(message: CompanionMessage) {
+  return message.role === 'assistant' && message.content.length > COMPANION_PREVIEW_LENGTH
+}
+
+function companionVisibleText(message: CompanionMessage) {
+  if (!isLongCompanionAnswer(message) || message.expanded || message.isStreaming) return message.content
+  const head = message.content.slice(0, COMPANION_PREVIEW_LENGTH)
+  const naturalBreak = Math.max(head.lastIndexOf('。'), head.lastIndexOf('！'), head.lastIndexOf('？'), head.lastIndexOf('\n'))
+  return `${head.slice(0, naturalBreak > 90 ? naturalBreak + 1 : COMPANION_PREVIEW_LENGTH).trim()}…`
 }
 
 const chapterId = ref('')
@@ -631,11 +650,22 @@ function copyMsg(content: string) {
   border: 2rpx solid rgba(235, 230, 223, 0.6);
 }
 .cp-card-text {
-  font-size: 28rpx;
-  line-height: 1.7;
+  font-size: 31rpx;
+  line-height: 1.82;
   color: #1a1a1a;
   white-space: pre-wrap;
 }
+.cp-answer-toggle {
+  min-height: 64rpx;
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx solid rgba(107, 91, 122, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.cp-answer-toggle-text { font-size: 25rpx; color: #6b5b7a; font-weight: 600; }
 .cp-disclaimer {
   display: block;
   margin-top: 20rpx;

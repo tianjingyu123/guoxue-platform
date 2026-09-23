@@ -15,6 +15,7 @@ import { CoinService } from "../coin/coin.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { randomUUID } from "crypto";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
 /** 首发广场不陈列结果预测型智能体；历史会话仍可通过详情继续访问。 */
 const PUBLIC_HIDDEN_BOT_TYPES = [
@@ -607,7 +608,7 @@ export class BotService {
   }
 
   private buildAgentSystemPrompt(rolePrompt: string): string {
-    return `${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`;
+    return withUserAnswerExperience(`${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`);
   }
 
   /** 获取对话历史 */

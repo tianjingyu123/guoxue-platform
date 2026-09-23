@@ -436,7 +436,7 @@ function reset() {
 .msg-row-user { flex-direction: row-reverse; }
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .card-wrap { flex: 1; min-width: 0; max-width: 86%; }
-.answer-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.answer-wrap { flex: 1; min-width: 0; max-width: 92%; display: flex; flex-direction: column; gap: 14rpx; }
 .service-recommend {
   display: flex; flex-direction: column; gap: 12rpx;
   padding: 18rpx;
@@ -464,10 +464,10 @@ function reset() {
 }
 .service-consent__yes { color: #fff; background: #315f7a; }
 .service-consent__no { color: #7d8589; background: rgba(49, 95, 122, 0.07); }
-.bubble { max-width: 80%; border-radius: 24rpx; padding: 20rpx 28rpx; }
+.bubble { max-width: 84%; border-radius: 24rpx; padding: 22rpx 28rpx; }
 .bubble-ai { background: #fff; border: 1rpx solid #ececec; border-top-left-radius: 6rpx; }
 .bubble-user { background: var(--brand); border-top-right-radius: 6rpx; }
-.bubble-text { font-size: 28rpx; line-height: 1.6; white-space: pre-wrap; color: inherit; }
+.bubble-text { font-size: 30rpx; line-height: 1.72; white-space: pre-wrap; color: inherit; }
 .bubble-ai .bubble-text { color: #1a1a1a; }
 .bubble-user .bubble-text { color: #fff; }
 .bubble-time { display: block; font-size: 20rpx; margin-top: 8rpx; color: #999; }
