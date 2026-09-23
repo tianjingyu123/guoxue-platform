@@ -128,6 +128,22 @@ export class ReportAskService {
       throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "暂时没能回答，请稍后再试");
     }
 
+    // 模型生成可能持续较久；老师在此期间撤回或更换链接时，不再交付答案。
+    let sharedReport: { id: string } | null;
+    try {
+      sharedReport = await this.prisma.practitionerReport.findUnique({
+        where: { shareToken: token },
+        select: { id: true },
+      });
+    } catch (error) {
+      await release();
+      throw error;
+    }
+    if (sharedReport?.id !== report.id) {
+      await release();
+      throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在或已被撤回");
+    }
+
     return {
       answer,
       brandName,

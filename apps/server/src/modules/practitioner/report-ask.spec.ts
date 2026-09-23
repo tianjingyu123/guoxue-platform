@@ -102,6 +102,29 @@ describe("交付报告问答", () => {
     expect(gateway.chat).not.toHaveBeenCalled();
   });
 
+  it("模型生成期间撤回分享链接时不交付答案，并恢复提问次数", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      prisma.practitionerReport.findUnique.mockResolvedValueOnce(null);
+      return { content: "这段解读的答案" };
+    });
+
+    await expect(svc.ask("tok-1", "这段是什么意思？")).rejects.toThrow("已被撤回");
+    expect(prisma.practitionerReport.findUnique).toHaveBeenCalledTimes(2);
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+  });
+
+  it("交付前无法确认分享状态时不返回答案，并恢复提问次数", async () => {
+    const { svc, prisma, redis, gateway } = setup();
+    gateway.chat.mockImplementationOnce(async () => {
+      prisma.practitionerReport.findUnique.mockRejectedValueOnce(new Error("database unavailable"));
+      return { content: "这段解读的答案" };
+    });
+
+    await expect(svc.ask("tok-1", "这段是什么意思？")).rejects.toThrow("database unavailable");
+    expect(redis.decrFloorZero).toHaveBeenCalledTimes(1);
+  });
+
   it("带最近几轮上下文，但不无限增长", async () => {
     const { svc, gateway } = setup();
     const history = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: `第${i}条` }));
