@@ -57,11 +57,7 @@ export async function validateMpArtifactDirectory(directory = DEFAULT_DIST) {
     }
   }
 
-  const xingmingEngine = resolve(directory, "pkg-paipan2", "lib", "xingming-engine.js");
-  const xingmingSource = await readFile(xingmingEngine, "utf8");
-  if (!xingmingSource.includes("JSON.parse")) {
-    failures.push({ file: xingmingEngine, message: "康熙字库未使用微信兼容的分段 JSON 解析" });
-  }
+  // 姓名算法及康熙字库已迁至服务端；客户端不再产出 xingming-engine.js。
   return { files, failures };
 }
 

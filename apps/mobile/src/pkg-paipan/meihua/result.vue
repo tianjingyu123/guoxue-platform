@@ -296,7 +296,7 @@ function handleShare() {
     </view>
     <view v-else-if="loading" class="err"><text class="err-text">正在起卦…</text></view>
 
-    <scroll-view v-else-if="ready" scroll-y class="body">
+    <scroll-view v-else-if="ready && engine" scroll-y class="body">
       <view class="body-inner">
         <!-- 信息表 -->
         <view class="card info-table">
