@@ -14,7 +14,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { wsApi } from '@/pkg-workspace/lib/workspace-api'
 import { shopApi } from '@/lib/shop-data'
-import { getToken } from '@/utils/storage'
+import { getToken, getUserInfo } from '@/utils/storage'
 import { track } from '@/composables/useTrack'
 import {
   aiReportApi,
@@ -440,14 +440,52 @@ const paywall = ref<AiReportAccess | null>(null)
 const checkingAccess = ref(false)
 const buyingReport = ref(false)
 const pendingReportOrder = ref<{ id: string; amount: number; targetId: string } | null>(null)
+const needsLogin = ref(false)
 let lastAccessEvent = ''
+let accessSeq = 0
+let sessionToken = ''
+let sessionUserId = ''
+
+function currentUserId() {
+  return String(getUserInfo<{ id?: string }>()?.id || '')
+}
+
+function clearPrivateReport() {
+  // 登录态变化后，旧请求不能再把上一账号的报告写回页面。
+  requestSeq++
+  accessSeq++
+  checkingAccess.value = false
+  loading.value = false
+  report.value = null
+  paywall.value = null
+  pendingReportOrder.value = null
+  preflight.value = null
+  related.value = []
+  voiceQuota.value = null
+  chatOpen.value = false
+  chatItems.value = []
+  previousChatItems.value = []
+  chatProgress.value = null
+  historyLoadedFor = ''
+  lastAccessEvent = ''
+}
 
 async function checkAccessThenLoad() {
   if (!recordId.value || checkingAccess.value) return
+  if (!getToken()) {
+    clearPrivateReport()
+    needsLogin.value = true
+    error.value = '登录后才能生成属于你的报告'
+    return
+  }
+  const seq = ++accessSeq
+  const ownerId = sessionUserId
   checkingAccess.value = true
+  needsLogin.value = false
   error.value = ''
   try {
     const access = await aiReportApi.access(recordId.value, requestedReportType.value)
+    if (seq !== accessSeq || !getToken() || (ownerId && currentUserId() !== ownerId)) return
     const accessEvent = `${access.granted}:${access.via}:${access.reportType}`
     if (accessEvent !== lastAccessEvent) {
       track.custom('paipan_report_access', { state: access.granted ? 'granted' : 'paywall', via: access.via || 'none', reportType: access.reportType })
@@ -461,9 +499,10 @@ async function checkAccessThenLoad() {
       paywall.value = access
     }
   } catch (e) {
+    if (seq !== accessSeq) return
     error.value = (e as Error)?.message || '加载失败，请稍后重试'
   } finally {
-    checkingAccess.value = false
+    if (seq === accessSeq) checkingAccess.value = false
   }
 }
 
@@ -519,7 +558,10 @@ onLoad((q) => {
     error.value = '缺少排盘记录，请先保存排盘后再生成报告'
     return
   }
-  if (!getToken()) {
+  sessionToken = getToken()
+  sessionUserId = currentUserId()
+  if (!sessionToken) {
+    needsLogin.value = true
     error.value = '登录后才能生成属于你的报告'
     return
   }
@@ -528,6 +570,25 @@ onLoad((q) => {
 
 // 从收银页或会员页返回：仍停在购买选项时重新检查一次
 onShow(async () => {
+  if (!recordId.value) return
+  const currentToken = getToken()
+  if (currentToken !== sessionToken) {
+    const userId = currentUserId()
+    const accountChanged = !sessionToken || !currentToken || !userId || !sessionUserId || userId !== sessionUserId
+    if (accountChanged) clearPrivateReport()
+    sessionToken = currentToken
+    sessionUserId = userId
+    if (!currentToken) {
+      needsLogin.value = true
+      error.value = '登录后才能生成属于你的报告'
+      return
+    }
+    if (accountChanged) {
+      checkAccessThenLoad()
+      return
+    }
+  }
+  if (!currentToken) return
   if (paywall.value && !loading.value) checkAccessThenLoad()
   else if (report.value && !loading.value) {
     const currentId = report.value.id
@@ -600,7 +661,8 @@ onShow(async () => {
       <view v-else-if="error" class="state">
         <text class="state-title">{{ error }}</text>
         <view class="state-actions">
-          <view v-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
+          <view v-if="needsLogin" class="btn btn-primary" @tap="navigateTo('/login')"><text class="btn-text-primary">去登录</text></view>
+          <view v-else-if="recordId" class="btn btn-primary" @tap="checkAccessThenLoad()"><text class="btn-text-primary">重试</text></view>
           <view class="btn" @tap="navigateBack()"><text class="btn-text">返回查看盘面</text></view>
         </view>
       </view>
