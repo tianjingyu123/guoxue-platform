@@ -4,6 +4,7 @@ import { VectorService } from "./vector.service";
 import { AiMessage } from "./adapters/base.adapter";
 import { SystemService } from "../system/system.service";
 import { RecommendationService, type Recommendation } from "../bot/recommendation.service";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
 interface CustomerServiceFaqEntry {
   category: string;
@@ -84,7 +85,7 @@ const MAX_FAQ_CONTEXT = 6000;
 const RECOMMENDATION_BLOCK_RE = /投诉|举报|退款|退费|被骗|欺诈|不满意|垃圾|错误|答非所问|连接失败|加载失败|无法使用|崩溃|卡死|人工客服/;
 
 /** 客服系统提示词（品牌名走 BrandConfig 注入·其余语义保持稳定） */
-const buildCustomerServicePrompt = (brandName: string) => `你是${brandName}平台的智能客服助手。你的职责是帮助用户解决平台使用问题。
+const buildCustomerServicePrompt = (brandName: string) => withUserAnswerExperience(`你是${brandName}平台的智能客服助手。你的职责是帮助用户解决平台使用问题。
 
 规则：
 1. 优先根据“平台 FAQ”和“知识库内容”回答，不要编造信息
@@ -95,7 +96,7 @@ const buildCustomerServicePrompt = (brandName: string) => `你是${brandName}平
 6. 用户明确询问推荐时直接给出；在入门、练习、复盘、持续交流等自然节点，也可以主动衔接课程或圈子。商品仅在用品、器材、礼物或明确购买场景出现。必须说明推荐理由，涉及价格时明确标注，不使用恐吓、夸大、制造焦虑或假装“恰好懂你”的话术
 7. 每次最多给两个下一步，优先“一条立即可做 + 一条持续推进”；相关性不足就不推荐，投诉、退款、故障或明显不满时先解决问题，不插入销售推荐
 8. 不要承诺退款、赔偿、到账时间等需要人工处理的事项
-9. 不要声称“已经转接人工”或“已经创建工单”，除非系统明确告知已完成`;
+9. 不要声称“已经转接人工”或“已经创建工单”，除非系统明确告知已完成`);
 
 @Injectable()
 export class CustomerServiceService {

@@ -55,7 +55,7 @@ export class ContentController {
   @ApiResponse({ status: 200, description: "成功" })
   list(@Query() q: ContentListQueryDto, @Req() req: Request) {
     // 草稿和审核中内容仅对有内容管理权限的登录用户开放。
-    return this.content.list(this.canReadUnpublished(req) ? q : { ...q, status: "PUBLISHED" });
+    return this.content.list(q, this.canReadUnpublished(req));
   }
 
   // ───────── 诗词专属 ─────────

@@ -39,5 +39,5 @@ const isKnownCard = !!props.type && props.type !== 'text' && KNOWN_CARDS.include
 </template>
 
 <style scoped>
-.rm-text { font-size: 28rpx; line-height: 1.6; white-space: pre-wrap; color: inherit; }
+.rm-text { font-size: 30rpx; line-height: 1.72; white-space: pre-wrap; color: inherit; }
 </style>

@@ -515,6 +515,8 @@ model Circle {
   paidQuestions       PaidQuestion[]
   bot                 CircleBot?
   knowledgeItems      CircleKnowledge[]
+  showcaseNodes       CircleKnowledgeShowcaseNode[]
+  showcaseEdges       CircleKnowledgeShowcaseEdge[]
   revenueRecords      CircleRevenueRecord[]
   announcements       CircleAnnouncement[]
   inviteCodes         CircleInviteCode[]
@@ -581,6 +583,61 @@ model CircleMember {
   @@unique([circleId, userId])
   @@index([userId])
   @@index([userId, joinedAt])
+}
+
+// 圈外知识星图独立快照。默认草稿，必须人工确认公开权利和摘要后才能读取。
+model CircleKnowledgeShowcaseNode {
+  id                String   @id @default(uuid())
+  circleId          String
+  sourceKnowledgeId String
+  sourceContentHash String
+  name              String   @db.VarChar(80)
+  summary           String   @db.VarChar(160)
+  status            String   @default("DRAFT") @db.VarChar(16)
+  rightsNote        String?  @db.Text
+  rightsApprovedAt  DateTime?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  revokedAt         DateTime?
+  revokedBy         String?
+  displayOrder      Int      @default(0)
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  circle          Circle          @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  sourceKnowledge CircleKnowledge @relation(fields: [sourceKnowledgeId], references: [id], onDelete: Cascade)
+  edgesFrom       CircleKnowledgeShowcaseEdge[] @relation("ShowcaseFrom")
+  edgesTo         CircleKnowledgeShowcaseEdge[] @relation("ShowcaseTo")
+
+  @@index([circleId, status, displayOrder])
+  @@index([sourceKnowledgeId])
+}
+
+model CircleKnowledgeShowcaseEdge {
+  id           String   @id @default(uuid())
+  circleId     String
+  fromId       String
+  toId         String
+  relation     String   @db.VarChar(80)
+  evidenceNote String?  @db.Text
+  status       String   @default("DRAFT") @db.VarChar(16)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  revokedAt    DateTime?
+  revokedBy    String?
+  displayOrder Int      @default(0)
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  circle   Circle                       @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  fromNode CircleKnowledgeShowcaseNode @relation("ShowcaseFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toNode   CircleKnowledgeShowcaseNode @relation("ShowcaseTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, status, displayOrder])
+  @@index([fromId])
+  @@index([toId])
 }
 
 model CircleAnnouncement {
@@ -827,6 +884,29 @@ model Content {
   @@index([stationId])
   @@index([categoryLevel1, status])
   @@index([categoryLevel2, status])
+}
+
+// AI/搜索统一公开目录的元数据快照。原业务表仍为事实来源；新表默认不对外启用。
+model ContentCatalog {
+  sourceType      String
+  sourceId        String
+  stationId       String?
+  circleId        String?
+  title           String
+  summary         String   @db.Text
+  cover           String?
+  tags            String[] @default([])
+  target          String
+  commercialType  String
+  contentHash     String
+  sourceUpdatedAt DateTime
+  indexedAt       DateTime @default(now())
+  active          Boolean  @default(false)
+
+  @@id([sourceType, sourceId])
+  @@index([stationId, sourceType, active])
+  @@index([circleId, sourceType, active])
+  @@index([sourceType, indexedAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -6326,6 +6406,7 @@ model CircleKnowledge {
   parentChunkId String? // 父块ID（子块指向原文）
 
   circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  showcaseNodes CircleKnowledgeShowcaseNode[]
 
   @@unique([contentHash, circleId])
   @@index([circleId, status])

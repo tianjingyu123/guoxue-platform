@@ -244,8 +244,21 @@ export class CircleKnowledgeService {
     });
     if (existKnowledge) return null;
 
+    // 精华帖有每日与每六小时两条扫描路径；同一来源的同一内容无需重复排队。
+    const pendingCandidate = await this.prisma.circleKnowledgeCandidate.findFirst({
+      where: {
+        circleId: params.circleId,
+        sourceType: params.sourceType,
+        sourceId: params.sourceId || null,
+        contentHash,
+        status: "pending",
+      },
+      select: { id: true },
+    });
+    if (pendingCandidate) return null;
+
     // 相似度检测
-    const { isDuplicate, similarTo } = await this.checkSimilarity(params.circleId, params.content);
+    const { similarTo } = await this.checkSimilarity(params.circleId, params.content);
 
     return this.prisma.circleKnowledgeCandidate.create({
       data: {
@@ -256,7 +269,7 @@ export class CircleKnowledgeService {
         contentHash,
         similarityScore: similarTo?.score,
         similarToId: similarTo?.id,
-        status: isDuplicate ? "pending" : "pending",
+        status: "pending",
       },
     });
   }
@@ -281,6 +294,30 @@ export class CircleKnowledgeService {
   async confirmCandidate(circleId: string, candidateId: string, addedBy: string) {
     const candidate = await this.prisma.circleKnowledgeCandidate.findUnique({ where: { id: candidateId } });
     if (!candidate || candidate.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "候选条目不存在");
+    if (candidate.status !== "pending") throw new BusinessException(ErrorCode.FORBIDDEN, "候选条目已处理，请刷新列表");
+
+    // 候选是扫描时的快照；确认前须再次核对来源，避免已撤下或转私密内容被入库。
+    if (candidate.sourceType === "post") {
+      if (!candidate.sourceId) throw new BusinessException(ErrorCode.FORBIDDEN, "来源帖子缺失，请重新采集");
+      const post = await this.prisma.post.findUnique({
+        where: { id: candidate.sourceId },
+        select: { circleId: true, title: true, content: true, status: true, isEssence: true },
+      });
+      const currentContent = `${post?.title || ""}\n${post?.content || ""}`.trim();
+      if (!post || post.circleId !== circleId || post.status !== "PUBLISHED" || !post.isEssence || currentContent !== candidate.content) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "来源帖子已变更或不再符合入库条件，请重新采集");
+      }
+    }
+    if (candidate.sourceType === "expert_qa") {
+      if (!candidate.sourceId) throw new BusinessException(ErrorCode.FORBIDDEN, "来源问答缺失，请重新采集");
+      const question = await this.prisma.paidQuestion.findUnique({
+        where: { id: candidate.sourceId },
+        select: { circleId: true, status: true, isPublic: true, answer: true },
+      });
+      if (!question || question.circleId !== circleId || question.status !== "ANSWERED" || !question.isPublic || !question.answer?.trim()) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "来源问答已撤回或不再公开，不能入库");
+      }
+    }
 
     await this.add({
       circleId,
@@ -305,7 +342,7 @@ export class CircleKnowledgeService {
   async extractFromExpertAnswers(circleId: string) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const questions = await this.prisma.paidQuestion.findMany({
-      where: { circleId, status: "ANSWERED", answeredAt: { gte: since }, answer: { not: null } },
+      where: { circleId, status: "ANSWERED", isPublic: true, answeredAt: { gte: since }, answer: { not: null } },
       select: { id: true, questionTitle: true, question: true, answer: true },
       orderBy: { answeredAt: "desc" },
       take: 10,

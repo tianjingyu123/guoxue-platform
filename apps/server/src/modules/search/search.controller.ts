@@ -1,4 +1,4 @@
-import { Controller, Get, Delete, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
+import { Controller, Get, Delete, Header, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { SearchService } from "./search.service";
@@ -22,6 +22,7 @@ export class SearchController {
 
   /** 全局搜索 */
   @Get()
+  @Header("Cache-Control", "no-store")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "全局搜索" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -51,6 +52,7 @@ export class SearchController {
 
   /** 内容导览（S08：统一来源卡片 + 导航目标） */
   @Get("guide")
+  @Header("Cache-Control", "no-store")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "内容导览 — 返回真实来源卡片与导航目标" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -147,6 +149,7 @@ export class SearchController {
 
   /** 语义搜索 */
   @Get("semantic")
+  @Header("Cache-Control", "no-store")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "语义搜索 — 向量相似度匹配" })
   @ApiResponse({ status: 200, description: "成功" })

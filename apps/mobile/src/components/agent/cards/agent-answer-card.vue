@@ -283,14 +283,14 @@ const profileMarks = computed(() => {
 
 .answer-body { padding: 24rpx 26rpx 0; background: linear-gradient(145deg, #fff 25%, var(--agent-wash)); }
 .answer-title { display: block; font-family: "Songti SC", "STSong", serif; font-size: 35rpx; font-weight: 700; color: #252a34; }
-.answer-lead { display: block; margin-top: 13rpx; font-size: 30rpx; line-height: 1.72; color: #303744; font-weight: 600; }
+.answer-lead { display: block; margin-top: 13rpx; font-size: 32rpx; line-height: 1.72; color: #303744; font-weight: 600; }
 .answer-points { margin-top: 18rpx; border-top: 1rpx solid rgba(42,48,63,.08); }
 .answer-point { padding: 16rpx 0; display: flex; gap: 14rpx; border-bottom: 1rpx solid rgba(42,48,63,.07); }
 .point-index { flex-shrink: 0; padding-top: 2rpx; font-size: 18rpx; letter-spacing: 1rpx; color: var(--agent-ink); font-weight: 700; }
-.point-text { flex: 1; font-size: 27rpx; line-height: 1.58; color: #555d69; }
+.point-text { flex: 1; font-size: 29rpx; line-height: 1.65; color: #555d69; }
 .answer-toggle { height: 68rpx; margin-top: 18rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-radius: 18rpx; background: var(--agent-soft); }
 .answer-toggle-text { font-size: 25rpx; color: var(--agent-ink); font-weight: 700; }
-.answer-detail { display: block; margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(42,48,63,.08); white-space: pre-wrap; font-size: 28rpx; line-height: 1.78; color: #3f4652; }
+.answer-detail { display: block; margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(42,48,63,.08); white-space: pre-wrap; font-size: 30rpx; line-height: 1.82; color: #3f4652; }
 .answer-next { margin: 22rpx -26rpx 0; padding: 20rpx 26rpx 22rpx; display: flex; align-items: center; gap: 14rpx; background: var(--agent-soft); }
 .next-seal { width: 50rpx; height: 50rpx; flex-shrink: 0; border: 2rpx solid var(--agent-accent); border-radius: 16rpx 8rpx 15rpx 9rpx; display: flex; align-items: center; justify-content: center; transform: rotate(-3deg); }
 .next-seal text { font-family: "Songti SC", "STSong", serif; font-size: 23rpx; color: var(--agent-ink); font-weight: 700; }

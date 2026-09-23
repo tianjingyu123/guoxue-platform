@@ -1060,6 +1060,12 @@
           }
         },
         {
+          "path": "circles/knowledge-universe",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/members",
           "style": {
             "navigationStyle": "custom"
@@ -2784,6 +2790,12 @@
     {
       "root": "pkg-common",
       "pages": [
+        {
+          "path": "contents/detail",
+          "style": {
+            "navigationBarTitleText": "内容阅读"
+          }
+        },
         {
           "path": "content/index",
           "style": {

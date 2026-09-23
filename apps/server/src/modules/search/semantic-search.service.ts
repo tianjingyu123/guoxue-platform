@@ -50,15 +50,8 @@ export class SemanticSearchService {
   async search(query: string, topK = 10): Promise<SemanticResult[]> {
     if (!query?.trim()) return [];
 
-    // 1. 生成查询向量
-    let queryVec: number[];
-    try {
-      const embeddings = await this.vector.embed([query.trim()]);
-      queryVec = embeddings[0];
-    } catch (err: unknown) {
-      this.logger.warn(`查询向量生成失败，使用本地向量: ${(err as Error).message}`);
-      queryVec = localTextVector(query.trim());
-    }
+    // 初筛必须使用同一向量空间；外部 Embedding 与本地字符向量不能直接算相似度。
+    const queryVec = localTextVector(query.trim());
 
     // 2. 收集各类型内容的候选文本
     const candidates = await this.collectCandidates();
@@ -82,8 +75,9 @@ export class SemanticSearchService {
 
     // 如果 Embedding API 可用，用 API 重新计算高分候选的向量以提升精度
     if (scored.length > 0) {
+      scored.sort((a, b) => b.similarity - a.similarity);
       try {
-        await this.rerankWithApi(queryVec, scored);
+        await this.rerankWithApi(query.trim(), scored);
       } catch (err: unknown) {
         this.logger.debug(`API 重排序跳过: ${(err as Error).message}`);
       }
@@ -185,27 +179,27 @@ export class SemanticSearchService {
     try {
       const [articles, courses, circles, contents, videos] = await Promise.all([
         this.prisma.article.findMany({
-          where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM" },
+          where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null },
           select: { id: true, title: true, excerpt: true, cover: true },
           take: 100,
         }),
         this.prisma.course.findMany({
-          where: { id: { notIn: publicQuarantinedIds("course") }, auditStatus: "APPROVED" },
+          where: { id: { notIn: publicQuarantinedIds("course") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null },
           select: { id: true, title: true, intro: true, cover: true },
           take: 100,
         }),
         this.prisma.circle.findMany({
-          where: { id: { notIn: publicQuarantinedIds("circle") }, status: "ACTIVE" },
+          where: { id: { notIn: publicQuarantinedIds("circle") }, status: "ACTIVE", deletedAt: null },
           select: { id: true, name: true, intro: true, cover: true },
           take: 50,
         }),
         this.prisma.content.findMany({
-          where: { status: "PUBLISHED" },
+          where: { status: "PUBLISHED", deletedAt: null },
           select: { id: true, title: true, excerpt: true, cover: true },
           take: 100,
         }),
         this.prisma.video.findMany({
-          where: { id: { notIn: publicQuarantinedIds("video") }, status: "PUBLISHED" },
+          where: { id: { notIn: publicQuarantinedIds("video") }, status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false },
           select: { id: true, title: true, coverUrl: true },
           take: 50,
         }),
@@ -236,14 +230,14 @@ export class SemanticSearchService {
 
   /** 使用 Embedding API 对 Top 候选重新计算精确相似度 */
   private async rerankWithApi(
-    queryVec: number[],
+    query: string,
     candidates: SemanticResult[],
   ): Promise<void> {
     // 只对 Top-20 用 API 重算
     const top = candidates.slice(0, 20);
 
     // 重新获取这些候选项的完整文本
-    const texts = top.map((c) => c.title);
+    const texts = [query, ...top.map((c) => c.title)];
     let apiVecs: number[][];
     try {
       apiVecs = await this.vector.embed(texts);
@@ -252,8 +246,9 @@ export class SemanticSearchService {
       return;
     }
 
-    for (let i = 0; i < top.length && i < apiVecs.length; i++) {
-      top[i].similarity = Math.round(dotSimilarity(queryVec, apiVecs[i]) * 100) / 100;
+    if (apiVecs.length !== texts.length) return;
+    for (let i = 0; i < top.length; i++) {
+      top[i].similarity = Math.round(dotSimilarity(apiVecs[0], apiVecs[i + 1]) * 100) / 100;
     }
   }
 }

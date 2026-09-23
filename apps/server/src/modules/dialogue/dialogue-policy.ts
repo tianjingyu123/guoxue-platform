@@ -13,6 +13,7 @@
  */
 
 import { personaOfIntent, personaOfScene, personaPrompt } from "./dialogue-personas";
+import { USER_ANSWER_EXPERIENCE_PROMPT } from "./answer-experience";
 
 export type AnswerSource = "kb" | "model" | "referral";
 
@@ -289,7 +290,7 @@ export function referralCard(rule: ReferralRule) {
 
 /** 场景完整 system 前缀：角色人设 + 作答策略 */
 export function buildSceneSystemPrefix(opts: { scene: string; hasEvidence: boolean; referral?: ReferralRule | null }): string {
-  return [personaPrompt(opts.scene), buildPolicyPrompt(opts)].filter(Boolean).join("\n\n");
+  return [personaPrompt(opts.scene), USER_ANSWER_EXPERIENCE_PROMPT, buildPolicyPrompt(opts)].filter(Boolean).join("\n\n");
 }
 
 export { personaOfScene, personaPrompt };

@@ -1509,7 +1509,7 @@ onShow(async () => {
 .msg { max-width: 86%; margin: 16rpx 0; padding: 18rpx 22rpx; border-radius: 24rpx; display: flex; flex-direction: column; gap: 12rpx; }
 .msg-user { margin-left: auto; background: var(--bg-paper); border-bottom-right-radius: 8rpx; }
 .msg-bot { background: var(--bg-paper); border: 2rpx solid var(--border, rgba(0,0,0,0.06)); border-bottom-left-radius: 8rpx; }
-.msg-text { font-size: 28rpx; line-height: 1.7; color: var(--text-ink); }
+.msg-text { font-size: 31rpx; line-height: 1.82; color: var(--text-ink); }
 .msg-failed { color: #b45309; }
 .msg-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8rpx; }
 .small-seal { width: 32rpx; height: 32rpx; line-height: 32rpx; font-size: 20rpx; border-radius: 6rpx; }

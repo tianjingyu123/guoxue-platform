@@ -113,7 +113,7 @@ function adapt(res: RawSearchResponse): SearchResults {
     ...(res.contents || []).map((c): SearchContent => ({
       id: c.id, kind: contentKind(c.type), title: c.title || '', summary: s(c.excerpt) || '',
       cover: s(c.cover), author: s(c.author) || s(c.dynasty),
-      viewCount: dNum(c.viewCount), likeCount: dNum(c.likeCount), href: `/articles/${c.id}`,
+      viewCount: dNum(c.viewCount), likeCount: dNum(c.likeCount), href: `/contents/${c.id}`,
     })),
   ]
   return {

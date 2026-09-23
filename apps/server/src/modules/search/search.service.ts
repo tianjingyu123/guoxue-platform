@@ -1,7 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
-import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
-import { RedisService } from "../../redis/redis.service";
 import { SemanticSearchService } from "./semantic-search.service";
 import { isPublicContentQuarantined, type PublicQuarantineType } from "../../common/public-content-quarantine";
 import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-policy";
@@ -13,9 +11,8 @@ import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-poli
  */
 const PUBLIC_CLASSIC_SQL =
   `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND EXISTS (SELECT 1 FROM "ClassicCopyright" cc WHERE cc."bookId" = "ClassicBook"."id" AND cc."auditedAt" IS NOT NULL AND cc."license" IN (${COMMERCIAL_CLASSIC_LICENSES.map((l) => `'${l}'`).join(",")}))`;
-
-/** 搜索结果缓存 TTL */
-const SEARCH_CACHE_TTL = 120;
+const PUBLIC_CONTENT_SQL =
+  `"status" = 'PUBLISHED' AND "deletedAt" IS NULL AND "stationId" IS NULL AND ("scheduledAt" IS NULL OR "scheduledAt" <= NOW())`;
 
 /**
  * ## 选型理由
@@ -23,7 +20,7 @@ const SEARCH_CACHE_TTL = 120;
  *   不引入额外基础设施。中文分词用 PG 内置的 zhparser 或 simple 分词即可
  * - **为什么语义搜索是 Optional：** 语义搜索依赖 Embedding API（额外成本+延迟），
  *   作为可选的增强层注入，主流程始终可用。semantic 未注入时自动回退到 FTS
- * - **为什么缓存 120s：** 搜索结果实时性要求低，2 分钟缓存大幅降低 DB 压力
+ * - **公开搜索缓存边界：** 撤权内容不可继续返回，隔离候选先不读取/写入结果缓存；合入前需测数据库负载
  * - **未来演进：** 当日搜索 QPS >100 或需要拼音/模糊/同义词时 → 考虑 Meilisearch；
  *   当数据量 >100 万条时 → 考虑 ElasticSearch
  * - **考虑过的方案：**
@@ -37,7 +34,6 @@ export class SearchService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
     @Optional() private semantic?: SemanticSearchService,
   ) {}
 
@@ -56,21 +52,19 @@ export class SearchService {
     return this.semantic.suggestSimilar(query, limit);
   }
 
-  /** 全局搜索（加权重排 + LIKE 回退，带缓存） */
+  /** 全局搜索（加权重排 + LIKE 回退，每次核对当前公开状态） */
   async search(params: {
     q: string;
     type?: string;
     page?: number;
     pageSize?: number;
     weightMap?: Map<string, number>;
+    /** 兼容旧调用；所有公开搜索均重新按当前发布状态检索。 */
+    fresh?: boolean;
   }) {
     const { q, type, page = 1, pageSize = 20, weightMap } = params;
 
     if (!q?.trim()) return { q, type };
-
-    const cacheKey = `search:v4:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
-    const cached = await this.redis.getJson<any>(cacheKey);
-    if (cached) return cached;
 
     const limit = type ? pageSize : 5;
     const offset = type ? (page - 1) * pageSize : 0;
@@ -108,7 +102,6 @@ export class SearchService {
     }
 
     await Promise.all(searches);
-    await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
     return results;
   }
 
@@ -179,11 +172,11 @@ export class SearchService {
       },
       Circle: {
         table: "Circle", fields: "coalesce(name,'') || ' ' || coalesce(intro,'')",
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", fields: "coalesce(nickname,'')",
@@ -195,7 +188,7 @@ export class SearchService {
       },
       Content: {
         table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(description,'')",
@@ -249,11 +242,11 @@ export class SearchService {
       },
       Circle: {
         table: "Circle", searchFields: ["name", "intro"],
-        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
+        select: `id, name, cover, intro, price, "memberCount"`, where: `"status" = 'ACTIVE' AND "deletedAt" IS NULL`,
       },
       Video: {
         table: "Video", searchFields: ["title"],
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, description, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", searchFields: ["nickname"],
@@ -265,7 +258,7 @@ export class SearchService {
       },
       Content: {
         table: "Content", searchFields: ["title", "author", "excerpt"],
-        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED' AND "deletedAt" IS NULL`,
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: PUBLIC_CONTENT_SQL,
       },
       Ebook: {
         table: "Ebook", searchFields: ["title", "author", "description"],

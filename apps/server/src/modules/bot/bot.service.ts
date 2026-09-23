@@ -15,6 +15,7 @@ import { CoinService } from "../coin/coin.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { randomUUID } from "crypto";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
 /** 首发广场不陈列结果预测型智能体；历史会话仍可通过详情继续访问。 */
 const PUBLIC_HIDDEN_BOT_TYPES = [
@@ -402,7 +403,15 @@ export class BotService {
 
     // 向导式推荐：解析模型协议(优先)/平台兜底 → 匹配真实内容 → 按意图置信度直展或征求同意
     // content 已剥离协议标记，落库与展示均用净文本
-    const { content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query);
+    let cleanContent: string;
+    let recommendation: Awaited<ReturnType<RecommendationService["build"]>>["recommendation"];
+    try {
+      ({ content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query));
+    } catch (err) {
+      this.logger.warn(`智能体推荐降级: ${(err as Error).message}`);
+      cleanContent = this.reco.parseProtocol(result.content as string).clean;
+      recommendation = null;
+    }
 
     await this.prisma.botChatLog.create({
       data: {
@@ -504,7 +513,15 @@ export class BotService {
             void (async () => {
               try {
                 // 向导式推荐解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
-                const { content: cleanContent, recommendation } = await this.reco.build(full, dto.query);
+                let cleanContent: string;
+                let recommendation: Awaited<ReturnType<RecommendationService["build"]>>["recommendation"];
+                try {
+                  ({ content: cleanContent, recommendation } = await this.reco.build(full, dto.query));
+                } catch (err) {
+                  this.logger.warn(`流式智能体推荐降级: ${(err as Error).message}`);
+                  cleanContent = this.reco.parseProtocol(full).clean;
+                  recommendation = null;
+                }
                 // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
                 const alreadySent = full.length - held.length;
                 if (cleanContent.length > alreadySent) {
@@ -607,7 +624,7 @@ export class BotService {
   }
 
   private buildAgentSystemPrompt(rolePrompt: string): string {
-    return `${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`;
+    return withUserAnswerExperience(`${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`);
   }
 
   /** 获取对话历史 */

@@ -7,6 +7,7 @@ import { VectorService } from "./vector.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { serverConfig } from "../../config/server-config";
 import * as crypto from "crypto";
+import { screenCircleKnowledge } from "./circle-knowledge-intake";
 
 @Injectable()
 export class KnowledgeSyncService {
@@ -89,7 +90,7 @@ export class KnowledgeSyncService {
     for (const p of essencePosts) allHashes.push(crypto.createHash("md5").update(`${p.title || p.content.slice(0, 30)}\n${p.content}`).digest("hex"));
     for (const c of courses) {
       const content = `${c.title}。${c.intro || ""}`;
-      allHashes.push(crypto.createHash("md5").update(content).digest("hex"));
+      allHashes.push(crypto.createHash("md5").update(`${c.title}\n${content}`).digest("hex"));
     }
 
     // 一次查询获取所有已存在的 contentHash
@@ -143,7 +144,7 @@ export class KnowledgeSyncService {
 
     // 批量查询已存在的 contentHash，消除 N+1
     const recentHashes = recentPosts.map((p) =>
-      crypto.createHash("md5").update(p.content).digest("hex"),
+      crypto.createHash("md5").update(`${p.title || p.content.slice(0, 30)}\n${p.content}`).digest("hex"),
     );
     const recentExistingSet = new Set(
       recentHashes.length > 0
@@ -158,6 +159,7 @@ export class KnowledgeSyncService {
       const post = recentPosts[i];
       const contentHash = recentHashes[i];
 
+      if (screenCircleKnowledge(post.content) === "skip") continue;
       if (!recentExistingSet.has(contentHash)) {
         const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
         if (!isDuplicate) {
@@ -202,7 +204,7 @@ export class KnowledgeSyncService {
 
       // 批量查询已存在的 contentHash，消除 N+1
       const guestHashes = guestPosts.map((p) =>
-        crypto.createHash("md5").update(p.content).digest("hex"),
+        crypto.createHash("md5").update(`${p.title || p.content.slice(0, 30)}\n${p.content}`).digest("hex"),
       );
       const guestExistingSet = new Set(
         guestHashes.length > 0
@@ -217,6 +219,7 @@ export class KnowledgeSyncService {
         const post = guestPosts[i];
         const contentHash = guestHashes[i];
 
+        if (screenCircleKnowledge(post.content) === "skip") continue;
         if (!guestExistingSet.has(contentHash)) {
           const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
           if (!isDuplicate) {
@@ -257,6 +260,8 @@ export class KnowledgeSyncService {
   ): Promise<boolean> {
     const fullContent = `${title}\n${content}`;
     const contentHash = crypto.createHash("md5").update(fullContent).digest("hex");
+    const screening = addedBy === "SYSTEM" ? screenCircleKnowledge(content) : "eligible";
+    if (screening === "skip") return false;
 
     // 去重检查：优先用预取集合
     if (existingHashes) {
@@ -273,6 +278,21 @@ export class KnowledgeSyncService {
     if (isDuplicate) {
       this.logger.debug(`向量去重跳过: [${circleId}] ${title}`);
       return false;
+    }
+
+    // 短但可能有价值的自动来源交人工确认，不直接作为助理依据。
+    if (addedBy === "SYSTEM") {
+      if (screening === "review") {
+        await this.prisma.circleKnowledgeCandidate.upsert({
+          where: { id: `candidate_${circleId}_${sourceId}` },
+          create: {
+            id: `candidate_${circleId}_${sourceId}`, circleId, sourceType, sourceId,
+            content: fullContent, contentHash, status: "pending",
+          },
+          update: { content: fullContent, contentHash },
+        });
+        return true;
+      }
     }
 
     // 入库
@@ -337,14 +357,14 @@ export class KnowledgeSyncService {
     // 获取目标内容
     switch (targetType) {
       case "post": {
-        const post = await this.prisma.post.findUnique({ where: { id: targetId } });
+        const post = await this.prisma.post.findFirst({ where: { id: targetId, circleId, status: "PUBLISHED" } });
         if (!post) throw new BusinessException(ErrorCode.CIRCLE_POST_NOT_FOUND, "帖子不存在");
         title = post.title || "";
         content = post.content;
         break;
       }
       case "article": {
-        const article = await this.prisma.article.findUnique({ where: { id: targetId } });
+        const article = await this.prisma.article.findFirst({ where: { id: targetId, circleId, auditStatus: "APPROVED", deletedAt: null } });
         if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         title = article.title;
         content = article.content;
@@ -357,7 +377,7 @@ export class KnowledgeSyncService {
         break;
       }
       case "course": {
-        const course = await this.prisma.course.findUnique({ where: { id: targetId } });
+        const course = await this.prisma.course.findFirst({ where: { id: targetId, circleId, auditStatus: "APPROVED", deletedAt: null } });
         if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
         title = course.title;
         content = `${course.title}。${course.intro || ""}`;
@@ -452,6 +472,35 @@ export class KnowledgeSyncService {
       where: { id: candidateId },
     });
     if (!candidate) throw new BusinessException(ErrorCode.NOT_FOUND, "候选内容不存在");
+    if (candidate.status !== "pending") throw new BusinessException(ErrorCode.BAD_REQUEST, "候选项已处理");
+
+    // 审核时重新核对源内容仍属于本圈且可见，避免帖子下架后旧候选被批准。
+    let sourceExists = false;
+    if (candidate.sourceType === "post" || candidate.sourceType === "guest_post") {
+      sourceExists = Boolean(await this.prisma.post.findFirst({
+        where: { id: candidate.sourceId || "", circleId: candidate.circleId, status: "PUBLISHED" },
+        select: { id: true },
+      }));
+    } else if (candidate.sourceType === "article") {
+      sourceExists = Boolean(await this.prisma.article.findFirst({
+        where: { id: candidate.sourceId || "", circleId: candidate.circleId, auditStatus: "APPROVED", deletedAt: null },
+        select: { id: true },
+      }));
+    } else if (candidate.sourceType === "course") {
+      sourceExists = Boolean(await this.prisma.course.findFirst({
+        where: { id: candidate.sourceId || "", circleId: candidate.circleId, auditStatus: "APPROVED", deletedAt: null },
+        select: { id: true },
+      }));
+    }
+    if (!sourceExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "原内容已不可用，请重新采集");
+    const duplicate = await this.prisma.circleKnowledge.findUnique({
+      where: { contentHash_circleId: { contentHash: candidate.contentHash, circleId: candidate.circleId } },
+      select: { id: true },
+    });
+    if (duplicate) {
+      await this.prisma.circleKnowledgeCandidate.update({ where: { id: candidateId }, data: { status: "rejected" } });
+      return { confirmed: false, message: "知识已存在，候选项已关闭" };
+    }
 
     // 加入正式知识库
     await this.prisma.circleKnowledge.create({

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 
 /**
  * 对话后的向导式推荐。
@@ -239,8 +240,7 @@ export class RecommendationService {
     if (intent.type === "classic") {
       const row = await this.prisma.classicBook.findFirst({
         where: {
-          deletedAt: null,
-          status: "PUBLISHED",
+          ...PUBLIC_CLASSIC_BOOK_WHERE,
           OR: [{ title: common }, { intro: common }, { category: common }],
         },
         orderBy: [{ viewCount: "desc" }, { createdAt: "desc" }],

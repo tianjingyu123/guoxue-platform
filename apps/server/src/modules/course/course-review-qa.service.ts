@@ -12,6 +12,7 @@ import {
   CreateReviewDto, AskQuestionDto, AnswerQuestionDto, QaListQueryDto,
 } from "./course.dto";
 import { CoursePurchaseService } from "./course-purchase.service";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
 /**
  * 课程-评价与问答域（从 course.service 拆出·纯搬家不改逻辑）。
@@ -175,7 +176,7 @@ export class CourseReviewQaService {
     if (qa.status === "CLOSED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题已关闭");
 
     const chapterCtx = qa.chapter ? `关联章节：${qa.chapter.title}。章节内容摘要：${(qa.chapter.content || '').slice(0, 500)}` : '';
-    const systemPrompt = `你是${await this.getBrandName()}平台的课程助教，负责回答学员关于课程的问题。
+    const systemPrompt = withUserAnswerExperience(`你是${await this.getBrandName()}平台的课程助教，负责回答学员关于课程的问题。
 课程名称：${qa.course.title}
 课程类型：${qa.course.type}
 课程简介：${qa.course.intro || '暂无'}
@@ -185,7 +186,7 @@ ${chapterCtx}
 1. 针对问题直接给出清晰解答
 2. 结合课程内容上下文（如有）
 3. 鼓励学员继续深入学习
-4. 控制在300字以内`;
+4. 控制在300字以内`);
 
     try {
       const result = await this.aiGateway.chat({

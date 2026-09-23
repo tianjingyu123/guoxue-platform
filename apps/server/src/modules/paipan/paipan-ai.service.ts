@@ -15,10 +15,12 @@ import { PaipanReportKnowledgeService } from "./paipan-report-knowledge.service"
 import { safePagination } from "../../common/pagination";
 // 合规修复(后端审计P1·R4红线)：通用命理分析主路径原漏挂免责声明，此处统一在返回点追加。
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
+import { withUserAnswerExperience } from "../dialogue/answer-experience";
 
-/** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
-const GENERAL_SYSTEM_PROMPT =
-  "你是一位精通中国传统八字命理学的资深专家，擅长根据八字排盘结果进行详细专业的命理分析。请用简体中文回答，语言专业但通俗易懂，多举实例，给出实用的人生建议。";
+/** 通用八字分析也遵循全平台自适应篇幅规则。 */
+const GENERAL_SYSTEM_PROMPT = withUserAnswerExperience(
+  "你是一位精通中国传统八字命理学的资深专家。请用简体中文回答，语言专业但通俗易懂；只在确实有帮助时举例，并给出可执行的人生建议。",
+);
 
 /**
  * AI 排盘解析服务

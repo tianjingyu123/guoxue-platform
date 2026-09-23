@@ -59,20 +59,22 @@ describe("ContentController", () => {
 
   it("GET /contents — 内容列表", async () => {
     const q: any = { type: "article", page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q, { user: { roles: ["SUPER_ADMIN"] } } as any);
+    const result: any = await ctrl.list(q, { user: undefined } as any);
     expect(result).toHaveLength(1);
-    expect(mockContentSvc.list).toHaveBeenCalledWith(q);
+    expect(mockContentSvc.list).toHaveBeenCalledWith(q, false);
+    await ctrl.list(q, { user: { roles: ["CONTENT_AUDITOR"] } } as any);
+    expect(mockContentSvc.list).toHaveBeenLastCalledWith(q, true);
   });
 
   it("GET /contents/:id — 内容详情", async () => {
-    const result: any = await ctrl.detail("ct1", {} as any);
+    const result: any = await ctrl.detail("ct1", { user: undefined } as any);
     expect(result.title).toBe("国学经典");
     expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1", false);
   });
 
   it.each([undefined, ["USER"], ["FINANCE_ADMIN"]])("访客或非内容管理角色 %s 不能通过筛选读取草稿", async roles => {
     await ctrl.list({ status: "DRAFT" }, { user: roles ? { roles } : undefined } as any);
-    expect(mockContentSvc.list).toHaveBeenCalledWith({ status: "PUBLISHED" });
+    expect(mockContentSvc.list).toHaveBeenCalledWith({ status: "DRAFT" }, false);
   });
 
   it("内容审核员可读取待审内容详情", async () => {
