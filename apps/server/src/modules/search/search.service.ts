@@ -70,7 +70,7 @@ export class SearchService {
 
     if (!q?.trim()) return { q, type };
 
-    const cacheKey = `search:v4:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    const cacheKey = `search:v5:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
     const cacheable = !fresh && !weightMap?.size;
     if (cacheable) {
       const cached = await this.redis.getJson<any>(cacheKey);
@@ -108,9 +108,9 @@ export class SearchService {
     //    前端 pkg-ebook 分包整个删掉了，但搜索这里还在返回 10 本库存电子书 ——
     //    用户搜到卡片点进去跳 /ebook/:id，全项目没有这个页 → 必然白屏。
     //    （库里的 Ebook 表和数据保留不动，只是不再对外可搜。）
-    if (!type || type === "content") {
-      searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
-    }
+    // Content 表当前没有匹配其 ID 的公开详情页；旧卡片误走 Article API 会打不开，
+    // 且 GET /contents/:id 尚未完整约束公开状态。补齐安全详情链路前不提供可点击搜索结果。
+    if (!type || type === "content") results.contents = [];
 
     await Promise.all(searches);
     if (cacheable) await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);

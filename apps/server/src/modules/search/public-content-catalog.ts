@@ -2,7 +2,7 @@ import { isPublicContentQuarantined } from "../../common/public-content-quaranti
 import { COMMERCIAL_CLASSIC_LICENSES } from "../classic/classic-publication-policy";
 
 /** 统一公开目录的只读投影；事实与访问权限仍以各业务表/详情接口为准。 */
-export type CatalogSource = "article" | "course" | "video" | "product" | "circle" | "content" | "classic";
+export type CatalogSource = "article" | "course" | "video" | "product" | "circle" | "classic";
 
 export interface PublicCatalogEntry {
   sourceType: CatalogSource;
@@ -27,7 +27,6 @@ const TARGETS: Record<CatalogSource, string> = {
   video: "/pkg-video/detail/index",
   product: "/pkg-mall/product/detail",
   circle: "/pkg-circle/circles/detail",
-  content: "/pkg-circle/articles/detail",
   classic: "/pkg-classics/detail/index",
 };
 
@@ -70,9 +69,6 @@ export function projectPublicCatalogEntry(
     case "circle":
       if (row.status !== "ACTIVE" || !isClear(row.deletedAt)) return null;
       break;
-    case "content":
-      if (row.status !== "PUBLISHED" || !isClear(row.deletedAt) || !isPast(row.scheduledAt, now)) return null;
-      break;
     case "classic": {
       if (row.status !== "PUBLISHED" || !isClear(row.deletedAt)) return null;
       const copyrights = Array.isArray(row.copyrights) ? row.copyrights : [];
@@ -83,7 +79,7 @@ export function projectPublicCatalogEntry(
     }
   }
 
-  const summary = text(sourceType === "article" || sourceType === "content" ? row.excerpt
+  const summary = text(sourceType === "article" ? row.excerpt
     : sourceType === "video" ? row.description
       : sourceType === "classic" || sourceType === "circle" || sourceType === "product" ? row.intro : row.intro);
   const rawTags = Array.isArray(row.tags) ? row.tags : [];

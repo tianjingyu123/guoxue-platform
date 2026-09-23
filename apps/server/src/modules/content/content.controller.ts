@@ -48,10 +48,13 @@ export class ContentController {
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取内容列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  list(@Query() q: ContentListQueryDto) {
-    return this.content.list(q);
+  list(@Query() q: ContentListQueryDto, @Req() req: Request) {
+    const roles = req.user?.roles ?? [];
+    const allowUnpublished = roles.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(role));
+    return this.content.list(q, allowUnpublished);
   }
 
   // ───────── 诗词专属 ─────────
@@ -90,8 +93,10 @@ export class ContentController {
   @ApiOperation({ summary: "获取内容详情" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  detail(@Param("id") id: string) {
-    return this.content.detail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    const roles = req.user?.roles ?? [];
+    const allowUnpublished = roles.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(role));
+    return this.content.detail(id, allowUnpublished);
   }
 
   @Put(":id/audit")

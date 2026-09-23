@@ -44,25 +44,15 @@ export class ContentService {
     return content;
   }
 
-  async list(q: ContentListQueryDto): Promise<{ data: Content[]; total: number; page: number; pageSize: number }> {
+  async list(q: ContentListQueryDto, allowUnpublished = false): Promise<{ data: Content[]; total: number; page: number; pageSize: number }> {
     const page = +(q.page || 1);
     const pageSize = +(q.pageSize || 20);
 
-    // 无关键词搜索时尝试缓存（第一页缓存30秒）
-    if (!q.keyword && page === 1) {
-      const cacheKey = `content:list:${q.type || "all"}:${q.status || "all"}:${q.stationId || "all"}:${q.categoryLevel1 || "all"}:${q.categoryLevel2 || "all"}`;
-      const cached = await this.redis.getJson(cacheKey);
-      if (cached) return cached as { data: Content[]; total: number; page: number; pageSize: number };
-
-      const result = await this.fetchList(q, page, pageSize);
-      this.redis.setJson(cacheKey, result, 120).catch((err) => this.logger.warn("缓存写入失败", err));
-      return result;
-    }
-
-    return this.fetchList(q, page, pageSize);
+    // 公开列表不读旧缓存：旧键没有区分后台/匿名，也可能保留已撤回正文。
+    return this.fetchList(q, page, pageSize, allowUnpublished);
   }
 
-  private async fetchList(q: ContentListQueryDto, rawPage: number, rawPageSize: number) {
+  private async fetchList(q: ContentListQueryDto, rawPage: number, rawPageSize: number, allowUnpublished: boolean) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ContentWhereInput = {};
     if (q.type) where.type = q.type;
@@ -81,6 +71,12 @@ export class ContentService {
         { author: { contains: q.keyword } },
       ];
     }
+    if (!allowUnpublished) {
+      where.status = "PUBLISHED";
+      where.stationId = null;
+      where.deletedAt = null;
+      where.AND = [{ OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] }];
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.content.findMany({
@@ -95,22 +91,18 @@ export class ContentService {
     return { data, total, page, pageSize };
   }
 
-  async detail(id: string): Promise<Content> {
-    const cacheKey = `content:detail:${id}`;
-    const cached = await this.redis.getJson(cacheKey);
-    if (cached) {
-      this.prisma.content.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((err) => this.logger.warn("浏览计数更新失败", err));
-      return cached as Content;
-    }
-
-    const content = await this.prisma.content.findUnique({ where: { id } });
+  async detail(id: string, allowUnpublished = false): Promise<Content> {
+    // 公开详情每次按事实表校验，避免旧缓存泄漏撤回/下架后的正文。
+    // 后台审核员可看草稿；普通用户仅可看平台总目录中的已发布内容。
+    const content = allowUnpublished
+      ? await this.prisma.content.findUnique({ where: { id } })
+      : await this.prisma.content.findFirst({ where: { id, status: "PUBLISHED", deletedAt: null,
+          stationId: null, OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] } });
     if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
 
     // 异步增加浏览数
     this.prisma.content.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`内容 ${id} 浏览计数失败`, e));
 
-    // 缓存60秒
-    this.redis.setJson(cacheKey, content, 300).catch((err) => this.logger.warn("缓存写入失败", err));
     return content;
   }
 

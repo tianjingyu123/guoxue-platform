@@ -36,13 +36,11 @@ describe("公开内容目录投影", () => {
     expect(projectPublicCatalogEntry("circle", { ...base, name: "测试圈", status: "PENDING", deletedAt: null }, now)).toBeNull();
   });
 
-  it("古籍无已审核商用许可则不进目录；平台内容仅公开已发布项", () => {
+  it("古籍无已审核商用许可则不进目录", () => {
     const classic = { ...base, status: "PUBLISHED", deletedAt: null,
       copyrights: [{ license: "CC-BY-NC-4.0", auditedAt: now }] };
     expect(projectPublicCatalogEntry("classic", classic, now)).toBeNull();
     expect(projectPublicCatalogEntry("classic", { ...classic, copyrights: [{ license: "CC-BY-4.0", auditedAt: null }] }, now)).toBeNull();
     expect(projectPublicCatalogEntry("classic", { ...classic, copyrights: [{ license: "CC-BY-4.0", auditedAt: now }] }, now)?.sourceType).toBe("classic");
-    expect(projectPublicCatalogEntry("content", { ...base, status: "PUBLISHED", deletedAt: null }, now)?.sourceType).toBe("content");
-    expect(projectPublicCatalogEntry("content", { ...base, status: "DRAFT", deletedAt: null }, now)).toBeNull();
   });
 });

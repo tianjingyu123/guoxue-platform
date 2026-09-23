@@ -49,6 +49,14 @@ describe("SearchService", () => {
       expect(result).toHaveProperty("users");
       expect(result).toHaveProperty("classics");
       expect(result).toHaveProperty("contents");
+      expect(result.contents).toEqual([]);
+    });
+
+    it("Content 无安全详情页前不返回坏链，也不复用旧缓存", async () => {
+      const result = await svc.search({ q: "旧内容", type: "content" });
+      expect(result.contents).toEqual([]);
+      expect(mockPrisma.$queryRawUnsafe).not.toHaveBeenCalled();
+      expect(String(mockRedis.getJson.mock.calls[0][0])).toMatch(/^search:v5:/);
     });
 
     it("文章/课程只搜索全平台开放且未删除的内容（全文与模糊回退两条路径都不含圈内私有）", async () => {

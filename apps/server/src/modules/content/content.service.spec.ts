@@ -7,7 +7,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ContentType } from "./content.dto";
 
 const mockPrisma = {
-  content: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  content: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn(), delete: jest.fn() },
 };
 const mockRedis = {
   getJson: jest.fn(),
@@ -56,6 +56,10 @@ describe("ContentService", () => {
       const result = await svc.list({});
       expect(result.data).toHaveLength(1);
       expect(result.total).toBe(1);
+      expect(mockPrisma.content.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "PUBLISHED", stationId: null, deletedAt: null }),
+      }));
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
     });
     it("按 type 过滤", async () => {
       mockPrisma.content.findMany.mockResolvedValue([]);
@@ -80,14 +84,36 @@ describe("ContentService", () => {
 
   describe("detail", () => {
     it("返回内容详情（并发放大浏览数）", async () => {
-      mockPrisma.content.findUnique.mockResolvedValue({ id: "c1", title: "论语", viewCount: 10 });
+      mockPrisma.content.findFirst.mockResolvedValue({ id: "c1", title: "论语", viewCount: 10 });
       mockPrisma.content.update.mockResolvedValue({});
       const result = await svc.detail("c1");
       expect(result.title).toBe("论语");
+      expect(mockPrisma.content.findFirst).toHaveBeenCalledWith({ where: expect.objectContaining({
+        id: "c1", status: "PUBLISHED", deletedAt: null, stationId: null,
+      }) });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
     });
     it("不存在抛出 NotFoundException", async () => {
-      mockPrisma.content.findUnique.mockResolvedValue(null);
+      mockPrisma.content.findFirst.mockResolvedValue(null);
       await expect(svc.detail("invalid")).rejects.toThrow(BusinessException);
+    });
+    it("匿名不能借 status/stationId 查询草稿和分站内容，后台可以", async () => {
+      mockPrisma.content.findMany.mockResolvedValue([]);
+      mockPrisma.content.count.mockResolvedValue(0);
+      await svc.list({ status: "DRAFT", stationId: "s1" }, false);
+      expect(mockPrisma.content.findMany.mock.calls[0][0].where).toMatchObject({
+        status: "PUBLISHED", stationId: null, deletedAt: null,
+      });
+      await svc.list({ status: "DRAFT", stationId: "s1" }, true);
+      expect(mockPrisma.content.findMany.mock.calls[1][0].where).toMatchObject({
+        status: "DRAFT", stationId: "s1",
+      });
+    });
+    it("仅后台审核身份可查看未发布内容，且不复用公开缓存", async () => {
+      mockPrisma.content.findUnique.mockResolvedValue({ id: "draft", status: "DRAFT", title: "草稿" });
+      expect((await svc.detail("draft", true)).title).toBe("草稿");
+      expect(mockPrisma.content.findUnique).toHaveBeenCalledWith({ where: { id: "draft" } });
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
     });
   });
 

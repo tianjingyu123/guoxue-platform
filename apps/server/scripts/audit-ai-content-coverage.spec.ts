@@ -13,6 +13,7 @@ describe("AI 内容只读覆盖率盘点", () => {
     const rows = await collectCoverage(prisma, now);
     expect(rows).toHaveLength(9);
     expect(rows.find((r) => r.type === "VIDEO")?.publicEligible).toBe(2);
+    expect(rows.find((r) => r.type === "CONTENT")?.publicEligible).toBeNull();
     expect(rows.find((r) => r.type === "POST")?.publicEligible).toBeNull();
     expect(rows.find((r) => r.type === "LIVE")?.publicEligible).toBeNull();
     const videoFilter = count.mock.calls.map((args) => args[0]?.where)

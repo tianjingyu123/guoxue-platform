@@ -70,7 +70,8 @@ describe("ContentGuideService", () => {
       products: [{ id: "p1", title: "商品" }],
     });
     const result = await svc.guide("推荐入门课程和圈子，再看视频与商品", 10);
-    expect(result.cards).toHaveLength(7);
+    expect(result.cards).toHaveLength(6);
+    expect(result.cards.some((c) => c.id === "t1")).toBe(false);
     for (const card of result.cards) {
       expect(routes.has(card.target.split("?")[0])).toBe(true);
     }

@@ -57,15 +57,19 @@ describe("ContentController", () => {
 
   it("GET /contents — 内容列表", async () => {
     const q: any = { type: "article", page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q);
+    const result: any = await ctrl.list(q, { user: undefined } as any);
     expect(result).toHaveLength(1);
-    expect(mockContentSvc.list).toHaveBeenCalledWith(q);
+    expect(mockContentSvc.list).toHaveBeenCalledWith(q, false);
+    await ctrl.list(q, { user: { roles: ["CONTENT_AUDITOR"] } } as any);
+    expect(mockContentSvc.list).toHaveBeenLastCalledWith(q, true);
   });
 
   it("GET /contents/:id — 内容详情", async () => {
-    const result: any = await ctrl.detail("ct1");
+    const result: any = await ctrl.detail("ct1", { user: undefined } as any);
     expect(result.title).toBe("国学经典");
-    expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1");
+    expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1", false);
+    await ctrl.detail("ct1", { user: { roles: ["CONTENT_AUDITOR"] } } as any);
+    expect(mockContentSvc.detail).toHaveBeenLastCalledWith("ct1", true);
   });
 
   it("PUT /contents/:id — 更新内容", async () => {
