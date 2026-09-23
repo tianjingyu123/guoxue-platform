@@ -45,7 +45,7 @@ describe("ShopOrderService", () => {
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
       mockPrisma.order.create.mockResolvedValue({ id: "o-idempotent", status: "PENDING" })
       mockPrisma.order.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
-      const dto = { type: "PRODUCT", targetId: "p1", amount: 1, clientRequestId: "request-0001" }
+      const dto = { type: "PRODUCT", addressId: "addr1", targetId: "p1", amount: 1, clientRequestId: "request-0001" }
       await svc.createOrder("u1", dto)
       const fingerprint = mockPrisma.order.create.mock.calls[0][0].data.requestFingerprint
       mockPrisma.order.findFirst.mockResolvedValueOnce({ id: "o-idempotent", requestFingerprint: fingerprint })
@@ -71,7 +71,7 @@ describe("ShopOrderService", () => {
       mockPrisma.product.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 })
       mockPrisma.order.create.mockResolvedValue({ id: "o-retry", status: "PENDING" })
       mockPrisma.order.findFirst.mockResolvedValue(null)
-      const dto = { type: "PRODUCT", targetId: "p1", amount: 1, clientRequestId: "request-0003" }
+      const dto = { type: "PRODUCT", addressId: "addr1", targetId: "p1", amount: 1, clientRequestId: "request-0003" }
       await expect(svc.createOrder("u1", dto)).rejects.toThrow("商品库存不足")
       await expect(svc.createOrder("u1", dto)).resolves.toMatchObject({ id: "o-retry" })
       expect(mockPrisma.order.create).toHaveBeenCalledTimes(2)

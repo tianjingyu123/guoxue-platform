@@ -21,6 +21,7 @@ const isIsolatedLocalDb = (() => {
 (isIsolatedLocalDb ? describe : describe.skip)("ShopOrderService 独立本地库并发", () => {
   const prisma = new PrismaClient({ datasources: { db: { url: localUrl } } });
   const userId = `synthetic-user-${randomUUID()}`;
+  const addressId = `synthetic-address-${randomUUID()}`;
   const productId = `synthetic-product-${randomUUID()}`;
   const couponId = `synthetic-coupon-${randomUUID()}`;
   const grantCouponId = `synthetic-grant-coupon-${randomUUID()}`;
@@ -44,6 +45,10 @@ const isIsolatedLocalDb = (() => {
   beforeAll(async () => {
     await prisma.$connect();
     await prisma.user.create({ data: { id: userId, nickname: "合成订单测试用户" } });
+    await prisma.shippingAddress.create({ data: {
+      id: addressId, userId, name: "合成收件人", phone: "13800000000",
+      province: "北京市", city: "北京市", district: "海淀区", detail: "仅用于本地并发测试",
+    } });
     await prisma.product.create({
       data: { id: productId, title: "合成测试商品", detail: "仅用于本地并发验证", price: 15, stock: 10, status: "ON_SALE" },
     });
@@ -75,12 +80,13 @@ const isIsolatedLocalDb = (() => {
     await prisma.userCoupon.deleteMany({ where: { couponId: grantCouponId } });
     await prisma.coupon.delete({ where: { id: grantCouponId } });
     await prisma.product.delete({ where: { id: productId } });
+    await prisma.shippingAddress.delete({ where: { id: addressId } });
     await prisma.user.delete({ where: { id: userId } });
     await prisma.$disconnect();
   });
 
   it("同一用户与请求键并发建单仅生成一单、扣一次库存", async () => {
-    const dto = { type: "PRODUCT", targetId: productId, amount: 2, clientRequestId: `same-${randomUUID()}` };
+    const dto = { type: "PRODUCT", addressId, targetId: productId, amount: 2, clientRequestId: `same-${randomUUID()}` };
     const results = await Promise.all(Array.from({ length: 5 }, () => service.createOrder(userId, dto)));
     expect(new Set(results.map((order) => order.id)).size).toBe(1);
     expect(await prisma.order.count({ where: { userId } })).toBe(1);
@@ -89,7 +95,7 @@ const isIsolatedLocalDb = (() => {
 
   it("库存不足的失败事务不占用请求键，补库存后同键可重试", async () => {
     await prisma.product.update({ where: { id: productId }, data: { stock: 0 } });
-    const dto = { type: "PRODUCT", targetId: productId, amount: 1, clientRequestId: `retry-${randomUUID()}` };
+    const dto = { type: "PRODUCT", addressId, targetId: productId, amount: 1, clientRequestId: `retry-${randomUUID()}` };
     await expect(service.createOrder(userId, dto)).rejects.toThrow("商品库存不足");
     expect(await prisma.order.count({ where: { userId } })).toBe(0);
     await prisma.product.update({ where: { id: productId }, data: { stock: 2 } });
@@ -102,10 +108,10 @@ const isIsolatedLocalDb = (() => {
   it("同一请求键更换购买数量会拒绝，不复用旧单或再次扣库存", async () => {
     const key = `changed-${randomUUID()}`;
     const first = await service.createOrder(userId, {
-      type: "PRODUCT", targetId: productId, amount: 1, clientRequestId: key,
+      type: "PRODUCT", addressId, targetId: productId, amount: 1, clientRequestId: key,
     });
     await expect(service.createOrder(userId, {
-      type: "PRODUCT", targetId: productId, amount: 2, clientRequestId: key,
+      type: "PRODUCT", addressId, targetId: productId, amount: 2, clientRequestId: key,
     })).rejects.toThrow("下单内容已变化");
     expect(await prisma.order.count({ where: { userId } })).toBe(1);
     expect((await prisma.order.findFirstOrThrow({ where: { userId } })).id).toBe(first.id);
@@ -113,7 +119,7 @@ const isIsolatedLocalDb = (() => {
   });
 
   it("同键并发使用优惠券时只建一单、核销一次", async () => {
-    const dto = { type: "PRODUCT", targetId: productId, amount: 2,
+    const dto = { type: "PRODUCT", addressId, targetId: productId, amount: 2,
       couponId: userCouponId, clientRequestId: `coupon-${randomUUID()}` };
     const results = await Promise.all(Array.from({ length: 4 }, () => service.createOrder(userId, dto)));
     expect(new Set(results.map((order) => order.id)).size).toBe(1);
@@ -126,7 +132,7 @@ const isIsolatedLocalDb = (() => {
   it("不同请求键抢同一份库存时不能超卖", async () => {
     await prisma.product.update({ where: { id: productId }, data: { stock: 2 } });
     const results = await Promise.allSettled(Array.from({ length: 2 }, () =>
-      service.createOrder(userId, { type: "PRODUCT", targetId: productId, amount: 2, clientRequestId: `compete-${randomUUID()}` })));
+      service.createOrder(userId, { type: "PRODUCT", addressId, targetId: productId, amount: 2, clientRequestId: `compete-${randomUUID()}` })));
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(await prisma.order.count({ where: { userId } })).toBe(1);
     expect((await prisma.product.findUniqueOrThrow({ where: { id: productId } })).stock).toBe(0);
@@ -134,7 +140,7 @@ const isIsolatedLocalDb = (() => {
 
   it("不同请求键并发使用同一张优惠券时只能成交一单", async () => {
     const results = await Promise.allSettled(Array.from({ length: 2 }, () =>
-      service.createOrder(userId, { type: "PRODUCT", targetId: productId, amount: 1,
+      service.createOrder(userId, { type: "PRODUCT", addressId, targetId: productId, amount: 1,
         couponId: userCouponId, clientRequestId: `coupon-compete-${randomUUID()}` })));
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(await prisma.order.count({ where: { userId } })).toBe(1);
