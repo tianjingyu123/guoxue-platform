@@ -3,8 +3,8 @@
  * 问答详情 — V0 circle-consult-qa-detail.html 还原（2026-07-10 批④）
  * 四态按后端真实状态分支（GET /question/:id·付费墙后端裁定）：
  *  ① 已回答·围观墙：answerLocked=true → 打码渐隐 + 围观数据 + 支付围观（POST /:id/peek）
- *  ② 待回答·提问者视角：PENDING → 托管中说明 + 72 小时超时自动退款倒计时（后端固定 72h）
- *  ③ 已拒答/退款：REFUNDED/CLOSED → 拒答理由（后端写入 answer 字段）+ 全额退回说明
+ *  ② 待回答·提问者视角：PENDING → 托管中说明 + 48 小时超时自动退款倒计时
+ *  ③ 已退款：仅 REFUNDED 可确认退币；历史 CLOSED 等状态提示核实钱包记录
  *  ④ 待回答·回答者视角：answererId=我 + PENDING → 结算说明 + 提交回答 / 拒答（可填理由）
  * 降级：V0「完整回答约600字+2张图」预览摘要无字段（answer 被后端剔除）→ 骨架线；
  *       V0 围观分成比例文案与后端不符 → 不写比例。
@@ -40,7 +40,8 @@ const badge = computed(() => {
   const s = q.value?.status
   if (s === 'ANSWERED') return { label: '已回答', cls: 'answered' }
   if (s === 'PENDING') return { label: '待回答', cls: 'waiting' }
-  return { label: '已拒答/退款', cls: 'declined' }
+  if (s === 'REFUNDED') return { label: '已退款', cls: 'declined' }
+  return { label: '退款待核实', cls: 'declined' }
 })
 
 /** 48h 超时退款剩余小时（董事长拍板 2026-07-10：图文提问与悬赏统一 48h） */
@@ -199,10 +200,14 @@ onMounted(() => { myId.value = getCurrentUserId(); load() })
         <text v-else class="qd-status-t">已超过回答时限，{{ q.priceCoin }} 金币将<text class="qd-refund">自动全额退回钱包</text>，无需操作。</text>
       </view>
 
-      <!-- ③ 已拒答/退款：理由 + 退款说明 -->
-      <view v-else-if="q.status !== 'PENDING'" class="qd-status-block">
+      <!-- ③ 仅 REFUNDED 能确认退币；历史 CLOSED 可能存在退款失败，不能冒称到账。 -->
+      <view v-else-if="q.status === 'REFUNDED'" class="qd-status-block">
         <text class="qd-status-t"><text class="qd-status-b">{{ q.answerer?.nickname || '达人' }} 未回答此问题</text>{{ q.answer ? `：「${q.answer}」` : '' }}</text>
         <text class="qd-status-t">{{ q.priceCoin }} 金币已<text class="qd-refund">全额退回钱包</text>。</text>
+      </view>
+      <view v-else-if="q.status !== 'PENDING'" class="qd-status-block">
+        <text class="qd-status-t">此提问已关闭，退款到账状态待核实。</text>
+        <text class="qd-status-t">请查看金币钱包记录；如未到账，请联系平台客服并提供问题编号。</text>
       </view>
 
       <!-- ④ 回答者视角：结算说明 + 双操作 -->

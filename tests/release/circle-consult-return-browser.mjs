@@ -9,24 +9,28 @@ if (!origin) throw new Error('缺少隔离 H5 地址')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 let writes = 0
 let detailOpened = false
+let forcedStatus = ''
 let listReads = 0
 const errors = []
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript(() => {
     localStorage.setItem('auth_token', JSON.stringify({ type: 'string', data: 'local-fixture-only' }))
-    localStorage.setItem('userInfo', JSON.stringify({ type: 'object', data: { id: 'qa-expert' } }))
+    if (!localStorage.getItem('userInfo')) localStorage.setItem('userInfo', JSON.stringify({ type: 'object', data: { id: 'qa-expert' } }))
   })
   await context.route('**/*', async route => {
     const url = new URL(route.request().url())
     if (url.pathname.includes('/api/v1/')) {
       if (route.request().method() !== 'GET') writes++
       const path = url.pathname.split('/api/v1')[1]
-      const question = { id: 'q1', circleId: 'c1', askerId: 'qa-asker', answererId: 'qa-expert', question: '【测试题】正文', priceCoin: 10, status: detailOpened ? 'ANSWERED' : 'PENDING', createdAt: '2026-09-21T00:00:00Z', asker: { id: 'qa-asker', nickname: '提问者' }, answerer: { id: 'qa-expert', nickname: '达人' } }
+      const question = { id: 'q1', circleId: 'c1', askerId: 'qa-asker', answererId: 'qa-expert', question: '【测试题】正文', priceCoin: 10, status: forcedStatus || (detailOpened ? 'ANSWERED' : 'PENDING'), createdAt: '2026-09-21T00:00:00Z', asker: { id: 'qa-asker', nickname: '提问者' }, answerer: { id: 'qa-expert', nickname: '达人' } }
       let data = {}
       if (path === '/question/my') { listReads++; data = { questions: [question], total: 1, page: 1, pageSize: 20 } }
-      else if (path === '/question/q1') { detailOpened = true; data = { ...question, status: 'ANSWERED' } }
-      else if (path === '/consult-calls/my-page') data = { items: [], total: 0, page: 1, pageSize: 20 }
+      else if (path === '/question/q1') { detailOpened = true; data = { ...question, status: forcedStatus || 'ANSWERED' } }
+      else if (path === '/consult-calls/my-page') data = { items: [
+        { id: 'waiting-call', circleId: 'c1', callerId: 'qa-asker', expertId: 'qa-expert', type: 'VOICE', status: 'WAITING', prepaidCoin: 30, createdAt: '2026-09-21T00:00:00Z' },
+        { id: 'ended-call', circleId: 'c1', callerId: 'qa-asker', expertId: 'qa-expert', type: 'VOICE', status: 'ENDED', prepaidCoin: 30, settledCoin: 10, createdAt: '2026-09-20T00:00:00Z' },
+      ], total: 2, page: 1, pageSize: 20 }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200, data, message: 'ok' }) })
     }
     if (url.origin === origin || url.protocol === 'data:') return route.continue()
@@ -36,6 +40,9 @@ try {
   page.on('pageerror', e => errors.push(e.message))
   await page.goto(`${origin}/h5/pkg-circle/circles/consult-orders?circleId=c1`)
   await page.getByText('待我回答').waitFor()
+  await page.getByText('对方预扣中，你尚无收入').waitFor()
+  await page.getByText('订单 10').waitFor()
+  await page.getByText('分成到账请以收益账户为准').waitFor()
   await page.getByText('测试题').click()
   await page.waitForURL(/question-detail\?id=q1/)
   await page.locator('.qd-back').click()
@@ -60,9 +67,20 @@ try {
   await page.getByText('当前没有此状态的问答').waitFor()
   await page.getByRole('button', { name: '查看全部' }).click()
   await page.getByText('已回答').first().waitFor()
+
+  forcedStatus = 'CLOSED'
+  await page.goto(`${origin}/h5/pkg-circle/circles/consult-orders?circleId=c1`)
+  await page.getByText('历史关闭状态，退款请以钱包记录为准').waitFor()
+  assert.equal(await page.getByText('金币已退回钱包').count(), 0)
+  await page.goto(`${origin}/h5/pkg-circle/circles/my-questions?circleId=c1`)
+  await page.getByText('退款到账待核实').waitFor()
+  assert.equal(await page.getByText('10 金币已退回钱包').count(), 0)
+  await page.getByText('测试题').click()
+  await page.getByText('此提问已关闭，退款到账状态待核实。').waitFor()
+  assert.equal(await page.getByText('全额退回钱包').count(), 0)
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: 11, listReads, writes, errors }))
+  console.log(JSON.stringify({ passed: 20, listReads, writes, errors }))
 } finally {
   await browser.close()
 }

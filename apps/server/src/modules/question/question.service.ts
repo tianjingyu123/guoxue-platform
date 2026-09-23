@@ -131,25 +131,30 @@ export class QuestionService {
       ? `${dto.answer}\n[音频回复: ${dto.answerAudioUrl}]`
       : dto.answer;
 
-    const updated = await this.prisma.paidQuestion.update({
-      where: { id: questionId },
-      data: {
-        answer: answerText,
-        status: "ANSWERED",
-        answeredAt: new Date(),
-      },
-      include: {
-        asker: { select: { id: true, nickname: true, avatar: true } },
-        answerer: { select: { id: true, nickname: true, avatar: true } },
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // 审核耗时期间可能发生拒答/超时退款；只有抢到 PENDING 的回答者才能入账。
+      const claimed = await tx.paidQuestion.updateMany({
+        where: { id: questionId, status: "PENDING" },
+        data: { answer: answerText, status: "ANSWERED", answeredAt: new Date() },
+      });
+      if (claimed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态已变更，请刷新后重试");
+      // 回答成立与旧口径收益记录同事务；收益写入失败则问题保持待答，允许重试。
+      await this.revenue.record({
+        userId: answererId,
+        scene: "QUESTION",
+        refId: questionId,
+        amountCoin: question.priceCoin,
+      }, tx);
+      const result = await tx.paidQuestion.findUnique({
+        where: { id: questionId },
+        include: {
+          asker: { select: { id: true, nickname: true, avatar: true } },
+          answerer: { select: { id: true, nickname: true, avatar: true } },
+        },
+      });
+      if (!result) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+      return result;
     });
-
-    this.revenue.record({
-      userId: answererId,
-      scene: "QUESTION",
-      refId: questionId,
-      amountCoin: question.priceCoin,
-    }).catch((err) => this.logger.warn("回答者收益入账失败", err));
 
     // 统一总账影子双写（引擎口径转正后即为可提现真源）
     this.revenue.settleLedger({
@@ -171,14 +176,16 @@ export class QuestionService {
     if (question.answererId !== answererId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有被提问者可以拒绝");
     if (question.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态不允许拒绝");
 
-    await this.coin.refund(question.askerId, question.priceCoin, `回答者拒绝了您的提问（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`);
-
-    return this.prisma.paidQuestion.update({
-      where: { id: questionId },
-      data: {
-        status: "REFUNDED",
-        answer: reason || "回答者拒绝了该提问",
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.paidQuestion.updateMany({
+        where: { id: questionId, status: "PENDING" },
+        data: { status: "REFUNDED", answer: reason || "回答者拒绝了该提问" },
+      });
+      if (claimed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态已变更，请刷新后重试");
+      await this.coin.refund(question.askerId, question.priceCoin, `回答者拒绝了您的提问（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`, tx);
+      const result = await tx.paidQuestion.findUnique({ where: { id: questionId } });
+      if (!result) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+      return result;
     });
   }
 
@@ -260,24 +267,33 @@ export class QuestionService {
         status: "PENDING",
         createdAt: { lt: deadline },
       },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 200,
     });
 
     if (expiredQuestions.length === 0) return { refunded: 0 };
 
-    // 批量更新问题状态为 CLOSED
-    const expiredIds = expiredQuestions.map((q) => q.id);
-    await this.prisma.paidQuestion.updateMany({
-      where: { id: { in: expiredIds } },
-      data: { status: "CLOSED" },
-    });
-
-    // 并发退款（coin.refund 涉及余额事务，不能简单批量）
-    const results = await Promise.allSettled(
-      expiredQuestions.map((q) =>
-        this.coin.refund(q.askerId, q.priceCoin, `提问超时自动退款（问题ID: ${q.id}，已超${TIMEOUT_HOURS}小时）`),
-      ),
-    );
-    const refunded = results.filter((r) => r.status === "fulfilled").length;
+    // 每笔独立事务：仅 PENDING 可认领；状态和退币同成同败，失败保留待下次重试。
+    const results: PromiseSettledResult<boolean>[] = [];
+    for (let i = 0; i < expiredQuestions.length; i += 10) {
+      const batch = expiredQuestions.slice(i, i + 10);
+      results.push(...await Promise.allSettled(
+        batch.map((q) =>
+          this.prisma.$transaction(async (tx) => {
+            const claimed = await tx.paidQuestion.updateMany({
+              where: { id: q.id, status: "PENDING" },
+              data: { status: "REFUNDED" },
+            });
+            if (claimed.count === 0) return false;
+            await this.coin.refund(q.askerId, q.priceCoin, `提问超时自动退款（问题ID: ${q.id}，已超${TIMEOUT_HOURS}小时）`, tx);
+            return true;
+          }),
+        ),
+      ));
+    }
+    const refunded = results.filter((r) => r.status === "fulfilled" && r.value).length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) this.logger.warn(`超时提问退币失败 ${failed} 笔，保持待处理供下次重试`);
 
     return { refunded };
   }

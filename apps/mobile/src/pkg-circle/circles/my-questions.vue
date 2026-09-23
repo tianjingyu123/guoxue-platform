@@ -43,7 +43,8 @@ const filtered = computed(() => {
 function badge(q: PaidQuestion) {
   if (q.status === 'ANSWERED') return { label: '已回答', cls: 'answered' }
   if (q.status === 'PENDING') return { label: '待回答', cls: 'waiting' }
-  return { label: '已拒答/退款', cls: 'declined' }
+  if (q.status === 'REFUNDED') return { label: '已退款', cls: 'declined' }
+  return { label: '退款待核实', cls: 'declined' }
 }
 function qTitle(q: PaidQuestion) { const p = splitQuestion(q.question); return p.title || p.body }
 function fmtTime(s: string) {
@@ -163,7 +164,8 @@ onShow(() => { myId.value = getCurrentUserId(); void load() })
           <text v-if="q.status === 'PENDING'" class="mq-countdown">{{ refundLeft(q) }} 小时内未回复自动退款</text>
           <text v-else-if="q.status === 'ANSWERED' && q.isPublic && q.peekCount" class="mq-gold">{{ q.peekCount }} 人围观</text>
           <text v-else-if="q.status === 'ANSWERED' && !q.isPublic" class="mq-foot-r">仅自己与达人可见</text>
-          <text v-else-if="q.status !== 'ANSWERED'" class="mq-refund">{{ q.priceCoin }} 金币已退回钱包</text>
+          <text v-else-if="q.status === 'REFUNDED'" class="mq-refund">{{ q.priceCoin }} 金币已退回钱包</text>
+          <text v-else-if="q.status !== 'ANSWERED'" class="mq-refund">退款到账待核实</text>
         </view>
       </view>
       <view v-if="hasMore || moreError" class="mq-more" @tap="loadMore">{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点击重试' : '查看更多问答记录' }}</view>

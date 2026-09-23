@@ -61,6 +61,7 @@ describe("QuestionService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.paidQuestion.updateMany.mockResolvedValue({ count: 1 })
   })
 
   describe("ask", () => {
@@ -149,14 +150,56 @@ describe("QuestionService", () => {
     })
 
     it("回答成功并记录收益", async () => {
-      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
-      mockPrisma.paidQuestion.update.mockResolvedValue({
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50, askerId: "u1" })
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({
         id: "q1", status: "ANSWERED", answer: "回复",
         asker: { id: "u1", nickname: "张三", avatar: null },
         answerer: { id: "u2", nickname: "李四", avatar: null },
       })
       const result = await svc.answer("u2", "q1", { answer: "回复" })
       expect(result.status).toBe("ANSWERED")
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockRevenue.record).toHaveBeenCalledWith(expect.objectContaining({ refId: "q1" }), expect.any(Object))
+    })
+
+    it("审核期间问题已退款时不覆盖状态，也不生成收益", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow("问题状态已变更")
+      expect(mockRevenue.record).not.toHaveBeenCalled()
+    })
+
+    it("收益记录写入失败时不完成回答事务", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockRevenue.record.mockRejectedValueOnce(new Error("收益库暂不可用"))
+      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow("收益库暂不可用")
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockRevenue.settleLedger).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("reject", () => {
+    it("拒答在同一事务认领问题并退币", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValueOnce({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+        .mockResolvedValueOnce({ id: "q1", status: "REFUNDED" })
+      await expect(svc.reject("u2", "q1")).resolves.toEqual({ id: "q1", status: "REFUNDED" })
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("重复拒答未认领成功时不重复退币", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.reject("u2", "q1")).rejects.toThrow("问题状态已变更")
+      expect(mockCoin.refund).not.toHaveBeenCalled()
+    })
+
+    it("拒答退币失败时不把操作报告为成功", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", askerId: "u1", answererId: "u2", status: "PENDING", priceCoin: 50 })
+      mockCoin.refund.mockRejectedValueOnce(new Error("退币失败"))
+      await expect(svc.reject("u2", "q1")).rejects.toThrow("退币失败")
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
     })
   })
 
@@ -237,13 +280,28 @@ describe("QuestionService", () => {
         { id: "q1", askerId: "u1", priceCoin: 50 },
         { id: "q2", askerId: "u2", priceCoin: 30 },
       ])
-      mockPrisma.paidQuestion.updateMany.mockResolvedValue({ count: 2 })
       const result = await svc.refundExpiredQuestions()
       expect(result.refunded).toBe(2)
       expect(mockCoin.refund).toHaveBeenCalledTimes(2)
-      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["q1", "q2"] } } }),
-      )
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { id: "q1", status: "PENDING" } }))
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { id: "q2", status: "PENDING" } }))
+      expect(mockPrisma.paidQuestion.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "REFUNDED" } }))
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("退币失败不计为成功，并将该笔事务交给数据库回滚重试", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q1", askerId: "u1", priceCoin: 50 }])
+      mockCoin.refund.mockRejectedValueOnce(new Error("余额库暂不可用"))
+      await expect(svc.refundExpiredQuestions()).resolves.toEqual({ refunded: 0 })
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockCoin.refund).toHaveBeenCalledWith("u1", 50, expect.any(String), expect.any(Object))
+    })
+
+    it("并发处理已认领的问题不会重复退币", async () => {
+      mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q1", askerId: "u1", priceCoin: 50 }])
+      mockPrisma.paidQuestion.updateMany.mockResolvedValueOnce({ count: 0 })
+      await expect(svc.refundExpiredQuestions()).resolves.toEqual({ refunded: 0 })
+      expect(mockCoin.refund).not.toHaveBeenCalled()
     })
 
     it("无过期问题时不退款", async () => {

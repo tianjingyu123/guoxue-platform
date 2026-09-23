@@ -17,8 +17,8 @@ import { goBack, navigateTo } from '@/utils/router'
 import { questionApi, getCurrentUserId, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
 import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
 
-type Bucket = 'done' | 'pending' | 'refunded'
-type Filter = 'all' | Bucket
+type Bucket = 'done' | 'pending' | 'refunded' | 'review'
+type Filter = 'all' | 'done' | 'pending' | 'refunded'
 
 interface OrderItem {
   key: string
@@ -68,6 +68,7 @@ const BADGE: Record<Bucket, { label: string; cls: string }> = {
   done: { label: '已完成', cls: 'done' },
   pending: { label: '待处理', cls: 'pending' },
   refunded: { label: '已退款', cls: 'refunded' },
+  review: { label: '待核实', cls: 'review' },
 }
 
 function fmtTime(s: string) {
@@ -87,7 +88,7 @@ function fmtTime(s: string) {
 function qaBucket(q: PaidQuestion): Bucket {
   if (q.status === 'ANSWERED') return 'done'
   if (q.status === 'PENDING') return 'pending'
-  return 'refunded'
+  return q.status === 'REFUNDED' ? 'refunded' : 'review'
 }
 function callBucket(c: ConsultCallRecord): Bucket {
   if (c.status === 'ENDED') return 'done'
@@ -103,12 +104,13 @@ function mapQa(q: PaidQuestion): OrderItem {
   let amountCls: OrderItem['amountCls'] = 'neutral'
   let note = ''
   if (mine) {
-    if (bucket === 'refunded') { amountText = `+${q.priceCoin}`; amountCls = 'income'; note = '已原路退回' }
+    if (bucket === 'refunded') { amountText = `+${q.priceCoin}`; amountCls = 'income'; note = '金币已退回钱包' }
+    else if (bucket === 'review') { amountText = '待核实'; note = '历史关闭状态，退款请以钱包记录为准' }
     else { amountText = `−${q.priceCoin}`; amountCls = 'expense'; note = bucket === 'pending' ? '托管中' : '' }
   } else {
-    amountText = `${q.priceCoin}`
+    amountText = bucket === 'review' ? '待核实' : `${q.priceCoin}`
     amountCls = bucket === 'done' ? 'income' : 'neutral'
-    note = bucket === 'done' ? '按平台分成结算' : bucket === 'pending' ? '待我回答' : '已拒答退回'
+    note = bucket === 'done' ? '按平台分成结算' : bucket === 'pending' ? '待我回答' : bucket === 'refunded' ? '已拒答退回' : '历史关闭状态，退款待核对'
   }
   return {
     key: `qa-${q.id}`, kind: 'qa', id: q.id, mine,
@@ -127,9 +129,10 @@ function mapCall(c: ConsultCallRecord): OrderItem {
   let amountCls: OrderItem['amountCls'] = 'neutral'
   let note = ''
   if (bucket === 'refunded') { amountText = '0'; amountCls = 'neutral'; note = '预扣已全额退回' }
-  else if (bucket === 'pending') { amountText = `${c.prepaidCoin}`; amountCls = 'expense'; note = '预扣中' }
+  else if (bucket === 'pending' && mine) { amountText = `−${c.prepaidCoin}`; amountCls = 'expense'; note = '金币预扣中，尚未结算' }
+  else if (bucket === 'pending') { amountText = '0'; amountCls = 'neutral'; note = '对方预扣中，你尚无收入' }
   else if (mine) { amountText = `−${c.settledCoin}`; amountCls = 'expense'; note = `${c.pricePerMinute} 金币/分钟` }
-  else { amountText = `+${Math.floor(c.settledCoin * 0.5)}`; amountCls = 'income'; note = '分账 50% 已入账' }
+  else { amountText = `订单 ${c.settledCoin}`; amountCls = 'neutral'; note = '分成到账请以收益账户为准' }
   return {
     key: `call-${c.id}`, kind: 'call', id: c.id, mine,
     title: bucket === 'done' ? `${typeLabel}连麦 ${minutes} 分钟` : `${typeLabel}连麦`,
@@ -144,7 +147,7 @@ const answeredOrders = computed(() => filtered.value.filter(o => !o.mine))
 
 /** 累计咨询消费（我提问的图文未退款 + 我发起的已结算通话·金币） */
 const totalSpent = computed(() =>
-  orders.value.filter(o => o.mine && o.bucket !== 'refunded').reduce((s, o) => {
+  orders.value.filter(o => o.mine && (o.bucket === 'pending' || o.bucket === 'done')).reduce((s, o) => {
     const n = Math.abs(parseInt(o.amountText.replace(/[^0-9-]/g, ''), 10) || 0)
     return s + n
   }, 0),
@@ -303,7 +306,7 @@ onShow(() => { myId.value = getCurrentUserId(); void load() })
           <view class="cor-order-foot">
             <text class="cor-foot-t">{{ o.counterpart }} · {{ fmtTime(o.createdAt) }}{{ o.note ? ' · ' + o.note : '' }}</text>
             <view class="cor-spacer" />
-            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text class="cor-amount-unit"> 金币</text></text>
+            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text v-if="o.bucket !== 'review'" class="cor-amount-unit"> 金币</text></text>
           </view>
         </view>
       </template>
@@ -320,7 +323,7 @@ onShow(() => { myId.value = getCurrentUserId(); void load() })
           <view class="cor-order-foot">
             <text class="cor-foot-t">{{ o.counterpart }} {{ o.kind === 'qa' ? '提问' : '发起' }} · {{ fmtTime(o.createdAt) }}{{ o.note ? ' · ' + o.note : '' }}</text>
             <view class="cor-spacer" />
-            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text class="cor-amount-unit"> 金币</text></text>
+            <text class="cor-amount" :class="'cor-amount-' + o.amountCls">{{ o.amountText }}<text v-if="o.bucket !== 'review'" class="cor-amount-unit"> 金币</text></text>
           </view>
         </view>
       </template>
@@ -397,6 +400,7 @@ onShow(() => { myId.value = getCurrentUserId(); void load() })
 .cor-badge-done { background: rgba(91, 138, 94, 0.1); color: #5b8a5e; }
 .cor-badge-pending { background: rgba(201, 123, 45, 0.1); color: #c97b2d; }
 .cor-badge-refunded { background: var(--bg-warm, #f8f4ec); color: var(--text-tertiary, #999); }
+.cor-badge-review { background: #fff4e8; color: #775022; }
 .cor-order-foot {
   display: flex; align-items: center; gap: 16rpx;
   margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid var(--separator, #ede7dd);

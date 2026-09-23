@@ -195,7 +195,7 @@ onLoad((opt) => {
       <view v-for="q in questions" :key="q.id" class="ca-qa" @tap="openDetail(q.id)">
         <text class="ca-qa-q">{{ qaTitle(q) }}</text>
         <view class="ca-qa-meta">
-          <text class="ca-qa-m">{{ q.answerer?.nickname || '达人' }} {{ q.status === 'ANSWERED' ? '已答' : '待答' }}</text>
+          <text class="ca-qa-m">{{ q.answerer?.nickname || '达人' }} {{ q.status === 'ANSWERED' ? '已答' : q.status === 'PENDING' ? '待答' : q.status === 'REFUNDED' ? '已退款' : '状态待核实' }}</text>
           <text v-if="q.peekCount" class="ca-qa-gold">{{ q.peekCount }} 人围观</text>
         </view>
       </view>
