@@ -108,7 +108,7 @@ interface RawManageMember {
   joinedAt?: string
 }
 /** /circles/:id/members 响应（可能裸数组，由 Array.isArray 运行时分流） */
-interface RawManageMembersResp { members?: RawManageMember[]; data?: RawManageMember[] }
+interface RawManageMembersResp { members?: RawManageMember[]; data?: RawManageMember[]; total?: number }
 /** 后端帖子项 */
 interface RawManagePost {
   id?: string | number
@@ -121,7 +121,9 @@ interface RawManagePost {
   isEssence?: boolean
 }
 /** /circles/:id/posts 响应（可能裸数组，由 Array.isArray 运行时分流） */
-interface RawManagePostsResp { posts?: RawManagePost[]; data?: RawManagePost[] }
+interface RawManagePostsResp { posts?: RawManagePost[]; data?: RawManagePost[]; total?: number }
+
+export interface ManagePage<T> { items: T[]; total: number }
 
 export const circleManageApi = {
   /** 概览/设置基本信息 — GET /circles/:id */
@@ -157,10 +159,10 @@ export const circleManageApi = {
   },
 
   /** 成员列表 — GET /circles/:id/members → {members:[...],total} */
-  getMembers: async (id: string): Promise<ManageMember[]> => {
-    const res = await apiGet<RawManageMembersResp>(`/circles/${id}/members?pageSize=50`)
+  getMembers: async (id: string, page = 1): Promise<ManagePage<ManageMember>> => {
+    const res = await apiGet<RawManageMembersResp>(`/circles/${id}/members?page=${page}&pageSize=50`)
     const arr: RawManageMember[] = Array.isArray(res) ? res : (res?.members ?? res?.data ?? [])
-    return arr.map((m): ManageMember => ({
+    const items = arr.map((m): ManageMember => ({
       id: String(m.id ?? m.userId ?? ''),
       userId: String(m.userId ?? m.user?.id ?? ''),
       name: m.user?.nickname ?? '匿名',
@@ -169,14 +171,15 @@ export const circleManageApi = {
       rawRole: (m.role || 'MEMBER').toUpperCase(),
       joinedAt: fmtDate(m.joinedAt),
     }))
+    return { items, total: Array.isArray(res) ? items.length : Number(res?.total) || items.length }
   },
 
   /** 帖子列表 — GET /circles/:id/posts → {posts:[...],total}
    *  注：后端 Post 模型无点赞数/评论数字段，故视图模型不含 likes/comments */
-  getPosts: async (id: string): Promise<ManagePost[]> => {
-    const res = await apiGet<RawManagePostsResp>(`/circles/${id}/posts?pageSize=50`)
+  getPosts: async (id: string, page = 1): Promise<ManagePage<ManagePost>> => {
+    const res = await apiGet<RawManagePostsResp>(`/circles/${id}/posts?page=${page}&pageSize=50`)
     const arr: RawManagePost[] = Array.isArray(res) ? res : (res?.posts ?? res?.data ?? [])
-    return arr.map((p): ManagePost => ({
+    const items = arr.map((p): ManagePost => ({
       id: String(p.id ?? ''),
       content: (p.content ?? p.title ?? '').toString(),
       author: {
@@ -188,6 +191,7 @@ export const circleManageApi = {
       isPinned: !!p.isTop,
       isEssence: !!p.isEssence,
     }))
+    return { items, total: Array.isArray(res) ? items.length : Number(res?.total) || items.length }
   },
 
   // ─── 写操作 ───

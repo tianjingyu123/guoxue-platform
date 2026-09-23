@@ -241,7 +241,7 @@ export class CirclePostService {
         },
         skip,
         take: pageSize,
-        orderBy: [{ isTop: "desc" }, { createdAt: "desc" }],
+        orderBy: [{ isTop: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.post.count({ where }),
     ]);

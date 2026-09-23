@@ -802,7 +802,7 @@ export class CircleMembershipService {
         },
         skip,
         take: pageSize,
-        orderBy: { joinedAt: "asc" },
+        orderBy: [{ joinedAt: "asc" }, { id: "asc" }],
       }),
       this.prisma.circleMember.count({ where: { circleId } }),
     ]);

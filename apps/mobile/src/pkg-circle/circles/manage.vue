@@ -53,6 +53,11 @@ const roleFilters: { key: RoleFilter; label: string }[] = [
   { key: 'member', label: '成员' },
 ]
 const members = ref<ManageMember[]>([])
+const memberPage = ref(1)
+const memberTotal = ref(0)
+const membersLoadingMore = ref(false)
+const membersMoreError = ref(false)
+const hasMoreMembers = computed(() => members.value.length < memberTotal.value)
 const guests = ref<CircleGuest[]>([])
 const guestsError = ref(false)
 const membersLoading = ref(false)
@@ -85,6 +90,11 @@ const postFilters: { key: PostFilter; label: string }[] = [
   { key: 'essence', label: '精华' },
 ]
 const posts = ref<ManagePost[]>([])
+const postPage = ref(1)
+const postTotal = ref(0)
+const postsLoadingMore = ref(false)
+const postsMoreError = ref(false)
+const hasMorePosts = computed(() => posts.value.length < postTotal.value)
 const postsLoading = ref(false)
 const postsError = ref(false)
 const postFilter = ref<PostFilter>('all')
@@ -150,13 +160,16 @@ async function loadMembers() {
   if (membersLoading.value) return
   membersLoading.value = true
   membersError.value = false
+  membersMoreError.value = false
   guestsError.value = false
   try {
-    const [ms, gs] = await Promise.all([
-      circleManageApi.getMembers(circleId.value),
+    const [result, gs] = await Promise.all([
+      circleManageApi.getMembers(circleId.value, 1),
       circleGuestsApi.list(circleId.value).catch(() => { guestsError.value = true; return [] as CircleGuest[] }),
     ])
-    members.value = ms
+    members.value = result.items
+    memberTotal.value = result.total
+    memberPage.value = 1
     guests.value = gs
   } catch {
     membersError.value = true
@@ -165,11 +178,33 @@ async function loadMembers() {
   }
 }
 
+async function loadMoreMembers() {
+  if (membersLoading.value || membersLoadingMore.value || !hasMoreMembers.value) return
+  membersLoadingMore.value = true
+  membersMoreError.value = false
+  try {
+    const nextPage = memberPage.value + 1
+    const result = await circleManageApi.getMembers(circleId.value, nextPage)
+    members.value = [...members.value, ...result.items.filter((item) => !members.value.some((existing) => existing.id === item.id))]
+    memberPage.value = nextPage
+    memberTotal.value = result.items.length ? result.total : members.value.length
+  } catch {
+    membersMoreError.value = true
+  } finally {
+    membersLoadingMore.value = false
+  }
+}
+
 async function loadPosts() {
+  if (postsLoading.value) return
   postsLoading.value = true
   postsError.value = false
+  postsMoreError.value = false
   try {
-    posts.value = await circleManageApi.getPosts(circleId.value)
+    const result = await circleManageApi.getPosts(circleId.value, 1)
+    posts.value = result.items
+    postTotal.value = result.total
+    postPage.value = 1
   } catch {
     postsError.value = true
   } finally {
@@ -188,6 +223,23 @@ async function loadSettings() {
     settingsError.value = true
   } finally {
     settingsLoading.value = false
+  }
+}
+
+async function loadMorePosts() {
+  if (postsLoading.value || postsLoadingMore.value || !hasMorePosts.value) return
+  postsLoadingMore.value = true
+  postsMoreError.value = false
+  try {
+    const nextPage = postPage.value + 1
+    const result = await circleManageApi.getPosts(circleId.value, nextPage)
+    posts.value = [...posts.value, ...result.items.filter((item) => !posts.value.some((existing) => existing.id === item.id))]
+    postPage.value = nextPage
+    postTotal.value = result.items.length ? result.total : posts.value.length
+  } catch {
+    postsMoreError.value = true
+  } finally {
+    postsLoadingMore.value = false
   }
 }
 
@@ -507,11 +559,11 @@ onLoad((q) => {
         </view>
         <view v-else-if="!filteredMembers.length" class="state-view">
           <app-icon name="users" :size="64" color="#CCCCCC" />
-          <text class="state-desc">{{ memberSearch || roleFilter !== 'all' ? '没有匹配的成员' : '还没有成员' }}</text>
+          <text class="state-desc">{{ memberSearch || roleFilter !== 'all' ? '已加载成员中没有匹配项' : '还没有成员' }}</text>
         </view>
 
         <template v-else>
-          <text class="section-label">成员列表</text>
+          <text class="section-label">成员列表 · 已加载 {{ members.length }}/{{ memberTotal }}</text>
           <view class="list">
             <view v-for="m in filteredMembers" :key="m.id" class="member-block">
               <view class="member-row" @tap="m.role !== 'owner' && toggleMenu(m.id)">
@@ -537,6 +589,11 @@ onLoad((q) => {
                 <view class="row-action danger" @tap="askRemoveMember(m)"><text class="row-action-txt danger-txt">移出圈子</text></view>
               </view>
             </view>
+          </view>
+
+          <text v-if="hasMoreMembers && (memberSearch || roleFilter !== 'all')" class="page-hint">当前筛选仅覆盖已加载成员，继续加载可查看更多。</text>
+          <view v-if="hasMoreMembers" class="load-more" role="button" tabindex="0" :aria-label="membersMoreError ? '重试加载更多成员' : '加载更多成员'" @tap="loadMoreMembers" @keydown.enter="loadMoreMembers" @keydown.space.prevent="loadMoreMembers">
+            <text>{{ membersLoadingMore ? '加载中…' : membersMoreError ? '加载失败，点此重试' : '加载更多成员' }}</text>
           </view>
 
           <view v-if="guestsError" class="state-view" role="button" aria-label="重试嘉宾信息" @tap="loadMembers"><text class="state-desc">嘉宾分账信息暂时无法读取，点此重试</text></view>
@@ -570,6 +627,9 @@ onLoad((q) => {
             </view>
           </template>
         </template>
+        <view v-if="!membersLoading && !membersError && !filteredMembers.length && hasMoreMembers" class="load-more" role="button" tabindex="0" aria-label="加载更多成员" @tap="loadMoreMembers" @keydown.enter="loadMoreMembers" @keydown.space.prevent="loadMoreMembers">
+          <text>{{ membersLoadingMore ? '加载中…' : membersMoreError ? '加载失败，点此重试' : '加载更多成员' }}</text>
+        </view>
       </template>
 
       <!-- ═══════════ 内容分区 ═══════════ -->
@@ -595,7 +655,7 @@ onLoad((q) => {
         </view>
         <view v-else-if="!filteredPosts.length" class="state-view">
           <app-icon name="file-text" :size="64" color="#CCCCCC" />
-          <text class="state-desc">{{ postFilter !== 'all' ? '该筛选下暂无帖子' : '圈子里还没有帖子' }}</text>
+          <text class="state-desc">{{ postFilter !== 'all' ? '已加载内容中没有匹配项' : '圈子里还没有帖子' }}</text>
         </view>
 
         <template v-else>
@@ -622,7 +682,14 @@ onLoad((q) => {
               <view class="pa-del" @tap="askDeletePost(p)"><text class="pa-del-txt">删除</text></view>
             </view>
           </view>
+          <text class="page-hint">已加载 {{ posts.length }}/{{ postTotal }} 条内容<template v-if="hasMorePosts && postFilter !== 'all'">；当前筛选仅覆盖已加载内容</template></text>
+          <view v-if="hasMorePosts" class="load-more" role="button" tabindex="0" :aria-label="postsMoreError ? '重试加载更多内容' : '加载更多内容'" @tap="loadMorePosts" @keydown.enter="loadMorePosts" @keydown.space.prevent="loadMorePosts">
+            <text>{{ postsLoadingMore ? '加载中…' : postsMoreError ? '加载失败，点此重试' : '加载更多内容' }}</text>
+          </view>
         </template>
+        <view v-if="!postsLoading && !postsError && !filteredPosts.length && hasMorePosts" class="load-more" role="button" tabindex="0" aria-label="加载更多内容" @tap="loadMorePosts" @keydown.enter="loadMorePosts" @keydown.space.prevent="loadMorePosts">
+          <text>{{ postsLoadingMore ? '加载中…' : postsMoreError ? '加载失败，点此重试' : '加载更多内容' }}</text>
+        </view>
 
         <!-- 🔴 2026-07-14 撤除「推荐电子书配置」入口：整条链依附于已下线的电子书板块。
              后端 GET/PUT /circles/:id/recommended-ebooks 是在的，但圈主用来挑书的书城
@@ -823,6 +890,8 @@ onLoad((q) => {
 
 /* 分区标题 */
 .section-label { display: block; margin: 40rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999999); }
+.page-hint { display: block; margin: 20rpx 36rpx 8rpx; font-size: 23rpx; line-height: 1.5; color: var(--text-secondary, #6e6e73); }
+.load-more { display: flex; align-items: center; justify-content: center; min-height: 88rpx; margin: 16rpx 32rpx 32rpx; border-radius: 24rpx; background: var(--bg-card, #fff); color: var(--text-primary, #2c2c2c); font-size: 26rpx; font-weight: 600; }
 
 /* 成员列表 */
 .list {
