@@ -10,8 +10,8 @@
  * 账单申诉（同批解锁）：POST /consult-calls/:id/dispute（双方·24h 内·一次），提交后回显状态；
  *   处理只记结论，退款走人工金币退款审批流（资金零触碰）。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
@@ -146,12 +146,12 @@ async function submitDispute() {
 }
 
 onLoad((opt) => { callId.value = (opt?.id || '') as string })
-onMounted(load)
+onShow(() => { void load() })
 </script>
 
 <template>
   <view class="cle-page">
-    <view class="cle-topbar"><text class="cle-topbar-t">通话已结束</text></view>
+    <view class="cle-topbar"><text class="cle-topbar-t">通话记录</text></view>
 
     <!-- 三态 -->
     <view v-if="loading" class="cle-state"><view class="cle-skel" /><view class="cle-skel sm" /></view>

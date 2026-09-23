@@ -6,7 +6,8 @@
  * 口径（后端为准）：订单 settledCoin 以金币计；达人收益按 50% 记录为收益账户，
  *   不能将其展示成金币已到账。未接/取消时退还发起方预扣。点击已结束通话 → 结算单页(call-end)。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { callApi, type ConsultCallRecord } from '@/lib/consult-call-data'
@@ -87,7 +88,8 @@ async function load() {
   }
 }
 
-onMounted(load)
+// 从通话/结算单返回时重新读取，避免继续显示结束前的预扣状态。
+onShow(() => { void load() })
 </script>
 
 <template>

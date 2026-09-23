@@ -131,6 +131,22 @@ describe("CircleDashboardService", () => {
     }
   });
 
+  it.each([
+    "getOverview", "getTrends", "getRevenueBreakdown", "getTopContributors",
+    "getHotContent", "getRecentMembers", "getChurnWarning", "getPendingQuestions",
+    "getMembersInsight", "getMemberTimeline", "getKnowledgeCandidates",
+  ])("普通成员访问经营与成员洞察入口 %s 时，读取业务数据前拒绝", async (method) => {
+    mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
+    await expect((svc as any)[method]("c1", "member1", "target1")).rejects.toThrow(ForbiddenException);
+    expect(mockPrisma.circleMember.findUnique).toHaveBeenCalledWith({
+      where: { circleId_userId: { circleId: "c1", userId: "member1" } },
+      select: { role: true },
+    });
+    expect(mockPrisma.order.aggregate).not.toHaveBeenCalled();
+    expect(mockInsight.buildCustomerProfiles).not.toHaveBeenCalled();
+    expect(mockInsight.getTimeline).not.toHaveBeenCalled();
+  });
+
   describe("getRevenueBreakdown", () => {
     it("返回收入构成", async () => {
       mockPrisma.order.aggregate
