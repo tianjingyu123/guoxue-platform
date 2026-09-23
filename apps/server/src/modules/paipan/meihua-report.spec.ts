@@ -35,7 +35,7 @@ function setup() {
     findEvidence: jest.fn(async () => []),
     groupDebates: jest.fn(() => []),
   };
-  return { svc: new PaipanReportService(prisma, gateway, knowledge), prisma, gateway, knowledge };
+  return { svc: new PaipanReportService(prisma, gateway, knowledge, { assertReportAccess: jest.fn() } as any), prisma, gateway, knowledge };
 }
 
 const modelJson = () =>

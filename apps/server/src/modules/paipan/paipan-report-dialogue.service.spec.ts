@@ -70,7 +70,8 @@ function setup(owner = "u1") {
   };
   const gateway: any = { chat: jest.fn() };
   const guide: any = { guide: jest.fn(async (q: string) => ({ query: q, cards: [{ type: "article", id: `a-${q}`, title: `${q}入门`, target: `/pkg-circle/articles/detail?id=a-${q}` }, { type: "article", id: "shared", title: "共同文章", target: "/pkg-circle/articles/detail?id=shared" }] })) };
-  return { svc: new PaipanReportDialogueService(prisma, gateway, guide), prisma, gateway, turns, guide };
+  const commerce: any = { assertReportAccess: jest.fn() };
+  return { svc: new PaipanReportDialogueService(prisma, gateway, guide, commerce), prisma, gateway, turns, guide };
 }
 
 describe("PaipanReportDialogueService", () => {
@@ -185,7 +186,7 @@ describe("PaipanReportDialogueService", () => {
       analysisContent: JSON.stringify({ ...report, metadata: { reportType: "general" } }),
     });
     const commerce: any = { assertReportAccess: jest.fn().mockRejectedValue(new Error("购买权益已撤销")) };
-    const svc = new PaipanReportDialogueService(prisma, gateway, guide, undefined, commerce);
+    const svc = new PaipanReportDialogueService(prisma, gateway, guide, commerce);
     await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
     await expect(svc.ask("u1", "r1", { question: "继续解释" })).rejects.toThrow("购买权益已撤销");
     expect(gateway.chat).not.toHaveBeenCalled();
@@ -198,7 +199,7 @@ describe("PaipanReportDialogueService", () => {
       analyzeType: "REPORT_LOVE", analysisContent: JSON.stringify(report),
     });
     const commerce: any = { assertReportAccess: jest.fn().mockRejectedValue(new Error("购买权益已撤销")) };
-    const svc = new PaipanReportDialogueService(prisma, gateway, guide, undefined, commerce);
+    const svc = new PaipanReportDialogueService(prisma, gateway, guide, commerce);
     await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
     expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "love");
   });

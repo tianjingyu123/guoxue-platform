@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { getReportTemplate, modelSections, templateBrief, type ReportTemplate } from "./report-template";
@@ -243,11 +243,8 @@ export class PaipanReportService {
     private prisma: PrismaService,
     private gateway: AiGatewayService,
     private reportKnowledge: PaipanReportKnowledgeService,
-    /**
-     * 报告付费门禁（决策人 2026-09-21：单份 29 元或小卜AI会员）。模块内总是注入；
-     * 可选只为兼容大量以三参数构造本服务的单测（不传即不设门禁）
-     */
-    @Optional() private readonly commerce?: XiaobuCommerceService,
+    /** 报告权益门禁为必需依赖；缺失时服务不能启动。 */
+    private readonly commerce: XiaobuCommerceService,
   ) {}
 
   async generateReport(
@@ -264,7 +261,7 @@ export class PaipanReportService {
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
     // 付费门禁在任何模型调用与复用之前：未购买且非会员不生成
-    await this.commerce?.assertReportAccess(userId, paipanRecordId, type);
+    await this.commerce.assertReportAccess(userId, paipanRecordId, type);
 
     const plan = await this.prepareChart(record);
     const { paipanType, facts } = plan;
@@ -753,7 +750,7 @@ export class PaipanReportService {
     const record = await this.prisma.paipanRecord.findUnique({ where: { id: paipanRecordId }, select: { userId: true } });
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
-    const access = this.commerce ? await this.commerce.reportAccess(userId, paipanRecordId, type) : { granted: true, via: "free" as const };
+    const access = await this.commerce.reportAccess(userId, paipanRecordId, type);
     return { recordId: paipanRecordId, reportType: type, ...access };
   }
 
@@ -1625,7 +1622,7 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     const accessType = content.metadata?.reportType ||
       (report.analyzeType?.startsWith("REPORT_") ? report.analyzeType.slice(7).toLowerCase() : "");
     if (report.paipanRecordId && accessType) {
-      await this.commerce?.assertReportAccess(userId, report.paipanRecordId, accessType);
+      await this.commerce.assertReportAccess(userId, report.paipanRecordId, accessType);
     }
     // 旧报告没有图形数据：按原盘现场补算（确定性计算，不调模型、不改存档）
     if (!content.chartView && report.paipanRecordId) {

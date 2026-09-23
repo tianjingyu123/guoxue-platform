@@ -57,9 +57,9 @@ export class PaipanReportDialogueService {
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
     private readonly guide: ContentGuideService,
+    private readonly commerce: XiaobuCommerceService,
     /** 可选：称呼记忆。缺它时对话照常，只是一律用「你」 */
     @Optional() private readonly names?: PreferredNameService,
-    @Optional() private readonly commerce?: XiaobuCommerceService,
   ) {}
 
   /**
@@ -347,7 +347,7 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     const accessType = content.metadata?.reportType ||
       (record.analyzeType?.startsWith("REPORT_") ? record.analyzeType.slice(7).toLowerCase() : "");
     if (record.paipanRecordId && accessType) {
-      await this.commerce?.assertReportAccess(userId, record.paipanRecordId, accessType);
+      await this.commerce.assertReportAccess(userId, record.paipanRecordId, accessType);
     }
     return content;
   }
