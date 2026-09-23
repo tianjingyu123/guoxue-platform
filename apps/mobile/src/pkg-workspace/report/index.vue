@@ -81,6 +81,7 @@ async function load() {
 }
 
 function onEdit(i: number, e: any) {
+  if (report.value?.shareToken) return
   chapters.value[i].body = e.detail.value
   // 老师动过手的章节就不再算 AI 初稿——署的是他的名，责任也是他的
   if (chapters.value[i].ai) chapters.value[i].ai = false
@@ -91,7 +92,7 @@ function onEdit(i: number, e: any) {
 // 盘面事实章不动（那是排盘数据），改完仍是草稿，老师可以继续改。
 const rewriting = ref(false)
 async function rewriteForClient() {
-  if (!report.value || rewriting.value) return
+  if (!report.value || rewriting.value || report.value.shareToken) return
   const ok = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '改写成给客户看的话',
@@ -124,7 +125,7 @@ async function rewriteForClient() {
 
 async function aiDraft(i: number) {
   const c = chapters.value[i]
-  if (drafting.value) return
+  if (drafting.value || report.value?.shareToken) return
   if (c.body.trim()) {
     const ok = await new Promise<boolean>((resolve) =>
       uni.showModal({
@@ -155,7 +156,7 @@ async function aiDraft(i: number) {
 }
 
 async function save(status?: 'draft' | 'final'): Promise<boolean> {
-  if (!report.value || saving.value) return false
+  if (!report.value || saving.value || report.value.shareToken) return false
   saving.value = true
   try {
     const r = await wsApi.updateReport(id.value, {
@@ -226,7 +227,7 @@ function unshare() {
       if (!r.confirm) return
       try {
         await wsApi.unshareReport(id.value)
-        report.value = { ...report.value!, shareToken: null, sharedAt: null }
+        report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final' }
         uni.showToast({ title: '已撤回', icon: 'success' })
       } catch (e: any) {
         uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
@@ -272,7 +273,7 @@ function archive() {
       <scroll-view class="re-body" scroll-y :show-scrollbar="false">
         <!-- 抬头 -->
         <PaperCard gold padding="lg">
-          <input v-model="report.title" class="re-title-input" @input="dirty = true" />
+          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken" @input="dirty = true" />
           <view class="re-meta">
             <text class="re-meta-item">{{ report.clientName }}</text>
             <text v-if="report.clientBirth" class="re-meta-item">{{ report.clientBirth }}</text>
@@ -281,6 +282,10 @@ function archive() {
             </text>
           </view>
         </PaperCard>
+
+        <view v-if="report.shareToken" class="re-delivered-notice">
+          客户链接已生效，当前内容已锁定。需要修改时，请先在下方撤回交付，修改并预览后再生成链接。
+        </view>
 
         <!-- 盘面（只读快照） -->
         <PaperCard v-if="report.paipan" padding="lg">
@@ -310,7 +315,7 @@ function archive() {
               <text class="re-ch-title">{{ c.title }}</text>
               <text v-if="c.ai" class="re-ch-ai">AI 初稿</text>
             </view>
-            <view class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
+            <view v-if="!report.shareToken" class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
               <AppIcon name="sparkles" :size="14" :color="drafting === c.key ? '#B8AA9A' : '#C41E3A'" />
               <text class="re-ch-draft-txt" :class="{ 're-ch-draft-txt--busy': drafting === c.key }">
                 {{ drafting === c.key ? '起草中…' : 'AI 起草' }}
@@ -326,6 +331,7 @@ function archive() {
             placeholder-class="re-ph"
             auto-height
             :maxlength="-1"
+            :disabled="!!report.shareToken"
             @input="onEdit(i, $event)"
           />
           <text v-else-if="c.body" class="re-ch-fold">{{ c.body.slice(0, 40) }}…</text>
@@ -363,7 +369,7 @@ function archive() {
           <AppIcon name="book-marked" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">归档案例</text>
         </view>
-        <view class="re-bar-btn" @tap="rewriteForClient">
+        <view v-if="!report.shareToken" class="re-bar-btn" @tap="rewriteForClient">
           <AppIcon name="wand-2" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">{{ rewriting ? '改写中…' : '改成客户口径' }}</text>
         </view>
@@ -371,10 +377,10 @@ function archive() {
           <AppIcon name="eye" :size="18" color="#7A6C5E" />
           <text class="re-bar-btn-txt">预览</text>
         </view>
-        <view class="re-bar-save" @tap="save()">
+        <view v-if="!report.shareToken" class="re-bar-save" @tap="save()">
           <text class="re-bar-save-txt">{{ saving ? '保存中…' : dirty ? '保存' : '已保存' }}</text>
         </view>
-        <view class="re-bar-final" @tap="save('final')">
+        <view v-if="!report.shareToken" class="re-bar-final" @tap="save('final')">
           <text class="re-bar-final-txt">定稿</text>
         </view>
       </view>
@@ -399,6 +405,15 @@ function archive() {
 
 .re-body > view {
   margin-bottom: 24rpx;
+}
+
+.re-delivered-notice {
+  padding: 24rpx 28rpx;
+  border-radius: 16rpx;
+  background: #FFF6E5;
+  color: #76551D;
+  font-size: 25rpx;
+  line-height: 1.6;
 }
 
 .re-skeleton {

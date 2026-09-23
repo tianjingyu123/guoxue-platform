@@ -11,8 +11,12 @@
       <text class="verify-title">暂时无法确认支付成功</text>
       <text class="verify-desc">{{ errorMessage }}</text>
       <view class="verify-actions">
-        <view class="action-btn primary" @tap="goOrders">
-          <app-icon name="shopping-bag" :size="36" color="#fff" />
+        <view v-if="orderInfo.orderId && canRetryVerification" class="action-btn primary" @tap="verifyPayment">
+          <app-icon name="refresh-cw" :size="36" color="#fff" />
+          <text>重新核验</text>
+        </view>
+        <view class="action-btn ghost" @tap="goOrders">
+          <app-icon name="shopping-bag" :size="36" color="#2C2C2C" />
           <text>查看订单</text>
         </view>
         <view class="action-btn ghost" @tap="goHome">
@@ -20,7 +24,7 @@
           <text>返回首页</text>
         </view>
       </view>
-      <text class="verify-help">若已完成付款，请稍后在订单中心刷新状态；请勿重复支付。</text>
+      <text class="verify-help">若已完成付款，可在此重新核验或稍后查看订单；请勿重复支付。</text>
     </view>
 
     <template v-else>
@@ -112,7 +116,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import BrandSeal from '@/components/common/brand-seal.vue'
 import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -133,25 +137,46 @@ const showAnim = ref(false)
 const submitting = ref(false)
 const viewState = ref<'loading' | 'success' | 'error'>('loading')
 const errorMessage = ref('')
+const canRetryVerification = ref(true)
 const returnLiveRoomId = ref('')
 const returnRecordId = ref('')
 const nextAction = computed(() => paidOrderNext(orderInfo.type, orderInfo.targetId, returnRecordId.value))
+let verifying = false
 
-onLoad(async (q) => {
+onLoad((q) => {
   orderInfo.orderId = String(q?.orderId || '').trim()
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   returnRecordId.value = String(q?.returnRecordId || '').trim()
   if (!orderInfo.orderId) {
     viewState.value = 'error'
     errorMessage.value = '缺少订单信息，无法核验支付结果。'
+    canRetryVerification.value = false
     return
   }
+  void verifyPayment()
+})
+
+// 从订单页返回或微信回调稍晚时，可以只读核验同一订单，不再次发起支付。
+onShow(() => {
+  if (viewState.value === 'error' && canRetryVerification.value && orderInfo.orderId) void verifyPayment()
+})
+
+async function verifyPayment() {
+  if (verifying || !orderInfo.orderId || viewState.value === 'success') return
+  verifying = true
+  viewState.value = 'loading'
+  errorMessage.value = ''
   try {
     // 同一次订单查询同时返回摘要和真实状态，只有已支付状态才能进入成功页。
     const s = await shopApi.getOrderSummary(orderInfo.orderId)
     if (!s.paid) {
       viewState.value = 'error'
-      errorMessage.value = '订单尚未支付完成，请到订单中心查看最新状态。'
+      canRetryVerification.value = s.status !== 'REFUNDED' && s.status !== 'CANCELLED'
+      errorMessage.value = s.status === 'REFUNDED'
+        ? '该订单已退款，请到订单中心查看处理记录。'
+        : s.status === 'CANCELLED'
+          ? '该订单已取消，请到订单中心查看。'
+          : '订单尚未显示到账，支付回调可能仍在处理，请稍后重新核验。'
       return
     }
     orderInfo.orderId = s.orderId
@@ -166,9 +191,11 @@ onLoad(async (q) => {
   } catch (e) {
     console.warn('[pay-success] 支付结果核验失败', e)
     viewState.value = 'error'
-    errorMessage.value = '订单状态查询失败，请到订单中心确认后再继续。'
+    errorMessage.value = '订单状态查询失败，请稍后重新核验或到订单中心查看。'
+  } finally {
+    verifying = false
   }
-})
+}
 
 function handleCopy() {
   if (copied.value || !orderInfo.orderId) return

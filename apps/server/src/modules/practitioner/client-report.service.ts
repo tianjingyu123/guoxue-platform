@@ -80,6 +80,7 @@ export class ClientReportService {
   async rewriteReport(userId: string, reportId: string) {
     const report = await this.prisma.practitionerReport.findFirst({ where: { id: reportId, ownerId: userId } });
     if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
+    if (report.shareToken) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再改写");
 
     const chapters = Array.isArray(report.chapters) ? (report.chapters as any[]) : [];
     if (!chapters.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "这份报告还没有章节内容");
@@ -113,10 +114,13 @@ export class ClientReportService {
       }
     }
 
-    const saved = await this.prisma.practitionerReport.update({
-      where: { id: reportId },
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id: reportId, ownerId: userId, shareToken: null },
       data: { chapters: out as any },
     });
+    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再改写");
+    const saved = await this.prisma.practitionerReport.findFirst({ where: { id: reportId, ownerId: userId } });
+    if (!saved) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
     return { report: saved, rewritten: out.filter((c) => c.rewritten).length, failed };
   }
 }

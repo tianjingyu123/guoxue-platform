@@ -5,15 +5,11 @@ import { ClientReportService } from "./client-report.service";
  * 决策人 2026-09-18 定位：要通俗易懂、老师视角，让客户觉得是这位老师写的。
  */
 function setup(chapters: any[] = []) {
+  const report = { id: "pr-1", ownerId: "teacher-1", clientName: "王女士", chapters, shareToken: null as string | null };
   const prisma: any = {
     practitionerReport: {
-      findFirst: jest.fn(async () => ({
-        id: "pr-1",
-        ownerId: "teacher-1",
-        clientName: "王女士",
-        chapters,
-      })),
-      update: jest.fn(async ({ data }: any) => ({ id: "pr-1", ownerId: "teacher-1", clientName: "王女士", ...data })),
+      findFirst: jest.fn(async () => report),
+      updateMany: jest.fn(async ({ data }: any) => { Object.assign(report, data); return { count: 1 }; }),
     },
   };
   const gateway: any = { chat: jest.fn(async () => ({ content: "（改写后）你这个盘，简单说就是……", model: "m1" })) };
@@ -93,6 +89,20 @@ describe("交付稿改写", () => {
     const { svc, prisma } = setup([{ key: "c1", title: "x", body: "y" }]);
     prisma.practitionerReport.findFirst.mockResolvedValueOnce(null);
     await expect(svc.rewriteReport("teacher-1", "pr-1")).rejects.toThrow("报告不存在");
+  });
+
+  it("交付后拒绝改写，避免客户链接看到未经预览的新正文", async () => {
+    const { svc, prisma, gateway } = setup([{ key: "c1", title: "解读", body: "原文" }]);
+    prisma.practitionerReport.findFirst.mockResolvedValueOnce({ id: "pr-1", ownerId: "teacher-1", shareToken: "live", chapters: [{ key: "c1", title: "解读", body: "原文" }] });
+    await expect(svc.rewriteReport("teacher-1", "pr-1")).rejects.toThrow("请先撤回交付链接");
+    expect(gateway.chat).not.toHaveBeenCalled();
+    expect(prisma.practitionerReport.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("改写期间如果报告被交付，最终写入也须拒绝", async () => {
+    const { svc, prisma } = setup([{ key: "c1", title: "解读", body: "原文" }]);
+    prisma.practitionerReport.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(svc.rewriteReport("teacher-1", "pr-1")).rejects.toThrow("请先撤回交付链接");
   });
 
   it("空正文不调模型", async () => {

@@ -289,8 +289,9 @@ export class PractitionerService {
 
   async updateReport(userId: string, id: string, dto: any) {
     await this.getReport(userId, id); // 归属校验（他人的 id 与不存在同样 404）
-    return this.prisma.practitionerReport.update({
-      where: { id },
+    // 客户链接读取当前正文；交付后只能先撤回，避免编辑中的内容即时暴露给客户。
+    const updated = await this.prisma.practitionerReport.updateMany({
+      where: { id, ownerId: userId, shareToken: null },
       data: {
         title: dto.title,
         type: dto.type,
@@ -304,6 +305,8 @@ export class PractitionerService {
         chapters: dto.chapters ?? undefined,
       },
     });
+    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再修改");
+    return this.getReport(userId, id);
   }
 
   async deleteReport(userId: string, id: string) {
@@ -323,7 +326,7 @@ export class PractitionerService {
     const token = r.shareToken ?? randomBytes(16).toString("hex");
     const updated = await this.prisma.practitionerReport.update({
       where: { id },
-      data: { shareToken: token, sharedAt: new Date(), status: r.status === "draft" ? "delivered" : r.status },
+      data: { shareToken: token, sharedAt: new Date(), status: "delivered" },
     });
     return { shareToken: updated.shareToken, sharedAt: updated.sharedAt };
   }
@@ -333,7 +336,7 @@ export class PractitionerService {
     await this.getReport(userId, id);
     await this.prisma.practitionerReport.update({
       where: { id },
-      data: { shareToken: null, sharedAt: null },
+      data: { shareToken: null, sharedAt: null, status: "final" },
     });
     return { success: true };
   }
