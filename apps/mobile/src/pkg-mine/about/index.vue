@@ -216,7 +216,9 @@ const currentYear = new Date().getFullYear()
 const CREDITS = [
   { name: '开放汉语字典（開放詞典）', use: '起名用字释义参考', license: 'CC BY 3.0', url: 'https://github.com/kfcd/hyzd' },
   { name: 'Unicode Unihan 数据库', use: '汉字读音', license: 'Unicode License V3', url: 'https://www.unicode.org/charts/unihan.html' },
-  { name: 'chinese-poetry 中华古诗词数据库', use: '典籍用字统计', license: 'MIT', url: 'https://github.com/chinese-poetry/chinese-poetry' },
+  { name: 'chinese-poetry 中华古诗词数据库', use: '典籍用字统计与核验引文', license: 'MIT · © 2016 JackeyGao', url: 'https://github.com/chinese-poetry/chinese-poetry' },
+  { name: 'Chinese-Names-Corpus（萌名）', use: '姓名样本用字与同名热度统计', license: 'Apache-2.0', url: 'https://github.com/wainshine/Chinese-Names-Corpus' },
+  { name: '中文维基文库', use: '《周易》引文核对', license: '公版原典／站点版权条款', url: 'https://zh.wikisource.org/wiki/周易' },
 ]
 
 const features = [

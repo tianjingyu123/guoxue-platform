@@ -2,15 +2,15 @@
  "tool": "xingming",
  "tz": "Asia/Shanghai",
  "mode": "groups",
- "source": "迁移前前端引擎 + 前端结果页原映射（apps/mobile/src/pkg-paipan/xingming）",
- "generatedAt": "2026-09-21",
+ "source": "服务端引擎（起名字库终审、诗词出处纠错、开源姓名样本热度与详批页字义/读音/引文接入后的回归指纹；数据真伪由独立来源核验）",
+ "generatedAt": "2026-09-22",
  "calls": 32552,
  "groups": 5,
  "byGroup": {
-  "single": "df0df1f9746ded9a",
-  "double": "695a31fb1da2d8d7",
-  "compound": "c870166b7f49b5c1",
-  "birth": "db44ad696772d530",
-  "birth-edge": "96e09935e8dc4bdd"
+  "single": "349552db8f0e5888",
+  "double": "76c4e9108bd2e413",
+  "compound": "727e19eecff0f7b5",
+  "birth": "a8a952f7c1351a08",
+  "birth-edge": "85004101a92095f5"
  }
 }

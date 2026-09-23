@@ -11,6 +11,7 @@ import type { NameCandidate, NameChar } from "./qiming-data"
 import { dianjiFreq } from "@guoxue/shared/paipan"
 import lexicon from "./data/naming-lexicon.json"
 import reviewedPoems from "./data/reviewed-poems.json"
+import { nameSampleHeat } from "./name-usage"
 
 type WX = "金" | "木" | "水" | "火" | "土"
 type Style = "classic" | "steady" | "fresh" | "auspicious"
@@ -28,7 +29,7 @@ interface PoolChar {
 
 const CHAR_POOL: PoolChar[] = [
   // ── 木 ──
-  { char: "林", meaning: "树木成林，生机繁盛", styles: ["classic", "steady"], fit: "u", poem: { source: "诗经 · 邶风", quote: "瞻彼中林，甡甡其鹿" } },
+  { char: "林", meaning: "树木成林，生机繁盛", styles: ["classic", "steady"], fit: "u", poem: { source: "王羲之《兰亭集序》", quote: "此地有崇山峻岭，茂林修竹" } },
   { char: "森", meaning: "林木茂密，气象宏大", styles: ["steady"], fit: "m" },
   { char: "楷", meaning: "楷模典范，端方正直", styles: ["steady"], fit: "m" },
   { char: "桐", meaning: "梧桐引凤，高洁之木", styles: ["fresh", "classic"], fit: "u", poem: { source: "诗经 · 大雅", quote: "凤凰鸣矣，于彼高冈。梧桐生矣，于彼朝阳" } },
@@ -56,11 +57,11 @@ const CHAR_POOL: PoolChar[] = [
   { char: "毅", meaning: "弘毅坚忍，任重道远", styles: ["steady", "classic"], fit: "m", poem: { source: "论语 · 泰伯", quote: "士不可以不弘毅，任重而道远" } },
   { char: "桦", meaning: "白桦挺拔，清朗俊逸", styles: ["fresh"], fit: "m" },
   { char: "槿", meaning: "木槿朝开，温柔坚韧", styles: ["fresh"], fit: "f" },
-  { char: "菁", meaning: "华采菁英，才华出众", styles: ["classic", "fresh"], fit: "f", poem: { source: "诗经 · 唐风", quote: "有杕之杜，其叶菁菁" } },
+  { char: "菁", meaning: "华采菁英，才华出众", styles: ["classic", "fresh"], fit: "f", poem: { source: "诗经 · 小雅 · 菁菁者莪", quote: "菁菁者莪，在彼中阿" } },
   { char: "茉", meaning: "茉莉芬芳，清雅怡人", styles: ["fresh"], fit: "f" },
   { char: "芊", meaning: "草木芊芊，生机盎然", styles: ["fresh"], fit: "f" },
   { char: "秋", meaning: "秋高气爽，硕果盈枝", styles: ["classic", "fresh"], fit: "u" },
-  { char: "和", meaning: "和顺致祥，中正平和", styles: ["classic", "auspicious"], fit: "u", poem: { source: "周易 · 乾卦", quote: "保合太和，乃利贞" } },
+  { char: "和", meaning: "和顺致祥，中正平和", styles: ["classic", "auspicious"], fit: "u", poem: { source: "周易 · 乾卦", quote: "保合大和，乃利贞" } },
   { char: "康", meaning: "安康顺遂，五福临门", styles: ["auspicious"], fit: "u" },
   { char: "家", meaning: "家国情怀，安身立业", styles: ["steady", "auspicious"], fit: "u" },
   { char: "国", meaning: "胸怀家国，器宇轩昂", styles: ["steady"], fit: "m" },
@@ -70,11 +71,11 @@ const CHAR_POOL: PoolChar[] = [
   { char: "颀", meaning: "身姿颀长，风度翩翩", styles: ["classic", "fresh"], fit: "m", poem: { source: "诗经 · 卫风", quote: "硕人其颀，衣锦褧衣" } },
   { char: "棠", meaning: "甘棠遗爱，惠泽后人", styles: ["classic", "fresh"], fit: "u", poem: { source: "诗经 · 召南", quote: "蔽芾甘棠，勿翦勿伐" } },
   { char: "艺", meaning: "多才多艺，游于六艺", styles: ["classic"], fit: "u" },
-  { char: "旭", meaning: "旭日初升，朝气蓬勃", styles: ["auspicious", "fresh"], fit: "m", poem: { source: "诗经 · 邶风", quote: "雄雉于飞，下上其音。旭日始旦" } },
+  { char: "旭", meaning: "旭日初升，朝气蓬勃", styles: ["auspicious", "fresh"], fit: "m" },
   { char: "苓", meaning: "茯苓延年，采采其芳", styles: ["classic", "fresh"], fit: "f", poem: { source: "诗经 · 邶风", quote: "山有榛，隰有苓" } },
   { char: "萌", meaning: "草木初萌，生意盎然", styles: ["fresh"], fit: "f" },
   // ── 火 ──
-  { char: "志", meaning: "志向抱负，笃行致远", styles: ["steady", "classic"], fit: "m", poem: { source: "论语 · 泰伯", quote: "士不可以不弘毅，任重而道远" } },
+  { char: "志", meaning: "志向抱负，笃行致远", styles: ["steady", "classic"], fit: "m", poem: { source: "论语 · 述而", quote: "志于道，据于德，依于仁，游于艺" } },
   { char: "晨", meaning: "晨曦初露，希望之始", styles: ["fresh", "auspicious"], fit: "u" },
   { char: "曦", meaning: "晨曦朝阳，光明温暖", styles: ["fresh"], fit: "f" },
   { char: "昭", meaning: "昭明有融，光彩照人", styles: ["classic"], fit: "u", poem: { source: "诗经 · 大雅", quote: "昭明有融，高朗令终" } },
@@ -87,7 +88,7 @@ const CHAR_POOL: PoolChar[] = [
   { char: "晴", meaning: "晴空万里，开朗明媚", styles: ["fresh"], fit: "f" },
   { char: "昕", meaning: "黎明破晓，光明在望", styles: ["fresh"], fit: "u" },
   { char: "旻", meaning: "秋日旻天，胸怀高远", styles: ["classic"], fit: "m" },
-  { char: "晏", meaning: "海晏河清，安然自若", styles: ["classic"], fit: "u", poem: { source: "楚辞 · 九歌", quote: "青云衣兮白霓裳，举长矢兮射天狼……日晏晏兮" } },
+  { char: "晏", meaning: "海晏河清，安然自若", styles: ["classic"], fit: "u" },
   { char: "南", meaning: "南山之寿，安定长久", styles: ["classic", "auspicious"], fit: "u", poem: { source: "诗经 · 小雅", quote: "如南山之寿，不骞不崩" } },
   { char: "丹", meaning: "丹心赤诚，志虑忠纯", styles: ["classic"], fit: "u" },
   { char: "宁", meaning: "安宁致远，静水流深", styles: ["steady", "auspicious"], fit: "u" },
@@ -95,14 +96,14 @@ const CHAR_POOL: PoolChar[] = [
   { char: "念", meaning: "心怀善念，不忘初心", styles: ["classic", "fresh"], fit: "u" },
   { char: "惠", meaning: "惠风和畅，仁爱宽厚", styles: ["classic", "auspicious"], fit: "f" },
   { char: "悦", meaning: "心悦神怡，和颜悦色", styles: ["fresh", "auspicious"], fit: "f" },
-  { char: "恒", meaning: "持之以恒，日月得天", styles: ["steady", "classic"], fit: "m", poem: { source: "周易 · 恒卦", quote: "日月得天而能久照，四时变化而能久成" } },
+  { char: "恒", meaning: "持之以恒，日月得天", styles: ["steady", "classic"], fit: "m", poem: { source: "周易 · 恒卦", quote: "雷风，恒；君子以立不易方" } },
   { char: "晓", meaning: "拂晓破暗，通达明理", styles: ["fresh"], fit: "u" },
   { char: "扬", meaning: "意气昂扬，名声远播", styles: ["steady"], fit: "m" },
   { char: "德", meaning: "厚德载物，德行天下", styles: ["steady", "classic"], fit: "m", poem: { source: "周易 · 坤卦", quote: "地势坤，君子以厚德载物" } },
   { char: "亭", meaning: "亭亭玉立，风姿绰约", styles: ["fresh"], fit: "f" },
   { char: "夏", meaning: "夏木葱茏，热忱明朗", styles: ["fresh", "classic"], fit: "u" },
   { char: "岱", meaning: "岱宗泰山，稳重如山", styles: ["steady", "classic"], fit: "m" },
-  { char: "临", meaning: "君子临事，敬慎有为", styles: ["classic", "steady"], fit: "u", poem: { source: "周易 · 临卦", quote: "君子以教思无穷，容保民无疆" } },
+  { char: "临", meaning: "君子临事，敬慎有为", styles: ["classic", "steady"], fit: "u", poem: { source: "周易 · 临卦", quote: "泽上有地，临；君子以教思无穷，容保民无疆" } },
   { char: "哲", meaning: "哲思明辨，既明且哲", styles: ["classic", "steady"], fit: "m", poem: { source: "诗经 · 大雅", quote: "既明且哲，以保其身" } },
   { char: "达", meaning: "通达四方，豁达大度", styles: ["steady"], fit: "m" },
   { char: "展", meaning: "大展宏图，舒展自如", styles: ["steady"], fit: "m" },
@@ -148,17 +149,17 @@ const CHAR_POOL: PoolChar[] = [
   { char: "谨", meaning: "谨言慎行，敬事而信", styles: ["classic", "steady"], fit: "u" },
   { char: "静", meaning: "静女其姝，宁静致远", styles: ["classic", "fresh"], fit: "f", poem: { source: "诗经 · 邶风", quote: "静女其姝，俟我于城隅" } },
   { char: "睿", meaning: "睿智通达，思虑深远", styles: ["steady"], fit: "u" },
-  { char: "新", meaning: "日新其德，气象常新", styles: ["fresh", "classic"], fit: "u", poem: { source: "大学", quote: "苟日新，日日新，又日新" } },
+  { char: "新", meaning: "日新其德，气象常新", styles: ["fresh", "classic"], fit: "u", poem: { source: "大学", quote: "周虽旧邦，其命惟新" } },
   { char: "世", meaning: "经世致用，泽被后世", styles: ["steady"], fit: "m" },
   { char: "初", meaning: "不忘初心，方得始终", styles: ["fresh", "classic"], fit: "u" },
-  { char: "青", meaning: "青出于蓝，朝气清新", styles: ["fresh", "classic"], fit: "u", poem: { source: "荀子 · 劝学", quote: "青，取之于蓝，而青于蓝" } },
+  { char: "青", meaning: "青出于蓝，朝气清新", styles: ["fresh", "classic"], fit: "u", poem: { source: "荀子 · 劝学", quote: "青，取之于蓝而青于蓝" } },
   { char: "成", meaning: "玉汝于成，功成名就", styles: ["steady", "auspicious"], fit: "m" },
   { char: "宣", meaning: "宣朗豁达，明快通透", styles: ["classic"], fit: "u" },
   { char: "师", meaning: "师法先贤，为人师表", styles: ["classic"], fit: "u" },
-  { char: "仁", meaning: "仁者爱人，宅心仁厚", styles: ["classic", "steady"], fit: "m", poem: { source: "论语 · 雍也", quote: "仁者乐山，知者乐水" } },
+  { char: "仁", meaning: "仁者爱人，宅心仁厚", styles: ["classic", "steady"], fit: "m", poem: { source: "论语 · 雍也", quote: "知者乐水，仁者乐山" } },
   { char: "才", meaning: "才思敏捷，栋梁之才", styles: ["steady"], fit: "m" },
   // ── 水 ──
-  { char: "泽", meaning: "润泽万物，恩泽绵长", styles: ["steady", "auspicious"], fit: "m", poem: { source: "周易 · 兑卦", quote: "丽泽兑，君子以朋友讲习" } },
+  { char: "泽", meaning: "润泽万物，恩泽绵长", styles: ["steady", "auspicious"], fit: "m", poem: { source: "周易 · 兑卦", quote: "丽泽，兑；君子以朋友讲习" } },
   { char: "涵", meaning: "涵养深厚，海纳百川", styles: ["steady", "fresh"], fit: "u" },
   { char: "沐", meaning: "如沐春风，清爽洁净", styles: ["fresh"], fit: "u" },
   { char: "清", meaning: "清风朗月，两袖清风", styles: ["classic", "fresh"], fit: "u", poem: { source: "诗经 · 郑风", quote: "有美一人，清扬婉兮" } },
@@ -184,13 +185,13 @@ const CHAR_POOL: PoolChar[] = [
   { char: "慕", meaning: "心慕贤德，见贤思齐", styles: ["classic", "fresh"], fit: "u" },
   { char: "妍", meaning: "百花争妍，秀美聪慧", styles: ["fresh"], fit: "f" },
   { char: "洛", meaning: "洛水之畔，古雅从容", styles: ["classic", "fresh"], fit: "u" },
-  { char: "湘", meaning: "湘水悠悠，钟灵毓秀", styles: ["classic", "fresh"], fit: "f", poem: { source: "楚辞 · 九歌", quote: "帝子降兮北渚，目眇眇兮愁予" } },
+  { char: "湘", meaning: "湘水悠悠，钟灵毓秀", styles: ["classic", "fresh"], fit: "f", poem: { source: "楚辞 · 九歌 · 湘君", quote: "令沅湘兮无波，使江水兮安流" } },
   { char: "淑", meaning: "窈窕淑女，温良贤淑", styles: ["classic"], fit: "f", poem: { source: "诗经 · 周南", quote: "窈窕淑女，君子好逑" } },
   { char: "泳", meaning: "汉之广矣，泳之游之", styles: ["classic", "fresh"], fit: "u", poem: { source: "诗经 · 周南", quote: "汉之广矣，不可泳思" } },
   { char: "冰", meaning: "冰壶秋月，晶莹高洁", styles: ["fresh", "classic"], fit: "f" },
   { char: "平", meaning: "平安顺遂，平步青云", styles: ["steady", "auspicious"], fit: "u" }, // 09-22：原「四平八稳」带平庸意
   { char: "航", meaning: "扬帆远航，志在四海", styles: ["steady", "fresh"], fit: "m" },
-  { char: "泊", meaning: "淡泊明志，宁静致远", styles: ["classic"], fit: "u", poem: { source: "诫子书", quote: "非淡泊无以明志，非宁静无以致远" } },
+  { char: "泊", meaning: "淡泊明志，宁静致远", styles: ["classic"], fit: "u", poem: { source: "诫子书", quote: "非澹泊无以明志，非宁静无以致远" } },
 ]
 
 /* ============ 扩充字库（2026-09-21）============ */
@@ -421,9 +422,6 @@ function makeNameChar(ch: string, meaning: string): NameChar {
   }
 }
 
-/** 高频常见名组合（重名热度启发式） */
-const COMMON_PAIRS = new Set(["志强", "志明", "秀英", "秀兰", "建华", "文静", "浩然", "子涵", "雨涵", "欣怡", "梓涵", "浩宇", "静怡"])
-
 export function generateNames(input: QimingInput): QimingOutput {
   const bazi = computeBazi({
     name: "",
@@ -503,7 +501,7 @@ export function generateNames(input: QimingInput): QimingOutput {
     const total = Math.round(yin * 0.2 + xing * 0.15 + yi * 0.3 + liScore * 0.35)
 
     const poemChar = chars.find((c) => c.poem)
-    const dup: "low" | "mid" | "high" = COMMON_PAIRS.has(given) ? "high" : chars.every((c) => c.poem) ? "low" : "mid"
+    const dup = nameSampleHeat(given).level
     const sxBrief = sxNotes.length > 0 ? `；生肖${zodiac}：${sxNotes.join("，")}` : ""
     scored.push({
       total,

@@ -34,7 +34,7 @@ const WX_COLOR: Record<string, string> = {
 }
 const wxColor = (w: string) => WX_COLOR[w] ?? 'var(--text-ink)'
 
-const DUP_LABEL: Record<string, string> = { low: '罕见', mid: '适中', high: '较多' }
+const DUP_LABEL: Record<string, string> = { low: '不足', mid: '适中', high: '较多' }
 
 const result = ref<QimingOutput | null>(null)
 const errMsg = ref('')
@@ -309,7 +309,7 @@ function retry() {
             <text v-if="c.poem" class="cand-poem">《{{ c.poem.source }}》：「{{ c.poem.quote }}」</text>
             <view class="cand-ft">
               <view class="dup" :class="`dup-${c.duplicate}`">
-                <text class="dup-text" :class="`dup-text-${c.duplicate}`">重名{{ DUP_LABEL[c.duplicate] }}</text>
+                <text class="dup-text" :class="`dup-text-${c.duplicate}`">同名样本{{ DUP_LABEL[c.duplicate] }}</text>
               </view>
               <text class="cand-detail" @tap="goDetail(c)">查看详批 →</text>
             </view>

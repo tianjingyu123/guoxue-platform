@@ -106,10 +106,10 @@ export interface NameDetail {
   }
   /** 字形分析 */
   zixing: { note: string }
-  /** 八字契合（喜用补益） */
+  /** 八字契合说明；资料不足时不推断喜用神 */
   baziFit: {
     note: string
-    /** 古籍参考 */
+    /** 经核实的古籍参考；无出处时为空 */
     source: string
     quote: string
   }
@@ -287,7 +287,7 @@ export const sampleNameDetail: NameDetail = {
     note: "生肖马，喜「木」字根（草木茂盛得食）、喜「火」暖局；「林」双木为马之栖息，「志」下有心，马有心则驰——用字与生肖相宜。",
     luck: "宜",
   },
-  duplicateNote: "「志林」在近十年新生儿中重名率适中（每十万人约 12 例），经典而不烂大街。",
+  duplicateNote: "演示数据不提供人口重名率；实际热度需以开源姓名样本标注为准。",
   charExplains: [
     {
       char: "孙",

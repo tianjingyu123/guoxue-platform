@@ -7,6 +7,10 @@
 // ─────────────────────────────────────────────────────────────
 
 import kangxiData from "./data/kangxi-strokes.json"
+import { nameSampleHeat } from "./name-usage"
+import namingLexicon from "./data/naming-lexicon.json"
+import handPoems from "./data/hand-poems.json"
+import reviewedPoems from "./data/reviewed-poems.json"
 import { pinyinNum, pinyinSymbol } from "./pinyin-lite"
 import { trigramByNum, hexName, GUA_CI } from "@guoxue/shared/paipan"
 import type {
@@ -307,11 +311,27 @@ function pinyinOf(ch: string): string {
   return pinyinSymbol(ch)
 }
 
+const NAME_LEX = (namingLexicon as unknown as { chars: Record<string, [string, string, string, string[], string, string]> }).chars
+const NAME_POEMS = { ...reviewedPoems, ...handPoems } as Record<string, { source: string; quote: string }>
+const TONE_MARKS: [string, number][] = [["āēīōūǖ", 1], ["áéíóúǘ", 2], ["ǎěǐǒǔǚ", 3], ["àèìòùǜ", 4]]
+
+function givenPinyinOf(ch: string): string { return NAME_LEX[ch]?.[1] ?? pinyinOf(ch) }
+function givenToneOf(ch: string): number {
+  const py = NAME_LEX[ch]?.[1]
+  if (py) for (const [marks, tone] of TONE_MARKS) if ([...py].some((c) => marks.includes(c))) return tone
+  return toneOf(ch)
+}
+function givenMeaningOf(ch: string): string { return NAME_LEX[ch]?.[4] ?? charMeaning(ch, charWuxingOf(ch)) }
+function givenPoemsOf(ch: string): { quote: string; source: string }[] {
+  const poem = NAME_POEMS[ch]
+  return poem ? [{ quote: poem.quote, source: poem.source }] : []
+}
+
 const PING = new Set([1, 2])
 
-function yinlvOf(fullName: string): NameDetail["yinlv"] {
+function yinlvOf(fullName: string, surnameLen: number): NameDetail["yinlv"] {
   const chars = [...fullName]
-  const tones = chars.map(toneOf)
+  const tones = chars.map((ch, i) => i < surnameLen ? toneOf(ch) : givenToneOf(ch))
   const pattern = tones.map((t) => (PING.has(t) ? "平" : "仄")).join("")
   const varied = new Set(tones).size > 1
   const sameAdj = tones.some((t, i) => i > 0 && t === tones[i - 1] && t !== 0)
@@ -471,6 +491,7 @@ export interface XingmingInput {
 export function analyzeName(input: XingmingInput): NameDetail {
   const { surname, given } = splitName(input.fullName)
   const chars = [...input.fullName]
+  const surnameLen = [...surname].length
   const raw = computeWuge(surname, given)
 
   const tianGe = geInfo(raw.tian)
@@ -480,16 +501,16 @@ export function analyzeName(input: XingmingInput): NameDetail {
   const zongGe = geInfo(raw.zong)
   const sancai = sancaiOf(tianGe.wuxing, renGe.wuxing, diGe.wuxing)
 
-  const tones = chars.map(toneOf)
+  const tones = chars.map((ch, i) => i < surnameLen ? toneOf(ch) : givenToneOf(ch))
   const { total, sub } = scoreOf({ tian: tianGe, ren: renGe, di: diGe, wai: waiGe, zong: zongGe }, sancai.sancaiLuck, new Set(tones).size > 1)
 
-  const nameChars: NameChar[] = chars.map((ch) => ({
+  const nameChars: NameChar[] = chars.map((ch, i) => ({
     char: ch,
-    pinyin: pinyinOf(ch),
-    tone: toneOf(ch),
+    pinyin: i < surnameLen ? pinyinOf(ch) : givenPinyinOf(ch),
+    tone: i < surnameLen ? toneOf(ch) : givenToneOf(ch),
     wuxing: charWuxingOf(ch),
     strokes: kangxiStroke(ch),
-    meaning: charMeaning(ch, charWuxingOf(ch)).slice(0, 18),
+    meaning: (i < surnameLen ? charMeaning(ch, charWuxingOf(ch)) : givenMeaningOf(ch)).slice(0, 18),
   }))
 
   const candidate: NameCandidate = {
@@ -503,29 +524,29 @@ export function analyzeName(input: XingmingInput): NameDetail {
         : sancai.sancaiLuck === "半吉"
           ? "数理中上而三才互见生克，整体尚属平稳，属中等之名。"
           : "五格数理尚可而三才配置受克，宜以后天修为化解补益。",
-    duplicate: given.length === 1 ? "high" : "mid",
+    duplicate: nameSampleHeat(given).level,
   }
 
   const givenWX = [...given].map(charWuxingOf)
   const charExplains: CharExplain[] = chars.map((ch, i) => ({
     char: ch,
-    pinyin: pinyinOf(ch),
+    pinyin: i < surnameLen ? pinyinOf(ch) : givenPinyinOf(ch),
     traditional: ch, // 简繁同形时一致；字典已按繁体笔画计数
     wuxing: charWuxingOf(ch),
-    meaning: i < [...surname].length ? `「${surname}」氏为常见姓氏，源流久远，代有名人。` : charMeaning(ch, charWuxingOf(ch)),
-    poems: [],
+    meaning: i < surnameLen ? `「${surname}」氏为常见姓氏，源流久远，代有名人。` : givenMeaningOf(ch),
+    poems: i < surnameLen ? [] : givenPoemsOf(ch),
   }))
 
   return {
     candidate,
-    yinlv: yinlvOf(input.fullName),
+    yinlv: yinlvOf(input.fullName, surnameLen),
     zixing: {
       note: `全名笔画（康熙）为 ${chars.map((c) => `${c}${kangxiStroke(c)}画`).join("、")}，笔画${Math.max(...chars.map(kangxiStroke)) - Math.min(...chars.map(kangxiStroke)) <= 10 ? "繁简相济，结构均衡，书写美观" : "繁简差异较大，签名时注意布局平衡"}。`,
     },
     baziFit: {
-      note: `名字五行为${givenWX.join("、")}，${input.gender === "女" ? "坤造" : "乾造"}取名以补益命局为要；如需精准喜用神分析，请结合八字排盘工具查看。`,
-      source: "三命通会",
-      quote: "凡命须论用神，用神有力，则名助其势。",
+      note: `名字用字五行为${givenWX.join("、")}。未提供完整出生时间与地点，此页无法判断喜用神或八字契合；请结合八字排盘结果核对。`,
+      source: "",
+      quote: "",
     },
     sancaiWuge: {
       tianGe,
@@ -538,10 +559,7 @@ export function analyzeName(input: XingmingInput): NameDetail {
     shengxiao: input.shengxiao
       ? { note: `生肖属${input.shengxiao}，用字宜结合生肖喜忌部首综合参详，此处以数理三才为主要依据。`, luck: "平" }
       : { note: "未提供出生年份，生肖宜忌暂不判定。", luck: "平" },
-    duplicateNote:
-      given.length === 1
-        ? "单字名整体重名率高于双字名，同名概率较高，可结合中间字降低重复。"
-        : "双字名重名率适中；如需进一步降低重复，可选用低频但不生僻的用字。",
+    duplicateNote: nameSampleHeat(given).note,
     charExplains,
     mingGua: mingGuaOf(raw.tian, raw.di, raw.zong),
     complianceNote: "三才五格为姓名学流派之一，数理断语系传统文化内容，仅供文化参考，不构成任何现实决策依据。",

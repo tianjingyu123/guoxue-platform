@@ -2,13 +2,13 @@
  "tool": "qiming",
  "tz": "Asia/Shanghai",
  "mode": "groups",
- "source": "服务端引擎（2026-09-22 在人工核验原文及出处后为 8 个起名字补诗词引文；grid/fix 两组随展示字段变化重算，block 不变）",
+ "source": "服务端引擎（起名字库 31 字审校降级、手写诗词出处纠错、开源姓名样本热度接入后的回归指纹；数据真伪由独立来源核验）",
  "generatedAt": "2026-09-22",
  "calls": 545,
  "groups": 3,
  "byGroup": {
-  "grid": "dd21ce1dc175ea23",
-  "fix": "9f0d752346572c8e",
-  "block": "9194d5b843064eec"
+  "grid": "980c847e4898d0a1",
+  "fix": "7d9c612cad37db17",
+  "block": "cd5aa5dfc2d71d53"
  }
 }
