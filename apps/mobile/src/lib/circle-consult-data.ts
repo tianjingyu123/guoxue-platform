@@ -96,9 +96,10 @@ export const consultApi = {
    * 发现页的「达人咨询」不带 circleId，此前跳达人列表页时 circleId 为空 → 恒空列表、
    * 提问按钮点不动。跨圈模式下每个达人带自己的 circleId，下单用它。
    */
-  listAllExperts: async (limit = 50, options: { throwOnError?: boolean } = {}): Promise<ConsultExpert[]> => {
+  listAllExperts: async (limit = 50, options: { throwOnError?: boolean; offset?: number } = {}): Promise<ConsultExpert[]> => {
     try {
-      const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/experts/discover?limit=${limit}`)
+      const offset = Math.max(0, Math.floor(options.offset || 0))
+      const res = await apiGet<RawExpertMember[] | { data?: RawExpertMember[] }>(`/circles/experts/discover?limit=${limit}&offset=${offset}`)
       const arr = Array.isArray(res) ? res : (res?.data ?? [])
       return arr.map((m: RawExpertMember): ConsultExpert => ({
         id: m.user?.id != null ? String(m.user.id) : (m.userId || ''),

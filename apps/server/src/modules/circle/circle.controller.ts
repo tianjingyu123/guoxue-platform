@@ -585,8 +585,8 @@ export class CircleController {
   @Get("experts/discover")
   @ApiOperation({ summary: "全平台达人列表", description: "跨圈聚合所有开通了提问/连麦的达人，供发现页全局入口使用" })
   @ApiResponse({ status: 200, description: "成功返回达人列表（含所属圈子）" })
-  listAllExperts(@Query("limit") limit?: string) {
-    return this.circle.listAllExperts(Number(limit) || 50);
+  listAllExperts(@Query("limit") limit?: string, @Query("offset") offset?: string) {
+    return this.circle.listAllExperts(Number(limit) || 50, Number(offset) || 0);
   }
 
   @Get(":id/experts")

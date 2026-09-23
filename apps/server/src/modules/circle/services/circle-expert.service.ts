@@ -100,8 +100,9 @@ export class CircleExpertService {
    * 达人判定与 listCircleExperts 一致：角色 ∈ OWNER/PARTNER/GUEST 且 提问价或连麦价 > 0。
    * 必须带回 circle —— 定价按圈子走，前端提问时要用这一项的 circleId 下单。
    */
-  async listAllExperts(limit = 50) {
-    const take = Math.min(Math.max(Math.trunc(limit) || 50, 1), 100);
+  async listAllExperts(limit = 50, offset = 0) {
+    const take = Math.min(Math.max(Number.isFinite(limit) ? Math.trunc(limit) || 50 : 50, 1), 100);
+    const skip = Number.isFinite(offset) ? Math.max(Math.trunc(offset), 0) : 0;
     return this.prisma.circleMember.findMany({
       where: {
         role: { in: ["OWNER", "PARTNER", "GUEST"] },
@@ -121,7 +122,9 @@ export class CircleExpertService {
         circle: { select: { id: true, name: true, cover: true } },
         user: { select: { id: true, nickname: true, avatar: true } },
       },
-      orderBy: { questionPriceCoin: "desc" },
+      // 分数相同时仍保持稳定顺序，否则跨页可能重复或漏掉达人服务。
+      orderBy: [{ questionPriceCoin: "desc" }, { circleId: "asc" }, { userId: "asc" }],
+      skip,
       take,
     });
   }

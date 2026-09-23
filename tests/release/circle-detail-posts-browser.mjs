@@ -11,6 +11,10 @@ let nextFails = true
 let essenceQueries = 0
 let qaAttempts = 0
 let discoverAttempts = 0
+let paginateDiscover = false
+let moreFailed = false
+let ignoreOffset = false
+const discoverOffsets = []
 let writes = 0
 const errors = []
 const post = (id, essence = false) => ({ id, content: `共读笔记 ${id}`, createdAt: '2026-09-22T08:00:00Z', isEssence: essence, user: { id: 'author', nickname: '共读成员' }, likeCount: 0, commentCount: 0 })
@@ -40,6 +44,15 @@ try {
       return route.fulfill(json([{ userId: 'expert', user: { id: 'expert', nickname: '问答达人' }, questionPriceCoin: 20, callPricePerMinuteCoin: 5 }]))
     }
     if (path === '/circles/experts/discover') {
+      if (paginateDiscover) {
+        const offset = Number(url.searchParams.get('offset') || 0)
+        discoverOffsets.push(offset)
+        if (offset === 20 && !moreFailed) { moreFailed = true; return route.fulfill(json(null, 503)) }
+        const rows = offset === 0 || ignoreOffset
+          ? Array.from({ length: 20 }, (_, i) => ({ userId: `user-${i + 1}`, user: { id: `user-${i + 1}`, nickname: `达人${i + 1}` }, questionPriceCoin: 20, circleId: 'qa', circle: { id: 'qa', name: '古籍共读社' } }))
+          : [{ userId: 'user-1', user: { id: 'user-1', nickname: '达人1' }, questionPriceCoin: 10, circleId: 'other', circle: { id: 'other', name: '另一圈' } }, { userId: 'user-21', user: { id: 'user-21', nickname: '达人21' }, questionPriceCoin: 10, circleId: 'qa', circle: { id: 'qa', name: '古籍共读社' } }]
+        return route.fulfill(json(rows))
+      }
       discoverAttempts++
       if (discoverAttempts === 1) return route.fulfill(json(null, 503))
       return route.fulfill(json([{ userId: 'expert', user: { id: 'expert', nickname: '问答达人' }, questionPriceCoin: 20, callPricePerMinuteCoin: 5, circleId: 'qa', circle: { id: 'qa', name: '古籍共读社' } }]))
@@ -93,9 +106,25 @@ try {
   await page.waitForURL(/\/h5\/pkg-circle\/circles\/booking\?circleId=qa/)
   await page.getByText('先看看达人的图文咨询').click()
   await page.waitForURL(/\/h5\/pkg-circle\/circles\/consult-experts\?circleId=qa/)
+  paginateDiscover = true
+  await page.goto(`${origin}/h5/pkg-circle/circles/consult-experts`)
+  await page.getByText('咨询服务 · 已展示 20 项').waitFor()
+  await page.getByRole('button', { name: '加载更多达人服务' }).click()
+  await page.getByRole('button', { name: '重试加载更多达人服务' }).waitFor()
+  assert.equal(await page.getByText('咨询服务 · 已展示 20 项').count(), 1)
+  await page.getByRole('button', { name: '重试加载更多达人服务' }).click()
+  await page.getByText('咨询服务 · 已展示 22 项').waitFor()
+  assert.deepEqual(discoverOffsets, [0, 20, 20])
+  assert.equal(await page.getByText('达人1', { exact: true }).count(), 2, '同一达人在不同圈子应保留不同报价卡')
+  ignoreOffset = true
+  await page.goto(`${origin}/h5/pkg-circle/circles/consult-experts`)
+  await page.getByRole('button', { name: '加载更多达人服务' }).click()
+  await page.getByRole('button', { name: '加载更多达人服务' }).waitFor({ state: 'hidden' })
+  await page.getByText('咨询服务 · 已展示 20 项').waitFor()
+  assert.equal(await page.getByRole('button', { name: '加载更多达人服务' }).count(), 0, '旧服务端重复首页时不得无限续页')
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
-  console.log('圈子详情：推荐续页、精华、问答与达人重试、连麦报价核验：通过')
+  console.log('圈子详情：推荐与达人续页、精华、故障重试、跨圈服务及连麦报价：通过')
 } finally {
   await browser.close()
 }

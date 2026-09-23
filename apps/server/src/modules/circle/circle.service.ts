@@ -237,8 +237,8 @@ export class CircleService {
   }
 
   /** 全平台达人（跨圈聚合·发现页全局入口） */
-  listAllExperts(limit?: number) {
-    return this.expertSvc.listAllExperts(limit);
+  listAllExperts(limit?: number, offset?: number) {
+    return this.expertSvc.listAllExperts(limit, offset);
   }
 
   listUserConsultServices(userId: string) {

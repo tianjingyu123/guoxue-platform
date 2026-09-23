@@ -22,6 +22,11 @@ const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref('')
 const experts = ref<ConsultExpert[]>([])
+const DISCOVER_PAGE_SIZE = 20
+const nextOffset = ref(0)
+const hasMore = ref(false)
+const moreLoading = ref(false)
+const moreError = ref(false)
 /** 达人好评率（通话评价回流）：无数据的达人不在 map 里 → 不渲染该行 */
 const ratingStats = ref<Record<string, ExpertRatingStat>>({})
 
@@ -43,10 +48,15 @@ const isDiscoverMode = computed(() => !circleId.value)
 async function load() {
   loading.value = true
   error.value = ''
+  nextOffset.value = 0
+  hasMore.value = false
+  moreError.value = false
   try {
     experts.value = isDiscoverMode.value
-      ? await consultApi.listAllExperts(50, { throwOnError: true })
+      ? await consultApi.listAllExperts(DISCOVER_PAGE_SIZE, { throwOnError: true, offset: 0 })
       : await consultApi.listExperts(circleId.value, { throwOnError: true })
+    nextOffset.value = experts.value.length
+    hasMore.value = isDiscoverMode.value && experts.value.length === DISCOVER_PAGE_SIZE
     // 好评率是补充信息，失败不能把已加载的达人列表变成整页错误。
     if (experts.value.length) {
       try {
@@ -60,6 +70,26 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadMore() {
+  if (!isDiscoverMode.value || !hasMore.value || moreLoading.value) return
+  moreLoading.value = true
+  moreError.value = false
+  try {
+    const batch = await consultApi.listAllExperts(DISCOVER_PAGE_SIZE, { throwOnError: true, offset: nextOffset.value })
+    nextOffset.value += batch.length
+    const seen = new Set(experts.value.map((e) => `${e.circleId}:${e.id}`))
+    const fresh = batch.filter((e) => !seen.has(`${e.circleId}:${e.id}`))
+    experts.value = [...experts.value, ...fresh]
+    // 旧服务端若忽略 offset 会返回同一页；停止续页，避免按钮无限重复。
+    hasMore.value = batch.length === DISCOVER_PAGE_SIZE && fresh.length > 0
+    if (batch.length) {
+      try { ratingStats.value = { ...ratingStats.value, ...await consultApi.getExpertRatingStats(batch.map((e) => e.id)) } }
+      catch { /* 好评率是补充信息，失败不影响达人列表 */ }
+    }
+  } catch { moreError.value = true }
+  finally { moreLoading.value = false }
 }
 
 /** 该达人下单用的圈子：跨圈模式用达人自己的 circleId（定价按圈走） */
@@ -115,9 +145,9 @@ onMounted(load)
     </view>
 
     <template v-else>
-      <text class="ce-label">{{ isDiscoverMode ? '全平台达人' : '本圈达人' }} · {{ experts.length }} 位</text>
+      <text class="ce-label">{{ isDiscoverMode ? `咨询服务 · 已展示 ${experts.length} 项` : `本圈达人 · ${experts.length} 位` }}</text>
 
-      <view v-for="e in experts" :key="e.id" class="ce-card">
+      <view v-for="e in experts" :key="`${e.circleId || circleId}:${e.id}`" class="ce-card">
         <view class="ce-head">
           <view class="ce-avatar" :class="{ 'ring-owner': roleClass(e.roleLabel) === 'owner' }">
             <smart-avatar :src="e.avatar" :name="e.name || ''" class="ce-avatar-img" />
@@ -154,7 +184,7 @@ onMounted(load)
             <view class="ce-service-main">
               <text class="ce-service-name">连麦咨询</text>
               <text class="ce-service-desc">一对一深度沟通，按分钟计费</text>
-              <text class="ce-service-note">实时通话需在 App 内进行，网页端仅支持查看记录</text>
+              <text class="ce-service-note">实时通话尚在联调，目前各端均不能发起</text>
             </view>
             <view class="ce-service-price">
               <text class="ce-price-num">{{ e.callPrice }}</text>
@@ -165,7 +195,12 @@ onMounted(load)
         </view>
       </view>
 
-      <text class="ce-foot">达人未开通的服务不显示。所有咨询以金币结算，金币可在「个人中心 · 钱包」充值。</text>
+      <view v-if="isDiscoverMode && hasMore" class="ce-more" role="button" tabindex="0"
+        :aria-label="moreError ? '重试加载更多达人服务' : '加载更多达人服务'" :aria-disabled="moreLoading"
+        @tap="loadMore" @keydown.enter="loadMore" @keydown.space.prevent="loadMore">
+        {{ moreLoading ? '正在加载…' : moreError ? '加载失败，点此重试' : '查看更多达人服务' }}
+      </view>
+      <text class="ce-foot">达人未开通的服务不显示。图文咨询以金币结算；实时连麦暂未开放。</text>
     </template>
   </view>
 </template>
@@ -200,6 +235,18 @@ onMounted(load)
 .ce-retry { padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
 .ce-retry-t { font-size: 26rpx; color: #fff; }
 .ce-skel { width: 100%; height: 260rpx; border-radius: 36rpx; background: #ede7dd; }
+.ce-more {
+  margin: 0 32rpx;
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+  background: var(--bg-card, #fff);
+  color: var(--brand, #c41e3a);
+  font-size: 26rpx;
+  font-weight: 600;
+}
 
 /* 分区标签 */
 .ce-label { display: block; margin: 36rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
