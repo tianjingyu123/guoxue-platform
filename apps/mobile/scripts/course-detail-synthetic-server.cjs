@@ -4,6 +4,11 @@ const port = 3989
 let enrolled = false
 let paidAccessGranted = false
 let refundStatus = 'REJECTED'
+let groupResultStatus = 'REFUNDED'
+let paymentOrderStatus = 'PENDING'
+let certificateAvailable = false
+let questionMode = 'READY'
+let reviewMode = 'READY'
 
 http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -46,6 +51,43 @@ http.createServer((req, res) => {
     else { status = 503; data = null }
   } else if (url.pathname === '/api/v1/courses/paid-1/progress') {
     data = []
+  } else if (url.pathname === '/api/v1/courses/free-1/certificate') {
+    if (certificateAvailable) data = { id: 'cert-1', courseId: 'free-1', courseName: '书法入门：从第一笔开始', studentName: '合成学员', completedAt: '2026-09-22', certificateNo: 'TEST-001', instructor: '陈老师', totalHours: 1 }
+    else { status = 503; data = null }
+  } else if (url.pathname === '/__certificate_available') {
+    certificateAvailable = url.searchParams.get('enabled') === '1'
+    data = { certificateAvailable }
+  } else if (url.pathname === '/api/v1/courses/free-1/questions') {
+    if (questionMode === 'ERROR') { status = 503; data = null }
+    else if (questionMode === 'EMPTY') data = { questions: [], total: 0 }
+    else {
+      const page = Number(url.searchParams.get('page') || 1)
+      data = page === 1
+        ? { questions: Array.from({ length: 20 }, (_, i) => ({ id: `qa-${i}`, question: i === 0 ? '第一笔应该如何起笔？' : `练习问题 ${i}`, answer: i === 0 ? '先保持笔锋稳定，再逐步加压。' : null, status: i === 0 ? 'ANSWERED' : 'PENDING', user: { id: 'student-1', nickname: '合成学员' }, createdAt: '2026-09-22T00:00:00Z' })), total: 21 }
+        : { questions: [{ id: 'qa-20', question: '已关闭的问题', answer: null, status: 'CLOSED', user: { id: 'student-1', nickname: '合成学员' } }], total: 21 }
+    }
+  } else if (url.pathname === '/__question_mode') {
+    questionMode = url.searchParams.get('mode') || 'READY'
+    data = { questionMode }
+  } else if (url.pathname === '/api/v1/courses/reviews-1/reviews') {
+    if (reviewMode === 'ERROR') { status = 503; data = null }
+    else if (reviewMode === 'EMPTY') data = { reviews: [], total: 0 }
+    else {
+      const page = Number(url.searchParams.get('page') || 1)
+      data = page === 1
+        ? { reviews: Array.from({ length: 20 }, (_, i) => ({ id: `review-${i}`, rating: 5, content: i === 0 ? '第一条真实评价' : `合成评价 ${i}`, user: { id: `user-${i}`, nickname: `学员 ${i}` }, createdAt: '2026-09-22T00:00:00Z' })), total: 21 }
+        : { reviews: [{ id: 'review-20', rating: 1, content: '第二页评价', user: { id: 'user-20', nickname: '学员 20' }, createdAt: '2026-09-21T00:00:00Z' }], total: 21 }
+    }
+  } else if (url.pathname === '/api/v1/courses/reviews-1/rating') {
+    if (reviewMode === 'RATING_ERROR') { status = 503; data = null }
+    else data = { avgRating: 4.2, reviewCount: 21 }
+  } else if (url.pathname === '/__review_mode') {
+    reviewMode = url.searchParams.get('mode') || 'READY'
+    data = { reviewMode }
+  } else if (url.pathname === '/api/v1/courses/works/work-1') {
+    data = { id: 'work-1', chapterId: 'lesson-1', chapter: { title: '第一笔：横与竖' }, course: { title: '书法入门' }, content: '我的横画练习', score: 86, feedback: '笔画起笔稳，收笔可再放缓。', createdAt: '2026-09-22T00:00:00Z' }
+  } else if (url.pathname === '/api/v1/courses/works/work-pending') {
+    data = { id: 'work-pending', chapterId: 'lesson-1', chapter: { title: '第一笔：横与竖' }, course: { title: '书法入门' }, content: '等待批改的练习', score: null, feedback: null, createdAt: '2026-09-22T00:00:00Z' }
   } else if (url.pathname === '/api/v1/users/teacher-1') {
     data = { id: 'teacher-1', nickname: '陈老师', avatar: '', bio: '循序渐进练习书法。' }
   } else if (url.pathname === '/api/v1/users/teacher-1/stats') {
@@ -75,6 +117,9 @@ http.createServer((req, res) => {
     enrolled = false
     paidAccessGranted = false
     refundStatus = 'REJECTED'
+    certificateAvailable = false
+    questionMode = 'READY'
+    reviewMode = 'READY'
     data = { reset: true }
   }
   res.writeHead(status)

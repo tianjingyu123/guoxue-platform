@@ -28,24 +28,11 @@ const isInstructor = computed(() => role.value === 'instructor')
 const loading = ref(true)
 const error = ref('')
 const reviews = ref<CourseReview[]>([])
-
-// ── 评分总览派生（真连数据聚合：平均分 + 五档分布） ──
-const avgRating = computed(() => {
-  if (reviews.value.length === 0) return 0
-  const sum = reviews.value.reduce((s, r) => s + (Number(r.rating) || 0), 0)
-  return Math.round((sum / reviews.value.length) * 10) / 10
-})
-// 五档分布百分比（[5星%,4星%,3星%,2星%,1星%]）
-const ratingDist = computed(() => {
-  const total = reviews.value.length
-  const buckets = [0, 0, 0, 0, 0] // index 0=5星 … 4=1星
-  if (total === 0) return buckets
-  for (const r of reviews.value) {
-    const star = Math.round(Number(r.rating) || 0)
-    if (star >= 1 && star <= 5) buckets[5 - star]++
-  }
-  return buckets.map((c) => Math.round((c / total) * 100))
-})
+const reviewTotal = ref(0)
+const ratingSummary = ref<{ avgRating: number; reviewCount: number } | null>(null)
+const reviewPage = ref(1)
+const moreLoading = ref(false)
+const moreError = ref(false)
 
 // ── 写评价半屏弹层（学员视角） ──
 const showWriteSheet = ref(false)
@@ -61,14 +48,40 @@ const replyDraft = ref('')
 const submittingId = ref('')
 
 async function loadReviews() {
+  if (!courseId.value) { loading.value = false; error.value = '缺少课程信息'; return }
   loading.value = true
   error.value = ''
   try {
-    reviews.value = await courseApi.getReviews(courseId.value)
+    const [list, summary] = await Promise.all([
+      courseApi.getReviewPage(courseId.value),
+      courseApi.getReviewRating(courseId.value).catch(() => null),
+    ])
+    reviews.value = list.reviews
+    reviewTotal.value = list.total
+    ratingSummary.value = summary
+    reviewPage.value = 1
+    moreError.value = false
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadMore() {
+  if (moreLoading.value || reviews.value.length >= reviewTotal.value) return
+  moreLoading.value = true
+  moreError.value = false
+  try {
+    const next = reviewPage.value + 1
+    const list = await courseApi.getReviewPage(courseId.value, next)
+    reviews.value = [...reviews.value, ...list.reviews.filter((item) => !reviews.value.some((old) => old.id === item.id))]
+    reviewTotal.value = list.reviews.length ? list.total : reviews.value.length
+    reviewPage.value = next
+  } catch {
+    moreError.value = true
+  } finally {
+    moreLoading.value = false
   }
 }
 
@@ -197,21 +210,14 @@ onLoad((options) => {
       <!-- ══ 区块1 评分总览（学员视角展示；讲师视角以提示条替代顶部） ══ -->
       <view v-if="!isInstructor" class="card overview">
         <view class="ov-left">
-          <text class="ov-score">{{ avgRating || '—' }}</text>
+          <text class="ov-score">{{ ratingSummary?.avgRating ?? '—' }}</text>
           <view class="stars">
             <app-icon
               v-for="i in 5" :key="i" name="star" :size="28"
-              :color="i <= Math.round(avgRating) ? '#C9A96E' : '#EDE7DD'" :fill="i <= Math.round(avgRating)"
+              :color="i <= Math.round(ratingSummary?.avgRating || 0) ? '#C9A96E' : '#EDE7DD'" :fill="i <= Math.round(ratingSummary?.avgRating || 0)"
             />
           </view>
-          <text class="ov-count">共 {{ reviews.length }} 条评价</text>
-        </view>
-        <view class="ov-bars">
-          <view v-for="(pct, idx) in ratingDist" :key="idx" class="bar-row">
-            <text class="bar-label">{{ 5 - idx }}星</text>
-            <view class="bar-track"><view class="bar-fill" :style="{ width: pct + '%' }" /></view>
-            <text class="bar-pct">{{ pct }}%</text>
-          </view>
+          <text class="ov-count">共 {{ ratingSummary?.reviewCount ?? reviewTotal }} 条公开评价</text>
         </view>
       </view>
 
@@ -273,6 +279,9 @@ onLoad((options) => {
             <view class="reply-send"><text class="reply-send-txt">回复</text></view>
           </view>
         </template>
+      </view>
+      <view v-if="reviews.length < reviewTotal" class="retry-btn more-btn" role="button" tabindex="0" :aria-label="moreLoading ? '正在加载更多评价' : '加载更多评价'" @tap="loadMore" @keydown.enter="loadMore" @keydown.space.prevent="loadMore">
+        <text class="retry-txt">{{ moreLoading ? '加载中…' : moreError ? '加载失败，点此重试' : '查看更多评价' }}</text>
       </view>
     </view>
 
@@ -348,18 +357,13 @@ onLoad((options) => {
 .role-tip-txt { font-size: 26rpx; font-weight: 600; color: #C41E3A; }
 
 /* ── 评分总览 ── */
-.overview { display: flex; gap: 36rpx; align-items: center; }
+.overview { display: flex; align-items: center; justify-content: center; }
 .ov-left { display: flex; flex-direction: column; align-items: center; gap: 10rpx; flex-shrink: 0; }
 .ov-score { font-size: 84rpx; font-weight: 700; color: #C9A96E; font-variant-numeric: tabular-nums; line-height: 1; }
 .stars { display: flex; gap: 4rpx; }
 .stars--sm { gap: 2rpx; }
 .ov-count { font-size: 22rpx; color: #999; }
-.ov-bars { flex: 1; display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
-.bar-row { display: flex; align-items: center; gap: 14rpx; }
-.bar-label { font-size: 22rpx; color: #999; flex-shrink: 0; width: 44rpx; }
-.bar-track { flex: 1; height: 10rpx; border-radius: 6rpx; background: #F8F4EC; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 6rpx; background: #C9A96E; }
-.bar-pct { font-size: 22rpx; color: #999; flex-shrink: 0; width: 60rpx; text-align: right; font-variant-numeric: tabular-nums; }
+.more-btn { align-self: center; }
 
 /* ── 评价流 ── */
 .review { display: flex; flex-direction: column; gap: 18rpx; }

@@ -398,6 +398,18 @@ export const courseApi = {
     return adaptReviews(await apiGet<unknown>(`/courses/${id}/reviews`))
   },
 
+  /** 评价列表分页与服务端公开总数，供评价页使用。 */
+  async getReviewPage(id: string, page = 1): Promise<{ reviews: CourseReview[]; total: number }> {
+    const result = await apiGet<{ reviews?: RawReview[]; total?: number }>(`/courses/${encodeURIComponent(id)}/reviews?page=${page}&pageSize=20`)
+    return { reviews: adaptReviews(result), total: toNum(result.total) }
+  },
+
+  /** 全部已公开评价的服务端均分；失败时页面保留列表但不展示推算均分。 */
+  async getReviewRating(id: string): Promise<{ avgRating: number; reviewCount: number }> {
+    const result = await apiGet<{ avgRating?: number; reviewCount?: number }>(`/courses/${encodeURIComponent(id)}/rating`)
+    return { avgRating: toNum(result.avgRating), reviewCount: toNum(result.reviewCount) }
+  },
+
   /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
   async checkAccess(id: string): Promise<boolean> {
     try {
