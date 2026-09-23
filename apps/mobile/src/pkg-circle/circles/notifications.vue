@@ -5,8 +5,8 @@
  * 数据：circleNotificationsApi（真连 GET /notifications/circle·JWT）。
  * 行内直达：按 targetType 跳真实路由（帖子/圈子/直播间/违规与申诉），无映射的不渲染按钮不造死链。
  */
-import { ref, onMounted } from 'vue'
-import { onReachBottom } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onReachBottom, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
@@ -53,50 +53,59 @@ const list = ref<CircleNotification[]>([])
 const total = ref(0)
 const page = ref(1)
 const loadingMore = ref(false)
+const moreError = ref('')
 const unread = ref<CircleNotifUnread>({ ALL: 0, INTERACT: 0, TRADE: 0, GOVERN: 0, LIVE: 0 })
 const marking = ref(false) // 全部已读 submitting
+let requestSeq = 0
 
 async function load() {
+  const seq = ++requestSeq
   loading.value = true
+  loadingMore.value = false
   error.value = ''
-  page.value = 1
+  moreError.value = ''
   try {
     const r = await circleNotificationsApi.list({
       category: filter.value === 'ALL' ? undefined : filter.value,
       page: 1,
       pageSize: PAGE_SIZE,
     })
+    if (seq !== requestSeq) return
     list.value = r.items
     total.value = r.total
+    page.value = 1
     unread.value = r.unread
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
+    if (seq === requestSeq) error.value = (e as Error)?.message || '加载失败'
   } finally {
-    loading.value = false
+    if (seq === requestSeq) loading.value = false
   }
 }
 
 async function loadMore() {
   if (loading.value || loadingMore.value || list.value.length >= total.value) return
+  const seq = requestSeq
   loadingMore.value = true
+  moreError.value = ''
   try {
     const r = await circleNotificationsApi.list({
       category: filter.value === 'ALL' ? undefined : filter.value,
       page: page.value + 1,
       pageSize: PAGE_SIZE,
     })
+    if (seq !== requestSeq) return
     page.value += 1
     list.value = list.value.concat(r.items)
     total.value = r.total
     unread.value = r.unread
   } catch {
-    /* 加载更多失败静默，可再次上拉重试 */
+    if (seq === requestSeq) moreError.value = '加载失败，点击重试'
   } finally {
-    loadingMore.value = false
+    if (seq === requestSeq) loadingMore.value = false
   }
 }
 
-onReachBottom(loadMore)
+onReachBottom(() => { if (!moreError.value) void loadMore() })
 
 function switchFilter(f: Filter) {
   if (filter.value === f) return
@@ -168,7 +177,8 @@ function actionLabel(n: CircleNotification): string {
   return (n.targetType && TARGET_ROUTE[n.targetType]?.action) || ''
 }
 
-onMounted(load)
+// 从目标内容返回时刷新已读数和通知状态，避免旧数据停留。
+onShow(() => { void load() })
 </script>
 
 <template>
@@ -212,8 +222,8 @@ onMounted(load)
     <!-- 空态（V0 状态 B） -->
     <view v-else-if="!list.length" class="cn-state center">
       <view class="cn-empty-icon"><app-icon name="bell" :size="52" color="#c9a96e" /></view>
-      <text class="cn-empty-title">暂无圈内动态</text>
-      <text class="cn-empty-sub">当有人回复你的帖子、回答你的提问，或圈子有新直播时，会在这里提醒你</text>
+      <text class="cn-empty-title">{{ filter === 'ALL' ? '暂无圈内动态' : '此分类暂无通知' }}</text>
+      <text class="cn-empty-sub">{{ filter === 'ALL' ? '当有人回复你的帖子、回答你的提问，或圈子有新直播时，会在这里提醒你' : '可切换其他分类查看圈内消息。' }}</text>
     </view>
 
     <!-- 通知列表（按 今天/昨天/日期 分组分卡） -->
@@ -236,6 +246,7 @@ onMounted(load)
         </view>
       </template>
       <view v-if="loadingMore" class="cn-more"><text class="cn-more-t">加载中…</text></view>
+      <view v-else-if="moreError" class="cn-more" @tap="loadMore"><text class="cn-more-t">{{ moreError }}</text></view>
       <view v-else-if="list.length >= total" class="cn-more"><text class="cn-more-t">没有更多了</text></view>
       <view class="cn-bottom-pad" />
     </template>
@@ -270,7 +281,7 @@ onMounted(load)
 .cn-filters { padding: 24rpx 0 8rpx; white-space: nowrap; }
 .cn-filter-row { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
 .cn-chip {
-  height: 60rpx; padding: 0 28rpx; border-radius: 30rpx; flex-shrink: 0;
+  min-height: 88rpx; padding: 0 24rpx; border-radius: 44rpx; flex-shrink: 0;
   border: 1rpx solid var(--separator, #ede7dd); background: var(--bg-card, #fff);
   display: inline-flex; align-items: center; gap: 10rpx;
 }
