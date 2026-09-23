@@ -319,7 +319,12 @@ export class ShopCouponService {
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的售后申请");
     if (record.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待处理状态可取消");
-    return this.prisma.afterSale.update({ where: { id }, data: { status: "CANCELLED" } });
+    const updated = await this.prisma.afterSale.updateMany({
+      where: { id, userId, status: "PENDING" },
+      data: { status: "CANCELLED" },
+    });
+    if (updated.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+    return this.prisma.afterSale.findUniqueOrThrow({ where: { id } });
   }
 
   async submitReturnLogistics(id: string, userId: string, company: string, logisticsNo: string) {

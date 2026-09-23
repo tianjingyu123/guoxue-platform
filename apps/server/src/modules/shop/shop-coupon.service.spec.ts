@@ -18,7 +18,7 @@ const mockPrisma = {
   coupon: mockCoupon,
   userCoupon: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), createMany: jest.fn() },
   order: { findUnique: jest.fn() },
-  afterSale: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  afterSale: { create: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn(), findUnique: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ pg_advisory_xact_lock: "" }]),
 };
@@ -359,9 +359,21 @@ describe("ShopCouponService", () => {
   describe("cancelAfterSale", () => {
     it("取消售后申请", async () => {
       mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", userId: "u1", status: "PENDING" });
-      mockPrisma.afterSale.update.mockResolvedValue({ id: "as1", status: "CANCELLED" });
+      mockPrisma.afterSale.findUniqueOrThrow.mockResolvedValue({ id: "as1", userId: "u1", status: "CANCELLED" });
+      mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 });
       const result = await svc.cancelAfterSale("as1", "u1");
       expect(result.status).toBe("CANCELLED");
+      expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith({
+        where: { id: "as1", userId: "u1", status: "PENDING" },
+        data: { status: "CANCELLED" },
+      });
+    });
+
+    it("读取后售后已被后台处理时不能覆盖结果", async () => {
+      mockPrisma.afterSale.findUnique.mockResolvedValue({ id: "as1", userId: "u1", status: "PENDING" });
+      mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.cancelAfterSale("as1", "u1")).rejects.toThrow("售后状态已变化");
+      expect(mockPrisma.afterSale.update).not.toHaveBeenCalled();
     });
 
     it("非待处理状态不可取消", async () => {
