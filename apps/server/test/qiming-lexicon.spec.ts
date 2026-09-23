@@ -73,10 +73,13 @@ describe("起名字库 · 数据", () => {
     expect(pool.find((p) => p.char === "松")!.poem!.source).toContain("论语");
   });
 
-  it("出处只来自手写字；生成字不附自动出处（典籍四字片段脱离语境会意思相反，如「贤不必以」）", () => {
+  it("扩充字仅附人工核过原文的出处；不从四字片段自动取句", () => {
     const pool = namingCharPool();
     const auto = pool.slice(158).filter((p) => p.poem).map((p) => p.char);
-    expect(auto.join("")).toBe("");
+    expect(auto.sort()).toEqual([..."强厚泉风"].sort());
+    expect(pool.find((p) => p.char === "朗")?.poem).toEqual({
+      source: "王羲之《兰亭集序》", quote: "天朗气清，惠风和畅",
+    });
     expect(pool.find((p) => p.char === "贤")?.poem).toBeUndefined();
   });
 });

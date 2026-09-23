@@ -10,6 +10,7 @@ import { assessCharForZodiac, zodiacNamingNote } from "./shengxiao-naming"
 import type { NameCandidate, NameChar } from "./qiming-data"
 import { dianjiFreq } from "@guoxue/shared/paipan"
 import lexicon from "./data/naming-lexicon.json"
+import reviewedPoems from "./data/reviewed-poems.json"
 
 type WX = "金" | "木" | "水" | "火" | "土"
 type Style = "classic" | "steady" | "fresh" | "auspicious"
@@ -198,11 +199,15 @@ const CHAR_POOL: PoolChar[] = [
 //   · 标注依据开放数据：开放汉语字典 hyzd（CC BY 3.0，© 2009-2020 開放詞典）的释义与词例、Unihan（Unicode License V3）的读音；
 //   · 宜/可/忌、名字读音、性别倾向、风格、简明字义由模型按统一规格生成，两遍独立标注三档一致 92.4%、宜⇄忌对冲为 0；
 //   · 起名候选只取「宜」；「可」只在用户自选定字时放行（见 generateNames）。
-// 诗句只用手写字的人工出处。曾试过自动附典籍语料（chinese-poetry）里该字的四字片段，但片段脱离语境后
-// 常常意思相反（如「贤」取到《涉江》「贤不必以」，原句是贤人不被任用），无法自动判褒贬，故不附。
+// 诗句只用手写字或逐句复核过原文与语义的出处。自动四字片段常脱离语境、意思相反，故不附。
 // 典籍频次仍用于排序与抽样权重。
 type LexEntry = [suit: "宜" | "可" | "忌", py: string, fit: GenderFit, styles: Style[], meaning: string, note: string]
 const LEX = (lexicon as unknown as { chars: Record<string, LexEntry> }).chars
+const REVIEWED_POEMS = reviewedPoems as Record<string, { source: string; quote: string }>
+const reviewedPoem = (ch: string) => {
+  const item = REVIEWED_POEMS[ch]
+  return item ? { source: item.source, quote: item.quote } : undefined
+}
 
 /** 字在名字里的读音（多音字取人名常用读音；字库未收时回落到拼音表） */
 function namePinyinOf(ch: string): string | null {
@@ -215,10 +220,10 @@ const FULL_POOL: PoolChar[] = (() => {
   const extra: PoolChar[] = []
   for (const [ch, e] of Object.entries(LEX)) {
     if (e[0] !== "宜" || HAND.has(ch)) continue
-    extra.push({ char: ch, meaning: e[4], styles: e[3], fit: e[2] })
+    extra.push({ char: ch, meaning: e[4], styles: e[3], fit: e[2], poem: reviewedPoem(ch) })
   }
   extra.sort((a, b) => dianjiFreq(b.char) - dianjiFreq(a.char) || (a.char < b.char ? -1 : 1))
-  return [...CHAR_POOL, ...extra]
+  return [...CHAR_POOL.map((p) => ({ ...p, poem: p.poem ?? reviewedPoem(p.char) })), ...extra]
 })()
 const POOL_BY_CHAR = new Map(FULL_POOL.map((p) => [p.char, p]))
 
