@@ -823,15 +823,6 @@ export const invoiceOptions = [
   { value: 'company', label: '企业发票', desc: '需要填写企业税号' },
 ]
 
-/** 支付失败原因映射 */
-export const payFailReasons: Record<string, { title: string; desc: string; icon: string }> = {
-  insufficient_balance: { title: '余额不足', desc: '您的账户余额不足以完成本次支付', icon: 'wallet' },
-  timeout: { title: '支付超时', desc: '支付时间已超过限制，请重新发起支付', icon: 'clock' },
-  cancelled: { title: '支付已取消', desc: '您已取消本次支付', icon: 'ban' },
-  network_error: { title: '网络异常', desc: '网络连接出现问题，请检查网络后重试', icon: 'alert-circle' },
-  default: { title: '支付失败', desc: '支付过程中出现问题，请稍后重试', icon: 'alert-circle' },
-}
-
 /* ============================================================
    十五、订单中心（app/orders 系列：列表/详情/物流/评价/发票/退款/纠纷）
    从 app/orders/* 1:1 迁移。状态语义保留，配色统一为商城主题（#9A2D2D）。
