@@ -302,9 +302,9 @@ export class CircleDashboardService {
   async getPendingQuestions(circleId: string, userId: string) {
     await this.assertCircleOwner(circleId, userId);
     const questions = await this.prisma.paidQuestion.findMany({
-      where: { circleId, status: "PENDING" },
+      where: { circleId, answererId: userId, status: "PENDING" },
       select: { id: true, questionTitle: true, question: true, priceCoin: true, createdAt: true, asker: { select: { id: true, nickname: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: 20,
     });
     return { questions };

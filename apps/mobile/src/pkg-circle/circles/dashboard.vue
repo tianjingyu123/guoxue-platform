@@ -45,6 +45,7 @@ const joinPending = ref(0)
 const joinOldestDays = ref(0)
 const refundPending = ref<RefundRequestItem[]>([])
 const pendingQuestions = ref<DashboardPendingQuestion[]>([])
+const questionsExpanded = ref(false)
 const candidateCount = ref(0)
 
 // 空态起步清单（依赖 manage 概览的 cover/intro/postCount + 邀请码）
@@ -173,10 +174,7 @@ async function load() {
 }
 
 function go(url: string) { navigateTo(url) }
-function goQuestions() {
-  const first = pendingQuestions.value[0]
-  if (first) navigateTo(`/pkg-circle/circles/question-detail?id=${first.id}`)
-}
+function goQuestions() { questionsExpanded.value = !questionsExpanded.value }
 
 onLoad((q) => {
   circleId.value = q?.id || q?.circleId || ''
@@ -236,14 +234,21 @@ onShow(() => { if (overview.value && !refreshing.value) void load() })
             <view class="todo-count"><text class="todo-count-txt">{{ refundPending.length }}</text></view>
             <app-icon name="chevron-right" :size="28" color="#999999" />
           </view>
-          <view v-if="pendingQuestions.length" class="todo-row" @tap="goQuestions">
+          <view v-if="pendingQuestions.length" class="todo-row" role="button" tabindex="0" :aria-expanded="questionsExpanded" @tap="goQuestions" @keydown.enter="goQuestions">
             <view class="todo-icon"><app-icon name="message-circle" :size="34" color="#6E6E73" /></view>
             <view class="todo-main">
-              <text class="todo-title">待回复付费提问</text>
-              <text class="todo-desc">超时未回复将自动退款</text>
+              <text class="todo-title">待我回复的付费提问</text>
+              <text class="todo-desc">按等待时间排序，点开逐条处理</text>
             </view>
             <view class="todo-count"><text class="todo-count-txt">{{ pendingQuestions.length }}</text></view>
-            <app-icon name="chevron-right" :size="28" color="#999999" />
+            <app-icon :name="questionsExpanded ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
+          </view>
+          <view v-if="pendingQuestions.length && questionsExpanded" class="question-queue">
+            <view v-for="q in pendingQuestions" :key="q.id" class="question-row" role="button" tabindex="0" :aria-label="`回复${q.askerName}的提问：${q.title}`" @tap="go(`/pkg-circle/circles/question-detail?id=${encodeURIComponent(q.id)}`)" @keydown.enter="go(`/pkg-circle/circles/question-detail?id=${encodeURIComponent(q.id)}`)">
+              <view class="question-copy"><text class="question-title">{{ q.title }}</text><text class="question-meta">{{ q.askerName }} · {{ waitDays(q.createdAt) ? `已等待 ${waitDays(q.createdAt)} 天` : '今日提问' }}</text></view>
+              <app-icon name="chevron-right" :size="24" color="#8E8E93" />
+            </view>
+            <text v-if="pendingQuestions.length === 20" class="queue-hint">最多显示等待最久的 20 条；处理后刷新可查看后续提问</text>
           </view>
           <view v-if="candidateCount" class="todo-row" @tap="go(`/pkg-circle/circles/knowledge?id=${circleId}&tab=pending`)">
             <view class="todo-icon"><app-icon name="message-square" :size="34" color="#6E6E73" /></view>
@@ -484,6 +489,13 @@ onShow(() => { if (overview.value && !refreshing.value) void load() })
   display: flex; align-items: center; justify-content: center;
 }
 .todo-count-txt { color: #ffffff; font-size: 24rpx; font-weight: 600; }
+.question-queue { border-top: 1rpx solid var(--separator, #ede7dd); padding: 0 24rpx 18rpx 124rpx; }
+.question-row { display: flex; align-items: center; gap: 12rpx; min-height: 60px; padding: 14rpx 8rpx; border-bottom: 1rpx solid var(--separator, #ede7dd); }
+.question-copy { flex: 1; min-width: 0; }
+.question-title { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 26rpx; color: var(--circle-ink, #1d1d1f); }
+.question-meta, .queue-hint { display: block; margin-top: 4rpx; font-size: 22rpx; line-height: 1.5; color: var(--circle-secondary, #6e6e73); }
+.queue-hint { padding: 18rpx 8rpx 0; }
+.question-row:focus-visible, .todo-row:focus-visible { outline: 2px solid #2b6f68; outline-offset: -2px; }
 
 /* 暂无待办 */
 .todo-empty {

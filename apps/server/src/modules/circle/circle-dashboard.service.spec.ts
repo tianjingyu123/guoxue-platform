@@ -106,6 +106,16 @@ describe("CircleDashboardService", () => {
     });
   });
 
+  it("待回复清单仅包含本人可回答的问题，并优先呈现等待最久的提问", async () => {
+    mockPrisma.paidQuestion.findMany.mockResolvedValue([{ id: "q-old" }, { id: "q-new" }]);
+    await expect(svc.getPendingQuestions("c1", UID)).resolves.toEqual({ questions: [{ id: "q-old" }, { id: "q-new" }] });
+    expect(mockPrisma.paidQuestion.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { circleId: "c1", answererId: UID, status: "PENDING" },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: 20,
+    }));
+  });
+
   it.each(["getOverview", "getTrends"] as const)("%s 有圈主缓存时仍拒绝普通成员", async (method) => {
     // 模拟线上 Redis 中已有圈主请求产生的敏感缓存，防止命中缓存绕过归属校验。
     setCacheRedisService({ getJson: jest.fn().mockResolvedValue({ monthRevenue: 5000, trends: [] }) } as unknown as RedisService);
