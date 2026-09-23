@@ -220,6 +220,13 @@ export class PractitionerService {
     if (!rec.paipanRecordId || !reportType) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "报告缺少权益关联，暂无法导入工作台");
     }
+    const sourceChart = await this.prisma.paipanRecord.findUnique({
+      where: { id: rec.paipanRecordId },
+      select: { userId: true, clientName: true },
+    });
+    if (!sourceChart || sourceChart.userId !== userId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "原排盘记录不存在");
+    }
     await this.commerce.assertReportAccess(userId, rec.paipanRecordId, reportType);
 
     // 同一源报告只需一份工作台草稿。先查已有件再核配额，避免已达上限时回不到原稿。
@@ -269,6 +276,8 @@ export class PractitionerService {
            */
           deterministic: !!x.deterministic,
           fromXiaobu: true,
+          // 客户预览与公开页读 ai 字段；盘面事实不标 AI，模型解读初稿须披露。
+          ai: !x.deterministic && (x.type === "analysis" || x.type === "interpretation"),
         };
       });
 
@@ -288,7 +297,7 @@ export class PractitionerService {
         type: paipanType,
         typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
         title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
-        clientName: input.clientName?.trim() || "未命名客户",
+        clientName: input.clientName?.trim() || sourceChart.clientName?.trim() || "未命名客户",
         status: "draft",
         style: "classic",
         // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图

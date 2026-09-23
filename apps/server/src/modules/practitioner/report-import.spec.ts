@@ -33,6 +33,9 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
     });
 
   const prisma: any = {
+    paipanRecord: {
+      findUnique: jest.fn(async () => ({ userId: opts?.ownerId ?? "teacher-1", clientName: "张某" })),
+    },
     aiAnalysisRecord: {
       findUnique: jest.fn(async () => ({
         id: "xb-1",
@@ -90,6 +93,9 @@ describe("小卜报告导入工作台", () => {
     // 引擎算定的章节带标记：老师改了标题，交付稿改写也不会把盘面数据当文案重写
     expect(chapters[0].deterministic).toBe(true);
     expect(chapters[1].deterministic).toBe(false);
+    expect(chapters[0].ai).toBe(false);
+    expect(chapters[1].ai).toBe(true);
+    expect(chapters[2].ai).toBe(true);
   });
 
   it("依据出处一并带入，老师自行决定是否保留", async () => {
@@ -153,6 +159,23 @@ describe("小卜报告导入工作台", () => {
 
     const pro = setup({ pro: true, reportCount: 99 });
     await expect(pro.svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).resolves.toBeTruthy();
+  });
+
+  it("没有手填客户称呼时沿用本人原盘姓名，不读取生辰", async () => {
+    const { svc, prisma } = setup({ pro: true });
+    const r: any = await svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" });
+    expect(r.clientName).toBe("张某");
+    expect(prisma.paipanRecord.findUnique).toHaveBeenCalledWith({
+      where: { id: "rec-1" }, select: { userId: true, clientName: true },
+    });
+  });
+
+  it("报告关联的原盘不属于本人时拒绝导入", async () => {
+    const { svc, prisma, commerce } = setup({ pro: true });
+    prisma.paipanRecord.findUnique.mockResolvedValueOnce({ userId: "another-user", clientName: "不应显示" });
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" })).rejects.toThrow("原排盘记录不存在");
+    expect(commerce.assertReportAccess).not.toHaveBeenCalled();
+    expect(prisma.practitionerReport.create).not.toHaveBeenCalled();
   });
 
   it("重复导入返回原工作台稿，不再次占用免费配额", async () => {
