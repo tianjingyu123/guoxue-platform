@@ -237,7 +237,7 @@ export class XiaozhiConnection {
   private finished = false;
   private lastDownlinkAt = 0;
   /** 统计（测试与日志用）：只计数，不保存任何音频 */
-  readonly stats = { uplinkFrames: 0, downlinkFrames: 0, utterances: 0, lateDownlinkGaps: 0, maxDownlinkGapMs: 0 };
+  readonly stats = { uplinkFrames: 0, downlinkFrames: 0, utterances: 0, lateDownlinkGaps: 0, maxDownlinkGapMs: 0, maxSendBufferBytes: 0, backpressureFrames: 0 };
 
   constructor(
     private readonly ws: MiniWsConnection,
@@ -426,6 +426,9 @@ export class XiaozhiConnection {
         this.lastDownlinkAt = Date.now();
         this.stats.downlinkFrames++;
         this.ws.sendBinary(packAudio(e.opus, this.binaryVersion));
+        const buffer = this.ws.sendBufferState;
+        this.stats.maxSendBufferBytes = Math.max(this.stats.maxSendBufferBytes, buffer.bytes);
+        if (buffer.needDrain) this.stats.backpressureFrames++;
         break;
       case "tts_stop":
         this.lastDownlinkAt = 0;
@@ -486,7 +489,7 @@ export class XiaozhiConnection {
       }
     }
     this.deps.logger.log(
-      `小智终端断开：设备 …${this.auth.serialHint} 原因 ${reason} 上行 ${this.stats.uplinkFrames} 帧 下行 ${this.stats.downlinkFrames} 帧 ${this.stats.utterances} 轮 下行间隔峰值 ${this.stats.maxDownlinkGapMs}ms 迟发 ${this.stats.lateDownlinkGaps} 次`,
+      `小智终端断开：设备 …${this.auth.serialHint} 原因 ${reason} 上行 ${this.stats.uplinkFrames} 帧 下行 ${this.stats.downlinkFrames} 帧 ${this.stats.utterances} 轮 下行间隔峰值 ${this.stats.maxDownlinkGapMs}ms 迟发 ${this.stats.lateDownlinkGaps} 次 发送缓冲峰值 ${this.stats.maxSendBufferBytes} 字节 背压帧 ${this.stats.backpressureFrames}`,
     );
     for (const cb of this.closedListeners) cb();
   }

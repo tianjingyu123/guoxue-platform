@@ -46,6 +46,11 @@ export class MiniWsConnection extends EventEmitter {
     return !this.closed;
   }
 
+  /** 仅用于链路诊断：Node 写缓冲里的待发送字节，不代表设备已收到。 */
+  get sendBufferState() {
+    return { bytes: this.socket.writableLength, needDrain: this.socket.writableNeedDrain };
+  }
+
   sendText(text: string) {
     this.sendFrame(0x1, Buffer.from(text, "utf8"));
   }
@@ -229,6 +234,8 @@ export function acceptUpgrade(req: http.IncomingMessage, socket: Duplex, head: B
     return null;
   }
   const accept = createHash("sha1").update(key + GUID).digest("base64");
+  // 语音是 60ms 小帧，明确关闭 Nagle，避免 TCP 为合并小包额外等待。
+  req.socket.setNoDelay(true);
   socket.write(
     "HTTP/1.1 101 Switching Protocols\r\n" +
       "Upgrade: websocket\r\n" +
