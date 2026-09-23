@@ -22,6 +22,17 @@
         设备平时不保持长连接，只在开机检查和对话时联系服务器，所以这里看「近 24 小时/7 天联网过」而不是「实时在线」。
         计数按北京时间自然日，只计次数、不记设备与用户。
       </p>
+      <el-alert
+        v-for="r in overview?.readiness ?? []"
+        :key="r.item"
+        :type="r.level === 'error' ? 'error' : 'warning'"
+        :closable="false"
+        show-icon
+        style="margin-bottom:8px"
+        data-testid="readiness-item"
+        :title="`${r.level === 'error' ? '上线前必须处理' : '上线前建议处理'}：${r.item}`"
+        :description="r.fix"
+      />
       <div v-if="overview" class="ov-grid">
         <div class="ov-item"><div class="ov-num">{{ overview.ledger.bound ?? 0 }}</div><div class="muted">已绑定</div></div>
         <div class="ov-item"><div class="ov-num">{{ overview.ledger.unbound ?? 0 }}</div><div class="muted">未绑定</div></div>

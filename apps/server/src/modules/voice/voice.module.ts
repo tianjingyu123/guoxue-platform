@@ -23,6 +23,7 @@ import { XiaozhiFirmwareService } from "./xiaozhi/xiaozhi-firmware.service";
 import { XiaozhiFirmwareAdminController, XiaozhiFirmwareDownloadController } from "./xiaozhi/xiaozhi-firmware.controller";
 import { UploadModule } from "../upload/upload.module";
 import { XiaozhiGatewayService } from "./xiaozhi/xiaozhi-gateway.service";
+import { XiaozhiAlertTask } from "./xiaozhi/xiaozhi-ops";
 import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminController } from "./xiaozhi/xiaozhi-ota.controller";
 
 /**
@@ -67,6 +68,7 @@ import { XiaozhiActivateController, XiaozhiOtaController, XiaozhiTerminalAdminCo
     VoiceDeviceHandoffService,
     XiaozhiFirmwareService,
     XiaozhiGatewayService,
+    XiaozhiAlertTask,
     { provide: VOICE_PROVIDER, useFactory: () => createVoiceProvider() },
   ],
   exports: [VoiceQuotaService, VoiceTrialService, VoiceAgentProfileService, XiaobuMcpServer, XiaobuCommerceService, VoiceSessionService, VoiceDeviceService],

@@ -31,6 +31,13 @@ const CODE_TTL_SECONDS = 10 * 60;
 const TOKEN_TTL_SECONDS = 30 * 86400;
 const SEEN_TTL_SECONDS = 30 * 86400;
 const BIND_ATTEMPTS_PER_10MIN = 10;
+/** 运行计数项（按日与 5 分钟窗口累计） */
+const STAT_METRICS = [
+  "ota", "ota_throttled", "identity_mismatch", "auth_fail", "ws_open",
+  "end:device_hangup", "end:device_disconnect", "end:idle_timeout", "end:session_limit", "end:provider_unavailable",
+  "end:session_rejected", "end:relay_failed", "end:provider_error", "end:hello_timeout", "end:replaced_by_new_connection",
+] as const;
+
 /** 上报记录索引上限：防止伪造 Device-Id 刷爆 Redis 与后台列表 */
 const SEEN_INDEX_MAX = 5000;
 /** 机主/后台重置设备身份：同一设备每小时最多 3 次 */
@@ -327,9 +334,21 @@ export class XiaozhiLinkService {
     try {
       const day = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10).replace(/-/g, "");
       await this.redis.incrWithTtl(`xz:stat:${day}:${metric}`, 8 * 86400);
+      // 5 分钟窗口（告警用，保留 1 小时）
+      await this.redis.incrWithTtl(`xz:stat5:${Math.floor(Date.now() / 300_000)}:${metric}`, 3600);
     } catch {
       /* 忽略 */
     }
+  }
+
+  /** 某个 5 分钟窗口的各项计数（告警用） */
+  async windowCounts(bucket: number) {
+    const out: Record<string, number> = {};
+    for (const m of STAT_METRICS) {
+      const v = Number(await this.redis.get(`xz:stat5:${bucket}:${m}`).catch(() => null)) || 0;
+      if (v) out[m] = v;
+    }
+    return out;
   }
 
   /**
@@ -388,7 +407,7 @@ export class XiaozhiLinkService {
     await this.redis.zremrangebyscore("xz:talking:index", 0, now).catch(() => 0);
     const talking = await this.redis.zcard("xz:talking:index").catch(() => 0);
     const days: { day: string; counts: Record<string, number> }[] = [];
-    const metrics = ["ota", "ota_throttled", "identity_mismatch", "auth_fail", "ws_open", "end:device_hangup", "end:device_disconnect", "end:idle_timeout", "end:session_limit", "end:provider_unavailable", "end:session_rejected", "end:relay_failed", "end:provider_error", "end:hello_timeout", "end:replaced_by_new_connection"];
+    const metrics = STAT_METRICS;
     for (let i = 0; i < 7; i++) {
       const day = new Date(now + 8 * 3600_000 - i * 86400_000).toISOString().slice(0, 10).replace(/-/g, "");
       const counts: Record<string, number> = {};

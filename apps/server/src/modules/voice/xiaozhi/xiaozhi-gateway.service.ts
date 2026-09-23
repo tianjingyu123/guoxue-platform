@@ -9,6 +9,12 @@ import { VoiceQuotaService } from "../voice-quota.service";
 import { DeviceStream, DeviceStreamEvent, VOICE_PROVIDER, VoiceProvider } from "../provider/voice-provider.types";
 import { MiniWsConnection, acceptUpgrade, rejectUpgrade } from "./mini-ws";
 import { XIAOZHI_WS_PATH, XiaozhiLinkService } from "./xiaozhi-link.service";
+import { RedisService } from "../../../redis/redis.service";
+import { sendAlert } from "../../../common/alert";
+import { xiaozhiReadiness } from "./xiaozhi-ops";
+
+/** 跨实例顶替：新连接建立时广播，持有同一设备旧连接的其他实例关掉旧连接 */
+const KICK_CHANNEL = "xz:kick";
 import { BinaryVersion, normalizeBinaryVersion, packAudio, parseDeviceHello, unpackAudio } from "./xiaozhi-protocol";
 
 /** 握手鉴权上限：engine.io 会在 1 秒内结束「无人应答」的升级请求，这里提前自行回 503 */
@@ -55,6 +61,9 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
   private readonly logger = new Logger(XiaozhiGatewayService.name);
   private readonly connections = new Map<string, XiaozhiConnection>();
   private attachedServer: http.Server | null = null;
+  /** 本实例标识（跨实例顶替时区分消息来源） */
+  readonly instanceId = randomUUID();
+  private sub: { quit(): Promise<unknown> } | null = null;
   private readonly listener = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void this.onUpgrade(req, socket, head);
 
   constructor(
@@ -64,16 +73,68 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
     private readonly prisma: PrismaService,
     @Inject(VOICE_PROVIDER) private readonly provider: VoiceProvider,
     @Optional() private readonly adapterHost?: HttpAdapterHost,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
-  onApplicationBootstrap() {
+  async onApplicationBootstrap() {
     const server = this.adapterHost?.httpAdapter?.getHttpServer?.();
     if (server) this.attach(server);
+    this.reportReadiness();
+    await this.enableCrossInstance();
+  }
+
+  /** 启动体检：生产环境有缺项时记错误日志并发运维告警；非生产只记一条提示 */
+  private reportReadiness() {
+    const items = xiaozhiReadiness(process.env, this.provider.isMock);
+    if (!items.length) return;
+    const text = items.map((i) => `[${i.level === "error" ? "必须" : "建议"}] ${i.item}`).join("；");
+    if (process.env.NODE_ENV === "production") {
+      this.logger.error(`小智协议终端上线配置不完整：${text}`);
+      if (items.some((i) => i.level === "error")) sendAlert("xz:readiness", "小卜硬件：上线配置不完整", text);
+    } else {
+      this.logger.log(`小智协议终端配置体检（非生产，仅提示）：${text}`);
+    }
+  }
+
+  /**
+   * 跨实例顶替：订阅 Redis 广播。设备换到另一台实例重连时，旧实例上的连接会被关掉，
+   * 避免同一台设备同时挂着两路会话（两边都在计时计费）。内存模式（未配 REDIS_URL）即单实例，无需订阅。
+   */
+  async enableCrossInstance() {
+    if (!this.redis || this.sub) return;
+    try {
+      await this.redis.get("xz:ping"); // 触发建立连接
+      const client = this.redis.getClient();
+      if (!client) {
+        this.logger.log("小智协议终端：未连接 Redis，按单实例运行（新连接只在本实例内顶替旧连接）");
+        return;
+      }
+      const sub = client.duplicate();
+      sub.on("error", () => undefined);
+      sub.on("message", (_ch: string, msg: string) => this.onKick(msg));
+      await sub.subscribe(KICK_CHANNEL);
+      this.sub = sub;
+    } catch (e: any) {
+      this.logger.warn(`小智协议终端跨实例顶替订阅失败（退化为单实例顶替）：${e?.message || e}`);
+    }
+  }
+
+  private onKick(raw: string) {
+    try {
+      const m = JSON.parse(raw) as { deviceId: string; connId: string; from: string };
+      if (m.from === this.instanceId) return;
+      const c = this.connections.get(m.deviceId);
+      if (c && c.id !== m.connId) c.shutdown("replaced_by_new_connection");
+    } catch {
+      /* 忽略格式不对的消息 */
+    }
   }
 
   onModuleDestroy() {
     this.attachedServer?.off("upgrade", this.listener);
     for (const c of this.connections.values()) c.shutdown("server_shutdown");
+    void this.sub?.quit().catch(() => undefined);
+    this.sub = null;
   }
 
   /** 挂到 HTTP 服务上；只处理小智路径，其它升级（socket.io）原样放过 */
@@ -85,6 +146,10 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
 
   activeCount() {
     return this.connections.size;
+  }
+
+  get providerIsMock() {
+    return this.provider.isMock;
   }
 
   private async onUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer) {
@@ -120,6 +185,8 @@ export class XiaozhiGatewayService implements OnApplicationBootstrap, OnModuleDe
       link: this.link,
     });
     this.connections.set(auth.deviceId, conn);
+    // 通知其他实例：这台设备已在本实例重连，旧连接可以关了
+    void this.redis?.publish(KICK_CHANNEL, JSON.stringify({ deviceId: auth.deviceId, connId: conn.id, from: this.instanceId })).catch(() => 0);
     conn.onClosed(() => {
       if (this.connections.get(auth!.deviceId) === conn) this.connections.delete(auth!.deviceId);
     });

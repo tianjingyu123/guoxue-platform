@@ -9,6 +9,7 @@ import { Roles } from "../../../common/roles.decorator";
 import { StrictThrottleGuard } from "../../../common/throttle.guard";
 import { XiaozhiLinkService } from "./xiaozhi-link.service";
 import { XiaozhiGatewayService } from "./xiaozhi-gateway.service";
+import { xiaozhiReadiness } from "./xiaozhi-ops";
 
 /**
  * 小智协议终端 · OTA 与激活（设备直接访问，无用户登录态；返回固件认识的原始 JSON，不做统一包装）
@@ -98,7 +99,11 @@ export class XiaozhiTerminalAdminController {
   @ApiOperation({ summary: "运行概况：台账分布、近 24h/7d 联网、正在对话、固件版本分布、近 7 天连接与鉴权失败计数" })
   async overview() {
     // 本进程的实时连接数；多实例部署时以 talkingNow（Redis 汇总）为准
-    return { ...(await this.link.overview()), connectionsThisInstance: this.gateway?.activeCount() ?? 0 };
+    return {
+      ...(await this.link.overview()),
+      connectionsThisInstance: this.gateway?.activeCount() ?? 0,
+      readiness: xiaozhiReadiness(process.env, this.gateway?.providerIsMock ?? false),
+    };
   }
 
   @Get()

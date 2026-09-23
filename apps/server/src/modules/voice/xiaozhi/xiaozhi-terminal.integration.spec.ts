@@ -277,6 +277,11 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     expect(today.ws_open).toBeGreaterThanOrEqual(2);
     expect(today["end:replaced_by_new_connection"]).toBeGreaterThanOrEqual(1);
     expect(today["end:device_hangup"]).toBeGreaterThanOrEqual(1);
+    // 5 分钟窗口计数（告警用）：当前窗口 + 上一窗口（防跨窗口边界）
+    const bucket = Math.floor(Date.now() / 300_000);
+    const [w0, w1] = [await link.windowCounts(bucket), await link.windowCounts(bucket - 1)];
+    expect((w0.ota || 0) + (w1.ota || 0)).toBeGreaterThan(0);
+    expect((w0.ws_open || 0) + (w1.ws_open || 0)).toBeGreaterThanOrEqual(2);
     // 概况与状态里都不出现明文 MAC
     expect(JSON.stringify(o) + JSON.stringify(st)).not.toMatch(/a1:?b2:?c3:?d4/i);
   });

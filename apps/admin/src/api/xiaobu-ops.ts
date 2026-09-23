@@ -50,6 +50,8 @@ export interface TerminalOverview {
   seen: { last24h: number; last7d: number; unregistered: number };
   talkingNow: number;
   connectionsThisInstance: number;
+  /** 上线配置体检（只说缺什么，不含任何密钥值） */
+  readiness?: { level: "error" | "warn"; item: string; fix: string }[];
   firmware: Record<string, number>;
   days: { day: string; counts: Record<string, number> }[];
 }
