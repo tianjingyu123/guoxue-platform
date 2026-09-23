@@ -27,9 +27,9 @@ describe("KnowledgeSyncService", () => {
         update: jest.fn(),
       },
       circleKnowledgeManual: { create: jest.fn() },
-      article: { findMany: jest.fn().mockResolvedValue([]) },
-      post: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
-      course: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
+      article: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
+      post: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
+      course: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn() },
       circleMember: { findMany: jest.fn().mockResolvedValue([]) },
       // 归属校验：默认圈主为 u1，使授权通过
       circle: {
@@ -57,7 +57,7 @@ describe("KnowledgeSyncService", () => {
   describe("syncCircleKnowledge", () => {
     it("同步圈主文章", async () => {
       prisma.article.findMany.mockResolvedValue([
-        { id: "a1", title: "国学入门", content: "国学之道..." },
+        { id: "a1", title: "国学入门", content: "国学学习宜从原文、注释与历史语境三处入手，再用生活例子理解经典概念，避免只记结论。".repeat(2) },
       ]);
 
       const count = await svc.syncCircleKnowledge("c1");
@@ -71,7 +71,7 @@ describe("KnowledgeSyncService", () => {
 
     it("同步精华帖", async () => {
       prisma.post.findMany.mockResolvedValue([
-        { id: "p1", title: "深度好文", content: "精华内容..." },
+        { id: "p1", title: "深度好文", content: "研读经典时先弄清成书时代和版本，再看原文用词和历代注释，最后讨论今天怎样理解，不宜断章取义。" },
       ]);
 
       const count = await svc.syncCircleKnowledge("c1");
@@ -82,7 +82,7 @@ describe("KnowledgeSyncService", () => {
 
     it("同步课程", async () => {
       prisma.course.findMany.mockResolvedValue([
-        { id: "c1", title: "论语精讲", intro: "研读论语" },
+        { id: "c1", title: "论语精讲", intro: "课程按篇章讲解论语原文与常见注释，结合历史语境说明概念，并安排阅读练习帮助学员形成自己的理解。" },
       ]);
 
       const count = await svc.syncCircleKnowledge("c1");
@@ -154,22 +154,40 @@ describe("KnowledgeSyncService", () => {
       const count = await svc.syncCircleKnowledge("c1");
       expect(count).toBeGreaterThanOrEqual(0);
     });
+
+    it("明显闲聊不进入知识库或待审列表", async () => {
+      prisma.post.findMany.mockResolvedValue([{ id: "p1", title: "", content: "哈哈哈，谢谢老师！" }]);
+      await svc.syncCircleKnowledge("c1");
+      expect(prisma.circleKnowledge.create).not.toHaveBeenCalled();
+      expect(prisma.circleKnowledgeCandidate.upsert).not.toHaveBeenCalled();
+    });
+
+    it("短精华帖只进待审，不自动成为助理依据", async () => {
+      prisma.post.findMany.mockResolvedValue([{ id: "p1", title: "学而", content: "《论语》说学而时习之。" }]);
+      await svc.syncCircleKnowledge("c1");
+      expect(prisma.circleKnowledge.create).not.toHaveBeenCalled();
+      expect(prisma.circleKnowledgeCandidate.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({ sourceType: "post", status: "pending" }),
+      }));
+    });
   });
 
   describe("manuallyAddToKnowledge", () => {
     it("手动添加帖子到知识库", async () => {
-      prisma.post.findUnique.mockResolvedValue({ id: "p1", title: "好帖", content: "帖子内容" });
+      prisma.post.findFirst.mockResolvedValue({ id: "p1", title: "好帖", content: "帖子内容" });
 
       const result = await svc.manuallyAddToKnowledge("c1", "u1", "post", "p1");
       expect(result.added).toBe(true);
       expect(prisma.circleKnowledgeManual.create).toHaveBeenCalled();
+      expect(prisma.post.findFirst).toHaveBeenCalledWith({ where: { id: "p1", circleId: "c1", status: "PUBLISHED" } });
     });
 
     it("手动添加文章到知识库", async () => {
-      prisma.article.findUnique = jest.fn().mockResolvedValue({ id: "a1", title: "文章", content: "文章内容" });
+      prisma.article.findFirst.mockResolvedValue({ id: "a1", title: "文章", content: "文章内容" });
 
       const result = await svc.manuallyAddToKnowledge("c1", "u1", "article", "a1");
       expect(result.added).toBe(true);
+      expect(prisma.article.findFirst).toHaveBeenCalledWith({ where: { id: "a1", circleId: "c1", auditStatus: "APPROVED", deletedAt: null } });
     });
 
     it("free_text 自由文本投喂", async () => {
@@ -192,7 +210,7 @@ describe("KnowledgeSyncService", () => {
     });
 
     it("帖子不存在时报错", async () => {
-      prisma.post.findUnique.mockResolvedValue(null);
+      prisma.post.findFirst.mockResolvedValue(null);
       await expect(
         svc.manuallyAddToKnowledge("c1", "u1", "post", "nonexistent"),
       ).rejects.toThrow(BusinessException);
@@ -248,10 +266,38 @@ describe("KnowledgeSyncService", () => {
         sourceId: "p1",
         content: "内容",
         contentHash: "abc",
+        status: "pending",
       });
+      prisma.post.findFirst.mockResolvedValue({ id: "p1" });
       const result = await svc.confirmCandidate("cand1");
       expect(result.confirmed).toBe(true);
       expect(prisma.circleKnowledge.create).toHaveBeenCalled();
+      expect(prisma.post.findFirst).toHaveBeenCalledWith({
+        where: { id: "p1", circleId: "c1", status: "PUBLISHED" }, select: { id: true },
+      });
+    });
+
+    it("原帖已下架或不属本圈时不能确认旧候选", async () => {
+      prisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", status: "pending",
+      });
+      prisma.post.findFirst.mockResolvedValue(null);
+      await expect(svc.confirmCandidate("cand1")).rejects.toThrow(BusinessException);
+      expect(prisma.circleKnowledge.create).not.toHaveBeenCalled();
+    });
+
+    it("确认时发现知识已存在则关闭候选，不重复入库", async () => {
+      prisma.circleKnowledgeCandidate.findUnique.mockResolvedValue({
+        id: "cand1", circleId: "c1", sourceType: "post", sourceId: "p1", contentHash: "same", status: "pending",
+      });
+      prisma.post.findFirst.mockResolvedValue({ id: "p1" });
+      prisma.circleKnowledge.findUnique.mockResolvedValue({ id: "k1" });
+      const result = await svc.confirmCandidate("cand1");
+      expect(result.confirmed).toBe(false);
+      expect(prisma.circleKnowledge.create).not.toHaveBeenCalled();
+      expect(prisma.circleKnowledgeCandidate.update).toHaveBeenCalledWith({
+        where: { id: "cand1" }, data: { status: "rejected" },
+      });
     });
 
     it("拒绝候选内容", async () => {

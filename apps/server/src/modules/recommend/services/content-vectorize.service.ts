@@ -4,6 +4,7 @@ import { PUBLIC_CLASSIC_BOOK_WHERE } from "../../classic/classic-publication-pol
 import { RedisService } from "../../../redis/redis.service";
 import { HunyuanEmbeddingService } from "../../ai-gateway/hunyuan-embedding.service";
 import { HunyuanEmbeddingProvider } from "../strategies/hunyuan-embedding.provider";
+import { publicQuarantinedIds } from "../../../common/public-content-quarantine";
 
 /** 内容向量库单元（与 HunyuanEmbeddingProvider.search 读取端结构一致） */
 interface ContentVector {
@@ -73,7 +74,7 @@ export class ContentVectorizeService {
     {
       type: "ARTICLE",
       loadApproved: (p, skip, take) =>
-        p.article.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, title: true, content: true, excerpt: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.article.findMany({ where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, content: true, excerpt: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 文章 = 标题 + 正文（去 HTML）
       extractText: (r) => joinText(r.title, stripHtml(r.content) || r.excerpt),
@@ -81,7 +82,7 @@ export class ContentVectorizeService {
     {
       type: "VIDEO",
       loadApproved: (p, skip, take) =>
-        p.video.findMany({ where: { status: "PUBLISHED", auditStatus: "APPROVED" }, select: { id: true, title: true, description: true, tags: true, categoryLevel1: true, categoryLevel2: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.video.findMany({ where: { id: { notIn: publicQuarantinedIds("video") }, status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false }, select: { id: true, title: true, description: true, tags: true, categoryLevel1: true, categoryLevel2: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 短视频 = 标题 + 描述 + 标签 + 分类（ASR 语音转写文字为后续增强：拿到 transcript 后拼接进来即可）
       extractText: (r) => joinText(r.title, r.description, r.tags, r.categoryLevel1, r.categoryLevel2),
@@ -89,7 +90,7 @@ export class ContentVectorizeService {
     {
       type: "COURSE",
       loadApproved: (p, skip, take) =>
-        p.course.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.course.findMany({ where: { id: { notIn: publicQuarantinedIds("course") }, auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 课程 = 标题 + 简介 + 标签（大纲：如需接章节标题，扩展 select chapters 后拼入）
       extractText: (r) => joinText(r.title, r.intro, r.tags),
@@ -97,7 +98,7 @@ export class ContentVectorizeService {
     {
       type: "PRODUCT",
       loadApproved: (p, skip, take) =>
-        p.product.findMany({ where: { status: "ON_SALE" }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product") }, status: "ON_SALE", deletedAt: null }, select: { id: true, title: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 商品 = 标题 + 详情 + 标签
       extractText: (r) => joinText(r.title, r.intro, r.tags),
@@ -105,7 +106,7 @@ export class ContentVectorizeService {
     {
       type: "CIRCLE",
       loadApproved: (p, skip, take) =>
-        p.circle.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.circle.findMany({ where: { id: { notIn: publicQuarantinedIds("circle") }, status: "ACTIVE", deletedAt: null }, select: { id: true, name: true, intro: true, tags: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 圈子 = 名称 + 简介 + 标签
       extractText: (r) => joinText(r.name, r.intro, r.tags),
@@ -176,6 +177,7 @@ export class ContentVectorizeService {
     const store = await this.readStore();
     const existing = new Map<string, ContentVector>(store.map((v) => [`${v.type}:${v.id}`, v]));
     const approvedKeys = new Set<string>();
+    const fullyScannedTypes = new Set<string>();
     let added = 0;
 
     for (const vz of this.vectorizers) {
@@ -183,7 +185,10 @@ export class ContentVectorizeService {
       // 分页遍历该类型全部「审核通过」内容
       for (;;) {
         const page = await vz.loadApproved(this.prisma, skip, this.PAGE);
-        if (page.length === 0) break;
+        if (page.length === 0) {
+          fullyScannedTypes.add(vz.type);
+          break;
+        }
 
         const toEmbed: Array<{ key: string; id: string; text: string }> = [];
         for (const item of page) {
@@ -210,11 +215,11 @@ export class ContentVectorizeService {
       if (added >= maxNew) break;
     }
 
-    // 清理：向量库里已不再「审核通过」的条目（下架/驳回/删除）
+    // 只清理完整扫描过的类型；达到新算上限时，未扫描的旧向量留待下一轮核对。
     let removed = 0;
     for (const key of [...existing.keys()]) {
-      if (!approvedKeys.has(key)) {
-        // 仅清理本轮完整扫过的类型；未扫到（因 maxNew 提前中断）的类型不误删
+      const type = key.slice(0, key.indexOf(":"));
+      if (fullyScannedTypes.has(type) && !approvedKeys.has(key)) {
         existing.delete(key);
         removed++;
       }
