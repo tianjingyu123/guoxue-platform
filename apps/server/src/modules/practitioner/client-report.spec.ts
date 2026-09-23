@@ -5,15 +5,19 @@ import { ClientReportService } from "./client-report.service";
  * 决策人 2026-09-18 定位：要通俗易懂、老师视角，让客户觉得是这位老师写的。
  */
 function setup(chapters: any[] = []) {
-  const report = { id: "pr-1", ownerId: "teacher-1", clientName: "王女士", chapters, shareToken: null as string | null };
+  const report = { id: "pr-1", ownerId: "teacher-1", clientName: "王女士", chapters, shareToken: null as string | null, updatedAt: new Date("2026-09-23T00:00:00.000Z") };
   const prisma: any = {
     practitionerReport: {
-      findFirst: jest.fn(async () => report),
-      updateMany: jest.fn(async ({ data }: any) => { Object.assign(report, data); return { count: 1 }; }),
+      findFirst: jest.fn(async () => ({ ...report })),
+      updateMany: jest.fn(async ({ where, data }: any) => {
+        if (report.shareToken || where.updatedAt?.getTime() !== report.updatedAt.getTime()) return { count: 0 };
+        Object.assign(report, data, { updatedAt: new Date(report.updatedAt.getTime() + 1000) });
+        return { count: 1 };
+      }),
     },
   };
   const gateway: any = { chat: jest.fn(async () => ({ content: "（改写后）你这个盘，简单说就是……", model: "m1" })) };
-  return { svc: new ClientReportService(prisma, gateway), prisma, gateway };
+  return { svc: new ClientReportService(prisma, gateway), prisma, gateway, report };
 }
 
 describe("交付稿改写", () => {
@@ -104,9 +108,24 @@ describe("交付稿改写", () => {
   });
 
   it("改写期间如果报告被交付，最终写入也须拒绝", async () => {
-    const { svc, prisma } = setup([{ key: "c1", title: "解读", body: "原文" }]);
-    prisma.practitionerReport.updateMany.mockResolvedValueOnce({ count: 0 });
+    const { svc, report, gateway } = setup([{ key: "c1", title: "解读", body: "原文" }]);
+    gateway.chat.mockImplementationOnce(async () => {
+      report.shareToken = "live";
+      return { content: "改写后" };
+    });
     await expect(svc.rewriteReport("teacher-1", "pr-1")).rejects.toThrow("请先撤回交付链接");
+  });
+
+  it("改写期间其他设备保存了新稿，不覆盖人工编辑", async () => {
+    const { svc, report, gateway } = setup([{ key: "c1", title: "解读", body: "原文" }]);
+    gateway.chat.mockImplementationOnce(async () => {
+      report.chapters = [{ key: "c1", title: "解读", body: "另一设备的人工修改" }];
+      report.updatedAt = new Date(report.updatedAt.getTime() + 1000);
+      return { content: "模型改写的旧稿" };
+    });
+
+    await expect(svc.rewriteReport("teacher-1", "pr-1")).rejects.toThrow("其他设备修改");
+    expect(report.chapters[0].body).toBe("另一设备的人工修改");
   });
 
   it("空正文不调模型", async () => {

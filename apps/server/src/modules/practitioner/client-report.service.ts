@@ -115,10 +115,17 @@ export class ClientReportService {
     }
 
     const updated = await this.prisma.practitionerReport.updateMany({
-      where: { id: reportId, ownerId: userId, shareToken: null },
+      where: { id: reportId, ownerId: userId, shareToken: null, updatedAt: report.updatedAt },
       data: { chapters: out as any },
     });
-    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再改写");
+    if (!updated.count) {
+      const current = await this.prisma.practitionerReport.findFirst({
+        where: { id: reportId, ownerId: userId },
+        select: { shareToken: true },
+      });
+      if (current?.shareToken) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再改写");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已在其他设备修改，请重新加载后再改写");
+    }
     const saved = await this.prisma.practitionerReport.findFirst({ where: { id: reportId, ownerId: userId } });
     if (!saved) throw new BusinessException(ErrorCode.NOT_FOUND, "报告不存在");
     return { report: saved, rewritten: out.filter((c) => c.rewritten).length, failed };

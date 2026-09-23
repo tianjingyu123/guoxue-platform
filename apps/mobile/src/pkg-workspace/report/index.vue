@@ -83,7 +83,7 @@ async function load() {
 }
 
 function onEdit(i: number, e: any) {
-  if (report.value?.shareToken || sharing.value) return
+  if (report.value?.shareToken || saving.value || sharing.value || rewriting.value || drafting.value === chapters.value[i]?.key) return
   chapters.value[i].body = e.detail.value
   // 老师动过手的章节就不再算 AI 初稿——署的是他的名，责任也是他的
   if (chapters.value[i].ai) chapters.value[i].ai = false
@@ -94,7 +94,7 @@ function onEdit(i: number, e: any) {
 // 盘面事实章不动（那是排盘数据），改完仍是草稿，老师可以继续改。
 const rewriting = ref(false)
 async function rewriteForClient() {
-  if (!report.value || rewriting.value || sharing.value || report.value.shareToken) return
+  if (!report.value || saving.value || rewriting.value || drafting.value || sharing.value || report.value.shareToken) return
   const ok = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '改写成给客户看的话',
@@ -104,8 +104,9 @@ async function rewriteForClient() {
       fail: () => resolve(false),
     })
   })
-  if (!ok) return
+  if (!ok || saving.value || drafting.value || sharing.value || report.value?.shareToken) return
   if (dirty.value && !(await save())) return
+  if (drafting.value || sharing.value || report.value?.shareToken) return
   rewriting.value = true
   uni.showLoading({ title: '正在改写…', mask: true })
   try {
@@ -118,7 +119,17 @@ async function rewriteForClient() {
       icon: 'none',
     })
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '改写失败，请稍后重试', icon: 'none' })
+    const message = (e as Error)?.message || '改写失败，请稍后重试'
+    if (message.includes('其他设备修改')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备保存了新的内容。重新加载后可继续改写。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     uni.hideLoading()
     rewriting.value = false
@@ -127,7 +138,7 @@ async function rewriteForClient() {
 
 async function aiDraft(i: number) {
   const c = chapters.value[i]
-  if (drafting.value || sharing.value || report.value?.shareToken) return
+  if (saving.value || drafting.value || rewriting.value || sharing.value || report.value?.shareToken) return
   if (c.body.trim()) {
     const ok = await new Promise<boolean>((resolve) =>
       uni.showModal({
@@ -136,7 +147,7 @@ async function aiDraft(i: number) {
         success: (r) => resolve(r.confirm),
       }),
     )
-    if (!ok) return
+    if (!ok || saving.value || rewriting.value || sharing.value || report.value?.shareToken) return
   }
   drafting.value = c.key
   try {
@@ -158,7 +169,7 @@ async function aiDraft(i: number) {
 }
 
 async function save(status?: 'draft' | 'final'): Promise<boolean> {
-  if (!report.value || saving.value || report.value.shareToken) return false
+  if (!report.value || saving.value || rewriting.value || drafting.value || report.value.shareToken) return false
   saving.value = true
   try {
     const r = await wsApi.updateReport(id.value, {
@@ -247,6 +258,10 @@ async function unshare() {
 }
 
 function preview() {
+  if (rewriting.value || drafting.value || sharing.value || saving.value) {
+    uni.showToast({ title: '请等当前操作完成后再预览', icon: 'none' })
+    return
+  }
   if (dirty.value) {
     uni.showToast({ title: '请先保存', icon: 'none' })
     return
@@ -283,7 +298,7 @@ function archive() {
       <scroll-view class="re-body" scroll-y :show-scrollbar="false">
         <!-- 抬头 -->
         <PaperCard gold padding="lg">
-          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken || sharing" @input="dirty = true" />
+          <input v-model="report.title" class="re-title-input" :disabled="!!report.shareToken || saving || sharing || rewriting" @input="dirty = true" />
           <view class="re-meta">
             <text class="re-meta-item">{{ report.clientName }}</text>
             <text v-if="report.clientBirth" class="re-meta-item">{{ report.clientBirth }}</text>
@@ -341,7 +356,7 @@ function archive() {
             placeholder-class="re-ph"
             auto-height
             :maxlength="-1"
-            :disabled="!!report.shareToken || sharing"
+            :disabled="!!report.shareToken || saving || sharing || rewriting || drafting === c.key"
             @input="onEdit(i, $event)"
           />
           <text v-else-if="c.body" class="re-ch-fold">{{ c.body.slice(0, 40) }}…</text>
