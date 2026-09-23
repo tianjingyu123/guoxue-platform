@@ -12,7 +12,9 @@ function createRequestId(): string {
 
 function activeAttempt(): CheckoutAttempt | null {
   const saved = getStorage<CheckoutAttempt>(STORAGE_KEY)
-  return saved && saved.account === account() && Date.now() - saved.createdAt < TTL ? saved : null
+  if (!saved || !Array.isArray(saved.keys) || Date.now() - saved.createdAt >= TTL) return null
+  // 登录后用户资料可能晚于首个下单请求写入；未知身份键仍由服务端 userId 唯一约束隔离。
+  return saved.account === account() || saved.account === 'authenticated' || account() === 'authenticated' ? saved : null
 }
 
 export function hasPendingCheckoutAttempt(): boolean { return !!activeAttempt() }

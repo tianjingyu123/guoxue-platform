@@ -45,4 +45,9 @@ const newPurchase = reloaded.requestKeysFor('product-1/address-1', 2)
 assert.notDeepEqual([...newPurchase], [...keys], '完成后再次购买使用新键')
 now += 31 * 60 * 1000
 assert.notDeepEqual([...reloaded.requestKeysFor('product-1/address-1', 2)], [...newPurchase], '过期后另建尝试')
-process.stdout.write('checkout request keys: 6 synthetic checks passed\n')
+reloaded.clearCheckoutAttempt()
+user = null
+const beforeProfile = reloaded.requestKeysFor('product-1/address-1', 1)
+user = 'u1'
+assert.deepEqual([...reloaded.requestKeysFor('product-1/address-1', 1)], [...beforeProfile], '用户资料晚到时仍沿用原键')
+process.stdout.write('checkout request keys: 7 synthetic checks passed\n')
