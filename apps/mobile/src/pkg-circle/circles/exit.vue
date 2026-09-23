@@ -24,12 +24,13 @@ const circle = ref<CircleDetail | null>(null)
 const joinedAt = ref<string | null>(null)
 const expireAt = ref<string | null>(null)
 const infoLoading = ref(true)
+const infoError = ref('')
 
 const usedDays = computed(() => {
   if (!joinedAt.value) return 0
   const t = new Date(joinedAt.value).getTime()
   if (Number.isNaN(t)) return 0
-  return Math.max(1, Math.floor((Date.now() - t) / 86400000))
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000))
 })
 const remainingDays = computed(() => {
   if (!expireAt.value) return 0
@@ -40,6 +41,7 @@ const remainingDays = computed(() => {
 const memberSub = computed(() => {
   const c = circle.value
   if (!c) return ''
+  if (infoError.value && !joinedAt.value) return '会员状态待确认'
   const kind = c.type === 'YEARLY' ? '年费会员' : '付费会员'
   const parts = [kind]
   if (joinedAt.value) parts.push(`已使用 ${usedDays.value} 天`)
@@ -48,16 +50,23 @@ const memberSub = computed(() => {
 
 async function loadInfo() {
   infoLoading.value = true
-  try {
-    const [c, st] = await Promise.all([
-      circleDetailApi.detail(circleId.value),
-      circleDetailApi.getJoinStatus(circleId.value),
-    ])
-    circle.value = c
-    joinedAt.value = st.joinedAt
-    expireAt.value = st.expireAt
-  } catch { /* 信息卡加载失败不阻断流程，仅少展示 */ }
-  finally { infoLoading.value = false }
+  infoError.value = ''
+  const [c, st] = await Promise.allSettled([
+    circleDetailApi.detail(circleId.value),
+    circleDetailApi.getJoinStatus(circleId.value, false, { throwOnError: true }),
+  ])
+  if (c.status === 'fulfilled') circle.value = c.value
+  else infoError.value = '圈子信息读取失败'
+  if (st.status === 'fulfilled') {
+    joinedAt.value = st.value.joinedAt
+    expireAt.value = st.value.expireAt
+    if (!st.value.joined) infoError.value = '当前未查到有效圈内身份'
+  } else {
+    joinedAt.value = null
+    expireAt.value = null
+    infoError.value = '会员状态暂无法确认'
+  }
+  infoLoading.value = false
 }
 
 // ── 申请步：金额测算 + 提交 ──
@@ -146,6 +155,7 @@ onLoad((opt) => {
         </view>
       </view>
       <view v-else-if="infoLoading" class="ex-member-card skeleton" />
+      <view v-if="infoError" class="ex-info-error" @tap="loadInfo">{{ infoError }}，点击重试</view>
 
       <!-- 失去的权益：如实告知，不夸大 -->
       <text class="ex-label">退出后你将失去</text>
@@ -325,6 +335,7 @@ onLoad((opt) => {
   box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); padding: 28rpx 32rpx;
 }
 .ex-member-card.skeleton { height: 144rpx; background: #fff; }
+.ex-info-error { margin: 16rpx 32rpx 0; min-height: 44px; padding: 12rpx 20rpx; display: flex; align-items: center; border-radius: 18rpx; background: #fff4e8; color: #775022; font-size: 24rpx; }
 .ex-member-cover { width: 88rpx; height: 88rpx; border-radius: 22rpx; overflow: hidden; flex-shrink: 0; }
 .ex-member-cover-img { width: 88rpx; height: 88rpx; }
 .ex-member-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

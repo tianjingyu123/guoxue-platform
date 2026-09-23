@@ -60,6 +60,8 @@ function previewPostImages(current: number) {
 const showMenu = ref(false)
 const govActing = ref(false)
 const myRole = ref<CircleMemberRole | null>(null)
+const roleLoading = ref(!!getToken())
+const roleError = ref(false)
 /** 仅圈主/管理员可见治理项（置顶/精华/删除） */
 const canGovern = computed(() => myRole.value === 'OWNER' || myRole.value === 'ADMIN')
 /**
@@ -101,19 +103,27 @@ async function loadData() {
     loadRole()
   } catch {
     error.value = '加载失败，请重试'
+    roleLoading.value = false
+    roleError.value = !!getToken()
   } finally {
     loading.value = false
   }
 }
 function retry() { loadData() }
 
-/** 查询我在本圈的角色（决定 ⋯ 菜单显示治理项还是举报）；未登录/失败静默 */
+/** 查询本人圈内角色；失败时保持未知状态，不把圈主误当普通成员。 */
 async function loadRole() {
-  if (!circleId.value || !getToken()) return
+  if (!circleId.value || !getToken()) { roleLoading.value = false; return }
+  roleLoading.value = true
+  roleError.value = false
   try {
-    const st = await circleDetailApi.getJoinStatus(circleId.value, true)
+    const st = await circleDetailApi.getJoinStatus(circleId.value, true, { throwOnError: true })
     myRole.value = st.role
-  } catch { /* 静默：查询失败不显示治理项 */ }
+  } catch {
+    roleError.value = true
+  } finally {
+    roleLoading.value = false
+  }
 }
 
 // 触点 #6 圈子课程（服务端按 circleId→圈主→APPROVED 课召回·show:false 或异常一律不渲染）
@@ -348,7 +358,9 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     <!-- ⋯ 菜单（V0 gov-menu 浮层）：圈主/管理员=治理三项；普通成员=举报 -->
     <view v-if="showMenu" class="pd-menu-mask" @tap="showMenu = false" />
     <view v-if="showMenu" class="pd-menu">
-      <template v-if="canGovern">
+      <view v-if="roleLoading" class="pd-menu-item"><text class="pd-menu-t">正在确认操作权限…</text></view>
+      <view v-else-if="roleError" class="pd-menu-item" @tap="loadRole"><text class="pd-menu-t">权限暂无法确认，点击重试</text></view>
+      <template v-else-if="canGovern">
         <view class="pd-menu-item" @tap="govToggleTop">
           <app-icon name="pin" :size="30" color="#6E6E73" />
           <text class="pd-menu-t">{{ post?.isPinned ? '取消置顶' : '置顶帖子' }}</text>
@@ -546,7 +558,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
   width: 20rpx; height: 20rpx; background: var(--bg-card, #fff);
   transform: rotate(45deg);
 }
-.pd-menu-item { display: flex; align-items: center; gap: 18rpx; padding: 20rpx 24rpx; border-radius: 16rpx; }
+.pd-menu-item { display: flex; align-items: center; gap: 18rpx; min-height: 44px; padding: 20rpx 24rpx; border-radius: 16rpx; }
 .pd-menu-t { font-size: 28rpx; color: var(--text-primary, #2c2c2c); }
 .pd-menu-t.danger { color: var(--brand, #c41e3a); }
 
