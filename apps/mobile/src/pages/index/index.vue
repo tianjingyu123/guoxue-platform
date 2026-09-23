@@ -593,14 +593,14 @@ function backToTop() {
 /* ── 双列瀑布流 ── */
 .flow {
   display: flex;
-  gap: 18rpx;
-  padding: 0 24rpx 18rpx;
+  gap: 12rpx;
+  padding: 0 16rpx 16rpx;
 }
 .col {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 12rpx;
   min-width: 0;
 }
 /* 运营楼层（微页面区块） */
