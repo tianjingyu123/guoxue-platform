@@ -2,6 +2,7 @@
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
 
 const { chromium } = createRequire(import.meta.url)(resolve(process.env.QA_NODE_MODULES, 'playwright'))
 const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5198'
@@ -43,6 +44,10 @@ try {
   assert.equal(await page.getByText('圈子还在筹备中，稍后再来看看').count(), 0)
   await page.setViewportSize({ width: 320, height: 720 })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true)
+  const out = resolve('artifacts/circle-experience-20260922')
+  await mkdir(out, { recursive: true })
+  await page.waitForTimeout(350)
+  await page.screenshot({ path: resolve(out, '06-discover-paginated-320.png') })
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
   console.log('圈子发现：首批 20 个均已加入时继续发现、下一页失败恢复、23 个圈子完整分页：通过')

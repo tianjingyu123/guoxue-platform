@@ -15,10 +15,12 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { chooseAndUploadImage } from '@/utils/request'
 import { questionApi, getCoinBalance, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
 
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const answererId = ref('')
 const expertName = ref('')
 const expertAvatar = ref('')
@@ -124,10 +126,10 @@ onLoad((opt) => {
 <template>
   <view class="ca-page">
     <!-- 顶栏：向谁提问、花多少金币 -->
-    <view class="ca-topbar">
+    <view class="ca-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="ca-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ca-title">{{ expertName ? `向${expertName}提问` : '图文提问' }}</text>
-      <text v-if="priceCoin" class="ca-price">{{ priceCoin }} 金币/次</text>
+      <text v-if="priceCoin && !menuSafeRight" class="ca-price">{{ priceCoin }} 金币/次</text>
     </view>
 
     <!-- 提问方式切换：指定达人 / 悬赏 -->
@@ -221,7 +223,7 @@ onLoad((opt) => {
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.ca-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
+.ca-back { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin-left: -8rpx; }
 .ca-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ca-price { flex-shrink: 0; font-size: 26rpx; color: var(--gold, #c9a96e); font-weight: 700; }
 
