@@ -10,6 +10,7 @@ import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shareLink } from '@/utils/share'
 import { apiGet, apiPost } from '@/utils/request'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 interface Announcement {
   id: string
@@ -39,11 +40,14 @@ interface RawAnnouncement {
 }
 
 const circleId = ref('')
+const announcementId = ref('')
 const circleName = ref('')
 const announcement = ref<Announcement | null>(null)
 const related = ref<Announcement[]>([])
 const isRead = ref(false)
 const loading = ref(true)
+const loadError = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 /** 公告无独立标题字段，取正文首个非空行作标题，剩余作正文 */
 function deriveTitle(content: string): { title: string; body: string } {
@@ -74,11 +78,14 @@ function adapt(raw: RawAnnouncement, splitTitle: boolean): Announcement {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
-    if (!circleId.value) { announcement.value = null; return }
+    if (!circleId.value) { loadError.value = '圈子信息缺失，请返回重试'; return }
     const [circle, main, listResp] = await Promise.all([
       apiGet<{ name?: string; circle?: { name?: string } }>(`/circles/${circleId.value}`).catch(() => null),
-      apiGet<RawAnnouncement>(`/circles/${circleId.value}/announcement`).catch(() => null),
+      apiGet<RawAnnouncement>(announcementId.value
+        ? `/circles/${circleId.value}/announcements/${announcementId.value}`
+        : `/circles/${circleId.value}/announcement`),
       apiGet<{ list?: RawAnnouncement[] }>(`/circles/${circleId.value}/announcements?page=1&pageSize=10`).catch(() => null),
     ])
     circleName.value = circle?.name || circle?.circle?.name || '本圈'
@@ -94,6 +101,7 @@ async function load() {
       .map((a) => adapt(a, false))
   } catch {
     announcement.value = null
+    loadError.value = '公告暂时无法加载，请重试'
   } finally {
     loading.value = false
   }
@@ -101,6 +109,7 @@ async function load() {
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = String(q.circleId)
+  if (q?.id) announcementId.value = String(q.id)
 })
 onMounted(load)
 
@@ -126,12 +135,14 @@ function fmtDate(s: string) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 async function markRead() {
-  if (isRead.value || !announcement.value?.id) { isRead.value = true; return }
+  if (isRead.value || !announcement.value?.id) return
   try {
     await apiPost(`/circles/${circleId.value}/announcements/${announcement.value.id}/read`, {})
-  } catch { /* 已读上报失败不阻塞 UI */ }
-  isRead.value = true
-  uni.showToast({ title: '已标记为已读', icon: 'success' })
+    isRead.value = true
+    uni.showToast({ title: '已标记为已读', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '未能同步已读状态，请稍后重试', icon: 'none' })
+  }
 }
 function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
 function openRelated(id: string) { navigateTo(`/pkg-circle/circles/announcements?id=${id}&circleId=${circleId.value}`) }
@@ -146,15 +157,20 @@ async function share() {
 <template>
   <view class="an">
     <!-- 顶栏 -->
-    <view class="an-hdr">
-      <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+    <view class="an-hdr" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="an-hdr-btn" role="button" aria-label="返回上一页" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
       <text class="an-hdr-title">圈子公告</text>
-      <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
+      <view v-if="announcement" class="an-hdr-btn" role="button" aria-label="分享公告" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
     </view>
 
     <scroll-view scroll-y class="an-body">
       <!-- 加载态 -->
       <view v-if="loading" class="an-empty"><AppLoading /></view>
+
+      <view v-else-if="loadError" class="an-empty">
+        <text class="an-empty-t">{{ loadError }}</text>
+        <view v-if="circleId" class="an-retry" role="button" aria-label="重新加载公告" @tap="load">重试</view>
+      </view>
 
       <!-- 空态 -->
       <view v-else-if="!announcement" class="an-empty">
@@ -243,11 +259,12 @@ async function share() {
 <style scoped lang="scss">
 .an { display: flex; flex-direction: column; height: 100vh; background: #faf8f5; }
 .an-hdr { display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx; background: var(--brand); padding-top: var(--status-bar-height, 0); flex-shrink: 0; }
-.an-hdr-btn { width: 60rpx; height: 60rpx; border-radius: 999rpx; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
+.an-hdr-btn { width: 44px; height: 44px; flex-shrink: 0; border-radius: 999rpx; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
 .an-hdr-title { flex: 1; font-size: 30rpx; font-weight: 500; color: #ffffff; }
 .an-body { flex: 1; overflow: hidden; }
 .an-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 200rpx 0; }
 .an-empty-t { font-size: 28rpx; color: #999999; }
+.an-retry { min-width: 120rpx; min-height: 44px; padding: 0 28rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; background: var(--brand); color: #fff; font-size: 28rpx; }
 .an-source { display: flex; align-items: center; gap: 12rpx; padding: 22rpx 24rpx; background: #ffffff; border-bottom: 2rpx solid #f0ebe3; }
 .an-source-t { flex: 1; font-size: 26rpx; color: #666666; }
 .an-source-name { color: var(--brand); font-weight: 500; }

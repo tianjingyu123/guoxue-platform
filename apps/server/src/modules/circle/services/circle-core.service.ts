@@ -205,7 +205,7 @@ export class CircleCoreService {
   }) {
     const { keyword, tag, type, stationId } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const filterHash = `${keyword ?? ""}:${tag ?? ""}:${type ?? ""}`;
+    const filterHash = JSON.stringify([keyword ?? "", tag ?? "", type ?? "", stationId ?? ""]);
     const cacheKey = `circles:list:v2:${page}:${pageSize}:${filterHash}`;
 
     const cached = await this.redis.getJson<any>(cacheKey);
@@ -236,7 +236,7 @@ export class CircleCoreService {
         },
         skip,
         take: pageSize,
-        orderBy: { memberCount: "desc" },
+        orderBy: [{ memberCount: "desc" }, { id: "asc" }],
       }),
       this.prisma.circle.count({ where }),
     ]);
@@ -293,8 +293,9 @@ export class CircleCoreService {
     const fallback = await this.prisma.circleAnnouncement.findFirst({
       where: { circleId },
       orderBy: { createdAt: "desc" },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
-    return { content: fallback?.content || "", updatedAt: fallback?.updatedAt?.toISOString() || null };
+    return fallback ? { ...fallback, updatedAt: fallback.updatedAt.toISOString() } : { content: "", updatedAt: null };
   }
 
   async setAnnouncement(circleId: string, userId: string, content: string, isTop?: boolean) {
@@ -330,6 +331,16 @@ export class CircleCoreService {
       this.prisma.circleAnnouncement.count({ where: { circleId } }),
     ]);
     return { list, total, page, pageSize };
+  }
+
+  /** 公告详情必须同时限定圈子与公告 ID，避免相关公告点击后仍显示置顶公告。 */
+  async getAnnouncementById(circleId: string, announcementId: string) {
+    const announcement = await this.prisma.circleAnnouncement.findFirst({
+      where: { id: announcementId, circleId },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+    if (!announcement) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+    return announcement;
   }
 
   async deleteAnnouncement(circleId: string, userId: string, announcementId: string) {

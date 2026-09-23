@@ -83,7 +83,7 @@ interface RawCircle {
   price?: number | string
 }
 /** /circles 与 /circles/my 列表响应（可能是裸数组，由 Array.isArray 运行时分流） */
-interface RawCircleListResp { data?: RawCircle[]; circles?: RawCircle[] }
+interface RawCircleListResp { data?: RawCircle[]; circles?: RawCircle[]; total?: number }
 
 /** /circles/ranking 排行榜项 */
 interface RawRankingCircle {
@@ -284,16 +284,19 @@ export interface AiSearchResult {
 }
 
 export const circleApi = {
-  list: async (params?: { category?: string; keyword?: string }): Promise<{ data: Circle[]; total: number }> => {
+  list: async (params?: { category?: string; keyword?: string; page?: number; pageSize?: number; throwOnError?: boolean }): Promise<{ data: Circle[]; total: number }> => {
     try {
       const qs: string[] = []
       if (params?.category) qs.push(`category=${encodeURIComponent(params.category)}`)
       if (params?.keyword) qs.push(`keyword=${encodeURIComponent(params.keyword)}`)
+      if (params?.page) qs.push(`page=${Math.max(1, Math.floor(params.page))}`)
+      if (params?.pageSize) qs.push(`pageSize=${Math.max(1, Math.floor(params.pageSize))}`)
       const res = await apiGet<RawCircle[] | RawCircleListResp>(`/circles${qs.length ? '?' + qs.join('&') : ''}`)
       // apiGet 已剥离信封，res 即后端 data（圈子数组）
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.circles ?? [])
-      return { data: arr.map(adaptCircle), total: arr.length }
+      return { data: arr.map(adaptCircle), total: Array.isArray(res) ? arr.length : (res?.total ?? arr.length) }
     } catch (e) {
+      if (params?.throwOnError) throw e
       // 关键词搜索失败返回空（走空态，不展示假数据）；
       // 分类/推荐浏览失败上抛，让页面走真实错误 UI（circles 页 <app-error>），
       // 不再回退 mockCircles 假圈子误导用户「平台有活跃内容」。

@@ -9,11 +9,12 @@
  * 降级（后端缺）：① 结果「内容」分组（后端无跨圈内容搜索端点）→ 仅圈子单组；
  * ② 结果行「需审批」标识（list 端点不返回 needApproval）→ 仅显示 免费/年费价格。
  */
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type Circle, type RankingCircle, type AiSearchResult } from '@/lib/circle-data'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 // 热门搜索：运营引导词（非冒充统计的假数据）
 const HOT_SEARCHES = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '宝宝起名', '国学']
@@ -25,13 +26,20 @@ const history = ref<string[]>((uni.getStorageSync(HISTORY_KEY) as string[]) || [
 const results = ref<Circle[]>([])
 const searching = ref(false)
 const error = ref('')
+const total = ref(0)
+const resultPage = ref(1)
+const loadingMore = ref(false)
+const moreError = ref(false)
+const hasMore = computed(() => results.value.length < total.value)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 // 热门圈子推荐（AI 智能推荐降级：真实排行榜接口按成员数取前 5；
 // 不用 list() 无关键词分支——其失败回退 mockCircles 会展示假圈子）
 const hotCircles = ref<RankingCircle[]>([])
 
 async function loadHot() {
-  hotCircles.value = (await circleApi.getRanking('memberCount')).slice(0, 5)
+  try { hotCircles.value = (await circleApi.getRanking('memberCount')).slice(0, 5) }
+  catch { hotCircles.value = [] }
 }
 
 function saveHistory(k: string) {
@@ -42,6 +50,7 @@ function saveHistory(k: string) {
 // ── #37 AI 智能推荐（与主搜索并行·失败/无内容不渲染） ──
 const aiResult = ref<AiSearchResult | null>(null)
 let aiSeq = 0 // 并发防错序：只采纳最后一次搜索的 AI 结果
+let searchSeq = 0
 
 async function doSearch(kw: string) {
   const k = kw.trim()
@@ -50,24 +59,52 @@ async function doSearch(kw: string) {
   hasSearched.value = true
   searching.value = true
   error.value = ''
+  results.value = []
+  total.value = 0
+  resultPage.value = 1
+  moreError.value = false
   saveHistory(k)
   // AI 推荐并行请求，不阻塞主搜索；旧结果先清（避免上个词的推荐串场）
   aiResult.value = null
   const seq = ++aiSeq
   circleApi.aiSearch(k).then((r) => { if (seq === aiSeq) aiResult.value = r })
+  const request = ++searchSeq
   try {
-    const res = await circleApi.list({ keyword: k })
+    const res = await circleApi.list({ keyword: k, page: 1, pageSize: 20, throwOnError: true })
+    if (request !== searchSeq) return
     results.value = res.data
+    total.value = res.total
   } catch {
-    results.value = []
+    if (request !== searchSeq) return
     error.value = '搜索失败，请重试'
   } finally {
-    searching.value = false
+    if (request === searchSeq) searching.value = false
+  }
+}
+
+async function loadMore() {
+  if (searching.value || loadingMore.value || !hasMore.value) return
+  const request = searchSeq
+  const nextPage = resultPage.value + 1
+  loadingMore.value = true
+  moreError.value = false
+  try {
+    const res = await circleApi.list({ keyword: keyword.value, page: nextPage, pageSize: 20, throwOnError: true })
+    if (request !== searchSeq) return
+    if (res.data.length === 0) { moreError.value = true; return }
+    const seen = new Set(results.value.map(circle => circle.id))
+    results.value.push(...res.data.filter(circle => !seen.has(circle.id)))
+    total.value = res.total
+    resultPage.value = nextPage
+  } catch {
+    if (request === searchSeq) moreError.value = true
+  } finally {
+    loadingMore.value = false
   }
 }
 
 function clearHistory() { history.value = []; uni.removeStorageSync(HISTORY_KEY) }
-function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = []; aiResult.value = null; aiSeq++ }
+function clearKeyword() { keyword.value = ''; hasSearched.value = false; results.value = []; total.value = 0; error.value = ''; searching.value = false; aiResult.value = null; aiSeq++; searchSeq++ }
 function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
 /** 加入按钮 → 圈子预览页（加入漏斗：免费/审批/付费在预览页分流） */
 function openPreview(id: string) { navigateTo(`/pkg-circle/circles/preview?id=${id}`) }
@@ -103,8 +140,8 @@ onMounted(loadHot)
 <template>
   <view class="cs-page">
     <!-- 搜索顶栏 -->
-    <view class="cs-bar">
-      <view class="cs-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="cs-bar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+      <view class="cs-back" role="button" aria-label="返回圈子" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="cs-input-wrap">
         <app-icon name="search" :size="30" color="#999999" />
         <input
@@ -113,7 +150,7 @@ onMounted(loadHot)
         />
         <view v-if="keyword" class="cs-clear" @tap="clearKeyword"><app-icon name="x" :size="22" color="#6E6E73" /></view>
       </view>
-      <text class="cs-cancel" @tap="goBack">取消</text>
+      <text v-if="!menuSafeRight" class="cs-cancel" @tap="goBack">取消</text>
     </view>
 
     <!-- 输入前：历史 + 热门词 + 热门圈子推荐 -->
@@ -211,7 +248,7 @@ onMounted(loadHot)
 
       <!-- 结果：圈子单组（后端无跨圈内容搜索 → 内容分组降级不做） -->
       <view v-else>
-        <text class="cs-result-label">圈子 · {{ results.length }} 个</text>
+        <text class="cs-result-label">圈子 · {{ results.length }} / {{ total }} 个</text>
         <view class="cs-group">
           <view v-for="c in results" :key="c.id" class="cs-row" @tap="openCircle(c.id)">
             <view class="cs-row-cover"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="40" /></view>
@@ -231,6 +268,9 @@ onMounted(loadHot)
             <view v-else class="cs-join-mini" @tap.stop="openPreview(c.id)"><text class="cs-join-mini-t">加入</text></view>
           </view>
         </view>
+        <view v-if="hasMore" class="cs-more" role="button" :aria-label="moreError ? '重试加载更多圈子' : '加载更多圈子'" @tap="loadMore">
+          <text>{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点此重试' : '查看更多圈子' }}</text>
+        </view>
       </view>
     </template>
   </view>
@@ -248,21 +288,21 @@ onMounted(loadHot)
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #EDE7DD);
 }
-.cs-back { display: flex; flex-shrink: 0; }
+.cs-back { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; }
 .cs-input-wrap {
-  flex: 1; display: flex; align-items: center; gap: 16rpx;
-  height: 72rpx; padding: 0 28rpx;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 16rpx;
+  min-height: 44px; padding: 0 28rpx;
   background: var(--bg-card, #fff); border-radius: 36rpx;
   box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
-.cs-input { flex: 1; height: 56rpx; line-height: 56rpx; font-size: 28rpx; color: var(--text-primary, #2C2C2C); background: transparent; }
+.cs-input { flex: 1; min-width: 0; height: 44px; line-height: 44px; font-size: 28rpx; color: var(--text-primary, #2C2C2C); background: transparent; }
 .cs-ph { color: var(--text-tertiary, #999); }
 .cs-clear {
-  width: 32rpx; height: 32rpx; border-radius: 999rpx; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 999rpx; flex-shrink: 0;
   background: var(--separator, #EDE7DD);
   display: flex; align-items: center; justify-content: center;
 }
-.cs-cancel { font-size: 28rpx; color: var(--text-secondary, #6E6E73); flex-shrink: 0; }
+.cs-cancel { min-height: 44px; display: flex; align-items: center; font-size: 28rpx; color: var(--text-secondary, #6E6E73); flex-shrink: 0; }
 
 /* 输入前：历史 + 热门 */
 .cs-pre-label {
@@ -274,7 +314,7 @@ onMounted(loadHot)
 .cs-pre-clear { display: flex; padding: 4rpx; }
 .cs-chips { display: flex; flex-wrap: wrap; gap: 16rpx; padding: 0 32rpx; }
 .cs-chip {
-  display: inline-flex; align-items: center; gap: 10rpx; height: 60rpx; padding: 0 26rpx;
+  display: inline-flex; align-items: center; gap: 10rpx; min-height: 44px; padding: 0 26rpx;
   border-radius: 30rpx; background: var(--bg-card, #fff);
   box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
@@ -306,7 +346,7 @@ onMounted(loadHot)
 .cs-ai-recs { display: flex; flex-wrap: wrap; gap: 14rpx; margin-top: 20rpx; }
 .cs-ai-rec {
   display: inline-flex; align-items: center; gap: 8rpx;
-  height: 56rpx; padding: 0 24rpx; border-radius: 28rpx;
+  min-height: 44px; padding: 0 24rpx; border-radius: 28rpx;
   background: var(--bg-warm, #f8f4ec);
 }
 .cs-ai-rec:active { opacity: 0.8; }
@@ -315,6 +355,8 @@ onMounted(loadHot)
 
 /* 结果分组 */
 .cs-result-label { display: block; margin: 40rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.cs-more { margin: 28rpx auto 0; min-width: 280rpx; min-height: 44px; padding: 0 32rpx; width: fit-content; border-radius: 22rpx; background: #fff; color: #1d1d1f; display: flex; align-items: center; justify-content: center; font-size: 26rpx; }
+.cs-more:active { background: #ececef; }
 .cs-group {
   margin: 0 32rpx; background: var(--bg-card, #fff);
   border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
@@ -332,13 +374,13 @@ onMounted(loadHot)
 .cs-row-meta-t { font-size: 24rpx; color: var(--text-tertiary, #999); }
 .cs-row-meta-t.gold { color: #C9A96E; font-weight: 600; }
 .cs-join-mini {
-  flex-shrink: 0; height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  flex-shrink: 0; min-height: 44px; padding: 0 28rpx; border-radius: 30rpx;
   background: var(--brand-soft, rgba(196, 30, 58, 0.08));
   display: flex; align-items: center;
 }
 .cs-join-mini-t { font-size: 26rpx; font-weight: 500; color: var(--brand, #C41E3A); }
 .cs-joined-mini {
-  flex-shrink: 0; height: 60rpx; padding: 0 28rpx; border-radius: 30rpx;
+  flex-shrink: 0; min-height: 44px; padding: 0 28rpx; border-radius: 30rpx;
   border: 1rpx solid var(--separator, #EDE7DD);
   display: flex; align-items: center;
 }
@@ -364,7 +406,7 @@ onMounted(loadHot)
 .cs-empty-t1 { font-size: 30rpx; font-weight: 500; color: var(--text-primary, #2C2C2C); }
 .cs-empty-t2 { margin-top: 12rpx; font-size: 26rpx; color: var(--text-tertiary, #999); line-height: 1.7; white-space: pre-line; }
 .cs-empty-cta {
-  margin-top: 32rpx; height: 76rpx; padding: 0 44rpx; border-radius: 38rpx;
+  margin-top: 32rpx; min-height: 44px; padding: 0 44rpx; border-radius: 38rpx;
   background: var(--brand, #C41E3A);
   display: inline-flex; align-items: center;
 }

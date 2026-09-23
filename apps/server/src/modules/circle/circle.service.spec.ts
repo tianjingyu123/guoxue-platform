@@ -43,6 +43,7 @@ const mockPrisma = {
   // 邀请码入圈（治理旁路禁入拦截测试用）
   circleInviteCode: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
   circleInvitation: { create: jest.fn(), count: jest.fn(), findMany: jest.fn() },
+  circleAnnouncement: { findFirst: jest.fn() },
   $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg))),
   // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
@@ -154,6 +155,28 @@ describe("CircleService", () => {
       expect(mockPrisma.circle.findMany.mock.calls.at(-1)![0].where.id).toEqual({
         notIn: [...PUBLIC_QUARANTINED_IDS.circle],
       });
+    });
+  });
+
+  describe("getAnnouncementById", () => {
+    it("无置顶公告时仍返回最新公告 ID，供已读上报使用", async () => {
+      mockPrisma.circleAnnouncement.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "a2", circleId: "c1", content: "普通公告", updatedAt: new Date("2026-09-22T08:00:00Z") });
+      await expect(svc.getAnnouncement("c1")).resolves.toHaveProperty("id", "a2");
+    });
+
+    it("按圈子和公告 ID 同时限定，避免跨圈读取", async () => {
+      mockPrisma.circleAnnouncement.findFirst.mockResolvedValue({ id: "a1", circleId: "c1", content: "公告正文" });
+      await expect(svc.getAnnouncementById("c1", "a1")).resolves.toHaveProperty("content", "公告正文");
+      expect(mockPrisma.circleAnnouncement.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "a1", circleId: "c1" },
+      }));
+    });
+
+    it("不属于该圈子的公告返回不存在", async () => {
+      mockPrisma.circleAnnouncement.findFirst.mockResolvedValue(null);
+      await expect(svc.getAnnouncementById("c2", "a1")).rejects.toThrow(BusinessException);
     });
   });
 

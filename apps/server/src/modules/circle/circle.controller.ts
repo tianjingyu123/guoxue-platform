@@ -249,6 +249,12 @@ export class CircleController {
     return this.circle.listAnnouncements(circleId, +page, +pageSize);
   }
 
+  @Get(":id/announcements/:announcementId")
+  @ApiOperation({ summary: "获取指定圈子的单条公告" })
+  getAnnouncementById(@Param("id") circleId: string, @Param("announcementId") announcementId: string) {
+    return this.circle.getAnnouncementById(circleId, announcementId);
+  }
+
   @Delete(":id/announcement/:announcementId")
   @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)

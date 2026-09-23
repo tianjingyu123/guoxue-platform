@@ -303,12 +303,10 @@ export const circleDetailApi = {
       return { data: [], total: 0 }
     }
   },
-  listMembers: async (id: string): Promise<{ data: CircleMember[]; total: number }> => {
-    try {
-      const r = await apiGet<RawMembersResp>(`/circles/${id}/members`)
-      const arr: RawCircleMember[] = Array.isArray(r) ? r : (r?.members ?? r?.data ?? [])
-      return { data: arr.map(adaptMember), total: r?.total ?? arr.length }
-    } catch { return { data: [], total: 0 } }
+  listMembers: async (id: string, page = 1): Promise<{ data: CircleMember[]; total: number }> => {
+    const r = await apiGet<RawMembersResp>(`/circles/${id}/members?page=${page}&pageSize=20`)
+    const arr: RawCircleMember[] = Array.isArray(r) ? r : (r?.members ?? r?.data ?? [])
+    return { data: arr.map(adaptMember), total: Array.isArray(r) ? arr.length : (r?.total ?? arr.length) }
   },
   // 后端无 /circles/:id/columns|articles|activities → 返回空，页面对应板块空态隐藏（不展示假数据）
   columns: async (_id: string): Promise<CircleColumn[]> => [],
