@@ -12,6 +12,11 @@ import { safePagination } from "../../common/pagination";
 export class ContentService {
   private readonly logger = new Logger(ContentService.name);
 
+  private publicWhere(): Prisma.ContentWhereInput {
+    return { status: "PUBLISHED", deletedAt: null, stationId: null,
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] };
+  }
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
@@ -96,8 +101,7 @@ export class ContentService {
     // 后台审核员可看草稿；普通用户仅可看平台总目录中的已发布内容。
     const content = allowUnpublished
       ? await this.prisma.content.findUnique({ where: { id } })
-      : await this.prisma.content.findFirst({ where: { id, status: "PUBLISHED", deletedAt: null,
-          stationId: null, OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }] } });
+      : await this.prisma.content.findFirst({ where: { id, ...this.publicWhere() } });
     if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
 
     // 异步增加浏览数
@@ -175,7 +179,7 @@ export class ContentService {
   }
 
   async getFeatured(type?: string) {
-    const where: Prisma.ContentWhereInput = { status: "PUBLISHED" };
+    const where: Prisma.ContentWhereInput = this.publicWhere();
     if (type) where.type = type;
     return this.prisma.content.findMany({
       where,
@@ -188,11 +192,12 @@ export class ContentService {
   // ───────── 诗词专属 ─────────
 
   async getRandomPoem() {
-    const count = await this.prisma.content.count({ where: { type: "POEM", status: "PUBLISHED" } });
+    const where: Prisma.ContentWhereInput = { ...this.publicWhere(), type: "POEM" };
+    const count = await this.prisma.content.count({ where });
     if (count === 0) return null;
     const skip = Math.floor(Math.random() * count);
     const poems = await this.prisma.content.findMany({
-      where: { type: "POEM", status: "PUBLISHED" },
+      where,
       skip,
       take: 1,
       select: { id: true, title: true, author: true, dynasty: true, excerpt: true, body: true, tags: true, viewCount: true, likeCount: true },
@@ -202,41 +207,24 @@ export class ContentService {
 
   async getDailyPoem() {
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `poem:daily:${today}`;
-    const cached = await this.redis.get(cacheKey).catch(() => null);
-    if (cached) {
-      try { return JSON.parse(cached); }
-      catch { this.logger.warn("每日诗词缓存解析失败，回源数据库"); }
-    }
-
-    const count = await this.prisma.content.count({ where: { type: "POEM", status: "PUBLISHED" } });
+    const where: Prisma.ContentWhereInput = { ...this.publicWhere(), type: "POEM" };
+    const count = await this.prisma.content.count({ where });
     if (count === 0) return null;
 
     const dayNum = parseInt(today.replace(/-/g, ""), 10);
     const skip = dayNum % count;
     const poems = await this.prisma.content.findMany({
-      where: { type: "POEM", status: "PUBLISHED" },
+      where,
       skip,
       take: 1,
       select: { id: true, title: true, author: true, dynasty: true, excerpt: true, body: true, tags: true, viewCount: true, likeCount: true },
     });
-    const poem = poems[0] ?? null;
-    if (poem) {
-      await this.redis.set(cacheKey, JSON.stringify(poem), 86400).catch((err) => this.logger.warn("每日诗词缓存写入失败", err));
-    }
-    return poem;
+    return poems[0] ?? null;
   }
 
   async getPoemAppreciation(id: string) {
-    const cacheKey = `poem:appreciation:${id}`;
-    const cached = await this.redis.get(cacheKey).catch(() => null);
-    if (cached) {
-      try { return JSON.parse(cached); }
-      catch { this.logger.warn("诗词鉴赏缓存解析失败，回源数据库"); }
-    }
-
-    const poem = await this.prisma.content.findUnique({
-      where: { id },
+    const poem = await this.prisma.content.findFirst({
+      where: { id, type: "POEM", ...this.publicWhere() },
       select: { id: true, title: true, author: true, dynasty: true, body: true, type: true },
     });
     if (!poem) throw new BusinessException(ErrorCode.NOT_FOUND, "诗词不存在");
@@ -253,7 +241,6 @@ export class ContentService {
       appreciation: null as string | null,
     };
 
-    await this.redis.set(cacheKey, JSON.stringify(result), 3600).catch((err) => this.logger.warn("诗词鉴赏缓存写入失败", err));
     return result;
   }
 }

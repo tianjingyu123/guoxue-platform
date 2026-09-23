@@ -117,6 +117,28 @@ describe("ContentService", () => {
     });
   });
 
+  describe("其他公开内容入口", () => {
+    it("精选、随机和每日诗词只查询当前公开平台内容", async () => {
+      mockPrisma.content.findMany.mockResolvedValue([{ id: "p1", type: "POEM", body: "诗句" }]);
+      mockPrisma.content.count.mockResolvedValue(1);
+      await svc.getFeatured();
+      await svc.getRandomPoem();
+      await svc.getDailyPoem();
+      for (const [args] of mockPrisma.content.findMany.mock.calls) {
+        expect(args.where).toMatchObject({ status: "PUBLISHED", deletedAt: null, stationId: null });
+        expect(args.where.OR[1].scheduledAt.lte).toBeInstanceOf(Date);
+      }
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+    });
+    it("诗词鉴赏不从旧缓存回传已撤回正文", async () => {
+      mockPrisma.content.findFirst.mockResolvedValue(null);
+      await expect(svc.getPoemAppreciation("hidden")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: "hidden", type: "POEM", status: "PUBLISHED", deletedAt: null, stationId: null }),
+      }));
+    });
+  });
+
   describe("update", () => {
     it("更新成功", async () => {
       mockPrisma.content.findUnique.mockResolvedValue({ id: "c1" });
