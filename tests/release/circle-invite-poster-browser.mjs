@@ -14,7 +14,7 @@ const writes = []
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] })
   await context.addInitScript(() => localStorage.setItem('auth_token', JSON.stringify({ type: 'string', data: 'local-fixture-only' })))
-  await context.route('**/*', async route => {
+  const routeFixture = async route => {
     const url = new URL(route.request().url())
     if (url.pathname.includes('/api/v1/')) {
       if (route.request().method() !== 'GET') writes.push(`${route.request().method()} ${url.pathname}`)
@@ -27,7 +27,8 @@ try {
     }
     if (url.origin === origin || url.protocol === 'data:') return route.continue()
     return route.abort()
-  })
+  }
+  await context.route('**/*', routeFixture)
   const page = await context.newPage()
   page.on('pageerror', e => errors.push(e.message))
   await page.goto(`${origin}/h5/pkg-circle/circles/invite-codes?id=c1`)
@@ -46,6 +47,15 @@ try {
   await page.getByRole('button', { name: '复制分享链接' }).click()
   const invited = await page.evaluate(() => navigator.clipboard.readText())
   assert.match(invited, /\/pkg-circle\/circles\/preview\?id=c1&code=JOIN123/)
+  const invitedUrl = new URL(invited)
+  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  await guestContext.route('**/*', routeFixture)
+  const landing = await guestContext.newPage()
+  await landing.goto(`${origin}${invitedUrl.pathname}${invitedUrl.search}`)
+  await landing.getByText('共读经典', { exact: true }).first().waitFor()
+  await landing.getByText('已填写邀请码 JOIN123 · 点击修改').waitFor()
+  await landing.getByText('免费加入', { exact: true }).waitFor()
+  await guestContext.close()
 
   codeUsed = true
   await page.goto(`${origin}/h5/pkg-circle/common/share-poster/index?type=circle&targetId=c1&code=JOIN123`)
@@ -62,7 +72,7 @@ try {
   assert.equal(generic.includes('code='), false)
   assert.deepEqual(writes, [])
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: 12, writes, errors, screenshot: resolve(artifactDir, 'invite-poster-h5.png'), export: resolve(artifactDir, 'invite-poster-export.png') }))
+  console.log(JSON.stringify({ passed: 15, writes, errors, inviteHost: invitedUrl.host, screenshot: resolve(artifactDir, 'invite-poster-h5.png'), export: resolve(artifactDir, 'invite-poster-export.png') }))
 } finally {
   await browser.close()
 }
