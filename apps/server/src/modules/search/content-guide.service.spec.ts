@@ -163,6 +163,18 @@ describe("ContentGuideService", () => {
     expect(result.cards[0].id).toBe("a1");
   });
 
+  it("无关的视频或商品命中不阻断知识问题的主题补检", async () => {
+    mockSearch.search.mockResolvedValueOnce({
+      articles: [], classics: [], contents: [],
+      videos: [{ id: "v1", title: "无关视频" }],
+      products: [{ id: "p1", title: "无关商品" }],
+    });
+    mockSearch.search.mockResolvedValueOnce({ articles: [{ id: "a1", title: "论语导读" }] });
+    const result = await svc.guide("论语中的仁是什么意思");
+    expect(mockSearch.search).toHaveBeenCalledTimes(2);
+    expect(result.cards.map((card) => card.id)).toEqual(["a1"]);
+  });
+
   it("AI 导览每次按最新发布状态检索，不使用旧搜索缓存", async () => {
     await svc.guide("论语");
     expect(mockSearch.search).toHaveBeenCalledWith({ q: "论语", page: 1, pageSize: 20, fresh: true });

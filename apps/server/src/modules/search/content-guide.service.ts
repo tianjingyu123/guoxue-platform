@@ -20,8 +20,15 @@ export class ContentGuideService {
     "古琴", "风水", "奇门", "六爻", "节气", "国学", "礼仪", "蒙学",
   ];
 
-  private hasCards(result: Record<string, unknown>): boolean {
-    return ["articles", "classics", "courses", "circles", "contents", "videos", "products"]
+  private hasCards(result: Record<string, unknown>, query: string): boolean {
+    const eligibleGroups = [
+      "articles", "classics", "contents",
+      ...(wantsCourseResources(query) ? ["courses"] : []),
+      ...(wantsCircleResources(query) ? ["circles"] : []),
+      ...(wantsVideoResources(query) ? ["videos"] : []),
+      ...(wantsProductResources(query) ? ["products"] : []),
+    ];
+    return eligibleGroups
       .some((key) => Array.isArray(result[key]) && (result[key] as unknown[]).length > 0);
   }
 
@@ -34,7 +41,7 @@ export class ContentGuideService {
 
     let raw = await this.search.search({ q, page: 1, pageSize: 20, fresh: true });
     // 自然问句通常不会完整出现在标题中；零命中时用明确出现的主题词补检一次。
-    if (!this.hasCards(raw as Record<string, unknown>)) {
+    if (!this.hasCards(raw as Record<string, unknown>, q)) {
       const topic = this.topics.find((item) => q.includes(item));
       if (topic && topic !== q) raw = await this.search.search({ q: topic, page: 1, pageSize: 20, fresh: true });
     }
