@@ -3,7 +3,8 @@
    主题色统一为商城 #9A2D2D。
    ============================================================ */
 
-import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { parseAfterSaleEvidence } from '@/utils/after-sale-evidence'
 
 /* —— 售后申请 —— */
 export const afterSaleReasons = [
@@ -346,6 +347,7 @@ function buildAfterSaleTimeline(a: RawAfterSale): AfterSaleTimelineNode[] {
 
 /** 后端 enriched AfterSale → 前端售后详情 */
 function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
+  const evidence = parseAfterSaleEvidence(a.reason)
   const isRejected = a.status === 'REJECTED'
   const type = asType(a.type)
   const parsedLogistics = parseAfterSaleLogistics(a.logistics)
@@ -356,10 +358,10 @@ function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
     orderNo: shortNo(a.orderId),
     type: asType(a.type),
     status: AS_STATUS_MAP[a.status || ''] || 'pending',
-    reason: a.reason || '',
+    reason: evidence.reason,
     amount: _num(a.amount ?? a.order?.amount),
     description: undefined,
-    images: [],
+    images: evidence.images,
     product: {
       id: a.product?.id || '',
       name: a.product?.title || '商品',
@@ -400,10 +402,9 @@ function adaptAddress(a: RawAddress): ShippingAddressItem {
 
 export const accountApi = {
   /** 售后列表（真连 /shop/after-sales，错误向上抛由页面三态处理） */
-  async afterSales(): Promise<AfterSaleListItem[]> {
-    const res = await apiGet<RawAfterSale[] | { items?: RawAfterSale[] }>('/shop/after-sales?page=1&pageSize=100')
-    const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
-    return list.map(adaptAfterSaleListItem)
+  async afterSalesPage(page = 1): Promise<{ items: AfterSaleListItem[]; total: number; page: number; pageSize: number }> {
+    const res = await apiGetPaged<RawAfterSale>(`/shop/after-sales?page=${page}&pageSize=20`)
+    return { ...res, items: res.items.map(adaptAfterSaleListItem) }
   },
 
   /** 售后详情 */

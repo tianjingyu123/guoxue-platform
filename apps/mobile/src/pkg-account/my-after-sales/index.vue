@@ -28,7 +28,7 @@
         <view @tap="fetchData">重试</view>
       </view>
       <template v-else>
-        <view v-if="filtered.length === 0" class="empty">
+        <view v-if="filtered.length === 0 && !hasMore" class="empty">
           <view class="empty-icon">
             <app-icon name="package" :size="80" color="#999999" />
           </view>
@@ -88,6 +88,9 @@
           </view>
         </view>
 
+        <view v-if="hasMore || pageError" class="page-more" role="button" tabindex="0" @tap="loadMore" @keydown.enter="loadMore" @keydown.space.prevent="loadMore">
+          {{ loadingMore ? '加载中...' : pageError ? `加载失败，点击重试：${pageError}` : '加载更多售后记录' }}
+        </view>
         <view class="bottom-gap" />
       </template>
     </scroll-view>
@@ -131,6 +134,10 @@ const list = ref<AfterSaleListItem[]>([])
 const cancelId = ref('')
 const loading = ref(false)
 const error = ref('')
+const loadingMore = ref(false)
+const pageError = ref('')
+const nextPage = ref(1)
+const hasMore = ref(false)
 
 const filtered = computed(() => {
   if (!activeTab.value) return list.value
@@ -148,15 +155,35 @@ let loaded = false
 async function fetchData(silent = false) {
   silent = silent === true
   if (!silent) { loading.value = true; error.value = '' }
+  pageError.value = ''
   try {
-    const data = await accountApi.afterSales()
-    list.value = data || []
+    const data = await accountApi.afterSalesPage(1)
+    list.value = data.items
+    nextPage.value = 2
+    hasMore.value = data.page * data.pageSize < data.total
     loaded = true
     error.value = ''
   } catch (e) {
     if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     if (!silent) loading.value = false
+  }
+}
+
+async function loadMore() {
+  if (loadingMore.value || (!hasMore.value && !pageError.value)) return
+  loadingMore.value = true
+  pageError.value = ''
+  try {
+    const data = await accountApi.afterSalesPage(nextPage.value)
+    const seen = new Set(list.value.map((item) => item.id))
+    list.value = [...list.value, ...data.items.filter((item) => !seen.has(item.id))]
+    nextPage.value = data.page + 1
+    hasMore.value = data.page * data.pageSize < data.total
+  } catch (e) {
+    pageError.value = (e as Error)?.message || '请重试'
+  } finally {
+    loadingMore.value = false
   }
 }
 
@@ -422,6 +449,7 @@ async function doCancel() {
   color: #FFFFFF;
 }
 
+.page-more { margin: 20rpx 32rpx; padding: 24rpx; text-align: center; color: #8A3636; font-size: 26rpx; }
 .bottom-gap {
   height: 40rpx;
 }

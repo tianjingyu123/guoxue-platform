@@ -51,7 +51,7 @@
 
         <!-- 证据图片 -->
         <view class="card">
-          <text class="section-title">证据图片 <text class="req">*</text><text class="section-sub">（聊天记录、商品照片等）</text></text>
+          <text class="section-title">证据图片 <text class="section-sub">（选填，最多5张）</text></text>
           <view class="upload-wrap">
             <view v-for="(img, i) in form.images" :key="i" class="upload-item">
               <image lazy-load class="upload-img" :src="img" mode="aspectFill" />
@@ -59,7 +59,8 @@
                 <app-icon name="x" :size="24" color="#FFFFFF" />
               </view>
             </view>
-            <view v-if="form.images.length < 5" class="upload-add" @tap="addImage">
+            <view v-for="n in uploadingCount" :key="'upload-' + n" class="upload-item upload-loading"><text>上传中</text></view>
+            <view v-if="form.images.length + uploadingCount < 5" class="upload-add" @tap="addImage">
               <app-icon name="camera" :size="48" color="#999999" />
               <text class="upload-hint">{{ form.images.length }}/5</text>
             </view>
@@ -83,8 +84,8 @@
           <view class="tips-body">
             <text class="tips-title">温馨提示</text>
             <text class="tips-li">1. 请如实填写申诉信息，提供有效证据</text>
-            <text class="tips-li">2. 我们将在1-3个工作日内处理您的申诉</text>
-            <text class="tips-li">3. 处理结果将通过站内消息通知您</text>
+            <text class="tips-li">2. 提交后可在“我的申诉”查看处理状态</text>
+            <text class="tips-li">3. 如需补充材料或核对退款，请联系在线客服</text>
           </view>
         </view>
 
@@ -119,6 +120,9 @@
             </view>
             <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
           </view>
+        </view>
+        <view v-if="hasMore || pageError" class="page-more" role="button" tabindex="0" @tap="loadMoreDisputes" @keydown.enter="loadMoreDisputes" @keydown.space.prevent="loadMoreDisputes">
+          {{ loadingMore ? '加载中...' : pageError ? `加载失败，点击重试：${pageError}` : '加载更多申诉记录' }}
         </view>
       </block>
 
@@ -191,8 +195,8 @@
 
     <!-- 底部操作 -->
     <view v-if="view === 'create'" class="action-bar" :style="{ paddingBottom: safeBottom + 'px' }">
-      <view class="submit-btn" @tap="submit">
-        <text class="submit-text">提交申诉</text>
+      <view class="submit-btn" :class="{ disabled: submitting || uploadingCount > 0 }" @tap="submit">
+        <text class="submit-text">{{ uploadingCount > 0 ? '图片上传中' : submitting ? '提交中' : '提交申诉' }}</text>
       </view>
     </view>
     <view v-else-if="view === 'detail' && detail.canCancel" class="action-bar" :style="{ paddingBottom: safeBottom + 'px' }">
@@ -215,6 +219,7 @@ import {
   type DisputeListItem,
 } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
+import { uploadImage } from '@/utils/request'
 
 const safeBottom = ref(0)
 
@@ -227,6 +232,10 @@ const orderId = ref('')
 // 申诉订单简要对象，create 视图 v-else-if 内裸访问多字段，收敛会触发 possibly-null，保留 any
 const order = ref<any>(null)
 const disputes = ref<DisputeListItem[]>([])
+const loadingMore = ref(false)
+const pageError = ref('')
+const nextPage = ref(1)
+const hasMore = ref(false)
 // 申诉详情对象，detail 视图 v-else 内裸访问多字段，收敛会触发 possibly-null，保留 any
 const detail = ref<any>(null)
 
@@ -238,7 +247,11 @@ async function loadData() {
       // 从路由参数获取 orderId，加载订单简要供申诉表单展示
       order.value = await orderApi.getDisputeOrder(orderId.value)
     } else if (view.value === 'list') {
-      disputes.value = await orderApi.getDisputes()
+      const data = await orderApi.getDisputesPage(1)
+      disputes.value = data.items
+      nextPage.value = 2
+      hasMore.value = data.page * data.pageSize < data.total
+      pageError.value = ''
     } else {
       // detail view loads on openDetail
     }
@@ -256,6 +269,7 @@ const form = reactive({
   images: [] as string[],
   expectation: '',
 })
+const uploadingCount = ref(0)
 
 const submitting = ref(false)
 
@@ -310,9 +324,35 @@ async function openDetail(_id: string) {
 
 function addImage() {
   uni.chooseImage({
-    count: 6 - form.images.length,
-    success: (res) => form.images.push(...(res.tempFilePaths as string[])),
+    count: 5 - form.images.length - uploadingCount.value,
+    success: (res) => {
+      for (const path of (res.tempFilePaths as string[])) {
+        uploadingCount.value++
+        uploadImage(path).then((url) => {
+          if (form.images.length < 5) form.images.push(url)
+        }).catch((e) => {
+          uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
+        }).finally(() => { uploadingCount.value-- })
+      }
+    },
   })
+}
+
+async function loadMoreDisputes() {
+  if (loadingMore.value || (!hasMore.value && !pageError.value)) return
+  loadingMore.value = true
+  pageError.value = ''
+  try {
+    const data = await orderApi.getDisputesPage(nextPage.value)
+    const seen = new Set(disputes.value.map((item) => item.id))
+    disputes.value = [...disputes.value, ...data.items.filter((item) => !seen.has(item.id))]
+    nextPage.value = data.page + 1
+    hasMore.value = data.page * data.pageSize < data.total
+  } catch (e) {
+    pageError.value = (e as Error)?.message || '请重试'
+  } finally {
+    loadingMore.value = false
+  }
 }
 function removeImage(i: number) {
   form.images.splice(i, 1)
@@ -323,6 +363,10 @@ function previewImage(urls: string[], current: number) {
 
 async function submit() {
   if (submitting.value) return
+  if (uploadingCount.value > 0) {
+    uni.showToast({ title: '请等待图片上传完成', icon: 'none' })
+    return
+  }
   if (!form.description.trim()) {
     uni.showToast({ title: '请填写问题描述', icon: 'none' })
     return
@@ -780,6 +824,7 @@ async function cancelDispute() {
   color: #999999;
 }
 
+.page-more { margin: 20rpx 32rpx; padding: 24rpx; text-align: center; color: var(--brand); font-size: 26rpx; }
 .bottom-gap {
   height: 160rpx;
 }
@@ -801,6 +846,8 @@ async function cancelDispute() {
   align-items: center;
   justify-content: center;
 }
+.submit-btn.disabled { opacity: 0.55; }
+.upload-loading { display: flex; align-items: center; justify-content: center; color: #666666; font-size: 24rpx; }
 .submit-text {
   font-size: 30rpx;
   font-weight: 600;
