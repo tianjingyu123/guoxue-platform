@@ -424,6 +424,7 @@ function openVoice() {
 const paywall = ref<AiReportAccess | null>(null)
 const checkingAccess = ref(false)
 const buyingReport = ref(false)
+const pendingReportOrder = ref<{ id: string; amount: number; targetId: string } | null>(null)
 let lastAccessEvent = ''
 
 async function checkAccessThenLoad() {
@@ -439,6 +440,7 @@ async function checkAccessThenLoad() {
     }
     if (access.granted) {
       paywall.value = null
+      pendingReportOrder.value = null
       load()
     } else {
       paywall.value = access
@@ -452,14 +454,31 @@ async function checkAccessThenLoad() {
 
 async function buyReport() {
   if (buyingReport.value || !paywall.value) return
+  const offer = paywall.value
   buyingReport.value = true
-  track.custom('paipan_report_buy_click', { reportType: paywall.value.reportType })
+  track.custom('paipan_report_buy_click', { reportType: offer.reportType })
   try {
+    const targetId = `${recordId.value}:${offer.reportType}`
+    if (pendingReportOrder.value?.targetId === targetId) {
+      const previous = pendingReportOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (!paywall.value) return
+      if (state.status === 'PENDING') {
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingReportOrder.value = null
+      if (state.paid) { await checkAccessThenLoad(); return }
+    }
     // 金额由服务端计算（29 元），targetId = 排盘记录:报告类型
-    const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId: `${recordId.value}:${paywall.value.reportType}`, quantity: 1 })
+    const order = await shopApi.createOrder({ type: 'XIAOBU_REPORT', targetId, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-    track.custom('paipan_report_order_created', { reportType: paywall.value.reportType })
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || paywall.value.priceYuan || 0}`)
+    pendingReportOrder.value = { id: order.id, amount: Number(order.amount) || offer.priceYuan || 0, targetId }
+    track.custom('paipan_report_order_created', { reportType: offer.reportType })
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingReportOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

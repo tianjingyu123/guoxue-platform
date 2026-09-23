@@ -23,6 +23,7 @@ import { wsApi, type ProStatus } from '../lib/workspace-api'
 const loading = ref(true)
 const pro = ref<ProStatus | null>(null)
 const purchasing = ref(false)
+const pendingOrder = ref<{ id: string; amount: number } | null>(null)
 
 /** 会员权益（对应后端的分级闸门，别在这里写后端没实现的承诺） */
 const PERKS = [
@@ -52,11 +53,25 @@ async function purchase() {
   purchasing.value = true
   track.custom('practitioner_pro_buy_click', { renewal: !!pro.value?.isPro })
   try {
+    if (pendingOrder.value) {
+      const previous = pendingOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (state.status === 'PENDING') {
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingOrder.value = null
+      if (state.paid) { await load(); return }
+    }
     // 服务端按 CommissionConfig 真价计费，前端传的任何金额都无效（防篡改）
     const order = await shopApi.createOrder({ type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
+    pendingOrder.value = { id: order.id, amount: Number(order.amount) || pro.value?.price || 0 }
     track.custom('practitioner_pro_order_created', { renewal: !!pro.value?.isPro })
-    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${Number(order.amount) || pro.value?.price || 0}`)
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请稍后重试', icon: 'none' })
   } finally {

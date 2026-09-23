@@ -18,6 +18,7 @@ const loading = ref(true)
 const error = ref('')
 const picked = ref('')
 const buying = ref(false)
+const pendingOrder = ref<{ id: string; amount: number; planKey: string } | null>(null)
 const returnRecordId = ref('')
 onLoad((q) => { returnRecordId.value = String(q?.recordId || '') })
 
@@ -54,13 +55,29 @@ async function load() {
 
 async function buy() {
   if (buying.value || !pickedPlan.value) return
+  const plan = pickedPlan.value
   buying.value = true
   try {
+    if (pendingOrder.value?.planKey === plan.key) {
+      const previous = pendingOrder.value
+      const state = await shopApi.getOrderPayState(previous.id)
+      if (state.status === 'PENDING') {
+        const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}${returnQuery}`)
+        return
+      }
+      if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
+        throw new Error('暂时无法确认原订单状态，请稍后重试')
+      }
+      pendingOrder.value = null
+      if (state.paid) { await load(); return }
+    }
     // 金额由服务端按档位计算，这里的数量固定 1
-    const order = await shopApi.createOrder({ type: 'XIAOBU_MEMBER', targetId: pickedPlan.value.key, quantity: 1 })
+    const order = await shopApi.createOrder({ type: 'XIAOBU_MEMBER', targetId: plan.key, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
+    pendingOrder.value = { id: order.id, amount: Number(order.amount) || plan.priceYuan, planKey: plan.key }
     const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
-    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${Number(order.amount) || pickedPlan.value.priceYuan}${returnQuery}`)
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}${returnQuery}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {
