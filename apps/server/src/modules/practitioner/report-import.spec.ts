@@ -33,6 +33,8 @@ function setup(opts?: { pro?: boolean; reportCount?: number; analysisContent?: s
     });
 
   const prisma: any = {
+    $transaction: jest.fn(async (callback: (db: any) => Promise<any>) => callback(prisma)),
+    $queryRaw: jest.fn().mockResolvedValue([]),
     paipanRecord: {
       findUnique: jest.fn(async () => ({ userId: opts?.ownerId ?? "teacher-1", clientName: "张某" })),
     },
@@ -188,6 +190,18 @@ describe("小卜报告导入工作台", () => {
     expect(prisma.practitionerReport.findFirst).toHaveBeenCalledWith({
       where: { ownerId: "teacher-1", paipan: { path: ["sourceReportId"], equals: "xb-1" } },
     });
+  });
+
+  it("手工新建占用最后一份免费配额后，导入不能再超额建稿", async () => {
+    const { svc, prisma, created } = setup({ pro: false });
+    prisma.practitionerReport.count.mockImplementation(async () => 2 + created.length);
+    await svc.createReport("teacher-1", {
+      type: "bazi", typeLabel: "八字命书", title: "手工报告", clientName: "客户",
+    });
+    await expect(svc.importFromXiaobuReport("teacher-1", { reportId: "xb-1" }))
+      .rejects.toThrow("开通从业者会员");
+    expect(created).toHaveLength(1);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
 
   it("退款后当前权益失效时拒绝重新导入", async () => {

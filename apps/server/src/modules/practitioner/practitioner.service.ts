@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "node:crypto";
 import { safePagination } from "../../common/pagination";
 import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
+import { Prisma } from "@prisma/client";
 
 /**
  * 从业者工作台（V0「从业者工作台」的真后端）
@@ -144,12 +145,22 @@ export class PractitionerService {
   }
 
   /** 报告配额：会员不限，免费用户 FREE_REPORT_QUOTA 份 */
-  private async reportQuota(userId: string) {
-    const [pro, used] = await Promise.all([
-      this.isPro(userId),
-      this.prisma.practitionerReport.count({ where: { ownerId: userId } }),
+  private async reportQuota(userId: string, db: Prisma.TransactionClient = this.prisma) {
+    const [profile, used] = await Promise.all([
+      db.practitionerProfile.findUnique({ where: { userId }, select: { proExpireAt: true } }),
+      db.practitionerReport.count({ where: { ownerId: userId } }),
     ]);
+    const pro = !!profile?.proExpireAt && profile.proExpireAt > new Date();
     return { used, limit: pro ? null : PractitionerService.FREE_REPORT_QUOTA, unlimited: pro };
+  }
+
+  /** 同一老师的手建与导入共用锁，避免并发重复导入或越过免费配额。 */
+  private withReportWriteLock<T>(userId: string, action: (db: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async (db) => {
+      // 事务级咨询锁在提交后自动释放；哈希碰撞只会导致额外串行，不会串错数据。
+      await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`practitioner-report:${userId}`}))`;
+      return action(db);
+    });
   }
 
   async getReport(userId: string, id: string) {
@@ -159,28 +170,30 @@ export class PractitionerService {
   }
 
   async createReport(userId: string, dto: any) {
-    const q = await this.reportQuota(userId);
-    if (!q.unlimited && q.used >= (q.limit ?? 0)) {
-      throw new BusinessException(
-        ErrorCode.FORBIDDEN,
-        `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
-      );
-    }
-    return this.prisma.practitionerReport.create({
-      data: {
-        ownerId: userId,
-        clientId: dto.clientId ?? null,
-        toolKey: dto.toolKey ?? null,
-        type: dto.type,
-        typeLabel: dto.typeLabel,
-        title: dto.title,
-        clientName: dto.clientName,
-        clientBirth: dto.clientBirth ?? null,
-        status: dto.status ?? "draft",
-        style: dto.style ?? "classic",
-        paipan: dto.paipan ?? undefined,
-        chapters: dto.chapters ?? undefined,
-      },
+    return this.withReportWriteLock(userId, async (db) => {
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: dto.clientId ?? null,
+          toolKey: dto.toolKey ?? null,
+          type: dto.type,
+          typeLabel: dto.typeLabel,
+          title: dto.title,
+          clientName: dto.clientName,
+          clientBirth: dto.clientBirth ?? null,
+          status: dto.status ?? "draft",
+          style: dto.style ?? "classic",
+          paipan: dto.paipan ?? undefined,
+          chapters: dto.chapters ?? undefined,
+        },
+      });
     });
   }
 
@@ -229,12 +242,6 @@ export class PractitionerService {
     }
     await this.commerce.assertReportAccess(userId, rec.paipanRecordId, reportType);
 
-    // 同一源报告只需一份工作台草稿。先查已有件再核配额，避免已达上限时回不到原稿。
-    const imported = await this.prisma.practitionerReport.findFirst({
-      where: { ownerId: userId, paipan: { path: ["sourceReportId"], equals: rec.id } },
-    });
-    if (imported) return imported;
-
     const paipanType = String(content?.metadata?.paipanType || "bazi");
     const TYPE_LABEL: Record<string, string> = {
       bazi: "八字命书",
@@ -281,41 +288,49 @@ export class PractitionerService {
         };
       });
 
-    const q = await this.reportQuota(userId);
-    if (!q.unlimited && q.used >= (q.limit ?? 0)) {
-      throw new BusinessException(
-        ErrorCode.FORBIDDEN,
-        `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
-      );
-    }
+    return this.withReportWriteLock(userId, async (db) => {
+      // 拿到锁后再查已有件：两台设备同时首次导入时，后到者直接回到先建的稿。
+      const imported = await db.practitionerReport.findFirst({
+        where: { ownerId: userId, paipan: { path: ["sourceReportId"], equals: rec.id } },
+      });
+      if (imported) return imported;
 
-    return this.prisma.practitionerReport.create({
-      data: {
-        ownerId: userId,
-        clientId: input.clientId ?? null,
-        toolKey: paipanType,
-        type: paipanType,
-        typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
-        title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
-        clientName: input.clientName?.trim() || sourceChart.clientName?.trim() || "未命名客户",
-        status: "draft",
-        style: "classic",
-        // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
-        // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
-        paipan: {
+      const q = await this.reportQuota(userId, db);
+      if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+        throw new BusinessException(
+          ErrorCode.FORBIDDEN,
+          `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+        );
+      }
+
+      return db.practitionerReport.create({
+        data: {
+          ownerId: userId,
+          clientId: input.clientId ?? null,
           toolKey: paipanType,
-          toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
-          // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
-          // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
-          summary: rec.inputSummary || "",
-          data: {
-            facts: content?.facts ?? null,
-            chartView: content?.chartView ?? null,
-          },
-          sourceReportId: rec.id,
-        } as any,
-        chapters: chapters as any,
-      },
+          type: paipanType,
+          typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+          title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
+          clientName: input.clientName?.trim() || sourceChart.clientName?.trim() || "未命名客户",
+          status: "draft",
+          style: "classic",
+          // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
+          // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
+          paipan: {
+            toolKey: paipanType,
+            toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+            // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
+            // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
+            summary: rec.inputSummary || "",
+            data: {
+              facts: content?.facts ?? null,
+              chartView: content?.chartView ?? null,
+            },
+            sourceReportId: rec.id,
+          } as any,
+          chapters: chapters as any,
+        },
+      });
     });
   }
 
