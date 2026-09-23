@@ -101,17 +101,28 @@ export class XiaozhiAlertTask {
     const bucket = Math.floor(now / 300_000) - 1;
     const delivered: XiaozhiAlert[] = [];
     // 先补历史失败项；本轮计数或数据库读取失败，也不阻断已有待发告警。
-    for (let old = bucket - 1; old >= bucket - 11; old--) {
-      try {
-        const pending: XiaozhiAlert[] = [];
-        for (const key of ALERT_KEYS) {
-          const raw = await this.redis.get(`xz:alert:pending:${old}:${key}`);
-          if (raw) pending.push(JSON.parse(raw) as XiaozhiAlert);
-        }
-        if (pending.length) delivered.push(...await this.deliver(old, pending));
-      } catch (e: any) {
-        this.logger.warn(`小卜硬件历史告警补发失败：${old}：${e?.message || e}`);
+    try {
+      const keys: string[] = [];
+      for (let old = bucket - 1; old >= bucket - 11; old--) {
+        for (const key of ALERT_KEYS) keys.push(`xz:alert:pending:${old}:${key}`);
       }
+      // 一次 MGET 取回全部历史待发项，避免每分钟做 66 次串行 Redis 往返。
+      const records = await this.redis.mgetJson<XiaozhiAlert>(keys);
+      for (let i = 0; i < keys.length; i += ALERT_KEYS.length) {
+        const old = bucket - 1 - i / ALERT_KEYS.length;
+        const pending = records.slice(i, i + ALERT_KEYS.length).filter((a, offset): a is XiaozhiAlert =>
+          !!a && a.key === ALERT_KEYS[offset] && typeof a.title === "string" && typeof a.detail === "string",
+        );
+        if (pending.length) {
+          try {
+            delivered.push(...await this.deliver(old, pending));
+          } catch (e: any) {
+            this.logger.warn(`小卜硬件历史告警补发失败：${old}：${e?.message || e}`);
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`小卜硬件历史待发告警读取失败：${e?.message || e}`);
     }
     try {
       const counts = await this.link.windowCounts(bucket);
@@ -150,7 +161,7 @@ export class XiaozhiAlertTask {
         }
       }
     } finally {
-      if (await this.redis.get(lockKey) === lockId) await this.redis.del(lockKey);
+      await this.redis.compareAndDelete(lockKey, lockId);
     }
     return delivered;
   }

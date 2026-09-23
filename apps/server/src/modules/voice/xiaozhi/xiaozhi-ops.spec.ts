@@ -129,6 +129,7 @@ describe("小智协议终端 · 告警任务", () => {
   it("跨五分钟窗口补发；本轮计数读取失败也能发送历史待发项", async () => {
     sent.length = 0;
     const redis = new RedisService();
+    const batchRead = jest.spyOn(redis, "mgetJson");
     const now = Date.UTC(2026, 8, 22, 8, 20, 30);
     const firstBucket = Math.floor(now / 300_000) - 1;
     let failDelivery = true;
@@ -147,6 +148,7 @@ describe("小智协议终端 · 告警任务", () => {
     failDelivery = false;
     failRead = true;
     expect((await task.run(now + 5 * 60_000)).map((a) => a.key)).toEqual(["xz:auth_fail"]);
+    expect(batchRead).toHaveBeenCalledTimes(2);
     failRead = false;
     expect(await task.run(now + 6 * 60_000)).toEqual([]);
     expect(sent).toEqual(["小卜硬件：连接鉴权失败激增"]);
