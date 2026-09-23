@@ -146,8 +146,8 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除报告" })
-  deleteReport(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.deleteReport(req.user.id, id);
+  deleteReport(@Req() req: Request, @Param("id") id: string, @Body() dto?: { updatedAt?: string }) {
+    return this.svc.deleteReport(req.user.id, id, dto?.updatedAt);
   }
 
   @Post("reports/:id/share")

@@ -44,6 +44,7 @@ const nType = ref(REPORT_TYPES[0].key)
 const nClient = ref('')
 const nBirth = ref('')
 const creating = ref(false)
+const deletingId = ref('')
 
 const quotaText = computed(() =>
   quota.value.unlimited
@@ -110,6 +111,7 @@ function goPro() {
 }
 
 async function createReport() {
+  if (creating.value) return
   if (!nClient.value.trim()) {
     uni.showToast({ title: '请填客户称呼', icon: 'none' })
     return
@@ -145,20 +147,32 @@ async function createReport() {
   }
 }
 
-function confirmDelete(r: ReportRecord) {
-  uni.showModal({
-    title: '删除报告',
-    content: `确定删除「${r.title}」？删除后不可恢复。`,
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        await wsApi.deleteReport(r.id)
-        await load()
-      } catch (e: any) {
-        uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
-      }
-    },
-  })
+async function confirmDelete(r: ReportRecord) {
+  if (deletingId.value) return
+  deletingId.value = r.id
+  try {
+    const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
+      title: '删除报告',
+      content: r.shareToken || r.status === 'delivered'
+        ? `确定删除「${r.title}」？客户将无法再打开已交付链接，报告也无法恢复。`
+        : `确定删除「${r.title}」？删除后不可恢复。`,
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    }))
+    if (!confirmed) return
+    if (!r.updatedAt) {
+      uni.showToast({ title: '报告版本缺失，请刷新列表后再删除', icon: 'none' })
+      await load()
+      return
+    }
+    await wsApi.deleteReport(r.id, r.updatedAt)
+    await load()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+    if (e?.message?.includes('报告状态已变化')) await load()
+  } finally {
+    deletingId.value = ''
+  }
 }
 
 function dateText(iso?: string): string {

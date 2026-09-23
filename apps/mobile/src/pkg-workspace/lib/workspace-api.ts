@@ -140,7 +140,7 @@ export const wsApi = {
   importXiaobuReport: (p: { reportId: string; clientId?: string; clientName?: string; title?: string }) =>
     apiPost<ReportRecord>('/practitioner/reports/import-xiaobu', p),
   updateReport: (id: string, r: Partial<ReportRecord>) => apiPut<ReportRecord>(`/practitioner/reports/${id}`, r),
-  deleteReport: (id: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`),
+  deleteReport: (id: string, updatedAt: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`, { updatedAt }),
   shareReport: (id: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`),
   unshareReport: (id: string, shareToken: string) => apiDelete<{ success: boolean; updatedAt: string; shareToken: string | null; sharedAt: string | null; status: ReportRecord['status'] }>(`/practitioner/reports/${id}/share`, { shareToken }),
   sharedReport: (token: string) => apiGet<any>(`/practitioner/reports/shared/${token}`),

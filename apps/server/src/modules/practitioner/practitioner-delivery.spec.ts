@@ -13,6 +13,7 @@ function setup(shareToken: string | null) {
         return { count: 1 };
       }),
       update: jest.fn(async ({ data }: any) => Object.assign(report, data, { updatedAt: new Date(report.updatedAt.getTime() + 1000) })),
+      deleteMany: jest.fn(async ({ where }: any) => ({ count: where.updatedAt?.getTime() === report.updatedAt.getTime() ? 1 : 0 })),
     },
   };
   return { service: new PractitionerService(prisma, {} as any), prisma, report };
@@ -41,6 +42,25 @@ describe("从业者报告交付后锁定", () => {
     await expect(service.updateReport("teacher-1", "report-1", { title: "旧编辑页内容", updatedAt: oldVersion }))
       .rejects.toThrow("其他设备修改");
     expect(report.title).toBe("原稿");
+  });
+
+  it("列表里的报告状态已变化时，旧页面不能按过期确认删除", async () => {
+    const { service, prisma, report } = setup(null);
+    const oldVersion = report.updatedAt.toISOString();
+    report.shareToken = "new-link";
+    report.updatedAt = new Date(report.updatedAt.getTime() + 1000);
+
+    await expect(service.deleteReport("teacher-1", "report-1", oldVersion))
+      .rejects.toThrow("报告状态已变化");
+    expect(prisma.practitionerReport.deleteMany).toHaveBeenCalledWith({
+      where: { id: "report-1", ownerId: "teacher-1", updatedAt: new Date(oldVersion) },
+    });
+  });
+
+  it("列表版本未变化时仍可删除报告", async () => {
+    const { service, report } = setup(null);
+    await expect(service.deleteReport("teacher-1", "report-1", report.updatedAt.toISOString()))
+      .resolves.toEqual({ success: true });
   });
 
   it("交付标记为 delivered，撤回后回到可编辑的 final", async () => {

@@ -364,9 +364,16 @@ export class PractitionerService {
     return this.getReport(userId, id);
   }
 
-  async deleteReport(userId: string, id: string) {
+  async deleteReport(userId: string, id: string, expectedVersion?: string) {
     await this.getReport(userId, id);
-    await this.prisma.practitionerReport.delete({ where: { id } });
+    const expectedUpdatedAt = expectedVersion === undefined ? undefined : new Date(expectedVersion);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请刷新列表后再删除");
+    }
+    const deleted = await this.prisma.practitionerReport.deleteMany({
+      where: { id, ownerId: userId, updatedAt: expectedUpdatedAt },
+    });
+    if (!deleted.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告状态已变化，请刷新列表后确认再删除");
     return { success: true };
   }
 
