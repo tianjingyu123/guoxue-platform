@@ -156,6 +156,26 @@ export class CircleKnowledgeController {
     return this.knowledge.rejectCandidate(circleId, candidateId);
   }
 
+  // ───────── 只读知识检索（MCP 用）──────────
+
+  @Get(":circleId/knowledge/search")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "只读检索圈子知识（有效成员，仅返回已发布片段）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非有效成员" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "q", required: true, description: "检索关键词" })
+  @ApiQuery({ name: "topK", required: false, description: "返回条数，默认5" })
+  async searchKnowledge(
+    @Param("circleId") circleId: string,
+    @Query("q") q: string,
+    @Query("topK") topK: number,
+    @Req() req: Request,
+  ) {
+    return this.knowledge.search(circleId, req.user.id, q, topK ? Number(topK) : 5);
+  }
+
   // ───────── 知识库导出 ─────────
 
   @Get(":circleId/knowledge/export/json")

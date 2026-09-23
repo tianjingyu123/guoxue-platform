@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { ModerationService } from "../audit/moderation.service";
 import type { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { safePagination } from "../../common/pagination";
 import {
@@ -20,7 +21,40 @@ export class CircleKnowledgeService {
     private readonly prisma: PrismaService,
     private readonly vector: VectorService,
     private readonly aiGateway: AiGatewayService,
+    private readonly moderation: ModerationService,
   ) {}
+
+  /**
+   * 内容审核闸门（2026-09-14 接入，修复交接书「知识入库不过内容审核」实质缺口）：
+   * - Block → 抛异常拒绝入库
+   * - Review → 置 pending，不进向量索引，等待人工复核
+   * - Pass → 正常入库
+   * - 审核服务不可用/异常 → fail-closed 置 pending（绝不静默放行）
+   * 返回入库时应使用的 status。
+   */
+  private async moderateKnowledgeContent(content: string): Promise<string> {
+    try {
+      const result = await this.moderation.textModeration({ content });
+      const suggestion = this.moderation.getTextSuggestion(result);
+      if (suggestion === "Block") {
+        const labels = this.moderation.getBlockedLabels(result).join("、");
+        throw new BusinessException(
+          ErrorCode.CONTENT_MODERATION_BLOCKED,
+          `内容未通过审核${labels ? `（${labels}）` : ""}`,
+        );
+      }
+      if (suggestion === "Review") {
+        this.logger.warn("知识内容审核为 Review，转入待复核");
+        return "pending";
+      }
+      return "active";
+    } catch (err) {
+      // 审核服务抛业务异常（Block）直接上抛；其余异常 fail-closed
+      if (err instanceof BusinessException) throw err;
+      this.logger.warn(`内容审核不可用，知识条目转 pending：${(err as Error)?.message || err}`);
+      return "pending";
+    }
+  }
 
   /**
    * 知识库管理鉴权（治理权限矩阵 #8·knowledge.manage·2026-07-11 起接入）：
@@ -67,6 +101,9 @@ export class CircleKnowledgeService {
       return existing;
     }
 
+    // 内容审核：Block 拒绝、Review 转 pending、服务不可用 fail-closed 转 pending
+    const moderationStatus = await this.moderateKnowledgeContent(params.content);
+
     const item = await this.prisma.circleKnowledge.create({
       data: {
         circleId: params.circleId,
@@ -75,13 +112,16 @@ export class CircleKnowledgeService {
         content: params.content,
         contentHash,
         addedBy: params.addedBy,
+        status: moderationStatus,
       },
     });
 
-    // 异步生成向量
-    this.indexItem(item.id, item.content).catch((err) =>
-      this.logger.error(`向量索引失败 id=${item.id}`, err),
-    );
+    // 仅审核通过的内容才生成向量（pending 内容不进检索，待复核通过后再索引）
+    if (moderationStatus === "active") {
+      this.indexItem(item.id, item.content).catch((err) =>
+        this.logger.error(`向量索引失败 id=${item.id}`, err),
+      );
+    }
 
     return item;
   }
@@ -149,16 +189,21 @@ export class CircleKnowledgeService {
     const item = await this.prisma.circleKnowledge.findUnique({ where: { id } });
     if (!item || item.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "知识条目不存在");
 
+    // 内容变更时重新审核（Block 拒绝、Review 转 pending、不可用 fail-closed）
+    const moderationStatus = await this.moderateKnowledgeContent(content);
+
     const contentHash = createHash("md5").update(content).digest("hex");
     const updated = await this.prisma.circleKnowledge.update({
       where: { id },
-      data: { content, contentHash },
+      data: { content, contentHash, status: moderationStatus },
     });
 
-    // 重新生成向量
-    this.indexItem(id, content).catch((err) =>
-      this.logger.error(`向量重新索引失败 id=${id}`, err),
-    );
+    // 仅审核通过的内容才重新生成向量
+    if (moderationStatus === "active") {
+      this.indexItem(id, content).catch((err) =>
+        this.logger.error(`向量重新索引失败 id=${id}`, err),
+      );
+    }
 
     return updated;
   }
@@ -406,6 +451,98 @@ export class CircleKnowledgeService {
     }
 
     return { markdown: md, filename: `knowledge-${circleId.slice(0, 8)}.md`, totalItems: json.totalItems };
+  }
+
+  // ───────── 只读知识检索（MCP 用）──────────
+
+  /**
+   * 校验调用者是该圈「有效成员」（读权限），否则拒绝。
+   * 身份由服务端从 JWT 绑定，绝不接受客户端传入 userId，防越权套取私有知识。
+   */
+  async assertActiveMember(circleId: string, userId?: string) {
+    if (!userId) throw new BusinessException(ErrorCode.FORBIDDEN, "请先登录");
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: { role: true, expireAt: true, circle: { select: { status: true, deletedAt: true } } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入该圈子才能检索圈子知识");
+    // 圈子被删除或停用后，成员不得继续通过助理/MCP 读取私有知识
+    if (member.circle && (member.circle.deletedAt || member.circle.status !== "ACTIVE")) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "该圈子当前不可用，暂不能检索圈子知识");
+    }
+    if (member.expireAt && new Date(member.expireAt) < new Date()) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "圈子会员已过期，请续费后使用");
+    }
+  }
+
+  /**
+   * 只读知识检索：返回与本圈相关的已发布知识片段 + 来源。
+   * - 仅返回 status=active 的条目（pending/removed 不外泄）
+   * - 只返回必要片段，不开放全库导出
+   * - 向量服务不可用时回退为关键词 LIKE 检索，保证可用性
+   */
+  async search(circleId: string, userId: string, query: string, topK = 5) {
+    await this.assertActiveMember(circleId, userId);
+
+    const q = (query || "").trim().slice(0, 200);
+    if (!q) return { query: "", hits: [] };
+    // 单次最多返回 10 条片段，防止通过放大 topK 变相整库导出
+    topK = Math.max(1, Math.min(10, Math.floor(Number(topK)) || 5));
+
+    // 向量检索
+    let hits: Array<{ id: string; content: string; sourceType: string; similarity: number }> = [];
+    try {
+      const [vec] = await this.vector.embed([q]);
+      if (vec) {
+        const results = await this.vector.searchCircleKnowledge(vec, circleId, topK);
+        hits = results.map((r) => ({
+          id: r.id,
+          content: r.content,
+          sourceType: "circle",
+          similarity: r.similarity,
+        }));
+      }
+    } catch (err) {
+      this.logger.warn(`向量检索失败，回退 LIKE：${(err as Error)?.message || err}`);
+    }
+
+    // 只信任 DB 中仍为 active 的条目（防向量索引滞后导致已撤回内容外泄）
+    if (hits.length > 0) {
+      const active = await this.prisma.circleKnowledge.findMany({
+        where: { circleId, status: "active", id: { in: hits.map((h) => h.id) } },
+        select: { id: true, sourceType: true, content: true },
+      });
+      const activeMap = new Map(active.map((a) => [a.id, a]));
+      hits = hits
+        .filter((h) => activeMap.has(h.id))
+        .map((h) => ({ ...h, content: activeMap.get(h.id)!.content }));
+    }
+
+    // 向量无命中或失败时，关键词兜底（仅 active）
+    if (hits.length === 0) {
+      const fallback = await this.prisma.circleKnowledge.findMany({
+        where: { circleId, status: "active", content: { contains: q } },
+        select: { id: true, sourceType: true, content: true },
+        orderBy: { addedAt: "desc" },
+        take: topK,
+      });
+      hits = fallback.map((f) => ({
+        id: f.id,
+        content: f.content,
+        sourceType: f.sourceType,
+        similarity: 0,
+      }));
+    }
+
+    return {
+      query: q,
+      hits: hits.map((h) => ({
+        id: h.id,
+        sourceType: h.sourceType,
+        content: h.content.slice(0, 500), // 只返回必要片段
+        similarity: Math.round((h.similarity || 0) * 1000) / 1000,
+      })),
+    };
   }
 
   // ───────── 内部工具 ─────────

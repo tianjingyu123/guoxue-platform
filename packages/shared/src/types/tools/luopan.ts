@@ -2,7 +2,12 @@
 // 综合罗盘：三合盘/三元盘/综合盘，含风水指导意见
 
 /** 罗盘类型 */
-export type LuoPanType = "sanhe" | "sanyuan" | "zonghe";
+/**
+ * 盘制。
+ * 🔴 2026-09-19 补 "jianyi"——前端 `PLATE_STYLES` 一直有简易盘（只留二十四山与度数），
+ * 后端类型里却没有，于是简易盘请求会被当成综合盘处理，铺出十四层来。
+ */
+export type LuoPanType = "sanhe" | "sanyuan" | "zonghe" | "jianyi";
 
 /** 二十四山 */
 export type ErShiSiShan =

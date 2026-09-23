@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ModelRouterService, AiProvider } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
+import { AiUsageRecordService } from "./ai-usage-record.service";
 import { SemanticCacheService } from "./semantic-cache.service";
 import { DeepSeekAdapter } from "./adapters/deepseek.adapter";
 import { ClaudeAdapter } from "./adapters/claude.adapter";
@@ -38,6 +39,7 @@ export class AiGatewayService {
   constructor(
     private readonly router: ModelRouterService,
     private readonly aiLogger: AiLoggerService,
+    private readonly usageRecord: AiUsageRecordService,
     private readonly semCache: SemanticCacheService,
     private readonly deepseek: DeepSeekAdapter,
     private readonly claude: ClaudeAdapter,
@@ -140,6 +142,22 @@ export class AiGatewayService {
       })
       .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
+    // AI 用量计量：与审计日志不同，任何实际发生的模型调用都必须记账（不受 skipAuditLog 影响）。
+    // 2026-09-17 本机全链路联调发现：非流式调用此前从不写 AiUsageRecord，平台大部分调用处于账外。
+    this.usageRecord
+      .record({
+        userId: req.userId,
+        scene: req.scene,
+        provider: actualProvider,
+        model: actualModel,
+        promptTokens: result.usage?.promptTokens,
+        completionTokens: result.usage?.completionTokens,
+        totalTokens: result.usage?.totalTokens,
+        durationMs: latency,
+        isStreaming: false,
+      })
+      .catch((err) => this.logger.warn("AI用量记录写入失败", err));
+
     if (userQuery.length > 0 && result.content && !req.skipCache && (!req.validateContent || req.validateContent(result.content))) {
       this.semCache.store(req.scene, userQuery, result.content, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
@@ -209,21 +227,39 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    if (!req.skipAuditLog) this.aiLogger
-      .log({
+    if (!req.skipAuditLog) {
+      // 传统审计日志
+      this.aiLogger
+        .log({
+          userId: req.userId,
+          scene: req.scene,
+          model: actualModel,
+          provider: actualProvider,
+          fallbackUsed,
+          fallbackModel: fallbackUsed ? fallbackModel : undefined,
+          grayReleaseModel,
+          costCapped,
+          latency,
+          inputSummary: inputText,
+          outputSummary: fullContent,
+        })
+        .catch((err) => this.logger.warn("AI分析记录写入失败", err));
+    }
+
+    // 用量计量不受 skipAuditLog 影响
+    // 新增：AI 用量计量表（修复交接书指出的"流式 chatStream 完全不记 token"问题）
+    // 注意：流式响应通常不返回 token 统计，这里记录 isStreaming=true 标记
+    this.usageRecord
+      .record({
         userId: req.userId,
         scene: req.scene,
-        model: actualModel,
         provider: actualProvider,
-        fallbackUsed,
-        fallbackModel: fallbackUsed ? fallbackModel : undefined,
-        grayReleaseModel,
-        costCapped,
-        latency,
-        inputSummary: inputText,
-        outputSummary: fullContent,
+        model: actualModel,
+        durationMs: latency,
+        isStreaming: true,
+        // TODO: 如果适配器支持流式 token 统计，在此填充 promptTokens/completionTokens
       })
-      .catch((err) => this.logger.warn("AI分析记录写入失败", err));
+      .catch((err) => this.logger.warn("AI用量记录写入失败", err));
 
     if (userQuery.length > 0 && fullContent && !req.skipCache) {
       this.semCache.store(req.scene, userQuery, fullContent, actualModel, undefined, req.cacheScopeKey).catch((err) => this.logger.warn("语义缓存存储失败", err));

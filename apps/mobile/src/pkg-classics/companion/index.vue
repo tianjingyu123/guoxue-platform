@@ -7,7 +7,7 @@
         <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
       </view>
       <view class="cp-hd-center">
-        <text class="cp-hd-title">识典伴读</text>
+        <text class="cp-hd-title">小卜伴读</text>
         <text class="cp-hd-sub">{{ headerSub }}</text>
       </view>
       <view class="cp-hd-btn" @tap="clearChat">
@@ -34,7 +34,7 @@
               <app-icon name="sparkles" :size="40" color="#ffffff" />
             </view>
             <view>
-              <text class="cp-intro-title">我是你的识典伴读</text>
+              <text class="cp-intro-title">我是你的伴读小卜</text>
               <text class="cp-intro-desc">正陪你研读{{ bookTitle ? `《${bookTitle}》` : '本篇' }}</text>
             </view>
           </view>
@@ -323,7 +323,7 @@ function scrollToBottom() {
 function ensureLogin(): boolean {
   if (getToken()) return true
   uni.showModal({
-    title: '需要登录', content: '登录后即可与识典伴读对话', confirmText: '去登录',
+    title: '需要登录', content: '登录后即可与小卜一起读书', confirmText: '去登录',
     success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-auth/login/index' }) },
   })
   return false

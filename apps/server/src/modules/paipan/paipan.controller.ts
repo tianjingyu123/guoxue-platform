@@ -17,7 +17,11 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto } from "./paipan.dto";
+import { PaipanReportService } from "./paipan-report.service";
+import { PaipanReportDialogueService } from "./paipan-report-dialogue.service";
+import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto, GenerateReportDto, AskReportDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, ShanxiangMapDto, ShanxiangImageDto } from "./paipan.dto";
+import { SubmitCaseFeedbackDto, ReviewCaseFeedbackDto, CaseFeedbackQueryDto, FollowUpQueryDto } from "./paipan-case-feedback.dto";
+import { PaipanCaseFeedbackService } from "./paipan-case-feedback.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -57,6 +61,9 @@ export class PaipanController {
   constructor(
     private paipan: PaipanService,
     private paipanAi: PaipanAiService,
+    private paipanReport: PaipanReportService,
+    private reportDialogue: PaipanReportDialogueService,
+    private caseFeedback: PaipanCaseFeedbackService,
     private prisma: PrismaService,
   ) {}
 
@@ -207,6 +214,96 @@ export class PaipanController {
   @ApiResponse({ status: 401, description: "未认证" })
   getRecordAnalyses(@Param("id") id: string, @Req() req: Request) {
     return this.paipanAi.getAnalysesByPaipanRecord(id, req.user.id);
+  }
+
+  // ────────── 排盘报告（S07：结构化报告 + 版本管理）──────────
+
+  /** 生成结构化排盘报告（固化引擎结果，报告版本化存储） */
+  @Post("report/generate")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "生成结构化排盘报告" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "报告已生成" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权访问该排盘记录" })
+  @ApiResponse({ status: 404, description: "排盘记录不存在" })
+  @ApiResponse({ status: 429, description: "请求过于频繁" })
+  generateReport(@Req() req: Request, @Body() dto: GenerateReportDto) {
+    return this.paipanReport.generateReport(
+      req.user.id,
+      dto.recordId,
+      dto.reportType || "general",
+      {
+        includeReferences: dto.includeReferences,
+        school: dto.school,
+        regenerate: dto.regenerate,
+      },
+    );
+  }
+
+  /** 推演页数据：报告生成前先如实展示校时、盘面、取格与依据命中（确定性计算，不调模型） */
+  @Get("report/preflight")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "报告推演页数据（不调模型，用于生成前的过程展示）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回推演步骤" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权访问该排盘记录" })
+  @ApiResponse({ status: 404, description: "排盘记录不存在" })
+  reportPreflight(@Req() req: Request, @Query("recordId") recordId: string, @Query("school") school?: string) {
+    return this.paipanReport.preflight(req.user.id, recordId, school);
+  }
+
+  /** 获取排盘报告详情（校验用户归属） */
+  @Get("report/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取排盘报告详情" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回报告详情" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权访问该报告" })
+  @ApiResponse({ status: 404, description: "报告不存在" })
+  getReport(@Param("id") id: string, @Req() req: Request) {
+    return this.paipanReport.getReport(req.user.id, id);
+  }
+
+  /** 围绕报告向小卜提问（文字版；按报告提纲与已审核依据回答） */
+  @Post("report/:id/ask")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "围绕排盘报告提问（小卜文字问答）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "回答及对应小节、依据" })
+  @ApiResponse({ status: 403, description: "无权访问该报告" })
+  @ApiResponse({ status: 404, description: "报告不存在" })
+  askReport(@Param("id") id: string, @Body() dto: AskReportDto, @Req() req: Request) {
+    return this.reportDialogue.ask(req.user.id, id, dto);
+  }
+
+  /** 本人某份报告的问答记录与进度（接着上次聊） */
+  @Get("report/:id/dialogue")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "报告问答记录与进度" })
+  @ApiBearerAuth()
+  getReportDialogue(@Param("id") id: string, @Req() req: Request) {
+    return this.reportDialogue.history(req.user.id, id);
+  }
+
+  /** 报告“继续学习”：平台公共内容卡片 */
+  @Get("report/:id/related")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "报告相关的公开学习内容" })
+  @ApiBearerAuth()
+  getReportRelated(@Param("id") id: string, @Req() req: Request) {
+    return this.reportDialogue.related(req.user.id, id);
+  }
+
+  /** 清空本人某份报告的问答记录 */
+  @Delete("report/:id/dialogue")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "清空报告问答记录" })
+  @ApiBearerAuth()
+  clearReportDialogue(@Param("id") id: string, @Req() req: Request) {
+    return this.reportDialogue.clearHistory(req.user.id, id);
   }
 
   /** 我的 AI 分析历史 */
@@ -429,6 +526,203 @@ export class PaipanController {
   @ApiBearerAuth()
   liuyaoSave(@Req() req: Request, @Body() dto: LiuYaoInputDto) {
     return this.paipan.calcLiuYaoAndSave(req.user.id, dto);
+  }
+
+  @Post("meihua/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "保存梅花易数起卦记录（用于生成卦书）" })
+  @ApiBearerAuth()
+  meihuaSave(@Req() req: Request, @Body() dto: MeihuaInputDto) {
+    return this.paipan.saveMeihuaRecord(req.user.id, dto);
+  }
+
+  // ────────── 金口诀（2026-09-18 第 11 个工具）──────────
+
+  @Post("jinkoujue")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "金口诀起课（不保存）" })
+  jinkoujueCalc(@Body() dto: JinkoujueInputDto) {
+    return this.paipan.calcJinkoujue(dto);
+  }
+
+  @Post("jinkoujue/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "金口诀起课并保存记录（用于生成课书）" })
+  @ApiBearerAuth()
+  jinkoujueSave(@Req() req: Request, @Body() dto: JinkoujueInputDto) {
+    return this.paipan.calcJinkoujueAndSave(req.user.id, dto);
+  }
+
+  // ────────── 玄空飞星（2026-09-18 第 10 个工具）──────────
+
+  @Post("xuankong")
+  // 预览接口与 qimen/bazi 一致：不强制登录（允许试用），但必须限流——
+  // 排盘计算接口敞着，等于把算力和实现白送给批量调用者
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "玄空飞星排盘（不保存）" })
+  xuankongCalc(@Body() dto: XuankongInputDto) {
+    return this.paipan.calcXuankong(dto);
+  }
+
+  @Post("xuankong/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "玄空飞星排盘并保存记录（用于生成宅书）" })
+  @ApiBearerAuth()
+  xuankongSave(@Req() req: Request, @Body() dto: XuankongInputDto) {
+    return this.paipan.calcXuankongAndSave(req.user.id, dto);
+  }
+
+  // ────────── 报告应验回访（2026-09-19）──────────
+  //
+  // 这一组是案例库的活水来源：报告已经存了，补上「后来怎么样了」，
+  // 每一次排盘 + 一次回访就是一条带完整推理链的候选案例。
+  // 网上流传的案例只有盘面和结论、没有推理链，靠抄是攒不出能训练模型的东西的。
+
+  @Post("case-feedback")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "提交报告应验回访（这一盘后来准不准）" })
+  @ApiBearerAuth()
+  submitCaseFeedback(@Req() req: Request, @Body() dto: SubmitCaseFeedbackDto) {
+    return this.caseFeedback.submit(req.user.id, dto);
+  }
+
+  @Get("case-feedback/due")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "列出该回访的排盘（已出报告、未回访、已过冷却期）" })
+  @ApiBearerAuth()
+  dueForFollowUp(@Query() q: FollowUpQueryDto) {
+    return this.caseFeedback.dueForFollowUp(q);
+  }
+
+  @Get("case-feedback/pending")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "待审的回访记录" })
+  @ApiBearerAuth()
+  listPendingFeedback(@Query() q: CaseFeedbackQueryDto) {
+    return this.caseFeedback.listPending(q);
+  }
+
+  @Get("case-feedback/stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({
+    summary: "应验统计（分母为同期全部回访，回访推送与用户自发分开算）",
+  })
+  @ApiBearerAuth()
+  caseFeedbackStats(@Query() q: CaseFeedbackQueryDto) {
+    return this.caseFeedback.stats(q);
+  }
+
+  @Post("case-feedback/:id/review")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "审核回访记录（通过时必须填写「可迁移规律」）" })
+  @ApiBearerAuth()
+  reviewCaseFeedback(@Req() req: Request, @Param("id") id: string, @Body() dto: ReviewCaseFeedbackDto) {
+    return this.caseFeedback.review(req.user.id, id, dto);
+  }
+
+  @Get("case-feedback/export/:paipanType")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "导出已审核案例（七段结构，仍需人工补盘面与取象两段）" })
+  @ApiBearerAuth()
+  exportApprovedCases(@Param("paipanType") paipanType: string, @Query() q: CaseFeedbackQueryDto) {
+    return this.caseFeedback.exportApproved(paipanType, q.limit);
+  }
+
+  // ────────── 阴盘奇门（2026-09-19 第 13 个工具）──────────
+
+  /**
+   * 山向地图判读。
+   *
+   * 纯计算不落库（地图上拖一个点就要重算）。无需登录——
+   * 它不读用户数据、不写库，和 `bazi/preview` 同一性质。
+   */
+  @Post("shanxiang-map")
+  @ApiOperation({
+    summary: "山向地图：以太极点算周边标注的方位、距离、所在山与煞忌",
+    description:
+      "坐标须为 WGS-84（GPS 原始值）。返回真北方位；给了磁偏角则一并附罗盘（磁北）读数。" +
+      "只判有明确口诀的八曜煞与八路四路黄泉，不产出综合吉凶评分。",
+  })
+  @ApiResponse({ status: 201, description: "计算成功" })
+  shanxiangMap(@Body() dto: ShanxiangMapDto) {
+    return this.paipan.shanxiangMap(dto);
+  }
+
+  /**
+   * 山向地图·截图路径。
+   *
+   * 原生 `<map>` 只在微信端开箱可用，H5/App 需各自配 key；
+   * 本端点零依赖，用户上传截图即可用，是那条缺口的兜底。
+   */
+  @Post("shanxiang-image")
+  @ApiOperation({
+    summary: "山向地图（截图）：在用户上传的图上算方位、所在山与煞忌",
+    description:
+      "无需经纬度。注意图像 y 轴向下；未给比例尺时距离按像素输出并标明单位。" +
+      "煞忌判据与 shanxiang-map 共用，两条路结论一致。",
+  })
+  @ApiResponse({ status: 201, description: "计算成功" })
+  shanxiangImage(@Body() dto: ShanxiangImageDto) {
+    return this.paipan.shanxiangImage(dto);
+  }
+
+  @Post("yinpan")
+  // 与 qimen/bazi 一致：不强制登录（允许试用），但必须限流
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "阴盘奇门起局（不保存）" })
+  yinpanCalc(@Body() dto: YinpanInputDto) {
+    return this.paipan.calcYinpan(dto);
+  }
+
+  @Post("yinpan/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "阴盘奇门起局并保存记录（用于生成课书）" })
+  @ApiBearerAuth()
+  yinpanSave(@Req() req: Request, @Body() dto: YinpanInputDto) {
+    return this.paipan.calcYinpanAndSave(req.user.id, dto);
+  }
+
+  // ────────── 八宅（2026-09-19 第 12 个工具）──────────
+
+  @Post("bazhai")
+  // 与 qimen/bazi 一致：不强制登录（允许试用），但必须限流——
+  // 排盘计算接口敞着，等于把算力和实现白送给批量调用者
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "八宅排盘（不保存）" })
+  bazhaiCalc(@Body() dto: BazhaiInputDto) {
+    return this.paipan.calcBazhai(dto);
+  }
+
+  @Post("bazhai/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "八宅排盘并保存记录（用于生成宅书）" })
+  @ApiBearerAuth()
+  bazhaiSave(@Req() req: Request, @Body() dto: BazhaiInputDto) {
+    return this.paipan.calcBazhaiAndSave(req.user.id, dto);
+  }
+
+  // ────────── 小六壬（2026-09-18 第 9 个工具：补后端链路才能出报告）──────────
+
+  @Post("xiaoliuren")
+  // 预览接口与 qimen/bazi 一致：不强制登录（允许试用），但必须限流——
+  // 排盘计算接口敞着，等于把算力和实现白送给批量调用者
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "小六壬起课（不保存）" })
+  xiaoliurenCalc(@Body() dto: XiaoliurenInputDto) {
+    return this.paipan.calcXiaoliuren(dto);
+  }
+
+  @Post("xiaoliuren/save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "小六壬起课并保存记录（用于生成课书）" })
+  @ApiBearerAuth()
+  xiaoliurenSave(@Req() req: Request, @Body() dto: XiaoliurenInputDto) {
+    return this.paipan.calcXiaoliurenAndSave(req.user.id, dto);
   }
 
   @Get("liuyao/history")

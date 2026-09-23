@@ -340,6 +340,51 @@ function goPrev() { if (hasPrev.value) { tocOpen.value = false; loadChapter(curI
 function goNext() { if (hasNext.value) { tocOpen.value = false; loadChapter(curIndex.value + 1) } }
 function jumpTo(idx: number) { tocOpen.value = false; loadChapter(idx) }
 
+// ── 按需断句（S03）：只处理当前点到的段落，结果为 AI 草稿，原文始终保留 ──
+const aiParaIdx = ref<number | null>(null)
+const punctText = ref('')
+const punctSource = ref<'original' | 'ai_draft' | ''>('')
+const punctLoading = ref(false)
+const punctError = ref('')
+let segmentCache: { chapterId: string; list: { id: string; sortOrder: number; content: string }[] } | null = null
+let punctSeq = 0
+
+function resetPunct() {
+  punctSeq++
+  punctText.value = ''
+  punctSource.value = ''
+  punctError.value = ''
+  punctLoading.value = false
+}
+
+async function punctuateCurrent() {
+  const idx = aiParaIdx.value
+  const ch = curChapter.value
+  if (idx == null || !ch) return
+  if (!isLoggedIn()) { needLogin(); return }
+  const seq = ++punctSeq
+  const paragraph = paragraphs.value[idx] || ''
+  punctLoading.value = true
+  punctError.value = ''
+  try {
+    if (!segmentCache || segmentCache.chapterId !== ch.id) {
+      segmentCache = { chapterId: ch.id, list: await classicsApi.chapterSegments(ch.id) }
+    }
+    const seg = segmentCache.list.find((s) => s.sortOrder === idx)
+    // 段落与服务端稳定段落内容必须一致，否则不处理（避免对错段落断句）
+    if (!seg || seg.content !== paragraph) throw new Error('本章段落正在更新，暂不能断句')
+    const r = await classicsApi.punctuateSegment(seg.id)
+    if (seq !== punctSeq) return
+    punctText.value = r.text
+    punctSource.value = r.source
+  } catch (e) {
+    if (seq !== punctSeq) return
+    punctError.value = (e as Error)?.message || '自动断句暂不可用，请稍后重试'
+  } finally {
+    if (seq === punctSeq) punctLoading.value = false
+  }
+}
+
 // ── 点句即时 AI 白话对照 ──
 const aiThinkStart = ref(0) // 请求发起时刻：关抽屉重开时动态卡续接进度
 let aiSeq = 0
@@ -349,6 +394,7 @@ async function explain(seg: string) {
   if (seg === aiSeg.value && ((aiResult.value && !aiError.value) || aiLoading.value)) { aiOpen.value = true; return }
   aiOpen.value = true
   aiSeg.value = seg
+  resetPunct()
   aiResult.value = null
   aiError.value = ''
   aiThinkStart.value = Date.now()
@@ -389,6 +435,7 @@ function handleSelection() {
 function explainSelection() {
   const t = selectedText.value
   selectedText.value = ''
+  aiParaIdx.value = null // 自由划选的片段不对应整段，不提供断句
   if (t) explain(t)
 }
 
@@ -498,6 +545,7 @@ function onParagraphTap(text: string, position: number) {
     openNoteAt(position, text)
     return
   }
+  aiParaIdx.value = position
   explain(text)
 }
 function closeNote() {
@@ -752,6 +800,20 @@ onLoad((q) => {
             </view>
             <view v-if="aiResult.source" class="rd-ai-src"><text>出处推测：{{ aiResult.source }}</text></view>
           </template>
+          <!-- 按需断句：仅整段点选时提供；结果为 AI 草稿，不替换原文 -->
+          <view v-if="aiParaIdx != null" class="rd-ai-sec rd-punct">
+            <view class="rd-punct-head">
+              <text class="rd-ai-label">AI 断句</text>
+              <text class="rd-punct-tag">未经人工校对 · 只加标点不改字</text>
+            </view>
+            <view v-if="punctLoading" class="rd-punct-hint"><text>小卜正在断句…</text></view>
+            <view v-else-if="punctError" class="rd-ai-loading">
+              <text class="rd-ai-err">{{ punctError }}</text>
+              <view class="rd-ai-retry" @tap="punctuateCurrent"><text class="rd-ai-retry-txt">重试</text></view>
+            </view>
+            <text v-else-if="punctText" class="rd-ai-trans">{{ punctSource === 'original' ? '原文已有标点，无需自动断句。' : punctText }}</text>
+            <view v-else class="rd-ai-retry rd-punct-btn" @tap="punctuateCurrent"><text class="rd-ai-retry-txt">为这段加标点</text></view>
+          </view>
         </scroll-view>
       </view>
     </view>
@@ -1318,4 +1380,9 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-note-area { margin: 0 40rpx; padding: 24rpx; height: 280rpx; background: rgba(150,130,90,0.08); border-radius: 16rpx; font-size: 28rpx; line-height: 1.7; color: var(--rd-fg,#2c2c2c); width: auto; box-sizing: border-box; }
 .rd-note-submit { margin: 28rpx 40rpx 16rpx; height: 88rpx; border-radius: 20rpx; background: var(--rd-brand,#a06a38); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 600; &:active { opacity: 0.85; } }
 .rd-note-disabled { opacity: 0.5; }
+.rd-punct { border-top: 1px dashed rgba(0, 0, 0, 0.08); padding-top: 24rpx; }
+.rd-punct-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.rd-punct-tag { font-size: 22rpx; color: #9a6a12; }
+.rd-punct-hint { font-size: 24rpx; color: #888; padding: 12rpx 0; }
+.rd-punct-btn { align-self: flex-start; margin-top: 12rpx; }
 </style>

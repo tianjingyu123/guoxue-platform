@@ -35,7 +35,7 @@ export class CoupleController {
   @ApiResponse({ status: 400, description: "排盘记录不存在或不属于当前用户" })
   @ApiResponse({ status: 401, description: "未认证" })
   invite(@Req() req: Request, @Body() dto: CoupleInviteDto) {
-    return this.couple.invite(req.user.id, dto.myRecordId);
+    return this.couple.invite(req.user.id, dto.myRecordId, dto.scene ?? "marriage");
   }
 
   /** 公开查看邀请详情（不透露发起方生辰/盘信息） */

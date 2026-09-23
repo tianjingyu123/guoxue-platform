@@ -96,6 +96,9 @@ describe("CoupleService（V4 双人合盘）", () => {
     expect(paipan.getBaziRecord).toHaveBeenCalledWith("rec-A", "user-A");
     expect(paipan.getBaziRecord).toHaveBeenCalledWith("rec-B", "user-B");
     expect(paipanAi.analyzeHehun).toHaveBeenCalledTimes(1);
+    // 必须标 shared：这份报告两个人都看得到，模型不能拿到任何一方的生辰与四柱，
+    // 否则对方由四柱就能反推出生时刻，本服务承诺的「不共享生辰」即落空
+    expect(paipanAi.analyzeHehun.mock.calls[0][3]).toMatchObject({ shared: true, scene: "marriage" });
     const updateData = prisma.coupleChart.update.mock.calls[0][0].data;
     expect(updateData.status).toBe("AUTHORIZED");
     expect(updateData.partnerId).toBe("user-B");

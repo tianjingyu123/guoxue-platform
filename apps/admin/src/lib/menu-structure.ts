@@ -258,6 +258,8 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
     children: [
       M("/ai/agent-marketplace"),
       M("/ai/circle-assistants"),
+      M("/voice-agent-review", "小卜语音角色审核", "human"),
+      M("/xiaobu-ops", "小卜运营", "human"),
       M("/ai/customer-service"),
       M("/bots"),
     ],
@@ -269,6 +271,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
     children: [
       M("/content-generation"),
       M("/knowledge"),
+      M("/paipan-report-knowledge", "排盘报告知识库", "human"),
       M("/ai/media-processing"),
       M("/ai/content-quality"),
     ],

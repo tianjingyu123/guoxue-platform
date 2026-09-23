@@ -32,74 +32,22 @@ const NINE_STARS = ["天蓬","天芮","天冲","天辅","天禽","天心","天�
 const EIGHT_MEN = ["休门","死门","伤门","杜门","开门","惊门","生门","景门"];
 const TIAN_JIANG_12 = ["贵人","螣蛇","朱雀","六合","勾陈","青龙","天空","白虎","太常","玄武","太阴","天后"];
 
-interface Ju72Entry {
-  name: string;
-  star: string;
-  men: string;
-  shiZhi: string;
-  tianJiang: string;
-  jiXiong: "大吉" | "吉" | "平" | "小凶" | "凶";
-  desc: string;
-}
-
-/** 生成七十二局完整表 */
-function buildJu72Table(): Record<number, Ju72Entry> {
-  const table: Record<number, Ju72Entry> = {};
-  // 9局，每局8个时辰地支组
-  for (let ju = 1; ju <= 9; ju++) {
-    for (let t = 0; t < 8; t++) {
-      const idx = (ju - 1) * 8 + t + 1;
-      const starIdx = (ju + t - 1) % 9;
-      const menIdx = (ju + t) % 8;
-      const shiZhi = DI_ZHI[t]; // 子丑寅卯辰巳午未
-      const tianJiangIdx = (ju * 3 + t * 2) % 12;
-      const star = NINE_STARS[starIdx];
-      const men = EIGHT_MEN[menIdx];
-      const tianJiang = TIAN_JIANG_12[tianJiangIdx];
-
-      // 吉凶判定：星+门+天将综合
-      const starJi = [0,4,8].includes(starIdx) ? 1 : [1,3,6].includes(starIdx) ? 0 : -1;
-      const menJi = [0,4,7].includes(menIdx) ? 1 : [2,3,5].includes(menIdx) ? 0 : -1;
-      const jiangJi = [0,3,5,10].includes(tianJiangIdx) ? 1 : [1,4,7,8,9,11].includes(tianJiangIdx) ? 0 : -1;
-      const score = starJi + menJi + jiangJi;
-
-      let jiXiong: Ju72Entry["jiXiong"];
-      if (score >= 2) jiXiong = "大吉";
-      else if (score === 1) jiXiong = "吉";
-      else if (score === 0) jiXiong = "平";
-      else if (score === -1) jiXiong = "小凶";
-      else jiXiong = "凶";
-
-      table[idx] = {
-        name: `${star}值符${shiZhi}时`,
-        star,
-        men,
-        shiZhi,
-        tianJiang,
-        jiXiong,
-        desc: buildJu72Desc(star, men, shiZhi, tianJiang, jiXiong),
-      };
-    }
-  }
-  // 补齐73-80（对应申酉戌亥时等），回绕
-  for (let ju = 1; ju <= 9; ju++) {
-    for (let t = 8; t < 12; t++) {
-      // 超过72的不再额外存储，72局只是按时辰地支前8个
-    }
-  }
-  return table;
-}
-
-function buildJu72Desc(star: string, men: string, shiZhi: string, tianJiang: string, jiXiong: string): string {
-  const prefix = jiXiong === "大吉" || jiXiong === "吉"
-    ? `${star}值符，${men}当值，${shiZhi}时得${tianJiang}临照，百事和顺。`
-    : jiXiong === "平"
-    ? `${star}值符，${men}当值，${shiZhi}时逢${tianJiang}，宜守成待机。`
-    : `${star}值符，${men}当值，${shiZhi}时遇${tianJiang}，多有阻滞，宜静不宜动。`;
-  return prefix;
-}
-
-const JU72_TABLE = buildJu72Table();
+/**
+ * 🔴 2026-09-19 切除：这里原有一张「七十二局表」，是**编造的**。
+ *
+ * 它按下标算术生成：starIdx=(ju+t-1)%9、menIdx=(ju+t)%8、tianJiangIdx=(ju*3+t*2)%12，
+ * 吉凶再靠几个硬编码的下标桶打分。这三个公式不对应任何术数规则。
+ * 而且 t 只取 0..7（子丑寅卯辰巳午未），补 8..11 的循环是个空循环——
+ * 申酉戌亥四个时辰本来就没有局，靠 `%72` 回绕硬凑。
+ *
+ * 决定性的证据是它**与已核验的奇门引擎自相矛盾**：同一份 summary 里，
+ * 引擎说「值符：天心」，这张表说「穿壬第72局：天柱值符」。
+ * 采样 2026-09 的 60 个时辰，**58 盘的值符对不上**（剩两盘是碰巧撞对）。
+ *
+ * 切除范围仅限这一层。本计算器的骨架是对的——它调用已核验的
+ * `calculateQimenYang` 与 `calculateDaLiuRen`，不自己手搓月将（金口诀正是栽在这里），
+ * 宫支映射也是标准的后天八卦纳支。留骨架、去伪层。
+ */
 
 // ══════════════════════════════════════════════
 
@@ -108,13 +56,35 @@ function calcShiZhiIndex(hour: number): number {
   return Math.floor(((hour + 1) % 24) / 2);
 }
 
+/**
+ * 综合吉凶：由九宫逐宫的穿壬评分汇总而来。
+ *
+ * 2026-09-19 新增，用来替掉那张编造的七十二局表——旧做法是按下标算术
+ * 凭空生成一个吉凶档位，与真盘毫无关系（值符都对不上）。
+ * 现在取的是**真盘逐宫算出来的结果**：把九宫各自的档位折成分数取均值，
+ * 再折回档位。这样得到的综合判断至少与盘面同源，说得出凭据。
+ */
+function summarizeJiXiong(mappings: { gongChuanJiXiong: string }[]): string {
+  const SCORE: Record<string, number> = { 大吉: 2, 吉: 1, 平: 0, 小凶: -1, 凶: -2 };
+  if (!mappings.length) return "平";
+  const avg = mappings.reduce((a, m) => a + (SCORE[m.gongChuanJiXiong] ?? 0), 0) / mappings.length;
+  if (avg >= 1.2) return "大吉";
+  if (avg >= 0.4) return "吉";
+  if (avg > -0.4) return "平";
+  if (avg > -1.2) return "小凶";
+  return "凶";
+}
+
 export function calculateQimenChuanren(input: Record<string, unknown>): Record<string, unknown> {
   const datetime = (input.datetime as string) ?? new Date().toISOString();
   const method = (input.method as string) ?? "zhuanpan";
   const qiJuMethod = (input.qiJuMethod as string) ?? "chaibu";
   const trueSolar = input.trueSolar as boolean ?? false;
   // 六壬参数暴露给用户
-  const birthYear = (input.birthYear as number) ?? new Date(datetime).getFullYear() - 30;
+  // 纯日期串按字面取年份——`new Date("2024-01-01").getFullYear()` 在 UTC 以西的机器上得 2023
+  const dtYear = /^(\d{4})-/.exec(String(datetime))?.[1];
+  const birthYear =
+    (input.birthYear as number) ?? (dtYear ? Number(dtYear) : new Date(datetime).getFullYear()) - 30;
   const gender = (input.gender as string) ?? "男";
 
   const d = new Date(datetime);
@@ -143,9 +113,6 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
   // ── 3. 七十二局计算 ──
   const shiZhiIdx = calcShiZhiIndex(hour);
   const juNumber = qimenResult.juNumber;
-  const ju72Index = (juNumber - 1) * 8 + (shiZhiIdx % 8) + 1;
-  const exJu72 = ju72Index > 72 ? ((ju72Index - 1) % 72) + 1 : ju72Index;
-  const ju72Entry = JU72_TABLE[exJu72];
 
   // ── 4. 六壬数据索引（按地支快速查找） ──
   const lrGongByZhi = new Map<string, LiuRenGong>();
@@ -292,25 +259,16 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
   };
 
   // ── 8. 结构化断语 ──
-  const overallJiXiong = ju72Entry?.jiXiong ?? "平";
+  // 综合吉凶改由九宫穿壬的逐宫评分汇总（真盘数据），不再取自编造的局表
+  const overallJiXiong = summarizeJiXiong(chuanrenMappings);
 
   const duanYu = {
     summary: [
       `奇门${qimenResult.dunType === "yang" ? "阳遁" : "阴遁"}${juNumber}局，用事${qimenResult.jieQi}，${qimenResult.yongShi}时。`,
       `值符${qimenResult.zhiFu}落${zhiFuGongName}宫，值使${qimenResult.zhiShiMen}。`,
-      `穿壬第${exJu72}局·${ju72Entry?.name ?? ""}：${ju72Entry?.desc ?? ""}`,
       `综合判${overallJiXiong}。值符宫穿${zhiFuChuanZhi.join("、")}支——奇门定其方，六壬察其时，方时合参以断吉凶。`,
     ].join(""),
     overallJiXiong,
-    ju72: {
-      index: exJu72,
-      name: ju72Entry?.name ?? `第${exJu72}局`,
-      star: ju72Entry?.star ?? "",
-      men: ju72Entry?.men ?? "",
-      tianJiang: ju72Entry?.tianJiang ?? "",
-      jiXiong: ju72Entry?.jiXiong ?? "平",
-      desc: ju72Entry?.desc ?? "",
-    },
     zhiFuAnalysis: zhiFuMapping
       ? {
         gongName: zhiFuGongName,
@@ -340,7 +298,7 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
     `│ 奇门${qimenResult.dunType === "yang" ? "阳遁" : "阴遁"}${juNumber}局  ${qimenResult.jieQi}`.padEnd(36) + "│",
     `│ 值符：${qimenResult.zhiFu}  值使：${qimenResult.zhiShiMen}`.padEnd(36) + "│",
     `│ 六壬：${liuRenResult.zhanShi}  月将：${liuRenResult.yueJiang}(${liuRenResult.yueJiangZhi})`.padEnd(36) + "│",
-    `│ 穿壬第${exJu72}局：${ju72Entry?.star ?? ""}值符  综合${overallJiXiong}`.padEnd(36) + "│",
+    `│ 穿壬综合：${overallJiXiong}（九宫逐宫汇总）`.padEnd(36) + "│",
     "├─ 九宫穿壬 ────────────────────────────┤",
     ...gongSummary.map(s => `│ ${s}`.padEnd(36) + "│"),
     "├─ 四课三传 ────────────────────────────┤",
@@ -381,14 +339,11 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
       duanYu: liuRenResult.duanYu,
     },
     chuanren: {
-      ju72Index: exJu72,
-      ju72Name: ju72Entry?.name ?? `第${exJu72}局`,
-      ju72JiXiong: overallJiXiong,
-      ju72Desc: ju72Entry?.desc ?? "",
+      overallJiXiong,
       zhiFuGongName,
       zhiFuChuanZhi,
       mappings: chuanrenMappings,
-      desc: "以奇门定方，以六壬定时。方定则九宫八卦之象可推，时定则四课三传之机可察。方时合参，七十二局吉凶有别。",
+      desc: "以奇门定方，以六壬定时。方定则九宫八卦之象可推，时定则四课三传之机可察，方时合参而后断。",
     },
     duanYu,
     summary,

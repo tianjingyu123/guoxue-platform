@@ -4,6 +4,7 @@ import { ClassicService } from "./classic.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { TextDerivedAssetService } from "./text-derived-asset.service";
 
 const mockRedis = { getJson: jest.fn().mockResolvedValue(null), setJson: jest.fn(), del: jest.fn().mockResolvedValue(1), delByPattern: jest.fn() };
 
@@ -21,6 +22,14 @@ const mockJwt = { sign: jest.fn().mockReturnValue("mock-token") };
 
 const mockGateway = { chat: jest.fn() };
 
+// 文本派生资产：透传到处理函数（翻译缓存行为由 text-derived-asset.service.spec 覆盖）
+const mockTextAsset = {
+  getOrCreateTextAsset: jest.fn(async (_req: unknown, fn: () => Promise<{ result: string; model: string }>) => {
+    const out = await fn();
+    return { result: out.result, cached: false, model: out.model, assetId: "t1" };
+  }),
+};
+
 describe("ClassicService", () => {
   let svc: ClassicService;
 
@@ -32,6 +41,7 @@ describe("ClassicService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockGateway },
+        { provide: TextDerivedAssetService, useValue: mockTextAsset },
       ],
     }).compile();
     svc = mod.get(ClassicService);

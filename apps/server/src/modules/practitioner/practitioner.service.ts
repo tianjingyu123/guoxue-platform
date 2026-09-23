@@ -175,6 +175,118 @@ export class PractitionerService {
     });
   }
 
+
+  /**
+   * 从小卜报告导入为工作台草稿（2026-09-18）
+   *
+   * 定位：小卜报告是「平台口径」的有依据解读；导入后是**老师自己的稿子**，
+   * 章节正文可随意增删改，最终以老师的名义与品牌落款交付客户。
+   * 平台不在交付页留自己的品牌——从业者会员买的就是「以自己的名义交付」。
+   *
+   * 盘面快照与章节正文都原样带过来，老师不必从白纸开始写；
+   * 依据（典籍出处）随章节一并带入，老师可自行保留或删除。
+   */
+  async importFromXiaobuReport(
+    userId: string,
+    input: { reportId: string; clientId?: string; clientName?: string; title?: string },
+  ) {
+    const rec = await this.prisma.aiAnalysisRecord.findUnique({ where: { id: input.reportId } });
+    if (!rec || rec.scene !== "paipan_report") {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "小卜报告不存在");
+    }
+    if (rec.userId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能导入自己的报告");
+    }
+
+    let content: any = null;
+    try {
+      content = JSON.parse(rec.analysisContent);
+    } catch {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
+    }
+
+    const paipanType = String(content?.metadata?.paipanType || "bazi");
+    const TYPE_LABEL: Record<string, string> = {
+      bazi: "八字命书",
+      ziwei: "紫微命书",
+      liuyao: "六爻卦书",
+      meihua: "梅花卦书",
+      qimen: "奇门局书",
+      daliuren: "六壬课书",
+    };
+
+    // 小卜的小节 → 工作台章节；带上依据出处，老师可自行保留或删除
+    const sections: any[] = Array.isArray(content?.sections) ? content.sections : [];
+    const chapters = sections
+      .filter((x) => x?.title && x?.content)
+      /**
+       * 「这一盘我们怎么看」不进交付稿。
+       *
+       * 它是平台在各派分歧上的取舍，写法是平台口吻（「本报告按这个讲」），还列着各家讲法——
+       * 交付给 C 端客户有两处不对：一是暴露平台痕迹，与「让客户觉得是老师写的」直接冲突；
+       * 二是客户要的是结论，把门派分歧摆给他看只是噪音。
+       * 这部分是给老师自己看的（平台报告里有），他认同哪一条，自然会写进自己的解读里。
+       */
+      .filter((x) => x.id !== "sDebate")
+      .map((x, i) => {
+        const refs: any[] = Array.isArray(x.references) ? x.references : [];
+        const evidence = refs
+          .map((r) => `${r.source ?? ""}${r.chapter ? `·${r.chapter}` : ""}：${String(r.content ?? "").slice(0, 200)}`)
+          .filter(Boolean);
+        // 字段名必须与工作台既有结构一致（key/title/body/ai），否则编辑页与交付页都读不出正文
+        return {
+          key: `c${i + 1}`,
+          title: String(x.title).slice(0, 60),
+          body: String(x.content),
+          /** 依据原样带入，交付前老师自行决定是否展示 */
+          evidence,
+          /**
+           * 引擎算定的章节（盘面事实）。交付稿改写据此跳过：
+           * 老师往往会把标题改成自己的叫法，靠标题识别会把盘面数据当文案重写。
+           */
+          deterministic: !!x.deterministic,
+          fromXiaobu: true,
+        };
+      });
+
+    const q = await this.reportQuota(userId);
+    if (!q.unlimited && q.used >= (q.limit ?? 0)) {
+      throw new BusinessException(
+        ErrorCode.FORBIDDEN,
+        `免费版最多保存 ${q.limit} 份报告（已用 ${q.used} 份），开通从业者会员可不限份数`,
+      );
+    }
+
+    return this.prisma.practitionerReport.create({
+      data: {
+        ownerId: userId,
+        clientId: input.clientId ?? null,
+        toolKey: paipanType,
+        type: paipanType,
+        typeLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+        title: input.title?.trim() || String(content?.title || TYPE_LABEL[paipanType] || "命理报告"),
+        clientName: input.clientName?.trim() || "未命名客户",
+        status: "draft",
+        style: "classic",
+        // 盘面快照：图形数据与事实原样带入，交付页可复用同一套图
+        // 字段名对齐工作台既有结构（toolKey/toolLabel/data/summary），否则页面会显示「来自 undefined」
+        paipan: {
+          toolKey: paipanType,
+          toolLabel: TYPE_LABEL[paipanType] ?? "命理报告",
+          // 这行是交付页「盘面」卡的正文，必须是引擎算定的盘面本身（四柱/卦象/局式），
+          // 不能用模型写的那句概述：它没经过客户口径改写，措辞也不是这位老师的。
+          summary: rec.inputSummary || "",
+          data: {
+            facts: content?.facts ?? null,
+            chartView: content?.chartView ?? null,
+          },
+          sourceReportId: rec.id,
+        } as any,
+        chapters: chapters as any,
+      },
+    });
+  }
+
   async updateReport(userId: string, id: string, dto: any) {
     await this.getReport(userId, id); // 归属校验（他人的 id 与不存在同样 404）
     return this.prisma.practitionerReport.update({

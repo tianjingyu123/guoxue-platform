@@ -49,6 +49,6 @@ export function createStorageProvider(): LocalStorageProvider | CosStorageProvid
       useFactory: createStorageProvider,
     },
   ],
-  exports: [UploadService],
+  exports: [UploadService, STORAGE_PROVIDER],
 })
 export class UploadModule {}

@@ -1283,6 +1283,27 @@ const routes = [
         component: () => import("@/views/ai/KnowledgeManage.vue"),
         meta: { title: "知识库管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      // === 小卜 · 排盘报告知识库（人工审核的门派理论与古籍出处）===
+      {
+        path: "paipan-report-knowledge",
+        name: "PaipanReportKnowledge",
+        component: () => import("@/views/ai/PaipanReportKnowledge.vue"),
+        meta: { title: "排盘报告知识库", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 小卜 · 语音角色审核 ===
+      {
+        path: "voice-agent-review",
+        name: "VoiceAgentReview",
+        component: () => import("@/views/ai/VoiceAgentReview.vue"),
+        meta: { title: "小卜语音角色审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 小卜 · 运营（用量、成本、语音额度）===
+      {
+        path: "xiaobu-ops",
+        name: "XiaobuOps",
+        component: () => import("@/views/ai/XiaobuOps.vue"),
+        meta: { title: "小卜运营", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
       // === AI内容生成 ===
       {
         path: "content-generation",

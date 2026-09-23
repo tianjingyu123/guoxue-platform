@@ -3,6 +3,7 @@
 // 三合盘/三元盘/综合盘 | 二十四山 | 磁偏角 | 穿山七十二龙(真实) | 透地六十龙 | 一百二十分金 | 纳甲 | 三合水法 | 五派风水指导
 
 import type { LuoPanResult, LuoPanLayer, LuoPanType, FengShuiAdvice } from "@guoxue/shared";
+import { ringsOf, readRing, RING_CHUAN_SHAN_72, type PlateType } from "@guoxue/shared/paipan";
 
 const SHAN_24 = ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"] as const;
 
@@ -35,34 +36,14 @@ const NA_YIN: Record<string, string> = {
   "戊午":"天上火","己未":"天上火","庚申":"石榴木","辛酉":"石榴木","壬戌":"大海水","癸亥":"大海水",
 };
 
-// ══ 穿山七十二龙（每山3龙，60甲子+12空亡）══
-// 空亡位以"正"表示
-const QI_SHI_ER_LONG: string[] = [
-  "癸亥","正",  "甲子",   // 壬
-  "丙子","戊子","庚子",   // 子
-  "壬子","正",  "乙丑",   // 癸
-  "丁丑","己丑","辛丑",   // 丑
-  "癸丑","正",  "丙寅",   // 艮
-  "戊寅","庚寅","壬寅",   // 寅
-  "甲寅","正",  "丁卯",   // 甲
-  "己卯","辛卯","癸卯",   // 卯
-  "乙卯","正",  "戊辰",   // 乙
-  "庚辰","壬辰","甲辰",   // 辰
-  "丙辰","正",  "己巳",   // 巽
-  "辛巳","癸巳","乙巳",   // 巳
-  "丁巳","正",  "庚午",   // 丙
-  "壬午","甲午","丙午",   // 午
-  "戊午","正",  "辛未",   // 丁
-  "癸未","乙未","丁未",   // 未
-  "己未","正",  "壬申",   // 坤
-  "甲申","丙申","戊申",   // 申
-  "庚申","正",  "癸酉",   // 庚
-  "乙酉","丁酉","己酉",   // 酉
-  "辛酉","正",  "甲戌",   // 辛
-  "丙戌","戊戌","庚戌",   // 戌
-  "壬戌","正",  "乙亥",   // 乾
-  "丁亥","己亥","辛亥",   // 亥
-];
+/**
+ * 🔴 2026-09-19 删除本地常量，改引共享包 `RING_CHUAN_SHAN_72`。
+ *
+ * 同一份穿山表原先有三个副本（本文件、共享包、前端静态表），
+ * 而共享包那份首版是错的（把六十甲子顺排当排布，十二个地支山全不符）。
+ * 三副本各自演化正是这类错误的温床，故收敛到共享包单一来源。
+ * 本文件原有的这份常量是对的，已作为重建共享包那份的校验基准。
+ */
 
 // 城市磁偏角参考
 const CITY_DECLINATION: [string, number, number, number][] = [
@@ -90,13 +71,54 @@ const NA_JIA: Record<string, string> = {
   "午":"离纳己","未":"坤纳乙","申":"坤纳乙","酉":"兑纳丁","戌":"乾纳甲","亥":"乾纳甲",
 };
 
-function degreeToShan(deg: number): { shan: string; chaoxiang: string; info: typeof SHAN_INFO[string] } {
-  const normalized = ((deg % 360) + 360) % 360;
-  const baseDeg = (normalized + 7.5) % 360;
-  const idx = Math.floor(baseDeg / 15) % 24;
+/**
+ * 度数 → 二十四山。
+ *
+ * 🔴 2026-09-19 修**整盘偏一个山**。
+ *
+ * `SHAN_24[0]` 是壬，而壬山中心在 **345°**（见本文件 `SHAN_INFO`）；
+ * 原式 `Math.floor((deg + 7.5) / 15)` 取的是「以 0° 为第 0 格中心」的下标，
+ * 该下标 0 对应的是**子**山（中心 0°），却被拿去索引到了壬。
+ * 于是整个二十四山向后错一位：0°（正北）返回壬、345° 返回亥。
+ *
+ * **判据是本文件自相矛盾**——把 `SHAN_INFO` 自带的每山中心度数喂回本函数，
+ * 应当原样返回该山，实测 **24/24 全不符，且每个都恰好偏 15°**。
+ * 不需要任何外部基准就能定案。
+ *
+ * 影响范围远不止显示：坐山错一位 → 朝向、纳甲、三合水法、三元龙、
+ * 穿山/透地/分金全部连带错位，且**越靠近山界越容易被用户当成兼向问题**。
+ *
+ * @param offsetDeg 圈层相对地盘的旋转量。地盘 0；人盘中针逆偏 7.5°（传 -7.5）；
+ *                  天盘缝针顺偏 7.5°（传 +7.5）。见 `needleShan()`。
+ */
+function degreeToShan(deg: number, offsetDeg = 0): { shan: string; chaoxiang: string; info: typeof SHAN_INFO[string] } {
+  const normalized = ((deg - offsetDeg) % 360 + 360) % 360;
+  // +1：把「以 0° 为中心的第 0 格」对回 SHAN_24 里的子（下标 1）
+  const idx = (Math.floor(((normalized + 7.5) % 360) / 15) + 1) % 24;
   const shan = SHAN_24[idx];
   const chaoxiangIdx = (idx + 12) % 24;
   return { shan, chaoxiang: SHAN_24[chaoxiangIdx], info: SHAN_INFO[shan] ?? SHAN_INFO["午"] };
+}
+
+/**
+ * 三针读数。
+ *
+ * 🔴 2026-09-19 修。原实现用**整山常数偏移**：
+ * 人盘中针 `SHAN_24[(shanIdx + 1) % 24]`（＝+15°）、
+ * 天盘缝针 `SHAN_24[(shanIdx + 7) % 24]`（＝**+105°**，无从解释）。
+ *
+ * 三针实际只差 **7.5°，恰好半个山**：
+ *   · 地盘正针——立向、格龙，为基准；
+ *   · 人盘中针——盘面**逆时针**偏 7.5°，用于消砂（拨砂）；
+ *   · 天盘缝针——盘面**顺时针**偏 7.5°，用于纳水。
+ *
+ * 半个山的偏移意味着：同一朝向下，中针/缝针读数**只可能是本山或相邻山**，
+ * 且随朝向落在本山的前半还是后半而变——不是一个可以写死的常数。
+ * 原实现把它写成常数，等于宣称「不论朝向落在山中何处，中针恒进一位」，
+ * 这在山的前半段就是错的。
+ */
+function needleShan(trueDeg: number, kind: "zhong" | "feng"): string {
+  return degreeToShan(trueDeg, kind === "zhong" ? -7.5 : 7.5).shan;
 }
 
 function calcSanHeShui(zuoShan: string): { shuiKou: string; siDaJu: string; changShengShui: string; jiXiong: string } {
@@ -115,59 +137,48 @@ function calcSanHeShui(zuoShan: string): { shuiKou: string; siDaJu: string; chan
 }
 
 // ══ 按模式构建罗盘层 ══
-function buildLayers(shan: string, type: LuoPanType, shanIdx: number, trueDeg: number): LuoPanLayer[] {
-  const all: LuoPanLayer[] = [];
+/**
+ * 各盘制的圈层读数。
+ *
+ * 🔴 2026-09-19 重写：改由 `@guoxue/shared/paipan` 的**罗盘圈层数据层**驱动。
+ *
+ * 原实现把十来层的内容与取格算术散在本函数里，每层各写一套下标公式，
+ * 于是同一类错误反复出现——地盘偏一个山、三针用整山常数、
+ * 穿山龙恒取中间那条、透地龙与分金以 0° 起算。
+ * 收敛到数据层之后，取格只有 `readRing` 一条路径，
+ * 每层只需声明「格数、起算点、内容」，算术不再各写一遍。
+ *
+ * 数据层同时把层数从约 8 层补到 14 层（先天/后天八卦、三元龙、净阴净阳、
+ * 二十四节气、双山三合五行等），并给每层配了可机检的不变量。
+ */
+function buildLayers(_shan: string, type: LuoPanType, _shanIdx: number, trueDeg: number): LuoPanLayer[] {
+  const plate: PlateType =
+    type === "sanhe" ? "sanhe" : type === "sanyuan" ? "sanyuan" : type === "jianyi" ? "jianyi" : "zonghe";
 
-  // 第1层：地盘正针（所有模式共有）
-  all.push({ index:1, name:"地盘正针（二十四山）", usage:"格龙立向", data:[...SHAN_24], currentValue:shan });
+  const layers = ringsOf(plate).map((ring, i): LuoPanLayer => {
+    const r = readRing(ring, trueDeg);
+    const c = r.cell;
+    // 吉凶与附注一并带出——原实现只给一个裸字面，调用方无从判断可用不可用
+    const suffix = [c.jiXiong && c.jiXiong !== "平" ? c.jiXiong : "", c.note].filter(Boolean).join("·");
+    return {
+      index: i + 1,
+      name: ring.name,
+      usage: `${ring.usage}｜挂${ring.attachTo}`,
+      data: ring.cells.map((x) => x.text),
+      currentValue: suffix ? `${c.text}（${suffix}）` : c.text,
+    };
+  });
 
-  // 第2层：人盘中针（三合/综合有）
-  if (type === "sanhe" || type === "zonghe") {
-    all.push({ index:all.length+1, name:"人盘中针（二十四山）", usage:"消砂纳水", data:[...SHAN_24], currentValue:SHAN_24[(shanIdx + 1) % 24] });
-  }
+  // 周天度数单独一层，不属于盘面圈层
+  layers.push({
+    index: layers.length + 1,
+    name: "周天360°",
+    usage: "精确定度｜挂地盘正针",
+    data: Array.from({ length: 360 }, (_, i) => `${i}°`),
+    currentValue: `${trueDeg.toFixed(1)}°`,
+  });
 
-  // 第3层：天盘缝针（三合/综合有）
-  if (type === "sanhe" || type === "zonghe") {
-    all.push({ index:all.length+1, name:"天盘缝针（二十四山）", usage:"纳水", data:[...SHAN_24], currentValue:SHAN_24[(shanIdx + 7) % 24] });
-  }
-
-  // 透地六十龙（三合/综合）
-  if (type === "sanhe" || type === "zonghe") {
-    const liuShiLong = ["甲子","丙子","戊子","庚子","壬子","乙丑","丁丑","己丑","辛丑","癸丑","丙寅","戊寅","庚寅","壬寅","甲寅","丁卯","己卯","辛卯","癸卯","乙卯","戊辰","庚辰","壬辰","甲辰","丙辰","己巳","辛巳","癸巳","乙巳","丁巳","庚午","壬午","甲午","丙午","戊午","辛未","癸未","乙未","丁未","己未","壬申","甲申","丙申","戊申","庚申","癸酉","乙酉","丁酉","己酉","辛酉","甲戌","丙戌","戊戌","庚戌","壬戌","乙亥","丁亥","己亥","辛亥","癸亥"];
-    const currentIdx = Math.floor(trueDeg / 6) % 60;
-    all.push({ index:all.length+1, name:"六十龙透地", usage:"格龙乘气", data:liuShiLong, currentValue:liuShiLong[currentIdx] });
-  }
-
-  // 穿山七十二龙（三合/综合）
-  if (type === "sanhe" || type === "zonghe") {
-    all.push({ index:all.length+1, name:"七十二龙穿山", usage:"穿山定穴", data:QI_SHI_ER_LONG, currentValue:QI_SHI_ER_LONG[shanIdx * 3 + 1] });
-  }
-
-  // 一百二十分金（三合/综合）
-  if (type === "sanhe" || type === "zonghe") {
-    const fenJin120 = Array(120).fill("").map((_, i) => {
-      const gzIdx = i % 60;
-      const gz = ["甲子","乙丑","丙寅","丁卯","戊辰","己巳","庚午","辛未","壬申","癸酉","甲戌","乙亥","丙子","丁丑","戊寅","己卯","庚辰","辛巳","壬午","癸未","甲申","乙酉","丙戌","丁亥","戊子","己丑","庚寅","辛卯","壬辰","癸巳","甲午","乙未","丙申","丁酉","戊戌","己亥","庚子","辛丑","壬寅","癸卯","甲辰","乙巳","丙午","丁未","戊申","己酉","庚戌","辛亥","壬子","癸丑","甲寅","乙卯","丙辰","丁巳","戊午","己未","庚申","辛酉","壬戌","癸亥"][gzIdx];
-      const ny = NA_YIN[gz] ?? "";
-      return `${gz}(${ny})`;
-    });
-    const fjIdx = Math.floor(trueDeg / 3) % 120;
-    all.push({ index:all.length+1, name:"一百二十分金", usage:"分金坐度", data:fenJin120, currentValue:fenJin120[fjIdx] });
-  }
-
-  // 六十四卦（三元/综合）
-  if (type === "sanyuan" || type === "zonghe") {
-    const gua64 = ["乾","坤","屯","蒙","需","讼","师","比","小畜","履","泰","否","同人","大有","谦","豫","随","蛊","临","观","噬嗑","贲","剥","复","无妄","大畜","颐","大过","坎","离","咸","恒","遁","大壮","晋","明夷","家人","睽","蹇","解","损","益","夬","姤","萃","升","困","井","革","鼎","震","艮","渐","归妹","丰","旅","巽","兑","涣","节","中孚","小过","既济","未济"];
-    all.push({ index:all.length+1, name:"六十四卦", usage:"易卦风水", data:gua64 });
-  }
-
-  // 二十八宿度
-  all.push({ index:all.length+1, name:"二十八宿度", usage:"天星拨砂", data:["角","亢","氐","房","心","尾","箕","斗","牛","女","虚","危","室","壁","奎","娄","胃","昴","毕","觜","参","井","鬼","柳","星","张","翼","轸"] });
-
-  // 周天360度
-  all.push({ index:all.length+1, name:"周天360°", usage:"精确定度", data:Array(360).fill("").map((_,i) => `${i}°`), currentValue:`${Math.round(trueDeg)}°` });
-
-  return all;
+  return layers;
 }
 
 // ══ 五派风水指导 ══

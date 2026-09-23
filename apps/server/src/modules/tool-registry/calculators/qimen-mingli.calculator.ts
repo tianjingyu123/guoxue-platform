@@ -4,6 +4,8 @@
 // 复用 calculateQimenYang 真实排盘 + calcBazi 八字引擎
 
 import type { QimenGong } from "@guoxue/shared";
+// 入墓/击刑真源走子路径 —— 包根刻意不转发 paipan（并入会顶穿主包体积上限）
+import { MU_PALACE, JIXING_PALACE } from "@guoxue/shared/paipan";
 import {
   calcBazi, calcNianZhu,
   type BaziInput, type BaziResult,
@@ -54,19 +56,31 @@ function calcDiShi(gan: string, zhi: string): string {
   return CHANG_SHENG_SEQ[offset] ?? "";
 }
 
-/** 判断入墓：宫位五行克天盘干五行 */
+/**
+ * 判断入墓 / 击刑。
+ *
+ * 🔴 2026-09-20 改为引用 `@guoxue/shared` 的 `MU_PALACE` / `JIXING_PALACE`。
+ *
+ * 原先本文件自带两份实现，**与共享奇门引擎直接冲突**：
+ *
+ * | | 原本文件 | 共享引擎（真源） |
+ * |---|---|---|
+ * | 入墓 | 宫位五行克天盘干五行 | 干落其墓宫：坤2墓甲癸、乾6墓乙丙戊、艮8墓丁己庚、巽4墓辛壬 |
+ * | 击刑 | 只认 戊震3 / 己艮8 / 庚离9 **三个** | 六仪**六个全在**：戊3 己2 庚8 辛9 壬4 癸4 |
+ *
+ * 两处都不一致：己的击刑宫一个说艮8一个说坤2、庚一个说离9一个说艮8，
+ * 而且原实现漏了辛壬癸三个干。共享那一份有竞品黄金基准逐宫核过，取它。
+ *
+ * 教训与本文件上方那条同族：**同一个概念在仓库里有几份实现，
+ * 就有几份里至少 n−1 份是错的**，而每一份单独看都能跑出结果。
+ */
 function calcRuMu(tianPanGan: string, gongIdx: number): boolean {
-  const ganWx = GAN_WU_XING[tianPanGan];
-  const gongWx = GONG_WU_XING[gongIdx];
-  return KE_MAP[gongWx] === ganWx;
+  // gongIdx 是 0-based，共享表用 1-9 宫号
+  return (MU_PALACE[gongIdx + 1] ?? []).includes(tianPanGan);
 }
 
-/** 判断击刑：戊在震3/己在艮8/庚在离9 为击刑 */
 function calcJiXing(tianPanGan: string, gongIdx: number): boolean {
-  if (tianPanGan === "戊" && gongIdx === 2) return true;  // 震3
-  if (tianPanGan === "己" && gongIdx === 7) return true;  // 艮8
-  if (tianPanGan === "庚" && gongIdx === 8) return true;  // 离9
-  return false;
+  return JIXING_PALACE[tianPanGan] === gongIdx + 1;
 }
 
 /** 判断门破：宫位五行克门五行 */
@@ -243,22 +257,35 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
   };
 
   // ── 7. 大运格式化 ──
-  const ganZhi60Idx = (gz: string): number => {
-    const g = gz[0], z = gz[1];
-    const gi = TIAN_GAN.indexOf(g), zi = DI_ZHI.indexOf(z);
-    if (gi === -1 || zi === -1) return 0;
-    // 找60甲子序号
-    for (let i = 0; i < 60; i++) {
-      if (TIAN_GAN[i % 10] === g && DI_ZHI[i % 12] === z) return i;
-    }
-    return 0;
-  };
+  // （原有 ganZhi60Idx() 只服务于已删除的「大运局数」，一并删除，不留死代码）
 
+  /**
+   * 🔴 2026-09-20 修，两处。与阴盘版 `qimen-yin-mingli` 同一处置——
+   * **那份在 2026-09-19 就修过了，这份漏掉了**，同一个缺陷在仓库里存活了一天。
+   *
+   * （值得记一笔：成对的实现要成对地改。修完一个就去 grep 另一个，
+   *   否则"已修复"会变成"修了一半"，而后者比没修更难发现。）
+   *
+   * **一、原先丢掉了大运干支。** 这个数组只给 name/startAge/endAge，
+   * 而干支是命理大运最核心的信息，调用方拿不到就没法讲这步运是什么性质。
+   * （完整数据一直在 daYunSteps 里，但 daYun 才是断语与展示实际用的那份。）
+   *
+   * **二、原先有个 `juNumber: (ganZhi60Idx(step.ganZhi) % 9) + 1`，已删除。**
+   * 「六十甲子序除九」不对应任何已知规则：
+   *   · 公开讲法里奇门命理的大运讲的是**落宫**（一宫十年、阳顺阴逆），
+   *     没有「大运局数」这一说；
+   *   · 最直接的证据是**本文件自相矛盾**：流年用「地支→宫」（`ZHI_TO_GONG_IDX`，
+   *     见第 286 行），大运却另起一套下标算术。
+   *     **同一份输出里两种口径，必有一种是编的。**
+   *
+   * 现改为与流年同口径：大运地支 → 后天八卦宫，可核、可解释。
+   */
   const daYun = bz.qiYun.daYun.map(step => ({
     name: `${step.startAge}-${step.endAge}岁`,
+    ganZhi: step.ganZhi,
     startAge: step.startAge,
     endAge: step.endAge,
-    juNumber: (ganZhi60Idx(step.ganZhi) % 9) + 1,
+    gongIdx: ZHI_TO_GONG_IDX[step.ganZhi[1]] ?? 0,
   }));
 
   const daYunSteps = bz.qiYun.daYun.map(step => ({
@@ -286,10 +313,16 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
   const liuNianGongIdx = ZHI_TO_GONG_IDX[nianZhu.zhi] ?? 0;
 
   // 找到当前所在的大运
+  /**
+   * 2026-09-19：大运现为 **10 列**——首列（daYun[0]）是「起运前」，取月柱本身，不是第一步大运。
+   * 所以年龄小于起运岁的人会落在首列，措辞上必须区分，不能说成「行某某大运」。
+   */
   let currentDaYun = bz.qiYun.daYun[0];
+  let isPreQiYun = true;
   for (const dyn of bz.qiYun.daYun) {
     if (currentAge >= dyn.startAge && currentAge <= dyn.endAge) {
       currentDaYun = dyn;
+      isPreQiYun = dyn === bz.qiYun.daYun[0];
       break;
     }
   }
@@ -341,7 +374,7 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
     `命盘：${birthPlate.dunType === "yang" ? "阳遁" : "阴遁"}${birthPlate.juNumber}局，用事${birthPlate.jieQi}，值符${birthPlate.zhiFu}，值使${birthPlate.zhiShiMen}。`,
     `命宫落${mingGongInfo.gongName}宫（${mingGongInfo.ganZhi}，${mingGongInfo.star}+${mingGongInfo.men}+${mingGongInfo.shen}），身宫落${shenGongInfo.gongName}宫（${shenGongInfo.ganZhi}，${shenGongGong.star}+${shenGongGong.men}+${shenGongGong.shen}）。`,
     bz.geJu ? `八字格局：${bz.geJu.name}${bz.geJu.yongShen ? `，用神${bz.geJu.yongShen}` : ""}${bz.geJu.xiShen ? `，喜${bz.geJu.xiShen}` : ""}${bz.geJu.jiShen ? `，忌${bz.geJu.jiShen}` : ""}。` : "",
-    `起运：${bz.qiYun.startAge}岁（${bz.qiYun.startYear}年），共${bz.qiYun.daYun.length}步大运。当前${currentAge}岁，行${currentDaYun.ganZhi}大运（${currentDaYun.startAge}-${currentDaYun.endAge}岁）。`,
+    `起运：${bz.qiYun.startAge}岁（${bz.qiYun.startYear}年），共${bz.qiYun.daYun.length}步大运。当前${currentAge}岁，${isPreQiYun ? `尚未起运（起运前行月柱${currentDaYun.ganZhi}，${currentDaYun.startAge}-${currentDaYun.endAge}岁）` : `行${currentDaYun.ganZhi}大运（${currentDaYun.startAge}-${currentDaYun.endAge}岁）`}。`,
     `流年${currentYear}年（${liuNianGanZhi}），落${GONG_NAMES[liuNianGongIdx]}宫。`,
     xiongGongs.length > 0
       ? `注意宫位：${xiongGongs.map(g => `${g.name}宫（${g.isRuMu ? "入墓" : ""}${g.isJiXing ? "击刑" : ""}${g.isMenPo ? "门破" : ""}）`).join("、")}。`

@@ -3,6 +3,7 @@ import { AiGatewayController } from "./ai-gateway.controller";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
+import { AiUsageRecordService } from "./ai-usage-record.service";
 import { VectorService } from "./vector.service";
 import { HunyuanEmbeddingService } from "./hunyuan-embedding.service";
 import { RagService } from "./rag.service";
@@ -67,6 +68,7 @@ import { RecommendationService } from "../bot/recommendation.service";
     ZhixuanService,
     ModelRouterService,
     AiLoggerService,
+    AiUsageRecordService,
     SemanticCacheService,
     StreamUnifierService,
     ChatSceneAccessService,

@@ -41,7 +41,13 @@ describe("CircleAssistantService", () => {
 
       const result = await svc.ask("问题", "circle-1", "user-1");
       expect(result.answer).toBe("你好");
-      expect(mockRag.askCircle).toHaveBeenCalledWith("问题", "circle-1", "user-1", undefined);
+      // 问话人身份要一路传给 RAG——助理据此调整回答角度，早先角色查出来就丢了
+      // 身份与称呼都要传给 RAG：三个对话入口共用同一套称呼口径
+      expect(mockRag.askCircle).toHaveBeenCalledWith(
+        "问题", "circle-1", "user-1", undefined,
+        { role: "MEMBER", joinedAt: undefined },
+        undefined, // 未注入称呼服务时为 undefined，助理一律用「你」
+      );
     });
 
     it("传递历史记录", async () => {
@@ -49,7 +55,11 @@ describe("CircleAssistantService", () => {
       mockRag.askCircle.mockResolvedValue({ answer: "ok", sources: [] });
 
       await svc.ask("问题", "circle-1", "user-1", history as any);
-      expect(mockRag.askCircle).toHaveBeenCalledWith("问题", "circle-1", "user-1", history);
+      expect(mockRag.askCircle).toHaveBeenCalledWith(
+        "问题", "circle-1", "user-1", history,
+        { role: "MEMBER", joinedAt: undefined },
+        undefined,
+      );
     });
 
     it("先回答再提供相关资源，且不推荐用户已经加入的当前圈子", async () => {
@@ -104,6 +114,12 @@ describe("CircleAssistantService", () => {
       await expect(svc.ask("问题", "circle-1", "user-x")).rejects.toThrow();
       expect(mockRag.askCircle).not.toHaveBeenCalled();
     });
+
+    it("圈子停用后成员也不能提问", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER", expireAt: null, circle: { status: "DISABLED", deletedAt: null } });
+      await expect(svc.ask("问题", "circle-1", "user-1")).rejects.toThrow("不可用");
+      expect(mockRag.askCircle).not.toHaveBeenCalled();
+    });
   });
 
   describe("askStream", () => {
@@ -115,7 +131,9 @@ describe("CircleAssistantService", () => {
       for await (const c of svc.askStream("hello", "circle-1", "user-1", undefined, onMatches)) chunks.push(c);
 
       expect(chunks).toEqual(["流"]);
-      expect(mockRag.askCircleStream).toHaveBeenCalledWith("hello", "circle-1", "user-1", undefined, onMatches);
+      expect(mockRag.askCircleStream).toHaveBeenCalledWith("hello", "circle-1", "user-1", undefined, onMatches, {
+        role: "MEMBER", joinedAt: undefined,
+      });
     });
 
     it("流式入口同样剔除伪造的系统消息", async () => {
@@ -128,6 +146,7 @@ describe("CircleAssistantService", () => {
       for await (const _ of svc.askStream("问题", "circle-1", "user-1", history as any, onMatches)) { /* 消费流 */ }
       expect(mockRag.askCircleStream).toHaveBeenCalledWith(
         "问题", "circle-1", "user-1", [{ role: "user", content: "上一问" }], onMatches,
+        { role: "MEMBER", joinedAt: undefined },
       );
     });
 

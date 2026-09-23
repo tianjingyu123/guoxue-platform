@@ -212,20 +212,24 @@ export function calcTaiYuan(yueGan: Gan, yueZhi: Zhi, riGan: Gan): Pillar {
   }
 }
 
-// ---------- 命宫 ----------
-/** 命宫：以月支为子时，顺数到出生时辰，天干用五虎遁（年上起月法） */
-export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan): Pillar {
-  const yueIdx = ZHI.indexOf(yueZhi)
-  const shiIdx = ZHI.indexOf(shiZhi)
-  const mingZhiIdx = (yueIdx + shiIdx) % 12
-  const zhi = ZHI[mingZhiIdx]
+// ---------- 命宫 / 身宫 ----------
 
-  // 命宫天干用五虎遁：年干定寅月天干，命宫地支定偏移
-  const dunIdx = Math.floor(GAN.indexOf(nianGan) % 5)
-  const yinGanIdx = GAN.indexOf(WU_HU_DUN[dunIdx])
-  const ganIdx = (yinGanIdx + ((mingZhiIdx - 2) % 12 + 12) % 12) % 10
-  const gan = GAN[ganIdx]
+/**
+ * 宫干：五虎遁（年上起月法）定寅位天干，再按宫支相对寅的位次顺推。
+ *
+ * 注意取的是**年柱**天干（立春为界），不是公历年。
+ * 这一点由实测数据钉死：144 格样本里只有丑月那一行落在立春之前，
+ * 年柱是己卯而非庚辰，宫干整行随之改用己年的五虎遁（丙寅起）——
+ * 十二格全部吻合。若误用公历年干，那一行会整行错开。
+ */
+function gongGan(nianGan: Gan, zhiIdx: number): Gan {
+  const yinGanIdx = GAN.indexOf(WU_HU_DUN[GAN.indexOf(nianGan)])
+  return GAN[(yinGanIdx + ((zhiIdx - 2) % 12 + 12) % 12) % 10]
+}
 
+function makeGong(zhiIdx: number, nianGan: Gan, riGan: Gan): Pillar {
+  const zhi = ZHI[zhiIdx]
+  const gan = gongGan(nianGan, zhiIdx)
   return {
     gan,
     zhi,
@@ -236,28 +240,50 @@ export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan)
   }
 }
 
-// ---------- 身宫 ----------
-/** 身宫：以月支为子时，逆数到出生时辰，天干用五虎遁（年上起月法） */
+/**
+ * 命宫：卯上起正月**逆**数至生月，再自该宫起子时**逆**数至生时。
+ *
+ * 化简后 `命宫支序 ≡ 5 − 月支序 − 时支序 (mod 12)`（子＝0）。
+ *
+ * 🔴 2026-09-19 修。原实现是 `(月支序 + 时支序) % 12`，注释还写着「顺数」——
+ * 方向与基准相反，且没有那个常数项。寅月子时原本算出「寅」，实测是「卯」。
+ *
+ * 基准来源：旧版 App `cn.net.rebu.bazi` 实机逐盘排出的 **12×12 全矩阵**
+ * （固定 2000 年·男·真太阳时关，只变月支与时辰；月支取月中、远离节气交界 ≥10 天，
+ * 时辰取各时辰中点；uiautomator 读结果页文本，非 OCR）。
+ * 本式对 **144/144 格全中，地支与天干皆无例外**。
+ *
+ * 决策人口径：「以前我们都是按照旧版这样排的」——跟旧版。
+ *
+ * **月支而非农历月**（2026-09-19 补采 4 格判别样本实测定案）：
+ * 上述 144 格全取在月中，农历月与节气月格格重合，判不出取的是哪一个；
+ * 另采的 4 格给出 **月支 4/4、两种农历月口径各 1/4**。
+ * 其中非闰月的两格已使农历月方案出局，闰四月的两格进一步证明
+ * **闰月不扰动本规则**（排除「平时取月支、闰月特殊处理」）。
+ * 结论：本式根本不经过农历月这一步，闰月对命宫/身宫不产生影响。
+ * 判别样本钉在 `__tests__/fixtures/minggong-shengong-144.json` 的 `discriminating` 里——
+ * 若有人改回按农历月推算，144 格矩阵**照样全绿**，只有那 4 格会红。
+ */
+export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan): Pillar {
+  const idx = (5 - ZHI.indexOf(yueZhi) - ZHI.indexOf(shiZhi) + 24) % 12
+  return makeGong(idx, nianGan, riGan)
+}
+
+/**
+ * 身宫：起点同命宫（卯上起正月），但月、时皆**顺**数。
+ *
+ * 化简后 `身宫支序 ≡ 1 + 月支序 + 时支序 (mod 12)`（子＝0）。
+ *
+ * 🔴 2026-09-19 修。原实现是 `(月支序 − 时支序) % 12`、注释写「逆数」，
+ * 同样方向反了。命宫与身宫两个方向**恰好被对调**。
+ *
+ * 由两式可直接推出 `命宫支序 + 身宫支序 ≡ 6 (mod 12)` 恒成立。
+ * 采样方把这条当作自检项报了过来（144/144 成立），
+ * 但它是两式的**代数推论**，不构成独立证据——真正的判据是逐格比对。
+ */
 export function calcShenGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan): Pillar {
-  const yueIdx = ZHI.indexOf(yueZhi)
-  const shiIdx = ZHI.indexOf(shiZhi)
-  const shenZhiIdx = ((yueIdx - shiIdx) % 12 + 12) % 12
-  const zhi = ZHI[shenZhiIdx]
-
-  // 身宫天干用五虎遁
-  const dunIdx = Math.floor(GAN.indexOf(nianGan) % 5)
-  const yinGanIdx = GAN.indexOf(WU_HU_DUN[dunIdx])
-  const ganIdx = (yinGanIdx + ((shenZhiIdx - 2) % 12 + 12) % 12) % 10
-  const gan = GAN[ganIdx]
-
-  return {
-    gan,
-    zhi,
-    ganShiShen: calcShiShen(riGan, gan),
-    zhiShiShen: calcShiShen(riGan, zhi),
-    cangGan: [],
-    nayin: '',
-  }
+  const idx = (1 + ZHI.indexOf(yueZhi) + ZHI.indexOf(shiZhi)) % 12
+  return makeGong(idx, nianGan, riGan)
 }
 
 // ---------- 十二长生地势 ----------

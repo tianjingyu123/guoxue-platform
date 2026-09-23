@@ -208,6 +208,12 @@ export class CompanionChatDto {
   @Length(1, 1000)
   question: string;
 
+  @ApiPropertyOptional({ description: "用户所问的原文句子（长章节时据此注入前后文）" })
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  focusText?: string;
+
   @ApiPropertyOptional({ description: "多轮对话历史（登录用户以服务端持久会话为准，此参数仅未登录兜底）" })
   @IsOptional()
   @IsArray()

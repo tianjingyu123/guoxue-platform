@@ -1,0 +1,1358 @@
+{
+  "source": "旧版 App cn.net.rebu.bazi v1.0.2(3)，一加 9R 实机逐盘排出，uiautomator 读结果页文本（非 OCR）",
+  "collectedAt": "2026-09-19",
+  "collectedBy": "desktop-44",
+  "conditions": "固定 2000 年·男·真太阳时关；月支取月中、远离节气交界 ≥10 天；时辰取各时辰中点",
+  "caveat": "已由补采的 4 格判别样本定案：旧版取**月柱地支**，不经农历月。见 discriminating 字段。",
+  "count": 144,
+  "samples": [
+    {
+      "input": "2000-01-20 02:30",
+      "yueZhi": "丑",
+      "shiZhi": "丑",
+      "siZhu": "己卯 丁丑 丁丑 辛丑",
+      "mingGong": "丁卯",
+      "shenGong": "丁卯",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 22:30",
+      "yueZhi": "丑",
+      "shiZhi": "亥",
+      "siZhu": "己卯 丁丑 丁丑 辛亥",
+      "mingGong": "己巳",
+      "shenGong": "丁丑",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 12:30",
+      "yueZhi": "丑",
+      "shiZhi": "午",
+      "siZhu": "己卯 丁丑 丁丑 丙午",
+      "mingGong": "甲戌",
+      "shenGong": "壬申",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 06:30",
+      "yueZhi": "丑",
+      "shiZhi": "卯",
+      "siZhu": "己卯 丁丑 丁丑 癸卯",
+      "mingGong": "丁丑",
+      "shenGong": "己巳",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 00:30",
+      "yueZhi": "丑",
+      "shiZhi": "子",
+      "siZhu": "己卯 丁丑 丁丑 庚子",
+      "mingGong": "戊辰",
+      "shenGong": "丙寅",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 04:30",
+      "yueZhi": "丑",
+      "shiZhi": "寅",
+      "siZhu": "己卯 丁丑 丁丑 壬寅",
+      "mingGong": "丙寅",
+      "shenGong": "戊辰",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 10:30",
+      "yueZhi": "丑",
+      "shiZhi": "巳",
+      "siZhu": "己卯 丁丑 丁丑 乙巳",
+      "mingGong": "乙亥",
+      "shenGong": "辛未",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 20:30",
+      "yueZhi": "丑",
+      "shiZhi": "戌",
+      "siZhu": "己卯 丁丑 丁丑 庚戌",
+      "mingGong": "庚午",
+      "shenGong": "丙子",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 14:30",
+      "yueZhi": "丑",
+      "shiZhi": "未",
+      "siZhu": "己卯 丁丑 丁丑 丁未",
+      "mingGong": "癸酉",
+      "shenGong": "癸酉",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 16:30",
+      "yueZhi": "丑",
+      "shiZhi": "申",
+      "siZhu": "己卯 丁丑 丁丑 戊申",
+      "mingGong": "壬申",
+      "shenGong": "甲戌",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 08:30",
+      "yueZhi": "丑",
+      "shiZhi": "辰",
+      "siZhu": "己卯 丁丑 丁丑 甲辰",
+      "mingGong": "丙子",
+      "shenGong": "庚午",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-01-20 18:30",
+      "yueZhi": "丑",
+      "shiZhi": "酉",
+      "siZhu": "己卯 丁丑 丁丑 己酉",
+      "mingGong": "辛未",
+      "shenGong": "乙亥",
+      "taiYuan": "戊辰"
+    },
+    {
+      "input": "2000-11-20 02:30",
+      "yueZhi": "亥",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 丁亥 壬午 辛丑",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 22:30",
+      "yueZhi": "亥",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 丁亥 壬午 辛亥",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 12:30",
+      "yueZhi": "亥",
+      "shiZhi": "午",
+      "siZhu": "庚辰 丁亥 壬午 丙午",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 06:30",
+      "yueZhi": "亥",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 丁亥 壬午 癸卯",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 00:30",
+      "yueZhi": "亥",
+      "shiZhi": "子",
+      "siZhu": "庚辰 丁亥 壬午 庚子",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 04:30",
+      "yueZhi": "亥",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 丁亥 壬午 壬寅",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 10:30",
+      "yueZhi": "亥",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 丁亥 壬午 乙巳",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 20:30",
+      "yueZhi": "亥",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 丁亥 壬午 庚戌",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 14:30",
+      "yueZhi": "亥",
+      "shiZhi": "未",
+      "siZhu": "庚辰 丁亥 壬午 丁未",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 16:30",
+      "yueZhi": "亥",
+      "shiZhi": "申",
+      "siZhu": "庚辰 丁亥 壬午 戊申",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 08:30",
+      "yueZhi": "亥",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 丁亥 壬午 甲辰",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-11-20 18:30",
+      "yueZhi": "亥",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 丁亥 壬午 己酉",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "戊寅"
+    },
+    {
+      "input": "2000-06-20 02:30",
+      "yueZhi": "午",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 壬午 己酉 乙丑",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 22:30",
+      "yueZhi": "午",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 壬午 己酉 乙亥",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 12:30",
+      "yueZhi": "午",
+      "shiZhi": "午",
+      "siZhu": "庚辰 壬午 己酉 庚午",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 06:30",
+      "yueZhi": "午",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 壬午 己酉 丁卯",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 00:30",
+      "yueZhi": "午",
+      "shiZhi": "子",
+      "siZhu": "庚辰 壬午 己酉 甲子",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 04:30",
+      "yueZhi": "午",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 壬午 己酉 丙寅",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 10:30",
+      "yueZhi": "午",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 壬午 己酉 己巳",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 20:30",
+      "yueZhi": "午",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 壬午 己酉 甲戌",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 14:30",
+      "yueZhi": "午",
+      "shiZhi": "未",
+      "siZhu": "庚辰 壬午 己酉 辛未",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 16:30",
+      "yueZhi": "午",
+      "shiZhi": "申",
+      "siZhu": "庚辰 壬午 己酉 壬申",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 08:30",
+      "yueZhi": "午",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 壬午 己酉 戊辰",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-06-20 18:30",
+      "yueZhi": "午",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 壬午 己酉 癸酉",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "癸酉"
+    },
+    {
+      "input": "2000-03-20 02:30",
+      "yueZhi": "卯",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 己卯 丁丑 辛丑",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 22:30",
+      "yueZhi": "卯",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 己卯 丁丑 辛亥",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 12:30",
+      "yueZhi": "卯",
+      "shiZhi": "午",
+      "siZhu": "庚辰 己卯 丁丑 丙午",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 06:30",
+      "yueZhi": "卯",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 己卯 丁丑 癸卯",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 00:30",
+      "yueZhi": "卯",
+      "shiZhi": "子",
+      "siZhu": "庚辰 己卯 丁丑 庚子",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 04:30",
+      "yueZhi": "卯",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 己卯 丁丑 壬寅",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 10:30",
+      "yueZhi": "卯",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 己卯 丁丑 乙巳",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 20:30",
+      "yueZhi": "卯",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 己卯 丁丑 庚戌",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 14:30",
+      "yueZhi": "卯",
+      "shiZhi": "未",
+      "siZhu": "庚辰 己卯 丁丑 丁未",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 16:30",
+      "yueZhi": "卯",
+      "shiZhi": "申",
+      "siZhu": "庚辰 己卯 丁丑 戊申",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 08:30",
+      "yueZhi": "卯",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 己卯 丁丑 甲辰",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-03-20 18:30",
+      "yueZhi": "卯",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 己卯 丁丑 己酉",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "庚午"
+    },
+    {
+      "input": "2000-12-20 02:30",
+      "yueZhi": "子",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 戊子 壬子 辛丑",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 22:30",
+      "yueZhi": "子",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 戊子 壬子 辛亥",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 12:30",
+      "yueZhi": "子",
+      "shiZhi": "午",
+      "siZhu": "庚辰 戊子 壬子 丙午",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 06:30",
+      "yueZhi": "子",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 戊子 壬子 癸卯",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 00:30",
+      "yueZhi": "子",
+      "shiZhi": "子",
+      "siZhu": "庚辰 戊子 壬子 庚子",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 04:30",
+      "yueZhi": "子",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 戊子 壬子 壬寅",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 10:30",
+      "yueZhi": "子",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 戊子 壬子 乙巳",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 20:30",
+      "yueZhi": "子",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 戊子 壬子 庚戌",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 14:30",
+      "yueZhi": "子",
+      "shiZhi": "未",
+      "siZhu": "庚辰 戊子 壬子 丁未",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 16:30",
+      "yueZhi": "子",
+      "shiZhi": "申",
+      "siZhu": "庚辰 戊子 壬子 戊申",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 08:30",
+      "yueZhi": "子",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 戊子 壬子 甲辰",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-12-20 18:30",
+      "yueZhi": "子",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 戊子 壬子 己酉",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "己卯"
+    },
+    {
+      "input": "2000-02-20 02:30",
+      "yueZhi": "寅",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 戊寅 戊申 癸丑",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 22:30",
+      "yueZhi": "寅",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 戊寅 戊申 癸亥",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 12:30",
+      "yueZhi": "寅",
+      "shiZhi": "午",
+      "siZhu": "庚辰 戊寅 戊申 戊午",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 06:30",
+      "yueZhi": "寅",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 戊寅 戊申 乙卯",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 00:30",
+      "yueZhi": "寅",
+      "shiZhi": "子",
+      "siZhu": "庚辰 戊寅 戊申 壬子",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 04:30",
+      "yueZhi": "寅",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 戊寅 戊申 甲寅",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 10:30",
+      "yueZhi": "寅",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 戊寅 戊申 丁巳",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 20:30",
+      "yueZhi": "寅",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 戊寅 戊申 壬戌",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 14:30",
+      "yueZhi": "寅",
+      "shiZhi": "未",
+      "siZhu": "庚辰 戊寅 戊申 己未",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 16:30",
+      "yueZhi": "寅",
+      "shiZhi": "申",
+      "siZhu": "庚辰 戊寅 戊申 庚申",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 08:30",
+      "yueZhi": "寅",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 戊寅 戊申 丙辰",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-02-20 18:30",
+      "yueZhi": "寅",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 戊寅 戊申 辛酉",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "己巳"
+    },
+    {
+      "input": "2000-05-20 02:30",
+      "yueZhi": "巳",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 辛巳 戊寅 癸丑",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 22:30",
+      "yueZhi": "巳",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 辛巳 戊寅 癸亥",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 12:30",
+      "yueZhi": "巳",
+      "shiZhi": "午",
+      "siZhu": "庚辰 辛巳 戊寅 戊午",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 06:30",
+      "yueZhi": "巳",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 辛巳 戊寅 乙卯",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 00:30",
+      "yueZhi": "巳",
+      "shiZhi": "子",
+      "siZhu": "庚辰 辛巳 戊寅 壬子",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 04:30",
+      "yueZhi": "巳",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 辛巳 戊寅 甲寅",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 10:30",
+      "yueZhi": "巳",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 辛巳 戊寅 丁巳",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 20:30",
+      "yueZhi": "巳",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 辛巳 戊寅 壬戌",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 14:30",
+      "yueZhi": "巳",
+      "shiZhi": "未",
+      "siZhu": "庚辰 辛巳 戊寅 己未",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 16:30",
+      "yueZhi": "巳",
+      "shiZhi": "申",
+      "siZhu": "庚辰 辛巳 戊寅 庚申",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 08:30",
+      "yueZhi": "巳",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 辛巳 戊寅 丙辰",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-05-20 18:30",
+      "yueZhi": "巳",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 辛巳 戊寅 辛酉",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "壬申"
+    },
+    {
+      "input": "2000-10-20 02:30",
+      "yueZhi": "戌",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 丙戌 辛亥 己丑",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 22:30",
+      "yueZhi": "戌",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 丙戌 辛亥 己亥",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 12:30",
+      "yueZhi": "戌",
+      "shiZhi": "午",
+      "siZhu": "庚辰 丙戌 辛亥 甲午",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 06:30",
+      "yueZhi": "戌",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 丙戌 辛亥 辛卯",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 00:30",
+      "yueZhi": "戌",
+      "shiZhi": "子",
+      "siZhu": "庚辰 丙戌 辛亥 戊子",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 04:30",
+      "yueZhi": "戌",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 丙戌 辛亥 庚寅",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 10:30",
+      "yueZhi": "戌",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 丙戌 辛亥 癸巳",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 20:30",
+      "yueZhi": "戌",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 丙戌 辛亥 戊戌",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 14:30",
+      "yueZhi": "戌",
+      "shiZhi": "未",
+      "siZhu": "庚辰 丙戌 辛亥 乙未",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 16:30",
+      "yueZhi": "戌",
+      "shiZhi": "申",
+      "siZhu": "庚辰 丙戌 辛亥 丙申",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 08:30",
+      "yueZhi": "戌",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 丙戌 辛亥 壬辰",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-10-20 18:30",
+      "yueZhi": "戌",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 丙戌 辛亥 丁酉",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "丁丑"
+    },
+    {
+      "input": "2000-07-20 02:30",
+      "yueZhi": "未",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 癸未 己卯 乙丑",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 22:30",
+      "yueZhi": "未",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 癸未 己卯 乙亥",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 12:30",
+      "yueZhi": "未",
+      "shiZhi": "午",
+      "siZhu": "庚辰 癸未 己卯 庚午",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 06:30",
+      "yueZhi": "未",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 癸未 己卯 丁卯",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 00:30",
+      "yueZhi": "未",
+      "shiZhi": "子",
+      "siZhu": "庚辰 癸未 己卯 甲子",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 04:30",
+      "yueZhi": "未",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 癸未 己卯 丙寅",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 10:30",
+      "yueZhi": "未",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 癸未 己卯 己巳",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 20:30",
+      "yueZhi": "未",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 癸未 己卯 甲戌",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 14:30",
+      "yueZhi": "未",
+      "shiZhi": "未",
+      "siZhu": "庚辰 癸未 己卯 辛未",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 16:30",
+      "yueZhi": "未",
+      "shiZhi": "申",
+      "siZhu": "庚辰 癸未 己卯 壬申",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 08:30",
+      "yueZhi": "未",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 癸未 己卯 戊辰",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-07-20 18:30",
+      "yueZhi": "未",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 癸未 己卯 癸酉",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "甲戌"
+    },
+    {
+      "input": "2000-08-20 02:30",
+      "yueZhi": "申",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 甲申 庚戌 丁丑",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 22:30",
+      "yueZhi": "申",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 甲申 庚戌 丁亥",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 12:30",
+      "yueZhi": "申",
+      "shiZhi": "午",
+      "siZhu": "庚辰 甲申 庚戌 壬午",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 06:30",
+      "yueZhi": "申",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 甲申 庚戌 己卯",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 00:30",
+      "yueZhi": "申",
+      "shiZhi": "子",
+      "siZhu": "庚辰 甲申 庚戌 丙子",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 04:30",
+      "yueZhi": "申",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 甲申 庚戌 戊寅",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 10:30",
+      "yueZhi": "申",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 甲申 庚戌 辛巳",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 20:30",
+      "yueZhi": "申",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 甲申 庚戌 丙戌",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 14:30",
+      "yueZhi": "申",
+      "shiZhi": "未",
+      "siZhu": "庚辰 甲申 庚戌 癸未",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 16:30",
+      "yueZhi": "申",
+      "shiZhi": "申",
+      "siZhu": "庚辰 甲申 庚戌 甲申",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 08:30",
+      "yueZhi": "申",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 甲申 庚戌 庚辰",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-08-20 18:30",
+      "yueZhi": "申",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 甲申 庚戌 乙酉",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "乙亥"
+    },
+    {
+      "input": "2000-04-20 02:30",
+      "yueZhi": "辰",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 庚辰 戊申 癸丑",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 22:30",
+      "yueZhi": "辰",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 庚辰 戊申 癸亥",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 12:30",
+      "yueZhi": "辰",
+      "shiZhi": "午",
+      "siZhu": "庚辰 庚辰 戊申 戊午",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 06:30",
+      "yueZhi": "辰",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 庚辰 戊申 乙卯",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 00:30",
+      "yueZhi": "辰",
+      "shiZhi": "子",
+      "siZhu": "庚辰 庚辰 戊申 壬子",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 04:30",
+      "yueZhi": "辰",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 庚辰 戊申 甲寅",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 10:30",
+      "yueZhi": "辰",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 庚辰 戊申 丁巳",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 20:30",
+      "yueZhi": "辰",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 庚辰 戊申 壬戌",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 14:30",
+      "yueZhi": "辰",
+      "shiZhi": "未",
+      "siZhu": "庚辰 庚辰 戊申 己未",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 16:30",
+      "yueZhi": "辰",
+      "shiZhi": "申",
+      "siZhu": "庚辰 庚辰 戊申 庚申",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 08:30",
+      "yueZhi": "辰",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 庚辰 戊申 丙辰",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-04-20 18:30",
+      "yueZhi": "辰",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 庚辰 戊申 辛酉",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "辛未"
+    },
+    {
+      "input": "2000-09-20 02:30",
+      "yueZhi": "酉",
+      "shiZhi": "丑",
+      "siZhu": "庚辰 乙酉 辛巳 己丑",
+      "mingGong": "癸未",
+      "shenGong": "丁亥",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 22:30",
+      "yueZhi": "酉",
+      "shiZhi": "亥",
+      "siZhu": "庚辰 乙酉 辛巳 己亥",
+      "mingGong": "乙酉",
+      "shenGong": "乙酉",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 12:30",
+      "yueZhi": "酉",
+      "shiZhi": "午",
+      "siZhu": "庚辰 乙酉 辛巳 甲午",
+      "mingGong": "戊寅",
+      "shenGong": "庚辰",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 06:30",
+      "yueZhi": "酉",
+      "shiZhi": "卯",
+      "siZhu": "庚辰 乙酉 辛巳 辛卯",
+      "mingGong": "辛巳",
+      "shenGong": "己丑",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 00:30",
+      "yueZhi": "酉",
+      "shiZhi": "子",
+      "siZhu": "庚辰 乙酉 辛巳 戊子",
+      "mingGong": "甲申",
+      "shenGong": "丙戌",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 04:30",
+      "yueZhi": "酉",
+      "shiZhi": "寅",
+      "siZhu": "庚辰 乙酉 辛巳 庚寅",
+      "mingGong": "壬午",
+      "shenGong": "戊子",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 10:30",
+      "yueZhi": "酉",
+      "shiZhi": "巳",
+      "siZhu": "庚辰 乙酉 辛巳 癸巳",
+      "mingGong": "己卯",
+      "shenGong": "己卯",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 20:30",
+      "yueZhi": "酉",
+      "shiZhi": "戌",
+      "siZhu": "庚辰 乙酉 辛巳 戊戌",
+      "mingGong": "丙戌",
+      "shenGong": "甲申",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 14:30",
+      "yueZhi": "酉",
+      "shiZhi": "未",
+      "siZhu": "庚辰 乙酉 辛巳 乙未",
+      "mingGong": "己丑",
+      "shenGong": "辛巳",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 16:30",
+      "yueZhi": "酉",
+      "shiZhi": "申",
+      "siZhu": "庚辰 乙酉 辛巳 丙申",
+      "mingGong": "戊子",
+      "shenGong": "壬午",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 08:30",
+      "yueZhi": "酉",
+      "shiZhi": "辰",
+      "siZhu": "庚辰 乙酉 辛巳 壬辰",
+      "mingGong": "庚辰",
+      "shenGong": "戊寅",
+      "taiYuan": "丙子"
+    },
+    {
+      "input": "2000-09-20 18:30",
+      "yueZhi": "酉",
+      "shiZhi": "酉",
+      "siZhu": "庚辰 乙酉 辛巳 丁酉",
+      "mingGong": "丁亥",
+      "shenGong": "癸未",
+      "taiYuan": "丙子"
+    }
+  ],
+  "discriminating": {
+    "purpose": "144 格矩阵全取月中，农历月与节气月格格重合，无法判别规则取月支还是农历月；此 4 格专为判别补采",
+    "collectedAt": "2026-09-19",
+    "verdict": "月支 4/4；农历月(归本月) 1/4；农历月(归下月) 1/4 —— 取月柱地支",
+    "note": "①② 为非闰月，两种农历月口径同解且双双落空，农历月方案在此已出局；③④ 的作用是证明**闰月不扰动月支规则**（排除「平时用月支、闰月特殊处理」），而非分辨两种闰月口径。",
+    "samples": [
+      {
+        "label": "①",
+        "input": "2000-07-02 12:30",
+        "date": "2000年7月2日 12时30分(六月初一)",
+        "yueZhi": "午",
+        "shiZhi": "午",
+        "siZhu": "庚辰 壬午 辛酉 甲午",
+        "mingGong": "辛巳",
+        "shenGong": "己丑",
+        "taiYuan": "癸酉"
+      },
+      {
+        "label": "②",
+        "input": "2000-10-27 12:30",
+        "date": "2000年10月27日 12时30分(十月初一)",
+        "yueZhi": "戌",
+        "shiZhi": "午",
+        "siZhu": "庚辰 丙戌 戊午 戊午",
+        "mingGong": "己丑",
+        "shenGong": "辛巳",
+        "taiYuan": "丁丑"
+      },
+      {
+        "label": "③",
+        "input": "2001-05-23 12:30",
+        "date": "2001年5月23日 12时30分(闰四月初一)",
+        "yueZhi": "巳",
+        "shiZhi": "午",
+        "siZhu": "辛巳 癸巳 丙戌 甲午",
+        "mingGong": "甲午",
+        "shenGong": "庚子",
+        "taiYuan": "甲申"
+      },
+      {
+        "label": "④",
+        "input": "2001-06-15 12:30",
+        "date": "2001年6月15日 12时30分(闰四月廿四)",
+        "yueZhi": "午",
+        "shiZhi": "午",
+        "siZhu": "辛巳 甲午 己酉 庚午",
+        "mingGong": "癸巳",
+        "shenGong": "辛丑",
+        "taiYuan": "乙酉"
+      }
+    ]
+  }
+}

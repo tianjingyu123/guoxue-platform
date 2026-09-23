@@ -1,6 +1,8 @@
 import { Test } from "@nestjs/testing";
 import { ClassicController } from "./classic.controller";
 import { ClassicService } from "./classic.service";
+import { ClassicSegmentService } from "./classic-segment.service";
+import { ClassicPunctuationService } from "./classic-punctuation.service";
 import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
@@ -56,6 +58,13 @@ const mockCompanion = {
   chat: jest.fn().mockResolvedValue({ answer: "...", disclaimer: "..." }),
 };
 
+const mockSegment = {
+  getSegmentsForChapter: jest.fn().mockResolvedValue([
+    { id: "seg1", sortOrder: 0, content: "学而时习之", versionTag: "v1", processingStatus: "raw" },
+  ]),
+  migrateChapterToSegments: jest.fn().mockResolvedValue({ segmentsCreated: 1, notesMigrated: 0, annotationsMigrated: 0 }),
+};
+
 const mockMemberBenefit = {
   isActiveMember: jest.fn().mockResolvedValue(false),
   consumeAiQuota: jest.fn().mockResolvedValue({ isMember: false, remaining: 9 }),
@@ -71,6 +80,8 @@ describe("ClassicController", () => {
       controllers: [ClassicController],
       providers: [
         { provide: ClassicService, useValue: mockClassicSvc },
+        { provide: ClassicSegmentService, useValue: mockSegment },
+        { provide: ClassicPunctuationService, useValue: { peek: jest.fn(), punctuate: jest.fn() } },
         { provide: ClassicLibrarySeeder, useValue: mockSeeder },
         { provide: ClassicDaizhigeSeeder, useValue: mockDaizhigeSeeder },
         { provide: ClassicCompanionService, useValue: mockCompanion },

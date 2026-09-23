@@ -15,12 +15,14 @@ describe("奇门穿壬计算器", () => {
       expect(r.duanYu).toBeTruthy();
     });
 
-    it("穿壬层含72局信息", () => {
+    it("穿壬层与真盘同源（原「含72局信息」，该层编造已切除）", () => {
       const r: any = calculateQimenChuanren(baseInput);
-      expect(r.chuanren.ju72Index).toBeGreaterThanOrEqual(1);
-      expect(r.chuanren.ju72Index).toBeLessThanOrEqual(72);
-      expect(r.chuanren.ju72Name).toBeTruthy();
-      expect(r.chuanren.ju72JiXiong).toBeTruthy();
+      // 2026-09-19：原先这里断言 ju72Index/ju72Name/ju72JiXiong，
+      // 那一层是编造的（下标算术生成、与引擎值符 58/60 不一致），已切除。
+      // 现在断言穿壬层给的是**与真盘同源**的东西。
+      expect(r.chuanren.zhiFuGongName).toBeTruthy();
+      expect(Array.isArray(r.chuanren.mappings)).toBe(true);
+      expect(["大吉", "吉", "平", "小凶", "凶"]).toContain(r.chuanren.overallJiXiong);
     });
 
     it("奇门层有九宫数据", () => {
@@ -46,19 +48,19 @@ describe("奇门穿壬计算器", () => {
   });
 
   describe("时间变化", () => {
-    it("不同时辰72局编号可能不同", () => {
+    it("不同时辰穿壬映射均成立", () => {
       const r1: any = calculateQimenChuanren({ ...baseInput, datetime: "2024-06-15T06:00:00" });
       const r2: any = calculateQimenChuanren({ ...baseInput, datetime: "2024-06-15T14:00:00" });
-      expect(r1.chuanren.ju72Index).toBeGreaterThanOrEqual(1);
-      expect(r2.chuanren.ju72Index).toBeGreaterThanOrEqual(1);
+      expect(r1.chuanren.mappings.length).toBeGreaterThan(0);
+      expect(r2.chuanren.mappings.length).toBeGreaterThan(0);
     });
 
     it("四季均可正常计算", () => {
       const dates = ["2024-01-15T10:00:00", "2024-04-15T10:00:00", "2024-07-15T10:00:00", "2024-10-15T10:00:00"];
       for (const dt of dates) {
         const r: any = calculateQimenChuanren({ ...baseInput, datetime: dt });
-        expect(r.chuanren.ju72Index).toBeGreaterThanOrEqual(1);
-        expect(r.chuanren.ju72Index).toBeLessThanOrEqual(72);
+        expect(r.chuanren.mappings.length).toBeGreaterThan(0);
+        expect(["大吉", "吉", "平", "小凶", "凶"]).toContain(r.chuanren.overallJiXiong);
       }
     });
   });

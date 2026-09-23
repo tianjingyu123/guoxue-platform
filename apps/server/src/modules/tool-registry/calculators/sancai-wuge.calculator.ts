@@ -1,3 +1,4 @@
+import { calcWuGe, strokeOf } from "@guoxue/shared/paipan";
 // ── 三才五格姓名学计算引擎 ──
 // @deprecated 与 wuge.calculator.ts 功能重叠，wuge 已包含完整的三才配置分析。
 // 新代码请使用 calculateWuGe，本文件保留以维持向后兼容。
@@ -198,10 +199,16 @@ interface SanCaiWuGeResult {
 
 // ── 辅助函数 ──
 
+/**
+ * 🔴 2026-09-19 改走共享包的 20992 字康熙表，**删掉码点兜底**。
+ *
+ * 原实现落到 `estimateStrokeByUnicode`，注释「不再使用 charCodeAt % N」
+ * 说明它已是第二版兜底——但换个公式仍然是编造：
+ * Unicode 码点与笔画数无任何函数关系，估不出来。
+ * 查不到就抛错，让缺字变成显式失败，而不是一副看着正常的假五格。
+ */
 function getStrokes(char: string): number {
-  if (HANZI_STROKES[char]) return HANZI_STROKES[char];
-  // Unicode区间估算笔画兜底，不再使用 charCodeAt % N
-  return estimateStrokeByUnicode(char);
+  return strokeOf(char);
 }
 
 function getShuLiInfo(strokes: number): { lucky: boolean; meaning: string; analysis: string } {
@@ -240,11 +247,24 @@ export function calculateSanCaiWuGe(input: Record<string, unknown>): SanCaiWuGeR
   const given1 = getStrokes(givenNameChars[0]);
   const given2 = givenNameChars.length > 1 ? getStrokes(givenNameChars[1]) : 0;
 
-  const tianGe = surname1 + surname2 + 1; // 天格：姓笔画+1（单姓）
-  const renGe = surname1 + given1;         // 人格：姓首字+名首字
-  const diGe = given1 + given2;            // 地格：名首字+名次字
-  const waiGe = surname2 + given2 + 1;     // 外格：天格+地格-人格（简化）
-  const zongGe = surname1 + surname2 + given1 + given2; // 总格
+  /**
+   * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。
+   *
+   * 原实现四处错：
+   * ① 天格对复姓也加 1（「假添一数」只在单姓时加）；
+   * ② 人格取姓**首**字，应取姓**末**字——单姓时二者相同，复姓才分得出来；
+   * ③ 地格单名时得 `名1 + 0`，漏了假添的 1；
+   * ④ 外格 `surname2 + given2 + 1` 在复姓时取错了字（应含姓首字）。
+   *    而那行注释写的是「天格+地格-人格（简化）」——**注释与代码根本不是一回事**。
+   *    「简化」这个气味至此第六次命中。
+   *
+   * 另外原实现按 `surname1/surname2/given1/given2` 四个变量拆字，
+   * **三字名会被丢掉第三字**；改用逐字数组后无此限制。
+   */
+  const { tianGe, renGe, diGe, waiGe, zongGe } = calcWuGe({
+    surnameStrokes: surnameChars.map((c) => getStrokes(c)),
+    givenStrokes: givenNameChars.map((c) => getStrokes(c)),
+  });
 
   // 2. 五格分析
   const wuGe: WuGeItem[] = [

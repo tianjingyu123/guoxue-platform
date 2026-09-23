@@ -34,7 +34,16 @@ export function calculateDaLiuRen(input: Record<string, unknown>): DaLiuRenResul
   const birthYear = input.birthYear as number | undefined;
   const gender = (input.gender as string) ?? "男";
 
-  const r = computeLiuren(d, birthYear ? ({ birthYear, gender } as never) : {});
+  // 流派参数原样透传给引擎（此前只传出生年/性别，其余选项被默默丢弃）
+  const opts: Record<string, unknown> = {};
+  for (const k of ["jiangMethod", "guirenMethod", "guishenType", "shehaiType"]) {
+    if (input[k]) opts[k] = input[k];
+  }
+  if (birthYear) {
+    opts.birthYear = birthYear;
+    opts.gender = gender;
+  }
+  const r = computeLiuren(d, opts as never);
   const sz = r.sizhu;
 
   // 十二宫：地盘固定十二支，天盘/天将/遁干由引擎给

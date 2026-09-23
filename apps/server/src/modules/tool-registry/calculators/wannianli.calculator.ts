@@ -12,7 +12,7 @@ const SHENG_XIAO = ["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡",
 const WEEK_DAYS = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
 const NA_YIN = [
   "海中金","炉中火","大林木","路旁土","剑锋金","山头火",
-  "涧下水","城头土","白蜡金","杨柳木","泉中水","屋上土",
+  "涧下水","城头土","白蜡金","杨柳木","井泉水","屋上土",
   "霹雳火","松柏木","流年水","沙中金","山下火","平地木",
   "壁上土","金箔金","覆灯火","天河水","大驿土","钗环金",
   "桑柘木","柘榴木","大海水","石榴木","大海水",
@@ -328,8 +328,22 @@ export function calculateWanNianLi(input: Record<string, unknown>): WanNianLiRes
     count++;
   }
 
-  // 节气列表（Meeus 天文算法精确计算）
-  const y = new Date(dateStr).getFullYear();
+  /**
+   * 节气列表（Meeus 天文算法精确计算）
+   *
+   * 🔴 2026-09-20：原为 `new Date(dateStr).getFullYear()`，**在 UTC 以西的机器上取错年份**。
+   * `"2024-01-01"` 这种纯日期串按 **UTC 午夜**解析，再取**本地**年份，
+   * 在 UTC−8 上退到 2023-12-31 → 返回的是 **2023 年的节气表**。
+   *
+   * 这个 bug 的恶劣之处在于**它只在部分时区出现**：
+   * 开发机若在 UTC+8，怎么测都是绿的；部署到美西就错。
+   * 而输出仍是一张格式完整、日期合理的节气表，肉眼分辨不出。
+   *
+   * 纯日期串一律按字面取年份，不经时区转换。
+   */
+  const y = /^(\d{4})-/.exec(dateStr)?.[1]
+    ? Number(/^(\d{4})-/.exec(dateStr)![1])
+    : new Date(dateStr).getFullYear();
   const allJieQi = calcAllJieQi(y);
   const jieQiList = JIE_QI_NAMES.map((name) => {
     const jq = allJieQi.get(name);

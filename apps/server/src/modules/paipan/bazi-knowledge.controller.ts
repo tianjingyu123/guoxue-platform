@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { BaziKnowledgeService } from "./bazi-knowledge.service";
 import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
@@ -40,6 +41,9 @@ export class BaziKnowledgeController {
    * （宁可不显示，也不塞一段不相干的原文冒充「参考」）。
    */
   @Post("for-bazi")
+  // 公开可用（看盘不必登录）是产品设计，但它下发的是知识库内容——
+  // 不限流就能被批量调用爬走整个古籍参考库，所以公开归公开，必须限流
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "按当前八字检索相关古籍（格局/用神/日主/月令/神煞打分排序）" })
   @ApiResponse({ status: 200, description: "成功" })
   forBazi(

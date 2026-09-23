@@ -2,6 +2,9 @@ import { Test } from "@nestjs/testing";
 import { PaipanController } from "./paipan.controller";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
+import { PaipanReportService } from "./paipan-report.service";
+import { PaipanReportDialogueService } from "./paipan-report-dialogue.service";
+import { PaipanCaseFeedbackService } from "./paipan-case-feedback.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -34,6 +37,12 @@ describe("PaipanController", () => {
       providers: [
         { provide: PaipanService, useValue: mockPaipanSvc },
         { provide: PaipanAiService, useValue: mockPaipanAiSvc },
+        { provide: PaipanReportService, useValue: { generateReport: jest.fn(), getReport: jest.fn() } },
+        { provide: PaipanReportDialogueService, useValue: { ask: jest.fn() } },
+        {
+          provide: PaipanCaseFeedbackService,
+          useValue: { submit: jest.fn(), dueForFollowUp: jest.fn(), listPending: jest.fn(), stats: jest.fn(), review: jest.fn(), exportApproved: jest.fn() },
+        },
         { provide: PrismaService, useValue: {} },
       ],
     })

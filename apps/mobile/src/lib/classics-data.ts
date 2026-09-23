@@ -840,7 +840,17 @@ export const classicsApi = {
     return await apiPost<{ answer: string }>('/classic/ask', { question })
   },
 
-  // ── 古籍伴读智能体（识典伴读·注入当前章节正文·需登录） ──
+  // ── 按需断句（小卜 · S03）：稳定段落 + AI 断句草稿（字序严格校验，未经人工校对） ──
+  /** 章节稳定段落（首次访问服务端按原文确定性切分；sortOrder 与阅读页段落序号一致） */
+  async chapterSegments(chapterId: string): Promise<{ id: string; sortOrder: number; content: string }[]> {
+    return await apiGet<{ id: string; sortOrder: number; content: string }[]>(`/classic/chapters/${encodeURIComponent(chapterId)}/segments`)
+  },
+  /** 段落断句：source=original 表示原文已有足够标点；ai_draft 为 AI 断句草稿 */
+  async punctuateSegment(segmentId: string): Promise<{ segmentId: string; text: string; source: 'original' | 'ai_draft'; cached: boolean }> {
+    return await apiPost<{ segmentId: string; text: string; source: 'original' | 'ai_draft'; cached: boolean }>(
+      `/classic/segments/${encodeURIComponent(segmentId)}/punctuate`, undefined, undefined, 90000)
+  },
+  // ── 古籍伴读智能体（小卜伴读·注入当前章节正文·需登录） ──
   /** 伴读开场引导问题：{ bookTitle, chapterTitle, prompts[] } */
   async companionPrompts(chapterId: string): Promise<{ bookTitle: string; chapterTitle: string; prompts: string[] }> {
     return await apiGet<{ bookTitle: string; chapterTitle: string; prompts: string[] }>(`/classic/companion/prompts?chapterId=${chapterId}`)

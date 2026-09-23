@@ -12,7 +12,6 @@ import {
   calculateDaLiuRen,
   calculateMeiHua,
   calculateXiaoLiuRen,
-  calculateXuanKong,
   calculateQiZheng,
   calculateBaZhai,
 } from "../src/modules/tool-registry/calculators/index";
@@ -175,14 +174,24 @@ describe("梅花易数对照", () => {
 // 玄空风水对标
 // ─────────────────────────────────────────
 describe("玄空风水对照", () => {
+  // 原先调 tool-registry 的 calculateXuanKong，那份顺逆判错已删除（§2.43）；
+  // 改为对照 shared 的正确实现，并断言教科书基准而不只是「有值」
   for (const c of [
-    { label: "八运子山午向", shan: "子", xiang: "午", yun: 8 },
-    { label: "九运壬山丙向", shan: "壬", xiang: "丙", yun: 9 },
+    { label: "八运子山午向", shan: "子", yun: 8, wantGeju: "双星会向", wantLiShan: 8, wantLiXiang: 8 },
+    { label: "九运壬山丙向", shan: "壬", yun: 9, wantGeju: null, wantLiShan: null, wantLiXiang: null },
   ]) {
-    it(c.label, () => {
-      const r: any = calculateXuanKong({ shan: c.shan, xiang: c.xiang, yuanYun: c.yun });
-      console.log(`[玄空] ${c.label}: 运星${r.yunXing} 山星${r.shanXing} 向星${r.xiangXing} 格局${r.geJu}`);
-      expect(r.geJu).toBeDefined();
+    it(c.label, async () => {
+      const { computeXuankongChart, XK_MOUNTAINS } = await import("@guoxue/shared/paipan");
+      const r = computeXuankongChart(c.yun, XK_MOUNTAINS.indexOf(c.shan as never), false);
+      console.log(`[玄空] ${c.label}: 中宫山${r.shanCenter}向${r.xiangCenter} 格局${r.geju}`);
+      expect(Object.keys(r.yunPan)).toHaveLength(9);
+      expect(r.geju).toBeTruthy();
+      if (c.wantGeju) {
+        // 教科书标准案例：八运子山午向＝双星到向，山8向8同会向方离宫（洛书9）
+        expect(r.geju).toBe(c.wantGeju);
+        expect(r.shanPan[9]).toBe(c.wantLiShan);
+        expect(r.xiangPan[9]).toBe(c.wantLiXiang);
+      }
     });
   }
 });

@@ -1,6 +1,11 @@
 // ── 八宅宫位吉凶计算引擎 ──
 // 算法参考：《阳宅十书》《八宅明镜》《阳宅三要》《阳宅爱众》
 // 八宅派以命卦配宅卦，游年九星断各宫吉凶
+//
+// 游星一律走 `youXingMap`（翻卦变爻法），不在本文件另立一套——
+// 原先那套「简化大游年法」是编造的，详见下方 getYouNian 的注释。
+
+import { youXingMap, calcMingGua as calcMingGuaFull } from "./bazhai.calculator";
 
 interface GongWeiJiXiong {
   gongWei: string; direction: string; youNian: string;
@@ -22,8 +27,8 @@ const GUA_WX: Record<string, string> = {
   "乾":"金", "坤":"土", "艮":"土", "兑":"金",
 };
 
-// 八宅游年九星详解（按伏位→生气→延年→天医→六煞→绝命→祸害→五鬼顺序）
-const YOU_NIAN_ORDER = ["伏位","生气","延年","天医","六煞","绝命","祸害","五鬼"];
+// 八宅游年九星详解
+// （原有一个 YOU_NIAN_ORDER 常量，只服务于已废弃的「简化大游年法」，一并删除）
 
 const YOU_NIAN_DETAIL: Record<string, {
   level: string; suitable: string; taboo: string;
@@ -104,34 +109,17 @@ const YOU_NIAN_DETAIL: Record<string, {
   },
 };
 
-// 命卦计算（按出生年份和性别）
-// 《八宅明镜》命卦法：以生年计算，1900年为基准
+/**
+ * 命卦计算——直接复用 `bazhai.calculator` 那一份，本文件不再另立。
+ *
+ * 2026-09-19 合并。原先这里有一份独立实现（数位和 → 男 11-sum、女 4+sum），
+ * 拿 1900-2060 全部 322 例逐年比对，与通行公式**完全等价、0 处差异**，
+ * 所以它不是错的——但重复实现本身就是漂移风险：
+ * 本仓库的玄空、奇门、大六壬都栽在「两套各自能自洽地跑出一个盘」上。
+ * 命卦只保留一份，基准（1990 男＝坎、女＝艮，第三方 App 实测）也只钉一处。
+ */
 function calcMingGua(birthYear: number, gender: "男" | "女"): string {
-  let sum = 0;
-  const yearStr = birthYear.toString();
-  for (const digit of yearStr) {
-    sum += parseInt(digit);
-  }
-  // 简化：按洛书数计算
-  if (sum >= 10) {
-    sum = Math.floor(sum / 10) + (sum % 10);
-  }
-
-  let guaNum: number;
-  if (gender === "男") {
-    guaNum = 11 - sum;
-  } else {
-    guaNum = 4 + sum;
-  }
-
-  // 化为1-9
-  while (guaNum > 9) guaNum -= 9;
-  if (guaNum === 5) guaNum = gender === "男" ? 2 : 8; // 中宫寄坤(男)/艮(女)
-
-  const numToGua: Record<number, string> = {
-    1: "坎", 2: "坤", 3: "震", 4: "巽", 6: "乾", 7: "兑", 8: "艮", 9: "离",
-  };
-  return numToGua[guaNum] || "坎";
+  return calcMingGuaFull(birthYear, gender).guaName as string;
 }
 
 // 东西四命
@@ -146,12 +134,25 @@ const DONG_XI_ZHAI: Record<string, string> = {
   "乾":"西四宅", "坤":"西四宅", "艮":"西四宅", "兑":"西四宅",
 };
 
-// 命卦对应游年（简化大游年法）
+/**
+ * 命卦对应游年。
+ *
+ * 🔴 2026-09-19 重写。原先叫「简化大游年法」，实为**编造的算法**：
+ *   YOU_NIAN_ORDER[(targetIdx - idx + 8) % 8]
+ * 即只取命卦与宫位在数组里的圆周距离，去索引一个固定星序——
+ * 等于认为每个命卦的游星分布都是同一个图案转一下。
+ *
+ * 真正的大游年由**变爻**推出，八个卦的图案各不相同，不是旋转关系。
+ * 用八宅的铁律一验即现形（东四命的四吉方必全在东四方）：
+ * 八个命卦**六个违反**；剩下坎、乾两个虽然吉凶分区碰巧对了，
+ * 具体星名仍是乱的（坎命把生气派给离宫，正确是巽宫），
+ * 而门主灶择位恰恰要分生气／天医／延年。
+ *
+ * 现改用 `youXingMap`（翻卦变爻法），与大游年歌诀、前端实现、
+ * 本目录 `yangzhai-sanyao.calculator.ts` 的游年表三处互证。
+ */
 function getYouNian(mingGua: string, gongWei: string): string {
-  const idx = BA_GUA.indexOf(mingGua);
-  const targetIdx = BA_GUA.indexOf(gongWei);
-  if (idx < 0 || targetIdx < 0) return "伏位";
-  return YOU_NIAN_ORDER[(targetIdx - idx + 8) % 8];
+  return youXingMap(mingGua)[gongWei] ?? "伏位";
 }
 
 // 命卦详细信息

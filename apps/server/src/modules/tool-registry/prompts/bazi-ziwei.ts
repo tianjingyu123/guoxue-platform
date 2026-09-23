@@ -1,5 +1,6 @@
 // ── 八字紫微分类 Prompt Builders ──
 
+import { PILLAR_LABEL } from "@guoxue/bazi-engine";
 import type { BaziInput, BaziResult } from "@guoxue/shared";
 
 function fmtPillar(p: any) {
@@ -19,7 +20,7 @@ export function buildBaziPrompt(input: BaziInput, result: BaziResult): string {
 
   const daYunLines = qiYun.daYun.map((d) => `${d.ganZhi}（${d.startAge}-${d.endAge}岁）`);
   const shenShaLines = shenSha.slice(0, 15).map(
-    (s) => `${s.name}（${s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`,
+    (s) => `${s.name}（${PILLAR_LABEL[s.pillar] || s.pillar}，${s.type === "ji" ? "吉" : "凶"}）：${s.desc}`,
   );
 
   const cangGanLines = [

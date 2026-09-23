@@ -339,17 +339,22 @@ describe("边界条件", () => {
 // ─────────────────────────────────────────────
 
 describe("玄空风水 — 飞星", () => {
-  it("八运子山午向排盘正确", async () => {
-    const mod = await import("../src/modules/tool-registry/calculators/xuankong.calculator");
-    const result: any = mod.calculateXuanKong({ shan: "子", xiang: "午", year: 2004, yuanYun: 8 });
-    expect(result.gongs).toBeDefined();
-    expect(result.gongs).toHaveLength(9);
-    // 应有格局判断
-    expect(result.geJu.length).toBeGreaterThan(0);
-    // 运星8入中宫
-    const centerGong = result.gongs.find((g: any) => g.gongName === "中");
-    expect(centerGong).toBeDefined();
-    expect(centerGong!.yunStar).toBe(8);
+  /**
+   * 原测试调 tool-registry 的 calculateXuanKong，且**只验结构**（有 9 宫、有格局）。
+   * 那份实现山向盘顺逆判错（详见接续文档 §2.43），已删除——
+   * 只验结构正是它能潜伏那么久的原因之一。
+   * 改为验 shared 的正确实现，并**断言教科书标准案例的真实值**。
+   */
+  it("八运子山午向＝双星到向（山8向8同会向方离宫）", async () => {
+    const { computeXuankongChart, XK_MOUNTAINS } = await import("@guoxue/shared/paipan");
+    const c = computeXuankongChart(8, XK_MOUNTAINS.indexOf("子" as never), false);
+    // 离宫（向方）洛书 9、坎宫（坐方）洛书 1
+    expect(c.shanPan[9]).toBe(8);
+    expect(c.xiangPan[9]).toBe(8);
+    expect(c.geju).toBe("双星会向");
+    // 运盘八入中顺飞：离 3、坎 4
+    expect(c.yunPan[9]).toBe(3);
+    expect(c.yunPan[1]).toBe(4);
   });
 });
 
@@ -404,6 +409,8 @@ describe("全局一致性", () => {
 
   it("所有计算器export的函数均可调用无异常", async () => {
     const calcTests: [string, string, Record<string, unknown>][] = [
+      // xuankong / jinkoujue 两项已移除：那两份实现算错（§2.43、§2.47）已删除，
+      // 正确实现在 shared，各自的专项用例见上方 describe 块（断的是真实值而非「能跑通」）
       ["qimen", "calculateQimenYang", { datetime: "2024-06-15T10:00:00" }],
       ["liuyao", "calculateLiuYao", { datetime: "2000-01-01T12:00:00" }],
       ["ziwei", "calculateZiWei", { gender: "男", year: 2000, month: 1, day: 1, hour: 12, lunarMonth: 1, lunarDay: 1, lunarHour: "午", lunarYearGan: "庚", lunarYearZhi: "辰" }],
@@ -411,12 +418,15 @@ describe("全局一致性", () => {
       ["daliuren", "calculateDaLiuRen", { datetime: "2024-06-15T10:00:00" }],
       ["wannianli", "calculateWanNianLi", { year: 2024, month: 6 }],
       ["xiaoliuren", "calculateXiaoLiuRen", { datetime: "2024-06-15T10:00:00", method: "time", type: "daojia" }],
-      ["xuankong", "calculateXuanKong", { shan: "子", xiang: "午", year: 2004, yuanYun: 8 }],
       ["qizheng", "calculateQiZheng", { datetime: "2000-01-01T12:00:00", gender: "male", trueSolar: false, system: "guolao" }],
       ["bazhai", "calculateBaZhai", { birthYear: 1990, gender: "男", zuoShan: "坎" }],
       ["jinqianke", "calculateJinQianKe", { coins: [1, 1, 0, 1, 0, 0] }],
-      ["kongming", "calculateKongMing", { datetime: "2024-06-15T10:00:00" }],
-      ["zhuge", "calculateZhuGe", { characters: "测试" }],
+      // kongmingshengua 已于 2026-09-20 下架（实现的术不对，见 REMOVED_WRONG）
+      // 🔴 2026-09-20：原来写的是 `{ characters: "测试" }`——**字段名就是错的**，
+      // 实现读的是 `chars`。它一直绿着，只因为参数没命中时会落进「用当前时间起数」的兜底。
+      // 那条兜底已删（结果必须可复现），这条也就露馅了：
+      // **冒烟测试靠兜底绿着，等于没测。**
+      ["zhuge", "calculateZhuGe", { method: "sanzi", chars: "测试卦" }],
       ["wuge", "calculateWuGe", { surname: "张", givenName: "三" }],
     ];
 

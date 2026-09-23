@@ -17,7 +17,12 @@ function buildSvc() {
     searchCircleKnowledge: jest.fn().mockResolvedValue([]),
   };
   const aiGateway = { chat: jest.fn() };
-  const svc = new CircleKnowledgeService(prisma as never, vector as never, aiGateway as never);
+  const moderation = {
+    textModeration: jest.fn().mockResolvedValue({ Suggestion: "Pass" }),
+    getTextSuggestion: jest.fn().mockReturnValue("Pass"),
+    getBlockedLabels: jest.fn().mockReturnValue([]),
+  };
+  const svc = new CircleKnowledgeService(prisma as never, vector as never, aiGateway as never, moderation as never);
   return { svc, prisma, vector, aiGateway };
 }
 

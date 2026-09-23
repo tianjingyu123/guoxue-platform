@@ -224,6 +224,7 @@ function stop() {
   }
 }
 function togglePlay() {
+  pausedForAi.value = false
   if (playing.value) pause()
   else play()
 }
@@ -287,7 +288,21 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/audiobooks/index' }) })
 }
 
-// ── AI 伴读（复用识典伴读 /classic/companion/chat·半屏抽屉·不打断播放） ──
+// ── AI 伴读（小卜·复用 /classic/companion/chat·半屏抽屉） ──
+// 音频焦点：打开抽屉浏览不打断朗读；真正发出提问时先暂停朗读并记住句子，关抽屉后提供“继续听书”
+const pausedForAi = ref(false)
+const pausedSentence = ref(0)
+function pauseForQuestion() {
+  if (!playing.value) return
+  pausedSentence.value = curSentence.value
+  pause()
+  pausedForAi.value = true
+}
+function resumeListening() {
+  pausedForAi.value = false
+  curSentence.value = pausedSentence.value
+  play()
+}
 interface AiMessage { id: string; role: 'user' | 'assistant'; content: string; disclaimer?: string }
 const aiOpen = ref(false)
 function openChapters() { showChapters.value = true }
@@ -354,6 +369,7 @@ async function translateSelection() {
   if (!s || aiLoading.value) return
   if (!ensureAiLogin()) return
   aiOpen.value = true
+  pauseForQuestion()
   aiMessages.value.push({ id: `${Date.now()}`, role: 'user', content: `白话翻译这一句：「${trimForAsk(s, 200)}」` })
   aiThinkMode.value = 'translate'
   aiThinkStart.value = Date.now()
@@ -405,6 +421,7 @@ async function sendAi(text: string) {
   const ch = curChapter.value
   if (!ch) { uni.showToast({ title: '请先选择章节', icon: 'none' }); return }
   if (!ensureAiLogin()) return
+  pauseForQuestion()
 
   const history = aiMessages.value.map((m) => ({ role: m.role, content: m.content }))
   aiMessages.value.push({ id: `${Date.now()}`, role: 'user', content: q })
@@ -528,7 +545,12 @@ onLoad((q) => {
           </view>
           <view class="ap-ctrl" @tap="nextSentence"><app-icon name="chevron-right" :size="48" color="#78350f" /></view>
           <view class="ap-speed ap-chapnav" @tap="nextChapter" :class="{ 'ap-ctrl--off': !hasNext }">下章</view>
-          <!-- AI 伴读入口（金色·打开半屏面板不打断播放） -->
+          <!-- 提问时暂停了朗读：关闭伴读后可从原句继续 -->
+          <view v-if="pausedForAi && !aiOpen && !playing" class="ap-resume" @tap="resumeListening">
+            <app-icon name="play" :size="28" color="#78350f" :fill="true" />
+            <text class="ap-resume-txt">继续听书（第 {{ pausedSentence + 1 }} 句）</text>
+          </view>
+          <!-- AI 伴读入口（金色·打开半屏面板不打断播放；提问时暂停朗读） -->
           <view class="ap-ai-btn" @tap="openAi">
             <app-icon name="sparkles" :size="40" color="#C9A96E" />
             <text class="ap-ai-btn-txt">伴读</text>
@@ -774,7 +796,7 @@ onLoad((q) => {
 .ap-progress-time { display: flex; justify-content: space-between; margin-top: 12rpx; font-size: 22rpx; color: var(--muted-foreground); }
 
 /* 控制 */
-.ap-controls { display: flex; align-items: center; justify-content: center; gap: 40rpx; padding: 16rpx 0 calc(24rpx + env(safe-area-inset-bottom)); }
+.ap-controls { position: relative; display: flex; align-items: center; justify-content: center; gap: 40rpx; padding: 16rpx 0 calc(24rpx + env(safe-area-inset-bottom)); }
 .ap-speed { min-width: 80rpx; text-align: center; font-size: 28rpx; font-weight: 600; color: #92400e; }
 .ap-chapnav { font-size: 26rpx; }
 .ap-ctrl { &:active { transform: scale(0.9); } }
@@ -943,4 +965,6 @@ onLoad((q) => {
 .ap-sheet-item-idx { width: 44rpx; text-align: center; font-size: 24rpx; color: var(--muted-foreground); flex-shrink: 0; }
 .ap-sheet-item-title { flex: 1; font-size: 28rpx; color: var(--foreground); }
 .ap-sheet-item-title--on { color: #b45309; font-weight: 600; }
+.ap-resume { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 16rpx); display: flex; align-items: center; gap: 10rpx; padding: 12rpx 28rpx; border-radius: 999rpx; background: #fef3c7; box-shadow: 0 6rpx 18rpx rgba(120, 53, 15, 0.18); white-space: nowrap; }
+.ap-resume-txt { font-size: 26rpx; color: #78350f; font-weight: 600; }
 </style>

@@ -136,12 +136,27 @@ export const wsApi = {
     ),
   getReport: (id: string) => apiGet<ReportRecord>(`/practitioner/reports/${id}`),
   createReport: (r: Partial<ReportRecord>) => apiPost<ReportRecord>('/practitioner/reports', r),
+  /** 把小卜报告导入为工作台草稿：导入后是老师自己的稿子，可编辑、以自己名义交付 */
+  importXiaobuReport: (p: { reportId: string; clientId?: string; clientName?: string; title?: string }) =>
+    apiPost<ReportRecord>('/practitioner/reports/import-xiaobu', p),
   updateReport: (id: string, r: Partial<ReportRecord>) => apiPut<ReportRecord>(`/practitioner/reports/${id}`, r),
   deleteReport: (id: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}`),
   shareReport: (id: string) => apiPost<{ shareToken: string; sharedAt: string }>(`/practitioner/reports/${id}/share`),
   unshareReport: (id: string) => apiDelete<{ success: boolean }>(`/practitioner/reports/${id}/share`),
   sharedReport: (token: string) => apiGet<any>(`/practitioner/reports/shared/${token}`),
+  /** 客户就这份交付报告提问（无需登录，令牌即凭证；回答以老师助理的身份） */
+  askShared: (token: string, question: string, history?: { role: string; content: string }[]) =>
+    apiPost<{ answer: string; brandName: string; remaining: number }>(
+      `/practitioner/reports/shared/${token}/ask`,
+      { question, history },
+    ),
   /** AI 起草某一章（盘面由排盘引擎算好后传入，AI 只写解读） */
+  /** 把整份报告改写成交给客户看的话（通俗易懂、老师视角；盘面结论不变） */
+  rewriteForClient: (id: string) =>
+    apiPost<{ report: ReportRecord; rewritten: number; failed: number }>(
+      `/practitioner/reports/${id}/rewrite-for-client`,
+      {},
+    ),
   aiDraft: (p: { chapterTitle: string; reportTypeLabel: string; clientName: string; paipan: unknown; hint?: string }) =>
     apiPost<{ text: string }>('/practitioner/reports/ai-draft', p, undefined, 60000),
 

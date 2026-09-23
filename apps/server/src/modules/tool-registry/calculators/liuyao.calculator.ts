@@ -36,7 +36,8 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
     minute: d.getMinutes(),
     methodKey: toMethodKey(method),
     coins: input.coins as string | undefined,
-    numberInput: nums?.length ? nums.join(",") : undefined,
+    numberInput: (input.numberInput as string | undefined) || (nums?.length ? nums.join(",") : undefined),
+    guaPick: input.guaPick as { benUp: string; benDown: string; bianUp: string; bianDown: string } | undefined,
   });
 
   const c = r.chart;
