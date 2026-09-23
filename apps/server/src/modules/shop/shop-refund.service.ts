@@ -17,6 +17,7 @@ import { HuifuService } from "../huifu/huifu.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { reverseVoiceTopupOrderInTx } from "../voice/voice-topup";
 import { reverseXiaobuOrderVoiceInTx } from "../voice/xiaobu-commerce";
+import { addCalendarMonthsClamped } from "./membership-period";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -285,9 +286,8 @@ export class ShopRefundService {
     let expireAt: Date | null = null;
     for (const order of orders) {
       const paidAt = order.paidAt || order.createdAt;
-      const base = expireAt && expireAt > paidAt ? new Date(expireAt) : new Date(paidAt);
-      base.setMonth(base.getMonth() + 1);
-      expireAt = base;
+      const base = expireAt && expireAt > paidAt ? expireAt : paidAt;
+      expireAt = addCalendarMonthsClamped(base, 1);
     }
     if (expireAt && expireAt <= new Date()) expireAt = null;
     await tx.practitionerProfile.updateMany({ where: { userId }, data: { proExpireAt: expireAt } });

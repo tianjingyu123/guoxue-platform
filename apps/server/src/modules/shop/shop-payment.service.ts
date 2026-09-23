@@ -19,6 +19,7 @@ import { ShopOrderService } from "./shop-order.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { fulfillVoiceTopupOrderInTx } from "../voice/voice-topup";
 import { fulfillMemberOrderInTx, fulfillReportOrderInTx } from "../voice/xiaobu-commerce";
+import { addCalendarMonthsClamped } from "./membership-period";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
 
@@ -1150,8 +1151,7 @@ export class ShopPaymentService {
       select: { id: true, proExpireAt: true, proFirstAt: true },
     });
     const base = existing?.proExpireAt && existing.proExpireAt > now ? existing.proExpireAt : now;
-    const expire = new Date(base);
-    expire.setMonth(expire.getMonth() + 1); // 月付
+    const expire = addCalendarMonthsClamped(base, 1); // 月付；月底续费不越过目标月份
 
     if (existing) {
       await tx.practitionerProfile.update({

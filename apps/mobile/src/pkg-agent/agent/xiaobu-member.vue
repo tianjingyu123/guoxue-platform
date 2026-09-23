@@ -40,8 +40,10 @@ async function load() {
     info.value = await xiaobuVoiceApi.xiaobuMember()
     const plans = info.value.plans
     if (plans.length && !plans.some((p) => p.key === picked.value)) {
-      // 默认选年会员（第二档），没有则第一档
-      picked.value = plans[Math.min(1, plans.length - 1)].key
+      // 首次进入先选总支付金额最低的档位，较长周期由用户主动选择。
+      picked.value = plans.reduce((best, plan) =>
+        plan.priceYuan < best.priceYuan || (plan.priceYuan === best.priceYuan && plan.months < best.months) ? plan : best,
+      ).key
     }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
