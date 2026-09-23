@@ -34,6 +34,12 @@ export class AskQuestionDto {
   @Min(10)
   priceCoin: number;
 
+  @ApiPropertyOptional({ description: "用户确认时看到的达人报价；若报价已变更则拒绝扣币", minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expectedPriceCoin?: number;
+
   @ApiPropertyOptional({ description: "围观价格（币），0=不可围观", default: 0, minimum: 1 })
   @IsOptional()
   @IsInt()

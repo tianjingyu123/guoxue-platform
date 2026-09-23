@@ -231,6 +231,7 @@ export interface AskQuestionPayload {
   questionTitle: string
   question: string
   priceCoin: number
+  expectedPriceCoin?: number
   isPublic?: boolean
   images?: string[]
 }
@@ -318,7 +319,8 @@ export const questionApi = {
   /**
    * 发起付费提问 — POST /question/ask（事务内扣币 + 建 PENDING 记录）。
    * 定价权归收款方：后端一律以达人本人的 CircleMember 配置为准，忽略客户端传的
-   * priceCoin/peekPriceCoin（防提问者压价）。priceCoin 仍传，仅用于前端展示核对。
+   * priceCoin/peekPriceCoin（防提问者压价）。新客户端额外传 expectedPriceCoin，
+   * 服务端发现报价变化时拒绝扣币，让用户确认新价格。
    */
   ask: async (payload: AskQuestionPayload): Promise<PaidQuestion> => {
     const body: Record<string, unknown> = {
@@ -328,6 +330,7 @@ export const questionApi = {
       question: payload.question,
       priceCoin: payload.priceCoin,
     }
+    if (payload.expectedPriceCoin != null) body.expectedPriceCoin = payload.expectedPriceCoin
     if (payload.isPublic != null) body.isPublic = payload.isPublic
     if (payload.images && payload.images.length) body.images = payload.images
     return mapQuestion(await apiPost<RawPaidQuestion>('/question/ask', body))

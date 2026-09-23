@@ -43,6 +43,7 @@ export class QuestionService {
     question: string;
     images?: string[];
     priceCoin: number;
+    expectedPriceCoin?: number;
     peekPriceCoin?: number;
     isPublic?: boolean;
   }) {
@@ -61,6 +62,9 @@ export class QuestionService {
     const priceCoin = member.questionPriceCoin;
     if (!priceCoin || priceCoin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该达人未开放付费提问");
+    }
+    if (dto.expectedPriceCoin != null && dto.expectedPriceCoin !== priceCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "达人报价已变化，请刷新后确认再提问", HttpStatus.CONFLICT);
     }
     const peekPriceCoin = member.peekPriceCoin ?? 0;
 

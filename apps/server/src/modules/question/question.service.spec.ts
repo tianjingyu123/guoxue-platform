@@ -105,6 +105,14 @@ describe("QuestionService", () => {
       expect(created.peekPriceCoin).toBe(10) // 达人围观价
     })
 
+    it("用户确认的报价与当前达人报价不一致时拒绝且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 80, peekPriceCoin: 10 })
+      await expect(svc.ask("u1", { ...askDto, expectedPriceCoin: 50 })).rejects.toThrow("达人报价已变化")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
     it("达人未开放付费提问(questionPriceCoin=0)时拒绝且不扣币", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 0, peekPriceCoin: 0 })

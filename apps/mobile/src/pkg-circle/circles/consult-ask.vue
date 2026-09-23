@@ -17,7 +17,7 @@ import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { chooseAndUploadImage } from '@/utils/request'
-import { questionApi, getCoinBalance, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
+import { questionApi, expertConfigApi, getCoinBalance, splitQuestion, type PaidQuestion } from '@/lib/circle-consult-data'
 
 const circleId = ref('')
 const menuSafeRight = getMiniProgramMenuSafeRight()
@@ -25,6 +25,8 @@ const answererId = ref('')
 const expertName = ref('')
 const expertAvatar = ref('')
 const priceCoin = ref(0)
+const quoteLoading = ref(false)
+const quoteError = ref(false)
 
 const newTitle = ref('')
 const newContent = ref('')
@@ -35,6 +37,7 @@ const isPublic = ref(true)
 //    0 表示达人未开放围观。
 const peekPrice = ref(0)
 const submitting = ref(false)
+const submitted = ref(false)
 const balance = ref<number | null>(null)
 
 // 本圈公开问答（勾起提问欲）
@@ -42,8 +45,25 @@ const loading = ref(true)
 const listError = ref('')
 const questions = ref<PaidQuestion[]>([])
 
-const canAsk = computed(() => !!circleId.value && !!answererId.value && priceCoin.value >= 10)
-const canSubmit = computed(() => canAsk.value && newTitle.value.trim().length >= 2 && newContent.value.trim().length > 0 && !submitting.value)
+const canAsk = computed(() => !!circleId.value && !!answererId.value && !quoteLoading.value && !quoteError.value && priceCoin.value >= 10)
+const canSubmit = computed(() => canAsk.value && newTitle.value.trim().length >= 2 && newContent.value.trim().length > 0 && !uploading.value && !submitting.value && !submitted.value)
+
+async function loadQuote() {
+  if (!circleId.value || !answererId.value) return
+  quoteLoading.value = true
+  quoteError.value = false
+  priceCoin.value = 0
+  peekPrice.value = 0
+  try {
+    const config = await expertConfigApi.get(circleId.value, answererId.value)
+    priceCoin.value = config.questionPriceCoin
+    peekPrice.value = config.peekPriceCoin
+  } catch {
+    quoteError.value = true
+  } finally {
+    quoteLoading.value = false
+  }
+}
 
 async function loadList() {
   if (!circleId.value) { loading.value = false; return }
@@ -77,24 +97,34 @@ async function addImage() {
 function removeImage(i: number) { images.value = images.value.filter((_, idx) => idx !== i) }
 
 async function submit() {
-  if (submitting.value) return
-  if (!canAsk.value) { uni.showToast({ title: '请从达人「提问」入口进入', icon: 'none' }); return }
+  if (submitting.value || submitted.value) return
+  if (!canAsk.value) { uni.showToast({ title: quoteError.value || quoteLoading.value ? '请先确认当前报价' : '请从达人「提问」入口进入', icon: 'none' }); return }
   if (newTitle.value.trim().length < 2) { uni.showToast({ title: '请填写问题标题', icon: 'none' }); return }
   if (!newContent.value.trim()) { uni.showToast({ title: '请填写问题描述', icon: 'none' }); return }
+  if (uploading.value) { uni.showToast({ title: '图片上传完成后再提交', icon: 'none' }); return }
   submitting.value = true
   try {
+    // 提交前再次核对报价；若达人已改价，先让用户看到新金额，不按旧价继续扣币。
+    const config = await expertConfigApi.get(circleId.value, answererId.value)
+    if (config.questionPriceCoin !== priceCoin.value) {
+      priceCoin.value = config.questionPriceCoin
+      peekPrice.value = config.peekPriceCoin
+      uni.showToast({ title: '达人报价已变化，请核对后重新提交', icon: 'none' })
+      return
+    }
     const q = await questionApi.ask({
       circleId: circleId.value,
       answererId: answererId.value,
       questionTitle: newTitle.value.trim(),
       question: newContent.value.trim(),
       priceCoin: priceCoin.value,
+      expectedPriceCoin: priceCoin.value,
       isPublic: isPublic.value,
       // 围观价不传：后端一律以达人本人配置为准（提问者不能左右达人的收益）
       images: images.value,
     })
-    uni.showToast({ title: '提问已提交，金币已托管', icon: 'success' })
-    setTimeout(() => navigateTo(`/pkg-circle/circles/question-detail?id=${q.id}`), 600)
+    submitted.value = true
+    redirectTo(`/pkg-circle/circles/question-detail?id=${q.id}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
@@ -115,9 +145,8 @@ onLoad((opt) => {
   answererId.value = (opt?.answererId || opt?.expertId || '') as string
   expertName.value = decodeURIComponent((opt?.expertName || '') as string)
   expertAvatar.value = decodeURIComponent((opt?.expertAvatar || '') as string)
-  priceCoin.value = Number(opt?.priceCoin) || 0
-  // 围观价直接取达人配置（0=达人未开放围观），提问者不可改
-  peekPrice.value = Number(opt?.peekPriceCoin) || 0
+  // 链接参数可被修改或过期，只从当前达人配置读取展示报价。
+  loadQuote()
   loadList()
   loadBalance()
 })
@@ -178,9 +207,11 @@ onLoad((opt) => {
     <!-- 担保与扣费说明（口径=后端真实规则） -->
     <text class="ca-assure"><text class="ca-assure-b">担保规则：</text>提问金币由平台托管，达人 48 小时内未回复将自动全额退还；达人拒答同样全额退还。</text>
 
-    <view v-if="!canAsk" class="ca-warn">
+    <view v-if="quoteLoading" class="ca-warn"><text class="ca-warn-t">正在核对达人当前报价…</text></view>
+    <view v-else-if="quoteError" class="ca-warn" @tap="loadQuote"><text class="ca-warn-t">报价暂时无法确认，点此重试</text></view>
+    <view v-else-if="!canAsk" class="ca-warn">
       <app-icon name="alert-circle" :size="26" color="#C97B2D" />
-      <text class="ca-warn-t">提问入口参数缺失（请从达人列表「提问」进入）</text>
+      <text class="ca-warn-t">{{ circleId && answererId ? '该达人暂未开放付费提问' : '提问入口参数缺失（请从达人列表「提问」进入）' }}</text>
     </view>
 
     <!-- 本圈大家都在问 -->
@@ -203,9 +234,9 @@ onLoad((opt) => {
 
     <!-- 吸底提交：扣费金额明示 -->
     <view class="ca-submit-bar">
-      <text class="ca-submit-note">提交即从钱包扣除 <text class="ca-note-b">{{ priceCoin }} 金币</text><template v-if="balance !== null">（当前余额 {{ balance }} 金币）</template> · 由平台托管至回答完成</text>
+      <text class="ca-submit-note"><template v-if="canAsk">提交即从钱包扣除 <text class="ca-note-b">{{ priceCoin }} 金币</text><template v-if="balance !== null">（当前余额 {{ balance }} 金币）</template> · 由平台托管至回答完成</template><template v-else>确认达人报价后方可提问</template></text>
       <view class="ca-submit-btn" :class="{ 'is-disabled': !canSubmit }" @tap="submit">
-        <text class="ca-submit-t">{{ submitting ? '提交中…' : `确认支付 ${priceCoin} 金币并提问` }}</text>
+        <text class="ca-submit-t">{{ submitted ? '已提交，正在打开详情' : submitting ? '提交中…' : canAsk ? `确认支付 ${priceCoin} 金币并提问` : '报价待确认' }}</text>
       </view>
     </view>
   </view>
