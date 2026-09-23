@@ -1437,6 +1437,8 @@ model Order {
   sourceContentId    String? // 内容来源ID（LiveRoom.id / Article.id / Video.id·与 sourceContentType 成对出现）
   payMethod          String? // WECHAT, ALIPAY
   payTransactionId   String?
+  clientRequestId    String? // 商品建单重试键；历史订单为空
+  requestFingerprint String? // 同键请求参数摘要，防止更改券、地址或商品后误复用
   paidAt             DateTime?
   shippedAt          DateTime?
   completedAt        DateTime?
@@ -1450,6 +1452,7 @@ model Order {
   ToolPayRecord  ToolPayRecord[]
 
   @@unique([payTransactionId])
+  @@unique([userId, clientRequestId])
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([referrerId])

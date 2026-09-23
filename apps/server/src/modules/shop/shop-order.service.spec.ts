@@ -41,6 +41,41 @@ describe("ShopOrderService", () => {
   })
 
   describe("createOrder", () => {
+    it("相同商品建单键复用已提交订单，不再次扣减库存", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-idempotent", status: "PENDING" })
+      mockPrisma.order.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+      const dto = { type: "PRODUCT", targetId: "p1", amount: 1, clientRequestId: "request-0001" }
+      await svc.createOrder("u1", dto)
+      const fingerprint = mockPrisma.order.create.mock.calls[0][0].data.requestFingerprint
+      mockPrisma.order.findFirst.mockResolvedValueOnce({ id: "o-idempotent", requestFingerprint: fingerprint })
+      const repeated = await svc.createOrder("u1", dto)
+      expect(repeated.id).toBe("o-idempotent")
+      expect(mockPrisma.order.create).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))", "product-order:u1:request-0001",
+      )
+    })
+
+    it("同一建单键更换数量时拒绝复用", async () => {
+      mockPrisma.order.findFirst.mockResolvedValueOnce({ id: "old", requestFingerprint: "different" })
+      await expect(svc.createOrder("u1", {
+        type: "PRODUCT", targetId: "p1", amount: 2, clientRequestId: "request-0002",
+      })).rejects.toThrow("下单内容已变化")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("建单事务失败后同键可重试", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })
+      mockPrisma.product.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-retry", status: "PENDING" })
+      mockPrisma.order.findFirst.mockResolvedValue(null)
+      const dto = { type: "PRODUCT", targetId: "p1", amount: 1, clientRequestId: "request-0003" }
+      await expect(svc.createOrder("u1", dto)).rejects.toThrow("商品库存不足")
+      await expect(svc.createOrder("u1", dto)).resolves.toMatchObject({ id: "o-retry" })
+      expect(mockPrisma.order.create).toHaveBeenCalledTimes(2)
+    })
     it("非会员订单验证商品失败", async () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
       await expect(

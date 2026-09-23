@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, IsIn, MinLength, MaxLength, IsPositive } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, IsIn, MinLength, MaxLength, IsPositive, Matches } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -150,6 +150,9 @@ export class CreateSkuDto {
 }
 
 export class CreateOrderDto {
+  @ApiPropertyOptional({ description: "商品建单幂等键；超时重试必须沿用原键" })
+  @IsOptional() @IsString() @Matches(/^[A-Za-z0-9_-]{8,64}$/)
+  clientRequestId?: string;
   @ApiProperty({ description: "订单类型（COURSE/PRODUCT/MEMBER/CIRCLE/BOT）" })
   @IsString()
   @MinLength(1)

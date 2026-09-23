@@ -63,6 +63,27 @@ export class ShopOrderService {
   }
 
   async createOrder(userId: string, dto: CreateOrderDto) {
+    // 仅实物订单接入客户端重试键；旧客户端无键时沿用原流程。
+    const clientRequestId = dto.type === "PRODUCT" ? dto.clientRequestId : undefined;
+    const requestFingerprint = clientRequestId ? createHash("sha256").update(JSON.stringify({
+      type: dto.type, targetId: dto.targetId, skuId: dto.skuId || null,
+      quantity: Math.max(1, Math.floor(Number(dto.amount) || 1)),
+      couponId: dto.couponId || null, addressId: dto.addressId || null,
+      tempReferrerId: dto.tempReferrerId || null,
+      sourceContentType: dto.sourceContentType || null, sourceContentId: dto.sourceContentId || null,
+      pageId: (dto as any).pageId || null,
+    })).digest("hex") : undefined;
+    const reuseOrder = async () => {
+      if (!clientRequestId) return null;
+      const existing = await this.prisma.order.findFirst({ where: { userId, clientRequestId } });
+      if (!existing) return null;
+      if (existing.requestFingerprint !== requestFingerprint) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "下单内容已变化，请重新发起结算");
+      }
+      return existing;
+    };
+    const earlierOrder = await reuseOrder();
+    if (earlierOrder) return earlierOrder;
     // 服务端计算实际金额，无视前端传入的 amount（防篡改）
     let actualAmount = 0;
     let promotionType: string | undefined;
@@ -233,6 +254,17 @@ export class ShopOrderService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (clientRequestId) {
+          // 数据库事务锁串行化同用户同键；唯一约束是最后防线，失败事务不会占键。
+          await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `product-order:${userId}:${clientRequestId}`);
+          const existing = await tx.order.findFirst({ where: { userId, clientRequestId } });
+          if (existing) {
+            if (existing.requestFingerprint !== requestFingerprint) {
+              throw new BusinessException(ErrorCode.BAD_REQUEST, "下单内容已变化，请重新发起结算");
+            }
+            return existing;
+          }
+        }
         if (dto.type === "STATION_MASTER" || dto.type === "OPERATOR") {
           // PostgreSQL 事务级锁是 Redis 降级/多实例场景的最终防线；事务结束自动释放。
           const dbLockName = (dto.type === "STATION_MASTER" ? "station-order:" : "operator-order:")
@@ -312,6 +344,8 @@ export class ShopOrderService {
         const order = await tx.order.create({
           data: {
             userId,
+            clientRequestId,
+            requestFingerprint,
             type: dto.type as any,
             targetId: dto.targetId,
             skuId: dto.skuId,
