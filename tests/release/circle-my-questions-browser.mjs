@@ -42,6 +42,8 @@ try {
   await page.getByText('查看更多问答记录').click()
   await page.getByText('加载失败，点击重试').click()
   await page.getByText('问题23', { exact: true }).waitFor()
+  await page.setViewportSize({ width: 320, height: 720 })
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, '320px 不应横向溢出')
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])
   console.log('我的问答：分页、分组暂空说明、下一页失败恢复：通过')

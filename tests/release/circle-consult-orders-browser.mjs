@@ -57,6 +57,8 @@ try {
   await page.getByText('查看更多通话记录').click()
   await page.getByText('咨询总笔数').waitFor()
   await page.getByText('45').first().waitFor()
+  await page.setViewportSize({ width: 320, height: 720 })
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, '320px 不应横向溢出')
   assert.equal(await page.getByText('查看更多通话记录').count(), 0)
   assert.equal(writes, 0)
   assert.deepEqual(errors, [])

@@ -78,11 +78,11 @@ try {
   assert.equal(await page.locator('.jp-overlay').count(), 0)
   results.push('付费预览直接打开购买组件，不叠加重复权益确认弹层')
   await open('detail', '&paymentSuccess=1')
-  await page.getByRole('button', { name: '刷新入圈权益', exact: true }).waitFor()
+  await page.getByRole('button', { name: '重新确认入圈权益', exact: true }).waitFor()
   assert.equal(await page.locator('.fab').count(), 0)
   await page.screenshot({ path: resolve(out, '02-payment-access-pending.png') })
   joined = true
-  await page.getByRole('button', { name: '刷新入圈权益', exact: true }).click()
+  await page.getByRole('button', { name: '重新确认入圈权益', exact: true }).click()
   await page.getByRole('button', { name: '发动态', exact: true }).waitFor()
   results.push('支付回跳标记不授予权益，不再次付款，刷新确认成员后解锁')
   joined = false; expired = true

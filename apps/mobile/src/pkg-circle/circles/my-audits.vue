@@ -5,7 +5,8 @@
  * 数据：contentAuditApi.mine（真连 GET /audit/content-audits/mine·JWT）。
  * 降级：草稿聚合暂未做（后端 /circles/drafts 仅帖子草稿且前端无草稿续编流程），本页先做审核记录。
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { contentAuditApi, type MyContentAudit, type AuditFinalStatus } from '@/lib/content-audit-data'
@@ -31,20 +32,53 @@ const loading = ref(true)
 const error = ref('')
 const list = ref<MyContentAudit[]>([])
 const total = ref(0)
+const page = ref(1)
+const loadingMore = ref(false)
+const moreError = ref('')
+const PAGE_SIZE = 20
+const hasMore = computed(() => list.value.length < total.value)
+let requestSeq = 0
 
 async function load() {
+  const seq = ++requestSeq
   loading.value = true
+  loadingMore.value = false
   error.value = ''
+  moreError.value = ''
   try {
-    const r = await contentAuditApi.mine({ finalStatus: filter.value, pageSize: 50 })
+    const r = await contentAuditApi.mine({ finalStatus: filter.value, page: 1, pageSize: PAGE_SIZE })
+    if (seq !== requestSeq) return
     list.value = r.records
     total.value = r.total
+    page.value = 1
   } catch (e) {
+    if (seq !== requestSeq) return
     error.value = (e as Error)?.message || '加载失败'
   } finally {
-    loading.value = false
+    if (seq === requestSeq) loading.value = false
   }
 }
+
+async function loadMore() {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  const seq = requestSeq
+  loadingMore.value = true
+  moreError.value = ''
+  try {
+    const next = page.value + 1
+    const r = await contentAuditApi.mine({ finalStatus: filter.value, page: next, pageSize: PAGE_SIZE })
+    if (seq !== requestSeq) return
+    list.value = list.value.concat(r.records)
+    total.value = r.records.length ? r.total : list.value.length
+    page.value = next
+  } catch (e) {
+    if (seq === requestSeq) moreError.value = (e as Error)?.message || '加载更多失败'
+  } finally {
+    if (seq === requestSeq) loadingMore.value = false
+  }
+}
+
+onReachBottom(() => { if (hasMore.value && !moreError.value) void loadMore() })
 
 function switchFilter(f: Filter) {
   if (filter.value === f) return
@@ -113,6 +147,7 @@ onMounted(load)
         </text>
         <text v-if="r.finalStatus === 'REJECTED'" class="ma-reject-note">内容仍在圈内正常可见，可修改后重新提交开放申请。</text>
       </view>
+      <view v-if="hasMore || moreError" class="ma-more" @tap="loadMore">{{ loadingMore ? '正在加载…' : moreError ? '加载失败，点击重试' : '查看更多审核记录' }}</view>
       <view class="ma-bottom-pad" />
     </template>
   </view>
@@ -154,6 +189,7 @@ onMounted(load)
 .ma-state-t { font-size: 28rpx; color: var(--text-tertiary, #999); }
 .ma-retry { margin-top: 12rpx; padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
 .ma-retry-t { font-size: 26rpx; color: #fff; }
+.ma-more { margin: 24rpx 32rpx; min-height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: #fff; color: var(--brand, #c41e3a); font-size: 26rpx; }
 .ma-empty-icon {
   width: 128rpx; height: 128rpx; border-radius: 40rpx;
   background: var(--bg-warm, #f8f4ec);

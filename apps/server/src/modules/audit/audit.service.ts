@@ -734,7 +734,10 @@ export class AuditService {
         skip,
         take: pageSize,
         // 审核队列先进先审；个人提交列表最新在前
-        orderBy: { createdAt: params.submitterId ? "desc" : "asc" },
+        orderBy: [
+          { createdAt: params.submitterId ? "desc" : "asc" },
+          { id: params.submitterId ? "desc" : "asc" },
+        ],
       }),
       this.prisma.contentAuditRecord.count({ where }),
     ]);
