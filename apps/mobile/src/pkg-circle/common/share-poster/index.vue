@@ -30,7 +30,28 @@
       <scroll-view scroll-y class="poster-scroll">
         <view class="poster-preview">
           <!-- 可视海报卡片（与 canvas 同构，用于展示） -->
-          <view class="poster-card" :style="{ background: activeTheme.bg }">
+          <view v-if="posterType === 'circle'" class="circle-invite">
+            <view class="circle-invite__masthead">
+              <text class="circle-invite__brand">{{ BRAND.name }}</text>
+              <text class="circle-invite__section">同好圈</text>
+            </view>
+            <view class="circle-invite__body">
+              <text class="circle-invite__eyebrow">{{ verifiedInviteCode ? '一份入圈邀请' : '与同好相遇' }}</text>
+              <text class="circle-invite__title">{{ posterData.title }}</text>
+              <view class="circle-invite__rule" />
+              <text v-if="posterData.subtitle" class="circle-invite__category">{{ posterData.subtitle }}</text>
+              <text class="circle-invite__description">{{ posterData.desc }}</text>
+            </view>
+            <view class="circle-invite__footer">
+              <view class="circle-invite__footer-copy">
+                <text class="circle-invite__scan">{{ posterData.qrLabel }}</text>
+                <text class="circle-invite__owner">{{ posterData.author || BRAND.name }}</text>
+                <text class="circle-invite__hint">打开圈子，看看同好在读什么</text>
+              </view>
+              <canvas canvas-id="previewQr" id="previewQr" class="circle-invite__qr" />
+            </view>
+          </view>
+          <view v-else class="poster-card" :style="{ background: activeTheme.bg }">
             <view class="poster-card__border" :style="{ borderColor: activeTheme.accent }">
               <view class="poster-card__tag" :style="{ background: activeTheme.accent, color: activeTheme.headerStyle === 'dark' ? activeTheme.bg : '#ffffff' }">
                 {{ posterData.tag }}
@@ -76,7 +97,7 @@
       <!-- 底部操作面板 -->
       <view class="panel">
         <!-- 风格选择 -->
-        <view class="panel__section">
+        <view v-if="posterType !== 'circle'" class="panel__section">
           <text class="panel__label">选择风格</text>
           <view class="theme-list">
             <view
@@ -100,7 +121,7 @@
         <!-- 分享文案 -->
         <view class="panel__section">
           <text class="panel__label">分享文案</text>
-          <view class="tone-tabs">
+          <view v-if="posterType !== 'circle'" class="tone-tabs">
             <view
               v-for="(t, i) in SHARE_TONES"
               :key="t.tone"
@@ -186,17 +207,19 @@ const posterTempPath = ref('')
 const showShareSheet = ref(false)
 const { toAppMessage, toTimeline } = useShare()
 
-// canvas 逻辑尺寸（px，比例 3:4）
-const canvasW = 300
-const canvasH = 420
+// 导出用双倍像素，版式仍按 300 × 420 逻辑尺寸绘制，分享时文字与二维码更清晰。
+const canvasW = 600
+const canvasH = 840
 
 const typeTitle = computed(() => getPosterTypeTitle(posterType.value))
 /** 印面文字：品牌名前二字（nameShort 缺省时回退全名取前二字） */
 const sealChars = computed(() => Array.from(BRAND.nameShort || BRAND.name).slice(0, 2).join(''))
 const activeTheme = computed(() => POSTER_THEMES[themeIndex.value])
-const currentTone = computed(() =>
-  posterData.value ? SHARE_TONES[toneIndex.value].build(posterData.value.title) : '',
-)
+const currentTone = computed(() => {
+  if (!posterData.value) return ''
+  if (posterType.value === 'circle') return `邀请你来「${posterData.value.title}」看看。${posterData.value.link}`
+  return SHARE_TONES[toneIndex.value].build(posterData.value.title)
+})
 const shareKind = computed(() => {
   const kinds = {
     invite: 'circle',
@@ -271,8 +294,18 @@ function drawPoster() {
   if (!data) return
   const theme = activeTheme.value
   const ctx = uni.createCanvasContext('posterCanvas')
-  const W = canvasW
-  const H = canvasH
+  const W = 300
+  const H = 420
+  ctx.scale(2, 2)
+
+  if (posterType.value === 'circle') {
+    drawCircleInvite(ctx, data, W, H)
+    exportPoster(ctx)
+    const pctx = uni.createCanvasContext('previewQr')
+    drawQrToCanvas(pctx, data.link, 0, 0, 88, { padding: 5 })
+    pctx.draw()
+    return
+  }
 
   // 背景
   ctx.setFillStyle(theme.bg)
@@ -333,6 +366,15 @@ function drawPoster() {
   const SEAL = 48
   drawSealOnCanvas(ctx, sealChars.value, W - 32 - QR - 12 - SEAL, H - 32 - SEAL, SEAL)
 
+  exportPoster(ctx)
+
+  // 预览区的小二维码（与导出图同一 link，保证所见即所存）
+  const pctx = uni.createCanvasContext('previewQr')
+  drawQrToCanvas(pctx, data.link, 0, 0, 56, { padding: 2 })
+  pctx.draw()
+}
+
+function exportPoster(ctx: UniApp.CanvasContext) {
   ctx.draw(false, () => {
     setTimeout(() => {
       uni.canvasToTempFilePath({
@@ -345,10 +387,53 @@ function drawPoster() {
     }, 150)
   })
 
-  // 预览区的小二维码（与导出图同一 link，保证所见即所存）
-  const pctx = uni.createCanvasContext('previewQr')
-  drawQrToCanvas(pctx, data.link, 0, 0, 56, { padding: 2 })
-  pctx.draw()
+}
+
+/** 圈子邀请采用扉页式信息层级；预览和导出使用同一文案与同一二维码链接。 */
+function drawCircleInvite(ctx: UniApp.CanvasContext, data: PosterData, W: number, H: number) {
+  const ink = '#203B32'
+  const muted = '#5F756B'
+  ctx.setFillStyle('#EAF0EC')
+  ctx.fillRect(0, 0, W, H)
+  ctx.setFillStyle(ink)
+  ctx.setTextAlign('left')
+  ctx.setFontSize(12)
+  ctx.fillText(BRAND.name, 28, 37)
+  ctx.setTextAlign('right')
+  ctx.setFontSize(10)
+  ctx.fillText('同好圈', W - 28, 37)
+  ctx.setFillStyle('#B9C9BF')
+  ctx.fillRect(28, 56, W - 56, 1)
+  ctx.setTextAlign('left')
+  ctx.setFillStyle(muted)
+  ctx.setFontSize(11)
+  ctx.fillText(verifiedInviteCode.value ? '一份入圈邀请' : '与同好相遇', 28, 92)
+  ctx.setFillStyle(ink)
+  ctx.setFontSize(29)
+  ctx.font = '700 29px "Songti SC", STSong, SimSun, serif'
+  wrapText(ctx, data.title, 28, 136, W - 56, 36, 2)
+  ctx.font = '12px sans-serif'
+  ctx.setFillStyle('#A54842')
+  ctx.fillRect(28, 186, 28, 2)
+  if (data.subtitle) {
+    ctx.setFillStyle(ink)
+    ctx.setFontSize(12)
+    ctx.fillText(data.subtitle, 28, 216)
+  }
+  ctx.setFillStyle(muted)
+  ctx.setFontSize(12)
+  wrapText(ctx, data.desc, 28, 245, W - 56, 19, 3)
+  ctx.setFillStyle(ink)
+  ctx.fillRect(0, 308, W, H - 308)
+  ctx.setFillStyle('#F4F6F2')
+  ctx.setFontSize(16)
+  ctx.fillText(data.qrLabel, 28, 343)
+  ctx.setFontSize(11)
+  wrapText(ctx, data.author || BRAND.name, 28, 367, 138, 16, 1)
+  ctx.setFillStyle('#B6C9BC')
+  ctx.setFontSize(10)
+  ctx.fillText('打开圈子，看看同好在读什么', 28, 398)
+  drawQrToCanvas(ctx, data.link, W - 116, 320, 88, { padding: 5 })
 }
 
 // 重绘随主题切换
@@ -597,6 +682,74 @@ onMounted(() => {})
   justify-content: center;
   padding: 32rpx 48rpx;
 }
+.circle-invite {
+  width: 600rpx;
+  height: 840rpx;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #eaf0ec;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.24);
+}
+.circle-invite__masthead {
+  height: 116rpx;
+  flex: none;
+  margin: 0 56rpx;
+  border-bottom: 2rpx solid #b9c9bf;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #203b32;
+}
+.circle-invite__brand { font-size: 24rpx; font-weight: 700; letter-spacing: 2rpx; }
+.circle-invite__section { font-size: 20rpx; letter-spacing: 2rpx; }
+.circle-invite__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 56rpx 56rpx 0;
+  min-height: 0;
+}
+.circle-invite__eyebrow { color: #5f756b; font-size: 22rpx; margin-bottom: 24rpx; }
+.circle-invite__title {
+  color: #203b32;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 58rpx;
+  font-weight: 700;
+  line-height: 1.22;
+  max-height: 144rpx;
+  overflow: hidden;
+}
+.circle-invite__rule { width: 56rpx; height: 4rpx; background: #a54842; margin: 22rpx 0 20rpx; }
+.circle-invite__category { color: #203b32; font-size: 24rpx; margin-bottom: 14rpx; }
+.circle-invite__description {
+  color: #5f756b;
+  font-size: 24rpx;
+  line-height: 1.58;
+  max-height: 114rpx;
+  overflow: hidden;
+}
+.circle-invite__footer {
+  height: 224rpx;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 56rpx;
+  background: #203b32;
+}
+.circle-invite__footer-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.circle-invite__scan { color: #f4f6f2; font-size: 32rpx; font-weight: 600; margin-bottom: 12rpx; }
+.circle-invite__owner {
+  color: #f4f6f2;
+  font-size: 22rpx;
+  max-width: 270rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.circle-invite__hint { color: #b6c9bc; font-size: 20rpx; margin-top: 20rpx; white-space: nowrap; }
+.circle-invite__qr { width: 176rpx; height: 176rpx; flex: none; background: #fff; }
 .poster-card {
   width: 600rpx;
   border-radius: 16rpx;

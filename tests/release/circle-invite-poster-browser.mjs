@@ -10,14 +10,14 @@ if (!origin) throw new Error('缺少隔离 H5 地址')
 const browser = await chromium.launch({ headless: true, channel: 'chrome' })
 const errors = []
 let codeUsed = false
-let writes = 0
+const writes = []
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['clipboard-read', 'clipboard-write'] })
   await context.addInitScript(() => localStorage.setItem('auth_token', JSON.stringify({ type: 'string', data: 'local-fixture-only' })))
   await context.route('**/*', async route => {
     const url = new URL(route.request().url())
     if (url.pathname.includes('/api/v1/')) {
-      if (route.request().method() !== 'GET') writes++
+      if (route.request().method() !== 'GET') writes.push(`${route.request().method()} ${url.pathname}`)
       const path = url.pathname.split('/api/v1')[1]
       let data = {}
       if (path === '/circles/c1') data = { id: 'c1', name: '共读经典', description: '以古籍共读为中心，讨论真实读书收获。', category: '经典', type: 'FREE', status: 'ACTIVE', memberCount: 12, postCount: 3, owner: { id: 'owner', nickname: '领读人' } }
@@ -39,6 +39,9 @@ try {
   const artifactDir = resolve('artifacts/circle-invite-poster-20260923')
   await mkdir(artifactDir, { recursive: true })
   await page.screenshot({ path: resolve(artifactDir, 'invite-poster-h5.png'), fullPage: true })
+  const savedPoster = page.waitForEvent('download')
+  await page.getByText('保存到相册').click()
+  await (await savedPoster).saveAs(resolve(artifactDir, 'invite-poster-export.png'))
   await page.getByText('立即分享').click()
   await page.getByRole('button', { name: '复制分享链接' }).click()
   const invited = await page.evaluate(() => navigator.clipboard.readText())
@@ -57,9 +60,9 @@ try {
   const generic = await page.evaluate(() => navigator.clipboard.readText())
   assert.match(generic, /\/pkg-circle\/circles\/detail\?id=c1/)
   assert.equal(generic.includes('code='), false)
-  assert.equal(writes, 0)
+  assert.deepEqual(writes, [])
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ passed: 11, writes, errors, screenshot: resolve(artifactDir, 'invite-poster-h5.png') }))
+  console.log(JSON.stringify({ passed: 12, writes, errors, screenshot: resolve(artifactDir, 'invite-poster-h5.png'), export: resolve(artifactDir, 'invite-poster-export.png') }))
 } finally {
   await browser.close()
 }
