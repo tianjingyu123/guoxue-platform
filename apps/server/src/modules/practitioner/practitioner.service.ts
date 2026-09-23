@@ -552,12 +552,14 @@ export class PractitionerService {
 
   async createAppointment(userId: string, dto: any) {
     if (!dto.startAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写预约时间");
+    const startAt = new Date(dto.startAt);
+    if (Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
     return this.prisma.practitionerAppointment.create({
       data: {
         ownerId: userId,
         clientId: dto.clientId ?? null,
         clientName: dto.clientName,
-        startAt: new Date(dto.startAt),
+        startAt,
         service: dto.service,
         channel: dto.channel ?? "到店",
         status: dto.status ?? "pending",
@@ -570,12 +572,14 @@ export class PractitionerService {
   async updateAppointment(userId: string, id: string, dto: any) {
     const a = await this.prisma.practitionerAppointment.findFirst({ where: { id, ownerId: userId } });
     if (!a) throw new BusinessException(ErrorCode.NOT_FOUND, "预约不存在");
+    const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
+    if (startAt && Number.isNaN(startAt.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约时间无效，请重新选择");
     return this.prisma.practitionerAppointment.update({
       where: { id },
       data: {
         clientId: dto.clientId,
         clientName: dto.clientName,
-        startAt: dto.startAt ? new Date(dto.startAt) : undefined,
+        startAt,
         service: dto.service,
         channel: dto.channel,
         status: dto.status,
@@ -707,11 +711,28 @@ export class PractitionerService {
   // ───────────────────────── 工作台首页聚合 ─────────────────────────
 
   /** 今日概览：日程、待办提醒、本月收入、客户数 —— 一次拿全，首页不打散请求 */
-  async getHome(userId: string) {
+  async getHome(userId: string, period?: { dayStart?: string; dayEnd?: string; monthStart?: string }) {
     const now = new Date();
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dayEnd = new Date(dayStart.getTime() + 86400000);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    let dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    let monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (period?.dayStart || period?.dayEnd || period?.monthStart) {
+      if (!period.dayStart || !period.dayEnd || !period.monthStart) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围不完整，请刷新重试");
+      }
+      const start = new Date(period.dayStart);
+      const end = new Date(period.dayEnd);
+      const month = new Date(period.monthStart);
+      const dayLength = end.getTime() - start.getTime();
+      if ([start, end, month].some((d) => Number.isNaN(d.getTime())) ||
+          dayLength < 23 * 3600_000 || dayLength > 25 * 3600_000 ||
+          month.getTime() > start.getTime() || start.getTime() - month.getTime() > 31 * 86400_000) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "工作台日期范围无效，请刷新重试");
+      }
+      dayStart = start;
+      dayEnd = end;
+      monthStart = month;
+    }
 
     const [appointments, reminders, clientCount, monthCommission, monthManual, pendingQuestions, reports] =
       await Promise.all([
@@ -721,7 +742,7 @@ export class PractitionerService {
         }),
         // 客户回访提醒（CRM 已有 ClientReminder：生日/回访/事件）
         this.prisma.clientReminder.findMany({
-          where: { ownerId: userId, status: "PENDING", dueAt: { lte: dayEnd } },
+          where: { ownerId: userId, status: "PENDING", dueAt: { lt: dayEnd } },
           orderBy: { dueAt: "asc" },
           take: 10,
           include: { client: { select: { name: true } } },

@@ -72,7 +72,13 @@ async function load() {
   loading.value = true
   failed.value = false
   try {
-    const [home, prof] = await Promise.all([wsApi.home(), wsApi.profile()])
+    const now = new Date()
+    const period = {
+      dayStart: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+      dayEnd: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString(),
+      monthStart: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+    }
+    const [home, prof] = await Promise.all([wsApi.home(period), wsApi.profile()])
     stats.value = home.stats ?? []
     appts.value = home.appointments ?? []
     reminders.value = home.reminders ?? []
@@ -125,16 +131,22 @@ function openAdd() {
 }
 
 async function saveAppt() {
+  if (saving.value) return
   if (!fClient.value.trim() || !fDate.value || !fTime.value) {
     uni.showToast({ title: '请填客户与时间', icon: 'none' })
+    return
+  }
+  const localStart = new Date(`${fDate.value}T${fTime.value}:00`)
+  if (Number.isNaN(localStart.getTime())) {
+    uni.showToast({ title: '预约时间无效，请重新选择', icon: 'none' })
     return
   }
   saving.value = true
   try {
     await wsApi.createAppointment({
       clientName: fClient.value.trim(),
-      // 本地时间字符串 → 后端按 Date 解析（同为北京时区，不做额外换算）
-      startAt: `${fDate.value}T${fTime.value}:00`,
+      // 由用户设备把所选本地时间转换为绝对时间，服务端无需猜测设备时区。
+      startAt: localStart.toISOString(),
       service: fService.value,
       channel: fChannel.value,
       note: fNote.value || undefined,

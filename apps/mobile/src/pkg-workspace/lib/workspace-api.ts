@@ -126,7 +126,8 @@ function qs(q: Record<string, string | undefined>): string {
 /* ───────────── 接口 ───────────── */
 
 export const wsApi = {
-  home: () => apiGet<any>('/practitioner/home'),
+  home: (period?: { dayStart: string; dayEnd: string; monthStart: string }) =>
+    apiGet<any>(`/practitioner/home${qs(period ?? {})}`),
   profile: () => apiGet<any>('/practitioner/profile'),
   pro: () => apiGet<ProStatus>('/practitioner/pro'),
   saveBrand: (b: Partial<WorkspaceBrand>) => apiPut<any>('/practitioner/brand', b),

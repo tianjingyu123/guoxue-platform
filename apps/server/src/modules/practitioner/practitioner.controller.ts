@@ -39,8 +39,13 @@ export class PractitionerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "工作台首页聚合（今日日程/待办/本月收入/最近报告）" })
-  getHome(@Req() req: Request) {
-    return this.svc.getHome(req.user.id);
+  getHome(
+    @Req() req: Request,
+    @Query("dayStart") dayStart?: string,
+    @Query("dayEnd") dayEnd?: string,
+    @Query("monthStart") monthStart?: string,
+  ) {
+    return this.svc.getHome(req.user.id, { dayStart, dayEnd, monthStart });
   }
 
   @Get("profile")
