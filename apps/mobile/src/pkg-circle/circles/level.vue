@@ -21,9 +21,9 @@
       <!-- 顶部深色区 -->
       <view class="top" :style="{ paddingTop: statusBarH + 'px' }">
         <view class="nav" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
-          <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+          <view class="nav-btn" role="button" tabindex="0" aria-label="返回圈子" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
           <text class="nav-title">我的等级</text>
-          <view class="nav-rank" @tap="goRank"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
+          <view class="nav-rank" role="button" tabindex="0" aria-label="查看签到榜" @tap="goRank" @keydown.enter="goRank"><text class="nav-rank-t">签到榜</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
         </view>
 
         <!-- 用户等级卡片 -->
@@ -62,8 +62,8 @@
 
       <!-- Tab -->
       <view class="tabs-wrap">
-        <view class="tabs">
-          <view v-for="t in tabs" :key="t.id" class="tab" :class="{ on: activeTab === t.id }" @tap="activeTab = t.id">{{ t.label }}</view>
+        <view class="tabs" role="tablist" aria-label="成长信息">
+          <view v-for="t in tabs" :key="t.id" class="tab" :class="{ on: activeTab === t.id }" role="tab" tabindex="0" :aria-selected="activeTab === t.id" @tap="activeTab = t.id" @keydown.enter="activeTab = t.id">{{ t.label }}</view>
         </view>
       </view>
 
@@ -138,12 +138,12 @@
 
           <!-- 每日签到 -->
           <view class="signin-card">
-            <view class="signin-head"><view class="card-head-l"><app-icon name="calendar" :size="30" color="#ffffff" /><text class="signin-title">每日签到</text></view><text class="signin-sub">已连续签到 {{ me.checkinStreak }} 天</text></view>
+            <view class="signin-head"><view class="card-head-l"><app-icon name="calendar" :size="30" color="#2B6F68" /><text class="signin-title">每日签到</text></view><text class="signin-sub">已连续签到 {{ me.checkinStreak }} 天</text></view>
             <view class="signin-info">
-              <text class="signin-info-t">累计签到 {{ checkinExp ? Math.round(checkinExp / 10) : me.checkinStreak }} 次 · 签到经验 {{ checkinExp }}</text>
+              <text class="signin-info-t">累计签到 {{ totalCheckins }} 次 · 签到经验 {{ checkinExp }}</text>
             </view>
             <view class="signin-btn" :class="{ done: checkedToday, disabled: submitting }" @tap="doCheckin">
-              <text class="signin-btn-t">{{ checkedToday ? '今日已签到' : (submitting ? '签到中...' : '立即签到 (+10经验)') }}</text>
+              <text class="signin-btn-t">{{ checkedToday ? '今日已签到' : (submitting ? '签到中...' : '立即签到') }}</text>
             </view>
           </view>
         </view>
@@ -209,6 +209,7 @@ const me = ref<LevelMe & { nickname: string; avatar: string }>({ ...DEFAULT_ME, 
 const menuSafeRight = getMiniProgramMenuSafeRight()
 const badges = ref<BadgeItem[]>([])
 const checkedToday = ref(false)
+const totalCheckins = ref(0)
 
 const RARITY_COLOR: Record<string, string> = { common: '#475569', rare: '#2563EB', epic: '#9333EA', legendary: '#D97706' }
 const obtainedBadges = computed(() => badges.value.filter((b) => b.earned).map((b) => ({ ...b, color: RARITY_COLOR[b.rarity] })))
@@ -236,6 +237,7 @@ async function loadAll() {
     me.value = { ...growth.me, nickname: mine?.nickname ?? '我', avatar: mine?.avatar ?? '' }
     badges.value = badgeRes.badges
     checkedToday.value = cal.checkedToday
+    totalCheckins.value = cal.totalCheckins
   } catch (e) {
     loadError.value = true
     uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
@@ -279,7 +281,8 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 .nav-btn { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 30rpx; font-weight: 600; color: #ffffff; }
 .nav-rank { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
-.nav-rank-t { font-size: 24rpx; color: rgba(255,255,255,0.7); }
+.nav-rank-t { font-size: 24rpx; color: rgba(255,255,255,0.85); }
+.nav-btn:focus-visible, .nav-rank:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .ucard { margin: 0 32rpx; background: rgba(255,255,255,0.08); border-radius: 28rpx; padding: 32rpx; }
 .ucard-top { display: flex; align-items: center; gap: 24rpx; margin-bottom: 28rpx; }
@@ -308,8 +311,9 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 
 .tabs-wrap { padding: 0 32rpx; margin-top: -32rpx; position: relative; z-index: 10; }
 .tabs { display: flex; gap: 8rpx; background: #ffffff; border-radius: 20rpx; padding: 8rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05); }
-.tab { flex: 1; text-align: center; padding: 20rpx 0; font-size: 24rpx; font-weight: 500; color: #666666; border-radius: 14rpx; }
+.tab { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 8rpx; font-size: 26rpx; font-weight: 500; color: #666666; border-radius: 14rpx; }
 .tab.on { background: #2C2C2C; color: #ffffff; }
+.tab:focus-visible { outline: 2px solid #2B6F68; outline-offset: 2px; }
 
 .content { padding: 32rpx; }
 .sec-group { display: flex; flex-direction: column; gap: 28rpx; }
@@ -360,15 +364,15 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 .xp-src-desc { display: block; font-size: 22rpx; color: #999999; margin-top: 2rpx; }
 .xp-src-val { font-size: 26rpx; font-weight: 700; }
 
-.signin-card { background: linear-gradient(90deg, var(--brand), #E74C3C); border-radius: 20rpx; padding: 28rpx; }
+.signin-card { background: var(--circle-surface, #fff); border: 1rpx solid var(--circle-border-soft, #ECECF0); border-radius: 20rpx; padding: 28rpx; }
 .signin-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
-.signin-title { font-size: 28rpx; font-weight: 500; color: #ffffff; }
-.signin-sub { font-size: 22rpx; color: rgba(255,255,255,0.7); }
+.signin-title { font-size: 28rpx; font-weight: 600; color: var(--circle-ink, #1D1D1F); }
+.signin-sub { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
 .signin-info { margin-bottom: 24rpx; }
-.signin-info-t { font-size: 22rpx; color: rgba(255,255,255,0.85); }
-.signin-btn { width: 100%; padding: 22rpx 0; background: #ffffff; border-radius: 14rpx; text-align: center; }
-.signin-btn.done { background: rgba(255,255,255,0.3); }
+.signin-info-t { font-size: 22rpx; color: var(--circle-secondary, #6E6E73); }
+.signin-btn { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; background: var(--brand); border-radius: 14rpx; text-align: center; }
+.signin-btn.done { background: #F2F5F4; }
 .signin-btn.disabled { opacity: 0.6; }
-.signin-btn-t { font-size: 26rpx; font-weight: 500; color: var(--brand); }
-.signin-btn.done .signin-btn-t { color: #ffffff; }
+.signin-btn-t { font-size: 26rpx; font-weight: 600; color: #fff; }
+.signin-btn.done .signin-btn-t { color: #2B6F68; }
 </style>
