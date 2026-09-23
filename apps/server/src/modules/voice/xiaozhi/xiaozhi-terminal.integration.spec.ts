@@ -292,6 +292,7 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     (gateway as any).quota = quota;
     (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
     try {
+      expect(await quota.getAvailable("user", alice)).toMatchObject({ balanceSeconds: 0, reservedSeconds: 0 });
       const token = (await ota() as any).websocket.token;
       const d0 = await device(token);
       const c0 = new Promise((r) => d0.ws.once("close", r));
@@ -300,14 +301,19 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
       expect(d0.texts.map((t) => t.type)).toEqual(["hello", "alert"]);
       expect(d0.texts[1].message).toMatch(/时长用完.*充值/);
       expect(d0.texts[1].message).not.toMatch(/暂时无法开始/);
+      expect(await prisma.voiceSession.count({ where: { userId: alice, status: "active" } })).toBe(0);
 
       await quota.grant({ ownerType: "user", ownerId: alice, seconds: 90, idempotencyKey: `${tag}-g90` });
+      expect(await quota.getAvailable("user", alice)).toMatchObject({ balanceSeconds: 90, reservedSeconds: 0, availableSeconds: 90 });
       const d = await device(token);
       hello(d.ws);
       await waitFor(() => d.texts.some((t) => t.type === "alert"));
       expect(d.texts.map((t) => t.type)).toEqual(["hello", "alert"]);
       expect(d.texts[1].message).toMatch(/只剩约 \d+ 分钟.*充值/);
       const conn = (gateway as any).connections.get(deviceId);
+      const active = await prisma.voiceSession.findFirstOrThrow({ where: { userId: alice, deviceId, status: "active" }, orderBy: { startedAt: "desc" } });
+      expect(active).toMatchObject({ maxSeconds: 90, reservedSeconds: 90, providerIsMock: true });
+      expect(await quota.getAvailable("user", alice)).toMatchObject({ balanceSeconds: 90, reservedSeconds: 90, availableSeconds: 0 });
       expect(conn.warnTimer._idleTimeout).toBe(60_000); // 90 秒会话，第 60 秒提醒
       conn.warnTimer._onTimeout();
       await waitFor(() => d.texts.filter((t) => t.type === "alert").length === 2);
@@ -316,6 +322,22 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
       conn.limitTimer._onTimeout();
       await closed;
       expect(d.texts.filter((t) => t.type === "alert").pop().message).toMatch(/时长用完/);
+      let ending = await prisma.voiceSession.findUniqueOrThrow({ where: { id: active.id } });
+      for (let i = 0; i < 100 && ending.status !== "ending"; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        ending = await prisma.voiceSession.findUniqueOrThrow({ where: { id: active.id } });
+      }
+      expect(ending.status).toBe("ending");
+      const cb = provider.buildCallback({ eventId: `${tag}-balance-usage`, providerSessionId: ending.providerSessionId!, correlationId: ending.requestId, usedSeconds: 25, isFinal: true });
+      await (gateway as any).sessions.handleUsageCallback("mock", cb.headers, cb.rawBody);
+      await (gateway as any).sessions.handleUsageCallback("mock", cb.headers, cb.rawBody);
+      const settled = await prisma.voiceSession.findUniqueOrThrow({ where: { id: active.id } });
+      expect(settled).toMatchObject({ status: "ended", usageState: "mock", usedSeconds: 25, supplierCostMicro: null });
+      expect(await quota.getAvailable("user", alice)).toMatchObject({ balanceSeconds: 65, reservedSeconds: 0, availableSeconds: 65 });
+      const ledger = await prisma.voiceQuotaLedger.findMany({ where: { accountId: settled.accountId! }, orderBy: { createdAt: "asc" } });
+      expect(ledger.map((row) => [row.type, row.seconds])).toEqual([["grant", 90], ["consume", -25]]);
+      expect(ledger[1].note).toContain("模拟供应商用量，非真实计费");
+      expect(await quota.getAvailable("user", bob)).toMatchObject({ balanceSeconds: 0, reservedSeconds: 0, availableSeconds: 0 });
     } finally {
       (gateway as any).quota = orig.quota;
       (gateway as any).sessions = orig.sessions;
