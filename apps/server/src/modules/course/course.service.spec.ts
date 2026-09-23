@@ -419,6 +419,7 @@ describe("CourseService", () => {
   describe("updateProgress", () => {
     it("更新进度未完成", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 0, userId: "u2" });
       mockPrisma.courseProgress.upsert.mockResolvedValue({ progress: 50, completed: false });
       const result = await svc.updateProgress("u1", "ch1", { progress: 50 });
       expect(result.progress).toBe(50);
@@ -427,6 +428,7 @@ describe("CourseService", () => {
 
     it("进度 100 标记完成", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 0, userId: "u2" });
       mockPrisma.courseProgress.upsert.mockResolvedValue({ progress: 100, completed: true });
       const result = await svc.updateProgress("u1", "ch1", { progress: 100 });
       expect(result.completed).toBe(true);
@@ -435,6 +437,14 @@ describe("CourseService", () => {
     it("章节不存在抛出 NotFoundException", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue(null);
       await expect(svc.updateProgress("u1", "invalid", { progress: 50 })).rejects.toThrow(BusinessException);
+    });
+
+    it("未开通付费课程不能写入进度", async () => {
+      mockPrisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "co1" });
+      mockPrisma.course.findUnique.mockResolvedValue({ price: 99, userId: "u2" });
+      mockPrisma.order.findFirst.mockResolvedValue(null);
+      await expect(svc.updateProgress("u1", "ch1", { progress: 100 })).rejects.toThrow("当前无课程学习权限");
+      expect(mockPrisma.courseProgress.upsert).not.toHaveBeenCalled();
     });
   });
 
