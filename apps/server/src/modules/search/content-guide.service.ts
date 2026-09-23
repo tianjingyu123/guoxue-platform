@@ -32,11 +32,11 @@ export class ContentGuideService {
     if (shouldSuppressContentGuide(q)) return { query: q, cards: [] };
     const limit = Math.min(Math.max(Number(topK) || 4, 1), 8);
 
-    let raw = await this.search.search({ q, page: 1, pageSize: 20 });
+    let raw = await this.search.search({ q, page: 1, pageSize: 20, fresh: true });
     // 自然问句通常不会完整出现在标题中；零命中时用明确出现的主题词补检一次。
     if (!this.hasCards(raw as Record<string, unknown>)) {
       const topic = this.topics.find((item) => q.includes(item));
-      if (topic && topic !== q) raw = await this.search.search({ q: topic, page: 1, pageSize: 20 });
+      if (topic && topic !== q) raw = await this.search.search({ q: topic, page: 1, pageSize: 20, fresh: true });
     }
 
     const groups = new Map<GuideCardType, GuideCard[]>();

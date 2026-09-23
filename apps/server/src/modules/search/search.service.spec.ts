@@ -80,6 +80,33 @@ describe("SearchService", () => {
       }
     });
 
+    it("视频公开搜索两条路径均排除圈内、私密及未审核内容", async () => {
+      await svc.search({ q: "视频公开门禁", type: "video" });
+      const sqls = mockPrisma.$queryRawUnsafe.mock.calls
+        .map((c: unknown[]) => String(c[0]))
+        .filter((sql: string) => sql.includes('FROM "Video"'));
+      expect(sqls).toHaveLength(2);
+      for (const sql of sqls) {
+        expect(sql).toContain(`"status" = 'PUBLISHED'`);
+        expect(sql).toContain(`"auditStatus" = 'APPROVED'`);
+        expect(sql).toContain(`"visibility" = 'PLATFORM'`);
+        expect(sql).toContain(`"isPrivate" = false`);
+      }
+    });
+
+    it("fresh 检索跳过旧缓存且不写入新缓存", async () => {
+      await svc.search({ q: "已下架视频", type: "video", fresh: true });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+    });
+
+    it("自定义权重结果不复用无权重缓存", async () => {
+      await svc.search({ q: "论语", type: "article", weightMap: new Map([["article:all", 2]]) });
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+    });
+
     it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
       mockPrisma.$queryRawUnsafe.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });

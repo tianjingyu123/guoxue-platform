@@ -132,7 +132,12 @@ describe("ContentGuideService", () => {
     mockSearch.search.mockResolvedValueOnce({ articles: [], classics: [], courses: [], circles: [], contents: [] });
     mockSearch.search.mockResolvedValueOnce({ articles: [{ id: "a1", title: "论语入门" }] });
     const result = await svc.guide("我想知道论语中的仁是什么意思", 4);
-    expect(mockSearch.search).toHaveBeenNthCalledWith(2, { q: "论语", page: 1, pageSize: 20 });
+    expect(mockSearch.search).toHaveBeenNthCalledWith(2, { q: "论语", page: 1, pageSize: 20, fresh: true });
     expect(result.cards[0].id).toBe("a1");
+  });
+
+  it("AI 导览每次按最新发布状态检索，不使用旧搜索缓存", async () => {
+    await svc.guide("论语");
+    expect(mockSearch.search).toHaveBeenCalledWith({ q: "论语", page: 1, pageSize: 20, fresh: true });
   });
 });

@@ -63,14 +63,19 @@ export class SearchService {
     page?: number;
     pageSize?: number;
     weightMap?: Map<string, number>;
+    /** AI 导览等权限敏感场景跳过旧结果缓存，重新按当前发布状态检索。 */
+    fresh?: boolean;
   }) {
-    const { q, type, page = 1, pageSize = 20, weightMap } = params;
+    const { q, type, page = 1, pageSize = 20, weightMap, fresh = false } = params;
 
     if (!q?.trim()) return { q, type };
 
     const cacheKey = `search:v4:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
-    const cached = await this.redis.getJson<any>(cacheKey);
-    if (cached) return cached;
+    const cacheable = !fresh && !weightMap?.size;
+    if (cacheable) {
+      const cached = await this.redis.getJson<any>(cacheKey);
+      if (cached) return cached;
+    }
 
     const limit = type ? pageSize : 5;
     const offset = type ? (page - 1) * pageSize : 0;
@@ -108,7 +113,7 @@ export class SearchService {
     }
 
     await Promise.all(searches);
-    await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
+    if (cacheable) await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
     return results;
   }
 
@@ -183,7 +188,7 @@ export class SearchService {
       },
       Video: {
         table: "Video", fields: "coalesce(title,'')",
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", fields: "coalesce(nickname,'')",
@@ -253,7 +258,7 @@ export class SearchService {
       },
       Video: {
         table: "Video", searchFields: ["title"],
-        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED' AND "auditStatus" = 'APPROVED' AND "visibility" = 'PLATFORM' AND "isPrivate" = false`,
       },
       User: {
         table: "User", searchFields: ["nickname"],
