@@ -2,10 +2,9 @@
   <view class="ck-page">
     <!-- 顶部 -->
     <view class="ck-head" :style="{ paddingTop: statusBarH + 'px' }">
-      <view class="ck-nav">
-        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
+      <view class="ck-nav" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
+        <view class="ck-nav-btn" role="button" tabindex="0" aria-label="返回圈子" @tap="goBack" @keydown.enter="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="ck-nav-title">共读签到</text>
-        <view style="width: 72rpx" />
       </view>
       <!-- 统计 -->
       <view class="ck-stats">
@@ -88,7 +87,7 @@
     <view v-if="!isLoading && !loadError" class="ck-footer">
       <view v-if="checkedToday" class="ck-done-bar"><app-icon name="check-circle" :size="36" color="#52C41A" /><text class="ck-done-t">今日已签到</text></view>
       <view v-else class="ck-checkin-btn" :class="{ disabled: submitting }" @tap="doCheckin">
-        <app-icon name="check-circle" :size="36" color="#ffffff" /><text class="ck-checkin-t">{{ submitting ? '签到中...' : '立即签到 (+10经验)' }}</text>
+        <app-icon name="check-circle" :size="36" color="#ffffff" /><text class="ck-checkin-t">{{ submitting ? '签到中...' : '立即签到' }}</text>
       </view>
     </view>
 
@@ -116,9 +115,11 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { growthApi, type RankItem } from '@/lib/circle-growth-data'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const weekLabels = ['日', '一', '二', '三', '四', '五', '六']
 
 const circleId = ref('')
@@ -234,9 +235,9 @@ async function doCheckin() {
 .c-orange { color: #FF6B35; } .ck-bold { font-weight: 700; }
 
 .ck-head { background: linear-gradient(135deg, var(--brand), #E74C3C); padding-bottom: 40rpx; }
-.ck-nav { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 32rpx 24rpx; }
+.ck-nav { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 32rpx 24rpx; }
 .ck-nav-btn { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
-.ck-nav-title { font-size: 32rpx; font-weight: 600; color: #fff; }
+.ck-nav-title { flex: 1; font-size: 32rpx; font-weight: 600; color: #fff; }
 .ck-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; padding: 0 32rpx; }
 .ck-stat { text-align: center; }
 .ck-stat-num { display: block; font-size: 40rpx; font-weight: 700; color: #fff; }
