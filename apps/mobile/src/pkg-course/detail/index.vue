@@ -53,6 +53,10 @@ const statusBarHeight = ref(0)
 const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
+const accessChecking = ref(true)
+const accessUnknown = ref(false)
+let accessRequestSeq = 0
+let paymentConfirmedHere = false
 const showPurchase = ref(false)
 const showShare = ref(false)
 const isLiked = ref(false)
@@ -122,6 +126,10 @@ function onShare() {
   showShare.value = true
 }
 async function onPurchase() {
+  if (accessChecking.value || accessUnknown.value) {
+    uni.showToast({ title: '请先确认课程权益状态', icon: 'none' })
+    return
+  }
   if (hasAccess.value) { onContinueLearning(); return }
   // F3 电商漏斗埋点：购买点击（D-T1）
   track.custom('buy_click', { type: 'course', id: course.value?.id })
@@ -151,13 +159,19 @@ async function onPurchase() {
 }
 async function onPurchased() {
   showPurchase.value = false
-  hasAccess.value = true // 立即解锁所有章节
+  paymentConfirmedHere = true
   track.purchase({ type: 'course', id: course.value?.id, amount: course.value?.price })
-  uni.showToast({ title: '购买成功', icon: 'success' })
-  // 购买成功后回源刷新章节（同步完成状态等），权限已本地置 true 兜底
+  const state = await refreshAccess()
+  uni.showToast({
+    title: state === 'granted' ? '课程已开通' : '已支付，权限同步中',
+    icon: state === 'granted' ? 'success' : 'none',
+    duration: state === 'granted' ? 1500 : 3000,
+  })
+  if (state !== 'granted') return
+  // 权限回源确认后刷新章节与进度。
   try {
     chapters.value = await courseApi.getChapters(courseId.value)
-  } catch { /* 静默：本地 hasAccess=true 已保证解锁 */ }
+  } catch { /* 目录可在再次进入时刷新 */ }
 }
 // 已购态：继续学习 → 直达上次进度课时（无则第一课）
 function onContinueLearning() {
@@ -196,6 +210,17 @@ async function loadInstructorCert(uid?: string) {
 }
 
 let detailLoadSeq = 0
+async function refreshAccess() {
+  const seq = ++accessRequestSeq
+  const id = courseId.value
+  accessChecking.value = true
+  const state = await courseApi.getAccessState(id)
+  if (seq !== accessRequestSeq || id !== courseId.value) return 'unknown'
+  accessChecking.value = false
+  accessUnknown.value = state === 'unknown' || (paymentConfirmedHere && state === 'denied')
+  if (!accessUnknown.value) hasAccess.value = state === 'granted'
+  return state
+}
 async function loadReviews(id: string, seq: number) {
   reviewsLoading.value = true
   reviewsError.value = false
@@ -228,7 +253,7 @@ async function loadData() {
       if (seq === detailLoadSeq) recItems.value = items
     })
     // 访问权限 + 收藏态并行回填（各自静默降级，不阻塞主内容，修复重进不回显/购买后不解锁）
-    void courseApi.checkAccess(id).then((v) => { if (seq === detailLoadSeq) hasAccess.value = v })
+    void refreshAccess()
     void courseApi.isFavorited(id).then((v) => { if (seq === detailLoadSeq) isLiked.value = v })
     // F1 认证分级：讲师徽章并行拉取（fire-and-forget·内部自 catch 静默降级）
     void loadInstructorCert(detail?.instructor?.id)
@@ -262,7 +287,7 @@ onLoad((options) => {
 onShow(() => {
   if (!firstShowDone) { firstShowDone = true; return }
   if (!courseId.value || loading.value) return
-  void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v })
+  void refreshAccess()
 })
 
 // 评价区滚动定位（页级滚动·锚点 #reviewsCard，参照文章页 adCommentsAnchor 机制的页面版）
@@ -562,8 +587,20 @@ onMounted(() => {
 
     <!-- ══ 区块9 吸底操作栏 ══ -->
     <view class="bottom-bar" :style="{ paddingBottom: 'calc(22rpx + env(safe-area-inset-bottom))' }">
+      <template v-if="accessChecking || accessUnknown">
+        <view class="access-hint" role="status">{{ accessChecking ? '正在核验学习权限…' : '暂时无法确认学习权限' }}</view>
+        <view
+          class="access-retry"
+          role="button"
+          :aria-disabled="accessChecking ? 'true' : 'false'"
+          tabindex="0"
+          @tap="!accessChecking && refreshAccess()"
+          @keydown.enter="!accessChecking && refreshAccess()"
+          @keydown.space.prevent="!accessChecking && refreshAccess()"
+        ><text>{{ accessChecking ? '请稍候' : '重新检查' }}</text></view>
+      </template>
       <!-- 已购态：整栏一个继续学习 -->
-      <template v-if="hasAccess">
+      <template v-else-if="hasAccess">
         <view class="mini-act" hover-class="card-press" @tap="complainCourse">
           <app-icon name="shield-alert" :size="40" color="#6E6E73" />
           <text class="mini-txt">投诉</text>
@@ -788,6 +825,8 @@ onMounted(() => {
 
 /* ── 吸底操作栏 ── */
 .bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); z-index: 50; }
+.access-hint { flex: 1; color: #6E6E73; font-size: 26rpx; line-height: 1.4; }
+.access-retry { min-width: 176rpx; min-height: 88rpx; padding: 0 20rpx; border-radius: 999rpx; background: #F8F4EC; color: #8A5636; font-size: 26rpx; font-weight: 600; display: flex; align-items: center; justify-content: center; }
 .mini-act { flex-shrink: 0; min-width: 96rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
 .mini-txt { font-size: 20rpx; line-height: 1; color: #6E6E73; }
 .buy-btn { flex: 1; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }

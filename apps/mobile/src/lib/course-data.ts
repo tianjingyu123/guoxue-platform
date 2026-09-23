@@ -2,6 +2,7 @@
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
 import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiPutOptionalAuth, apiGetPaged } from '@/utils/request'
+import { getToken } from '@/utils/storage'
 import { normalizeCourseContent } from '@/utils/rich-content'
 
 // 课程首页 Banner
@@ -404,6 +405,17 @@ export const courseApi = {
       return !!res?.hasAccess
     } catch {
       return false
+    }
+  },
+
+  /** 详情页决策用三态：网络/服务异常不等同于未购，避免误导用户重复下单。 */
+  async getAccessState(id: string): Promise<'granted' | 'denied' | 'unknown'> {
+    if (!getToken()) return 'denied'
+    try {
+      const res = await apiGetOptionalAuth<{ hasAccess?: boolean }>(`/courses/${id}/access`)
+      return res?.hasAccess ? 'granted' : 'denied'
+    } catch {
+      return getToken() ? 'unknown' : 'denied'
     }
   },
 
