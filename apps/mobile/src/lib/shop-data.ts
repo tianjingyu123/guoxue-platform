@@ -1845,7 +1845,8 @@ export const shopApi = {
    */
   async getOrderPayState(orderId: string): Promise<{ status: string; paid: boolean; type?: string; targetId?: string }> {
     const res = await apiGet<{ status?: string; type?: string; targetId?: string }>(`/shop/orders/${orderId}`)
-    const status = res?.status || 'PENDING'
+    // 响应缺少状态时保持未知，收银页不能把异常响应当成待付而再次唤起支付。
+    const status = res?.status || 'UNKNOWN'
     // type/targetId 供支付页做业务兑现（圈子入圈/续费是双段模式，支付后需 confirm 建成员关系）
     return { status, paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status), type: res?.type, targetId: res?.targetId }
   },
