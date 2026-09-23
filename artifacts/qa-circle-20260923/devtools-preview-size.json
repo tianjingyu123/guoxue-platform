@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-23",
+  "tool": "WeChat DevTools CLI preview",
+  "project": "apps/mobile/dist/build/mp-weixin",
+  "appId": "wx06397e8ab26bed9e",
+  "sourceHead": "a0b4ef57410874ae9b59731d5e863f56fab397c4",
+  "totalBytes": 13698162,
+  "packages": [
+    {
+      "name": "main",
+      "sizeBytes": 1908006
+    },
+    {
+      "name": "/pkg-circle/",
+      "sizeBytes": 1232904
+    },
+    {
+      "name": "/pkg-paipan/",
+      "sizeBytes": 2004460
+    },
+    {
+      "name": "/pkg-paipan2/",
+      "sizeBytes": 2014580
+    }
+  ],
+  "outcome": "preview success",
+  "scope": "compile and package size only; no page navigation or physical device test"
+}
