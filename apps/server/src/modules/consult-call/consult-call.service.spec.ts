@@ -58,6 +58,49 @@ describe("ConsultCallService · 评价与账单申诉", () => {
     expect(prisma.$queryRawUnsafe.mock.calls[0].slice(1)).toEqual(["user-1", 100, 0]);
   });
 
+  // ───────── 接听与结束：并发状态认领 / 退款和收益事务 ─────────
+
+  const ongoingCall = () => ({
+    id: "call-1", callerId: "u-caller", expertId: "u-expert", status: "ONGOING",
+    startAt: new Date(Date.now() - 30_000).toISOString(), pricePerMinute: 10, prepaidCoin: 100,
+  });
+
+  it("接听必须重新认领 WAITING，不能把已退款通话改回进行中", async () => {
+    mockGetCall({ ...ongoingCall(), status: "WAITING" });
+    prisma.$executeRawUnsafe.mockResolvedValueOnce(0);
+    await expect(svc.accept("u-expert", "call-1")).rejects.toThrow("通话状态已变更");
+    expect(prisma.$executeRawUnsafe.mock.calls[0][0]).toContain(`AND "status"='WAITING'`);
+    expect(coin.refund).not.toHaveBeenCalled();
+  });
+
+  it("正常结束：状态、退还差额及达人收益使用同一个事务客户端", async () => {
+    mockGetCall(ongoingCall());
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(1) };
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx));
+    const result = await svc.end("u-caller", "call-1");
+    expect(result).toMatchObject({ status: "ENDED", settledCoin: 10, refundedCoin: 90 });
+    expect(coin.refund).toHaveBeenCalledWith("u-caller", 90, expect.any(String), tx);
+    expect(revenue.record).toHaveBeenCalledWith(expect.objectContaining({ refId: "call-1", amountCoin: 10, rate: 0.5 }), tx);
+    expect(revenue.settleLedger).toHaveBeenCalledTimes(1);
+  });
+
+  it("结束时收益写入失败：不返回结算成功，也不启动影子总账", async () => {
+    mockGetCall(ongoingCall());
+    const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(1) };
+    prisma.$transaction.mockImplementation((fn: any) => fn(tx));
+    revenue.record.mockRejectedValueOnce(new Error("收益记录不可用"));
+    await expect(svc.end("u-caller", "call-1")).rejects.toThrow("收益记录不可用");
+    expect(revenue.settleLedger).not.toHaveBeenCalled();
+  });
+
+  it("并发结束未认领成功：不退款、不记收益", async () => {
+    mockGetCall(ongoingCall());
+    prisma.$transaction.mockImplementation((fn: any) => fn({ $executeRawUnsafe: jest.fn().mockResolvedValue(0) }));
+    await expect(svc.end("u-caller", "call-1")).rejects.toThrow("通话已结算");
+    expect(coin.refund).not.toHaveBeenCalled();
+    expect(revenue.record).not.toHaveBeenCalled();
+  });
+
   // ───────── 评价 rate ─────────
 
   it("评价成功：仅 ENDED·24h 内·首次 → 原子 UPDATE（ratedAt IS NULL 锚点）并回传评价", async () => {

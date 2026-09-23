@@ -50,15 +50,16 @@ export class ConsultCallService {
       let refunded = 0;
       for (const call of stale) {
         try {
-          await this.prisma.$transaction(async (tx) => {
+          const refundedThisCall = await this.prisma.$transaction(async (tx) => {
             const claimed = await tx.$executeRawUnsafe(
               `UPDATE "ConsultCall" SET "status"='MISSED', "endAt"=CURRENT_TIMESTAMP, "refundedCoin"=$2 WHERE "id"=$1 AND "status"='WAITING'`,
               call.id, call.prepaidCoin,
             );
-            if (claimed === 0) return; // 期间已被接听/取消,不重复退
+            if (claimed === 0) return false; // 期间已被接听/取消,不重复退
             await this.coin.refund(call.callerId, call.prepaidCoin, `通话超时未接通全额退还（通话ID ${call.id}）`, tx);
+            return true;
           });
-          refunded++;
+          if (refundedThisCall) refunded++;
         } catch (err) {
           this.logger.warn(`通话超时退款失败 [${call.id}]`, err instanceof Error ? err.message : err);
         }
@@ -110,7 +111,12 @@ export class ConsultCallService {
     const call = await this.getCall(callId);
     if (call.expertId !== expertId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有受邀达人可接听");
     if (call.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态不可接听");
-    await this.prisma.$executeRawUnsafe(`UPDATE "ConsultCall" SET "status"='ONGOING', "startAt"=CURRENT_TIMESTAMP WHERE "id"=$1`, callId);
+    // 已读取 WAITING 不代表接听时仍有效；超时退款/取消可能在此期间认领。
+    const claimed = await this.prisma.$executeRawUnsafe(
+      `UPDATE "ConsultCall" SET "status"='ONGOING', "startAt"=CURRENT_TIMESTAMP WHERE "id"=$1 AND "status"='WAITING'`,
+      callId,
+    );
+    if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态已变更，请刷新后重试");
     return { ...call, status: "ONGOING", trtc: buildTrtcConfig(expertId, call.rtcRoomId) };
   }
 
@@ -126,7 +132,7 @@ export class ConsultCallService {
     const settledCoin = Math.min(minutes * call.pricePerMinute, call.prepaidCoin);
     const refundedCoin = call.prepaidCoin - settledCoin;
 
-    // 退还多扣 + 落库（同事务）；达人分账走 revenue.record（事务外，失败异步补偿，与 question 一致）
+    // 退还多扣、结束状态及旧口径达人收益同事务；任一步失败都回滚以供重试。
     await this.prisma.$transaction(async (tx) => {
       // 原子认领：仅 ONGOING→ENDED 抢到的请求才继续退款，防并发 end 双重退款+双重分账（TOCTOU）
       const claimed = await tx.$executeRawUnsafe(
@@ -137,13 +143,12 @@ export class ConsultCallService {
       if (refundedCoin > 0) {
         await this.coin.refund(call.callerId, refundedCoin, `通话结算退还预扣（通话ID ${callId}）`, tx);
       }
+      if (settledCoin > 0) {
+        await this.revenue.record({ userId: call.expertId, scene: "AUDIO_CALL", refId: callId, amountCoin: settledCoin, rate: 0.5 }, tx);
+      }
     });
 
     if (settledCoin > 0) {
-      this.revenue
-        .record({ userId: call.expertId, scene: "AUDIO_CALL", refId: callId, amountCoin: settledCoin, rate: 0.5 })
-        .catch((err) => this.logger.warn(`通话分账记录失败（callId ${callId}），需补偿: ${err.message}`));
-
       // 统一总账影子双写。scene 用 CONSULT_CALL（达人咨询·独立规则），与 call 模块的连麦
       // AUDIO_CALL 区分；两条规则当前同为 达人50%/平台50%，与上方硬传的 rate 0.5 一致。
       this.revenue.settleLedger({
