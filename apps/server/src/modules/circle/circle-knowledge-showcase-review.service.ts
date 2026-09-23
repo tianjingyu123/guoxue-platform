@@ -4,6 +4,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 
 type IdRow = { id: string };
+type ReviewPages = { sourcePage?: unknown; nodePage?: unknown; edgePage?: unknown };
+const REVIEW_PAGE_SIZE = 50;
 
 /** 圈外展示与圈内知识分离：圈管理者提草稿，平台运营确认公开权利后才能发布。 */
 @Injectable()
@@ -18,6 +20,15 @@ export class CircleKnowledgeShowcaseReviewService {
       throw new BadRequestException(`${field}须为 1—${max} 字`);
     }
     return value.trim();
+  }
+
+  private reviewPage(value: unknown): number {
+    if (value === undefined) return 1;
+    const page = Number(value);
+    if (!Number.isSafeInteger(page) || page < 1 || page > 10000) {
+      throw new BadRequestException("审核页码须为 1—10000 的整数");
+    }
+    return page;
   }
 
   async createNodeDraft(circleId: string, userId: string, body: { sourceKnowledgeId?: string; name?: string; summary?: string }) {
@@ -67,12 +78,18 @@ export class CircleKnowledgeShowcaseReviewService {
   }
 
   /** 平台审核列表只返回快照元数据和必要来源片段，不供圈外访问。 */
-  async listForReview(circleId: string) {
+  async listForReview(circleId: string, pages: ReviewPages = {}) {
+    const sourcePage = this.reviewPage(pages.sourcePage);
+    const nodePage = this.reviewPage(pages.nodePage);
+    const edgePage = this.reviewPage(pages.edgePage);
+    const sourceOffset = (sourcePage - 1) * REVIEW_PAGE_SIZE;
+    const nodeOffset = (nodePage - 1) * REVIEW_PAGE_SIZE;
+    const edgeOffset = (edgePage - 1) * REVIEW_PAGE_SIZE;
     const sources = await this.prisma.$queryRaw<unknown[]>`
       SELECT "id", "sourceType", left("content", 120) AS "excerpt"
       FROM "CircleKnowledge"
       WHERE "circleId" = ${circleId} AND "status" = 'active'
-      ORDER BY "addedAt" DESC LIMIT 100
+      ORDER BY "addedAt" DESC, "id" DESC LIMIT ${REVIEW_PAGE_SIZE + 1} OFFSET ${sourceOffset}
     `;
     const nodes = await this.prisma.$queryRaw<unknown[]>`
       SELECT n."id", n."sourceKnowledgeId", n."name", n."summary", n."status", n."rightsNote", n."createdBy", n."reviewedBy",
@@ -81,15 +98,29 @@ export class CircleKnowledgeShowcaseReviewService {
       FROM "CircleKnowledgeShowcaseNode" n
       JOIN "CircleKnowledge" k ON k."id" = n."sourceKnowledgeId" AND k."circleId" = n."circleId"
       WHERE n."circleId" = ${circleId} AND n."status" IN ('DRAFT', 'PUBLISHED')
-      ORDER BY n."createdAt" DESC LIMIT 100
+      ORDER BY n."createdAt" DESC, n."id" DESC LIMIT ${REVIEW_PAGE_SIZE + 1} OFFSET ${nodeOffset}
     `;
     const edges = await this.prisma.$queryRaw<unknown[]>`
-      SELECT "id", "fromId", "toId", "relation", "status", "evidenceNote", "createdBy", "reviewedBy"
-      FROM "CircleKnowledgeShowcaseEdge"
-      WHERE "circleId" = ${circleId} AND "status" IN ('DRAFT', 'PUBLISHED')
-      ORDER BY "createdAt" DESC LIMIT 100
+      SELECT e."id", e."fromId", e."toId", a."name" AS "fromName", b."name" AS "toName",
+        e."relation", e."status", e."evidenceNote", e."createdBy", e."reviewedBy"
+      FROM "CircleKnowledgeShowcaseEdge" e
+      JOIN "CircleKnowledgeShowcaseNode" a ON a."id" = e."fromId" AND a."circleId" = e."circleId"
+      JOIN "CircleKnowledgeShowcaseNode" b ON b."id" = e."toId" AND b."circleId" = e."circleId"
+      WHERE e."circleId" = ${circleId} AND e."status" IN ('DRAFT', 'PUBLISHED')
+      ORDER BY e."createdAt" DESC, e."id" DESC LIMIT ${REVIEW_PAGE_SIZE + 1} OFFSET ${edgeOffset}
     `;
-    return { sources, nodes, edges };
+    return {
+      sources: sources.slice(0, REVIEW_PAGE_SIZE),
+      nodes: nodes.slice(0, REVIEW_PAGE_SIZE),
+      edges: edges.slice(0, REVIEW_PAGE_SIZE),
+      pageSize: REVIEW_PAGE_SIZE,
+      pages: { sourcePage, nodePage, edgePage },
+      hasMore: {
+        sources: sources.length > REVIEW_PAGE_SIZE,
+        nodes: nodes.length > REVIEW_PAGE_SIZE,
+        edges: edges.length > REVIEW_PAGE_SIZE,
+      },
+    };
   }
 
   async publishNode(circleId: string, id: string, reviewerId: string, rightsNoteValue: unknown) {

@@ -1686,6 +1686,9 @@
             <el-select v-model="showcaseDraft.sourceKnowledgeId" filterable placeholder="选择已入库知识来源" style="width: 260px">
               <el-option v-for="item in showcaseSources" :key="item.id" :label="`${item.sourceType}：${item.excerpt || item.id}`" :value="item.id" />
             </el-select>
+            <el-button :disabled="showcaseLoading || showcasePages.sourcePage <= 1" @click="changeShowcasePage('sourcePage', -1)">上页来源</el-button>
+            <span>来源第 {{ showcasePages.sourcePage }} 页</span>
+            <el-button :disabled="showcaseLoading || !showcaseHasMore.sources" @click="changeShowcasePage('sourcePage', 1)">下页来源</el-button>
             <el-input v-model="showcaseDraft.name" placeholder="具体知识点名称" maxlength="80" style="width: 180px" />
             <el-input v-model="showcaseDraft.summary" placeholder="圈外可看的短摘要，不超过160字" maxlength="160" style="width: 320px" />
             <el-button :loading="showcaseActing" @click="createShowcaseNodeDraft">提交草稿</el-button>
@@ -1710,6 +1713,11 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="toolbar-row" style="margin-top: 8px">
+              <el-button :disabled="showcaseLoading || showcasePages.nodePage <= 1" @click="changeShowcasePage('nodePage', -1)">上页知识点</el-button>
+              <span>知识点第 {{ showcasePages.nodePage }} 页</span>
+              <el-button :disabled="showcaseLoading || !showcaseHasMore.nodes" @click="changeShowcasePage('nodePage', 1)">下页知识点</el-button>
+            </div>
             <div class="toolbar-row" style="margin-top: 22px">
               <el-select v-model="showcaseEdgeDraft.fromId" placeholder="起点知识" style="width: 210px">
                 <el-option v-for="item in publishedShowcaseNodes" :key="item.id" :label="item.name" :value="item.id" />
@@ -1721,9 +1729,9 @@
               <el-button :loading="showcaseActing" @click="createShowcaseEdgeDraft">提交关系草稿</el-button>
             </div>
             <el-table :data="showcaseEdges" size="small" stripe>
-              <el-table-column label="起点" min-width="130"><template #default="{ row }">{{ showcaseNodeName(row.fromId) }}</template></el-table-column>
+              <el-table-column label="起点" min-width="130"><template #default="{ row }">{{ row.fromName }}</template></el-table-column>
               <el-table-column label="关系" prop="relation" min-width="150" />
-              <el-table-column label="终点" min-width="130"><template #default="{ row }">{{ showcaseNodeName(row.toId) }}</template></el-table-column>
+              <el-table-column label="终点" min-width="130"><template #default="{ row }">{{ row.toName }}</template></el-table-column>
               <el-table-column label="状态" prop="status" width="105" />
               <el-table-column label="关系证据" prop="evidenceNote" min-width="170" show-overflow-tooltip />
               <el-table-column label="提交/审核" min-width="170"><template #default="{ row }">{{ row.createdBy }} / {{ row.reviewedBy || '待审' }}</template></el-table-column>
@@ -1734,6 +1742,11 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="toolbar-row" style="margin-top: 8px">
+              <el-button :disabled="showcaseLoading || showcasePages.edgePage <= 1" @click="changeShowcasePage('edgePage', -1)">上页关系</el-button>
+              <span>关系第 {{ showcasePages.edgePage }} 页</span>
+              <el-button :disabled="showcaseLoading || !showcaseHasMore.edges" @click="changeShowcasePage('edgePage', 1)">下页关系</el-button>
+            </div>
           </template>
         </template>
       </template>
@@ -2216,7 +2229,7 @@ interface ShowcaseNodeRow {
 }
 interface ShowcaseSourceRow { id: string; sourceType: string; excerpt: string; }
 interface ShowcaseEdgeRow {
-  id: string; fromId: string; toId: string; relation: string;
+  id: string; fromId: string; toId: string; fromName: string; toName: string; relation: string;
   status: 'DRAFT' | 'PUBLISHED'; evidenceNote?: string; createdBy: string; reviewedBy?: string;
 }
 /** 排行榜成员行 */
@@ -2274,6 +2287,8 @@ const knowledgeSubTab = ref("indexed");
 const showcaseNodes = ref<ShowcaseNodeRow[]>([]); const showcaseEdges = ref<ShowcaseEdgeRow[]>([]);
 const showcaseSources = ref<ShowcaseSourceRow[]>([]);
 const showcaseLoading = ref(false); const showcaseError = ref(false); const showcaseActing = ref(false);
+const showcasePages = reactive({ sourcePage: 1, nodePage: 1, edgePage: 1 });
+const showcaseHasMore = reactive({ sources: false, nodes: false, edges: false });
 const showcaseDraft = reactive({ sourceKnowledgeId: '', name: '', summary: '' });
 const showcaseEdgeDraft = reactive({ fromId: '', toId: '', relation: '' });
 const publishedShowcaseNodes = computed(() => showcaseNodes.value.filter((node) => node.status === 'PUBLISHED' && node.sourceUnchanged));
@@ -2652,14 +2667,22 @@ async function fetchKnowledgeCandidates() { fetchKnowledge(); }
 function onKnowledgeSubTabChange(name: string | number) {
   if (name === 'showcase') void fetchShowcaseReview();
 }
-function showcaseNodeName(id: string) { return showcaseNodes.value.find((node) => node.id === id)?.name || id; }
+function changeShowcasePage(kind: 'sourcePage' | 'nodePage' | 'edgePage', delta: number) {
+  showcasePages[kind] += delta;
+  if (kind === 'sourcePage') showcaseDraft.sourceKnowledgeId = '';
+  if (kind === 'nodePage') { showcaseEdgeDraft.fromId = ''; showcaseEdgeDraft.toId = ''; }
+  void fetchShowcaseReview();
+}
 async function fetchShowcaseReview() {
   showcaseLoading.value = true; showcaseError.value = false;
   try {
-    const res = await api.get(`/circles/${circleId}/knowledge-showcase/review`);
+    const res = await api.get(`/circles/${circleId}/knowledge-showcase/review`, { params: { ...showcasePages } });
     showcaseSources.value = res.data?.sources || [];
     showcaseNodes.value = res.data?.nodes || [];
     showcaseEdges.value = res.data?.edges || [];
+    showcaseHasMore.sources = !!res.data?.hasMore?.sources;
+    showcaseHasMore.nodes = !!res.data?.hasMore?.nodes;
+    showcaseHasMore.edges = !!res.data?.hasMore?.edges;
   } catch { showcaseSources.value = []; showcaseNodes.value = []; showcaseEdges.value = []; showcaseError.value = true; }
   finally { showcaseLoading.value = false; }
 }
@@ -2671,6 +2694,7 @@ async function createShowcaseNodeDraft() {
   try {
     await api.post(`/circles/${circleId}/knowledge-showcase/admin/drafts/nodes`, { ...showcaseDraft });
     showcaseDraft.name = ''; showcaseDraft.summary = '';
+    showcasePages.nodePage = 1;
     ElMessage.success('草稿已提交，尚未对外公开'); await fetchShowcaseReview();
   } catch { ElMessage.error('草稿提交失败，请核对来源状态'); }
   finally { showcaseActing.value = false; }
@@ -2684,6 +2708,7 @@ async function createShowcaseEdgeDraft() {
   try {
     await api.post(`/circles/${circleId}/knowledge-showcase/admin/drafts/edges`, { ...showcaseEdgeDraft });
     showcaseEdgeDraft.relation = '';
+    showcasePages.edgePage = 1;
     ElMessage.success('关系草稿已提交，尚未对外公开'); await fetchShowcaseReview();
   } catch { ElMessage.error('关系草稿提交失败，请核对节点状态'); }
   finally { showcaseActing.value = false; }

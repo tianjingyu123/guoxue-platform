@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Header, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -79,8 +79,8 @@ export class CircleKnowledgeShowcaseController {
   @ApiBearerAuth()
   @Header("Cache-Control", "no-store")
   @ApiOperation({ summary: "平台运营查看待审核公开快照及来源片段" })
-  listForReview(@Param("circleId") circleId: string) {
-    return this.review.listForReview(circleId);
+  listForReview(@Param("circleId") circleId: string, @Query() pages: { sourcePage?: string; nodePage?: string; edgePage?: string }) {
+    return this.review.listForReview(circleId, pages);
   }
 
   @Post(":circleId/knowledge-showcase/nodes/:id/publish")

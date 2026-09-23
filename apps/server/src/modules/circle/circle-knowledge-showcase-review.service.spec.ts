@@ -78,7 +78,25 @@ describe("CircleKnowledgeShowcaseReviewService 公开审核流程", () => {
     const sourceSql = (queryRaw.mock.calls[0][0] as string[]).join("");
     expect(sourceSql).toContain('left("content", 120)');
     expect(sourceSql).toContain('"status" = \'active\'');
-    expect(sourceSql).toContain("LIMIT 100");
+    expect(sourceSql).toContain('ORDER BY "addedAt" DESC, "id" DESC LIMIT');
     expect(queryRaw.mock.calls[0]).toContain("circle-1");
+    expect(queryRaw.mock.calls[0]).toContain(51);
+  });
+
+  it("审核来源、节点和关系独立翻页，并限制非法页码", async () => {
+    queryRaw.mockResolvedValueOnce(Array.from({ length: 51 }, (_, i) => ({ id: `k${i}` })));
+    queryRaw.mockResolvedValueOnce([{ id: "n1" }]);
+    queryRaw.mockResolvedValueOnce([{ id: "e1" }]);
+    const result = await service.listForReview("circle-1", { sourcePage: "2", nodePage: "3", edgePage: "4" });
+    expect(result.sources).toHaveLength(50);
+    expect(result.hasMore).toEqual({ sources: true, nodes: false, edges: false });
+    expect(result.pages).toEqual({ sourcePage: 2, nodePage: 3, edgePage: 4 });
+    expect(queryRaw.mock.calls[0]).toContain(50);
+    expect(queryRaw.mock.calls[1]).toContain(100);
+    expect(queryRaw.mock.calls[2]).toContain(150);
+    queryRaw.mockClear();
+    await expect(service.listForReview("circle-1", { nodePage: "1.5" })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.listForReview("circle-1", { sourcePage: "0" })).rejects.toBeInstanceOf(BadRequestException);
+    expect(queryRaw).not.toHaveBeenCalled();
   });
 });

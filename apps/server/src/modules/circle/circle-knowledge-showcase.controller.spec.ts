@@ -37,4 +37,17 @@ describe("CircleKnowledgeShowcaseController 圈外公开入口", () => {
     }
     expect(Reflect.getMetadata(GUARDS_METADATA, prototype.getPublicGraph)).toBeUndefined();
   });
+
+  it("审核入口把三类页码交给服务端校验，并禁止缓存", async () => {
+    const listForReview = jest.fn().mockResolvedValue({ sources: [], nodes: [], edges: [] });
+    const controller = new CircleKnowledgeShowcaseController(
+      {} as ConstructorParameters<typeof CircleKnowledgeShowcaseController>[0],
+      { listForReview } as unknown as ConstructorParameters<typeof CircleKnowledgeShowcaseController>[1],
+    );
+    const pages = { sourcePage: "2", nodePage: "3", edgePage: "4" };
+    await controller.listForReview("circle-1", pages);
+    expect(listForReview).toHaveBeenCalledWith("circle-1", pages);
+    expect(Reflect.getMetadata(HEADERS_METADATA, CircleKnowledgeShowcaseController.prototype.listForReview))
+      .toContainEqual({ name: "Cache-Control", value: "no-store" });
+  });
 });
