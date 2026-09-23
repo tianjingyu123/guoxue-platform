@@ -27,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = { draft: '草稿', final: '已定�
 
 const tab = ref('')
 const keyword = ref('')
+const searchDraft = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const list = ref<ReportRecord[]>([])
@@ -75,6 +76,17 @@ async function load(nextPage = 1) {
 
 function loadMore() {
   if (hasMore.value) load(page.value + 1)
+}
+
+function searchReports() {
+  keyword.value = searchDraft.value.trim()
+  load()
+}
+
+function clearSearch() {
+  searchDraft.value = ''
+  keyword.value = ''
+  load()
 }
 
 onMounted(async () => {
@@ -176,6 +188,13 @@ function dateText(iso?: string): string {
         <AppIcon name="chevron-right" :size="14" color="#B8860B" />
       </view>
     </PaperCard>
+
+    <view class="rs-search">
+      <AppIcon name="search" :size="24" color="#9A8C7E" />
+      <input v-model="searchDraft" class="rs-search-input" placeholder="搜报告标题或客户称呼" confirm-type="search" @confirm="searchReports" />
+      <text v-if="searchDraft" class="rs-search-action" @tap="clearSearch">清除</text>
+      <text class="rs-search-action" @tap="searchReports">搜索</text>
+    </view>
 
     <!-- 筛选 -->
     <view class="rs-tabs">
@@ -280,6 +299,9 @@ function dateText(iso?: string): string {
 
 .rs-more { padding: 24rpx; text-align: center; }
 .rs-more-txt { font-size: 24rpx; color: #C41E3A; }
+.rs-search { display: flex; align-items: center; gap: 14rpx; min-height: 76rpx; padding: 0 22rpx; border-radius: 14rpx; background: #FDFAF4; }
+.rs-search-input { flex: 1; min-width: 0; font-size: 26rpx; color: #3A2A1E; }
+.rs-search-action { padding: 14rpx 4rpx; font-size: 24rpx; color: #C41E3A; }
 
 .rs-top {
   display: flex;
