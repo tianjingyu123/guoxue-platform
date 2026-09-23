@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { SearchService } from "./search.service";
+import { shouldSuppressContentGuide, wantsLearningResources } from "./ai-search-intent";
 
 /**
  * 内容导览服务（S08）
@@ -28,6 +29,7 @@ export class ContentGuideService {
   async guide(query: string, topK = 8): Promise<GuideResult> {
     const q = String(query || "").trim().slice(0, 200);
     if (!q) return { query: "", cards: [] };
+    if (shouldSuppressContentGuide(q)) return { query: q, cards: [] };
     const limit = Math.min(Math.max(Number(topK) || 4, 1), 8);
 
     let raw = await this.search.search({ q, page: 1, pageSize: 20 });
@@ -81,14 +83,14 @@ export class ContentGuideService {
       subtitle: (r) => r.excerpt,
       cover: (r) => r.cover,
     });
-    push("course", res.courses, {
+    if (wantsLearningResources(q)) push("course", res.courses, {
       id: (r) => r.id,
       title: (r) => r.title,
       subtitle: (r) => r.intro,
       cover: (r) => r.cover,
       price: (r) => r.price,
     });
-    push("circle", res.circles, {
+    if (wantsLearningResources(q)) push("circle", res.circles, {
       id: (r) => r.id,
       title: (r) => r.name,
       subtitle: (r) => r.intro,
@@ -102,7 +104,7 @@ export class ContentGuideService {
       cover: (r) => r.cover,
     });
 
-    // 跨类型轮取：避免某一类的前五条占满导览位，让文章、课程、圈子均有发现机会。
+    // 跨类型轮取；课程与圈子只在用户明确想找学习资源时进入候选。
     const priority: GuideCardType[] = /课程|系统学|入门|学习路线/.test(q)
       ? ["course", "article", "classic", "circle", "content"]
       : /圈子|社群|交流|同好/.test(q)

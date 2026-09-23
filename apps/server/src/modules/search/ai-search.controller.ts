@@ -8,6 +8,7 @@ import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { ContentGuideService } from "./content-guide.service";
 import { withUserAnswerExperience } from "../dialogue/answer-experience";
+import { getSimpleSearchReply, shouldSuppressContentGuide } from "./ai-search-intent";
 
 @ApiTags("AI搜索")
 @Controller("search")
@@ -28,8 +29,12 @@ export class AiSearchController {
   async aiQuery(@Body() body: AiQueryDto, @Req() req: Request) {
     const userId = (req as any).user?.id;
     const query = body.query.trim();
+    const simpleReply = getSimpleSearchReply(query);
+    if (simpleReply) return { answer: simpleReply, query, cards: [] };
     // 导览检索故障不应阻止用户获得回答；卡片只来自已发布的搜索结果。
-    const guided = await this.guide.guide(query, 4).catch(() => ({ query, cards: [] }));
+    const guided = shouldSuppressContentGuide(query)
+      ? { query, cards: [] }
+      : await this.guide.guide(query, 4).catch(() => ({ query, cards: [] }));
     const sourceList = guided.cards
       .map((card, index) => {
         const title = card.title.replace(/[\r\n]+/g, " ").slice(0, 80);

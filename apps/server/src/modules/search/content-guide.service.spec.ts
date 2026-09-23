@@ -35,15 +35,13 @@ describe("ContentGuideService", () => {
   it("把各类型结果映射成带导航目标的来源卡片", async () => {
     const result = await svc.guide("论语");
 
-    expect(result.cards.length).toBeGreaterThanOrEqual(3);
+    expect(result.cards).toHaveLength(2);
     const classic = result.cards.find((c) => c.type === "classic");
     expect(classic?.id).toBe("c1");
     expect(classic?.target).toContain("pkg-classics/detail");
     expect(classic?.subtitle).toContain("孔子");
 
-    const circle = result.cards.find((c) => c.type === "circle");
-    expect(circle?.id).toBe("g1");
-    expect(circle?.target).toBe("/pkg-circle/circles/detail?id=g1");
+    expect(result.cards.some((c) => c.type === "circle" || c.type === "course")).toBe(false);
 
     const article = result.cards.find((c) => c.type === "article");
     expect(article?.target).toBe("/pkg-circle/articles/detail?id=a1");
@@ -69,7 +67,7 @@ describe("ContentGuideService", () => {
       circles: [{ id: "g1", name: "圈" }],
       contents: [{ id: "t1", title: "内容" }],
     });
-    const result = await svc.guide("任意", 10);
+    const result = await svc.guide("推荐入门课程和圈子", 10);
     expect(result.cards).toHaveLength(5);
     for (const card of result.cards) {
       expect(routes.has(card.target.split("?")[0])).toBe(true);
@@ -99,6 +97,24 @@ describe("ContentGuideService", () => {
     const result = await svc.guide("八字如何入门", 4);
     expect(result.cards.map((card) => card.type)).toEqual(["course", "article", "classic", "circle"]);
     expect(result.cards[0].price).toBe(99);
+  });
+
+  it("寒暄和服务问题不检索内容", async () => {
+    expect((await svc.guide("你好")).cards).toEqual([]);
+    expect((await svc.guide("我的订单退款失败怎么办")).cards).toEqual([]);
+    expect(mockSearch.search).not.toHaveBeenCalled();
+  });
+
+  it("泛知识问题不夹带课程或圈子卡片", async () => {
+    mockSearch.search.mockResolvedValue({
+      classics: [{ id: "c1", title: "论语" }],
+      articles: [],
+      courses: [{ id: "k1", title: "论语课" }],
+      circles: [{ id: "g1", name: "论语圈" }],
+      contents: [],
+    });
+    const result = await svc.guide("论语中的仁是什么意思");
+    expect(result.cards.map((card) => card.type)).toEqual(["classic"]);
   });
 
   it("自然问句零命中时按明确主题补检一次", async () => {
