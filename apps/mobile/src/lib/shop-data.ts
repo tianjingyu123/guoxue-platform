@@ -2099,8 +2099,8 @@ export const shopApi = {
     const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
     if (category && category !== 'all') qs.push(`categoryLevel1=${encodeURIComponent(category)}`)
     if (keyword) qs.push(`keyword=${encodeURIComponent(keyword)}`)
-    if (priceMin) qs.push(`priceMin=${priceMin}`)
-    if (priceMax) qs.push(`priceMax=${priceMax}`)
+    if (priceMin !== undefined) qs.push(`priceMin=${priceMin}`)
+    if (priceMax !== undefined) qs.push(`priceMax=${priceMax}`)
     if (sort && sort !== 'default') qs.push(`sort=${sort}`)
     // listProducts 返回 {products,total,page,pageSize} 被拦截器转为 {data:数组,pagination}，用 apiGetPaged 保留 total
     const { items, total } = await apiGetPaged<RawShopProduct>(`/shop/products?${qs.join('&')}`)
