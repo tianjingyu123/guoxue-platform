@@ -7,6 +7,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { ContentGuideService, type GuideCard } from "../search/content-guide.service";
 import type { DialogueOutlineItem, Reference, ReportSection, StructuredReport } from "./paipan-report.service";
+import { XiaobuCommerceService } from "../voice/xiaobu-commerce.service";
 
 /**
  * 小卜 · 围绕报告的问答（S07 第二步，文字版；语音接通后沿用同一套规则）
@@ -58,6 +59,7 @@ export class PaipanReportDialogueService {
     private readonly guide: ContentGuideService,
     /** 可选：称呼记忆。缺它时对话照常，只是一律用「你」 */
     @Optional() private readonly names?: PreferredNameService,
+    @Optional() private readonly commerce?: XiaobuCommerceService,
   ) {}
 
   /**
@@ -335,13 +337,17 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     if (record.userId !== userId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该报告");
     }
+    let content: StructuredReport;
     try {
-      const content = JSON.parse(record.analysisContent);
+      content = JSON.parse(record.analysisContent);
       if (!Array.isArray(content?.sections)) throw new Error("bad");
-      return content as StructuredReport;
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
+    if (record.paipanRecordId && content.metadata?.reportType) {
+      await this.commerce?.assertReportAccess(userId, record.paipanRecordId, content.metadata.reportType);
+    }
+    return content;
   }
 
   private generationTime(report: StructuredReport): Date | null {

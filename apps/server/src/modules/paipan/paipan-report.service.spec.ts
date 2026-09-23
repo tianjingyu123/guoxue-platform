@@ -229,10 +229,12 @@ describe("PaipanReportService", () => {
   });
 
   it("getReport 校验归属与场景", async () => {
-    const { svc, gateway } = setup();
+    const { svc, gateway, commerce } = setup();
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "m" });
     const { id } = await svc.generateReport("u1", "rec-1");
     await expect(svc.getReport("u2", id)).rejects.toThrow("无权访问");
     expect((await svc.getReport("u1", id)).content.metadata.model).toBe("m");
+    commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+    await expect(svc.getReport("u1", id)).rejects.toThrow("购买权益已撤销");
   });
 });

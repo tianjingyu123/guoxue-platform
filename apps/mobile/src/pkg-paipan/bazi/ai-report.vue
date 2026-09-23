@@ -518,8 +518,22 @@ onLoad((q) => {
 })
 
 // 从收银页或会员页返回：仍停在购买选项时重新检查一次
-onShow(() => {
+onShow(async () => {
   if (paywall.value && !loading.value) checkAccessThenLoad()
+  else if (report.value && !loading.value) {
+    const currentId = report.value.id
+    try {
+      const access = await aiReportApi.access(recordId.value, report.value.content.metadata.reportType)
+      if (!access.granted && report.value?.id === currentId) {
+        report.value = null
+        chatOpen.value = false
+        chatItems.value = []
+        paywall.value = access
+      }
+    } catch {
+      // 网络异常时保留已读正文；服务端详情与提问接口仍独立核验权益。
+    }
+  }
 })
 </script>
 
