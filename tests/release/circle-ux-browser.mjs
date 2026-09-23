@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require(process.env.QA_NODE_MODULES ? resolve(process.env.QA_NODE_MODULES, 'playwright') : 'playwright')
-const origin = 'http://127.0.0.1:5197'
+const origin = process.env.QA_ORIGIN || 'http://127.0.0.1:5197'
 const out = resolve('artifacts/circle-experience-20260922')
 await mkdir(out, { recursive: true })
 const circle = { id: 'qa-circle', name: '古籍共读社', intro: '一起读懂经典，分享阅读中的发现与疑问。', tags: ['国学'], memberCount: 128, postCount: 16, type: 'FREE', owner: { id: 'qa-owner', nickname: '共读领读人' } }
@@ -35,7 +35,7 @@ try {
       if (path === '/circles/my') { data = [{ circle, role: 'MEMBER' }]; if (failMine) status = 503 }
       if (path === '/circles/my-stats') data = { joinedCount: 1, postCount: 2, likeReceived: 8 }
       if (path === '/circles/qa-circle') data = circle
-      if (path.endsWith('/posts')) data = { posts: [post], total: 1 }
+      if (path.endsWith('/posts')) data = url.searchParams.get('isEssence') === 'true' ? { posts: [], total: 0 } : { posts: [post], total: 1 }
       if (path.endsWith('/join/status')) data = { joined: true, role: 'MEMBER' }
       if (path === '/courses') data = [{ id: 'qa-course', title: '从论语开始读经典', price: 29, user: { nickname: '共读领读人' } }]
       if (path === '/shop/products') data = [{ id: 'qa-product', title: '阅读笔记本', price: 19 }]

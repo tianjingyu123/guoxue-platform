@@ -293,9 +293,10 @@ export const circleDetailApi = {
   detail: async (id: string): Promise<CircleDetail> => {
     return adaptDetail(await apiGet<RawCircleDetail>(`/circles/${id}`))
   },
-  posts: async (id: string, options: { throwOnError?: boolean } = {}): Promise<{ data: CirclePost[]; total: number }> => {
+  posts: async (id: string, options: { throwOnError?: boolean; page?: number; isEssence?: boolean } = {}): Promise<{ data: CirclePost[]; total: number }> => {
     try {
-      const r = await apiGet<RawPostsResp>(`/circles/${id}/posts`)
+      const query = `page=${Math.max(1, Math.floor(options.page || 1))}&pageSize=20${options.isEssence ? '&isEssence=true' : ''}`
+      const r = await apiGet<RawPostsResp>(`/circles/${id}/posts?${query}`)
       const arr: RawCirclePost[] = Array.isArray(r) ? r : (r?.posts ?? r?.data ?? [])
       return { data: arr.map(adaptPost), total: r?.total ?? arr.length }
     } catch (error) {

@@ -44,6 +44,10 @@ const menuSafeRight = getMiniProgramMenuSafeRight()
 const resourcePanel = ref<'courses' | 'products' | null>(null)
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
+const postsTotal = ref(0)
+const postsPage = ref(1)
+const postsLoadingMore = ref(false)
+const postsMoreError = ref(false)
 const members = ref<CircleMember[]>([])
 const circleArticles = ref<CircleArticle[]>([])
 const courses = ref<CircleCourse[]>([])
@@ -118,7 +122,65 @@ const tabs = [
   { id: 'qa', label: '问答' },
 ] as const
 
-const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
+const essencePosts = ref<CirclePost[]>([])
+const essenceTotal = ref(0)
+const essencePage = ref(1)
+const essenceLoaded = ref(false)
+const essenceLoading = ref(false)
+const essenceError = ref(false)
+const essenceMoreError = ref(false)
+const hasMorePosts = computed(() => posts.value.length < postsTotal.value)
+const hasMoreEssence = computed(() => essencePosts.value.length < essenceTotal.value)
+
+async function loadMorePosts() {
+  if (postsLoadingMore.value || !hasMorePosts.value) return
+  postsLoadingMore.value = true
+  postsMoreError.value = false
+  try {
+    const nextPage = postsPage.value + 1
+    const r = await circleDetailApi.posts(circleId.value, { page: nextPage, throwOnError: true })
+    if (!r.data.length) { postsMoreError.value = true; return }
+    const seen = new Set(posts.value.map(post => post.id))
+    posts.value.push(...r.data.filter(post => !seen.has(post.id)))
+    postsTotal.value = r.total
+    postsPage.value = nextPage
+    likedPosts.value = new Set([...likedPosts.value, ...r.data.filter(post => post.isLiked).map(post => post.id)])
+  } catch { postsMoreError.value = true }
+  finally { postsLoadingMore.value = false }
+}
+
+async function loadEssence() {
+  if (essenceLoading.value) return
+  essenceLoading.value = true
+  essenceError.value = false
+  essenceMoreError.value = false
+  try {
+    const r = await circleDetailApi.posts(circleId.value, { page: 1, isEssence: true, throwOnError: true })
+    essencePosts.value = r.data
+    essenceTotal.value = r.total
+    essencePage.value = 1
+    essenceLoaded.value = true
+    likedPosts.value = new Set([...likedPosts.value, ...r.data.filter(post => post.isLiked).map(post => post.id)])
+  } catch { essenceError.value = true }
+  finally { essenceLoading.value = false }
+}
+
+async function loadMoreEssence() {
+  if (essenceLoading.value || !hasMoreEssence.value) return
+  essenceLoading.value = true
+  essenceMoreError.value = false
+  try {
+    const nextPage = essencePage.value + 1
+    const r = await circleDetailApi.posts(circleId.value, { page: nextPage, isEssence: true, throwOnError: true })
+    if (!r.data.length) { essenceMoreError.value = true; return }
+    const seen = new Set(essencePosts.value.map(post => post.id))
+    essencePosts.value.push(...r.data.filter(post => !seen.has(post.id)))
+    essenceTotal.value = r.total
+    essencePage.value = nextPage
+    likedPosts.value = new Set([...likedPosts.value, ...r.data.filter(post => post.isLiked).map(post => post.id)])
+  } catch { essenceMoreError.value = true }
+  finally { essenceLoading.value = false }
+}
 
 // 「问答」Tab：本圈达人付费问答（董事长 #25 达人咨询降为内容分类 tab 后，此前 v-else 误落文章列表——2026-07-15 修）
 const qaExperts = ref<ConsultExpert[]>([])
@@ -135,6 +197,7 @@ async function loadQaExperts() {
 function onTabTap(id: typeof activeTab.value) {
   activeTab.value = id
   if (id === 'qa') loadQaExperts()
+  if (id === 'essence' && !essenceLoaded.value) void loadEssence()
 }
 
 /** 把焦点移到当前选中的栏目标签。
@@ -288,6 +351,11 @@ async function loadData() {
     ])
     feedLoadFailed.value = [p, crs, pas].some((result) => result.status === 'rejected')
     posts.value = p.status === 'fulfilled' ? p.value.data : []
+    postsTotal.value = p.status === 'fulfilled' ? p.value.total : 0
+    postsPage.value = 1
+    postsMoreError.value = false
+    essenceLoaded.value = false
+    if (activeTab.value === 'essence') void loadEssence()
     members.value = m.status === 'fulfilled' ? m.value.data : []
     circleArticles.value = arts.status === 'fulfilled' ? arts.value : []
     courses.value = crs.status === 'fulfilled' ? crs.value : []
@@ -383,6 +451,7 @@ async function handleLikePost(postId: string) {
   else next.add(postId)
   likedPosts.value = next
   posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p))
+  essencePosts.value = essencePosts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p))
   try {
     await postDetailApi.toggleLike(postId)
   } catch {
@@ -392,6 +461,7 @@ async function handleLikePost(postId: string) {
     else back.delete(postId)
     likedPosts.value = back
     posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p))
+    essencePosts.value = essencePosts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p))
     uni.showToast({ title: '操作失败，请重试', icon: 'none' })
   } finally {
     likingPosts.delete(postId)
@@ -399,7 +469,7 @@ async function handleLikePost(postId: string) {
 }
 /** 流内帖子举报（post-card ··· 菜单）：复用 pkg-report 统一入口（与 post.vue reportPost 同路由） */
 function handleReportPost(postId: string) {
-  const p = posts.value.find((x) => x.id === postId)
+  const p = posts.value.find((x) => x.id === postId) || essencePosts.value.find((x) => x.id === postId)
   gotoReport('POST', postId, p?.content, p?.author.name)
 }
 
@@ -662,8 +732,10 @@ function openResource(id: string) {
           <image v-if="postedArticles[0].cover" lazy-load :src="postedArticles[0].cover" class="article-cover" mode="aspectFill" />
         </view>
 
-        <!-- 卷尾（品牌签名·墨线由全局 .scroll-end 画）。诚实前提不变：posts 接口无分页、
-             页面也无 scrolltolower 处理，此处即真实结尾，"上拉加载更多"是假承诺（分页留后端配合项） -->
+        <view v-if="hasMorePosts" class="feed-more" role="button" tabindex="0" :aria-label="postsMoreError ? '重试加载更多动态' : '加载更多圈内动态'" @tap="loadMorePosts" @keydown="activateOnKeyboard($event, loadMorePosts)">
+          <text>{{ postsLoadingMore ? '正在加载…' : postsMoreError ? '加载失败，点此重试' : `查看更多动态 · 已显示 ${posts.length}/${postsTotal}` }}</text>
+        </view>
+        <!-- 完整读取后才呈现卷尾；此前首 20 条之后显示卷尾，误导用户以为已看完。 -->
         <!-- 失败必须说成失败：走 alert 且给重试按钮，不能混进下面的「还没有内容」空态。
              按钮用 empty-action 胶囊而非原生 button 元素——原生 button 会继承默认字色与 ::after 边框，
              真机上表现为灰字细框（2026-09-08 真机样式复验已记录过同类回归）。 -->
@@ -679,7 +751,7 @@ function openResource(id: string) {
             @keydown="activateOnKeyboard($event, reloadData)"
           ><text class="empty-action-txt">重新加载</text></view>
         </view>
-        <view v-else-if="posts.length || courses.length || postedArticles.length" class="scroll-end"><text>{{ VOICE.END }}</text></view>
+        <view v-else-if="!hasMorePosts && (posts.length || courses.length || postedArticles.length)" class="scroll-end"><text>{{ VOICE.END }}</text></view>
         <view v-else class="empty" role="status">
           <app-icon name="users" :size="88" color="#E8E3DB" decorative />
           <text class="empty-txt">圈子还没有内容</text>
@@ -689,12 +761,20 @@ function openResource(id: string) {
 
       <!-- 精华 Tab -->
       <view v-else-if="activeTab === 'essence'" class="feed">
-        <template v-if="essencePosts.length">
+        <view v-if="essenceLoading && !essenceLoaded" class="empty"><AppLoading /></view>
+        <view v-else-if="essenceError && !essenceLoaded" class="empty" role="alert">
+          <text class="empty-txt">精华内容暂时无法加载</text>
+          <view class="empty-action" role="button" tabindex="0" aria-label="重新加载精华内容" @tap="loadEssence" @keydown="activateOnKeyboard($event, loadEssence)"><text class="empty-action-txt">重试</text></view>
+        </view>
+        <template v-else-if="essencePosts.length">
           <post-card
             v-for="post in essencePosts" :key="post.id"
             :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" :show-essence="true"
             @like="handleLikePost" @report="handleReportPost"
           />
+          <view v-if="hasMoreEssence" class="feed-more" role="button" tabindex="0" :aria-label="essenceMoreError ? '重试加载更多精华' : '加载更多精华'" @tap="loadMoreEssence" @keydown="activateOnKeyboard($event, loadMoreEssence)">
+            <text>{{ essenceLoading ? '正在加载…' : essenceMoreError ? '加载失败，点此重试' : `查看更多精华 · 已显示 ${essencePosts.length}/${essenceTotal}` }}</text>
+          </view>
         </template>
         <view v-else class="empty" role="status">
           <app-icon name="star" :size="88" color="#E8E3DB" decorative />
@@ -1019,6 +1099,8 @@ function openResource(id: string) {
 
 /* 动态流 */
 .feed { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
+.feed-more { min-height: 44px; align-self: center; padding: 0 32rpx; border-radius: 22rpx; background: var(--circle-surface, #fff); color: var(--circle-ink, #1d1d1f); display: flex; align-items: center; justify-content: center; font-size: 25rpx; }
+.feed-more:active { background: #ececef; }
 /* 到底提示改用全局 .scroll-end（signature.scss 卷尾墨线） */
 
 /* 内联卡片（课程/文章） */
