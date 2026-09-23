@@ -16,7 +16,11 @@ export function shouldSuppressContentGuide(query: string): boolean {
   return /退款|退费|投诉|举报|客服|订单|扣费|扣币|充值|余额|支付失败|登录失败|无法登录|打不开|闪退|卡顿|报错|故障|失效/.test(query);
 }
 
-/** 只有明确要求学习资源或同好社区时，才展示课程和圈子。 */
-export function wantsLearningResources(query: string): boolean {
-  return /课程|上课|听课|圈子|社群|同好|学习路线|学习计划|怎么学|如何学|入门|系统学|推荐.{0,8}(课|老师|圈)/.test(query);
+/** 课程与圈子分别判断，避免只找其中一类时混入另一类。 */
+export function wantsCourseResources(query: string): boolean {
+  return /课程|上课|听课|学习路线|学习计划|怎么学|如何学|入门|系统学|推荐.{0,8}(课|老师)/.test(query);
+}
+
+export function wantsCircleResources(query: string): boolean {
+  return /圈子|社群|同好|交流|讨论|推荐.{0,8}圈/.test(query);
 }

@@ -281,12 +281,12 @@ async function handleSearch() {
   gap: 4rpx;
 }
 .ai-title {
-  font-size: 30rpx;
-  font-weight: 600;
+  font-size: 34rpx;
+  font-weight: 700;
   color: var(--text-main);
 }
 .ai-subtitle {
-  font-size: 22rpx;
+  font-size: 25rpx;
   color: var(--text-soft);
 }
 .ai-close-btn {
@@ -346,9 +346,13 @@ async function handleSearch() {
   background: rgba(127, 127, 127, 0.12);
   border-radius: 999rpx;
 }
+.ai-quick-item:focus-visible, .ai-result-item:focus-visible {
+  outline: 3rpx solid var(--primary);
+  outline-offset: 3rpx;
+}
 .ai-quick-text {
-  font-size: 22rpx;
-  color: var(--text-soft);
+  font-size: 26rpx;
+  color: var(--text-main);
 }
 .ai-answer-section {
   padding: 32rpx;
@@ -386,9 +390,9 @@ async function handleSearch() {
   gap: 16rpx;
 }
 .ai-results-label {
-  font-size: 27rpx;
-  font-weight: 600;
-  color: var(--text-soft);
+  font-size: 29rpx;
+  font-weight: 700;
+  color: var(--text-main);
 }
 .ai-result-item {
   display: flex;
@@ -399,7 +403,7 @@ async function handleSearch() {
   background: var(--secondary);
 }
 .ai-result-badge {
-  font-size: 22rpx;
+  font-size: 25rpx;
   padding: 10rpx 14rpx;
   border-radius: 8rpx;
   flex-shrink: 0;
@@ -419,17 +423,18 @@ async function handleSearch() {
   gap: 4rpx;
 }
 .ai-result-title {
-  font-size: 28rpx;
-  font-weight: 500;
+  font-size: 30rpx;
+  font-weight: 600;
   color: var(--text-main);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
-.ai-result-type { font-size: 22rpx; color: var(--text-soft); }
-.ai-result-price { font-size: 22rpx; color: #845331; }
+.ai-result-type { font-size: 24rpx; color: var(--text-soft); }
+.ai-result-price { font-size: 24rpx; color: #845331; }
 .ai-result-desc {
-  font-size: 24rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
   color: var(--text-soft);
 }
 .ai-modal-footer {
@@ -438,7 +443,7 @@ async function handleSearch() {
   border-top: 1rpx solid var(--line);
 }
 .ai-footer-text {
-  font-size: 20rpx;
+  font-size: 23rpx;
   color: var(--text-soft);
   text-align: center;
   display: block;

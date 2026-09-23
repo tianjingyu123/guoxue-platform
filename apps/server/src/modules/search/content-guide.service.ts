@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { SearchService } from "./search.service";
-import { shouldSuppressContentGuide, wantsLearningResources } from "./ai-search-intent";
+import { shouldSuppressContentGuide, wantsCircleResources, wantsCourseResources } from "./ai-search-intent";
 
 /**
  * 内容导览服务（S08）
@@ -83,14 +83,14 @@ export class ContentGuideService {
       subtitle: (r) => r.excerpt,
       cover: (r) => r.cover,
     });
-    if (wantsLearningResources(q)) push("course", res.courses, {
+    if (wantsCourseResources(q)) push("course", res.courses, {
       id: (r) => r.id,
       title: (r) => r.title,
       subtitle: (r) => r.intro,
       cover: (r) => r.cover,
       price: (r) => r.price,
     });
-    if (wantsLearningResources(q)) push("circle", res.circles, {
+    if (wantsCircleResources(q)) push("circle", res.circles, {
       id: (r) => r.id,
       title: (r) => r.name,
       subtitle: (r) => r.intro,
@@ -104,7 +104,7 @@ export class ContentGuideService {
       cover: (r) => r.cover,
     });
 
-    // 跨类型轮取；课程与圈子只在用户明确想找学习资源时进入候选。
+    // 跨类型轮取；课程和圈子分别按用户明确意图进入候选。
     const priority: GuideCardType[] = /课程|系统学|入门|学习路线/.test(q)
       ? ["course", "article", "classic", "circle", "content"]
       : /圈子|社群|交流|同好/.test(q)

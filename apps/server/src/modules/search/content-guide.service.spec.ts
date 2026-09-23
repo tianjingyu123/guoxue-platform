@@ -95,8 +95,19 @@ describe("ContentGuideService", () => {
       contents: [],
     });
     const result = await svc.guide("八字如何入门", 4);
-    expect(result.cards.map((card) => card.type)).toEqual(["course", "article", "classic", "circle"]);
+    expect(result.cards.map((card) => card.type)).toEqual(["course", "article", "classic", "classic"]);
     expect(result.cards[0].price).toBe(99);
+  });
+
+  it("只找课程或圈子时不混入另一种商业入口", async () => {
+    mockSearch.search.mockResolvedValue({
+      classics: [], articles: [], contents: [],
+      courses: [{ id: "k1", title: "论语课程" }],
+      circles: [{ id: "g1", name: "论语圈子" }],
+    });
+    expect((await svc.guide("推荐论语课程")).cards.map((card) => card.type)).toEqual(["course"]);
+    expect((await svc.guide("推荐论语圈子")).cards.map((card) => card.type)).toEqual(["circle"]);
+    expect((await svc.guide("推荐论语课程和圈子")).cards.map((card) => card.type)).toEqual(["course", "circle"]);
   });
 
   it("寒暄和服务问题不检索内容", async () => {
