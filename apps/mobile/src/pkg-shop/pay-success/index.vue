@@ -140,13 +140,23 @@ const errorMessage = ref('')
 const canRetryVerification = ref(true)
 const returnLiveRoomId = ref('')
 const returnRecordId = ref('')
-const nextAction = computed(() => paidOrderNext(orderInfo.type, orderInfo.targetId, returnRecordId.value))
+const returnVoiceScene = ref('')
+const returnVoiceContextId = ref('')
+const returnVoiceSectionId = ref('')
+const nextAction = computed(() => paidOrderNext(orderInfo.type, orderInfo.targetId, returnRecordId.value, {
+  scene: returnVoiceScene.value,
+  contextId: returnVoiceContextId.value,
+  sectionId: returnVoiceSectionId.value,
+}))
 let verifying = false
 
 onLoad((q) => {
   orderInfo.orderId = String(q?.orderId || '').trim()
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   returnRecordId.value = String(q?.returnRecordId || '').trim()
+  returnVoiceScene.value = String(q?.returnVoiceScene || '').trim()
+  returnVoiceContextId.value = String(q?.returnVoiceContextId || '').trim()
+  returnVoiceSectionId.value = String(q?.returnVoiceSectionId || '').trim()
   if (!orderInfo.orderId) {
     viewState.value = 'error'
     errorMessage.value = '缺少订单信息，无法核验支付结果。'

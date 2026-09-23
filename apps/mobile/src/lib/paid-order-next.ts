@@ -10,7 +10,17 @@ function reportRoute(targetId?: string) {
   return `/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(recordId)}&reportType=${reportType}`
 }
 
-export function paidOrderNext(type?: string, targetId?: string, returnRecordId?: string): { label: string; path: string; title: string } | null {
+export type VoiceReturn = { scene?: string; contextId?: string; sectionId?: string }
+
+function voiceReturnRoute(value?: VoiceReturn) {
+  if (!value || !['report_dialogue', 'circle_assistant'].includes(value.scene || '')
+    || !value.contextId || value.contextId.length > 128) return null
+  const q = new URLSearchParams({ scene: value.scene!, contextId: value.contextId })
+  if (value.scene === 'report_dialogue' && value.sectionId && value.sectionId.length <= 80) q.set('sectionId', value.sectionId)
+  return `/pkg-agent/agent/xiaobu-voice?${q.toString()}`
+}
+
+export function paidOrderNext(type?: string, targetId?: string, returnRecordId?: string, voiceReturn?: VoiceReturn): { label: string; path: string; title: string } | null {
   if (type === 'XIAOBU_REPORT') {
     const path = reportRoute(targetId)
     return path ? {
@@ -27,7 +37,12 @@ export function paidOrderNext(type?: string, targetId?: string, returnRecordId?:
       ? { label: '生成并查看报告', path, title: '小卜AI会员' }
       : { label: '查看小卜AI会员', path: '/pkg-agent/agent/xiaobu-member', title: '小卜AI会员' }
   }
-  if (type === 'VOICE_MINUTES') return { label: '查看语音时长', path: '/pkg-agent/agent/xiaobu-voice-topup', title: '语音时长' }
+  if (type === 'VOICE_MINUTES') {
+    const path = voiceReturnRoute(voiceReturn)
+    return path
+      ? { label: '继续语音对话', path, title: '语音时长' }
+      : { label: '查看语音时长', path: '/pkg-agent/agent/xiaobu-voice-topup', title: '语音时长' }
+  }
   if (type === 'PRACTITIONER_PRO') return { label: '返回从业者工作台', path: '/pkg-workspace/index/index', title: '从业者会员' }
   return null
 }

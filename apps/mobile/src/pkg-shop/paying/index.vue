@@ -109,6 +109,9 @@ const payMethod = ref('wechat')
 const amount = ref('0')
 const returnLiveRoomId = ref('')
 const returnRecordId = ref('')
+const returnVoiceScene = ref('')
+const returnVoiceContextId = ref('')
+const returnVoiceSectionId = ref('')
 const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
@@ -148,6 +151,9 @@ onLoad((q) => {
   amount.value = (q?.amount as string) || '0'
   returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   returnRecordId.value = String(q?.returnRecordId || '').trim()
+  returnVoiceScene.value = String(q?.returnVoiceScene || '').trim()
+  returnVoiceContextId.value = String(q?.returnVoiceContextId || '').trim()
+  returnVoiceSectionId.value = String(q?.returnVoiceSectionId || '').trim()
   if (isRecharge.value) {
     if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
       status.value = 'failed'
@@ -511,9 +517,15 @@ async function completePaidOrder(st: { type?: string; targetId?: string }, newly
   status.value = 'success'
   if (newlyObserved) track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
   clearTimers('all')
-  const liveReturn = returnLiveRoomId.value ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}` : ''
-  const reportReturn = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
-  setTimeout(() => { if (!leaving) redirectTo(`/shop/pay-success?orderId=${encodeURIComponent(orderId.value)}${liveReturn}${reportReturn}`) }, 900)
+  const successQuery = new URLSearchParams({ orderId: orderId.value })
+  if (returnLiveRoomId.value) successQuery.set('returnLiveRoomId', returnLiveRoomId.value)
+  if (returnRecordId.value) successQuery.set('returnRecordId', returnRecordId.value)
+  if (returnVoiceScene.value && returnVoiceContextId.value) {
+    successQuery.set('returnVoiceScene', returnVoiceScene.value)
+    successQuery.set('returnVoiceContextId', returnVoiceContextId.value)
+    if (returnVoiceSectionId.value) successQuery.set('returnVoiceSectionId', returnVoiceSectionId.value)
+  }
+  setTimeout(() => { if (!leaving) redirectTo(`/shop/pay-success?${successQuery.toString()}`) }, 900)
 }
 
 function clearTimers(which: 'cd' | 'poll' | 'all') {
