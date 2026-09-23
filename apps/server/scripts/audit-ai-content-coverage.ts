@@ -18,13 +18,16 @@ type Row = {
   note?: string;
 };
 
-export async function collectCoverage(prisma: PrismaClient): Promise<Row[]> {
-  const article: Prisma.ArticleWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null };
-  const course: Prisma.CourseWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null };
-  const video: Prisma.VideoWhereInput = { status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false };
-  const product: Prisma.ProductWhereInput = { status: "ON_SALE", deletedAt: null };
-  const circle: Prisma.CircleWhereInput = { status: "ACTIVE", deletedAt: null };
-  const content: Prisma.ContentWhereInput = { status: "PUBLISHED", deletedAt: null };
+export async function collectCoverage(prisma: PrismaClient, now = new Date()): Promise<Row[]> {
+  const publishedAt = { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] };
+  const article: Prisma.ArticleWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null, stationId: null, AND: [publishedAt] };
+  const course: Prisma.CourseWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null, stationId: null,
+    AND: [publishedAt, { OR: [{ scheduledOnAt: null }, { scheduledOnAt: { lte: now } }] },
+      { OR: [{ scheduledOffAt: null }, { scheduledOffAt: { gt: now } }] }] };
+  const video: Prisma.VideoWhereInput = { status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM", isPrivate: false, stationId: null };
+  const product: Prisma.ProductWhereInput = { status: "ON_SALE", deletedAt: null, stationId: null, circleId: null };
+  const circle: Prisma.CircleWhereInput = { status: "ACTIVE", deletedAt: null, stationId: null };
+  const content: Prisma.ContentWhereInput = { status: "PUBLISHED", deletedAt: null, stationId: null, AND: [publishedAt] };
   const classic = PUBLIC_CLASSIC_BOOK_WHERE;
 
   const [

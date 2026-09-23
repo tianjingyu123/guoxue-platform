@@ -9,7 +9,8 @@ describe("AI 内容只读覆盖率盘点", () => {
         .map((type) => [type, { count }]),
     ) as unknown as PrismaClient;
 
-    const rows = await collectCoverage(prisma);
+    const now = new Date("2026-09-23T12:00:00Z");
+    const rows = await collectCoverage(prisma, now);
     expect(rows).toHaveLength(9);
     expect(rows.find((r) => r.type === "VIDEO")?.publicEligible).toBe(2);
     expect(rows.find((r) => r.type === "POST")?.publicEligible).toBeNull();
@@ -17,6 +18,12 @@ describe("AI 内容只读覆盖率盘点", () => {
     const videoFilter = count.mock.calls.map((args) => args[0]?.where)
       .find((where) => where?.isPrivate === false);
     expect(videoFilter).toMatchObject({ status: "PUBLISHED", auditStatus: "APPROVED", visibility: "PLATFORM" });
+    const articleFilter = count.mock.calls.map((args) => args[0]?.where)
+      .find((where) => where?.visibility === "PLATFORM" && where?.AND?.length === 1);
+    expect(articleFilter.AND[0].OR[1].scheduledAt.lte).toEqual(now);
+    const courseFilter = count.mock.calls.map((args) => args[0]?.where)
+      .find((where) => where?.visibility === "PLATFORM" && where?.AND?.length === 3);
+    expect(courseFilter.AND[2].OR[1].scheduledOffAt.gt).toEqual(now);
     expect(Object.values(prisma).every((delegate) => Object.keys(delegate).join() === "count")).toBe(true);
   });
 });
