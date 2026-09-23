@@ -83,6 +83,10 @@ try {
     assert.equal(overflow, false, `${width}px 页面横向溢出`)
     results.push(`${width}px 详情页面无横向溢出`)
   }
+  await page.goto(origin + '/h5/pages/circles/index?hub=activity')
+  await page.getByRole('tab', { name: '圈内动态', exact: true }).waitFor()
+  assert.equal(await page.getByRole('tab', { name: '圈内动态', exact: true }).getAttribute('aria-selected'), 'true')
+  results.push('快捷入口可直接进入真实圈内动态分区')
   failMine = true
   await page.goto(origin + '/h5/pages/circles/index')
   await page.reload()

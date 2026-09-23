@@ -4,7 +4,7 @@
  * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
  */
 import { computed, nextTick, ref, onMounted } from 'vue'
-import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
+import { onLoad, onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -31,6 +31,9 @@ const extrasFailed = ref(false)
 const activityFailed = ref(false)
 let extrasSeq = 0
 function selectHub(id: HubTab) { activeHub.value = id }
+onLoad((query) => {
+  if (query?.hub === 'activity' && getToken()) activeHub.value = 'activity'
+})
 const category = ref('')
 const circles = ref<Circle[]>([])
 const circleTotal = ref(0)

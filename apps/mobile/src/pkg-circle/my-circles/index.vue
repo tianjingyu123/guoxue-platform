@@ -171,11 +171,11 @@
           </view>
           <text class="quick-label">创建圈子</text>
         </view>
-        <view class="quick-item" @tap="navigateTo('/circles/activities')">
+        <view class="quick-item" @tap="navigateTo('/pages/circles/index?hub=activity')">
           <view class="quick-icon" style="background: rgba(255,107,53,0.1)">
-            <AppIcon name="calendar" :size="20" color="#FF6B35" />
+            <AppIcon name="message-circle" :size="20" color="#FF6B35" />
           </view>
-          <text class="quick-label">我的活动</text>
+          <text class="quick-label">圈内动态</text>
         </view>
         <view class="quick-item" @tap="navigateTo('/circles/badges')">
           <view class="quick-icon" style="background: rgba(201,169,110,0.1)">
