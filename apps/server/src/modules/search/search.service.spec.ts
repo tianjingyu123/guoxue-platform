@@ -116,6 +116,15 @@ describe("SearchService", () => {
       expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
     });
 
+    it("普通搜索也不再返回撤权前的 Redis 旧结果", async () => {
+      mockRedis.getJson.mockResolvedValueOnce({ articles: [{ id: "revoked", title: "已撤下" }] });
+      const result = await svc.search({ q: "已撤下", type: "article" });
+      expect(result.articles).toEqual([]);
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockRedis.setJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
+    });
+
     it("自定义权重结果不复用无权重缓存", async () => {
       await svc.search({ q: "论语", type: "article", weightMap: new Map([["article:all", 2]]) });
       expect(mockRedis.getJson).not.toHaveBeenCalled();

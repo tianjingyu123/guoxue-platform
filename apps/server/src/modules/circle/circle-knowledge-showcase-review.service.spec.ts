@@ -99,4 +99,19 @@ describe("CircleKnowledgeShowcaseReviewService 公开审核流程", () => {
     await expect(service.listForReview("circle-1", { sourcePage: "0" })).rejects.toBeInstanceOf(BadRequestException);
     expect(queryRaw).not.toHaveBeenCalled();
   });
+
+  it("跨页关系选点仅搜索本圈来源未变化的已公开节点", async () => {
+    queryRaw.mockResolvedValueOnce([{ id: "n1", name: "修身齐家" }]);
+    await expect(service.searchPublishedNodes("circle-1", "修身")).resolves.toEqual([{ id: "n1", name: "修身齐家" }]);
+    const sql = (queryRaw.mock.calls[0][0] as string[]).join("");
+    expect(sql).toContain('n."circleId" =');
+    expect(sql).toContain('n."status" = \'PUBLISHED\'');
+    expect(sql).toContain('n."revokedAt" IS NULL');
+    expect(sql).toContain('k."contentHash" = n."sourceContentHash"');
+    expect(sql).toContain('c."status" = \'ACTIVE\'');
+    expect(sql).not.toContain('k."content"');
+    expect(queryRaw.mock.calls[0]).toContain("circle-1");
+    expect(queryRaw.mock.calls[0]).toContain("修身");
+    await expect(service.searchPublishedNodes("circle-1", "x".repeat(81))).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

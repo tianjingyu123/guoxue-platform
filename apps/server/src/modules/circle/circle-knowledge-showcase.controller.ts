@@ -83,6 +83,16 @@ export class CircleKnowledgeShowcaseController {
     return this.review.listForReview(circleId, pages);
   }
 
+  @Get(":circleId/knowledge-showcase/review/nodes")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "平台运营搜索本圈仍有效的已公开知识点，用于跨页建立关系" })
+  searchPublishedNodes(@Param("circleId") circleId: string, @Query("q") query = "") {
+    return this.review.searchPublishedNodes(circleId, query);
+  }
+
   @Post(":circleId/knowledge-showcase/nodes/:id/publish")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

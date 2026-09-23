@@ -1719,11 +1719,11 @@
               <el-button :disabled="showcaseLoading || !showcaseHasMore.nodes" @click="changeShowcasePage('nodePage', 1)">下页知识点</el-button>
             </div>
             <div class="toolbar-row" style="margin-top: 22px">
-              <el-select v-model="showcaseEdgeDraft.fromId" placeholder="起点知识" style="width: 210px">
-                <el-option v-for="item in publishedShowcaseNodes" :key="item.id" :label="item.name" :value="item.id" />
+              <el-select v-model="showcaseEdgeDraft.fromId" filterable remote :remote-method="searchShowcaseFromNodes" :loading="showcaseRelationLoading.from" placeholder="搜索起点知识" style="width: 210px" @visible-change="onShowcaseFromVisible">
+                <el-option v-for="item in showcaseRelationOptions.from" :key="item.id" :label="item.name" :value="item.id" />
               </el-select>
-              <el-select v-model="showcaseEdgeDraft.toId" placeholder="终点知识" style="width: 210px">
-                <el-option v-for="item in publishedShowcaseNodes" :key="item.id" :label="item.name" :value="item.id" />
+              <el-select v-model="showcaseEdgeDraft.toId" filterable remote :remote-method="searchShowcaseToNodes" :loading="showcaseRelationLoading.to" placeholder="搜索终点知识" style="width: 210px" @visible-change="onShowcaseToVisible">
+                <el-option v-for="item in showcaseRelationOptions.to" :key="item.id" :label="item.name" :value="item.id" />
               </el-select>
               <el-input v-model="showcaseEdgeDraft.relation" placeholder="关系，如前置学习、原文与解读" maxlength="80" style="width: 260px" />
               <el-button :loading="showcaseActing" @click="createShowcaseEdgeDraft">提交关系草稿</el-button>
@@ -2289,9 +2289,11 @@ const showcaseSources = ref<ShowcaseSourceRow[]>([]);
 const showcaseLoading = ref(false); const showcaseError = ref(false); const showcaseActing = ref(false);
 const showcasePages = reactive({ sourcePage: 1, nodePage: 1, edgePage: 1 });
 const showcaseHasMore = reactive({ sources: false, nodes: false, edges: false });
+const showcaseRelationOptions = reactive<{ from: Array<{ id: string; name: string }>; to: Array<{ id: string; name: string }> }>({ from: [], to: [] });
+const showcaseRelationLoading = reactive({ from: false, to: false });
+const showcaseRelationRequest = { from: 0, to: 0 };
 const showcaseDraft = reactive({ sourceKnowledgeId: '', name: '', summary: '' });
 const showcaseEdgeDraft = reactive({ fromId: '', toId: '', relation: '' });
-const publishedShowcaseNodes = computed(() => showcaseNodes.value.filter((node) => node.status === 'PUBLISHED' && node.sourceUnchanged));
 
 // 排行
 const leaderboard = ref<LeaderboardRow[]>([]); const hotContent = ref<HotContentRow[]>([]);
@@ -2670,9 +2672,27 @@ function onKnowledgeSubTabChange(name: string | number) {
 function changeShowcasePage(kind: 'sourcePage' | 'nodePage' | 'edgePage', delta: number) {
   showcasePages[kind] += delta;
   if (kind === 'sourcePage') showcaseDraft.sourceKnowledgeId = '';
-  if (kind === 'nodePage') { showcaseEdgeDraft.fromId = ''; showcaseEdgeDraft.toId = ''; }
   void fetchShowcaseReview();
 }
+async function searchShowcaseRelationNodes(kind: 'from' | 'to', query: string) {
+  const requestId = ++showcaseRelationRequest[kind];
+  showcaseRelationLoading[kind] = true;
+  try {
+    const res = await api.get(`/circles/${circleId}/knowledge-showcase/review/nodes`, { params: { q: query } });
+    if (requestId !== showcaseRelationRequest[kind]) return;
+    const selectedId = kind === 'from' ? showcaseEdgeDraft.fromId : showcaseEdgeDraft.toId;
+    const selected = showcaseRelationOptions[kind].find((node) => node.id === selectedId);
+    const results = (res.data || []) as Array<{ id: string; name: string }>;
+    showcaseRelationOptions[kind] = selected && !results.some((node) => node.id === selected.id)
+      ? [selected, ...results] : results;
+  } catch {
+    if (requestId === showcaseRelationRequest[kind]) { showcaseRelationOptions[kind] = []; ElMessage.error('知识点搜索失败'); }
+  } finally { if (requestId === showcaseRelationRequest[kind]) showcaseRelationLoading[kind] = false; }
+}
+function searchShowcaseFromNodes(query: string) { void searchShowcaseRelationNodes('from', query); }
+function searchShowcaseToNodes(query: string) { void searchShowcaseRelationNodes('to', query); }
+function onShowcaseFromVisible(visible: boolean) { if (visible) searchShowcaseFromNodes(''); }
+function onShowcaseToVisible(visible: boolean) { if (visible) searchShowcaseToNodes(''); }
 async function fetchShowcaseReview() {
   showcaseLoading.value = true; showcaseError.value = false;
   try {

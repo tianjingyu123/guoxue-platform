@@ -29,7 +29,7 @@ describe("CircleKnowledgeShowcaseController 圈外公开入口", () => {
   it("草稿入口需要登录，发布和撤回还需要平台角色守卫", () => {
     const prototype = CircleKnowledgeShowcaseController.prototype;
     expect(Reflect.getMetadata(GUARDS_METADATA, prototype.createNodeDraft)).toContain(JwtAuthGuard);
-    for (const handler of [prototype.createNodeDraftAsAdmin, prototype.createEdgeDraftAsAdmin, prototype.listForReview, prototype.publishNode, prototype.publishEdge, prototype.revokeNode, prototype.revokeEdge]) {
+    for (const handler of [prototype.createNodeDraftAsAdmin, prototype.createEdgeDraftAsAdmin, prototype.listForReview, prototype.searchPublishedNodes, prototype.publishNode, prototype.publishEdge, prototype.revokeNode, prototype.revokeEdge]) {
       const guards = Reflect.getMetadata(GUARDS_METADATA, handler);
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
@@ -49,5 +49,15 @@ describe("CircleKnowledgeShowcaseController 圈外公开入口", () => {
     expect(listForReview).toHaveBeenCalledWith("circle-1", pages);
     expect(Reflect.getMetadata(HEADERS_METADATA, CircleKnowledgeShowcaseController.prototype.listForReview))
       .toContainEqual({ name: "Cache-Control", value: "no-store" });
+  });
+
+  it("跨页选点搜索仅委托受保护的审核服务", async () => {
+    const searchPublishedNodes = jest.fn().mockResolvedValue([{ id: "n1", name: "修身齐家" }]);
+    const controller = new CircleKnowledgeShowcaseController(
+      {} as ConstructorParameters<typeof CircleKnowledgeShowcaseController>[0],
+      { searchPublishedNodes } as unknown as ConstructorParameters<typeof CircleKnowledgeShowcaseController>[1],
+    );
+    await controller.searchPublishedNodes("circle-1", "修身");
+    expect(searchPublishedNodes).toHaveBeenCalledWith("circle-1", "修身");
   });
 });

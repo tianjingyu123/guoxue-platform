@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 
 type IdRow = { id: string };
+type RelationNodeRow = { id: string; name: string };
 type ReviewPages = { sourcePage?: unknown; nodePage?: unknown; edgePage?: unknown };
 const REVIEW_PAGE_SIZE = 50;
 
@@ -121,6 +122,26 @@ export class CircleKnowledgeShowcaseReviewService {
         edges: edges.length > REVIEW_PAGE_SIZE,
       },
     };
+  }
+
+  /** 审核页跨页建关系时，只搜索本圈仍可公开的节点，不返回来源原文。 */
+  async searchPublishedNodes(circleId: string, query: unknown) {
+    if (typeof query !== "string" || query.length > 80) {
+      throw new BadRequestException("搜索词不得超过 80 字");
+    }
+    const keyword = query.trim();
+    return this.prisma.$queryRaw<RelationNodeRow[]>`
+      SELECT n."id", n."name"
+      FROM "CircleKnowledgeShowcaseNode" n
+      JOIN "CircleKnowledge" k ON k."id" = n."sourceKnowledgeId" AND k."circleId" = n."circleId"
+      JOIN "Circle" c ON c."id" = n."circleId"
+      WHERE n."circleId" = ${circleId} AND n."status" = 'PUBLISHED' AND n."revokedAt" IS NULL
+        AND n."rightsApprovedAt" IS NOT NULL AND n."rightsNote" IS NOT NULL
+        AND k."status" = 'active' AND k."contentHash" = n."sourceContentHash"
+        AND c."status" = 'ACTIVE' AND c."deletedAt" IS NULL
+        AND POSITION(lower(${keyword}) IN lower(n."name")) > 0
+      ORDER BY n."createdAt" DESC, n."id" DESC LIMIT 20
+    `;
   }
 
   async publishNode(circleId: string, id: string, reviewerId: string, rightsNoteValue: unknown) {
