@@ -832,13 +832,6 @@ export const payFailReasons: Record<string, { title: string; desc: string; icon:
   default: { title: '支付失败', desc: '支付过程中出现问题，请稍后重试', icon: 'alert-circle' },
 }
 
-/** 支付超时可能原因 */
-export const payTimeoutReasons = [
-  { icon: 'wifi', text: '网络连接不稳定，请检查网络后重试' },
-  { icon: 'credit-card', text: '银行卡单笔/单日限额，请尝试换卡支付' },
-  { icon: 'smartphone', text: '支付App未响应，请确保支付App正常运行' },
-]
-
 /* ============================================================
    十五、订单中心（app/orders 系列：列表/详情/物流/评价/发票/退款/纠纷）
    从 app/orders/* 1:1 迁移。状态语义保留，配色统一为商城主题（#9A2D2D）。

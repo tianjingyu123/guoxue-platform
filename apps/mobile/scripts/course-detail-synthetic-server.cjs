@@ -122,6 +122,12 @@ http.createServer((req, res) => {
   } else if (url.pathname === '/__group_result_status') {
     groupResultStatus = url.searchParams.get('status') || 'REFUNDED'
     data = { groupResultStatus }
+  } else if (url.pathname === '/api/v1/shop/orders/pay-timeout-1') {
+    if (paymentOrderStatus === 'ERROR') { status = 503; data = null }
+    else data = { id: 'pay-timeout-1', status: paymentOrderStatus, amount: 48, payAmount: 48, quantity: 1, paidAt: paymentOrderStatus === 'PAID' ? '2026-09-22T00:00:00Z' : null }
+  } else if (url.pathname === '/__payment_order_status') {
+    paymentOrderStatus = url.searchParams.get('status') || 'PENDING'
+    data = { paymentOrderStatus }
   } else if (url.pathname === '/__refund_status') {
     refundStatus = url.searchParams.get('status') || 'REJECTED'
     data = { refundStatus }

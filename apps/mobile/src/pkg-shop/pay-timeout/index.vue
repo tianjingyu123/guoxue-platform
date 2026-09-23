@@ -9,9 +9,9 @@
         <view class="clock-bg"><app-icon name="clock" :size="56" color="#FB923C" /></view>
         <view class="clock-ring" />
       </view>
-      <text class="hero-title">支付超时</text>
-      <text class="hero-sub">订单已超时，请重新发起支付</text>
-      <view class="hero-amount">
+      <text class="hero-title">{{ loading ? '正在核对支付结果' : '支付结果待确认' }}</text>
+      <text class="hero-sub">{{ statusHint }}</text>
+      <view v-if="!loading && !error" class="hero-amount">
         <text class="amt-label">订单金额</text>
         <text class="amt">¥{{ formatPrice(amount) }}</text>
       </view>
@@ -19,18 +19,13 @@
 
     <!-- 内容区 -->
     <view class="content">
-      <!-- 可能原因 -->
+      <!-- 下一步 -->
       <view class="card">
         <view class="card-head">
           <app-icon name="alert-circle" :size="34" color="#FB923C" />
-          <text class="card-title">可能的原因</text>
+          <text class="card-title">下一步</text>
         </view>
-        <view class="reasons">
-          <view v-for="(r, i) in reasons" :key="i" class="reason-item">
-            <view class="reason-icon"><app-icon :name="r.icon" :size="28" color="#EA580C" /></view>
-            <text class="reason-text">{{ r.text }}</text>
-          </view>
-        </view>
+        <text class="reason-text">若刚完成付款，请稍后重新核对订单；核对结果仍不一致时，可带订单编号联系客服。</text>
       </view>
 
       <!-- 订单信息 -->
@@ -41,12 +36,8 @@
           <text class="oi-value mono">{{ orderId }}</text>
         </view>
         <view class="oi-row bordered">
-          <text class="oi-label">超时时间</text>
-          <text class="oi-value">{{ timeoutTime }}</text>
-        </view>
-        <view class="oi-row bordered">
           <text class="oi-label">订单状态</text>
-          <text class="oi-value orange">待支付</text>
+          <text class="oi-value orange">{{ loading ? '核对中' : error ? '暂无法核对' : orderStatusLabel }}</text>
         </view>
       </view>
 
@@ -55,20 +46,20 @@
         <view class="blue-dot"><text>!</text></view>
         <view class="blue-content">
           <text class="blue-title">温馨提示</text>
-          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请<text class="blue-link" @tap="goService">联系客服</text>。</text>
+          <text class="blue-text">此页不代表退款已发起或到账。请以订单及支付渠道记录为准；如有疑问请<text class="blue-link" role="link" tabindex="0" @tap="goService" @keydown.enter="goService" @keydown.space.prevent="goService">联系客服</text>。</text>
         </view>
       </view>
     </view>
 
     <!-- 底部固定按钮 -->
     <view class="footer">
-      <view class="btn primary" @tap="goRePay">
+      <view class="btn primary" role="button" tabindex="0" aria-label="重新核对支付结果" @tap="loadOrder" @keydown.enter="loadOrder" @keydown.space.prevent="loadOrder">
         <app-icon name="refresh-cw" :size="34" color="#fff" />
-        <text>重新支付</text>
+        <text>重新核对</text>
       </view>
       <!-- 原「换个支付方式」按钮删除：仅微信一个收银渠道，与「重新支付」功能重复 -->
       <view class="btn-row">
-        <view class="btn ghost" @tap="goOrder">
+        <view class="btn ghost" role="link" tabindex="0" aria-label="查看订单" @tap="goOrder" @keydown.enter="goOrder" @keydown.space.prevent="goOrder">
           <app-icon name="file-text" :size="30" color="#666666" />
           <text>查看订单</text>
         </view>
@@ -78,35 +69,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
-import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
+import { shopApi } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
 
-// 真实进入必由收银台跳转携带 orderId/amount（见 onLoad）；默认留空，不硬编码过期示例单号
 const orderId = ref('')
-const amount = ref('0')
-const payMethod = ref('')
-const timeoutTime = ref('')
-const reasons = payTimeoutReasons
+const amount = ref(0)
+const orderStatus = ref('')
+const loading = ref(true)
+const error = ref('')
+const orderStatusLabel = computed(() => ({ PENDING: '待支付', CANCELLED: '已取消', CLOSED: '已关闭', REFUNDING: '退款处理中', REFUNDED: '平台已退款' })[orderStatus.value] || '请到订单中心核对')
+const statusHint = computed(() => loading.value ? '正在读取订单最新状态' : error.value || (orderStatus.value === 'PENDING' ? '订单仍待支付，请先核对是否已扣款' : '请查看订单了解最新状态'))
+let checking = false
 
 onLoad((q) => {
-  if (q?.orderId) orderId.value = q.orderId as string
-  if (q?.amount) amount.value = q.amount as string
-  if (q?.method) payMethod.value = q.method as string
-  const d = new Date()
-  timeoutTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  orderId.value = String(q?.orderId || '').trim()
+  loadOrder()
 })
 
-// 重新支付带上真实金额与支付方式，避免收银页显示 ¥0.00 且强制微信
-function goRePay() {
-  const q = `orderId=${orderId.value}&amount=${amount.value}${payMethod.value ? `&method=${payMethod.value}` : ''}`
-  redirectTo(`/shop/paying?${q}`)
+async function loadOrder() {
+  if (checking) return
+  error.value = ''
+  if (!orderId.value) {
+    loading.value = false
+    error.value = '缺少订单编号，请从订单中心进入'
+    return
+  }
+  checking = true
+  loading.value = true
+  try {
+    const summary = await shopApi.getOrderSummary(orderId.value)
+    if (summary.paid) {
+      redirectTo(`/shop/pay-success?orderId=${encodeURIComponent(orderId.value)}`)
+      return
+    }
+    amount.value = summary.amount
+    orderStatus.value = summary.status
+  } catch (e) {
+    error.value = (e as Error)?.message || '暂时无法核对订单状态'
+  } finally {
+    loading.value = false
+    checking = false
+  }
 }
 // P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
 // 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
-function goOrder() { reLaunch(`/orders/${orderId.value}?paymentReturn=1`) }
+function goOrder() { reLaunch(orderId.value ? `/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1` : '/orders') }
 function goService() { navigateTo('/customer-service') }
 </script>
 
