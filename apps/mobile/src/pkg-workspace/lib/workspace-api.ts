@@ -19,6 +19,8 @@ export interface ReportChapter {
   body: string
   /** 是否 AI 生成（交付页要显式披露） */
   ai?: boolean
+  /** 排盘引擎算定的事实章，不交给模型改写 */
+  deterministic?: boolean
 }
 
 /** 盘面快照：由前端已交叉验证的排盘引擎算好后原样存档，报告图文并茂用 */
@@ -157,7 +159,7 @@ export const wsApi = {
       `/practitioner/reports/${id}/rewrite-for-client`,
       {},
     ),
-  aiDraft: (p: { chapterTitle: string; reportTypeLabel: string; clientName: string; paipan: unknown; hint?: string }) =>
+  aiDraft: (p: { reportId: string; chapterKey: string; hint?: string }) =>
     apiPost<{ text: string }>('/practitioner/reports/ai-draft', p, undefined, 60000),
 
   // 案例库

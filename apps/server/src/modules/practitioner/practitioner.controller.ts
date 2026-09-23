@@ -119,11 +119,12 @@ export class PractitionerController {
   @Post("reports/ai-draft")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: "AI 起草某一章节（盘面由前端引擎算好后传入·AI 只写解读）" })
+  @ApiOperation({ summary: "AI 起草本人报告中的解读章节（使用服务端存档盘面）" })
   aiDraft(
-    @Body() dto: { chapterTitle: string; reportTypeLabel: string; clientName: string; paipan: unknown; hint?: string },
+    @Req() req: Request,
+    @Body() dto: { reportId: string; chapterKey: string; hint?: string },
   ) {
-    return this.ai.draftChapter(dto);
+    return this.ai.draftChapter(req.user.id, dto);
   }
 
   @Get("reports/:id")

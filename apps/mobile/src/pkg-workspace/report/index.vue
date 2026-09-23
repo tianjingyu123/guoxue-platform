@@ -34,6 +34,10 @@ const drafting = ref('')
 /** 展开的章节（默认全展开，写作时更顺手） */
 const collapsed = ref<Record<string, boolean>>({})
 
+function isFactChapter(chapter: ReportChapter): boolean {
+  return chapter.deterministic === true || /盘面事实|起盘校验|起卦校验|起局校验|起课校验/.test(chapter.title)
+}
+
 const dirty = ref(false)
 
 /**
@@ -138,31 +142,42 @@ async function rewriteForClient() {
 
 async function aiDraft(i: number) {
   const c = chapters.value[i]
-  if (saving.value || drafting.value || rewriting.value || sharing.value || report.value?.shareToken) return
+  if (!c || isFactChapter(c) || saving.value || drafting.value || rewriting.value || sharing.value || report.value?.shareToken) return
+  if (!report.value?.paipan && !c.body.trim()) return
   if (c.body.trim()) {
     const ok = await new Promise<boolean>((resolve) =>
       uni.showModal({
         title: '覆盖本章正文？',
-        content: '本章已有内容，AI 起草会覆盖它。',
+        content: report.value?.paipan ? '本章已有内容，AI 起草会覆盖它。' : 'AI 将按本章原稿润色，不补充新的盘面判断，并会覆盖当前正文。',
         success: (r) => resolve(r.confirm),
       }),
     )
     if (!ok || saving.value || rewriting.value || sharing.value || report.value?.shareToken) return
   }
+  // 手建报告的本章要点必须先落库，服务端才会以这份原稿为依据润色。
+  if (dirty.value && !(await save())) return
+  if (rewriting.value || sharing.value || report.value?.shareToken) return
   drafting.value = c.key
   try {
     const res = await wsApi.aiDraft({
-      chapterTitle: c.title,
-      reportTypeLabel: report.value!.typeLabel,
-      clientName: report.value!.clientName,
-      // 盘面原样传给 AI —— 它据此解读，不自己推算
-      paipan: report.value!.paipan ?? {},
+      reportId: report.value!.id,
+      chapterKey: c.key,
     })
     chapters.value[i].body = res.text
     chapters.value[i].ai = true
     dirty.value = true
   } catch (e: any) {
-    uni.showToast({ title: e?.message || 'AI 起草失败', icon: 'none' })
+    const message = e?.message || 'AI 起草失败'
+    if (message.includes('其他设备修改') || message.includes('报告已交付')) {
+      uni.showModal({
+        title: '报告状态已变化',
+        content: '另一设备已更新这份报告，请重新加载后再继续。',
+        confirmText: '重新加载',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
   } finally {
     drafting.value = ''
   }
@@ -355,7 +370,7 @@ function archive() {
           <view class="re-nopaipan">
             <AppIcon name="info" :size="16" color="#B8860B" />
             <text class="re-nopaipan-txt">
-              这份报告没有盘面（手动新建的）。想要图文并茂，请去排盘中心起盘，在结果页点「生成报告」。
+              这份手建报告没有盘面。可先写下本章要点，再用 AI 润色；若要依据盘面起草，请从排盘结果创建报告。
             </text>
           </view>
         </PaperCard>
@@ -368,10 +383,10 @@ function archive() {
               <text class="re-ch-title">{{ c.title }}</text>
               <text v-if="c.ai" class="re-ch-ai">AI 初稿</text>
             </view>
-            <view v-if="!report.shareToken" class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
+            <view v-if="!report.shareToken && !isFactChapter(c) && (report.paipan || c.body.trim())" class="re-ch-draft" :class="{ 're-ch-draft--busy': drafting === c.key }" @tap="aiDraft(i)">
               <AppIcon name="sparkles" :size="14" :color="drafting === c.key ? '#B8AA9A' : '#C41E3A'" />
               <text class="re-ch-draft-txt" :class="{ 're-ch-draft-txt--busy': drafting === c.key }">
-                {{ drafting === c.key ? '起草中…' : 'AI 起草' }}
+                {{ drafting === c.key ? '处理中…' : report.paipan ? 'AI 起草' : 'AI 润色' }}
               </text>
             </view>
           </view>
