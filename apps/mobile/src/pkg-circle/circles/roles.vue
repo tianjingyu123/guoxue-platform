@@ -15,10 +15,12 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { circleGovernanceApi, type PermissionMatrix } from '@/lib/circle-governance-data'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 const loading = ref(true)
 const error = ref('')
@@ -109,7 +111,7 @@ onLoad((query) => {
 <template>
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
+    <view class="topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="back-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="topbar-title">角色与权限</text>
       <view v-if="matrix" class="save-btn" :class="{ disabled: saving || !dirty }" @tap="save">
@@ -209,9 +211,9 @@ onLoad((query) => {
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.back-btn { display: flex; align-items: center; }
+.back-btn { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
-.save-btn { padding: 8rpx 16rpx; }
+.save-btn { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .save-btn.disabled { opacity: 0.45; }
 .save-btn-t { font-size: 28rpx; font-weight: 600; color: var(--brand, #c41e3a); }
 

@@ -13,6 +13,7 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, reLaunch } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { uploadImage } from '@/utils/request'
 import { circleApi } from '@/lib/circle-data'
 import { circleManageApi } from '@/lib/circle-manage-data'
@@ -37,6 +38,7 @@ const price = ref('')
 const agreed = ref(true)
 const submitting = ref(false)
 const showPreview = ref(false)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const errors = reactive<Record<string, string>>({})
 
 onLoad((q) => {
@@ -137,10 +139,10 @@ async function submit() {
 <template>
   <view class="cc-page">
     <!-- 顶栏 -->
-    <view class="cc-topbar">
+    <view class="cc-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="cc-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="cc-topbar-title">创建圈子</text>
-      <text class="cc-preview-link" @tap="openPreview">预览</text>
+      <view class="cc-preview-link" @tap="openPreview">预览</view>
     </view>
 
     <!-- 封面：16:7 与详情页头图同比例 -->
@@ -264,9 +266,9 @@ async function submit() {
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #EDE7DD);
 }
-.cc-back { display: flex; }
+.cc-back { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .cc-topbar-title { font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2C2C2C); }
-.cc-preview-link { font-size: 28rpx; color: var(--brand, #C41E3A); font-weight: 500; }
+.cc-preview-link { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; font-size: 28rpx; color: var(--brand, #C41E3A); font-weight: 500; }
 
 /* 封面上传 */
 .cc-cover {

@@ -9,6 +9,7 @@ import { ref, onMounted } from 'vue'
 import { onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   circleNotificationsApi,
   type CircleNotification,
@@ -43,6 +44,7 @@ const TARGET_ROUTE: Record<string, { url: (id: string) => string; action: string
 }
 
 const PAGE_SIZE = 20
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 const filter = ref<Filter>('ALL')
 const loading = ref(true)
@@ -172,7 +174,7 @@ onMounted(load)
 <template>
   <view class="cn-page">
     <!-- 顶栏：返回 + 标题 + 全部已读 -->
-    <view class="cn-topbar">
+    <view class="cn-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="cn-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="cn-title">圈内通知</text>
       <view class="cn-mark" :class="{ disabled: marking || unread.ALL === 0 }" @tap="markAll">
@@ -252,12 +254,12 @@ onMounted(load)
   background: rgba(250, 248, 245, 0.88); backdrop-filter: blur(24rpx);
 }
 .cn-back {
-  width: 64rpx; height: 64rpx; border-radius: 999rpx;
+  min-width: 44px; min-height: 44px; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
 .cn-title { flex: 1; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
-.cn-mark { padding: 8rpx 4rpx; }
+.cn-mark { display: flex; align-items: center; justify-content: center; min-width: 72px; min-height: 44px; }
 .cn-mark.disabled { opacity: 0.5; }
 .cn-mark-t { font-size: 26rpx; color: var(--text-tertiary, #999); }
 

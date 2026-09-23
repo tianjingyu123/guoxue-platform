@@ -14,9 +14,11 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { consultApi, type ConsultExpert, type ExpertRatingStat } from '@/lib/circle-consult-data'
 
 const circleId = ref('')
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const loading = ref(true)
 const error = ref('')
 const experts = ref<ConsultExpert[]>([])
@@ -45,9 +47,13 @@ async function load() {
     experts.value = isDiscoverMode.value
       ? await consultApi.listAllExperts()
       : await consultApi.listExperts(circleId.value)
-    // 好评率回流（失败静默 {}，达人卡不渲染该行）
+    // 好评率是补充信息，失败不能把已加载的达人列表变成整页错误。
     if (experts.value.length) {
-      ratingStats.value = await consultApi.getExpertRatingStats(experts.value.map(e => e.id))
+      try {
+        ratingStats.value = await consultApi.getExpertRatingStats(experts.value.map(e => e.id))
+      } catch {
+        ratingStats.value = {}
+      }
     }
   } catch {
     error.value = '加载失败'
@@ -84,10 +90,10 @@ onMounted(load)
 <template>
   <view class="ce-page">
     <!-- 顶栏 -->
-    <view class="ce-topbar">
+    <view class="ce-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
       <view class="ce-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="ce-title">达人咨询</text>
-      <text class="ce-my-link" @tap="goMyOrders">我的咨询</text>
+      <view class="ce-my-link" @tap="goMyOrders">我的咨询</view>
     </view>
 
     <!-- 平台担保：扣费前的信任基础 -->
@@ -176,9 +182,9 @@ onMounted(load)
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
   border-bottom: 1rpx solid var(--separator, #ede7dd);
 }
-.ce-back { display: flex; padding: 8rpx; margin-left: -8rpx; }
+.ce-back { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .ce-title { flex: 1; font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
-.ce-my-link { font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
+.ce-my-link { display: flex; align-items: center; justify-content: center; min-width: 72px; min-height: 44px; font-size: 26rpx; color: var(--text-secondary, #6e6e73); }
 
 /* 担保条 */
 .ce-trust {

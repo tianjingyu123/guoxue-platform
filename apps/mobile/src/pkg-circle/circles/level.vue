@@ -20,7 +20,7 @@
     <template v-else>
       <!-- 顶部深色区 -->
       <view class="top" :style="{ paddingTop: statusBarH + 'px' }">
-        <view class="nav">
+        <view class="nav" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
           <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
           <text class="nav-title">我的等级</text>
           <view class="nav-rank" @tap="goRank"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
@@ -161,6 +161,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { growthApi, type LevelMe, type BadgeItem } from '@/lib/circle-growth-data'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
@@ -205,6 +206,7 @@ const DEFAULT_ME: LevelMe = {
   progressPercent: 0, isMax: false,
 }
 const me = ref<LevelMe & { nickname: string; avatar: string }>({ ...DEFAULT_ME, nickname: '我', avatar: '' })
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const badges = ref<BadgeItem[]>([])
 const checkedToday = ref(false)
 
@@ -276,7 +278,7 @@ function fmtDate(s: string | null) { if (!s) return ''; const d = new Date(s); r
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 32rpx 32rpx; }
 .nav-btn { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 30rpx; font-weight: 600; color: #ffffff; }
-.nav-rank { display: flex; align-items: center; }
+.nav-rank { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .nav-rank-t { font-size: 24rpx; color: rgba(255,255,255,0.7); }
 
 .ucard { margin: 0 32rpx; background: rgba(255,255,255,0.08); border-radius: 28rpx; padding: 32rpx; }
