@@ -234,6 +234,7 @@ export interface MyAiReport {
   paipanRecordId: string | null
   clientName: string | null
   paipanType: string | null
+  reportType: string
   outputSummary: string | null
   createdAt: string
 }

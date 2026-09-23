@@ -1579,13 +1579,14 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     const parsed = Number(rawPage);
     const page = Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10000) : 1;
     const pageSize = 20;
-    const where = { userId, scene: "paipan_report", analyzeType: "REPORT_GENERAL" };
+    const where = { userId, scene: "paipan_report", analyzeType: { startsWith: "REPORT_" } };
     const [rows, total] = await Promise.all([
       this.prisma.aiAnalysisRecord.findMany({
         where,
         select: {
           id: true,
           paipanRecordId: true,
+          analyzeType: true,
           outputSummary: true,
           createdAt: true,
           paipanRecord: { select: { clientName: true, paipanType: true } },
@@ -1597,8 +1598,9 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
       this.prisma.aiAnalysisRecord.count({ where }),
     ]);
     return {
-      items: rows.map(({ paipanRecord, ...row }) => ({
+      items: rows.map(({ paipanRecord, analyzeType, ...row }) => ({
         ...row,
+        reportType: analyzeType.slice(7).toLowerCase(),
         clientName: paipanRecord?.clientName ?? null,
         paipanType: paipanRecord?.paipanType ?? null,
       })),

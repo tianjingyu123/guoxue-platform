@@ -241,19 +241,19 @@ describe("PaipanReportService", () => {
   it("报告目录只查询本人结构化报告，分页且不返回正文", async () => {
     const { svc, prisma } = setup();
     prisma.aiAnalysisRecord.findMany = jest.fn().mockResolvedValue([{
-      id: "report-1", paipanRecordId: "rec-1", outputSummary: "概览", createdAt: new Date(),
+      id: "report-1", paipanRecordId: "rec-1", analyzeType: "REPORT_CAREER", outputSummary: "概览", createdAt: new Date(),
       paipanRecord: { clientName: "张某", paipanType: "BAZI" },
     }]);
     prisma.aiAnalysisRecord.count = jest.fn().mockResolvedValue(21);
 
     const result = await svc.listReports("u1", "2");
     expect(prisma.aiAnalysisRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: "u1", scene: "paipan_report", analyzeType: "REPORT_GENERAL" },
+      where: { userId: "u1", scene: "paipan_report", analyzeType: { startsWith: "REPORT_" } },
       skip: 20,
       take: 20,
       select: expect.not.objectContaining({ analysisContent: true }),
     }));
-    expect(result).toMatchObject({ total: 21, page: 2, pageSize: 20, items: [{ clientName: "张某", paipanType: "BAZI" }] });
+    expect(result).toMatchObject({ total: 21, page: 2, pageSize: 20, items: [{ clientName: "张某", paipanType: "BAZI", reportType: "career" }] });
     expect(result.items[0]).not.toHaveProperty("paipanRecord");
   });
 });

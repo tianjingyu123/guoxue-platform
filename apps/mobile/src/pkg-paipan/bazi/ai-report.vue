@@ -40,6 +40,7 @@ import {
 
 const recordId = ref('')
 const savedReportId = ref('')
+const requestedReportType = ref('general')
 const loading = ref(false)
 const error = ref('')
 const report = ref<AiReportResult | null>(null)
@@ -225,7 +226,7 @@ async function load(regenerate = false) {
   try {
     const res = openingSaved
       ? await aiReportApi.get(savedReportId.value)
-      : await aiReportApi.generate(recordId.value, { regenerate })
+      : await aiReportApi.generate(recordId.value, { reportType: requestedReportType.value, regenerate })
     if (seq !== requestSeq) return
     await ritual
     if (seq !== requestSeq) return
@@ -238,6 +239,7 @@ async function load(regenerate = false) {
       showPreviousChat.value = false
     }
     report.value = res
+    requestedReportType.value = res.content.metadata.reportType || requestedReportType.value
     if (chatOpen.value) loadDialogue()
     track.custom(openingSaved ? 'paipan_report_reopen_success' : 'paipan_report_generate_success', { regenerate, reportType: res.content.metadata.reportType, reused: !!res.reused })
     unveiling.value = true
@@ -445,7 +447,7 @@ async function checkAccessThenLoad() {
   checkingAccess.value = true
   error.value = ''
   try {
-    const access = await aiReportApi.access(recordId.value)
+    const access = await aiReportApi.access(recordId.value, requestedReportType.value)
     const accessEvent = `${access.granted}:${access.via}:${access.reportType}`
     if (accessEvent !== lastAccessEvent) {
       track.custom('paipan_report_access', { state: access.granted ? 'granted' : 'paywall', via: access.via || 'none', reportType: access.reportType })
@@ -500,7 +502,7 @@ async function buyReport() {
 }
 
 function openMember() {
-  navigateTo(`/pkg-agent/agent/xiaobu-member?recordId=${encodeURIComponent(recordId.value)}`)
+  navigateTo(`/pkg-agent/agent/xiaobu-member?recordId=${encodeURIComponent(`${recordId.value}:${requestedReportType.value}`)}`)
 }
 
 const memberFrom = computed(() => {
@@ -511,6 +513,8 @@ const memberFrom = computed(() => {
 onLoad((q) => {
   recordId.value = String(q?.recordId || '')
   savedReportId.value = String(q?.reportId || '')
+  const type = String(q?.reportType || 'general')
+  requestedReportType.value = ['general', 'career', 'love', 'wealth', 'health'].includes(type) ? type : 'general'
   if (!recordId.value) {
     error.value = '缺少排盘记录，请先保存排盘后再生成报告'
     return

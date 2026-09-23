@@ -58,8 +58,10 @@ async function loadReports(append = false) {
 }
 
 function openReport(r: MyAiReport) {
-  if (r.paipanRecordId) navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(r.paipanRecordId)}&reportId=${encodeURIComponent(r.id)}`)
+  if (r.paipanRecordId) navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(r.paipanRecordId)}&reportId=${encodeURIComponent(r.id)}&reportType=${encodeURIComponent(r.reportType)}`)
 }
+
+const REPORT_LABEL: Record<string, string> = { general: '综合', career: '事业', love: '情感', wealth: '财运', health: '健康' }
 
 function reportDate(value: string) {
   const date = new Date(value)
@@ -144,7 +146,7 @@ function open(r: RecentChart) {
           <view class="ph-info">
             <view class="ph-row">
               <text class="ph-title">{{ r.clientName || '未命名排盘' }}的报告</text>
-              <text v-if="r.paipanType" class="ph-tool">{{ r.paipanType }}</text>
+              <text class="ph-tool">{{ REPORT_LABEL[r.reportType] || r.reportType }}</text>
             </view>
             <text class="ph-summary">{{ r.outputSummary || '点击继续阅读与提问' }}</text>
           </view>
