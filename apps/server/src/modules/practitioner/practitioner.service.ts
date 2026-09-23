@@ -336,9 +336,13 @@ export class PractitionerService {
 
   async updateReport(userId: string, id: string, dto: any) {
     await this.getReport(userId, id); // 归属校验（他人的 id 与不存在同样 404）
+    const expectedUpdatedAt = dto.updatedAt === undefined ? undefined : new Date(dto.updatedAt);
+    if (expectedUpdatedAt && Number.isNaN(expectedUpdatedAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告版本无效，请重新加载后再保存");
+    }
     // 客户链接读取当前正文；交付后只能先撤回，避免编辑中的内容即时暴露给客户。
     const updated = await this.prisma.practitionerReport.updateMany({
-      where: { id, ownerId: userId, shareToken: null },
+      where: { id, ownerId: userId, shareToken: null, updatedAt: expectedUpdatedAt },
       data: {
         title: dto.title,
         type: dto.type,
@@ -352,7 +356,11 @@ export class PractitionerService {
         chapters: dto.chapters ?? undefined,
       },
     });
-    if (!updated.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再修改");
+    if (!updated.count) {
+      const current = await this.getReport(userId, id);
+      if (current.shareToken) throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已交付，请先撤回交付链接再修改");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "报告已在其他设备修改，请保留本页内容并重新加载后再保存");
+    }
     return this.getReport(userId, id);
   }
 
@@ -389,11 +397,11 @@ export class PractitionerService {
   /** 撤回交付链接 */
   async unshareReport(userId: string, id: string) {
     await this.getReport(userId, id);
-    await this.prisma.practitionerReport.update({
+    const updated = await this.prisma.practitionerReport.update({
       where: { id },
       data: { shareToken: null, sharedAt: null, status: "final" },
     });
-    return { success: true };
+    return { success: true, updatedAt: updated.updatedAt };
   }
 
   /** 公开：按令牌读一份报告（无需登录 · 只读 · 不返回 ownerId 等内部字段） */

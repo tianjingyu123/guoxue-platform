@@ -1,17 +1,18 @@
 import { PractitionerService } from "./practitioner.service";
 
 function setup(shareToken: string | null) {
-  const report = { id: "report-1", ownerId: "teacher-1", status: shareToken ? "delivered" : "final", shareToken, sharedAt: null as Date | null };
+  const report = { id: "report-1", ownerId: "teacher-1", title: "原稿", status: shareToken ? "delivered" : "final", shareToken, sharedAt: null as Date | null, updatedAt: new Date("2026-09-23T00:00:00.000Z") };
   const prisma: any = {
     practitionerProfile: { findUnique: jest.fn(async () => ({ proExpireAt: new Date(Date.now() + 86400000) })) },
     practitionerReport: {
       findFirst: jest.fn(async () => ({ ...report })),
       updateMany: jest.fn(async ({ where, data }: any) => {
         if (where.shareToken === null && report.shareToken !== null) return { count: 0 };
-        Object.assign(report, data);
+        if (where.updatedAt && where.updatedAt.getTime() !== report.updatedAt.getTime()) return { count: 0 };
+        Object.assign(report, data, { updatedAt: new Date(report.updatedAt.getTime() + 1000) });
         return { count: 1 };
       }),
-      update: jest.fn(async ({ data }: any) => Object.assign(report, data)),
+      update: jest.fn(async ({ data }: any) => Object.assign(report, data, { updatedAt: new Date(report.updatedAt.getTime() + 1000) })),
     },
   };
   return { service: new PractitionerService(prisma, {} as any), prisma, report };
@@ -28,9 +29,18 @@ describe("从业者报告交付后锁定", () => {
   });
 
   it("未交付的报告仍可保存", async () => {
-    const { service, prisma } = setup(null);
-    await service.updateReport("teacher-1", "report-1", { title: "已审新稿" });
+    const { service, prisma, report } = setup(null);
+    await service.updateReport("teacher-1", "report-1", { title: "已审新稿", updatedAt: report.updatedAt.toISOString() });
     expect(prisma.practitionerReport.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("另一设备已保存新版本时，旧编辑页不能覆盖", async () => {
+    const { service, report } = setup(null);
+    const oldVersion = report.updatedAt.toISOString();
+    report.updatedAt = new Date(report.updatedAt.getTime() + 1000);
+    await expect(service.updateReport("teacher-1", "report-1", { title: "旧编辑页内容", updatedAt: oldVersion }))
+      .rejects.toThrow("其他设备修改");
+    expect(report.title).toBe("原稿");
   });
 
   it("交付标记为 delivered，撤回后回到可编辑的 final", async () => {

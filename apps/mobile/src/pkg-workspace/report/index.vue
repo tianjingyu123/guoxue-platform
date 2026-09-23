@@ -170,19 +170,36 @@ async function aiDraft(i: number) {
 
 async function save(status?: 'draft' | 'final'): Promise<boolean> {
   if (!report.value || saving.value || rewriting.value || drafting.value || report.value.shareToken) return false
+  if (!report.value.updatedAt) {
+    uni.showToast({ title: '报告版本缺失，请重新加载后再保存', icon: 'none' })
+    return false
+  }
   saving.value = true
   try {
     const r = await wsApi.updateReport(id.value, {
       title: report.value.title,
       chapters: chapters.value,
       status: status ?? report.value.status,
+      updatedAt: report.value.updatedAt,
     })
-    report.value = { ...report.value, status: r.status }
+    report.value = r
+    chapters.value = (r.chapters ?? []).map((c) => ({ ...c }))
     dirty.value = false
     uni.showToast({ title: status === 'final' ? '已定稿' : '已保存', icon: 'success' })
     return true
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+    const message = e?.message || '保存失败'
+    if (message.includes('其他设备修改')) {
+      uni.showModal({
+        title: '报告已有新版本',
+        content: '另一设备已保存新内容。重新加载会放弃本页未保存的修改，请先复制需要保留的文字。',
+        confirmText: '重新加载',
+        cancelText: '留在本页',
+        success: (r) => { if (r.confirm) load() },
+      })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
     return false
   } finally {
     saving.value = false
@@ -247,8 +264,8 @@ async function unshare() {
       fail: () => resolve(false),
     }))
     if (!confirmed) return
-    await wsApi.unshareReport(id.value)
-    report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final' }
+    const result = await wsApi.unshareReport(id.value)
+    report.value = { ...report.value!, shareToken: null, sharedAt: null, status: 'final', updatedAt: result.updatedAt }
     uni.showToast({ title: '已撤回', icon: 'success' })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '撤回失败', icon: 'none' })
