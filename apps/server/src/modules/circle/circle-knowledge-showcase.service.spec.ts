@@ -2,7 +2,9 @@ import { CircleKnowledgeShowcaseService } from "./circle-knowledge-showcase.serv
 
 describe("CircleKnowledgeShowcaseService 圈外公开闸门", () => {
   const queryRaw = jest.fn();
-  const service = new CircleKnowledgeShowcaseService({ $queryRaw: queryRaw } as any);
+  const service = new CircleKnowledgeShowcaseService(
+    { $queryRaw: queryRaw } as unknown as ConstructorParameters<typeof CircleKnowledgeShowcaseService>[0],
+  );
 
   beforeEach(() => queryRaw.mockReset());
 
@@ -43,6 +45,7 @@ describe("CircleKnowledgeShowcaseService 圈外公开闸门", () => {
     expect(queryRaw.mock.calls[0][1]).toBe("circle-1");
     expect(nodeSql).toContain('c."status" = \'ACTIVE\'');
     expect(nodeSql).toContain('k."status" = \'active\'');
+    expect(nodeSql).toContain('k."contentHash" = n."sourceContentHash"');
     expect(nodeSql).toContain('n."rightsApprovedAt" IS NOT NULL');
     expect(nodeSql).toContain('n."reviewedAt" IS NOT NULL');
     expect(nodeSql).toContain('n."revokedAt" IS NULL');

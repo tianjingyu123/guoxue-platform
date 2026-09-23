@@ -1556,6 +1556,7 @@
           v-model="knowledgeSubTab"
           type="card"
           size="small"
+          @tab-change="onKnowledgeSubTabChange"
         >
           <el-tab-pane
             label="已入库"
@@ -1565,7 +1566,12 @@
             label="候选中"
             name="candidates"
           />
+          <el-tab-pane
+            label="圈外知识星域"
+            name="showcase"
+          />
         </el-tabs>
+        <template v-if="knowledgeSubTab !== 'showcase'">
         <el-result
           v-if="knowledgeError"
           icon="error"
@@ -1668,6 +1674,68 @@
             />
           </template>
         </el-table>
+        </template>
+        <template v-else>
+          <el-alert
+            title="这里仅提交公开短摘要；平台审核授权后才会出现在圈外。课程原文和私密问答不会自动公开。"
+            type="warning"
+            :closable="false"
+            style="margin-bottom: 16px"
+          />
+          <div class="toolbar-row">
+            <el-select v-model="showcaseDraft.sourceKnowledgeId" filterable placeholder="选择已入库知识来源" style="width: 260px">
+              <el-option v-for="item in showcaseSources" :key="item.id" :label="`${item.sourceType}：${item.excerpt || item.id}`" :value="item.id" />
+            </el-select>
+            <el-input v-model="showcaseDraft.name" placeholder="具体知识点名称" maxlength="80" style="width: 180px" />
+            <el-input v-model="showcaseDraft.summary" placeholder="圈外可看的短摘要，不超过160字" maxlength="160" style="width: 320px" />
+            <el-button :loading="showcaseActing" @click="createShowcaseNodeDraft">提交草稿</el-button>
+            <el-button @click="fetchShowcaseReview">刷新</el-button>
+          </div>
+          <el-result v-if="showcaseError" icon="error" title="星域审核记录加载失败" sub-title="请确认服务端迁移及接口已在隔离环境准备好" />
+          <template v-else>
+            <el-table v-loading="showcaseLoading" :data="showcaseNodes" size="small" stripe style="margin-top: 12px">
+              <el-table-column label="知识点" prop="name" min-width="160" />
+              <el-table-column label="圈外短摘要" prop="summary" min-width="230" show-overflow-tooltip />
+              <el-table-column label="来源片段（仅审核可见）" prop="sourceExcerpt" min-width="220" show-overflow-tooltip />
+              <el-table-column label="来源版本" width="100">
+                <template #default="{ row }"><el-tag :type="row.sourceUnchanged ? 'success' : 'danger'">{{ row.sourceUnchanged ? '未变化' : '已变化' }}</el-tag></template>
+              </el-table-column>
+              <el-table-column label="状态" prop="status" width="105" />
+              <el-table-column label="授权依据" prop="rightsNote" min-width="170" show-overflow-tooltip />
+              <el-table-column label="提交/审核" min-width="170"><template #default="{ row }">{{ row.createdBy }} / {{ row.reviewedBy || '待审' }}</template></el-table-column>
+              <el-table-column label="操作" width="170" fixed="right">
+                <template #default="{ row }">
+                  <el-button v-if="row.status === 'DRAFT'" type="primary" link :disabled="!row.sourceUnchanged || showcaseActing" @click="publishShowcaseNode(row)">审核公开</el-button>
+                  <el-button v-if="row.status === 'PUBLISHED'" type="danger" link :disabled="showcaseActing" @click="revokeShowcaseNode(row)">撤回</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="toolbar-row" style="margin-top: 22px">
+              <el-select v-model="showcaseEdgeDraft.fromId" placeholder="起点知识" style="width: 210px">
+                <el-option v-for="item in publishedShowcaseNodes" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
+              <el-select v-model="showcaseEdgeDraft.toId" placeholder="终点知识" style="width: 210px">
+                <el-option v-for="item in publishedShowcaseNodes" :key="item.id" :label="item.name" :value="item.id" />
+              </el-select>
+              <el-input v-model="showcaseEdgeDraft.relation" placeholder="关系，如前置学习、原文与解读" maxlength="80" style="width: 260px" />
+              <el-button :loading="showcaseActing" @click="createShowcaseEdgeDraft">提交关系草稿</el-button>
+            </div>
+            <el-table :data="showcaseEdges" size="small" stripe>
+              <el-table-column label="起点" min-width="130"><template #default="{ row }">{{ showcaseNodeName(row.fromId) }}</template></el-table-column>
+              <el-table-column label="关系" prop="relation" min-width="150" />
+              <el-table-column label="终点" min-width="130"><template #default="{ row }">{{ showcaseNodeName(row.toId) }}</template></el-table-column>
+              <el-table-column label="状态" prop="status" width="105" />
+              <el-table-column label="关系证据" prop="evidenceNote" min-width="170" show-overflow-tooltip />
+              <el-table-column label="提交/审核" min-width="170"><template #default="{ row }">{{ row.createdBy }} / {{ row.reviewedBy || '待审' }}</template></el-table-column>
+              <el-table-column label="操作" width="170" fixed="right">
+                <template #default="{ row }">
+                  <el-button v-if="row.status === 'DRAFT'" type="primary" link :disabled="showcaseActing" @click="publishShowcaseEdge(row)">核对关系</el-button>
+                  <el-button v-if="row.status === 'PUBLISHED'" type="danger" link :disabled="showcaseActing" @click="revokeShowcaseEdge(row)">撤回</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+        </template>
       </template>
 
       <!-- ====== 排行榜 ====== -->
@@ -2141,6 +2209,16 @@ interface KnowledgeRow {
   id: string; title?: string; content?: string; sourceType?: string;
   qualityScore?: number; similarityScore?: number; createdAt?: string;
 }
+interface ShowcaseNodeRow {
+  id: string; sourceKnowledgeId: string; name: string; summary: string;
+  status: 'DRAFT' | 'PUBLISHED'; sourceExcerpt: string; sourceUnchanged: boolean; rightsNote?: string;
+  createdBy: string; reviewedBy?: string;
+}
+interface ShowcaseSourceRow { id: string; sourceType: string; excerpt: string; }
+interface ShowcaseEdgeRow {
+  id: string; fromId: string; toId: string; relation: string;
+  status: 'DRAFT' | 'PUBLISHED'; evidenceNote?: string; createdBy: string; reviewedBy?: string;
+}
 /** 排行榜成员行 */
 interface LeaderboardRow { userId?: string; nickname?: string; postCount?: number; contributionScore?: number; }
 /** 热门内容行 */
@@ -2193,6 +2271,12 @@ const revenueTypeFilter = ref("");
 // 知识库
 const knowledgeItems = ref<KnowledgeRow[]>([]); const knowledgeCandidates = ref<KnowledgeRow[]>([]); const knowledgeLoading = ref(false);
 const knowledgeSubTab = ref("indexed");
+const showcaseNodes = ref<ShowcaseNodeRow[]>([]); const showcaseEdges = ref<ShowcaseEdgeRow[]>([]);
+const showcaseSources = ref<ShowcaseSourceRow[]>([]);
+const showcaseLoading = ref(false); const showcaseError = ref(false); const showcaseActing = ref(false);
+const showcaseDraft = reactive({ sourceKnowledgeId: '', name: '', summary: '' });
+const showcaseEdgeDraft = reactive({ fromId: '', toId: '', relation: '' });
+const publishedShowcaseNodes = computed(() => showcaseNodes.value.filter((node) => node.status === 'PUBLISHED' && node.sourceUnchanged));
 
 // 排行
 const leaderboard = ref<LeaderboardRow[]>([]); const hotContent = ref<HotContentRow[]>([]);
@@ -2297,7 +2381,7 @@ function onTabChange(tab: string) {
   const loaders: Record<string, () => void> = {
     members: fetchMembers, posts: fetchPosts, articles: fetchArticles, courses: fetchCourses,
     questions: fetchQuestions, lives: fetchLives, experts: fetchExperts, revenue: fetchRevenue,
-    knowledge: fetchKnowledge, ranking: fetchRanking,
+    knowledge: () => { void fetchKnowledge(); if (knowledgeSubTab.value === 'showcase') void fetchShowcaseReview(); }, ranking: fetchRanking,
   };
   loaders[tab]?.();
 }
@@ -2565,6 +2649,93 @@ async function fetchKnowledge() {
   } catch { knowledgeItems.value = []; knowledgeCandidates.value = []; knowledgeError.value = true; } finally { knowledgeLoading.value = false; }
 }
 async function fetchKnowledgeCandidates() { fetchKnowledge(); }
+function onKnowledgeSubTabChange(name: string | number) {
+  if (name === 'showcase') void fetchShowcaseReview();
+}
+function showcaseNodeName(id: string) { return showcaseNodes.value.find((node) => node.id === id)?.name || id; }
+async function fetchShowcaseReview() {
+  showcaseLoading.value = true; showcaseError.value = false;
+  try {
+    const res = await api.get(`/circles/${circleId}/knowledge-showcase/review`);
+    showcaseSources.value = res.data?.sources || [];
+    showcaseNodes.value = res.data?.nodes || [];
+    showcaseEdges.value = res.data?.edges || [];
+  } catch { showcaseSources.value = []; showcaseNodes.value = []; showcaseEdges.value = []; showcaseError.value = true; }
+  finally { showcaseLoading.value = false; }
+}
+async function createShowcaseNodeDraft() {
+  if (!showcaseDraft.sourceKnowledgeId || !showcaseDraft.name.trim() || !showcaseDraft.summary.trim()) {
+    ElMessage.warning('先选择来源并填写知识点名称、公开短摘要'); return;
+  }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try {
+    await api.post(`/circles/${circleId}/knowledge-showcase/admin/drafts/nodes`, { ...showcaseDraft });
+    showcaseDraft.name = ''; showcaseDraft.summary = '';
+    ElMessage.success('草稿已提交，尚未对外公开'); await fetchShowcaseReview();
+  } catch { ElMessage.error('草稿提交失败，请核对来源状态'); }
+  finally { showcaseActing.value = false; }
+}
+async function createShowcaseEdgeDraft() {
+  if (!showcaseEdgeDraft.fromId || !showcaseEdgeDraft.toId || !showcaseEdgeDraft.relation.trim()) {
+    ElMessage.warning('先选择两个知识点并填写关系'); return;
+  }
+  if (showcaseEdgeDraft.fromId === showcaseEdgeDraft.toId) { ElMessage.warning('关系两端不能相同'); return; }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try {
+    await api.post(`/circles/${circleId}/knowledge-showcase/admin/drafts/edges`, { ...showcaseEdgeDraft });
+    showcaseEdgeDraft.relation = '';
+    ElMessage.success('关系草稿已提交，尚未对外公开'); await fetchShowcaseReview();
+  } catch { ElMessage.error('关系草稿提交失败，请核对节点状态'); }
+  finally { showcaseActing.value = false; }
+}
+async function publishShowcaseNode(row: ShowcaseNodeRow) {
+  let rightsNote = '';
+  try {
+    const result = await ElMessageBox.prompt('写明内容权利来源、允许圈外展示的依据；仅有 MIT/Apache 播放器许可不算内容授权。', `审核公开：${row.name}`, {
+      inputPlaceholder: '例如：圈主原创并已确认允许公开展示此短摘要',
+      inputValidator: (value: string) => !!value.trim() || '必须填写可核对的授权依据',
+    });
+    rightsNote = result.value.trim();
+  } catch { return; }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try {
+    await api.post(`/circles/${circleId}/knowledge-showcase/nodes/${row.id}/publish`, { rightsNote });
+    ElMessage.success('知识点已公开'); await fetchShowcaseReview();
+  } catch { ElMessage.error('公开失败；请确认来源未改变且授权依据有效'); }
+  finally { showcaseActing.value = false; }
+}
+async function publishShowcaseEdge(row: ShowcaseEdgeRow) {
+  let evidenceNote = '';
+  try {
+    const result = await ElMessageBox.prompt('写明这条知识关系的具体证据，不能只凭相似度推断。', `核对关系：${row.relation}`, {
+      inputPlaceholder: '例如：同一讲义第2节明确说明二者是前置关系',
+      inputValidator: (value: string) => !!value.trim() || '必须填写关系证据',
+    });
+    evidenceNote = result.value.trim();
+  } catch { return; }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try {
+    await api.post(`/circles/${circleId}/knowledge-showcase/edges/${row.id}/publish`, { evidenceNote });
+    ElMessage.success('关系已公开'); await fetchShowcaseReview();
+  } catch { ElMessage.error('公开失败；请确认两端节点均有效'); }
+  finally { showcaseActing.value = false; }
+}
+async function revokeShowcaseNode(row: ShowcaseNodeRow) {
+  try { await ElMessageBox.confirm(`撤回“${row.name}”后，它与相关关系将立即不再对外展示。确定撤回？`, '撤回知识点', { type: 'warning' }); }
+  catch { return; }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try { await api.post(`/circles/${circleId}/knowledge-showcase/nodes/${row.id}/revoke`); ElMessage.success('已撤回'); await fetchShowcaseReview(); }
+  catch { ElMessage.error('撤回失败，请重试'); }
+  finally { showcaseActing.value = false; }
+}
+async function revokeShowcaseEdge(row: ShowcaseEdgeRow) {
+  try { await ElMessageBox.confirm(`确定撤回“${row.relation}”关系？`, '撤回关系', { type: 'warning' }); }
+  catch { return; }
+  if (showcaseActing.value) return; showcaseActing.value = true;
+  try { await api.post(`/circles/${circleId}/knowledge-showcase/edges/${row.id}/revoke`); ElMessage.success('已撤回'); await fetchShowcaseReview(); }
+  catch { ElMessage.error('撤回失败，请重试'); }
+  finally { showcaseActing.value = false; }
+}
 async function syncCircleKnowledge() {
   if (acting.value) return; acting.value = true;
   try { await knowledgeApi.syncCircle(circleId); ElMessage.success("同步已触发，稍后查看结果"); } catch { /* ignore */ } finally { acting.value = false; }

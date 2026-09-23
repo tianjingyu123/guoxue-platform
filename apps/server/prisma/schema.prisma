@@ -589,6 +589,7 @@ model CircleKnowledgeShowcaseNode {
   id                String   @id @default(uuid())
   circleId          String
   sourceKnowledgeId String
+  sourceContentHash String
   name              String   @db.VarChar(80)
   summary           String   @db.VarChar(160)
   status            String   @default("DRAFT") @db.VarChar(16)
@@ -597,7 +598,9 @@ model CircleKnowledgeShowcaseNode {
   reviewedBy        String?
   reviewedAt        DateTime?
   revokedAt         DateTime?
+  revokedBy         String?
   displayOrder      Int      @default(0)
+  createdBy         String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -621,7 +624,9 @@ model CircleKnowledgeShowcaseEdge {
   reviewedBy   String?
   reviewedAt   DateTime?
   revokedAt    DateTime?
+  revokedBy    String?
   displayOrder Int      @default(0)
+  createdBy    String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

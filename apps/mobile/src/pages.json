@@ -1052,6 +1052,12 @@
           }
         },
         {
+          "path": "circles/knowledge-universe",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "circles/members",
           "style": {
             "navigationStyle": "custom"

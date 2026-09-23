@@ -11,6 +11,7 @@ import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { CircleKnowledgeController } from "./circle-knowledge.controller";
 import { CircleKnowledgeShowcaseController } from "./circle-knowledge-showcase.controller";
 import { CircleKnowledgeShowcaseService } from "./circle-knowledge-showcase.service";
+import { CircleKnowledgeShowcaseReviewService } from "./circle-knowledge-showcase-review.service";
 import { CircleAssistantService } from "./circle-assistant.service";
 import { CircleAssistantController } from "./circle-assistant.controller";
 import { CircleDashboardController } from "./circle-dashboard.controller";
@@ -36,7 +37,7 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
   controllers: [CircleController, CircleKnowledgeController, CircleKnowledgeShowcaseController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
-  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
+  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleKnowledgeShowcaseReviewService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
   exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
 })
 export class CircleModule {}

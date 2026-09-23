@@ -76,6 +76,10 @@ export interface CircleArticle {
 export interface CircleCourse { id: string; title: string; cover: string; price: number; teacher: string }
 export interface CircleLive { id: string; title: string; cover: string; hostName: string; status: 'live' | 'upcoming' | 'replay'; viewCount: number }
 export interface CircleProduct { id: string; title: string; cover: string; price: number }
+export interface CircleShowcaseGraph {
+  nodes: Array<{ id: string; name: string; summary: string }>
+  links: Array<{ id: string; source: string; target: string; relation: string }>
+}
 /** 后端 /courses、/live/rooms、/shop/products 列表项（仅声明本处访问到的字段·容错宽松） */
 interface RawCircleCourse { id?: string; title?: string; cover?: string; price?: number | string; user?: { nickname?: string } | null }
 interface RawCircleLive { id?: string; title?: string; cover?: string | null; status?: string; viewCount?: number; user?: { nickname?: string } | null }
@@ -290,6 +294,9 @@ function adaptMember(m: RawCircleMember): CircleMember {
 
 // ─── API（detail 主数据真连，失败抛出走页面 error 态；次要数据失败/后端无接口走空态隐藏，不展示假数据） ───
 export const circleDetailApi = {
+  /** 圈外公开快照；失败不影响圈子详情，且绝不退到私有知识库或演示数据。 */
+  knowledgeShowcase: (id: string): Promise<CircleShowcaseGraph> =>
+    apiGetOptionalAuth<CircleShowcaseGraph>(`/circles/${encodeURIComponent(id)}/knowledge-showcase`),
   detail: async (id: string): Promise<CircleDetail> => {
     return adaptDetail(await apiGet<RawCircleDetail>(`/circles/${id}`))
   },

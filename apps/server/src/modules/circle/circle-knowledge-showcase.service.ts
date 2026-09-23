@@ -19,6 +19,7 @@ export class CircleKnowledgeShowcaseService {
       WHERE n."circleId" = ${circleId}
         AND c."status" = 'ACTIVE' AND c."deletedAt" IS NULL
         AND k."status" = 'active'
+        AND k."contentHash" = n."sourceContentHash"
         AND n."status" = 'PUBLISHED' AND n."revokedAt" IS NULL
         AND n."rightsApprovedAt" IS NOT NULL AND n."reviewedAt" IS NOT NULL
         AND n."reviewedBy" IS NOT NULL AND nullif(btrim(n."rightsNote"), '') IS NOT NULL

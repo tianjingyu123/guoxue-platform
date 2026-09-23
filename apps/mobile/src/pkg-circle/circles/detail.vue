@@ -21,7 +21,7 @@ import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
   circleDetailApi, memberBenefits,
-  type CircleDetail, type CirclePost, type CircleMember, type CircleArticle, type CircleCourse, type CircleLive, type CircleProduct,
+  type CircleDetail, type CirclePost, type CircleMember, type CircleArticle, type CircleCourse, type CircleLive, type CircleProduct, type CircleShowcaseGraph,
 } from '@/lib/circle-detail-data'
 import { track } from '@/composables/useTrack'
 import { formatPrice } from '@/utils/format'
@@ -42,6 +42,7 @@ const courses = ref<CircleCourse[]>([])
 const lives = ref<CircleLive[]>([])
 const circleProducts = ref<CircleProduct[]>([])
 const postedArticles = ref<CircleArticle[]>([])
+const showcase = ref<CircleShowcaseGraph>({ nodes: [], links: [] })
 const isLoading = ref(true)
 const error = ref('')
 const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
@@ -122,12 +123,14 @@ function goAskExpert(e: ConsultExpert) {
 }
 
 onLoad((q) => {
+  pageAlive = true
   if (q?.id) circleId.value = q.id
   loadData()
   // 发帖页发布成功广播 → 立即重拉（配合后端 createPost 缓存失效，新帖即时可见）
   uni.$on('circle:refresh', onCircleRefresh)
 })
 onUnload(() => {
+  pageAlive = false
   uni.$off('circle:refresh', onCircleRefresh)
   if (fabTimer) clearTimeout(fabTimer)
 })
@@ -139,6 +142,7 @@ function onCircleRefresh(id?: string) {
 }
 // 防抖重拉：加载中或 1 秒内已拉过则跳过
 let lastLoadAt = 0
+let pageAlive = true
 function refresh() {
   if (isLoading.value || Date.now() - lastLoadAt < 1000) return
   loadData()
@@ -166,7 +170,7 @@ async function loadData() {
     circle.value = c
     isJoined.value = c.isJoined
 
-    const [p, m, arts, crs, lvs, prds, pas, st, jr] = await Promise.allSettled([
+    const [p, m, arts, crs, lvs, prds, pas, st, jr, graph] = await Promise.allSettled([
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
       circleDetailApi.articles(circleId.value),
@@ -177,7 +181,9 @@ async function loadData() {
       isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true) : Promise.reject(new Error('未登录')),
       // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
       isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
+      circleDetailApi.knowledgeShowcase(circleId.value),
     ])
+    if (!pageAlive) return
     posts.value = p.status === 'fulfilled' ? p.value.data : []
     members.value = m.status === 'fulfilled' ? m.value.data : []
     circleArticles.value = arts.status === 'fulfilled' ? arts.value : []
@@ -185,6 +191,7 @@ async function loadData() {
     lives.value = lvs.status === 'fulfilled' ? lvs.value : []
     circleProducts.value = prds.status === 'fulfilled' ? prds.value : []
     postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
+    showcase.value = graph.status === 'fulfilled' && Array.isArray(graph.value?.nodes) ? graph.value : { nodes: [], links: [] }
     if (st.status === 'fulfilled') {
       isJoined.value = st.value.joined
       memberExpireAt.value = st.value.expireAt
@@ -351,6 +358,7 @@ function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleI
 function openLive(id: string) { navigateTo(`/live/${id}`) }
 function openCourses() { navigateTo('/pkg-course/home/index') }
 function openShowcase() { navigateTo('/pkg-mall/home/index') }
+function openKnowledgeUniverse() { navigateTo(`/pkg-circle/circles/knowledge-universe?id=${encodeURIComponent(circleId.value)}`) }
 </script>
 
 <template>
@@ -415,6 +423,20 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 
           <!-- 董事长 #25：圈主助理 → 右下角智能客服式浮层（见页面底部 assistant-fab）；
                达人咨询 → 「问答」内容分类 tab（见下）·两者不再占用身份区卡片 -->
+        </view>
+      </view>
+
+      <!-- 仅真实已审核公开节点可见；接口失败或暂无授权时完全隐藏，不以演示数据填充。 -->
+      <view v-if="showcase.nodes.length" class="knowledge-portal" @tap="openKnowledgeUniverse">
+        <view class="portal-copy">
+          <text class="portal-title">知识星域</text>
+          <text class="portal-sub">{{ showcase.nodes.length }} 个公开知识点，沿线索探索这座圈子</text>
+          <text class="portal-go">进入探索 <text aria-hidden="true">›</text></text>
+        </view>
+        <view class="portal-sky" aria-hidden="true">
+          <view class="portal-orbit" />
+          <view class="portal-star s1" /><view class="portal-star s2" /><view class="portal-star s3" />
+          <view class="portal-star s4" /><view class="portal-star s5" /><view class="portal-star s6" />
         </view>
       </view>
 
@@ -733,6 +755,21 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .renew-bar.urgent { background: #FDECEE; border-color: #F3C6CE; }
 .renew-txt { flex: 1; font-size: 24rpx; color: #6E5A32; }
 .renew-bar.urgent .renew-txt { color: #A32432; }
+.knowledge-portal {
+  position: relative; overflow: hidden; display: flex; align-items: center;
+  min-height: 206rpx; margin: 24rpx 32rpx 0; padding: 26rpx 32rpx;
+  border-radius: 28rpx; background: #07182d; box-shadow: 0 12rpx 32rpx rgba(6, 21, 42, .18);
+}
+.portal-copy { position: relative; z-index: 2; width: 68%; display: flex; flex-direction: column; align-items: flex-start; }
+.portal-title { color: #f5e7bd; font-family: 'Songti SC', SimSun, serif; font-size: 39rpx; line-height: 1.2; }
+.portal-sub { color: #c2d9df; font-size: 23rpx; line-height: 1.6; margin-top: 10rpx; }
+.portal-go { color: #f1d695; font-size: 24rpx; margin-top: 16rpx; }
+.portal-sky { position: absolute; right: -18rpx; top: -26rpx; width: 280rpx; height: 260rpx; border-radius: 50%; background: radial-gradient(circle, #24516e 0%, #102b49 42%, transparent 72%); }
+.portal-orbit { position: absolute; inset: 26rpx 12rpx; border: 1rpx solid rgba(197, 223, 226, .36); border-radius: 50%; transform: rotate(-28deg); }
+.portal-star { position: absolute; width: 9rpx; height: 9rpx; border-radius: 50%; background: #dbeff1; box-shadow: 0 0 14rpx #8cdde8; }
+.portal-star.s1 { left: 28%; top: 21%; width: 15rpx; height: 15rpx; background: #e6ca86; }
+.portal-star.s2 { left: 69%; top: 17%; }.portal-star.s3 { left: 78%; top: 54%; width: 13rpx; height: 13rpx; }
+.portal-star.s4 { left: 37%; top: 65%; }.portal-star.s5 { left: 61%; top: 79%; background: #d9bd80; }.portal-star.s6 { left: 15%; top: 43%; }
 .renew-btn { flex-shrink: 0; padding: 10rpx 24rpx; border-radius: 999rpx; background: #B4884A; }
 .renew-bar.urgent .renew-btn { background: #C41E3A; }
 .renew-btn-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
