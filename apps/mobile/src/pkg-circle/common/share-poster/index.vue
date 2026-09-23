@@ -184,7 +184,7 @@ import {
   type PosterType,
   type PosterData,
 } from '@/pkg-circle/lib/poster-data'
-import { BRAND } from '@/lib/brand'
+import { BRAND, hydrateBrandConfig } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { goBack as platformGoBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
@@ -272,6 +272,8 @@ async function loadData() {
   posterTempPath.value = ''
   verifiedInviteCode.value = ''
   try {
+    // 海报二维码生成后不可更新；先等待启动时的入口配置，避免落到旧域名。
+    await hydrateBrandConfig()
     const res = await getPosterData(posterType.value, targetId.value, circleId.value, requestedInviteCode.value)
     if (res.code === 200 && res.data) {
       posterData.value = res.data
