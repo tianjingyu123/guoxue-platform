@@ -25,6 +25,7 @@ const failed = ref(false)
 const saving = ref(false)
 const sharing = ref(false)
 const unsharing = ref(false)
+const copying = ref(false)
 const report = ref<ReportRecord | null>(null)
 const chapters = ref<ReportChapter[]>([])
 const isPro = ref(false)
@@ -104,7 +105,13 @@ onLoad((q) => {
 })
 onShow(async () => {
   if (!report.value) return
-  try { isPro.value = (await wsApi.pro()).isPro } catch { /* 保留上次状态，交付仍由服务端校验 */ }
+  const [reportResult, proResult] = await Promise.allSettled([wsApi.getReport(id.value), wsApi.pro()])
+  if (proResult.status === 'fulfilled') isPro.value = proResult.value.isPro
+  // 回到页面时刷新另一设备的撤回／换链状态；请求期间开始编辑则保留本地稿。
+  if (reportResult.status === 'fulfilled' && !dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) {
+    report.value = reportResult.value
+    chapters.value = (reportResult.value.chapters ?? []).map((c) => ({ ...c }))
+  }
 })
 
 /** 兜底按钮：有 id 则重试加载，无 id（缺参）则返回上一页 */
@@ -126,6 +133,7 @@ async function load() {
     report.value = r
     chapters.value = (r.chapters ?? []).map((c) => ({ ...c }))
     isPro.value = pro.isPro
+    dirty.value = false
   } catch {
     failed.value = true
   } finally {
@@ -307,12 +315,27 @@ async function share() {
   }
 }
 
-function copyShare() {
-  if (!shareUrl.value) return
-  uni.setClipboardData({
-    data: shareUrl.value,
-    success: () => uni.showToast({ title: '链接已复制，发给客户即可', icon: 'none' }),
-  })
+async function copyShare() {
+  const expectedToken = report.value?.shareToken
+  if (!expectedToken || copying.value) return
+  copying.value = true
+  try {
+    const latest = await wsApi.getReport(id.value)
+    if (latest.shareToken !== expectedToken) {
+      report.value = latest
+      chapters.value = (latest.chapters ?? []).map((c) => ({ ...c }))
+      uni.showToast({ title: '交付链接已变化，请确认后再复制', icon: 'none' })
+      return
+    }
+    uni.setClipboardData({
+      data: buildH5Url('pkg-workspace/shared/index', { token: expectedToken }),
+      success: () => uni.showToast({ title: '链接已复制，发给客户即可', icon: 'none' }),
+    })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '无法核对链接，请稍后重试', icon: 'none' })
+  } finally {
+    copying.value = false
+  }
 }
 
 async function unshare() {
