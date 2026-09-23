@@ -1622,8 +1622,10 @@ ${evidence.length ? evidence.map((e) => `${e.id} [${e.quotable ? "古籍原文" 
     if (!content) {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
-    if (report.paipanRecordId && content.metadata?.reportType) {
-      await this.commerce?.assertReportAccess(userId, report.paipanRecordId, content.metadata.reportType);
+    const accessType = content.metadata?.reportType ||
+      (report.analyzeType?.startsWith("REPORT_") ? report.analyzeType.slice(7).toLowerCase() : "");
+    if (report.paipanRecordId && accessType) {
+      await this.commerce?.assertReportAccess(userId, report.paipanRecordId, accessType);
     }
     // 旧报告没有图形数据：按原盘现场补算（确定性计算，不调模型、不改存档）
     if (!content.chartView && report.paipanRecordId) {

@@ -238,6 +238,17 @@ describe("PaipanReportService", () => {
     await expect(svc.getReport("u1", id)).rejects.toThrow("购买权益已撤销");
   });
 
+  it("旧报告正文缺类型时从存档分析类型补推权益门禁", async () => {
+    const { svc, prisma, commerce } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValueOnce({
+      id: "old", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-1",
+      analyzeType: "REPORT_CAREER", analysisContent: JSON.stringify({ metadata: {}, sections: [] }),
+    });
+    commerce.assertReportAccess.mockRejectedValueOnce(new Error("购买权益已撤销"));
+    await expect(svc.getReport("u1", "old")).rejects.toThrow("购买权益已撤销");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "career");
+  });
+
   it("报告目录只查询本人结构化报告，分页且不返回正文", async () => {
     const { svc, prisma } = setup();
     prisma.aiAnalysisRecord.findMany = jest.fn().mockResolvedValue([{

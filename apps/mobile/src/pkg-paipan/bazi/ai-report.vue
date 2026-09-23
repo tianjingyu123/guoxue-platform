@@ -532,7 +532,7 @@ onShow(async () => {
   else if (report.value && !loading.value) {
     const currentId = report.value.id
     try {
-      const access = await aiReportApi.access(recordId.value, report.value.content.metadata.reportType)
+      const access = await aiReportApi.access(recordId.value, report.value.content.metadata.reportType || requestedReportType.value)
       if (!access.granted && report.value?.id === currentId) {
         report.value = null
         chatOpen.value = false

@@ -191,6 +191,18 @@ describe("PaipanReportDialogueService", () => {
     expect(gateway.chat).not.toHaveBeenCalled();
   });
 
+  it("旧报告正文缺类型时问答仍按存档分析类型核验权益", async () => {
+    const { prisma, gateway, guide } = setup();
+    prisma.aiAnalysisRecord.findUnique.mockResolvedValue({
+      id: "r1", userId: "u1", scene: "paipan_report", paipanRecordId: "rec-1",
+      analyzeType: "REPORT_LOVE", analysisContent: JSON.stringify(report),
+    });
+    const commerce: any = { assertReportAccess: jest.fn().mockRejectedValue(new Error("购买权益已撤销")) };
+    const svc = new PaipanReportDialogueService(prisma, gateway, guide, undefined, commerce);
+    await expect(svc.history("u1", "r1")).rejects.toThrow("购买权益已撤销");
+    expect(commerce.assertReportAccess).toHaveBeenCalledWith("u1", "rec-1", "love");
+  });
+
   it("重新生成后旧版问答可查看，但不参与新版进度或模型上下文", async () => {
     const { svc, prisma, gateway, turns } = setup();
     prisma.aiAnalysisRecord.findUnique.mockResolvedValue({

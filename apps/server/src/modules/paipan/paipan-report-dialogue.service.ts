@@ -344,8 +344,10 @@ ${refsForPrompt.map((r) => `${r.evidenceId} ${r.source}${r.chapter ? `·${r.chap
     } catch {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "报告内容解析失败");
     }
-    if (record.paipanRecordId && content.metadata?.reportType) {
-      await this.commerce?.assertReportAccess(userId, record.paipanRecordId, content.metadata.reportType);
+    const accessType = content.metadata?.reportType ||
+      (record.analyzeType?.startsWith("REPORT_") ? record.analyzeType.slice(7).toLowerCase() : "");
+    if (record.paipanRecordId && accessType) {
+      await this.commerce?.assertReportAccess(userId, record.paipanRecordId, accessType);
     }
     return content;
   }
