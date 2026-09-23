@@ -13,10 +13,12 @@ const db = new PrismaClient();
   const identity = await db.$queryRawUnsafe("SELECT current_database()::text AS name, inet_server_addr()::text AS address, current_schema()::text AS schema");
   const columns = await db.$queryRawUnsafe("SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = current_schema() AND table_name IN ('Order', 'Circle', 'CircleIncome', 'PaipanReport') AND column_name IN ('clientRequestId', 'requestFingerprint', 'id', 'orderId', 'circleId', 'incomeUserId') ORDER BY table_name, column_name");
   const indexes = await db.$queryRawUnsafe("SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'Order' AND indexdef LIKE '%clientRequestId%' ORDER BY indexname");
+  const candidateTables = await db.$queryRawUnsafe("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('ClassicSegment', 'TextDerivedAsset', 'AudioAsset', 'PaipanCaseFeedback', 'ContentCatalog', 'CircleKnowledgeShowcaseNode', 'CircleKnowledgeShowcaseEdge') ORDER BY table_name");
   const hasMigrations = await db.$queryRawUnsafe("SELECT to_regclass(current_schema() || '.\"_prisma_migrations\"') IS NOT NULL AS present");
   let migrations = [];
   if (hasMigrations[0].present) migrations = await db.$queryRawUnsafe('SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back FROM "_prisma_migrations" ORDER BY started_at DESC LIMIT 12');
-  console.log(JSON.stringify({ databaseHost: parsed.hostname, databasePort: parsed.port || '5432', identity: identity[0], columns, indexes, migrations }));
+  const candidateMigrations = hasMigrations[0].present ? await db.$queryRawUnsafe("SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back FROM \"_prisma_migrations\" WHERE migration_name IN ('manual_add_xiaobu_ai_assets', 'manual_add_paipan_case_feedback', '20260923010000_add_public_content_catalog', '20260923120000_circle_knowledge_showcase', 'manual_add_order_client_request_id') ORDER BY migration_name") : [];
+  console.log(JSON.stringify({ databaseHost: parsed.hostname, databasePort: parsed.port || '5432', identity: identity[0], columns, indexes, candidateTables, candidateMigrations, migrations }));
 })().catch(error => { console.error(JSON.stringify({ errorName: error.name, errorCode: error.code || null })); process.exitCode = 1; }).finally(async () => db.$disconnect());
 '''
 result = subprocess.run(['docker', 'exec', 'guoxue-server', 'node', '-e', program], text=True, capture_output=True, timeout=35)
