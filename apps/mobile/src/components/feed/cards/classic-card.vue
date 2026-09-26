@@ -3,13 +3,15 @@
  * 古籍卡 · 统一 3:4，书封本身承担类型识别，保留阅读钩子。
  * 去数字化：不显共读人数。有扫描封面用真图；无封面用 FlatCover 仿真书封（永不缺图）。
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { type FeedEnvelope, payloadStr } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
-const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()))
+const coverLoadFailed = ref(false)
+watch(() => props.item.cover, () => { coverLoadFailed.value = false })
+const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()) && !coverLoadFailed.value)
 const coverColor = computed(() => coverColorForBook(props.item.title))
 const author = computed(() => props.item.author?.name || payloadStr(props.item, 'author') || '')
 const dynasty = computed(() => payloadStr(props.item, 'dynasty') || '')
@@ -41,9 +43,10 @@ const summary = computed(() => {
   <view class="fcard">
     <view class="cov">
       <!-- 古籍/电子书素材 2:3 装入 3:4 容器：scaleToFill 适度纵向变形保全整幅书封（书名不被裁切），优于 aspectFill 裁边 -->
-      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="scaleToFill" lazy-load />
+      <image v-if="hasCover" class="cov-img" :src="item.cover" mode="scaleToFill" lazy-load @error="coverLoadFailed = true" />
       <view v-else class="cov-img flat-wrap">
         <flat-cover
+          style="width:100%;height:100%"
           :title="item.title"
           :label="coverLabel"
           :footer="coverFooter"
@@ -71,7 +74,6 @@ const summary = computed(() => {
 .cov { position: relative; width: 100%; padding-top: 133.33%; overflow: hidden; background: #f6f1e7; }
 .cov-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .flat-wrap { display: flex; align-items: stretch; justify-content: center; }
-.flat-wrap > :deep(.flat-cover) { width: 100%; }
 .body { padding: 18rpx 20rpx 20rpx; }
 .summary {
   display: -webkit-box;
