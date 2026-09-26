@@ -90,7 +90,7 @@ async function simulatePaymentCallback(orderId, { failFulfillment = false } = {}
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (MODE === "after" && (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW")) {
       if (failFulfillment) throw new Error("模拟履约失败");
-      await fulfillCircleOrderTx(tx, order);
+      await fulfillCircleOrderTx(tx, order.id);
     }
     return { applied: true };
   });
@@ -102,7 +102,7 @@ async function simulateRetry(orderId) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order || !["PAID", "SHIPPED"].includes(order.status)) return { retried: false };
-    await fulfillCircleOrderTx(tx, order);
+    await fulfillCircleOrderTx(tx, order.id);
     return { retried: true };
   });
 }
@@ -238,11 +238,16 @@ async function run() {
     const deleted = await simulateCleanup(); // 成员被硬删
     await simulatePaymentCallback(renew.id);
     const m = await prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: c, userId: u } } });
-    check("S4 成员被清理后续费仍能履约", MODE === "after" ? !!m : !m,
-      `清理=${deleted} member=${m ? `有，到期=${m.expireAt?.toISOString().slice(0, 10)}` : "无"}`);
-    if (MODE === "after" && m) {
-      check("S4 重建成员后到期时间在未来", m.expireAt && m.expireAt > new Date(),
-        `expireAt=${m.expireAt?.toISOString()}`);
+    const o4 = await prisma.order.findUnique({ where: { id: renew.id }, select: { status: true } });
+    if (MODE === "after") {
+      // 规则未决（D1）：成员行被硬删后续费，按续期还是新购、起算点都没有明确依据。
+      // 因此**暂停自动处理**：不建成员、不改订单状态，留待人工。
+      check("S4 成员被清理后续费：暂停自动处理且不静默吞单",
+        !m && o4.status === "PAID",
+        `清理=${deleted} member=${m ? "有" : "无"} 订单=${o4.status}（预期保持 PAID 待人工）`);
+    } else {
+      check("S4 成员被清理后续费仍能履约", !m,
+        `清理=${deleted} member=${m ? "有" : "无"}（复现当前主线：无）`);
     }
   }
 
