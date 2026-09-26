@@ -10,7 +10,7 @@ import { consumeLegacyReturn, markLegacyDeparture, validateLegacyNavigation } fr
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
 // #ifdef APP-PLUS
-import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { captureLegacyShareImage, legacyShareLandingUrl, publicLegacyResultUrl, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
 // #endif
 
 let entryContext = readLegacyPaipanContext()
@@ -500,6 +500,16 @@ async function requestLegacyShare(url: string, child: any) {
   let requestUrl = ''
   try { requestUrl = String(child.getURL?.() || '') } catch { return }
   if (!isTrustedLegacyUrl(requestUrl)) return
+  // 仅供本地诊断包查看：绝不展示或记录查询值、完整链接与用户资料；此分支不得合入发布线。
+  const targetParts = requestUrl.match(/^https:\/\/[^/?#]+(\/[^?#]*)(?:\?([^#]*))?/iu)
+  const page = targetParts?.[1]?.split('/').pop() || '[目录]'
+  const keys = (targetParts?.[2] || '').split('&').map((part) => part.split('=', 1)[0])
+    .filter((key) => /^[A-Za-z0-9_-]{1,40}$/u.test(key)).slice(0, 20)
+  const diagnostic = `URL 对象：${typeof URL}\n页面：${page}\n查询键：${keys.join(',') || '无'}\n可公开：${publicLegacyResultUrl(requestUrl) ? '是' : '否'}`
+  await new Promise<void>((resolve) => uni.showModal({
+    title: '本地排盘分享诊断', content: diagnostic, showCancel: false,
+    success: () => resolve(), fail: () => resolve(),
+  }))
   const request = parseLegacyShareBridgeUrl(url)
   if (!request) {
     uni.showToast({ title: '分享内容无效，请返回排盘页面重新生成', icon: 'none' })
