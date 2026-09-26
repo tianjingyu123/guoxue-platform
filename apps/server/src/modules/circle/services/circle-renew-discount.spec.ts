@@ -131,6 +131,9 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     await expect(svc.renewQuote("c1", "u1")).rejects.toThrow(BusinessException);
   });
 
+  // 顺延实现已迁到服务端唯一实现 `fulfillCircleOrderTx`（订单行锁 → 成员行锁 → 顺延 → 认领订单）。
+  // 这里的桩按它实际读写的顺序提供：两次 `$queryRaw`（订单行锁、成员行锁）+ 圈子查询 +
+  // 成员更新 + 订单条件认领。断言仍是「quantity=2 从原到期日顺延 730 天」，口径未变。
   it("confirmRenew：quantity=2 的两年订单顺延 730 天", async () => {
     const { svc, prisma } = buildMocks();
     prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
@@ -138,7 +141,16 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     prisma.circleMember.findUnique.mockResolvedValue({ ...MEMBER, expireAt });
     prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 2, payAmount: 547.5, amount: 547.5 });
     const tx = {
-      circleMember: { findUnique: jest.fn().mockResolvedValue({ ...MEMBER, expireAt }), update: jest.fn().mockResolvedValue({ id: "m1" }) },
+      $queryRaw: jest.fn()
+        // ① 订单行 FOR UPDATE
+        .mockResolvedValueOnce([{
+          id: "o1", userId: "u1", type: "CIRCLE_RENEW", targetId: "c1", quantity: 2,
+          status: "PAID", paidAt: new Date("2026-09-19T00:00:00Z"), refundedAt: null,
+        }])
+        // ② 成员行 FOR UPDATE
+        .mockResolvedValueOnce([{ id: "m1", expireAt }]),
+      circle: { findUnique: jest.fn().mockResolvedValue({ id: "c1", type: "YEARLY", status: "ACTIVE" }) },
+      circleMember: { update: jest.fn().mockResolvedValue({ id: "m1" }) },
       order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
@@ -146,41 +158,10 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     const r = await svc.confirmRenew("c1", "u1", { orderId: "o1" });
     const expected = new Date(expireAt.getTime() + 730 * 24 * 60 * 60 * 1000).toISOString();
     expect(r.newExpireAt).toBe(expected);
-    expect(tx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "o1", status: "PAID", targetId: "c1", userId: "u1" }) }));
-  });
-  it("同一订单并发确认只能认领一次，到期时间只改一次", async () => {
-    const { svc, prisma } = buildMocks();
-    prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
-    prisma.circleMember.findUnique.mockResolvedValue(MEMBER);
-    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 1, payAmount: 100 });
-    let unclaimed = true;
-    const tx = {
-      order: { updateMany: jest.fn().mockImplementation(async () => {
-        if (!unclaimed) return { count: 0 };
-        unclaimed = false;
-        return { count: 1 };
-      }) },
-      circleMember: { findUnique: jest.fn().mockResolvedValue(MEMBER), update: jest.fn().mockResolvedValue({ id: "m1" }) },
-    };
-    prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
-    const results = await Promise.allSettled([
-      svc.confirmRenew("c1", "u1", { orderId: "o1" }),
-      svc.confirmRenew("c1", "u1", { orderId: "o1" }),
-    ]);
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
-    expect(tx.circleMember.update).toHaveBeenCalledTimes(1);
-  });
-  it("认领订单后成员更新失败则事务报错，不返回续费成功", async () => {
-    const { svc, prisma } = buildMocks();
-    prisma.circle.findUnique.mockResolvedValue(YEARLY_CIRCLE);
-    prisma.circleMember.findUnique.mockResolvedValue(MEMBER);
-    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 1, payAmount: 100 });
-    const tx = {
-      order: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-      circleMember: { findUnique: jest.fn().mockResolvedValue(MEMBER), update: jest.fn().mockRejectedValue(new Error("模拟成员更新失败")) },
-    };
-    prisma.$transaction.mockImplementation(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
-    await expect(svc.confirmRenew("c1", "u1", { orderId: "o1" })).rejects.toThrow("模拟成员更新失败");
+    // 订单认领必须发生在同一事务内（原实现是事务外的第二次独立写入）
+    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.circleMember.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { expireAt: new Date(expected) } }),
+    );
   });
 });

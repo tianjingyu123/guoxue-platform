@@ -331,14 +331,46 @@ async function renewOrder(f, payAmount) {
   });
 }
 
-/** 直接跑真实退款执行体（私有方法，运行时可调用；不依赖 CircleRefundRequest 行） */
-async function runRefund({ circleId, userId, orderId, paidAmount, actualRefund }) {
-  const svc = new CircleRefundService(prisma); // 不注入 commissionService → 跳过站长佣金追回
-  await svc.executeRefund({
-    id: `${RUN}-refund-${Date.now().toString(36)}`,
-    circleId, userId, orderId, paidAmount, actualRefund,
-  });
+let refundSeq = 0;
+
+/**
+ * 走**真实退款入口**跑一次退款：先落一条与生产同形的 `CircleRefundRequest`
+ * （圈主已通过、平台待审），再调 `adminReview(approve=true)`。
+ *
+ * 早先版本直接调私有的 `executeRefund` 并传一个合成对象，绕过了退款申请行本身。
+ * 那样测不到平台审核的 CAS，也测不到执行体入口的退款单行锁 —— 而这两处正是
+ * 「同一次审核被重放」的唯一防线。用测试脚本手工补调，等于把真实入口的缺口盖住。
+ */
+async function makeRefundRequest({ circleId, userId, orderId, paidAmount, actualRefund }) {
+  const id = `${RUN}-refund-${(++refundSeq).toString(36)}`;
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "CircleRefundRequest"
+       ("id","circleId","userId","orderId","paidAmount","dailyCost","usedDays","refundBase",
+        "feeRate","feeAmount","actualRefund","refundType","ownerStatus","adminStatus","refundStatus","updatedAt")
+     VALUES ($1,$2,$3,$4,$5,0,0,$5,0.20,$6,$7,'normal','approved','pending','pending',CURRENT_TIMESTAMP)`,
+    id, circleId, userId, orderId, paidAmount, paidAmount - actualRefund, actualRefund,
+  );
+  return id;
 }
+
+async function runRefund(params) {
+  const id = await makeRefundRequest(params);
+  // 不注入 commissionService → 跳过站长佣金追回（本文件只验圈主分成一侧）
+  await new CircleRefundService(prisma).adminReview(id, `${RUN}-admin`, true);
+  return id;
+}
+
+/** 读取指定退款申请的追回台账 */
+async function recallsOf(refundId) {
+  return prisma.$queryRawUnsafe(
+    `SELECT "amount","status","reason" FROM "CommissionRecall" WHERE "refundId"=$1 ORDER BY "createdAt" DESC`,
+    refundId,
+  );
+}
+const walletOf = async (userId) => {
+  const rows = await prisma.$queryRawUnsafe(`SELECT "balance" FROM "UserWallet" WHERE "userId"=$1`, userId);
+  return rows.length ? Number(rows[0].balance) : null;
+};
 
 /**
  * R7 入圈 + 续费两笔收益并存时，退款冲正必须取**被退那一笔**。
@@ -410,20 +442,24 @@ async function r8() {
     `旧 SQL=${legacy8[0]?.ownerShare} 真实分成应为=${joinOwner}`);
 
   // orderId 传 null → 强制走回落查询
-  await runRefund({ circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150 });
+  const rid = await runRefund({ circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150 });
 
   const refundRows = await prisma.circleRevenueRecord.findMany({
     where: { circleId: f.circle, type: "circle_join_refund" },
   });
-  check("R8 回落查询跳过 0 元行，仍追回真实分成",
-    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + joinOwner) < 0.01,
-    `冲正=${refundRows[0]?.ownerShare} 应为=${-joinOwner}（不过滤会是 0）`);
-  const recall = await prisma.$queryRawUnsafe(
-    `SELECT "amount" FROM "CommissionRecall" WHERE "refundId" LIKE $1`, `${RUN}-refund-%`,
-  );
-  check("R8 圈主追回台账金额同样非零",
-    recall.length >= 1 && Math.abs(Number(recall[0].amount) + joinOwner) < 0.01,
-    `台账=${recall[0]?.amount}`);
+  check("R8 推断匹配（single）未获批准 → 不写任何冲正行", refundRows.length === 0,
+    `冲正行数=${refundRows.length}（自动冲正会是 1）`);
+
+  const recall = await recallsOf(rid);
+  // 原因码必须是 inferred_match_not_approved 而不是 ambiguous_candidates：
+  // 前者说明「0 元行确实被过滤掉了、判定也确实定位到了唯一候选」，只是策略不放行；
+  // 后者会把「过滤失效导致消歧不出来」也一并盖住，两种情况必须能区分。
+  check("R8 转人工原因码为「推断未获批准」而非「无法消歧」（证明 0 元行过滤仍生效）",
+    recall.length === 1 && recall[0].status === "pending_manual" &&
+      recall[0].reason === "inferred_match_not_approved" && Number(recall[0].amount) === 0,
+    JSON.stringify(recall));
+  check("R8 用户退款照常到账（账务存疑不扣住用户的钱）",
+    Math.abs((await walletOf(f.user)) - 150) < 0.01, `余额=${await walletOf(f.user)} 圈主分成=${joinOwner}`);
 }
 
 /** R9 单段式：收益服务故障时一行都不写，对账后恰好一条且金额正确 */
@@ -496,13 +532,19 @@ async function r11() {
     await fulfillOrder(ro.id);                        // 99
     const joinOwner = Number(joinRev.ownerShare);
 
-    await runRefund({ circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150 });
+    const rid = await runRefund({ circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150 });
     const refundRows = await prisma.circleRevenueRecord.findMany({
       where: { circleId: f.circle, type: "circle_join_refund" },
     });
-    check("R11a 两条候选但金额可唯一对上 → 按该笔追回",
-      refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + joinOwner) < 0.01,
-      `冲正=${refundRows[0]?.ownerShare} 期望=${-joinOwner}`);
+    check("R11a 推断匹配（amount）未获批准 → 不写任何冲正行", refundRows.length === 0,
+      `冲正行数=${refundRows.length}（自动冲正会是 1，金额 ${-joinOwner}）`);
+    const recalls = await recallsOf(rid);
+    check("R11a 转人工原因码为「推断未获批准」（消歧本身成功，仅策略不放行）",
+      recalls.length === 1 && recalls[0].status === "pending_manual" &&
+        recalls[0].reason === "inferred_match_not_approved",
+      JSON.stringify(recalls));
+    check("R11a 用户退款照常到账", Math.abs((await walletOf(f.user)) - 150) < 0.01,
+      `余额=${await walletOf(f.user)}`);
   }
 
   // ── R11b 两条候选、金额相同 → 消歧失败，转人工 ──
@@ -515,11 +557,8 @@ async function r11() {
     check("R11b 前置：两条同额候选收益", before.length === 2,
       before.map((r) => Number(r.amount)).join("/"));
 
-    const tag = `${RUN}-amb`;
-    const svc = new CircleRefundService(prisma);
-    await svc.executeRefund({
-      id: `${tag}-1`, circleId: f.circle, userId: f.user,
-      orderId: null, paidAmount: 199, actualRefund: 150,
+    const rid = await runRefund({
+      circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150,
     });
 
     const refundRows = await prisma.circleRevenueRecord.findMany({
@@ -528,9 +567,10 @@ async function r11() {
     check("R11b 消歧失败时不写任何冲正行（不拿猜出来的数字改账）", refundRows.length === 0,
       `冲正行数=${refundRows.length}`);
 
-    const recalls = await recallRows(tag);
-    check("R11b 留下一条 pending_manual 追回台账（人工核对入口）",
-      recalls.length === 1 && recalls[0].status === "pending_manual" && Number(recalls[0].amount) === 0,
+    const recalls = await recallsOf(rid);
+    check("R11b 留下一条 pending_manual 追回台账（人工核对入口）且原因码为「无法消歧」",
+      recalls.length === 1 && recalls[0].status === "pending_manual" &&
+        Number(recalls[0].amount) === 0 && recalls[0].reason === "ambiguous_candidates",
       JSON.stringify(recalls));
 
     // 用户那一侧照退，不因账务存疑而卡住用户的钱
@@ -586,12 +626,157 @@ async function r12() {
     Number(after.settledAmount) === 0, `settled=${after.settledAmount}`);
 }
 
+/**
+ * R13 `exact` 档的**归属核验**：`(type, orderId)` 唯一键只证明「这一行属于这个订单」，
+ * 不证明「这个订单属于本次退款」。命中即用，等于把唯一键当成了归属证明。
+ *
+ * 构造：把收益行的 `sourceId` 改成别的成员（模拟数据订正/跨圈脏数据），
+ * 退款仍带正确的 orderId。期望：不取值、转人工，而**不是**静默按错误的行冲正、
+ * 也不是悄悄退化成「查不到」后走推断分支。
+ */
+async function r13() {
+  const f = await fixture();
+  const rev = await fulfillOrder(f.order.id);
+  await prisma.circleRevenueRecord.update({
+    where: { id: rev.id }, data: { sourceId: `${RUN}-not-this-member` },
+  });
+
+  const rid = await runRefund({
+    circleId: f.circle, userId: f.user, orderId: f.order.id, paidAmount: 199, actualRefund: 150,
+  });
+  const refundRows = await prisma.circleRevenueRecord.findMany({
+    where: { circleId: f.circle, type: "circle_join_refund" },
+  });
+  check("R13 归属不符时不写冲正行", refundRows.length === 0, `冲正行数=${refundRows.length}`);
+  const recalls = await recallsOf(rid);
+  check("R13 归属不符转人工且原因码可辨（不退化成「查不到」）",
+    recalls.length === 1 && recalls[0].status === "pending_manual" &&
+      recalls[0].reason === "revenue_ownership_mismatch",
+    JSON.stringify(recalls));
+  check("R13 用户退款照常到账", Math.abs((await walletOf(f.user)) - 150) < 0.01,
+    `余额=${await walletOf(f.user)}`);
+}
+
+/**
+ * R14 `exact` 档的**金额核验**：收益行金额与本次退款的已付金额对不上，说明两者记的不是
+ * 同一件事（例如促销单由旧 confirmJoin 按 `circle.price` 记账，而订单实付是折后价）。
+ * 这种情况下任何取值都是猜，必须转人工。
+ */
+async function r14() {
+  const f = await fixture();
+  const rev = await fulfillOrder(f.order.id);
+  await prisma.circleRevenueRecord.update({ where: { id: rev.id }, data: { amount: 149 } });
+
+  const rid = await runRefund({
+    circleId: f.circle, userId: f.user, orderId: f.order.id, paidAmount: 199, actualRefund: 150,
+  });
+  const refundRows = await prisma.circleRevenueRecord.findMany({
+    where: { circleId: f.circle, type: "circle_join_refund" },
+  });
+  check("R14 金额不符时不写冲正行", refundRows.length === 0, `冲正行数=${refundRows.length}`);
+  const recalls = await recallsOf(rid);
+  check("R14 金额不符转人工且原因码可辨",
+    recalls.length === 1 && recalls[0].status === "pending_manual" &&
+      recalls[0].reason === "revenue_amount_mismatch",
+    JSON.stringify(recalls));
+  check("R14 用户退款照常到账", Math.abs((await walletOf(f.user)) - 150) < 0.01,
+    `余额=${await walletOf(f.user)}`);
+}
+
+/**
+ * R15 `exact` 正常路径 + **重复处理保护（串行）**。
+ *
+ * 钱包入账是累加、成员删除与 memberCount 递减都不幂等，执行体重入一次就是多退一笔。
+ * 这里先走真实入口退一次，再对同一条申请强行重入执行体，断言一行都不多写。
+ */
+async function r15() {
+  const f = await fixture();
+  const rev = await fulfillOrder(f.order.id);
+  const ownerShare = Number(rev.ownerShare);
+
+  const rid = await runRefund({
+    circleId: f.circle, userId: f.user, orderId: f.order.id, paidAmount: 199, actualRefund: 150,
+  });
+  const after1 = await prisma.circleRevenueRecord.findMany({
+    where: { circleId: f.circle, type: "circle_join_refund" },
+  });
+  check("R15 exact 归属与金额核验通过 → 正常冲正",
+    after1.length === 1 && Math.abs(Number(after1[0].ownerShare) + ownerShare) < 0.01,
+    `冲正=${after1[0]?.ownerShare} 应为=${-ownerShare}`);
+  check("R15 冲正行带 orderId（唯一约束因此覆盖 circle_join_refund）",
+    after1.length === 1 && after1[0].orderId === f.order.id, `orderId=${after1[0]?.orderId}`);
+  const balance1 = await walletOf(f.user);
+
+  // 重放：直接拿库里那条真实申请行再跑一次执行体
+  const rows = await prisma.$queryRawUnsafe(`SELECT * FROM "CircleRefundRequest" WHERE id=$1`, rid);
+  await new CircleRefundService(prisma).executeRefund(rows[0]);
+
+  const after2 = await prisma.circleRevenueRecord.findMany({
+    where: { circleId: f.circle, type: "circle_join_refund" },
+  });
+  check("R15 重放执行体不产生第二条冲正行", after2.length === 1, `冲正行数=${after2.length}`);
+  check("R15 重放执行体不重复给用户加钱",
+    Math.abs((await walletOf(f.user)) - balance1) < 0.01,
+    `重放前=${balance1} 重放后=${await walletOf(f.user)}`);
+  const recalls = await recallsOf(rid);
+  check("R15 追回台账仍只有一条且为 completed",
+    recalls.length === 1 && recalls[0].status === "completed" && recalls[0].reason === "exact",
+    JSON.stringify(recalls));
+  const txn = await prisma.$queryRawUnsafe(
+    `SELECT count(*)::int AS n FROM "UserBalanceTransaction" WHERE "refId"=$1`, rid,
+  );
+  check("R15 退款流水也只有一条", txn[0].n === 1, `流水数=${txn[0].n}`);
+}
+
+/**
+ * R16 **重复处理保护（并发）**：同一条退款申请被两个独立连接同时审核通过。
+ *
+ * 不靠重跑取绿：两个 `CircleRefundService` 各持有独立的 PrismaClient（独立连接），
+ * 同时发起 `adminReview`，由 `adminStatus` 的 CAS 与执行体的退款单行锁共同保证只生效一次。
+ */
+async function r16() {
+  const f = await fixture();
+  const rev = await fulfillOrder(f.order.id);
+  const ownerShare = Number(rev.ownerShare);
+  const rid = await makeRefundRequest({
+    circleId: f.circle, userId: f.user, orderId: f.order.id, paidAmount: 199, actualRefund: 150,
+  });
+
+  const svcA = new CircleRefundService(prisma);
+  const svcB = new CircleRefundService(prismaB);
+  const results = await Promise.allSettled([
+    svcA.adminReview(rid, `${RUN}-adminA`, true),
+    svcB.adminReview(rid, `${RUN}-adminB`, true),
+  ]);
+  const ok = results.filter((r) => r.status === "fulfilled").length;
+  check("R16 并发审核恰有一方成功", ok === 1,
+    `成功=${ok} 结果=${results.map((r) => r.status).join(",")}`);
+
+  const refundRows = await prisma.circleRevenueRecord.findMany({
+    where: { circleId: f.circle, type: "circle_join_refund" },
+  });
+  check("R16 并发下只写一条冲正行",
+    refundRows.length === 1 && Math.abs(Number(refundRows[0].ownerShare) + ownerShare) < 0.01,
+    `冲正行数=${refundRows.length}`);
+  check("R16 并发下用户余额只加一次",
+    Math.abs((await walletOf(f.user)) - 150) < 0.01, `余额=${await walletOf(f.user)}`);
+  check("R16 并发下追回台账只有一条", (await recallsOf(rid)).length === 1,
+    JSON.stringify(await recallsOf(rid)));
+  const m = await prisma.circleMember.findUnique({
+    where: { circleId_userId: { circleId: f.circle, userId: f.user } },
+  });
+  check("R16 成员身份失效且圈子人数不被重复递减", !m && (await prisma.circle.findUnique({
+    where: { id: f.circle }, select: { memberCount: true },
+  })).memberCount === 0, `member=${m ? "在" : "无"}`);
+}
+
 // ─────────────────────────── 主流程 ───────────────────────────
 try {
   console.log("=== 圈子履约 · 收益与真实入口验证 ===");
   await cleanup();
   await r1(); await r2(); await r3(); await r4(); await r5(); await r6();
   await r7(); await r8(); await r9(); await r10(); await r11(); await r12();
+  await r13(); await r14(); await r15(); await r16();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);
