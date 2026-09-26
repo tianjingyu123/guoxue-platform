@@ -1,5 +1,6 @@
 <template>
   <view class="share-page">
+    <app-safe-area-top />
     <view class="share-head">
       <text class="share-brand">热卜国学</text>
       <text class="share-tip">排盘结果</text>
@@ -15,6 +16,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import AppSafeAreaTop from '@/components/common/app-safe-area-top.vue'
 import { publicLegacyResultUrl } from '@/lib/legacy-paipan-share'
 
 const target = ref('')

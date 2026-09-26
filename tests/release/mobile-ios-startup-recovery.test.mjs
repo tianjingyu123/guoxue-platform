@@ -21,7 +21,7 @@ test("自定义底部主导航只替换当前页，不再重建整个页面栈",
   assert.match(router, /if \(MAIN_TABS\.includes\(path\)\) \{ uni\.redirectTo/);
   assert.doesNotMatch(router, /if \(MAIN_TABS\.includes\(path\)\) \{ uni\.reLaunch/);
   assert.match(bottomNav, /import \{ redirectTo \} from ['"]@\/utils\/router['"]/);
-  assert.match(bottomNav, /function go\([\s\S]*redirectTo\(url\)/);
+  assert.match(bottomNav, /function go\([\s\S]*redirectTo\(id === 'paipan'[^\n]*stationNavigationTarget\(id, url\)\)/);
   assert.doesNotMatch(bottomNav, /import \{ reLaunch \}/);
 });
 
@@ -57,7 +57,7 @@ test("登录页生命周期必须无条件导入，防止 iOS 跳登录后永久
   );
 });
 
-test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构建号 240", async () => {
+test("启动更新检查不依赖 URLSearchParams，且构建号不退回已验收的 247 之前", async () => {
   const [update, manifestRaw] = await Promise.all([
     readFile(updateSource, "utf8"),
     readFile(manifestSource, "utf8"),
@@ -65,5 +65,5 @@ test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构�
   assert.doesNotMatch(update, /new URLSearchParams/);
   assert.match(update, /encodeURIComponent\(platform\)/);
   assert.match(update, /encodeURIComponent\(version\)/);
-  assert.equal(JSON.parse(manifestRaw).versionCode, "240");
+  assert.ok(Number(JSON.parse(manifestRaw).versionCode) >= 247);
 });

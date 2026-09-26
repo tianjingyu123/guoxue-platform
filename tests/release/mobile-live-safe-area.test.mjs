@@ -71,7 +71,7 @@ test('直播预告与运营后台的自绘导航全部为系统状态栏留出�
 test('圈子内发起直播的必经详情页使用运行时顶部安全区', () => {
   const content = source('apps/mobile/src/pkg-circle/circles/detail.vue')
   assert.match(content, /useAppSafeArea/)
-  assert.match(content, /:style="\{ paddingTop: safeTop \+ 'px' \}"/)
+  assert.match(content, /:style="\{ paddingTop: safeTop \+ 'px'(?:, [^}]*)? \}"/)
   assert.doesNotMatch(content, /padding-top:\s*var\(--status-bar-height/)
 })
 
@@ -369,7 +369,7 @@ test('全端观众在线心跳不依赖播放器回调，并在下播后自动�
   assert.match(crossPlatformAudience, /function scheduleEndAdvance\(\)/)
   assert.match(crossPlatformAudience, /void refreshLiveFeed\(\)/)
   assert.match(crossPlatformAudience, /if \(!playUrl\.value\) await fetchPlayUrl\(targetRoomId, requestVersion\)/)
-  assert.match(crossPlatformAudience, /onHide\(\(\) => \{\s*pageVisible\.value = false\s*resumeAfterHide = true\s*roomLoadVersion \+= 1\s*stopRoomPolling\(\)/)
+  assert.match(crossPlatformAudience, /onHide\(\(\) => \{[\s\S]*?pageVisible\.value = false\s*resumeAfterHide = true\s*roomLoadVersion \+= 1\s*stopRoomPolling\(\)/)
   assert.match(crossPlatformAudience, /function returnToLiveEntrance\(\)/)
   assert.match(crossPlatformAudience, /returnRoute\.value = normalizeReturnRoute\(opts\?\.returnRoute\)/)
   assert.match(crossPlatformAudience, /const returnRouteQuery = returnRoute\.value \? `&returnRoute=\$\{encodeURIComponent\(returnRoute\.value\)\}` : ''/)

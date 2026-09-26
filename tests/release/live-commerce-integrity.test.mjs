@@ -26,7 +26,8 @@ test('直播购买支付完成后保留返回直播间入口并恢复原观看�
 
   assert.match(checkout, /returnLiveRoomId=\$\{encodeURIComponent\(contentSource\.value\.id\)\}/u)
   assert.match(paying, /returnLiveRoomId\.value = String\(q\?\.returnLiveRoomId/u)
-  assert.match(paying, /pay-success\?orderId=\$\{orderId\.value\}\$\{liveReturn\}/u)
+  assert.match(paying, /\['returnLiveRoomId', returnLiveRoomId\.value \|\| undefined\]/u)
+  assert.match(paying, /redirectTo\(`\/shop\/pay-success\?\$\{successQuery\}`\)/u)
   assert.match(paying, /function handleCancel\([\s\S]*?returnLiveRoomId\.value[\s\S]*?pkg-live\/watch\/index/u)
   assert.match(success, /v-if="returnLiveRoomId"[\s\S]*?>返回直播间</u)
   assert.match(success, /previous\?\.route[\s\S]*?pkg-live\/watch\/index[\s\S]*?navigateBack/u)

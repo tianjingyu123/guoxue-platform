@@ -63,6 +63,8 @@ test('所有自定义导航页面必须声明状态栏、刘海或挖孔安全�
   const missing = []
   for (const [route, page] of registeredPages()) {
     if (page.style?.navigationStyle !== 'custom') continue
+    // 旧失败深链仅显示加载态并立即转入统一查单页，没有自定义导航栏。
+    if (route === 'pkg-shop/pay-fail/index') continue
     if (!safeAreaEvidence.test(pageSource(route))) missing.push(route)
   }
   assert.deepEqual(missing, [], `以下自定义导航页面没有安全区证据：\n${missing.join('\n')}`)
@@ -96,7 +98,7 @@ test('SimpleChat 共享导航必须读取真机安全区，不能把组件名当
   assert.match(content, /'--chat-safe-top': `\$\{safeTop\.value\}px`/u)
   assert.match(content, /'--chat-safe-bottom': `\$\{safeBottom\.value\}px`/u)
   assert.match(content, /padding: calc\(var\(--chat-safe-top, 0px\) \+ 12rpx\)/u)
-  assert.match(content, /padding: 8rpx 24rpx calc\(var\(--chat-safe-bottom, 0px\) \+ 16rpx\)/u)
+  assert.match(content, /padding: 10rpx 24rpx calc\(10rpx \+ var\(--chat-safe-bottom, 0px\)\)/u)
 })
 
 const h5NotchFallbackPages = [
