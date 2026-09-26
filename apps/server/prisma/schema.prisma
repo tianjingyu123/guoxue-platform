@@ -3534,6 +3534,7 @@ model BrandConfig {
 model Notification {
   id         String   @id @default(uuid())
   userId     String
+  idempotencyKey String? @unique @db.VarChar(255) // 用户ID:业务事件键；旧通知可为空
   type       String // SYSTEM, COMMENT, LIKE, FOLLOW, PURCHASE, EARNING, AUDIT
   title      String
   content    String

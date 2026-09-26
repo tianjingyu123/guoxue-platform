@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -41,6 +42,7 @@ export class NotificationService {
     const notification = await this.prisma.notification.create({
       data: {
         userId,
+        idempotencyKey: dto.idempotencyKey ? `${userId}:${dto.idempotencyKey}` : null,
         type: dto.type,
         title: dto.title,
         content: dto.content,
@@ -80,12 +82,15 @@ export class NotificationService {
    */
   async sendOnce(userId: string, idempotencyKey: string, dto: SendNotificationDto) {
     if (!idempotencyKey.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键不能为空");
+    if (`${userId}:${idempotencyKey}`.length > 255) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键过长");
     const key = `notification:sent:${userId}:${idempotencyKey}`;
     const claimed = await this.redis.setNX(key, "1", PREFS_TTL);
     if (!claimed) return null;
     try {
       return await this.send(userId, { ...dto, idempotencyKey });
     } catch (err) {
+      // Redis 丢失或 30 天后重投时，数据库唯一键仍是最终防重线。
+      if (isUniqueConstraintError(err)) return null;
       await this.redis.del(key).catch(() => undefined);
       throw err;
     }

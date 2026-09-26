@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
 import { PushAudienceService } from "../user/push-audience.service";
+import { Prisma } from "@prisma/client";
 
 const mockPush = {
   send: jest.fn().mockResolvedValue(null),
@@ -99,6 +100,20 @@ describe("NotificationService", () => {
       })).resolves.toEqual({ id: "n-persisted" });
       expect(mockRedis.del).not.toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o3");
       expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("Redis 幂等标记丢失后由数据库唯一键拦住重复通知", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockPrisma.notification.create.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("duplicate", { code: "P2002", clientVersion: "6.19.3" }),
+      );
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o4", {
+        type: "PURCHASE", title: "支付成功", content: "已支付",
+      })).resolves.toBeNull();
+      expect(mockPrisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ idempotencyKey: "u1:ORDER_PAID:o4" }),
+      }));
+      expect(mockRedis.del).not.toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o4");
     });
   });
 
