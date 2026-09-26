@@ -48,6 +48,10 @@ test("排盘模式探针失败时不泄露新排盘，且只复用短时快照",
   assert.match(page, /if \(runtimeMode !== "legacy"\)[\s\S]*排盘服务状态暂时无法确认/u);
   assert.doesNotMatch(page, /if \(entryTarget !== "station" && !getToken\(\)\)/u);
   assert.match(page, /const entry =\s*entryTarget === "account"/u);
+  const entryStart = page.indexOf('if (entry.mode === "legacy")');
+  const legacyEntryTail = page.slice(entryStart, page.indexOf('} catch (error)', entryStart));
+  assert.match(legacyEntryTail, /throw new Error\("排盘入口状态与当前服务模式不一致/u);
+  assert.doesNotMatch(legacyEntryTail, /allowNative\.value = true/u);
 });
 
 test("自研排盘接口与后台直达有服务端门禁，移动端不做全局路由劫持", () => {
