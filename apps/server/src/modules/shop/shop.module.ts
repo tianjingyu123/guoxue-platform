@@ -31,9 +31,10 @@ import { MemberModule } from "../member/member.module";
 import { EntitlementModule } from "../entitlement/entitlement.module";
 import { StationPaipanSyncModule } from "../station/station-paipan-sync.module";
 import { AuthModule } from "../auth/auth.module";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule, EntitlementModule, StationPaipanSyncModule, AuthModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule, EntitlementModule, StationPaipanSyncModule, AuthModule, NotificationModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopAttributionService, ShopProductService, ShopOrderService, ShopOrderLifecycleService, ShopPaymentService, ShopRefundService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopAttributionService, ShopOrderService, ShopCouponService, ShopRefundService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
