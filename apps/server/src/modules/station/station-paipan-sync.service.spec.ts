@@ -8,17 +8,21 @@ describe("StationPaipanSyncService", () => {
   };
   const service = new StationPaipanSyncService(prisma as any);
   const originalMode = process.env.PAIPAN_LEGACY_MODE;
+  const originalEntryEnabled = process.env.PAIPAN_LEGACY_ENTRY_ENABLED;
   const originalBase = process.env.PAIPAN_H5_BASE;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.PAIPAN_LEGACY_MODE = "true";
+    delete process.env.PAIPAN_LEGACY_ENTRY_ENABLED;
     process.env.PAIPAN_H5_BASE = "https://www.yrydai.com/guoxueApp.php";
   });
 
   afterAll(() => {
     if (originalMode === undefined) delete process.env.PAIPAN_LEGACY_MODE;
     else process.env.PAIPAN_LEGACY_MODE = originalMode;
+    if (originalEntryEnabled === undefined) delete process.env.PAIPAN_LEGACY_ENTRY_ENABLED;
+    else process.env.PAIPAN_LEGACY_ENTRY_ENABLED = originalEntryEnabled;
     if (originalBase === undefined) delete process.env.PAIPAN_H5_BASE;
     else process.env.PAIPAN_H5_BASE = originalBase;
   });
@@ -34,6 +38,7 @@ describe("StationPaipanSyncService", () => {
     const url = new URL(result.url!);
 
     expect(result.mode).toBe("legacy");
+    expect(result.legacyAvailable).toBe(true);
     expect(url.origin + url.pathname).toBe("https://www.yrydai.com/guoxueApp.php");
     expect(url.searchParams.get("mobile")).toBe("13800138000");
     expect(url.searchParams.get("key")).toBe("f4177cf092b81c645b7752e590a9e90a");
@@ -56,7 +61,28 @@ describe("StationPaipanSyncService", () => {
       mode: "native",
       url: null,
       attributionReady: true,
+      legacyAvailable: false,
     });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("新版首页不自动跳转，旧版按钮单独签发入口", async () => {
+    process.env.PAIPAN_LEGACY_MODE = "false";
+    process.env.PAIPAN_LEGACY_ENTRY_ENABLED = "true";
+    prisma.user.findUnique.mockResolvedValue({ phone: "13800138000", phoneEnc: null, attributionStationId: null });
+
+    await expect(service.getUserEntry("user-1")).resolves.toEqual({
+      mode: "native", url: null, attributionReady: true, legacyAvailable: true,
+    });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    const launch = await service.getUserLaunchEntry("user-1");
+    expect(launch.mode).toBe("native");
+    expect(launch.url).toContain("www.yrydai.com/guoxueApp.php");
+  });
+
+  it("旧版按钮未开放时拒绝签发", async () => {
+    process.env.PAIPAN_LEGACY_MODE = "false";
+    await expect(service.getUserLaunchEntry("user-1")).rejects.toBeInstanceOf(BusinessException);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 

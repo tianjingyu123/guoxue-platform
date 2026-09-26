@@ -36,6 +36,7 @@ const favIds = ref<string[]>([]);
 const entryLoading = ref(true);
 const entryError = ref("");
 const legacyRouting = ref(false);
+const legacyAvailable = ref(false);
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -198,6 +199,7 @@ async function loadPaipanEntry() {
   entryError.value = "";
   try {
     const entry = await legacyPaipanApi.entry();
+    legacyAvailable.value = entry.legacyAvailable === true;
     if (entry.mode === "legacy") {
       if (!entry.url || !entry.url.startsWith("https://")) {
         throw new Error("排盘服务地址未正确配置");
@@ -215,6 +217,7 @@ async function loadPaipanEntry() {
     favIds.value = getFavorites();
     await loadPlatformAgents();
   } catch (error) {
+    legacyAvailable.value = false;
     entryError.value = (error as Error)?.message || "排盘服务暂时不可用";
     // 迁移或短时网络故障不应阻断本地排盘能力，保留工具入口并降级提示。
     favIds.value = getFavorites();
@@ -285,6 +288,23 @@ onShow(() => {
       <!-- 今日时刻 Hero -->
       <view class="section-px hero-wrap">
         <today-hero />
+      </view>
+
+      <view v-if="legacyAvailable" class="section-px legacy-wrap">
+        <view
+          class="legacy-entry"
+          role="link"
+          tabindex="0"
+          aria-label="进入旧版排盘工具"
+          @tap="navigateTo('/pkg-common/legacy-paipan/index')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-common/legacy-paipan/index'))"
+        >
+          <view class="legacy-entry-copy">
+            <text class="legacy-entry-title">习惯旧版排盘？</text>
+            <text class="legacy-entry-desc">继续使用熟悉的旧版工具</text>
+          </view>
+          <text class="legacy-entry-action">进入旧版</text>
+        </view>
       </view>
 
       <!-- 从业者工作台入口（对应 V0 workspace-entry.tsx）
@@ -852,6 +872,21 @@ onShow(() => {
   line-height: 54rpx;
   box-shadow: inset 0 0 0 1rpx rgba(180, 131, 42, 0.28);
 }
+.legacy-wrap { margin-top: 12rpx; }
+.legacy-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 22rpx 26rpx;
+  border: 1rpx solid rgba(139, 106, 74, 0.2);
+  border-radius: 18rpx;
+  background: #fffdfa;
+}
+.legacy-entry-copy { display: flex; flex-direction: column; gap: 5rpx; }
+.legacy-entry-title { color: #463528; font-size: 25rpx; font-weight: 700; }
+.legacy-entry-desc { color: #8b7b6d; font-size: 21rpx; }
+.legacy-entry-action { flex-shrink: 0; color: #8b4d37; font-size: 23rpx; font-weight: 700; }
 .degraded-retry::after {
   border: 0;
 }

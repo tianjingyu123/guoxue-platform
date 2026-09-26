@@ -325,6 +325,7 @@ services:
 
       # ── 旧排盘兼容入口（切换期保留） ──
       PAIPAN_LEGACY_MODE: ${PAIPAN_LEGACY_MODE:-false}
+      PAIPAN_LEGACY_ENTRY_ENABLED: ${PAIPAN_LEGACY_ENTRY_ENABLED:-false}
       PAIPAN_H5_BASE: ${PAIPAN_H5_BASE:-}
 
       # ── 邮件服务 ──

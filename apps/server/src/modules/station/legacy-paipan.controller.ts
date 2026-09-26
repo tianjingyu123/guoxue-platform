@@ -19,4 +19,11 @@ export class LegacyPaipanController {
   getEntry(@Req() req: Request) {
     return this.service.getUserEntry(req.user.id);
   }
+
+  @Get("launch")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "用户主动进入旧版排盘时签发入口" })
+  getLaunchEntry(@Req() req: Request) {
+    return this.service.getUserLaunchEntry(req.user.id);
+  }
 }
