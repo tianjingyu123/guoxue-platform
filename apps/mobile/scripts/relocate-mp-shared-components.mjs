@@ -46,20 +46,22 @@ const relocatableRoots = relocatableNamespaces.map((name) => join(componentRoot,
 // 这些组件不在上面的命名空间里，但经构建产物的 usingComponents 依赖图核实，
 // 同样没有任何主包页面消费者。逐个列出而不是整目录放行，因为 components/common
 // 与根目录下确有主包组件。
-// 只收**单一分包**消费的组件：多分包共用的会被复制到每个分包，反而撑大分包，
-// 而 pkg-paipan / pkg-paipan2 距各自上限已不足 0.02 MB，不能再加负担。
+// 多分包共用组件仅在逐包核实余量后列入；迁移会为每个消费者复制一份。
+// 每次组合新候选后都要重建、核对分包上限及完整引用，不能沿用旧余量。
 const relocatableComponentBases = new Set([
   join(componentRoot, "live", "gift-panel"),                // 仅 pkg-live/watch
   join(componentRoot, "pricing-reference-card"),            // 仅 pkg-course
   join(componentRoot, "common", "name-card-poster"),        // 仅 pkg-creator
   join(componentRoot, "common", "teacher-influence-card"),  // 仅 pkg-creator
   join(componentRoot, "common", "app-skeleton"),            // 仅 pkg-profile
+  join(componentRoot, "agent", "simple-chat"),              // pkg-agent / pkg-circle
+  join(componentRoot, "common", "purchase-sheet"),          // pkg-circle / pkg-course
+  join(componentRoot, "common", "ai-search-modal"),         // pkg-circle / pkg-search
 ]);
 // paipan 首页和首页信息流仍在主包，必须保留其直接依赖；其余同命名空间组件均只在分包使用。
 const retainedComponentBases = new Set([
   join(componentRoot, "classics", "flat-cover"),
   join(componentRoot, "paipan", "today-hero"),
-  join(componentRoot, "paipan", "tool-ai-analysis"),
   join(componentRoot, "paipan", "tool-icon"),
 ]);
 const artifactExtensions = [".js", ".json", ".wxml", ".wxss"];
