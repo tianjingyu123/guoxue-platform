@@ -37,6 +37,7 @@ const mockBotSvc = {
   addBotKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "新知识" }),
   updateBotKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "更新知识" }),
   getBotUsageData: jest.fn().mockResolvedValue({ totalChats: 100, activeUsers: 20 }),
+  purchaseUses: jest.fn().mockResolvedValue({ purchased: 10, paidRemaining: 10 }),
 };
 
 describe("BotController", () => {
@@ -59,6 +60,11 @@ describe("BotController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("购包入口将客户端请求号和当前用户传给服务端幂等逻辑", async () => {
+    await ctrl.purchaseUses({ user: { id: "u1" } } as any, "bot1", "bot-purchase-request-001");
+    expect(mockBotSvc.purchaseUses).toHaveBeenCalledWith("bot1", "u1", "bot-purchase-request-001");
+  });
 
   it("POST /bots — 创建智能体", async () => {
     const dto: any = { name: "国学助手", type: "ASSISTANT" };
