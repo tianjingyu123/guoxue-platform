@@ -5477,6 +5477,10 @@ CREATE TABLE "CommissionRecall" (
     "status" TEXT NOT NULL DEFAULT 'pending',
     "reason" TEXT,
     "sourceId" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "resolvedBy" TEXT,
+    "resolutionNote" TEXT,
+    "resolvedRevenueId" TEXT,
     "offsetCompletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
