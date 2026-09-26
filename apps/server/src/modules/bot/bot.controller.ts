@@ -307,7 +307,7 @@ export class BotController {
     // 富事件流：chunk 文本增量 + meta（conversationId 续聊/免责声明/软性导流），审计落库在 service 内闭环
     const obs = this.svc.chatStreamRich(bot, req.user.id, dto);
 
-    obs.subscribe({
+    const subscription = obs.subscribe({
       next: (ev) => {
         res.write(this.sse.encode(ev));
       },
@@ -320,6 +320,10 @@ export class BotController {
         res.write(this.sse.encode({ type: "done" }));
         res.end();
       },
+    });
+    // 手机切后台或网络断开时停止上游请求；首字尚未产生则由 service 归还本次额度。
+    res.once("close", () => {
+      if (!res.writableEnded) subscription.unsubscribe();
     });
   }
 
