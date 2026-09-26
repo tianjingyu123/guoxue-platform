@@ -15,7 +15,7 @@ const plain = value => JSON.parse(JSON.stringify(value))
 const fixture = () => ({ kind: 'page', title: '八字排盘', text: '测试分享', url: '', imageUrl: '' })
 
 // 仅使用合成页面/图片，所有原生 SDK 都是内存桩，不连接手机、不外发、不保存真实照片。
-function runtime(overrides = {}, plusOverrides = {}) {
+function runtime(overrides = {}, plusOverrides = {}, hasGlobalUrl = true) {
   const calls = []
   const uni = {
     getSystemInfoSync: () => ({ platform: 'android' }),
@@ -39,7 +39,9 @@ function runtime(overrides = {}, plusOverrides = {}) {
     },
   }
   const exports = {}
-  vm.runInNewContext(compile(source), { exports, uni, plus, URL, setTimeout, clearTimeout })
+  const globals = { exports, uni, plus, setTimeout, clearTimeout }
+  if (hasGlobalUrl) globals.URL = URL
+  vm.runInNewContext(compile(source), globals)
   const options = {
     canProceed: () => true,
     capture: async () => { calls.push(['capture']); return '_doc/fixture-capture.jpg' },
@@ -329,6 +331,28 @@ test('当前第三方结果页转换为热卜承接链接，App入口不直接�
   const landing = api.legacyShareLandingUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc')
   assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\?target=/u)
   assert.equal(decodeURIComponent(new URL(landing).searchParams.get('target')), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
+})
+
+test('App 无全局 URL 时仍能转换公开盘面，保留数字推荐来源并拒绝敏感参数', () => {
+  const { api } = runtime({}, {}, false)
+  const result = 'https://www.yrydai.cn/app_p1.php?mod=bazi&act=view&id=fixture-1&ruid=123'
+  assert.equal(api.publicLegacyResultUrl(result), 'https://www.yrydai.cn/p1.php?mod=bazi&act=view&id=fixture-1&ruid=123')
+  assert.match(api.legacyShareLandingUrl(result), /legacy-paipan-share\/index\?target=/u)
+  assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'ruid=abc')), '')
+  assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'token=SECRET')), '')
+})
+
+test('两个网页桥均只接收受控数字推荐来源', () => {
+  const late = page.match(/function legacyNavigationBridgeScript\(\): string \{\s*return `([\s\S]*?)`\s*\}/u)[1]
+  for (const script of [preload, late]) {
+    const assigned = []
+    const window = { location: { hostname: 'www.yrydai.cn', href: 'https://www.yrydai.cn/p1.php?id=fixture-1', assign: value => assigned.push(value) }, history: { length: 1 } }
+    vm.runInNewContext(script, { URL, window, document: { documentElement: {}, querySelectorAll: () => [], addEventListener: () => {}, readyState: 'complete' } })
+    window.webUni.postMessage({ action: 'share', payload: { path: 'https://www.yrydai.cn/p1.php?mod=bazi&act=view&id=fixture-1&ruid=123' } })
+    assert.match(decodeURIComponent(assigned.at(-1)), /ruid=123/u)
+    window.webUni.postMessage({ action: 'share', payload: { path: 'https://www.yrydai.cn/p1.php?id=fixture-1&ruid=abc' } })
+    assert.doesNotMatch(decodeURIComponent(assigned.at(-1)), /ruid=abc/u)
+  }
 })
 
 test('有公开结果时微信优先分享热卜网页卡片', async () => {
