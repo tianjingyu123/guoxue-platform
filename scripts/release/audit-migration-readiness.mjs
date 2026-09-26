@@ -84,7 +84,7 @@ const legacyRouteStart = mobilePages.indexOf('"path": "legacy-paipan/index"');
 const legacyRouteConfig = mobilePages.slice(legacyRouteStart, legacyRouteStart + 320);
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端旧排盘正式承接且新排盘仅隔离 QA 开放",
+  "旧排盘正式承接、小程序暂缓开放且新排盘仅隔离 QA 可用",
   paipanClient.includes("/legacy-paipan/entry") &&
     paipanService.includes("this.runtime.isNative()") &&
     paipanService.includes('return { mode: "native", url: null') &&
@@ -92,8 +92,13 @@ add(
     paipanPage.includes('if (runtimeMode !== "legacy")') &&
     paipanPage.includes("排盘服务状态暂时无法确认") &&
     paipanPage.includes('/pkg-common/legacy-paipan/index') &&
-    legacyPaipanPage.includes("window.open('', '_blank')") &&
-    legacyPaipanPage.includes('opened.location.replace(legacyUrl.value)') &&
+    legacyPaipanPage.includes("markLegacyDeparture(window.history)") &&
+    legacyPaipanPage.includes("window.location.assign(url)") &&
+    legacyPaipanPage.includes("consumeLegacyReturn(window.history)") &&
+    legacyPaipanPage.includes("child.setJsFile?.('_www/static/legacy-paipan-preload.js')") &&
+    legacyPaipanPage.includes("child.loadURL(legacyUrl.value)") &&
+    legacyPaipanPage.includes("miniProgramUnavailable.value = true") &&
+    legacyPaipanPage.includes("热卜排盘工具正在升级中") &&
     legacyPaipanPage.includes('<web-view') &&
     legacyPaipanPage.includes('@message="handleLegacyMessage"') &&
     legacyPaipanPage.includes('onBackPress(() =>') &&
@@ -101,7 +106,7 @@ add(
     legacyRouteConfig.includes('"navigationStyle": "custom"') &&
     !legacyRouteConfig.includes('"navigationBarTitleText"') &&
     !paipanPage.includes("核心工具仍可使用"),
-  "服务端明确 legacy 时普通用户统一进入旧排盘；探针失败不泄露新排盘，四端保留稳定退出路径",
+  "H5 同页跳转并保留返回标记，App 受控子 WebView，小程序按当前发布策略暂缓，探针失败不泄露新排盘",
 );
 
 const productionTemplate = read("docker/.env.production.example");
