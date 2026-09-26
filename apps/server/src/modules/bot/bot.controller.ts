@@ -272,12 +272,24 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  chat(
+  async chat(
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
-    return this.svc.chat(id, req.user.id, dto);
+    const { quotaUse, ...reply } = await this.svc.chat(id, req.user.id, dto);
+    // 仅在 HTTP 响应写完后确认消耗；连接提前关闭则释放，进程中断由超时预留回收。
+    let finished = false;
+    res.once("finish", () => {
+      finished = true;
+      void this.svc.markDeliveredQuota(quotaUse).catch((err: Error) =>
+        this.logger.error(`智能体额度确认异常 [${id}]: ${err.message}`));
+    });
+    res.once("close", () => {
+      if (!finished) void this.svc.releaseFailedQuotaSafely(id, req.user.id, quotaUse);
+    });
+    return reply;
   }
 
   @Post(":id/chat/stream")

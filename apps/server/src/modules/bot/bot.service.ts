@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Observable } from "rxjs";
+import { Cron } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -27,6 +28,9 @@ const PUBLIC_HIDDEN_BOT_TYPES = [
   "REPORT_FACTORY",
   "GOODS_RECOMMENDER",
 ] as const;
+
+type QuotaCharge = "free_bot" | "member" | "trial" | "paid";
+type QuotaUse = { charge: QuotaCharge; reservationId?: string };
 
 /**
  * 平台智能体统一协作协议。
@@ -72,57 +76,97 @@ export class BotService {
   }
 
   /** 追问额度检查与消耗（chat 与 chat/stream 共用）；耗尽抛出购买/开通会员引导 */
-  async consumeQuota(botConfigId: string, userId: string): Promise<"free_bot" | "member" | "trial" | "paid"> {
+  async consumeQuota(botConfigId: string, userId: string): Promise<QuotaUse> {
     const bot = await this.getBotOrThrow(botConfigId);
-    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return "free_bot"; // 免费智能体（仍受既有 dailyLimit 约束）
-    if (await this.isActiveMember(userId)) return "member"; // 会员权益：全部智能体免费
+    if (!bot.pricePer10Coin || bot.pricePer10Coin <= 0) return { charge: "free_bot" };
+    if (await this.isActiveMember(userId)) return { charge: "member" };
 
-    const quota = await this.prisma.userBotQuota.upsert({
-      where: { userId_botConfigId: { userId, botConfigId } },
-      create: { userId, botConfigId },
-      update: {},
-    });
     const freeUses = bot.freeUses ?? 0;
-    if (freeUses > 0) {
-      // 条件更新与递增由数据库原子完成；并发请求不能同时跨过免费试用上限。
-      const trial = await this.prisma.userBotQuota.updateMany({
-        where: { id: quota.id, freeUsed: { lt: freeUses } },
-        data: { freeUsed: { increment: 1 } },
+    return this.prisma.$transaction(async (tx) => {
+      const quota = await tx.userBotQuota.upsert({
+        where: { userId_botConfigId: { userId, botConfigId } },
+        create: { userId, botConfigId },
+        update: {},
       });
-      if (trial.count > 0) return "trial";
-    }
-    // 原子条件扣减，防并发透支
-    const consumed = await this.prisma.userBotQuota.updateMany({
-      where: { id: quota.id, paidRemaining: { gt: 0 } },
-      data: { paidRemaining: { decrement: 1 } },
+      let charge: "trial" | "paid" | undefined;
+      if (freeUses > 0) {
+        const trial = await tx.userBotQuota.updateMany({
+          where: { id: quota.id, freeUsed: { lt: freeUses } },
+          data: { freeUsed: { increment: 1 } },
+        });
+        if (trial.count > 0) charge = "trial";
+      }
+      if (!charge) {
+        const consumed = await tx.userBotQuota.updateMany({
+          where: { id: quota.id, paidRemaining: { gt: 0 } },
+          data: { paidRemaining: { decrement: 1 } },
+        });
+        if (consumed.count > 0) charge = "paid";
+      }
+      if (!charge) throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
+      );
+      const reservation = await tx.botQuotaReservation.create({
+        data: { userId, botConfigId, charge },
+        select: { id: true },
+      });
+      return { charge, reservationId: reservation.id };
     });
-    if (consumed.count > 0) return "paid";
-    throw new BusinessException(
-      ErrorCode.BAD_REQUEST,
-      `免费追问次数已用完：可购买追问包（${bot.pricePer10Coin}币/10次），或开通会员畅享全部智能体`,
-    );
   }
 
-  /** 上游未产生回答时归还本次消耗；调用方须保证每个请求最多调用一次。 */
-  private async releaseFailedQuota(botConfigId: string, userId: string, charge: "free_bot" | "member" | "trial" | "paid") {
-    if (charge === "trial") {
-      await this.prisma.userBotQuota.updateMany({
-        where: { userId, botConfigId, freeUsed: { gt: 0 } },
-        data: { freeUsed: { decrement: 1 } },
+  /** 只有 RESERVED 能释放；状态变更与退额在同一事务，重复/跨进程调用不会双退。 */
+  async releaseFailedQuota(botConfigId: string, userId: string, use: QuotaUse) {
+    if (!use.reservationId) return;
+    if (use.charge !== "trial" && use.charge !== "paid") throw new Error("智能体预留类型无效");
+    await this.prisma.$transaction(async (tx) => {
+      const released = await tx.botQuotaReservation.updateMany({
+        where: { id: use.reservationId, userId, botConfigId, charge: use.charge, status: "RESERVED" },
+        data: { status: "RELEASED", settledAt: new Date() },
       });
-    } else if (charge === "paid") {
-      await this.prisma.userBotQuota.updateMany({
-        where: { userId, botConfigId },
-        data: { paidRemaining: { increment: 1 } },
+      if (released.count === 0) return;
+      const quota = await tx.userBotQuota.updateMany({
+        where: { userId, botConfigId, ...(use.charge === "trial" ? { freeUsed: { gt: 0 } } : {}) },
+        data: use.charge === "trial"
+          ? { freeUsed: { decrement: 1 } }
+          : { paidRemaining: { increment: 1 } },
       });
-    }
+      if (quota.count !== 1) throw new Error("智能体额度账户缺失，回滚本次释放");
+    });
   }
 
-  private async releaseFailedQuotaSafely(botConfigId: string, userId: string, charge: "free_bot" | "member" | "trial" | "paid") {
+  /** 回答已经外发后确认消费；数据库暂不可用则保留预留，超时按用户优先原则返还。 */
+  async markDeliveredQuota(use: QuotaUse) {
+    if (!use.reservationId) return;
+    await this.prisma.botQuotaReservation.updateMany({
+      where: { id: use.reservationId, status: "RESERVED" },
+      data: { status: "DELIVERED", settledAt: new Date() },
+    });
+  }
+
+  async releaseFailedQuotaSafely(botConfigId: string, userId: string, use: QuotaUse) {
     try {
-      await this.releaseFailedQuota(botConfigId, userId, charge);
+      await this.releaseFailedQuota(botConfigId, userId, use);
     } catch (err) {
       this.logger.error(`智能体失败额度归还异常 [${botConfigId}]: ${(err as Error).message}`);
+    }
+  }
+
+  /** 双节点可同时运行：条件更新锁定单条预留，未外发成功的超时请求只退一次。 */
+  @Cron("0 */5 * * * *")
+  async sweepStaleQuotaReservations() {
+    const stale = await this.prisma.botQuotaReservation.findMany({
+      where: { status: "RESERVED", createdAt: { lt: new Date(Date.now() - 30 * 60 * 1000) } },
+      select: { id: true, userId: true, botConfigId: true, charge: true },
+      take: 100,
+      orderBy: { createdAt: "asc" },
+    });
+    for (const row of stale) {
+      if (row.charge !== "trial" && row.charge !== "paid") {
+        this.logger.error(`智能体预留类型无效 [${row.id}]`);
+        continue;
+      }
+      await this.releaseFailedQuotaSafely(row.botConfigId, row.userId, { charge: row.charge, reservationId: row.id });
     }
   }
 
@@ -418,7 +462,7 @@ export class BotService {
     }
 
     // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
-    const charge = await this.consumeQuota(botConfigId, userId);
+    const quotaUse = await this.consumeQuota(botConfigId, userId);
     let result: Awaited<ReturnType<CozeService["chat"]>> | Awaited<ReturnType<BotService["localChat"]>>;
     try {
       result = bot.runtime === "local"
@@ -432,7 +476,7 @@ export class BotService {
           });
       if (typeof result.content !== "string" || !result.content.trim()) throw new Error("智能体未返回有效内容，请重试");
     } catch (err) {
-      await this.releaseFailedQuotaSafely(botConfigId, userId, charge);
+      await this.releaseFailedQuotaSafely(botConfigId, userId, quotaUse);
       throw err;
     }
 
@@ -461,12 +505,12 @@ export class BotService {
       });
     } catch (err) {
       // 回答尚未交给客户端；审计记录保存失败时不应让用户白扣一次追问。
-      await this.releaseFailedQuotaSafely(botConfigId, userId, charge);
+      await this.releaseFailedQuotaSafely(botConfigId, userId, quotaUse);
       throw err;
     }
 
     // 合规：AI 输出统一附带风险免责声明（前端在气泡下方展示）
-    return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation };
+    return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation, quotaUse };
   }
 
   /** 流式对话（返回 Observable，控制器处理为SSE） */
@@ -488,8 +532,8 @@ export class BotService {
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
     }
-    const quotaCharge = await this.consumeQuota(botConfigId, userId);
-    return { ...bot, quotaCharge };
+    const quotaUse = await this.consumeQuota(botConfigId, userId);
+    return { ...bot, quotaUse };
   }
 
   /**
@@ -499,7 +543,7 @@ export class BotService {
    * - 审计：完整净文本落 BotChatLog（与非流式同表同结构）
    */
   chatStreamRich(
-    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null; quotaCharge?: "free_bot" | "member" | "trial" | "paid" },
+    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null; quotaUse?: QuotaUse },
     userId: string,
     dto: ChatDto,
   ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
@@ -509,10 +553,21 @@ export class BotService {
       let conversationId = dto.conversationId || "";
       let chatId: string | undefined;
       let quotaSettled = false;
+      let visibleDelivered = false;
       const releaseIfEmpty = async () => {
-        if (quotaSettled || full.trim()) return;
+        if (quotaSettled || visibleDelivered) return;
         quotaSettled = true;
-        if (bot.quotaCharge) await this.releaseFailedQuotaSafely(bot.id, userId, bot.quotaCharge);
+        if (bot.quotaUse) await this.releaseFailedQuotaSafely(bot.id, userId, bot.quotaUse);
+      };
+
+      const emitVisible = (content: string) => {
+        if (!content) return;
+        subscriber.next({ type: "chunk", content });
+        if (!visibleDelivered && content.trim()) {
+          visibleDelivered = true;
+          if (bot.quotaUse) void this.markDeliveredQuota(bot.quotaUse).catch((err) =>
+            this.logger.error(`智能体额度确认异常 [${bot.id}]: ${(err as Error).message}`));
+        }
       };
 
       /** 输出安全前缀：可外发部分立即 emit，协议标记起点及其后滞留 */
@@ -520,7 +575,7 @@ export class BotService {
         const idx = s.indexOf("<!--");
         if (idx >= 0) {
           // 命中协议标记起点：之前的照发，标记及其后全部滞留（协议约定标记在回复末尾）
-          if (idx > 0) subscriber.next({ type: "chunk", content: s.slice(0, idx) });
+          if (idx > 0) emitVisible(s.slice(0, idx));
           held = s.slice(idx);
           return;
         }
@@ -532,7 +587,7 @@ export class BotService {
             break;
           }
         }
-        if (cut > 0) subscriber.next({ type: "chunk", content: s.slice(0, cut) });
+        if (cut > 0) emitVisible(s.slice(0, cut));
         held = s.slice(cut);
       };
 
@@ -580,7 +635,12 @@ export class BotService {
                 // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
                 const alreadySent = full.length - held.length;
                 if (cleanContent.length > alreadySent) {
-                  subscriber.next({ type: "chunk", content: cleanContent.slice(alreadySent) });
+                  emitVisible(cleanContent.slice(alreadySent));
+                }
+                if (!visibleDelivered) {
+                  await releaseIfEmpty();
+                  subscriber.error(new Error("智能体未返回有效内容，请重试"));
+                  return;
                 }
                 await this.prisma.botChatLog.create({
                   data: {

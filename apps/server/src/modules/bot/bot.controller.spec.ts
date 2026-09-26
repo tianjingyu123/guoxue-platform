@@ -23,10 +23,12 @@ const mockBotSvc = {
   addKnowledge: jest.fn().mockResolvedValue({ id: "k1", title: "知识条目" }),
   deleteKnowledgeAsOwner: jest.fn().mockResolvedValue({ success: true }),
   deleteKnowledge: jest.fn().mockResolvedValue({ success: true }),
-  chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？" }),
+  chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？", quotaUse: { charge: "trial", reservationId: "r1" } }),
+  markDeliveredQuota: jest.fn().mockResolvedValue(undefined),
+  releaseFailedQuotaSafely: jest.fn().mockResolvedValue(undefined),
   getBotForChat: jest.fn().mockResolvedValue({ botId: "bot1", apiKey: "key123" }),
   chatStream: jest.fn().mockReturnValue(jest.fn()),
-  precheckChat: jest.fn().mockResolvedValue({ id: "bot1", botId: "coze-1", apiKey: "key123", quotaCharge: "trial" }),
+  precheckChat: jest.fn().mockResolvedValue({ id: "bot1", botId: "coze-1", apiKey: "key123", quotaUse: { charge: "trial", reservationId: "r1" } }),
   chatStreamRich: jest.fn(),
   getChatHistory: jest.fn().mockResolvedValue([{ role: "user", content: "你好" }]),
   getBotApprovalList: jest.fn().mockResolvedValue([{ circleId: "c1", status: "PENDING" }]),
@@ -122,9 +124,22 @@ describe("BotController", () => {
   it("POST /bots/:id/chat — 非流式对话", async () => {
     const req: any = { user: { id: "u1" } };
     const dto: any = { query: "你好" };
-    const result: any = await ctrl.chat(req, "bot1", dto);
+    const res = new EventEmitter();
+    const result: any = await ctrl.chat(req, res as any, "bot1", dto);
     expect(result.reply).toContain("你好");
+    expect(result.quotaUse).toBeUndefined();
     expect(mockBotSvc.chat).toHaveBeenCalledWith("bot1", "u1", dto);
+    res.emit("finish");
+    expect(mockBotSvc.markDeliveredQuota).toHaveBeenCalledWith({ charge: "trial", reservationId: "r1" });
+    expect(mockBotSvc.releaseFailedQuotaSafely).not.toHaveBeenCalled();
+  });
+
+  it("非流式连接在响应完成前关闭时释放本次预留", async () => {
+    const res = new EventEmitter();
+    await ctrl.chat({ user: { id: "u1" } } as any, res as any, "bot1", { query: "问题" } as any);
+    res.emit("close");
+    expect(mockBotSvc.releaseFailedQuotaSafely).toHaveBeenCalledWith("bot1", "u1", { charge: "trial", reservationId: "r1" });
+    expect(mockBotSvc.markDeliveredQuota).not.toHaveBeenCalled();
   });
 
   it("SSE 连接首字前断开时取消上游订阅", async () => {

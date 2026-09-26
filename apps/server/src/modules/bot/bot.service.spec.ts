@@ -40,6 +40,11 @@ const mockPrisma = {
   user: { findUnique: jest.fn() },
   botChatLog: { count: jest.fn(), create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn() },
   userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
+  botQuotaReservation: {
+    create: jest.fn().mockResolvedValue({ id: "reservation-1" }),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findMany: jest.fn(),
+  },
   // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
@@ -127,14 +132,14 @@ describe("BotService", () => {
 
     it("免费智能体（pricePer10Coin=0）直接放行", async () => {
       asBot({ ...PAID_BOT, pricePer10Coin: 0 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("free_bot");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "free_bot" });
       expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
     });
 
     it("有效会员免费（终身会员 memberExpire 为空）", async () => {
       asBot(PAID_BOT);
       mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "LIFETIME", memberExpire: null });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("member");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "member" });
     });
 
     it("非会员试用期内消耗免费次数", async () => {
@@ -142,7 +147,7 @@ describe("BotService", () => {
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 1, paidRemaining: 0 });
       mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 1 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("trial");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "trial", reservationId: "reservation-1" });
       expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledWith({
         where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
       });
@@ -156,7 +161,7 @@ describe("BotService", () => {
       mockPrisma.userBotQuota.updateMany
         .mockResolvedValueOnce({ count: 0 })
         .mockResolvedValueOnce({ count: 1 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "paid", reservationId: "reservation-1" });
       expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(1, {
         where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
       });
@@ -180,7 +185,7 @@ describe("BotService", () => {
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 5 });
       mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
-      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+      expect(await svc.consumeQuota("b1", "u1")).toEqual({ charge: "paid", reservationId: "reservation-1" });
     });
 
     it("额度耗尽抛出购买/会员引导", async () => {
@@ -189,6 +194,49 @@ describe("BotService", () => {
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 0 });
       mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 0 });
       await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+    });
+
+    it("扣减与预留流水共用事务，流水写失败不发放成功回执", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1" });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.botQuotaReservation.create.mockRejectedValueOnce(new Error("ledger unavailable"));
+      await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow("ledger unavailable");
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("额度预留结算", () => {
+    const use = { charge: "trial" as const, reservationId: "r1" };
+
+    it("重复失败释放只返还一次，且只允许同一用户的预留", async () => {
+      mockPrisma.botQuotaReservation.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      await svc.releaseFailedQuota("b1", "u1", use);
+      await svc.releaseFailedQuota("b1", "u1", use);
+      expect(mockPrisma.botQuotaReservation.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: "r1", userId: "u1", botConfigId: "b1", status: "RESERVED" }),
+      }));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("已交付预留只能由 RESERVED 状态确认", async () => {
+      await svc.markDeliveredQuota(use);
+      expect(mockPrisma.botQuotaReservation.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1", status: "RESERVED" }, data: expect.objectContaining({ status: "DELIVERED" }),
+      }));
+    });
+
+    it("超时扫尾只处理过期未交付预留", async () => {
+      mockPrisma.botQuotaReservation.findMany.mockResolvedValue([{ id: "r1", userId: "u1", botConfigId: "b1", charge: "trial" }]);
+      mockPrisma.botQuotaReservation.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      await svc.sweepStaleQuotaReservations();
+      expect(mockPrisma.botQuotaReservation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "RESERVED", createdAt: { lt: expect.any(Date) } }),
+      }));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
     });
   });
 
