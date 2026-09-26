@@ -5475,6 +5475,7 @@ CREATE TABLE "CommissionRecall" (
     "amount" DECIMAL(10,2) NOT NULL,
     "balanceAfter" DECIMAL(10,2) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
+    "reason" TEXT,
     "offsetCompletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -8580,6 +8581,9 @@ CREATE INDEX "CommissionRecall_userId_status_idx" ON "CommissionRecall"("userId"
 
 -- CreateIndex
 CREATE INDEX "CommissionRecall_refundId_idx" ON "CommissionRecall"("refundId");
+
+-- CreateIndex
+CREATE INDEX "CommissionRecall_status_createdAt_idx" ON "CommissionRecall"("status", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserWallet_userId_key" ON "UserWallet"("userId");
