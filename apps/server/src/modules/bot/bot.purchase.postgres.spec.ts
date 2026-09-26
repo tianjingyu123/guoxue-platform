@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
 import { BotService } from "./bot.service";
+import { CoinService } from "../coin/coin.service";
 
 jest.setTimeout(60000);
 const testUrl = process.env.BOT_QUOTA_TEST_DATABASE_URL;
@@ -15,22 +16,8 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
   const botConfigId = `bot-purchase-qa-${randomUUID()}`;
   const price = 100;
 
-  const coin = {
-    async spend(userId: string, input: { amountCoin: number; scene: string; refId?: string; description?: string }, tx: PrismaClient) {
-      const result = await tx.virtualCoinAccount.updateMany({
-        where: { userId, balance: { gte: input.amountCoin } },
-        data: { balance: { decrement: input.amountCoin }, totalSpent: { increment: input.amountCoin } },
-      });
-      if (result.count !== 1) throw new Error('测试账户余额不足');
-      const account = await tx.virtualCoinAccount.findUniqueOrThrow({ where: { userId } });
-      await tx.virtualCoinTransaction.create({
-        data: { userId, type: 'SPEND', amountCoin: -input.amountCoin, balanceAfter: account.balance,
-          scene: 'BOT_CALL', refId: input.refId, description: input.description },
-      });
-    },
-  };
-
   const service = (db: PrismaClient) => {
+    const coin = new CoinService(db as any, {} as any);
     const svc = new BotService(db as any, {} as any, {} as any, {} as any, coin as any);
     jest.spyOn(svc as any, 'getBotOrThrow').mockResolvedValue({ id: botConfigId, name: '测试助手', pricePer10Coin: price });
     return svc;
