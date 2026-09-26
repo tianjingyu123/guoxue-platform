@@ -12,14 +12,16 @@
             <text class="a1-brand-h2">赛事中心</text>
             <text class="a1-brand-en">COMPETITION ARENA</text>
           </view>
-          <view class="a1-brand-nav">
-            <text class="a1-brand-nav-link" @tap="go('/pkg-competition/talents/index')">人才榜</text>
-          </view>
         </view>
         <!-- 搜索框 -->
-        <view class="a1-search">
-          <app-icon name="search" :size="16" color="#b7b0a6" />
-          <input v-model="searchQuery" class="a1-search-input" placeholder="搜索赛事 / 承办圈子 / 关键词" placeholder-class="a1-search-ph" />
+        <view class="a1-search-row">
+          <view class="a1-search">
+            <app-icon name="search" :size="16" color="#b7b0a6" />
+            <input v-model="searchQuery" class="a1-search-input" placeholder="搜索赛事 / 圈子 / 关键词" placeholder-class="a1-search-ph" />
+          </view>
+          <view class="a1-brand-nav" role="button" aria-label="查看人才榜" @tap="go('/pkg-competition/talents/index')">
+            <text class="a1-brand-nav-link">人才榜</text>
+          </view>
         </view>
       </view>
 
@@ -321,12 +323,14 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .a1-brand-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .a1-brand-h2 { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: 3px; font-family: 'Songti SC', 'STSong', serif; }
 .a1-brand-en { color: rgba(255,255,255,0.55); font-size: 10px; letter-spacing: 1px; margin-top: 1px; }
-.a1-brand-nav { flex-shrink: 0; }
-.a1-brand-nav-link { color: rgba(255,255,255,0.85); font-size: 13px; }
+.a1-brand-nav { height: 42px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.44); border-radius: 999px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.a1-brand-nav:active { background: rgba(255,255,255,0.16); }
+.a1-brand-nav-link { color: #fff; font-size: 13px; font-weight: 600; }
 
 /* 搜索框 */
-.a1-search { margin-top: 16px; height: 42px; border-radius: 999px; background: rgba(255,255,255,0.92); display: flex; align-items: center; padding: 0 16px; gap: 9px; }
-.a1-search-input { flex: 1; font-size: 13px; color: #2C2C2C; }
+.a1-search-row { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+.a1-search { flex: 1; min-width: 0; height: 42px; border-radius: 999px; background: rgba(255,255,255,0.92); display: flex; align-items: center; padding: 0 16px; gap: 9px; }
+.a1-search-input { flex: 1; min-width: 0; font-size: 13px; color: #2C2C2C; }
 .a1-search-ph { color: #b7b0a6; }
 
 /* 三态 */
