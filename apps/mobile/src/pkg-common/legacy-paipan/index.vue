@@ -6,9 +6,10 @@ import { legacyPaipanApi } from '@/lib/legacy-paipan-data'
 const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
+const returnPath = ref('/pages/index/index')
 
 function returnToNewSystem() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  uni.reLaunch({ url: returnPath.value })
 }
 
 async function loadEntry() {
@@ -16,11 +17,8 @@ async function loadEntry() {
   error.value = ''
   legacyUrl.value = ''
   try {
-    const entry = await legacyPaipanApi.entry()
-    if (entry.mode !== 'legacy') {
-      uni.reLaunch({ url: '/pages/paipan/index' })
-      return
-    }
+    const entry = await legacyPaipanApi.launch()
+    returnPath.value = entry.mode === 'legacy' ? '/pages/index/index' : '/pages/paipan/index'
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('旧排盘地址未正确配置')
     legacyUrl.value = entry.url
   } catch (cause) {
@@ -76,7 +74,7 @@ onBackPress(() => {
     <text class="title">暂时无法进入旧版排盘</text>
     <text class="desc">{{ error }}</text>
     <button class="action primary" @tap="loadEntry">重试</button>
-    <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
+    <button class="action" @tap="returnToNewSystem">{{ returnPath === '/pages/index/index' ? '返回热卜首页' : '返回新版排盘' }}</button>
   </view>
 
   <!-- #ifdef H5 -->
@@ -86,7 +84,7 @@ onBackPress(() => {
       <text class="title">旧版排盘兼容服务</text>
       <text class="desc">旧版排盘将在新页面打开；当前热卜页面会保留，完成后关闭新页面即可返回。</text>
       <button class="action primary" @tap="openLegacyH5">打开旧版排盘</button>
-      <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
+      <button class="action" @tap="returnToNewSystem">{{ returnPath === '/pages/index/index' ? '返回热卜首页' : '返回新版排盘' }}</button>
       <text class="tip">若浏览器阻止新页面，将改在当前页打开，可使用浏览器返回键回到热卜。</text>
     </view>
   </view>

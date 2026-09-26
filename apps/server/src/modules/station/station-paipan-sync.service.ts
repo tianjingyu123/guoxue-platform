@@ -9,6 +9,7 @@ export interface LegacyPaipanEntry {
   mode: "legacy" | "native";
   url: string | null;
   attributionReady: boolean;
+  legacyAvailable: boolean;
 }
 
 /**
@@ -25,9 +26,26 @@ export class StationPaipanSyncService {
 
   async getUserEntry(userId: string): Promise<LegacyPaipanEntry> {
     if (process.env.PAIPAN_LEGACY_MODE !== "true") {
-      return { mode: "native", url: null, attributionReady: true };
+      return { mode: "native", url: null, attributionReady: true, legacyAvailable: this.legacyEntryEnabled() };
     }
 
+    return this.getLegacyEntry(userId);
+  }
+
+  /** 长期并存入口只在用户主动点击后签发，和整页回滚开关分离。 */
+  async getUserLaunchEntry(userId: string): Promise<LegacyPaipanEntry> {
+    if (!this.legacyEntryEnabled()) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "旧版排盘入口暂未开放");
+    }
+    const entry = await this.getLegacyEntry(userId);
+    return { ...entry, mode: process.env.PAIPAN_LEGACY_MODE === "true" ? "legacy" : "native" };
+  }
+
+  private legacyEntryEnabled(): boolean {
+    return process.env.PAIPAN_LEGACY_MODE === "true" || process.env.PAIPAN_LEGACY_ENTRY_ENABLED === "true";
+  }
+
+  private async getLegacyEntry(userId: string): Promise<LegacyPaipanEntry> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -48,7 +66,7 @@ export class StationPaipanSyncService {
 
     const url = this.buildSignedEntryUrl(phone);
     const attributionReady = await this.isAttributionReady(user.attributionStationId);
-    return { mode: "legacy", url, attributionReady };
+    return { mode: "legacy", url, attributionReady, legacyAvailable: true };
   }
 
   /**
