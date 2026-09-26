@@ -109,17 +109,45 @@ describe("BotService", () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 1, paidRemaining: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 1 });
       expect(await svc.consumeQuota("b1", "u1")).toBe("trial");
-      expect(mockPrisma.userBotQuota.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { freeUsed: { increment: 1 } } }),
-      );
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledWith({
+        where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
+      });
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
+    });
+
+    it("并发中试用额度被其他请求抢先用尽后转用已购次数", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 1 });
+      mockPrisma.userBotQuota.updateMany
+        .mockResolvedValueOnce({ count: 0 })
+        .mockResolvedValueOnce({ count: 1 });
+      expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(1, {
+        where: { id: "q1", freeUsed: { lt: 3 } }, data: { freeUsed: { increment: 1 } },
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenNthCalledWith(2, {
+        where: { id: "q1", paidRemaining: { gt: 0 } }, data: { paidRemaining: { decrement: 1 } },
+      });
+    });
+
+    it("并发中试用额度被抢先用尽且无已购次数时拒绝，不超发试用", async () => {
+      asBot(PAID_BOT);
+      asNonMember();
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 0 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 });
+      await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+      expect(mockPrisma.userBotQuota.update).not.toHaveBeenCalled();
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it("试用用完扣追问包（原子条件扣减）", async () => {
       asBot(PAID_BOT);
       asNonMember();
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 5 });
-      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
       expect(await svc.consumeQuota("b1", "u1")).toBe("paid");
     });
 
