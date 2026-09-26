@@ -19,6 +19,10 @@ import type { CourseCardData } from '@/lib/card-utils'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const statusBarHeight = ref(0)
+let miniProgram = false
+// #ifdef MP-WEIXIN
+miniProgram = true
+// #endif
 const categoryTabs = ref<{ id: string; name: string }[]>([])
 const newCourses = ref<CourseCardData[]>([])
 const showSortSheet = ref(false)
@@ -149,7 +153,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 
 <template>
   <view class="page">
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav" :class="{ 'nav-mp': miniProgram }" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view>
         <text class="nav-title serif">课程</text>
         <text class="nav-subtitle">找到适合自己的学习主线</text>
@@ -366,6 +370,8 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 .nav-title { display: block; color: #24211f; font-size: 43rpx; font-weight: 800; letter-spacing: 2rpx; }
 .nav-subtitle { display: block; margin-top: 3rpx; color: #8c8278; font-size: 21rpx; }
 .nav-icons { display: flex; align-items: center; gap: 12rpx; }
+.nav-mp { flex-wrap: wrap; row-gap: 6rpx; }
+.nav-mp .nav-icons { width: 100%; justify-content: flex-end; }
 .nav-btn {
   width: 88rpx;
   height: 88rpx;

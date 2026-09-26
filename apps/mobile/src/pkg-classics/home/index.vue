@@ -17,6 +17,11 @@ const rankingData = ref<RankItem[]>([])
 const audioBooks = ref<AudioItem[]>([])
 const featuredBooks = ref<FeaturedItem[]>([])
 const filterTypes = _mockFilterTypes
+let miniProgram = false
+// #ifdef MP-WEIXIN
+miniProgram = true
+// #endif
+const capsuleInset = ref(0)
 
 const loading = ref(true)
 const error = ref('')
@@ -45,7 +50,16 @@ async function fetchData() {
   }
 }
 
-onMounted(() => { fetchData() })
+onMounted(() => {
+  // #ifdef MP-WEIXIN
+  try {
+    const rect = uni.getMenuButtonBoundingClientRect()
+    const width = uni.getSystemInfoSync().windowWidth
+    capsuleInset.value = Math.max(0, width - rect.left + 8)
+  } catch { capsuleInset.value = 104 }
+  // #endif
+  fetchData()
+})
 
 // 下拉刷新：重拉古籍馆首页
 onPullDownRefresh(async () => {
@@ -157,7 +171,7 @@ async function onRefreshRanking() {
     <!-- 顶部导航 - 苹果式半透明 -->
     <view class="ch-topbar">
       <view class="ch-statusbar" />
-      <view class="ch-topbar-inner">
+      <view class="ch-topbar-inner" :style="miniProgram ? { paddingRight: capsuleInset + 'px' } : undefined">
         <view
           class="ch-circle-btn"
           role="button"
