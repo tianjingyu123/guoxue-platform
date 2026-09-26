@@ -2771,6 +2771,7 @@ add(
 );
 
 const serverConfigSource = read("apps/server/src/config/server-config.ts");
+const h5EntrySource = read("apps/server/src/config/h5-entry.ts");
 const websocketGatewaySource = read("apps/server/src/modules/websocket/websocket.gateway.ts");
 const h5LinkConsumers = [
   "apps/server/src/modules/ai/marketing-content.service.ts",
@@ -2807,8 +2808,16 @@ add(
       'import { serverConfig } from "../../config/server-config"',
       "origin: serverConfig.wsCorsOrigin",
     ]) &&
+    hasAll(h5EntrySource, [
+      'import { serverConfig } from "./server-config"',
+      "serverConfig.publicH5Url",
+      "validateH5EntrySwitch",
+      "getH5Base",
+    ]) &&
     h5LinkConsumers.every(
-      (source) => source.includes("serverConfig") && !source.includes("process.env.H5_BASE_URL"),
+      (source) =>
+        (source.includes("serverConfig") || source.includes("getH5Base(")) &&
+        !source.includes("process.env.H5_BASE_URL"),
     ) &&
     hasAll(mobileAuthStorage, [
       "clearAuthSession",

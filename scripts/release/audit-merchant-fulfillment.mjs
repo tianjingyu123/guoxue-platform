@@ -627,7 +627,7 @@ const checks = [
         "export interface MerchantCustomerDetail",
         "getCustomerDetail: (id: string)",
         "customerId?: string",
-        "q.set('customerId', params.customerId)",
+        "['customerId', params?.customerId]",
       ]) &&
       hasAll(mobileCustomers, [
         'class="detail-sheet"',
