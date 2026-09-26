@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -18,6 +18,7 @@ import { EntitlementService } from "../entitlement/entitlement.service";
 import { reverseVoiceTopupOrderInTx } from "../voice/voice-topup";
 import { reverseXiaobuOrderVoiceInTx } from "../voice/xiaobu-commerce";
 import { addCalendarMonthsClamped } from "./membership-period";
+import { NotificationService } from "../notification/notification.service";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -43,6 +44,7 @@ export class ShopRefundService {
     private webhook: WebhookService,
     private entitlement: EntitlementService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
+    @Optional() private notification?: NotificationService,
   ) {
     this.huifu.registerRefundNotifyHandler((payload) => this.handleHuifuRefundNotify(payload));
   }
@@ -165,6 +167,7 @@ export class ShopRefundService {
         amount,
         reason: reason || "用户申请退款",
       });
+      await this.notifyRefundCompleted(order);
       return true;
     }
     if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return false;
@@ -224,6 +227,7 @@ export class ShopRefundService {
     });
     if (!changed) {
       const current = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+      if (current?.status === "REFUNDED") await this.notifyRefundCompleted(order);
       return current?.status === "REFUNDED";
     }
     await this.invalidateRefundedOrderCache(orderId, order.userId);
@@ -232,7 +236,20 @@ export class ShopRefundService {
       amount,
       reason: reason || "用户申请退款",
     });
+    await this.notifyRefundCompleted(order);
     return true;
+  }
+
+  /** 退款与权益事务已提交；通知故障不能改变资金结果，重投时再用同一幂等键补发。 */
+  private async notifyRefundCompleted(order: { id: string; userId: string }): Promise<void> {
+    try {
+      await this.notification?.sendOnce(order.userId, `ORDER_REFUNDED:${order.id}`, {
+        type: "REFUND", title: "退款完成", content: "退款已完成，可查看售后详情。",
+        targetType: "ORDER", targetId: order.id,
+      });
+    } catch (err) {
+      this.logger.error(`退款完成通知写入失败 order=${order.id}`, err);
+    }
   }
 
   /** 资金事务已提交后清理展示缓存；缓存故障不能改写退款结果。 */
@@ -592,7 +609,7 @@ export class ShopRefundService {
     try {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
-        select: { id: true, status: true, amount: true, payAmount: true, payMethod: true, payTransactionId: true },
+        select: { id: true, userId: true, status: true, amount: true, payAmount: true, payMethod: true, payTransactionId: true },
       });
       if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "微信退款回调关联订单不存在");
       const transactionId = String(body.transaction_id || "");
@@ -619,6 +636,14 @@ export class ShopRefundService {
       } else if (["FAIL", "CLOSED", "ABNORMAL"].includes(refundStatus)) {
         const statusLabel = refundStatus === "CLOSED" ? "关闭" : refundStatus === "ABNORMAL" ? "异常" : "失败";
         await this.revertProcessingAfterSales(order.id, `退款通道${statusLabel}，请核对后重试`);
+        try {
+          await this.notification?.sendOnce(order.userId, `ORDER_REFUND_FAILED:${order.id}:${refundStatus}`, {
+            type: "REFUND", title: "退款未完成", content: `退款通道${statusLabel}，请进入售后详情查看处理进度。`,
+            targetType: "ORDER", targetId: order.id,
+          });
+        } catch (err) {
+          this.logger.error(`退款失败通知写入失败 order=${order.id}`, err);
+        }
         this.logger.warn(`退款回调: ${outRefundNo} ${statusLabel}, 订单: ${order.id}`);
       } else {
         this.logger.log(`退款回调: ${outRefundNo} 状态=${refundStatus}，继续等待终态`);

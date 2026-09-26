@@ -11,6 +11,7 @@ import { PaymentProviderFactory } from "./payment-factory"
 import { WebhookService } from "../webhook/webhook.service"
 import { BusinessException } from "../../common/business.exception"
 import { EntitlementService } from "../entitlement/entitlement.service"
+import { NotificationService } from "../notification/notification.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission,
   makeMockAlipay, makeMockUnionpay, makeMockPaymentFactory, makeMockWebhook, makeMockHuifu, makeMockWechatPay, makeMockEntitlement,
@@ -26,6 +27,7 @@ const mockPaymentFactory = makeMockPaymentFactory()
 const mockWebhook = makeMockWebhook()
 const mockHuifu = makeMockHuifu()
 const mockEntitlement = makeMockEntitlement()
+const mockNotification = { sendOnce: jest.fn().mockResolvedValue(null) }
 const refundRequestedAt = new Date("2026-07-22T07:00:00.000Z")
 
 describe("ShopRefundService", () => {
@@ -46,6 +48,7 @@ describe("ShopRefundService", () => {
         { provide: PaymentProviderFactory, useValue: mockPaymentFactory },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: EntitlementService, useValue: mockEntitlement },
+        { provide: NotificationService, useValue: mockNotification },
       ],
     }).compile()
     svc = mod.get(ShopRefundService)
@@ -113,6 +116,31 @@ describe("ShopRefundService", () => {
   })
 
   describe("refundOrder", () => {
+    it("权益事务失败时不发送退款完成通知", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-tx-fail", userId: "u1", type: "COURSE", status: "PAID", amount: 99 });
+      mockPrisma.$transaction.mockRejectedValueOnce(new Error("entitlement rollback"));
+      await expect((svc as any).applyRefundedBookkeeping("o-tx-fail", 99, "退款")).rejects.toThrow("entitlement rollback");
+      expect(mockNotification.sendOnce).not.toHaveBeenCalled();
+    });
+
+    it("退款与权益已提交后通知失败不回滚资金结果", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-committed", userId: "u1", type: "COURSE", status: "PAID", amount: 99 });
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
+      mockNotification.sendOnce.mockRejectedValueOnce(new Error("notification db down"));
+      await expect((svc as any).applyRefundedBookkeeping("o-committed", 99, "退款")).resolves.toBe(true);
+      expect(mockEntitlement.revokeSourceWithTx).toHaveBeenCalled();
+      expect(mockNotification.sendOnce).toHaveBeenCalledWith("u1", "ORDER_REFUNDED:o-committed", expect.any(Object));
+    });
+
+    it("退款已收敛时通知失败不改变退款结果，重投仍使用同一幂等键", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-notify", userId: "u-notify", status: "REFUNDED" });
+      mockNotification.sendOnce.mockRejectedValueOnce(new Error("notification db down")).mockResolvedValueOnce(null);
+      await expect((svc as any).applyRefundedBookkeeping("o-notify", 99, "退款")).resolves.toBe(true);
+      await expect((svc as any).applyRefundedBookkeeping("o-notify", 99, "退款")).resolves.toBe(true);
+      expect(mockNotification.sendOnce).toHaveBeenCalledTimes(2);
+      expect(mockNotification.sendOnce).toHaveBeenCalledWith("u-notify", "ORDER_REFUNDED:o-notify", expect.objectContaining({ title: "退款完成" }));
+    });
+
     it("退款落库后同时清除详情与本人列表缓存，缓存失败不改写退款结果", async () => {
       const order = { id: "o-cache", userId: "u-cache", type: "COURSE", targetId: "c-cache", status: "PAID", amount: 99 };
       mockPrisma.order.findUnique.mockResolvedValue(order);
