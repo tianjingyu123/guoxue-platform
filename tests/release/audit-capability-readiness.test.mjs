@@ -21,6 +21,7 @@ const requiredFiles = [
   "apps/server/src/modules/bot/bot.service.ts",
   "apps/server/src/modules/bot/coze.service.ts",
   "apps/server/src/modules/tts/tts.controller.ts",
+  "apps/server/src/modules/tts/audio-response.ts",
 ];
 
 function runAudit(...args) {
@@ -114,7 +115,7 @@ test("TTS Range 续取能力被删除时必须阻断古籍音频发布", async (
   const fixtureRoot = await createFixture();
   const controllerPath = path.join(
     fixtureRoot,
-    "apps/server/src/modules/tts/tts.controller.ts",
+    "apps/server/src/modules/tts/audio-response.ts",
   );
   const controller = await readFile(controllerPath, "utf8");
   await writeFile(controllerPath, controller.replaceAll("res.status(206)", "res.status(200)"));
