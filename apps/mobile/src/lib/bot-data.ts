@@ -96,10 +96,11 @@ export const botApi = {
   },
 
   /** 购买追问包 POST /bots/:id/purchase-uses（10次/包·扣国学币，余额不足由后端抛错） */
-  async purchaseUses(id: string): Promise<PurchaseUsesResult> {
-    const res = await apiPost<Partial<PurchaseUsesResult>>(`/bots/${id}/purchase-uses`, {})
+  async purchaseUses(id: string, requestId: string): Promise<PurchaseUsesResult> {
+    const res = await apiPost<Partial<PurchaseUsesResult>>(`/bots/${id}/purchase-uses`, { requestId })
+    if (Number(res?.purchased) !== 10) throw new Error('购买结果待确认，请重试')
     return {
-      purchased: Number(res?.purchased) || 0,
+      purchased: 10,
       paidRemaining: Number(res?.paidRemaining) || 0,
     }
   },

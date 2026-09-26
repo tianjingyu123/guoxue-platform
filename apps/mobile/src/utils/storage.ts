@@ -67,6 +67,7 @@ const AUTH_SESSION_KEYS = new Set([
   'circle_search_history',
   'video_search_history',
   'station_assistant_conversation_id',
+  'bot_purchase_request_v1',
 ])
 const AUTH_SESSION_PREFIXES = ['rebu:', 'draft:', 'live_replay_pos_']
 

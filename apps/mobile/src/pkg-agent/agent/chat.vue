@@ -15,6 +15,7 @@ import {
   type ChatMessage, type RecommendItem, type Recommendation,
 } from '@/lib/agent-data'
 import { botApi, type BotQuota } from '@/lib/bot-data'
+import { pendingBotPurchaseRequestId, clearBotPurchaseRequestId } from '@/lib/bot-purchase-request-key'
 import { formatPrice } from '@/utils/format'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
@@ -400,12 +401,17 @@ async function doPurchase() {
   if (purchasing.value) return
   purchasing.value = true
   try {
-    await botApi.purchaseUses(agentId.value)
+    const requestId = pendingBotPurchaseRequestId(agentId.value)
+    await botApi.purchaseUses(agentId.value, requestId)
+    clearBotPurchaseRequestId(agentId.value)
     uni.showToast({ title: '已到账 10 次', icon: 'success' })
-    await refreshQuota()
+    // 购包已确认后刷新余量即使失败，也不能再将本次购买呈现为失败并生成新请求。
+    try { await refreshQuota() } catch { /* 下次进入页面再同步余量 */ }
     showPurchaseModal.value = false
   } catch (e) {
     const msg = (e as Error)?.message || '购买失败'
+    // 余额不足是确定失败；超时或网络异常保留请求号，下一次点击仍查询同一笔结果。
+    if (msg.includes('余额不足')) clearBotPurchaseRequestId(agentId.value)
     uni.showToast({ title: msg, icon: 'none' })
     // 国学币余额不足 → 引导去充值页
     if (msg.includes('余额不足')) {
