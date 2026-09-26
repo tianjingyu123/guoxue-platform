@@ -25,6 +25,7 @@ const mockPrisma = {
     create: jest.fn(),
     createMany: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
     findUnique: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
@@ -147,6 +148,15 @@ describe("NotificationService", () => {
       const arg = call[0] as { skip: number };
       expect(Number.isNaN(arg.skip)).toBe(false);
     });
+  });
+
+  it("通知详情按当前用户过滤，不能用其他用户通知 ID 读取", async () => {
+    mockPrisma.notification.findFirst.mockResolvedValue(null);
+    await expect(svc.getById("other-user-notification", "u1")).rejects.toThrow("通知不存在");
+    expect(mockPrisma.notification.findFirst).toHaveBeenCalledWith({
+      where: { id: "other-user-notification", userId: "u1" },
+    });
+    expect(mockPrisma.notification.update).not.toHaveBeenCalled();
   });
 
   describe("getUnreadCount", () => {
