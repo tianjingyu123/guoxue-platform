@@ -1558,6 +1558,23 @@ export class CommissionService {
     const ownerShare = amount - platformFee;
     const splitRate = amount > 0 ? ownerShare / amount : 0;
 
+    // ── 平台费只由**订单侧**记一次（决策项 N2 第一步：止血）──
+    //
+    // 同一笔圈子入圈/续费，平台抽成此前会被记两条：
+    //   · 订单侧 `recordOrderCommissionAndFee` / `reconcilePaidOrderAccounting`
+    //     → type = 订单类型（CIRCLE_JOIN / CIRCLE_RENEW），sourceId = 订单 id；
+    //   · 本方法                                   → type = "circle_join"，sourceId = 成员 id。
+    // `recordPlatformFee` 的幂等守卫是 `type + sourceId + platformFee > 0`，
+    // 两条记录三个字段全不同，判不出重复，`getPlatformFeeSummary` 因此把两条都计入。
+    //
+    // 服务端履约路径（`ShopPaymentService.recordCircleRevenueOnce`）本来就不写 `PlatformFeeRecord`，
+    // 所以「写不写」在改动前取决于走了哪条入口 —— 那是不确定性，不是口径。
+    // 现统一为：**有 orderId（订单来源）就不在这里写**，由订单侧那一条负责；
+    // 没有 orderId 的来源（礼物、推荐位、金币兑换等）订单侧不会记，行为保持不变。
+    //
+    // 只影响**此后的新数据**。已产生的双计记录一条未动，是否清理 / 打标 / 报表侧去重，
+    // 以及「从哪天起算已重述」，属财务口径决策，本次不自行修账。
+    const skipPlatformFee = !!orderId;
     const [record] = await Promise.all([
       this.prisma.circleRevenueRecord.create({
         data: {
@@ -1571,8 +1588,7 @@ export class CommissionService {
           splitRate: Math.round(splitRate * 10000) / 10000,
         },
       }),
-      // 同时记录平台抽成
-      fee
+      fee && !skipPlatformFee
         ? this.recordPlatformFee({
             type,
             sourceId,

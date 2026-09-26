@@ -131,6 +131,23 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
+    // 决策点 D3：圈规确认**前移到下单前**。
+    //
+    // 原先这道门只在 `confirmJoin` 上（`circle-membership.service.ts:217`），即**付款之后**。
+    // 服务端履约路径 `fulfillCircleOrderTx` 事务内拿不到治理服务，因此不做这一校验 ——
+    // 结果是：未确认圈规的用户照样付得了钱，且由服务端履约直接进圈，门槛形同虚设；
+    // 而在服务端履约之前落到 `confirmJoin` 的那一部分，又会在**已收款之后**被拒，
+    // 变成「收钱不给货」。两种结果都不可接受。
+    //
+    // 前移到这里，未确认圈规的用户**根本付不了钱**：既保住治理门槛，也不产生已支付未履约单。
+    // 注意本方法此前没有这道校验，因此这是**下单环节新增的拦截**；
+    // 对已确认圈规、或该圈未配置 requireRuleAck / 没有生效圈规的用户，行为完全不变
+    // （`assertRuleAck` 这两种情况都直接返回）。
+    //
+    // `renewCircle`（续费下单）**刻意不加**：续费方今天没有任何圈规确认要求，
+    // 在那里新增一道门会把已付费的存量成员挡在续费之外 —— 那是新增收费准入规则，不在授权范围内。
+    if (this.governance) await this.governance.assertRuleAck(circleId, userId);
+
     // 已付款但尚未履约的同圈订单必须复用，不能再建一张待支付单让用户二次付款。
     // 履约本身由支付后处理器与补偿重试负责（shop-payment.service.ts），这里只拦下单。
     const unfulfilled = await this.prisma.order.findFirst({
