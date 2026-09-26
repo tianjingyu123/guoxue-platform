@@ -212,7 +212,18 @@ function legacyNavigationBridgeScript(): string {
       button.addEventListener('click',function(event){
         event.preventDefault();
         event.stopPropagation();
-        openLegacyShare('page',{title:document.title||'排盘结果',path:window.location.href});
+        // 仅诊断分支：只显示无凭据的公开结果响应状态与正文长度，不显示或保存地址及正文。
+        var result=new URL(window.location.href);
+        if(result.protocol!=='https:'||!result.pathname.endsWith('/app_p1.php')){alert('公开结果诊断：非结果页');return;}
+        result.pathname=result.pathname.replace(/app_p1[.]php$/,'p1.php');
+        var valid=true;
+        result.searchParams.forEach(function(value,key){
+          if(['mod','act','id','ruid'].indexOf(key)<0||!/^[A-Za-z0-9_-]{1,100}$/.test(value)||(key==='ruid'&&!/^[0-9]{1,20}$/.test(value)))valid=false;
+        });
+        if(!valid){alert('公开结果诊断：参数未通过白名单');return;}
+        fetch(result.href,{credentials:'omit',redirect:'follow',cache:'no-store'}).then(function(response){
+          return response.text().then(function(body){alert('公开结果诊断：HTTP '+response.status+'，正文长度 '+body.length+'，响应类型 '+response.type+'，跳转 '+(response.redirected?'是':'否'));});
+        }).catch(function(){alert('公开结果诊断：无凭据请求失败');});
       });
       document.body.appendChild(button);
     }
