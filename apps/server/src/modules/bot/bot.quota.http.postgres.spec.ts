@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import * as http from "http";
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { PrismaClient } from "@prisma/client";
 import request from "supertest";
@@ -11,6 +12,7 @@ import { CozeService } from "./coze.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ResponseInterceptor } from "../../common/response.interceptor";
 
 jest.setTimeout(30000);
 const raw = process.env.BOT_QUOTA_TEST_DATABASE_URL;
@@ -47,6 +49,8 @@ if (target && (!["127.0.0.1", "localhost"].includes(target.hostname) || !target.
       return true;
     } }).overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true }).compile();
     app = mod.createNestApplication();
+    app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
     await app.listen(0, "127.0.0.1");
   });
@@ -75,8 +79,8 @@ if (target && (!["127.0.0.1", "localhost"].includes(target.hostname) || !target.
     coze.chat.mockResolvedValue({ content: "有效回答", conversationId: "qa-conversation", chatId: "qa-chat" });
     reco.build.mockResolvedValue({ content: "有效回答", recommendation: null });
     const response = await request(app.getHttpServer()).post(`/bots/${botConfigId}/chat`).send({ query: "测试问题" }).expect(201);
-    expect(response.body.content).toBe("有效回答");
-    expect(response.body.quotaUse).toBeUndefined();
+    expect(response.body.data.content).toBe("有效回答");
+    expect(response.body.data.quotaUse).toBeUndefined();
     let status = "RESERVED";
     for (let i = 0; i < 40; i++) {
       status = (await prisma.botQuotaReservation.findFirstOrThrow({ where: { userId, botConfigId } })).status;
