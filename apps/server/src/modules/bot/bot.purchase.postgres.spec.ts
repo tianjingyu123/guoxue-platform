@@ -1,7 +1,17 @@
 import { randomUUID } from "crypto";
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
 import { PrismaClient } from "@prisma/client";
+import request from 'supertest';
+import { BotController } from './bot.controller';
 import { BotService } from "./bot.service";
+import { CozeService } from './coze.service';
 import { CoinService } from "../coin/coin.service";
+import { StreamUnifierService } from '../ai-gateway/stream-unifier.service';
+import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { StrictRedisThrottleGuard } from '../../common/redis-throttle.guard';
+import { ResponseInterceptor } from '../../common/response.interceptor';
 
 jest.setTimeout(60000);
 const testUrl = process.env.BOT_QUOTA_TEST_DATABASE_URL;
@@ -12,6 +22,8 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
 
 (target ? describe : describe.skip)('BotQuotaPurchase PostgreSQL 购包幂等', () => {
   let prisma: PrismaClient;
+  let app: INestApplication;
+  let currentUserId: string;
   const users: string[] = [];
   const botConfigId = `bot-purchase-qa-${randomUUID()}`;
   const price = 100;
@@ -34,9 +46,26 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
     prisma = new PrismaClient({ datasources: { db: { url: testUrl! } } });
     const rows = await prisma.$queryRaw<Array<{ name: string }>>`SELECT current_database() AS name`;
     if (!rows[0]?.name.startsWith('bot_quota_qa_')) throw new Error('测试库身份核验失败');
+    const svc = service(prisma);
+    const mod = await Test.createTestingModule({
+      controllers: [BotController],
+      providers: [
+        { provide: BotService, useValue: svc },
+        { provide: CozeService, useValue: {} },
+        { provide: StreamUnifierService, useValue: {} },
+      ],
+    }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (ctx: any) => {
+      ctx.switchToHttp().getRequest().user = { id: currentUserId };
+      return true;
+    } }).overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true }).compile();
+    app = mod.createNestApplication();
+    app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    await app.init();
   });
 
   afterAll(async () => {
+    if (app) await app.close();
     if (!prisma) return;
     for (const userId of users) {
       await prisma.botQuotaPurchase.deleteMany({ where: { userId } });
@@ -46,6 +75,37 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
       await prisma.user.delete({ where: { id: userId } });
     }
     await prisma.$disconnect();
+  });
+
+  it('真实 HTTP 入口透传请求号，重复请求只扣一次并返回同一权益', async () => {
+    const userId = await newUser();
+    currentUserId = userId;
+    const requestId = `bot-purchase-http-${randomUUID()}`;
+    const endpoint = `/bots/${botConfigId}/purchase-uses`;
+    const first = await request(app.getHttpServer()).post(endpoint).send({ requestId }).expect(201);
+    const retry = await request(app.getHttpServer()).post(endpoint).send({ requestId }).expect(201);
+    expect(first.body.data).toEqual({ purchased: 10, paidRemaining: 10 });
+    expect(retry.body.data).toEqual(first.body.data);
+    expect(await prisma.botQuotaPurchase.count({ where: { userId, botConfigId } })).toBe(1);
+    expect(await prisma.virtualCoinTransaction.count({ where: { userId, scene: 'BOT_CALL' } })).toBe(1);
+    expect((await prisma.virtualCoinAccount.findUniqueOrThrow({ where: { userId } })).balance).toBe(400);
+  });
+
+  it('不同登录用户使用相同请求号时各自购买，权益和扣币不串户', async () => {
+    const firstUserId = await newUser();
+    const secondUserId = await newUser();
+    const requestId = `bot-purchase-shared-${randomUUID()}`;
+    const endpoint = `/bots/${botConfigId}/purchase-uses`;
+    currentUserId = firstUserId;
+    await request(app.getHttpServer()).post(endpoint).send({ requestId }).expect(201);
+    currentUserId = secondUserId;
+    await request(app.getHttpServer()).post(endpoint).send({ requestId }).expect(201);
+    for (const userId of [firstUserId, secondUserId]) {
+      expect(await prisma.botQuotaPurchase.count({ where: { userId, botConfigId, requestId } })).toBe(1);
+      expect(await prisma.virtualCoinTransaction.count({ where: { userId, scene: 'BOT_CALL' } })).toBe(1);
+      expect((await prisma.virtualCoinAccount.findUniqueOrThrow({ where: { userId } })).balance).toBe(400);
+      expect((await prisma.userBotQuota.findUniqueOrThrow({ where: { userId_botConfigId: { userId, botConfigId } } })).paidRemaining).toBe(10);
+    }
   });
 
   it('同号并发及超时重试只扣一次币、发放一包；新号才再次购买', async () => {
