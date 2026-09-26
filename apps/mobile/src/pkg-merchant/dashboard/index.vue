@@ -283,6 +283,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { queryString } from '@/utils/query-string'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
   merchantBackendApi,
@@ -437,12 +438,12 @@ function nextDate(date: string): string {
 }
 
 function orderRangePath(startDate: string, endDate: string, scope: 'today' | 'day' | '7d'): string {
-  const q = new URLSearchParams({
-    startDate: `${startDate}T00:00:00+08:00`,
-    endDate: `${endDate}T00:00:00+08:00`,
-    scope,
-  })
-  return `/pkg-merchant/orders/index?${q.toString()}`
+  const q = queryString([
+    ['startDate', `${startDate}T00:00:00+08:00`],
+    ['endDate', `${endDate}T00:00:00+08:00`],
+    ['scope', scope],
+  ])
+  return `/pkg-merchant/orders/index?${q}`
 }
 
 function openRevenue() {

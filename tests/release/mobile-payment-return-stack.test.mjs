@@ -23,6 +23,7 @@ test('支付成功、取消和结果页使用根路由结束交易栈', () => {
 
 test('服务端确认圈子订单已付后直接进圈子，普通订单仍走核验结果页', async () => {
   const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const queryString = source('apps/mobile/src/utils/query-string.ts').replace('export function queryString', 'function queryString')
   const startTarget = paying.indexOf('function paidBusinessTarget(')
   const endTarget = paying.indexOf('\nfunction startCountdown(', startTarget)
   const startComplete = paying.indexOf('async function completePaidOrder(')
@@ -31,7 +32,7 @@ test('服务端确认圈子订单已付后直接进圈子，普通订单仍走�
   const requireMobile = createRequire(resolve(root, 'apps/mobile/package.json'))
   const ts = requireMobile('typescript')
   const executable = ts.transpileModule(
-    `${paying.slice(startTarget, endTarget)}\n${paying.slice(startComplete, endComplete)}\nglobalThis.runPaid = completePaidOrder`,
+    `${queryString}\n${paying.slice(startTarget, endTarget)}\n${paying.slice(startComplete, endComplete)}\nglobalThis.runPaid = completePaidOrder`,
     { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
   ).outputText
 
@@ -51,7 +52,7 @@ test('服务端确认圈子订单已付后直接进圈子，普通订单仍走�
       clearTimers: () => {}, track: { purchase: () => {} },
       reLaunch: (route) => routes.push(['reLaunch', route]),
       redirectTo: (route) => routes.push(['redirectTo', route]),
-      setTimeout: (callback) => callback(), URLSearchParams,
+      setTimeout: (callback) => callback(),
     }
     runInNewContext(executable, context)
     await context.runPaid(state, true)

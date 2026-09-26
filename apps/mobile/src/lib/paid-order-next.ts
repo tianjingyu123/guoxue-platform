@@ -1,4 +1,6 @@
 /** 已核验支付的订单应回到对应服务，避免把数字服务用户送去商城。 */
+import { queryString } from '@/utils/query-string'
+
 const REPORT_TYPES = new Set(['general', 'career', 'love', 'wealth', 'health'])
 
 function reportRoute(targetId?: string) {
@@ -15,9 +17,12 @@ export type VoiceReturn = { scene?: string; contextId?: string; sectionId?: stri
 function voiceReturnRoute(value?: VoiceReturn) {
   if (!value || !['report_dialogue', 'circle_assistant'].includes(value.scene || '')
     || !value.contextId || value.contextId.length > 128) return null
-  const q = new URLSearchParams({ scene: value.scene!, contextId: value.contextId })
-  if (value.scene === 'report_dialogue' && value.sectionId && value.sectionId.length <= 80) q.set('sectionId', value.sectionId)
-  return `/pkg-agent/agent/xiaobu-voice?${q.toString()}`
+  const query = queryString([
+    ['scene', value.scene],
+    ['contextId', value.contextId],
+    ['sectionId', value.scene === 'report_dialogue' && value.sectionId && value.sectionId.length <= 80 ? value.sectionId : undefined],
+  ])
+  return `/pkg-agent/agent/xiaobu-voice?${query}`
 }
 
 export function paidOrderNext(type?: string, targetId?: string, returnRecordId?: string, voiceReturn?: VoiceReturn): { label: string; path: string; title: string } | null {

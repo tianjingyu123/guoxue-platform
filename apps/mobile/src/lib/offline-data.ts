@@ -2,6 +2,7 @@
 // 定位：平台线下服务终端（线上引流·线下交付）。驿站=地级市线下场地，研究院签约讲师授课。
 // 后端 StationOffline 为准，原型虚构字段(评分/距离/坐标/营业评价)已诚实降级。
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { queryString } from '@/utils/query-string'
 
 export type StationType = 'center' | 'academy' | 'studio' | 'partner'
 
@@ -374,11 +375,12 @@ export type CalendarDays = Record<string, CalendarItem[]>
 export const offlineApi = {
   /** 驿站发现（用户端）GET /offline/stations/discover → {stations,total} */
   async discoverStations(params?: { city?: string; keyword?: string }): Promise<Station[]> {
-    const q = new URLSearchParams()
-    if (params?.city && params.city !== '全部') q.set('city', params.city)
-    if (params?.keyword) q.set('keyword', params.keyword)
-    q.set('pageSize', '100')
-    const d = await apiGet<{ stations: Station[] }>(`/offline/stations/discover?${q.toString()}`)
+    const query = queryString([
+      ['city', params?.city && params.city !== '全部' ? params.city : undefined],
+      ['keyword', params?.keyword],
+      ['pageSize', 100],
+    ])
+    const d = await apiGet<{ stations: Station[] }>(`/offline/stations/discover?${query}`)
     return d?.stations || []
   },
 
@@ -464,12 +466,13 @@ export const offlineApi = {
 
   /** 活动列表（PUBLISHED）GET /offline/events?stationId&type&page&pageSize → 分页 {items,total} */
   getEvents(params?: { stationId?: string; type?: StationEventType | string; page?: number; pageSize?: number }): Promise<{ items: StationEvent[]; total: number }> {
-    const q = new URLSearchParams()
-    if (params?.stationId) q.set('stationId', params.stationId)
-    if (params?.type && params.type !== 'all') q.set('type', String(params.type))
-    q.set('page', String(params?.page || 1))
-    q.set('pageSize', String(params?.pageSize || 20))
-    return apiGetPaged<StationEvent>(`/offline/events?${q.toString()}`)
+    const query = queryString([
+      ['stationId', params?.stationId],
+      ['type', params?.type && params.type !== 'all' ? String(params.type) : undefined],
+      ['page', params?.page || 1],
+      ['pageSize', params?.pageSize || 20],
+    ])
+    return apiGetPaged<StationEvent>(`/offline/events?${query}`)
   },
 
   /** 活动详情 GET /offline/events/:id（含 photos 回顾照片 + 登录时 myRegistration） */
@@ -745,9 +748,8 @@ export const offlineManageApi = {
 
   /** 讲师预约记录 GET /offline/stations/:id/teacher-bookings（可按 teacherId/status 筛选·拆包兼容） */
   async getTeacherBookings(stationId: string, teacherId?: string): Promise<TeacherBooking[]> {
-    const q = new URLSearchParams({ pageSize: '100' })
-    if (teacherId) q.set('teacherId', teacherId)
-    const d = await apiGet<{ bookings?: TeacherBooking[] } | TeacherBooking[]>(`/offline/stations/${stationId}/teacher-bookings?${q.toString()}`)
+    const query = queryString([['pageSize', 100], ['teacherId', teacherId]])
+    const d = await apiGet<{ bookings?: TeacherBooking[] } | TeacherBooking[]>(`/offline/stations/${stationId}/teacher-bookings?${query}`)
     return Array.isArray(d) ? d : d?.bookings || []
   },
 
@@ -851,22 +853,21 @@ export const offlineManageApi = {
 
   /** 驿站订单列表 GET /offline/stations/:id/orders（orderType/status筛选·拆包兼容orders键） */
   async getStationOrders(stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }): Promise<{ items: StationOrder[]; total: number }> {
-    const q = new URLSearchParams()
-    if (params?.orderType) q.set('orderType', params.orderType)
-    if (params?.status) q.set('status', params.status)
-    q.set('page', String(params?.page || 1))
-    q.set('pageSize', String(params?.pageSize || 50))
-    const d = await apiGet<{ orders?: StationOrder[]; total?: number } | StationOrder[]>(`/offline/stations/${stationId}/orders?${q.toString()}`)
+    const query = queryString([
+      ['orderType', params?.orderType],
+      ['status', params?.status],
+      ['page', params?.page || 1],
+      ['pageSize', params?.pageSize || 50],
+    ])
+    const d = await apiGet<{ orders?: StationOrder[]; total?: number } | StationOrder[]>(`/offline/stations/${stationId}/orders?${query}`)
     if (Array.isArray(d)) return { items: d, total: d.length }
     return { items: d?.orders || [], total: d?.total || 0 }
   },
 
   /** 驿站结算单列表 GET /offline/stations/:id/settlements（服务端生成·只读·拆包兼容settlements键） */
   async getStationSettlements(stationId: string, params?: { page?: number; pageSize?: number }): Promise<{ items: StationSettlement[]; total: number }> {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page || 1))
-    q.set('pageSize', String(params?.pageSize || 50))
-    const d = await apiGet<{ settlements?: StationSettlement[]; total?: number } | StationSettlement[]>(`/offline/stations/${stationId}/settlements?${q.toString()}`)
+    const query = queryString([['page', params?.page || 1], ['pageSize', params?.pageSize || 50]])
+    const d = await apiGet<{ settlements?: StationSettlement[]; total?: number } | StationSettlement[]>(`/offline/stations/${stationId}/settlements?${query}`)
     if (Array.isArray(d)) return { items: d, total: d.length }
     return { items: d?.settlements || [], total: d?.total || 0 }
   },

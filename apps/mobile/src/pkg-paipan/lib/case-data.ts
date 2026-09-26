@@ -7,6 +7,7 @@
  * 答案唯一的出口是 reveal（公布答案）。所以这里也不要试图从详情里取答案——取不到。
  */
 import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { queryString } from '@/utils/query-string'
 
 /** 人生经历的六个维度（与后端 LIFE_DIMENSIONS 同名，练手时逐项对照） */
 export const LIFE_DIMENSIONS = [
@@ -104,14 +105,15 @@ export interface CaseAnswer {
 
 export const caseApi = {
   list(q: { page?: number; pageSize?: number; source?: string; keyword?: string; premiumOnly?: boolean; method?: CaseMethod } = {}) {
-    const p = new URLSearchParams()
-    if (q.page) p.set('page', String(q.page))
-    if (q.pageSize) p.set('pageSize', String(q.pageSize))
-    if (q.source) p.set('source', q.source)
-    if (q.keyword) p.set('keyword', q.keyword)
-    if (q.premiumOnly) p.set('premiumOnly', 'true')
-    if (q.method && q.method !== 'ALL') p.set('method', q.method)
-    return apiGet<{ items: BaziCaseItem[]; total: number }>(`/bazi-cases?${p.toString()}`)
+    const p = queryString([
+      ['page', q.page || undefined],
+      ['pageSize', q.pageSize || undefined],
+      ['source', q.source || undefined],
+      ['keyword', q.keyword || undefined],
+      ['premiumOnly', q.premiumOnly ? 'true' : undefined],
+      ['method', q.method && q.method !== 'ALL' ? q.method : undefined],
+    ])
+    return apiGet<{ items: BaziCaseItem[]; total: number }>(`/bazi-cases?${p}`)
   },
 
   /** 详情（不含答案） */
