@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as fs from "fs";
 import * as path from "path";
+import { assessClassicContent } from "./classic-content-quality";
 
 export interface DaizhigeBookSeed {
   title: string;
@@ -41,7 +42,7 @@ export class ClassicDaizhigeSeeder {
     maxBooks?: number;
     batchSize?: number;
     categoryFilter?: string;
-  }): Promise<{ created: number; skipped: number; errors: number }> {
+  }): Promise<{ created: number; heldForReview: number; skipped: number; errors: number }> {
     const {
       seedFile = "temp_daizhige_all_seeds.json",
       maxBooks = Infinity,
@@ -69,7 +70,7 @@ export class ClassicDaizhigeSeeder {
 
     if (!filePath) {
       this.logger.error(`种子文件不存在。尝试过: ${candidates.join(", ")}`);
-      return { created: 0, skipped: 0, errors: 0 };
+      return { created: 0, heldForReview: 0, skipped: 0, errors: 0 };
     }
 
     const raw = fs.readFileSync(filePath, "utf-8");
@@ -78,7 +79,7 @@ export class ClassicDaizhigeSeeder {
       seeds = JSON.parse(raw) as DaizhigeBookSeed[];
     } catch (err: any) {
       this.logger.error(`种子文件 JSON 解析失败: ${err.message}`);
-      return { created: 0, skipped: 0, errors: 1 };
+      return { created: 0, heldForReview: 0, skipped: 0, errors: 1 };
     }
 
     let books = seeds;
@@ -92,6 +93,7 @@ export class ClassicDaizhigeSeeder {
     );
 
     let created = 0;
+    let heldForReview = 0;
     let skipped = 0;
     let errors = 0;
 
@@ -111,7 +113,9 @@ export class ClassicDaizhigeSeeder {
           continue;
         }
 
-        // 创建书
+        // P0 内容问题不删除、不修订原文；先以草稿入库，等待人工补全或确认来源。
+        const quality = assessClassicContent(seed.chapters);
+        const status = quality.publishable ? "PUBLISHED" : "DRAFT";
         const book = await this.prisma.classicBook.create({
           data: {
             title: seed.title,
@@ -121,7 +125,7 @@ export class ClassicDaizhigeSeeder {
             intro: seed.intro,
             source: seed.source,
             chapterCount: seed.chapters.length,
-            status: "PUBLISHED",
+            status,
           },
         });
 
@@ -140,6 +144,10 @@ export class ClassicDaizhigeSeeder {
         }
 
         created++;
+        if (!quality.publishable) {
+          heldForReview++;
+          this.logger.warn(`  待审核: ${seed.title}（${quality.flags.join(", ")}）`);
+        }
 
         if (created % 50 === 0) {
           this.logger.log(
@@ -153,9 +161,9 @@ export class ClassicDaizhigeSeeder {
     }
 
     this.logger.log(
-      `导入完成: 新建 ${created}, 跳过 ${skipped}, 失败 ${errors}`,
+      `导入完成: 新建 ${created}, 待审核 ${heldForReview}, 跳过 ${skipped}, 失败 ${errors}`,
     );
-    return { created, skipped, errors };
+    return { created, heldForReview, skipped, errors };
   }
 
   /**
