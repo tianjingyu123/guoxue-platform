@@ -706,6 +706,12 @@ async function completePaidOrder(st: { type?: string; targetId?: string }, newly
   status.value = 'success'
   if (newlyObserved) track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
   clearTimers('all')
+  // 圈子已由本人订单的服务端状态确认付款；直接进圈子，由详情页再次核验并补做权益确认。
+  if (st.targetId && (st.type === 'CIRCLE_JOIN' || st.type === 'CIRCLE_RENEW')) {
+    leaving = true
+    reLaunch(paidBusinessTarget(st))
+    return
+  }
   const successQuery = new URLSearchParams({ orderId: orderId.value })
   if (returnLiveRoomId.value) successQuery.set('returnLiveRoomId', returnLiveRoomId.value)
   if (returnRecordId.value) successQuery.set('returnRecordId', returnRecordId.value)
