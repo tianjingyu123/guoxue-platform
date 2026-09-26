@@ -3,8 +3,16 @@
 -- 用途：在没有管理端页面时，作为 pending_manual 待办的固定执行渠道。
 -- 对应接口：GET /circle-refund/admin-manual-recalls（SUPER_ADMIN / OPERATION_ADMIN）。
 --
+-- 责任与时限（2026-09-19 由业务指定）：
+--   · 负责人：田崇民
+--   · 处理时限：待办产生后 **7 天内** 完成人工核对与冲正
+--     —— 按**自然日**计（业务原话是「7 天」，不是「7 个工作日」）；若应按工作日计，
+--        请同步修改本文件与 `MANUAL_RECALL_SLA_DAYS`（circle-refund.service.ts）。
+--   · 建议执行频率：每周一次即可覆盖 7 天时限；待办量上来后按需加密。
+--
 -- 约束：
---   · 三条语句**全部只读**，不含任何 INSERT / UPDATE / DELETE。
+--   · 下面的语句**全部只读**，不含任何 INSERT / UPDATE / DELETE。
+--   · 超期只是**标出来给人看**，系统不会因此改状态、不告警、不自动冲抵。
 --   · 不提供「一键冲正」。这些行之所以存在，正是因为系统判定不出该冲正哪一笔收益；
 --     自动冲抵等于回到「猜」。核对结论由人给出，冲正动作按财务既定流程执行。
 --   · 用户那一侧不受影响：退款照退、余额照到账、成员身份照常失效。
@@ -12,7 +20,7 @@
 
 
 -- ───────────────────────────────────────────────────────────────────────
--- ① 按原因码的发生量
+-- ① 按原因码的发生量 + 超期条数
 --
 -- 这是决策项 N9（是否放开 single / amount 推断匹配自动冲正）唯一的量化依据：
 --   inferred_match_not_approved  系统能推断出一条，但推断匹配尚未获业务批准
@@ -24,19 +32,25 @@
 -- ───────────────────────────────────────────────────────────────────────
 SELECT
   coalesce(r."reason", '(历史行·无原因码)') AS "原因码",
-  count(*)                                  AS "条数",
+  count(*)                                  AS "待办条数",
+  count(*) FILTER (
+    WHERE r."createdAt" < CURRENT_TIMESTAMP - INTERVAL '7 days'
+  )                                         AS "已超期",
   min(r."createdAt")                        AS "最早",
   max(r."createdAt")                        AS "最近"
 FROM "CommissionRecall" r
 WHERE r."status" = 'pending_manual'
 GROUP BY 1
-ORDER BY 2 DESC;
+ORDER BY 3 DESC, 2 DESC;
 
 
 -- ───────────────────────────────────────────────────────────────────────
--- ② 待办明细（建议每周执行一次；责任人与处理时限待业务指定）
+-- ② 待办明细（超期的排在最前）
 -- ───────────────────────────────────────────────────────────────────────
 SELECT
+  CASE WHEN r."createdAt" < CURRENT_TIMESTAMP - INTERVAL '7 days'
+       THEN '⚠ 超期' ELSE '' END                                   AS "超期",
+  date_part('day', CURRENT_TIMESTAMP - r."createdAt")::int          AS "已等待天数",
   r."id"          AS "待办id",
   r."createdAt"   AS "产生时间",
   r."reason"      AS "原因码",
@@ -56,7 +70,7 @@ LEFT JOIN "CircleRefundRequest" q ON q."id" = r."refundId"
 LEFT JOIN "Circle" c              ON c."id" = q."circleId"
 LEFT JOIN "User"   u              ON u."id" = r."userId"
 WHERE r."status" = 'pending_manual'
-ORDER BY r."createdAt" DESC
+ORDER BY r."createdAt" ASC          -- 最旧的最先处理
 LIMIT 200;
 
 
