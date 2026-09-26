@@ -227,6 +227,9 @@ export class CircleMembershipService {
     if (dto.payMethod === "COIN") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子加入仅支持人民币支付（微信/支付宝）");
     }
+    // 订单 id 提到分支外：下面记收益时要用它做订单级幂等，而 order 本身声明在分支内。
+    let paidOrderId: string | null = null;
+
     if (dto.orderNo || dto.orderId) {
       // 外部支付：校验订单状态
       const order = await this.prisma.order.findFirst({
@@ -243,6 +246,7 @@ export class CircleMembershipService {
       if (!order || order.status !== "PAID") {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
       }
+      paidOrderId = order.id;
       // 订单完结、成员创建和成员数增加必须同事务；重试或并发确认不能重复建成员。
       member = await this.prisma.$transaction(async (tx) => {
         const claimed = await tx.order.updateMany({
@@ -262,12 +266,15 @@ export class CircleMembershipService {
       this.redis.del(`circles:detail:${circleId}`),
     ]);
 
-    // 记录圈子收益（fire-and-forget，不影响主流程）
+    // 记录圈子收益（fire-and-forget，不影响主流程）。
+    // 带上 order.id：支付后处理器也会为同一笔订单记一次收益，两条路径靠
+    // `CircleRevenueRecord(type, orderId)` 唯一约束互斥。撞唯一键说明对方已记过，
+    // 落到下面的 catch 里当作正常情况——这里本就是 fire-and-forget。
     const priceYuan = Number(circle.price);
     if (priceYuan > 0 && this.commissionService) {
-      this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
-        (err) => this.logger.warn("记录入圈收益失败", err),
-      );
+      this.commissionService
+        .recordCircleRevenue(circleId, "circle_join", member.id, priceYuan, paidOrderId ?? undefined)
+        .catch((err) => this.logger.warn("记录入圈收益失败（含已由支付后处理器记过的情形）", err));
     }
 
     if (dto.referrerId && this.commissionService) {
@@ -471,12 +478,12 @@ export class CircleMembershipService {
       return { updated, newExpireAt };
     });
 
-    // 记录续费收益
+    // 记录续费收益（同上，带 order.id 与支付后处理器互斥）
     const priceYuan = Number(order.payAmount ?? order.amount);
     if (priceYuan > 0 && this.commissionService) {
-      this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
-        (err) => this.logger.warn("记录续费收益失败", err),
-      );
+      this.commissionService
+        .recordCircleRevenue(circleId, "circle_join", member.id, priceYuan, order.id)
+        .catch((err) => this.logger.warn("记录续费收益失败（含已由支付后处理器记过的情形）", err));
     }
 
     await this.redis.del(`circles:member:${circleId}:${userId}`);

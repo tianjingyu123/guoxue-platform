@@ -1504,8 +1504,8 @@ export class CommissionService {
   /**
    * 解析圈子收益的分成（平台抽成 / 圈主实得 / 比例），与 recordCircleRevenue 同一套口径。
    *
-   * 抽出来是为了让「按订单幂等记账」的调用方（ShopPaymentService.recordCircleRevenueOnce）
-   * 能先占住唯一键、再回填金额，而不必让 recordCircleRevenue 自己再插一行。
+   * 抽出来是为了让「按订单幂等记账」的调用方（ShopPaymentService）能先算出分成、
+   * 再一次性写入完整的收益行，而不必让 recordCircleRevenue 自己再插一行。
    * 本方法只读配置、不写任何记录。
    */
   async resolveCircleRevenueSplit(
@@ -1523,7 +1523,25 @@ export class CommissionService {
     };
   }
 
-  async recordCircleRevenue(circleId: string, type: string, sourceId: string, amount: number) {
+  /**
+   * @param orderId 可选。传入后写入 `CircleRevenueRecord.orderId`，与 `(type, orderId)` 唯一约束
+   *   配合，**跨入口**保证同一笔订单只产生一条收益行。
+   *
+   *   必须传的原因：客户端支付完成后会调 `confirm-join`，服务端支付回调也会走
+   *   `settleCircleAfterCommit`，两条路径都会记这笔收益。两者各有幂等判断，但判断依据都是
+   *   「成员是否已存在 / 订单是否已 COMPLETED」这类**读到即过期**的状态，在两者交错执行时
+   *   挡不住。唯一约束是唯一在数据库层成立的挡板。
+   *
+   *   不传（礼物 / 推荐位等非订单来源）时写入 NULL；Postgres 唯一约束不约束 NULL，
+   *   多行 NULL 互不冲突，既有行为不变。
+   */
+  async recordCircleRevenue(
+    circleId: string,
+    type: string,
+    sourceId: string,
+    amount: number,
+    orderId?: string,
+  ) {
     // ── 圈子双轨（董事长 2026-07-14 拍板）──
     // 平台分成由该圈子的【收款主体】决定，而不是按收入类型查全局费率：
     //   无执照圈主 → 平台收款（平台是经营者，担内容/纠纷责任）→ 平台抽 50%
@@ -1546,6 +1564,7 @@ export class CommissionService {
           circleId,
           type,
           sourceId,
+          orderId: orderId ?? null,
           amount,
           platformFee,
           ownerShare: Math.round(ownerShare * 100) / 100,
