@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
  * P5 课时作业（一页三态）— 合并原 work-submit + work-result + work-review 三页
- * 视觉：V0 阶段二视觉稿 p5-homework.html（未提交 / AI 已批改 / 讲师已复核，同页纵向流转）
+ * 视觉：V0 阶段二视觉稿 p5-homework.html（未提交 / 待批改 / 已批改，同页纵向流转）
  *       骨架屏 p5-p6-states.html
  * 真连：
  *   - courseApi.getWorkRequirement(chapterId) → 未提交态：作业要求（真实章节/课程名 + 指引）
  *   - courseApi.getWorkResult(workId)         → 已批改态：我的答案 + 批改结果（score/评语）
- * 诚实说明：后端作业模型仅单一 score/feedback，无独立「AI 评分」与「讲师复核」两套字段。
- *   故「AI 批改卡」以后端 score/feedback 承载批改结果；「讲师复核卡」仅当后端补齐独立复核
- *   字段（gradedBy.name / teacherComment 且区别于 AI 批改）时展示，当前恒隐藏但结构保留。
+ * 诚实说明：后端作业模型仅单一 score/feedback，无法区分 AI、讲师或管理员批改，不展示来源与复核承诺。
  * 页面入口：传 workId → 已提交（批改态）；仅传 chapterId → 未提交（提交态）。
  * 提交与选图均真连：图片先上传文件服务，作业再写入课程作业模型并进入批改态。
  */
@@ -17,7 +15,6 @@ import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import { chooseAndUploadImage } from '@/utils/request'
 import AppIcon from '@/components/common/app-icon.vue'
-import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { courseApi } from '@/lib/course-data'
 import type { WorkRequirement, WorkResult } from '@/lib/course-data'
 
@@ -44,13 +41,8 @@ const submitting = ref(false)
 // —— 三态判定 ——
 // 有 workId 且拿到批改结果 → 已提交（批改流）；否则未提交（提交流）
 const submitted = computed(() => !!work.value)
-// 已批改（AI/系统给分）
+// 已批改（后端未提供批改人/方式）
 const graded = computed(() => work.value?.status === 'graded' && work.value?.score != null)
-// 讲师已复核：后端补齐独立复核字段后生效（当前 gradedBy 为占位「讲师」→ 恒 false）
-const hasTeacherReview = computed(() => {
-  const g = work.value?.gradedBy
-  return !!(g && g.name && g.name !== '讲师' && work.value?.teacherComment)
-})
 
 // 未提交态输入校验
 const wordCount = computed(() => content.value.trim().length)
@@ -146,7 +138,7 @@ function previewImage(urls: string[], current: string) {
   <view class="page">
     <!-- ══ 顶部导航 ══ -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+      <view class="nav-back" hover-class="btn-press" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
         <app-icon name="arrow-left" :size="36" color="#2C2C2C" />
       </view>
       <text class="nav-title serif">本讲作业</text>
@@ -156,7 +148,7 @@ function previewImage(urls: string[], current: string) {
     <!-- ══ Error 态 ══ -->
     <view v-if="error" class="state-wrap">
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" hover-class="btn-press" @tap="loadData"><text class="retry-text">重试</text></view>
+      <view class="retry-btn" hover-class="btn-press" role="button" tabindex="0" aria-label="重新加载作业" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
     </view>
 
     <!-- ══ Loading 骨架屏 ══ -->
@@ -189,6 +181,7 @@ function previewImage(urls: string[], current: string) {
           <textarea
             v-model="content"
             class="input-area"
+            aria-label="我的作业答案"
             placeholder="写下你的思考与答案…"
             placeholder-class="input-ph"
             :maxlength="-1"
@@ -204,11 +197,11 @@ function previewImage(urls: string[], current: string) {
               class="img-thumb"
             >
               <image class="img-thumb-img" :src="url" mode="aspectFill" lazy-load @tap="previewImage(images, url)" />
-              <view class="img-del" hover-class="btn-press" @tap="removeImage(index)">
+              <view class="img-del" hover-class="btn-press" role="button" tabindex="0" :aria-label="`删除第 ${index + 1} 张作业图片`" @tap="removeImage(index)" @keydown.enter="removeImage(index)" @keydown.space.prevent="removeImage(index)">
                 <app-icon name="x" :size="22" color="#ffffff" />
               </view>
             </view>
-            <view v-if="images.length < (requirement?.maxImages ?? 9)" class="img-add" :class="{ disabled: uploadingImage }" hover-class="btn-press" @tap="onAddImage">
+            <view v-if="images.length < (requirement?.maxImages ?? 9)" class="img-add" :class="{ disabled: uploadingImage }" hover-class="btn-press" role="button" tabindex="0" aria-label="添加作业图片" :aria-disabled="uploadingImage ? 'true' : 'false'" @tap="onAddImage" @keydown.enter="onAddImage" @keydown.space.prevent="onAddImage">
               <app-icon :name="uploadingImage ? 'loader' : 'image-plus'" :size="40" color="#999999" />
               <text class="img-add-txt">{{ uploadingImage ? '上传中…' : '添加图片' }}</text>
             </view>
@@ -219,28 +212,24 @@ function previewImage(urls: string[], current: string) {
 
       <!-- 吸底提交 -->
       <view class="bottom-bar">
-        <view class="btn-submit" :class="{ disabled: submitDisabled }" hover-class="btn-press" @tap="onSubmit">
+        <view class="btn-submit" :class="{ disabled: submitDisabled }" hover-class="btn-press" role="button" tabindex="0" aria-label="提交作业" :aria-disabled="submitDisabled ? 'true' : 'false'" @tap="onSubmit" @keydown.enter="onSubmit" @keydown.space.prevent="onSubmit">
           <app-icon name="send" :size="34" :color="submitDisabled ? '#999999' : '#ffffff'" />
           <text class="btn-submit-txt" :class="{ disabled: submitDisabled }">{{ submitting ? '提交中…' : '提交作业' }}</text>
         </view>
       </view>
     </template>
 
-    <!-- ══════════ 态2/3 · 已批改 / 讲师已复核 ══════════ -->
+    <!-- ══════════ 态2/3 · 待批改 / 已批改 ══════════ -->
     <template v-else>
       <view class="body-pad body-pad-nobar">
         <!-- 状态胶囊 -->
-        <view v-if="hasTeacherReview" class="status-chip chip-green">
-          <app-icon name="check-circle" :size="24" color="#34A853" />
-          <text class="status-chip-txt chip-green-txt">讲师已复核</text>
-        </view>
-        <view v-else-if="graded" class="status-chip chip-gold">
-          <app-icon name="bot" :size="24" color="#8A6D3B" />
-          <text class="status-chip-txt chip-gold-txt">AI 已批改 · 待讲师复核</text>
+        <view v-if="graded" class="status-chip chip-gold">
+          <app-icon name="check-circle" :size="24" color="#8A6D3B" />
+          <text class="status-chip-txt chip-gold-txt">已批改</text>
         </view>
         <view v-else class="status-chip chip-orange">
           <app-icon name="clock" :size="24" color="#FF9500" />
-          <text class="status-chip-txt chip-orange-txt">批改中</text>
+          <text class="status-chip-txt chip-orange-txt">待批改</text>
         </view>
 
         <!-- 题目卡（精简） -->
@@ -263,15 +252,15 @@ function previewImage(urls: string[], current: string) {
         <!-- 批改中提示 -->
         <view v-if="!graded" class="pending-tip">
           <view class="pending-dot" />
-          <text class="pending-txt">系统正在批改中，请耐心等待…</text>
+          <text class="pending-txt">作业已提交，请等待批改结果。</text>
         </view>
 
-        <!-- AI 批改结果卡（金色浅底·深金字） -->
+        <!-- 批改结果卡（金色浅底·深金字） -->
         <view v-if="graded" class="ai-card">
           <view class="ai-head">
             <view class="ai-badge">
-              <app-icon name="bot" :size="22" color="#ffffff" />
-              <text class="ai-badge-txt">AI 批改</text>
+              <app-icon name="check-circle" :size="22" color="#ffffff" />
+              <text class="ai-badge-txt">已批改</text>
             </view>
             <text class="ai-head-t">批改结果</text>
           </view>
@@ -279,27 +268,12 @@ function previewImage(urls: string[], current: string) {
             <text class="ai-score">{{ work?.score }}<text class="ai-score-unit">分</text></text>
             <text class="ai-score-full">/ {{ work?.maxScore }}</text>
           </view>
-          <text v-if="work?.teacherComment" class="ai-comment">{{ work?.teacherComment }}</text>
-          <view class="ai-note">
-            <app-icon name="info" :size="24" color="#999999" />
-            <text class="ai-note-txt">AI 批改，讲师会复核</text>
-          </view>
-        </view>
-
-        <!-- 讲师复核卡（后端补齐独立复核字段后展示） -->
-        <view v-if="hasTeacherReview" class="review-card">
-          <view class="review-head">
-            <smart-avatar :src="work?.gradedBy?.avatar" :name="work?.gradedBy?.name || ''" class="review-avatar" />
-            <text class="review-name">{{ work?.gradedBy?.name }}</text>
-            <view class="review-tag"><text class="review-tag-txt">讲师复核</text></view>
-            <text v-if="work?.score != null" class="review-score">{{ work?.score }}<text class="review-score-unit"> 分</text></text>
-          </view>
-          <text v-if="work?.teacherComment" class="review-comment">{{ work?.teacherComment }}</text>
+          <text v-if="work?.feedback" class="ai-comment">{{ work?.feedback }}</text>
         </view>
 
         <!-- 底部操作：可重新提交 -->
         <view v-if="work?.canResubmit" class="resubmit-row">
-          <view class="btn-resubmit" hover-class="btn-press" @tap="onSubmit">
+          <view class="btn-resubmit" hover-class="btn-press" role="button" tabindex="0" aria-label="重新提交作业" @tap="onSubmit" @keydown.enter="onSubmit" @keydown.space.prevent="onSubmit">
             <app-icon name="edit" :size="30" color="#C41E3A" />
             <text class="btn-resubmit-txt">重新提交</text>
           </view>
@@ -371,8 +345,6 @@ function previewImage(urls: string[], current: string) {
 .status-chip-txt { font-size: 24rpx; font-weight: 600; }
 .chip-gold { background: rgba(201,169,110,0.14); }
 .chip-gold-txt { color: #8A6D3B; }
-.chip-green { background: rgba(52,168,83,0.1); }
-.chip-green-txt { color: #34A853; }
 .chip-orange { background: rgba(255,149,0,0.1); }
 .chip-orange-txt { color: #FF9500; }
 
@@ -396,20 +368,6 @@ function previewImage(urls: string[], current: string) {
 .ai-score-unit { font-size: 28rpx; font-weight: 500; }
 .ai-score-full { font-size: 28rpx; color: #999999; }
 .ai-comment { display: block; font-size: 28rpx; line-height: 1.7; color: #2C2C2C; white-space: pre-wrap; }
-.ai-note { display: flex; align-items: center; gap: 8rpx; margin-top: 24rpx; }
-.ai-note-txt { font-size: 24rpx; color: #999999; }
-
-/* ── 讲师复核卡 ── */
-.review-card { background: #FFFFFF; border-radius: 36rpx; padding: 32rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); border: 2rpx solid #EDE7DD; }
-.review-head { display: flex; align-items: center; gap: 16rpx; margin-bottom: 20rpx; }
-.review-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; }
-.review-avatar-ph { background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; }
-.review-name { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
-.review-tag { background: rgba(196,30,58,0.08); border-radius: 10rpx; padding: 4rpx 14rpx; }
-.review-tag-txt { font-size: 22rpx; font-weight: 600; color: #C41E3A; }
-.review-score { margin-left: auto; font-size: 40rpx; font-weight: 700; color: #C41E3A; font-family: "SF Mono", "Roboto Mono", monospace; }
-.review-score-unit { font-size: 24rpx; font-weight: 500; color: #999999; }
-.review-comment { display: block; font-size: 28rpx; line-height: 1.7; color: #2C2C2C; white-space: pre-wrap; }
 
 /* ── 重新提交 ── */
 .resubmit-row { margin-top: 8rpx; }

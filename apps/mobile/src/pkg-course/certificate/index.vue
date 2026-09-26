@@ -33,7 +33,10 @@ const canvasH = ref(450)
 
 function fmtDate(s: string) {
   if (!s) return ''
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (dateOnly) return `${dateOnly[1]}/${Number(dateOnly[2])}/${Number(dateOnly[3])}`
   const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
 }
 
@@ -46,6 +49,8 @@ async function loadTouchpoint() {
 async function loadData() {
   loading.value = true
   error.value = ''
+  cert.value = null
+  tp.value = null
   try {
     if (!courseId.value) throw new Error('缺少课程信息，请从学习中心重新进入')
     const res = await courseApi.getCertificate(courseId.value)
@@ -64,7 +69,9 @@ async function loadData() {
 
 // ============ 分享给好友（裂变核心）============
 // 标题带「炫耀感+召唤感」，path 指向课程详情页；withRef 自动追加当前用户 ref，好友点开即归因
-const shareTitle = computed(() => `我在${BRAND.name}完成了《${cert.value?.courseName || '国学好课'}》结课！`)
+const shareTitle = computed(() => cert.value
+  ? `我在${BRAND.name}完成了《${cert.value.courseName}》结课！`
+  : `来${BRAND.name}看看这门课程`)
 const sharePath = computed(() => `/pkg-course/detail/index?id=${encodeURIComponent(cert.value?.courseId || courseId.value)}`)
 const shareLink = computed(() => withRef(
   `${BRAND.h5Url.replace(/\/+$/, '')}${sharePath.value}`,
@@ -292,13 +299,14 @@ onMounted(() => {
   <!-- Error -->
   <view v-else-if="error" class="error-wrap">
     <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" role="button" tabindex="0" aria-label="重新核对证书" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn retry-btn--quiet" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><text class="retry-text">返回</text></view>
   </view>
   <!-- Content -->
   <view v-else class="page">
     <!-- ══ 顶部导航（深底白字·自定义状态栏高度）══ -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+      <view class="nav-back" role="button" tabindex="0" aria-label="返回上一页" hover-class="btn-press" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
         <app-icon name="chevron-left" :size="36" color="#ffffff" />
       </view>
       <text class="nav-title serif">结课证书</text>
@@ -323,8 +331,6 @@ onMounted(() => {
             <text class="cert-instructor">授课讲师：{{ cert.instructor }}</text>
             <text class="cert-date">{{ fmtDate(dateStr) }}</text>
             <text class="cert-no">证书编号 {{ cert.certificateNo }}</text>
-            <!-- 印章位：右下角朱红圆章（实际上线接入平台电子章图）-->
-            <view class="cert-seal"><text class="cert-seal-txt serif">热卜</text><text class="cert-seal-txt serif">国学</text></view>
           </view>
         </view>
       </view>
@@ -334,7 +340,7 @@ onMounted(() => {
 
       <!-- ── 底部按钮：保存图片 / 分享 ── -->
       <view class="actions">
-        <view class="btn btn-save" :class="{ disabled: submitting }" hover-class="btn-press" @tap="onSavePoster">
+        <view class="btn btn-save" role="button" tabindex="0" :aria-label="submitting ? '证书海报生成中' : '保存证书图片'" :class="{ disabled: submitting }" hover-class="btn-press" @tap="onSavePoster" @keydown.enter="onSavePoster" @keydown.space.prevent="onSavePoster">
           <app-icon name="download" :size="34" color="#ffffff" />
           <text class="btn-txt">{{ submitting ? '生成中...' : '保存图片' }}</text>
         </view>
@@ -346,7 +352,7 @@ onMounted(() => {
         </button>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <view class="btn btn-share" hover-class="btn-press" @tap="copyShareLink">
+        <view class="btn btn-share" role="button" tabindex="0" aria-label="复制证书分享链接" hover-class="btn-press" @tap="copyShareLink" @keydown.enter="copyShareLink" @keydown.space.prevent="copyShareLink">
           <app-icon name="share-2" :size="34" color="#ffffff" />
           <text class="btn-txt">分享</text>
         </view>
@@ -376,14 +382,14 @@ onMounted(() => {
 .nav-right { width: 88rpx; }
 
 /* ── 舞台 ── */
-.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24rpx 72rpx 48rpx; gap: 56rpx; }
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24rpx 40rpx 48rpx; gap: 48rpx; }
 
 /* ── 竖版证书卡：宣纸白底 + 描金双线边框（X5 兼容：纯色 + 边框，无毛玻璃）── */
 .cert { width: 100%; background: #FDFBF7; border-radius: 16rpx; padding: 20rpx; box-shadow: 0 24rpx 96rpx rgba(0,0,0,0.5); }
 .cert-inner { border: 4rpx solid #C9A96E; border-radius: 8rpx; padding: 6rpx; }
 .cert-inner2 {
   border: 2rpx solid rgba(201,169,110,0.5); border-radius: 4rpx;
-  padding: 64rpx 44rpx 52rpx;
+  padding: 56rpx 32rpx 48rpx;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   position: relative;
 }
@@ -397,15 +403,6 @@ onMounted(() => {
 .cert-instructor { font-size: 24rpx; color: #6E6E73; margin-top: 28rpx; }
 .cert-date { font-size: 24rpx; color: #999999; margin-top: 12rpx; }
 .cert-no { font-size: 22rpx; color: #999999; margin-top: 8rpx; font-variant-numeric: tabular-nums; }
-/* 印章位：右下角朱红圆章示意（实际为平台电子章图）*/
-.cert-seal {
-  position: absolute; right: 36rpx; bottom: 88rpx;
-  width: 128rpx; height: 128rpx; border-radius: 50%;
-  border: 5rpx solid rgba(196,30,58,0.75);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  transform: rotate(-12deg);
-}
-.cert-seal-txt { font-size: 24rpx; color: rgba(196,30,58,0.85); font-weight: 700; line-height: 1.3; letter-spacing: 2rpx; }
 
 /* ── 底部按钮 ── */
 .actions { display: flex; gap: 24rpx; width: 100%; padding: 0 0 16rpx; }
@@ -425,5 +422,6 @@ onMounted(() => {
 .loading-wrap, .error-wrap { min-height: 100vh; background: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .error-text { font-size: 28rpx; color: rgba(255,255,255,0.7); }
 .retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-btn--quiet { background: rgba(255,255,255,0.12); }
 .retry-text { font-size: 28rpx; color: #fff; }
 </style>

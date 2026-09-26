@@ -102,6 +102,15 @@ export class CourseReviewQaService {
     return { reviews, total, page, pageSize };
   }
 
+  /** 本人是否已评价；含隐藏评价，避免重复提交时仍出现写评价入口。 */
+  async getMyReviewStatus(userId: string, courseId: string) {
+    const review = await this.prisma.courseReview.findFirst({
+      where: { userId, courseId },
+      select: { id: true, status: true },
+    });
+    return { hasReviewed: !!review, status: review?.status ?? null };
+  }
+
   async getCourseRating(courseId: string) {
     const stats = await this.prisma.courseReview.aggregate({
       where: { courseId, status: "PUBLISHED" },

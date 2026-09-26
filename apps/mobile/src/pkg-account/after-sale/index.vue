@@ -59,7 +59,7 @@
           <text class="amount-fixed">{{ maxAmount.toFixed(2) }}</text>
           <text class="full-text">全额退款</text>
         </view>
-        <text class="amount-hint">当前按订单实付金额整单退款，审核通过后原路退回。</text>
+        <text class="amount-hint">当前仅支持按订单实付金额整单申请；审核通过不代表退款已到账。</text>
       </view>
 
       <!-- 问题描述 -->
@@ -100,10 +100,10 @@
       <!-- 退货说明 -->
       <view v-if="type === 'refund_with_return'" class="tips-card">
         <text class="tips-title">退货说明</text>
-        <text class="tips-line">1. 请在收到退货地址后7天内寄回商品</text>
+        <text class="tips-line">1. 收到退货地址后，请按商家提供的要求寄回商品</text>
         <text class="tips-line">2. 请保持商品原状，附带所有包装和配件</text>
         <text class="tips-line">3. 建议使用有物流追踪的快递方式</text>
-        <text class="tips-line">4. 退款将在收到商品后1-3个工作日内处理</text>
+        <text class="tips-line">4. 退款进度以售后状态和原支付渠道记录为准</text>
       </view>
 
       <view class="bottom-gap" />
@@ -112,8 +112,8 @@
 
     <!-- 底部提交 -->
     <view class="submit-bar" :style="{ paddingBottom: safeBottom + 'px' }">
-      <view class="submit-btn" :class="{ disabled: submitting }" @tap="submit">
-        <text class="submit-text">{{ submitting ? '提交中...' : '提交申请' }}</text>
+      <view class="submit-btn" :class="{ disabled: submitting || uploadingCount > 0 }" @tap="submit">
+        <text class="submit-text">{{ uploadingCount > 0 ? '图片上传中' : submitting ? '提交中...' : '提交申请' }}</text>
       </view>
     </view>
 
@@ -204,7 +204,7 @@ function selectReason(r: string) {
 
 function addImage() {
   uni.chooseImage({
-    count: 5 - images.value.length,
+    count: 5 - images.value.length - uploadingCount.value,
     success: (res) => {
       const paths = res.tempFilePaths as string[]
       // 真实上传 COS：逐张占位 → uploadImage 返回可访问 URL 落列表；失败提示并撤占位
@@ -212,7 +212,7 @@ function addImage() {
         uploadingCount.value++
         try {
           const url = await uploadImage(p)
-          images.value.push(url)
+          if (images.value.length < 5) images.value.push(url)
         } catch (e) {
           uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
         } finally {
@@ -242,6 +242,10 @@ function validate() {
 
 async function submit() {
   if (submitting.value) return
+  if (uploadingCount.value > 0) {
+    uni.showToast({ title: '请等待图片上传完成', icon: 'none' })
+    return
+  }
   if (!validate()) return
   submitting.value = true
   try {

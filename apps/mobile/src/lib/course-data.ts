@@ -69,7 +69,7 @@ export interface LearnProgress { courseId: string; completedLessons: string[]; t
 export interface LearnLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface LearnChapter { id: string; title: string; duration: number; isFree: boolean; lessons: LearnLesson[] }
 export interface LearnNote { id: string; content: string; chapterId: string; chapterTitle: string; lessonTitle: string; timestamp?: number; createdAt: string }
-export interface LearnQuestion { id: string; content: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; answers: number; isAnswered: boolean }
+export interface LearnQuestion { id: string; content: string; answer: string; author: { id: string; name: string; avatar: string }; chapterTitle: string; createdAt: string; isAnswered: boolean; status: string }
 
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
@@ -125,8 +125,7 @@ export interface WorkResult {
   chapterTitle: string; courseTitle: string
   content: string; images: string[]; submittedAt: string
   score?: number; maxScore: number
-  gradedBy?: { name: string; avatar: string }
-  teacherComment?: string; gradedAt?: string
+  feedback?: string; gradedAt?: string
   suggestions?: string[]
   canResubmit?: boolean
 }
@@ -177,7 +176,7 @@ interface RawProgress { chapterId?: string; completed?: boolean; progress?: numb
 /** 后端课程评价 */
 interface RawReview { id?: string; user?: RawUserLite | null; rating?: number | string; content?: string; reply?: string; createdAt?: string | null }
 /** 后端课程提问 */
-interface RawQuestion { id?: string; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; answerCount?: number; status?: string; _count?: RawCount | null }
+interface RawQuestion { id?: string; question?: string; answer?: string | null; content?: string; user?: RawUserLite | null; chapter?: { title?: string } | null; createdAt?: string | null; status?: string }
 /** 后端作业（含 user/chapter/course join） */
 interface RawWork { id?: string; userId?: string; user?: RawUserLite | null; chapterId?: string; chapter?: { title?: string } | null; course?: { title?: string } | null; content?: string; createdAt?: string | null; score?: number | null; feedback?: string }
 /** 后端结业证书 */
@@ -312,6 +311,17 @@ export interface CreatedCourse {
   createdAt: string
 }
 
+function adaptLearnQuestion(q: RawQuestion): LearnQuestion {
+  return {
+    id: q.id || '', content: q.question || q.content || '', answer: q.answer || '',
+    author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
+    chapterTitle: q.chapter?.title || '',
+    createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
+    isAnswered: !!q.answer,
+    status: q.status || 'PENDING',
+  }
+}
+
 export const courseApi = {
   /** 创建课程 — POST /courses（需讲师认证 APPROVED，后端 CourseCreatorGuard 拦截 + course_publish 开关；detailImages 介绍详情图最多6张；visibility 开放范围 CIRCLE_ONLY 默认/PLATFORM 全平台·发布即可见，机审后台异步） */
   create: (body: { circleId?: string; title: string; cover?: string; intro?: string; type?: string; price?: number; tags?: string[]; categoryLevel1?: string; categoryLevel2?: string; validityDays?: number; detailImages?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
@@ -397,6 +407,22 @@ export const courseApi = {
   async getReviews(id: string): Promise<CourseReview[]> {
     return adaptReviews(await apiGet<unknown>(`/courses/${id}/reviews`))
   },
+
+  /** 评价列表分页与服务端公开总数，供评价页使用。 */
+  async getReviewPage(id: string, page = 1): Promise<{ reviews: CourseReview[]; total: number }> {
+    const result = await apiGet<{ reviews?: RawReview[]; total?: number }>(`/courses/${encodeURIComponent(id)}/reviews?page=${page}&pageSize=20`)
+    return { reviews: adaptReviews(result), total: toNum(result.total) }
+  },
+
+  /** 全部已公开评价的服务端均分；失败时页面保留列表但不展示推算均分。 */
+  async getReviewRating(id: string): Promise<{ avgRating: number; reviewCount: number }> {
+    const result = await apiGet<{ avgRating?: number; reviewCount?: number }>(`/courses/${encodeURIComponent(id)}/rating`)
+    return { avgRating: toNum(result.avgRating), reviewCount: toNum(result.reviewCount) }
+  },
+
+  /** 登录用户自己的评价记录状态，由服务端按会话身份查询。 */
+  getMyReviewStatus: (id: string): Promise<{ hasReviewed: boolean; status: string | null }> =>
+    apiGet(`/courses/${encodeURIComponent(id)}/reviews/my`),
 
   /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
   async checkAccess(id: string): Promise<boolean> {
@@ -525,15 +551,14 @@ export const courseApi = {
       lessons: [{ id: ch.id || '', title: ch.title || '', duration: toNum(ch.duration), isFree: !!ch.freeTrial, isCompleted: !!progMap.get(ch.id || '')?.completed }],
     }))
     const qList = questionsRaw?.questions ?? toList<RawQuestion>(questionsRaw)
-    const learnQuestionsData: LearnQuestion[] = qList.map((q) => ({
-      id: q.id || '', content: q.content || '',
-      author: { id: q.user?.id || '', name: q.user?.nickname || '匿名', avatar: q.user?.avatar || '' },
-      chapterTitle: q.chapter?.title || '',
-      createdAt: q.createdAt ? String(q.createdAt).slice(0, 10) : '',
-      answers: toNum(q.answerCount ?? q._count?.answers),
-      isAnswered: q.status === 'ANSWERED' || !!q.answerCount,
-    }))
+    const learnQuestionsData: LearnQuestion[] = qList.map(adaptLearnQuestion)
     return { course: learnCourseData, progress: learnProgressData, chapters: learnChaptersData, notes: [], questions: learnQuestionsData }
+  },
+
+  /** 课程问答单独读取；错误向页面传递，避免把接口失败展示为“还没有提问”。 */
+  async getQuestions(id: string, page = 1): Promise<{ questions: LearnQuestion[]; total: number }> {
+    const result = await apiGet<{ questions?: RawQuestion[]; total?: number }>(`/courses/${encodeURIComponent(id)}/questions?page=${page}&pageSize=20`)
+    return { questions: (result.questions || []).map(adaptLearnQuestion), total: toNum(result.total) }
   },
 
   /** 学生提问 — POST /courses/:id/questions（需登录·后端 AskQuestionDto={question,chapterId?}） */
@@ -731,8 +756,7 @@ export const courseApi = {
       submittedAt: w.createdAt ? String(w.createdAt).replace('T', ' ').slice(0, 16) : '',
       score: graded ? toNum(w.score) : undefined,
       maxScore: 100,
-      gradedBy: graded ? { name: '讲师', avatar: '' } : undefined,
-      teacherComment: w.feedback || undefined,
+      feedback: w.feedback || undefined,
       suggestions: [],
       canResubmit: false,
     }

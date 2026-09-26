@@ -823,22 +823,6 @@ export const invoiceOptions = [
   { value: 'company', label: '企业发票', desc: '需要填写企业税号' },
 ]
 
-/** 支付失败原因映射 */
-export const payFailReasons: Record<string, { title: string; desc: string; icon: string }> = {
-  insufficient_balance: { title: '余额不足', desc: '您的账户余额不足以完成本次支付', icon: 'wallet' },
-  timeout: { title: '支付超时', desc: '支付时间已超过限制，请重新发起支付', icon: 'clock' },
-  cancelled: { title: '支付已取消', desc: '您已取消本次支付', icon: 'ban' },
-  network_error: { title: '网络异常', desc: '网络连接出现问题，请检查网络后重试', icon: 'alert-circle' },
-  default: { title: '支付失败', desc: '支付过程中出现问题，请稍后重试', icon: 'alert-circle' },
-}
-
-/** 支付超时可能原因 */
-export const payTimeoutReasons = [
-  { icon: 'wifi', text: '网络连接不稳定，请检查网络后重试' },
-  { icon: 'credit-card', text: '银行卡单笔/单日限额，请尝试换卡支付' },
-  { icon: 'smartphone', text: '支付App未响应，请确保支付App正常运行' },
-]
-
 /* ============================================================
    十五、订单中心（app/orders 系列：列表/详情/物流/评价/发票/退款/纠纷）
    从 app/orders/* 1:1 迁移。状态语义保留，配色统一为商城主题（#9A2D2D）。
@@ -1235,7 +1219,7 @@ interface RawGroupBuyMember { avatar?: string; nickname?: string; isLeader?: boo
 interface RawGroupBuyGroup { groupId?: string; members?: RawGroupBuyMember[]; currentMembers?: number; minMembers?: number }
 interface RawGroupBuy { id?: string; product?: RawGroupBuyProduct | null; groupPrice?: number | string; minMembers?: number; joinedCount?: number; _count?: { participants?: number }; expireMinutes?: number; groups?: RawGroupBuyGroup[] }
 interface RawMyGroupBuy { groupBuyId?: string; groupBuy?: { productId?: string; groupPrice?: number | string; minMembers?: number; expireMinutes?: number } | null; joinedCount?: number; product?: RawGroupBuyProduct | null; status?: string; isLeader?: boolean }
-interface RawGroupResult { product?: RawGroupBuyProduct | null; members?: RawGroupBuyMember[]; paidAt?: string; orderId?: string; refundedAt?: string; refundAmount?: number | string; minMembers?: number; currentMembers?: number; groupId?: string }
+interface RawGroupResult { status?: string; product?: RawGroupBuyProduct | null; members?: RawGroupBuyMember[]; paidAt?: string; orderId?: string; refundedAt?: string; refundAmount?: number | string; minMembers?: number; currentMembers?: number; groupId?: string }
 interface RawCartItem { id?: string; productId?: string; product?: { title?: string; image?: string } | null; sku?: { specs?: unknown } | null; skuId?: string; unitPrice?: number | string; originalPrice?: number | string; quantity?: number; stock?: number; isValid?: boolean; invalidReason?: string }
 interface RawAddress { id?: string; name?: string; contactName?: string; phone?: string; contactPhone?: string; province?: string; city?: string; district?: string; address?: string; detail?: string; isDefault?: boolean }
 interface RawCoupon { id?: string; name?: string; type?: string; value?: number | string; minAmount?: number | string; validEnd?: string; scope?: string; discountRate?: number | string; discountAmount?: number | string; totalCount?: number; usedCount?: number }
@@ -1394,24 +1378,28 @@ function fmtDateTime(s?: string | null): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
-/** 后端拼团结果(my-result) → 成功结果页（成团时间取支付时间·后端无单独成团时间；发货预估为业务承诺文案） */
+/** 后端拼团结果(my-result) → 成功结果页；仅使用接口可证实的状态与字段。 */
 function adaptGroupBuySuccess(r: RawGroupResult) {
+  if (r?.status !== 'SUCCESS') throw new Error(r?.status === 'WAITING'
+    ? '拼团尚未成功，请返回拼团订单查看进度'
+    : '拼团未成功，请返回订单查看退款进度')
   const price = shopNum(r?.product?.price)
   const originalPrice = shopNum(r?.product?.originalPrice)
+  const hasDiscount = originalPrice > price && price > 0
   return {
     productCover: r?.product?.image || '',
     productName: r?.product?.title || '',
     price,
-    originalPrice,
-    savedAmount: Math.round((originalPrice - price) * 100) / 100,
+    originalPrice: hasDiscount ? originalPrice : null,
+    savedAmount: hasDiscount ? Math.round((originalPrice - price) * 100) / 100 : null,
     members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
-    completedAt: fmtDateTime(r?.paidAt),
+    paidAt: fmtDateTime(r?.paidAt),
     orderId: r?.orderId || '',
-    estimatedShipDate: '付款后 3 个工作日内',
   }
 }
 /** 后端拼团结果(my-result) → 失败结果页（reason 统一 timeout·后端仅超时未成团一种失败；退款状态由 refundedAt 派生） */
 function adaptGroupBuyFail(r: RawGroupResult) {
+  if (r?.status !== 'REFUNDED') throw new Error('拼团尚未失败，请返回拼团订单查看当前状态')
   return {
     productCover: r?.product?.image || '',
     productName: r?.product?.title || '',
@@ -1420,9 +1408,8 @@ function adaptGroupBuyFail(r: RawGroupResult) {
     currentMembers: r?.currentMembers || 0,
     members: (r?.members || []).map((m: RawGroupBuyMember) => ({ avatar: m.avatar || '' })),
     reason: 'timeout',
-    failedAt: fmtDateTime(r?.refundedAt || r?.paidAt),
+    failedAt: fmtDateTime(r?.refundedAt),
     refundAmount: shopNum(r?.refundAmount),
-    estimatedRefundTime: '1-3 个工作日',
     refundStatus: r?.refundedAt ? 'completed' : 'processing',
     orderId: r?.orderId || '',
     groupId: r?.groupId || '',
@@ -2115,8 +2102,8 @@ export const shopApi = {
     const qs: string[] = [`page=${page}`, `pageSize=${pageSize}`]
     if (category && category !== 'all') qs.push(`categoryLevel1=${encodeURIComponent(category)}`)
     if (keyword) qs.push(`keyword=${encodeURIComponent(keyword)}`)
-    if (priceMin) qs.push(`priceMin=${priceMin}`)
-    if (priceMax) qs.push(`priceMax=${priceMax}`)
+    if (priceMin !== undefined) qs.push(`priceMin=${priceMin}`)
+    if (priceMax !== undefined) qs.push(`priceMax=${priceMax}`)
     if (sort && sort !== 'default') qs.push(`sort=${sort}`)
     // listProducts 返回 {products,total,page,pageSize} 被拦截器转为 {data:数组,pagination}，用 apiGetPaged 保留 total
     const { items, total } = await apiGetPaged<RawShopProduct>(`/shop/products?${qs.join('&')}`)

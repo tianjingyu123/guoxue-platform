@@ -13,6 +13,9 @@
       <view class="state-retry" @tap="retryLoad">
         <text class="state-retry-text">重试</text>
       </view>
+      <view class="state-retry" role="button" tabindex="0" aria-label="返回上一页" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
+        <text class="state-retry-text">返回</text>
+      </view>
     </view>
     <template v-else-if="info">
       <!-- 头部 -->
@@ -60,7 +63,7 @@
         </view>
         <view class="row">
           <text class="row-label">失败时间</text>
-          <text class="row-value">{{ info.failedAt }}</text>
+          <text class="row-value">{{ info.failedAt || '以订单记录为准' }}</text>
         </view>
       </view>
 
@@ -76,8 +79,8 @@
             <text class="refund-amount">¥{{ info.refundAmount.toFixed(2) }}</text>
           </view>
           <view class="refund-row">
-            <text class="refund-sub">预计到账</text>
-            <text class="refund-sub">{{ info.estimatedRefundTime }}（1-3个工作日）</text>
+            <text class="refund-sub">平台处理状态</text>
+            <text class="refund-sub">{{ info.refundStatus === 'completed' ? '已记录退款完成' : '退款处理中' }}</text>
           </view>
         </view>
         <!-- 退款进度 -->
@@ -85,7 +88,7 @@
           <view class="steps-labels">
             <text class="step-label">申请退款</text>
             <text class="step-label">处理中</text>
-            <text class="step-label">退款完成</text>
+            <text class="step-label">平台退款完成</text>
           </view>
           <view class="steps-bar">
             <view class="steps-fill" :style="{ width: refundProgress + '%' }" />
@@ -104,7 +107,7 @@
         </view>
         <view class="refund-note">
           <app-icon name="clock" :size="26" color="#999" />
-          <text class="refund-note-text">退款将原路返回至您的支付账户，请留意账户变动</text>
+          <text class="refund-note-text">实际到账时间以支付渠道为准，如有疑问可查看退款记录</text>
         </view>
       </view>
 
@@ -165,7 +168,6 @@ interface GroupBuyFailData {
   reason: string
   failedAt: string
   refundAmount: number
-  estimatedRefundTime: string
   refundStatus: string
   orderId: string
   groupId: string

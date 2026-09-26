@@ -7,7 +7,8 @@
  * 发票：/finance/my/invoices（用户申请、财务开具、文件下载真实闭环）。
  * 图片走后端真实字段（product.images[0]），无则前端 v-if 降级。
  */
-import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut } from '@/utils/request'
+import { parseAfterSaleEvidence } from '@/utils/after-sale-evidence'
 
 /* ============================================================
    一、商品订单列表（app/orders）
@@ -561,6 +562,7 @@ function buildAfterSaleTimeline(a: RawAfterSale) {
 }
 
 function adaptDisputeDetail(a: RawAfterSale): DisputeDetail {
+  const evidence = parseAfterSaleEvidence(a.reason)
   const orderBrief: DisputeOrderBrief = {
     orderId: a.orderId || '',
     orderNo: shortNo(a.orderId),
@@ -575,8 +577,8 @@ function adaptDisputeDetail(a: RawAfterSale): DisputeDetail {
     orderNo: shortNo(a.orderId),
     type: typeText(a.type),
     status: AFTERSALE_STATUS_MAP[a.status || ''] || 'pending',
-    description: cleanText(a.reason),
-    images: [],
+    description: cleanText(evidence.reason),
+    images: evidence.images,
     expectation: '',
     order: orderBrief,
     timeline: buildAfterSaleTimeline(a),
@@ -798,10 +800,9 @@ export const orderApi = {
   },
 
   /** 我的纠纷/售后列表 */
-  async getDisputes(): Promise<DisputeListItem[]> {
-    const res = await apiGet<RawAfterSale[] | { items: RawAfterSale[] }>(`/shop/after-sales?page=1&pageSize=100`)
-    const list: RawAfterSale[] = Array.isArray(res) ? res : (res?.items || [])
-    return list.map(adaptDisputeListItem)
+  async getDisputesPage(page = 1): Promise<{ items: DisputeListItem[]; total: number; page: number; pageSize: number }> {
+    const res = await apiGetPaged<RawAfterSale>(`/shop/after-sales?page=${page}&pageSize=20`)
+    return { ...res, items: res.items.map(adaptDisputeListItem) }
   },
 
   /** 纠纷/售后详情 */
@@ -811,11 +812,11 @@ export const orderApi = {
   },
 
   /** 提交纠纷/售后申请（映射至订单售后；description+expectation 合并为 reason） */
-  async submitDispute(orderId: string, type: string, description: string, expectation: string, _images?: string[]): Promise<boolean> {
+  async submitDispute(orderId: string, type: string, description: string, expectation: string, images?: string[]): Promise<boolean> {
     if (!orderId) throw new Error('缺少订单信息')
     const reason = [getDisputeTypeLabel(type), description, expectation ? `期望：${expectation}` : '']
       .filter(Boolean).join('；').slice(0, 500)
-    await apiPost(`/shop/orders/${orderId}/after-sale`, { type, reason })
+    await apiPost(`/shop/orders/${orderId}/after-sale`, { type, reason, images: images?.slice(0, 5) })
     return true
   },
 

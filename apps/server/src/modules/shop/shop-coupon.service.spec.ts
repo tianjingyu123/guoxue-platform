@@ -351,6 +351,15 @@ describe("ShopCouponService", () => {
         data: expect.objectContaining({ type: "exchange", amount: null }),
       });
     });
+
+    it("申诉凭证 URL 随本人售后理由保存供处理方核对", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", amount: 100, status: "PAID" });
+      mockPrisma.afterSale.create.mockImplementation(({ data }: any) => Promise.resolve({ id: "as1", ...data }));
+      await svc.applyAfterSale("u1", "o1", "quality_issue", "商品有破损", undefined, ["https://assets.example.invalid/evidence.jpg"]);
+      expect(mockPrisma.afterSale.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ reason: expect.stringContaining("https://assets.example.invalid/evidence.jpg") }),
+      });
+    });
   });
 
   describe("getAfterSale", () => {

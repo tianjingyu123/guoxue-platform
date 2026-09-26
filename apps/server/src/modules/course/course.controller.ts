@@ -79,6 +79,7 @@ export class CourseController {
       page: q.page || 1,
       pageSize: q.pageSize || 20,
       circleId: q.circleId,
+      instructorId: q.instructorId,
       auditStatus: isAdmin ? requestedStatus : undefined,
       stationId: stationId || q.stationId,
       type: q.type,
@@ -435,6 +436,14 @@ export class CourseController {
   @ApiResponse({ status: 200, description: "成功返回评价列表" })
   getReviews(@Param("id") courseId: string, @Query() q: ReviewListQueryDto) {
     return this.course.listReviews(courseId, q.page || 1, q.pageSize || 20);
+  }
+
+  @Get(":id/reviews/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "查询本人是否已评价课程" })
+  @ApiBearerAuth()
+  getMyReviewStatus(@Req() req: AuthRequest, @Param("id") courseId: string) {
+    return this.course.getMyReviewStatus(req.user.id, courseId);
   }
 
   @Put("reviews/:reviewId/reply")

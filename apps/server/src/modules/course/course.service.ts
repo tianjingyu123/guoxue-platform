@@ -214,25 +214,26 @@ export class CourseService {
   }
 
   async listCourses(params: {
-    page: number; pageSize: number; circleId?: string;
+    page: number; pageSize: number; circleId?: string; instructorId?: string;
     auditStatus?: string; status?: string; stationId?: string; type?: string; keyword?: string;
     categoryLevel1?: string; sort?: string; free?: boolean; minPrice?: number; maxPrice?: number;
   }) {
-    const { circleId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free, minPrice, maxPrice } = params;
+    const { circleId, instructorId, auditStatus, status, stationId, type, keyword, categoryLevel1, sort, free, minPrice, maxPrice } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterStatus = auditStatus || status;
     const hasPrice = minPrice !== undefined || maxPrice !== undefined;
-    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}:${stationId ?? ""}`;
+    const filterHash = `${circleId ?? ""}:${instructorId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}:${stationId ?? ""}`;
     const cacheKey = `courses:list:v3:${page}:${pageSize}:${filterHash}`;
 
     // 关键词搜索、类型/品类/排序/免费/价格筛选不缓存（组合太多）
-    if (!keyword && !type && !categoryLevel1 && !sort && !free && !hasPrice) {
+    if (!instructorId && !keyword && !type && !categoryLevel1 && !sort && !free && !hasPrice) {
       const cached = await this.redis.getJson<any>(cacheKey);
       if (cached) return cached;
     }
 
     const where: Prisma.CourseWhereInput = {};
     if (circleId) where.circleId = circleId;
+    if (instructorId) where.userId = instructorId;
     // ALL=管理端查看全部状态（含待审核/草稿/驳回），不加 auditStatus 过滤；
     // 指定具体状态则精确过滤；未传（移动端公开列表）默认只看已通过。
     if (filterStatus === "ALL") { /* 不过滤状态 */ }
@@ -284,7 +285,7 @@ export class CourseService {
     ]);
 
     const data = { courses, total, page, pageSize };
-    await this.redis.setJson(cacheKey, data, 300);
+    if (!instructorId) await this.redis.setJson(cacheKey, data, 300);
     return data;
   }
 
@@ -423,6 +424,10 @@ export class CourseService {
 
   listReviews(courseId: string, rawPage = 1, rawPageSize = 20) {
     return this.reviewQaSvc.listReviews(courseId, rawPage, rawPageSize);
+  }
+
+  getMyReviewStatus(userId: string, courseId: string) {
+    return this.reviewQaSvc.getMyReviewStatus(userId, courseId);
   }
 
   getCourseRating(courseId: string) {
