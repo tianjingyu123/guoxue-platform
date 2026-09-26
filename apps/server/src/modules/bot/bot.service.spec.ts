@@ -522,10 +522,12 @@ describe("BotService", () => {
 
   describe("getCircleBot", () => {
     it("获取圈子绑定的智能体", async () => {
-      mockPrisma.circleBot.findUnique.mockResolvedValue({ circleId: "c1", botConfig: { id: "b1" } });
+      mockPrisma.circleBot.findUnique.mockResolvedValue({ circleId: "c1", botConfig: { id: "b1", apiKey: "encrypted-secret" } });
       const result = await svc.getCircleBot("c1");
       expect(result).not.toBeNull();
       expect(result!.botConfig.id).toBe("b1");
+      expect(result!.botConfig).not.toHaveProperty("apiKey");
+      expect(JSON.stringify(result)).not.toContain("encrypted-secret");
     });
 
     it("圈子未绑定智能体返回 null", async () => {

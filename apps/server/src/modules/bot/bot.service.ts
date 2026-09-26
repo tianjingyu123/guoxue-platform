@@ -377,7 +377,8 @@ export class BotService {
       include: { botConfig: true },
     });
     if (bot?.botConfig) {
-      const { ...rest } = bot.botConfig;
+      // 公开圈子入口不得返回 Coze 凭据（包括数据库中的加密值）。
+      const { apiKey: _apiKey, ...rest } = bot.botConfig;
       return { ...bot, botConfig: rest };
     }
     return bot;
