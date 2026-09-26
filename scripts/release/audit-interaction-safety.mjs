@@ -583,10 +583,11 @@ const checks = [
     ]),
   },
   {
-    name: "圈子广场快捷入口、分类、圈子分流、换一批和圈内动态支持键盘与读屏操作",
+    name: "圈子广场导航、创建入口、分类、圈子分流和圈内动态支持键盘与读屏操作",
     file: "apps/mobile/src/pages/circles/index.vue",
     pass: hasAll(circlePlaza, [
-      'aria-label="圈子广场快捷操作"',
+      'aria-label="圈子个人中心"',
+      'role="tablist" aria-label="圈子浏览区域"',
       'aria-label="搜索圈子"',
       'aria-label="创建圈子"',
       'aria-label="打开我的圈子"',
@@ -596,7 +597,7 @@ const checks = [
       "onCategoryKeydown",
       ':aria-label="`进入圈子：${c.name}',
       ':aria-label="`${c.name}，${c.description}',
-      'aria-label="换一批发现圈子"',
+      ':aria-label="discoverMoreError ? \'重试加载更多圈子\' : \'换一批发现圈子\'"',
       'role="alert" aria-live="assertive"',
       'aria-label="来自已加入圈子的最新动态"',
       ':aria-label="`${post.circleName}，${post.author.name}发布',

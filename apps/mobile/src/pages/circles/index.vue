@@ -610,7 +610,7 @@ onShow(() => {
           <text class="empty-action-txt">{{ activityFailed ? '重新加载' : '去我的圈子' }}</text>
         </view>
       </view>
-      <view v-if="activeHub === 'mine'" class="create-row" role="link" tabindex="0" @tap="go('/pkg-circle/circles/create')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/create'))">
+      <view v-if="activeHub === 'mine'" class="create-row" role="link" tabindex="0" aria-label="创建圈子" @tap="go('/pkg-circle/circles/create')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/create'))">
         <app-icon name="plus" :size="32" color="#2B6F68" /><text>创建圈子</text><app-icon name="chevron-right" :size="24" color="#6E6E73" />
       </view>
       <view class="bottom-spacer" />
