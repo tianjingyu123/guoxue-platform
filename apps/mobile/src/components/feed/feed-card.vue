@@ -53,7 +53,7 @@ function go(event?: unknown) {
 </script>
 
 <template>
-  <view class="feed-card-wrap" data-content-card hover-class="feed-card-press" @tap="go">
+  <view class="feed-card-wrap" data-content-card role="link" tabindex="0" :aria-label="`查看${item.title}`" hover-class="feed-card-press" @tap="go" @keydown.enter="go" @keydown.space.prevent="go">
     <!-- 16:9 大卡（独占全宽·按节奏插入·仅 live/course 且有封面，否则落回普通卡） -->
     <big-card v-if="bigOk" :item="item" />
     <video-card v-else-if="t === 'video'" :item="item" />
@@ -74,11 +74,12 @@ function go(event?: unknown) {
 /* 按压反馈：轻缩放 0.98 + 0.15s 过渡（X5 安全：仅动 opacity/transform） */
 .feed-card-wrap { display: block; animation: card-arrive .36s cubic-bezier(.2,.75,.25,1) both; transition: transform 0.15s ease-out, opacity 0.15s ease-out; }
 .feed-card-press { opacity: 0.88; transform: scale(0.98); }
+.feed-card-wrap:focus-visible { outline: 4rpx solid #a32035; outline-offset: 4rpx; border-radius: 22rpx; }
 @keyframes card-arrive {
   from { opacity: 0; transform: translateY(10rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .feed-card-wrap { animation: none; }
+  .feed-card-wrap { animation: none; transition: none; }
 }
 </style>
