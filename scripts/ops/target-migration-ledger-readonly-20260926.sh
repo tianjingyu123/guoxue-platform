@@ -18,7 +18,8 @@ const db = new PrismaClient();
   const migrations = exists[0].present
     ? await db.$queryRawUnsafe('SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back FROM "_prisma_migrations" ORDER BY migration_name')
     : [];
-  console.log(JSON.stringify({ identity: identity[0], ledgerPresent: exists[0].present, migrations }));
+  const dependencyTables = await db.$queryRawUnsafe("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('PaipanReportKnowledge', 'VoiceAgentProfile', 'VoiceSession', 'VoiceDevice') ORDER BY table_name");
+  console.log(JSON.stringify({ identity: identity[0], ledgerPresent: exists[0].present, migrations, dependencyTables }));
 })().catch(error => {
   console.error(JSON.stringify({ errorName: error.name, errorCode: error.code || null }));
   process.exitCode = 1;
