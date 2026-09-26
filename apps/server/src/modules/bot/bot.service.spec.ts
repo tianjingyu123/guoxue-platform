@@ -5,6 +5,7 @@ import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
+import { Observable } from "rxjs";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
 jest.mock("../../common/crypto.util", () => ({
@@ -43,7 +44,7 @@ const mockPrisma = {
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn() };
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn(), chatStreamEx: jest.fn() };
 const mockReco = {
   build: jest.fn().mockResolvedValue({ content: "", recommendation: null }),
   parseProtocol: jest.fn((content: string) => ({ clean: content.replace(/<!--RECO:[\s\S]*?-->/g, "").trim(), intents: [] })),
@@ -157,6 +158,79 @@ describe("BotService", () => {
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 3, paidRemaining: 0 });
       mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 0 });
       await expect(svc.consumeQuota("b1", "u1")).rejects.toThrow(/追问包|会员/);
+    });
+  });
+
+  describe("模型失败时归还未获得回答的额度", () => {
+    const bot = { id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze", isFree: true, dailyLimit: 5, pricePer10Coin: 100, freeUses: 3 };
+    beforeEach(() => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "NONE", memberExpire: null });
+      mockPrisma.botChatLog.count.mockResolvedValue(0);
+      mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", freeUsed: 2, paidRemaining: 1 });
+      mockPrisma.userBotQuota.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it("非流式模型报错后归还试用，保留原错误", async () => {
+      mockCoze.chat.mockRejectedValue(new Error("upstream failed"));
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow("upstream failed");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1", freeUsed: { gt: 0 } },
+        data: { freeUsed: { decrement: 1 } },
+      });
+    });
+
+    it("非流式空回答归还已购次数", async () => {
+      mockPrisma.userBotQuota.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValue({ count: 1 });
+      mockCoze.chat.mockResolvedValue({ content: "  ", conversationId: "c1" });
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow(/有效内容/);
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1" },
+        data: { paidRemaining: { increment: 1 } },
+      });
+    });
+
+    it("流式首字前上游报错只归还一次", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => subscriber.error(new Error("stream failed"))));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({
+          error: (err) => { expect(err.message).toBe("stream failed"); resolve(); },
+        });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("流式已有文字再中断，不归还已消费额度", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => {
+        subscriber.next({ type: "chunk", content: "部分回答" });
+        subscriber.error(new Error("stream failed"));
+      }));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({ error: () => resolve() });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("流式空完成归还额度并向客户端报错", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => subscriber.complete()));
+      await new Promise<void>((resolve) => {
+        svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe({
+          error: (err) => { expect(err.message).toMatch(/有效内容/); resolve(); },
+        });
+      });
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("流式首字前断开连接归还额度", async () => {
+      const checked = await svc.precheckChat("b1", "u1");
+      mockCoze.chatStreamEx.mockReturnValue(new Observable(() => undefined));
+      const subscription = svc.chatStreamRich(checked, "u1", { query: "问题" } as any).subscribe();
+      subscription.unsubscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
     });
   });
 

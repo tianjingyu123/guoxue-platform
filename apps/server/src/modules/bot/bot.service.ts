@@ -103,6 +103,29 @@ export class BotService {
     );
   }
 
+  /** 上游未产生回答时归还本次消耗；调用方须保证每个请求最多调用一次。 */
+  private async releaseFailedQuota(botConfigId: string, userId: string, charge: "free_bot" | "member" | "trial" | "paid") {
+    if (charge === "trial") {
+      await this.prisma.userBotQuota.updateMany({
+        where: { userId, botConfigId, freeUsed: { gt: 0 } },
+        data: { freeUsed: { decrement: 1 } },
+      });
+    } else if (charge === "paid") {
+      await this.prisma.userBotQuota.updateMany({
+        where: { userId, botConfigId },
+        data: { paidRemaining: { increment: 1 } },
+      });
+    }
+  }
+
+  private async releaseFailedQuotaSafely(botConfigId: string, userId: string, charge: "free_bot" | "member" | "trial" | "paid") {
+    try {
+      await this.releaseFailedQuota(botConfigId, userId, charge);
+    } catch (err) {
+      this.logger.error(`智能体失败额度归还异常 [${botConfigId}]: ${(err as Error).message}`);
+    }
+  }
+
   /** 我的追问额度（对话页展示余量与定价） */
   async getQuota(botConfigId: string, userId: string) {
     const bot = await this.getBotOrThrow(botConfigId);
@@ -394,17 +417,23 @@ export class BotService {
     }
 
     // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
-    await this.consumeQuota(botConfigId, userId);
-
-    const result = bot.runtime === "local"
-      ? await this.localChat(bot, userId, dto)
-      : await this.coze.chat({
-          botId: bot.botId,
-          apiKey: bot.apiKey,
-          userId,
-          query: dto.query,
-          conversationId: dto.conversationId,
-        });
+    const charge = await this.consumeQuota(botConfigId, userId);
+    let result: Awaited<ReturnType<CozeService["chat"]>> | Awaited<ReturnType<BotService["localChat"]>>;
+    try {
+      result = bot.runtime === "local"
+        ? await this.localChat(bot, userId, dto)
+        : await this.coze.chat({
+            botId: bot.botId,
+            apiKey: bot.apiKey,
+            userId,
+            query: dto.query,
+            conversationId: dto.conversationId,
+          });
+      if (typeof result.content !== "string" || !result.content.trim()) throw new Error("智能体未返回有效内容，请重试");
+    } catch (err) {
+      await this.releaseFailedQuotaSafely(botConfigId, userId, charge);
+      throw err;
+    }
 
     // 向导式推荐：解析模型协议(优先)/平台兜底 → 匹配真实内容 → 按意图置信度直展或征求同意
     // content 已剥离协议标记，落库与展示均用净文本
@@ -451,8 +480,8 @@ export class BotService {
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
     }
-    await this.consumeQuota(botConfigId, userId);
-    return bot;
+    const quotaCharge = await this.consumeQuota(botConfigId, userId);
+    return { ...bot, quotaCharge };
   }
 
   /**
@@ -462,7 +491,7 @@ export class BotService {
    * - 审计：完整净文本落 BotChatLog（与非流式同表同结构）
    */
   chatStreamRich(
-    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null },
+    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null; quotaCharge?: "free_bot" | "member" | "trial" | "paid" },
     userId: string,
     dto: ChatDto,
   ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
@@ -471,6 +500,12 @@ export class BotService {
       let held = ""; // 尾部滞留缓冲：疑似 `<!--` 协议标记开头后暂停外发
       let conversationId = dto.conversationId || "";
       let chatId: string | undefined;
+      let quotaSettled = false;
+      const releaseIfEmpty = async () => {
+        if (quotaSettled || full.trim()) return;
+        quotaSettled = true;
+        if (bot.quotaCharge) await this.releaseFailedQuotaSafely(bot.id, userId, bot.quotaCharge);
+      };
 
       /** 输出安全前缀：可外发部分立即 emit，协议标记起点及其后滞留 */
       const emitSafe = (s: string) => {
@@ -513,10 +548,17 @@ export class BotService {
               emitSafe(held + ev.content);
             }
           },
-          error: (err) => subscriber.error(err),
+          error: (err) => {
+            void releaseIfEmpty().finally(() => subscriber.error(err));
+          },
           complete: () => {
             void (async () => {
               try {
+                if (!full.trim()) {
+                  await releaseIfEmpty();
+                  subscriber.error(new Error("智能体未返回有效内容，请重试"));
+                  return;
+                }
                 // 向导式推荐解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
                 let cleanContent: string;
                 let recommendation: Awaited<ReturnType<RecommendationService["build"]>>["recommendation"];
@@ -556,7 +598,10 @@ export class BotService {
             })();
           },
         });
-      return () => sub.unsubscribe();
+      return () => {
+        sub.unsubscribe();
+        void releaseIfEmpty();
+      };
     });
   }
 
