@@ -82,9 +82,14 @@ export class BotService {
       create: { userId, botConfigId },
       update: {},
     });
-    if (quota.freeUsed < (bot.freeUses ?? 0)) {
-      await this.prisma.userBotQuota.update({ where: { id: quota.id }, data: { freeUsed: { increment: 1 } } });
-      return "trial";
+    const freeUses = bot.freeUses ?? 0;
+    if (freeUses > 0) {
+      // 条件更新与递增由数据库原子完成；并发请求不能同时跨过免费试用上限。
+      const trial = await this.prisma.userBotQuota.updateMany({
+        where: { id: quota.id, freeUsed: { lt: freeUses } },
+        data: { freeUsed: { increment: 1 } },
+      });
+      if (trial.count > 0) return "trial";
     }
     // 原子条件扣减，防并发透支
     const consumed = await this.prisma.userBotQuota.updateMany({
