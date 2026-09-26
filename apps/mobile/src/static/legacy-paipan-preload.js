@@ -41,7 +41,7 @@
       var valid = true
       var seen = {}
       url.searchParams.forEach(function (v, k) {
-        if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || seen[k]) valid = false
+        if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'act', 'ruid', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || (k === 'ruid' && !/^\d{1,20}$/.test(v)) || seen[k]) valid = false
         seen[k] = true
       })
       return valid ? url.href : ''

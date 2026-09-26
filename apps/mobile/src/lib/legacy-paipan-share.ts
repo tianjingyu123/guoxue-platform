@@ -24,8 +24,8 @@ export function publicLegacyShareUrl(value: unknown, image = false): string {
   if (match[3]) {
     const seen = new Set<string>()
     for (const pair of match[3].split('&')) {
-      const item = pair.match(/^(id|aid|cid|tid|shareId|type|mod|m|c|a|page)=([A-Za-z0-9_-]{1,100})$/u)
-      if (!item || seen.has(item[1])) return ''
+      const item = pair.match(/^(id|aid|cid|tid|shareId|type|mod|act|ruid|m|c|a|page)=([A-Za-z0-9_-]{1,100})$/u)
+      if (!item || seen.has(item[1]) || (item[1] === 'ruid' && !/^\d{1,20}$/u.test(item[2]))) return ''
       seen.add(item[1])
     }
   }
@@ -35,11 +35,8 @@ export function publicLegacyShareUrl(value: unknown, image = false): string {
 /** 把旧 App 专用结果页收敛为第三方已经提供的公开结果地址。 */
 export function publicLegacyResultUrl(value: unknown): string {
   if (typeof value !== 'string') return ''
-  try {
-    const url = new URL(value)
-    if (url.pathname.endsWith('/app_p1.php')) url.pathname = url.pathname.replace(/app_p1\.php$/u, 'p1.php')
-    return publicLegacyShareUrl(url.toString())
-  } catch { return '' }
+  // App 的 JS 运行环境没有全局 URL；先做有限路径替换，再由严格白名单校验完整地址。
+  return publicLegacyShareUrl(value.replace(/\/app_p1\.php(?=\?|$)/iu, '/p1.php'))
 }
 
 /** 分享给外部用户的是热卜承接页，第三方结果地址只作为受控 iframe 目标。 */
