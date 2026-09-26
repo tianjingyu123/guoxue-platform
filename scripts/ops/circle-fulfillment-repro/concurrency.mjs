@@ -14,10 +14,19 @@
  */
 
 import { createRequire } from "node:module";
+import { loadCandidatePrisma } from "../prisma-candidate/client.mjs";
 
 const SERVER_DIR = process.env.REPRO_SERVER_DIR || "D:/gx-deploy-91/apps/server";
 const req = createRequire(`${SERVER_DIR.replace(/\/?$/, "/")}package.json`);
-const { PrismaClient } = req("@prisma/client");
+// Prisma 客户端走**独立生成**的候选产物，不碰共享 node_modules。
+// loadCandidatePrisma() 同时接管进程内 `@prisma/client` 的解析，
+// 让 ts-node 加载的被测源码也拿到同一份 —— 否则源码里的
+// `instanceof Prisma.PrismaClientKnownRequestError` 会跨模块实例恒为 false。
+const { PrismaClient, resolved: PRISMA_CLIENT_PATH } = loadCandidatePrisma();
+// 硬门禁：拿错客户端就直接停，不让验证在「看起来通过」的状态下跑完。
+if (!PRISMA_CLIENT_PATH.includes(".prisma-candidate")) {
+  throw new Error(`拒绝运行：加载的不是候选 Prisma 客户端（${PRISMA_CLIENT_PATH}）`);
+}
 
 const args = Object.fromEntries(
   process.argv.slice(2).filter((a) => a.startsWith("--")).map((a) => {
