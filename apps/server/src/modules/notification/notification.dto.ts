@@ -5,6 +5,9 @@ export const CIRCLE_NOTIFICATION_CATEGORIES = ["INTERACT", "TRADE", "GOVERN", "L
 export type CircleNotificationCategory = (typeof CIRCLE_NOTIFICATION_CATEGORIES)[number];
 
 export class SendNotificationDto {
+  /** 业务事件幂等键；同一用户同一事件只允许生成一条站内通知。 */
+  @IsOptional() @IsString()
+  idempotencyKey?: string;
   @IsOptional() @IsString()
   userId?: string;
 

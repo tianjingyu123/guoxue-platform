@@ -59,17 +59,36 @@ export class NotificationService {
         .catch((err) => this.logger.warn(`圈内通知分类落库失败 id=${notification.id}`, err));
     }
 
-    // 2. 检查用户推送偏好，关闭则不推送
-    const prefs = await this.getPreferences(userId);
-    if (prefs.PUSH_ENABLED === false) {
-      this.logger.debug(`用户 ${userId} 已关闭推送，跳过`);
-      return notification;
+    // 落库已成功，后续偏好查询或推送失败不能让调用方误以为通知未写入并释放幂等锁。
+    try {
+      const prefs = await this.getPreferences(userId);
+      if (prefs.PUSH_ENABLED === false) {
+        this.logger.debug(`用户 ${userId} 已关闭推送，跳过`);
+      } else {
+        await this.sendPushIfPossible(userId, dto);
+      }
+    } catch (err) {
+      this.logger.warn(`通知已落库，但推送准备失败 user=${userId}`, err);
     }
 
-    // 3. 通过推送通道发送
-    await this.sendPushIfPossible(userId, dto);
-
     return notification;
+  }
+
+  /**
+   * 关键业务事件的幂等发送。幂等键只在成功落库后保留；落库失败会释放，便于任务重试。
+   * 这是候选补齐能力，暂不改变既有 send 调用方。
+   */
+  async sendOnce(userId: string, idempotencyKey: string, dto: SendNotificationDto) {
+    if (!idempotencyKey.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键不能为空");
+    const key = `notification:sent:${userId}:${idempotencyKey}`;
+    const claimed = await this.redis.setNX(key, "1", PREFS_TTL);
+    if (!claimed) return null;
+    try {
+      return await this.send(userId, { ...dto, idempotencyKey });
+    } catch (err) {
+      await this.redis.del(key).catch(() => undefined);
+      throw err;
+    }
   }
 
   /** 批量发送通知 */

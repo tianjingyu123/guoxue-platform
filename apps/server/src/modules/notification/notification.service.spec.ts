@@ -17,6 +17,7 @@ const mockRedis = {
   get: jest.fn().mockResolvedValue(null),
   set: jest.fn().mockResolvedValue(null),
   del: jest.fn().mockResolvedValue(null),
+  setNX: jest.fn().mockResolvedValue(true),
 };
 
 const mockPrisma = {
@@ -69,6 +70,34 @@ describe("NotificationService", () => {
         type: "SYSTEM", title: "通知", content: "内容", targetType: "ORDER", targetId: "order-1",
       });
       expect(result.targetType).toBe("ORDER");
+    });
+  });
+
+  describe("sendOnce", () => {
+    it("同一幂等键只认领一次", async () => {
+      mockPrisma.notification.create.mockResolvedValue({ id: "n-once" });
+      mockRedis.setNX.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o1", { type: "PURCHASE", title: "支付成功", content: "已支付" })).resolves.toEqual(expect.objectContaining({ id: "n-once" }));
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o1", { type: "PURCHASE", title: "支付成功", content: "已支付" })).resolves.toBeNull();
+      expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("落库失败释放幂等锁，允许重试", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockPrisma.notification.create.mockRejectedValueOnce(new Error("db down"));
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o2", { type: "PURCHASE", title: "支付成功", content: "已支付" })).rejects.toThrow("db down");
+      expect(mockRedis.del).toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o2");
+    });
+
+    it("落库后偏好查询失败仍保留幂等锁，避免重试生成第二条", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      mockRedis.getJson.mockRejectedValueOnce(new Error("redis prefs down"));
+      mockPrisma.notification.create.mockResolvedValue({ id: "n-persisted" });
+      await expect(svc.sendOnce("u1", "ORDER_PAID:o3", {
+        type: "PURCHASE", title: "支付成功", content: "已支付",
+      })).resolves.toEqual({ id: "n-persisted" });
+      expect(mockRedis.del).not.toHaveBeenCalledWith("notification:sent:u1:ORDER_PAID:o3");
+      expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
     });
   });
 
