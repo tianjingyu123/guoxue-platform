@@ -3,6 +3,14 @@
 // 后端模型为准，原型虚构字段（讲师评分/学员数/圈子统计）已剔除，按真实数据维度呈现。
 import { apiGet, apiGetPaged, apiPost, apiPut } from '@/utils/request'
 
+// 小程序运行时不保证提供 URLSearchParams；研究院公开页的首个请求也要能直接发出。
+function queryString(entries: Array<[string, string | number | undefined]>): string {
+  return entries
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+}
+
 // ============ 后端对齐枚举 ============
 export type InstituteRole = 'INITIATOR' | 'TYPE_A' | 'TYPE_B' | 'PRESIDENT' | 'VICE_PRESIDENT' | 'SECRETARY_GENERAL'
 export type LecturerLevel = 'NONE' | 'PREPARATORY' | 'JUNIOR' | 'SENIOR' | 'SIGNED'
@@ -487,12 +495,13 @@ export const instituteApi = {
 
   /** 成员列表 GET /institute/members（拦截器拆包为数组）*/
   getMembers(params?: { role?: string; status?: string; joinYear?: number }): Promise<InstituteMember[]> {
-    const q = new URLSearchParams()
-    if (params?.role) q.set('role', params.role)
-    if (params?.status) q.set('status', params.status)
-    if (params?.joinYear) q.set('joinYear', String(params.joinYear))
-    q.set('pageSize', '100')
-    return apiGet<InstituteMember[]>(`/institute/members?${q.toString()}`)
+    const query = queryString([
+      ['role', params?.role],
+      ['status', params?.status],
+      ['joinYear', params?.joinYear],
+      ['pageSize', 100],
+    ])
+    return apiGet<InstituteMember[]>(`/institute/members?${query}`)
   },
 
   /** 成员详情 GET /institute/members/:id */
@@ -514,11 +523,12 @@ export const instituteApi = {
 
   /** 活动列表 GET /institute/events */
   async getEvents(params?: { type?: string; upcoming?: boolean }): Promise<InstituteEvent[]> {
-    const q = new URLSearchParams()
-    if (params?.type) q.set('type', params.type)
-    if (params?.upcoming) q.set('upcoming', 'true')
-    q.set('pageSize', '100')
-    const d = await apiGet<{ events: InstituteEvent[] }>(`/institute/events?${q.toString()}`)
+    const query = queryString([
+      ['type', params?.type],
+      ['upcoming', params?.upcoming ? 'true' : undefined],
+      ['pageSize', 100],
+    ])
+    const d = await apiGet<{ events: InstituteEvent[] }>(`/institute/events?${query}`)
     return d?.events || []
   },
 
@@ -620,11 +630,12 @@ export const instituteApi = {
   // ───── 大师讲堂付费知识库（T9-P0b）─────
   /** 内容列表（公开·仅 PUBLISHED·登录附带已购标）GET /institute/contents */
   getContents(params: { type?: InstituteContentType; page?: number; pageSize?: number }): Promise<{ items: InstituteContentItem[]; total: number }> {
-    const q = new URLSearchParams()
-    if (params.type) q.set('type', params.type)
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 20))
-    return apiGetPaged<InstituteContentItem>(`/institute/contents?${q.toString()}`)
+    const query = queryString([
+      ['type', params.type],
+      ['page', params.page ?? 1],
+      ['pageSize', params.pageSize ?? 20],
+    ])
+    return apiGetPaged<InstituteContentItem>(`/institute/contents?${query}`)
   },
 
   /** 内容详情（未购试读/已购全量）GET /institute/contents/:id */
@@ -640,9 +651,10 @@ export const instituteApi = {
   // ───── 大师讲座知识库（研-P1·回放沉淀·复用课程系统）─────
   /** 讲座列表（公开·仅过审·附讲师徽章）GET /institute/lectures */
   getLectures(params: { page?: number; pageSize?: number }): Promise<{ items: LectureItem[]; total: number }> {
-    const q = new URLSearchParams()
-    q.set('page', String(params.page ?? 1))
-    q.set('pageSize', String(params.pageSize ?? 20))
-    return apiGetPaged<LectureItem>(`/institute/lectures?${q.toString()}`)
+    const query = queryString([
+      ['page', params.page ?? 1],
+      ['pageSize', params.pageSize ?? 20],
+    ])
+    return apiGetPaged<LectureItem>(`/institute/lectures?${query}`)
   },
 }
