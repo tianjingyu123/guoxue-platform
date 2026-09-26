@@ -2,6 +2,7 @@
 // 定位：商家=平台电商供货端/供应链源头，商品池唯一正规入口；圈主/驿站/商城为分销渠道。
 // 当前状态机：PENDING_REVIEW →(审核通过·免保证金)→ AGREEMENT_PENDING →(签协议)→ ACTIVE
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { queryString } from '@/utils/query-string'
 
 // ───────── 商家状态 ─────────
 export type MerchantStatus =
@@ -443,11 +444,8 @@ export const merchantBackendApi = {
 
   // 商品
   getProducts: (params?: { status?: ProductStatus; page?: number; pageSize?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.status) q.set('status', params.status)
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    return apiGetPaged<MerchantProduct>(`/merchant-backend/products?${q.toString()}`)
+    const q = queryString([['status', params?.status], ['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20]])
+    return apiGetPaged<MerchantProduct>(`/merchant-backend/products?${q}`)
   },
   getProduct: (id: string) => apiGet<MerchantProduct>(`/merchant-backend/products/${id}`),
   createProduct: (data: Record<string, unknown>) => apiPost<MerchantProduct>('/merchant-backend/products', data),
@@ -472,14 +470,12 @@ export const merchantBackendApi = {
     page?: number
     pageSize?: number
   }) => {
-    const q = new URLSearchParams()
-    if (params?.status) q.set('status', params.status)
-    if (params?.customerId) q.set('customerId', params.customerId)
-    if (params?.startDate) q.set('startDate', params.startDate)
-    if (params?.endDate) q.set('endDate', params.endDate)
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    return apiGetPaged<MerchantOrder>(`/merchant-backend/orders?${q.toString()}`)
+    const q = queryString([
+      ['status', params?.status], ['customerId', params?.customerId],
+      ['startDate', params?.startDate], ['endDate', params?.endDate],
+      ['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20],
+    ])
+    return apiGetPaged<MerchantOrder>(`/merchant-backend/orders?${q}`)
   },
   getOrder: (id: string) => apiGet<MerchantOrder>(`/merchant-backend/orders/${id}`),
   shipOrder: (id: string, company: string, trackingNo: string) =>
@@ -495,41 +491,30 @@ export const merchantBackendApi = {
   approveRefund: (id: string) => apiPost(`/merchant-backend/orders/${id}/refund/approve`, {}),
   rejectRefund: (id: string, reason: string) => apiPost(`/merchant-backend/orders/${id}/refund/reject`, { reason }),
   getLogisticsTrack: (trackingNo: string, company?: string) => {
-    const q = new URLSearchParams({ no: trackingNo })
-    if (company) q.set('company', company)
-    return apiGet<LogisticsTrackResult>(`/shop/logistics/track?${q.toString()}`)
+    const q = queryString([['no', trackingNo], ['company', company || undefined]])
+    return apiGet<LogisticsTrackResult>(`/shop/logistics/track?${q}`)
   },
 
   // 售后（真实 AfterSale 状态机；退款类同意操作由后端统一退款服务执行）
   getAfterSales: (params?: { type?: string; status?: MerchantAfterSaleStatus; page?: number; pageSize?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.type) q.set('type', params.type)
-    if (params?.status) q.set('status', params.status)
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    return apiGetPaged<MerchantAfterSale>(`/merchant-backend/after-sales?${q.toString()}`)
+    const q = queryString([['type', params?.type], ['status', params?.status], ['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20]])
+    return apiGetPaged<MerchantAfterSale>(`/merchant-backend/after-sales?${q}`)
   },
   processAfterSale: (id: string, action: 'approve' | 'reject' | 'complete', remark?: string) =>
     apiPut<MerchantAfterSale>(`/merchant-backend/after-sales/${id}/process`, { action, remark }),
 
   // 评价
   getReviews: (params?: { rating?: number; page?: number; pageSize?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.rating) q.set('rating', String(params.rating))
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    return apiGetPaged<MerchantReview>(`/merchant-backend/reviews?${q.toString()}`)
+    const q = queryString([['rating', params?.rating || undefined], ['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20]])
+    return apiGetPaged<MerchantReview>(`/merchant-backend/reviews?${q}`)
   },
   replyReview: (id: string, reply: string) => apiPost(`/merchant-backend/reviews/${id}/reply`, { reply }),
 
   // 收入与结算
   getRevenue: () => apiGet<RevenueOverview>('/merchant-backend/revenue'),
   getSettlements: (params?: { status?: string; page?: number; pageSize?: number }) => {
-    const q = new URLSearchParams()
-    if (params?.status) q.set('status', params.status)
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    return apiGetPaged<MerchantSettlement>(`/merchant-backend/settlements?${q.toString()}`)
+    const q = queryString([['status', params?.status], ['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20]])
+    return apiGetPaged<MerchantSettlement>(`/merchant-backend/settlements?${q}`)
   },
 
   // 违规
@@ -539,11 +524,8 @@ export const merchantBackendApi = {
 
   // 客户 / 通知 / 内容
   getCustomers: (params?: { page?: number; pageSize?: number; keyword?: string }) => {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1))
-    q.set('pageSize', String(params?.pageSize ?? 20))
-    if (params?.keyword?.trim()) q.set('keyword', params.keyword.trim())
-    return apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?${q.toString()}`)
+    const q = queryString([['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 20], ['keyword', params?.keyword?.trim() || undefined]])
+    return apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?${q}`)
   },
   getCustomerDetail: (id: string) =>
     apiGet<MerchantCustomerDetail>(`/merchant-backend/customers/${encodeURIComponent(id)}`),
@@ -553,16 +535,11 @@ export const merchantBackendApi = {
   // 进销存
   getInventoryOverview: () => apiGet<InventoryOverview>('/merchant-backend/inventory/overview'),
   getInventoryStocks: (params?: { page?: number; pageSize?: number; keyword?: string; lowStock?: boolean }) => {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 100))
-    if (params?.keyword) q.set('keyword', params.keyword)
-    if (params?.lowStock) q.set('lowStock', 'true')
+    const q = queryString([['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 100], ['keyword', params?.keyword], ['lowStock', params?.lowStock ? 'true' : undefined]])
     return apiGetPaged<InventoryStockItem>(`/merchant-backend/inventory/stocks?${q}`)
   },
   getInventoryMovements: (params?: { page?: number; pageSize?: number; productId?: string }) => {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
-    if (params?.productId) q.set('productId', params.productId)
+    const q = queryString([['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 50], ['productId', params?.productId]])
     return apiGetPaged<InventoryMovement>(`/merchant-backend/inventory/movements?${q}`)
   },
   adjustInventory: (data: { requestId: string; productId: string; skuId?: string; mode: 'INCREASE' | 'DECREASE' | 'SET'; quantity: number; reason: string }) =>
@@ -570,10 +547,7 @@ export const merchantBackendApi = {
   setInventoryAlert: (data: { productId: string; skuId?: string; lowStockThreshold: number; enabled?: boolean }) =>
     apiPut('/merchant-backend/inventory/alerts', data),
   getSuppliers: (params?: { page?: number; pageSize?: number; keyword?: string; status?: 'ACTIVE' | 'INACTIVE' }) => {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 100))
-    if (params?.keyword) q.set('keyword', params.keyword)
-    if (params?.status) q.set('status', params.status)
+    const q = queryString([['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 100], ['keyword', params?.keyword], ['status', params?.status]])
     return apiGetPaged<MerchantSupplier>(`/merchant-backend/suppliers?${q}`)
   },
   createSupplier: (data: {
@@ -587,9 +561,7 @@ export const merchantBackendApi = {
   setSupplierStatus: (id: string, status: 'ACTIVE' | 'INACTIVE') =>
     apiPut<MerchantSupplier>(`/merchant-backend/suppliers/${id}/status`, { status }),
   getPurchaseOrders: (params?: { page?: number; pageSize?: number; status?: string }) => {
-    const q = new URLSearchParams()
-    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
-    if (params?.status) q.set('status', params.status)
+    const q = queryString([['page', params?.page ?? 1], ['pageSize', params?.pageSize ?? 50], ['status', params?.status]])
     return apiGetPaged<PurchaseOrder>(`/merchant-backend/purchase-orders?${q}`)
   },
   createPurchaseOrder: (data: {

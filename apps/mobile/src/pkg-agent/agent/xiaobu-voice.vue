@@ -13,6 +13,7 @@ import { computed, onUnmounted, ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, redirectTo } from '@/utils/router'
+import { queryString } from '@/utils/query-string'
 import {
   SCENE_TEXT,
   USAGE_TEXT,
@@ -211,14 +212,13 @@ function useText() {
 
 function openTopup() {
   // 圈子场景带上圈子编号：在圈内充值的时长收入由圈主与平台五五分成
-  const q = new URLSearchParams()
-  if (scene.value === 'circle_assistant' && contextId.value) q.set('circleId', contextId.value)
-  if (['report_dialogue', 'circle_assistant'].includes(scene.value) && contextId.value) {
-    q.set('returnVoiceScene', scene.value)
-    q.set('returnVoiceContextId', contextId.value)
-    if (scene.value === 'report_dialogue' && sectionId.value) q.set('returnVoiceSectionId', sectionId.value)
-  }
-  const query = q.toString()
+  const voiceReturn = ['report_dialogue', 'circle_assistant'].includes(scene.value) && Boolean(contextId.value)
+  const query = queryString([
+    ['circleId', scene.value === 'circle_assistant' ? contextId.value || undefined : undefined],
+    ['returnVoiceScene', voiceReturn ? scene.value : undefined],
+    ['returnVoiceContextId', voiceReturn ? contextId.value : undefined],
+    ['returnVoiceSectionId', voiceReturn && scene.value === 'report_dialogue' ? sectionId.value || undefined : undefined],
+  ])
   navigateTo(`/pkg-agent/agent/xiaobu-voice-topup${query ? `?${query}` : ''}`)
 }
 

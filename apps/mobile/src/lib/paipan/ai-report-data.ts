@@ -5,6 +5,7 @@
  * 解读由热卜模型网关生成；失败时不会保存占位报告。
  */
 import { apiDelete, apiGet, apiGetPaged, apiPost } from '@/utils/request'
+import { queryString } from '@/utils/query-string'
 
 export interface AiReportReference {
   evidenceId: string
@@ -326,13 +327,13 @@ export const aiReportApi = {
   },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
-    const q = new URLSearchParams({ recordId, reportType }).toString()
-    return apiGet<AiReportAccess>(`/paipan/report/access?${q}`)
+    const query = queryString([['recordId', recordId], ['reportType', reportType]])
+    return apiGet<AiReportAccess>(`/paipan/report/access?${query}`)
   },
   /** 推演页数据：生成前先拿到真实的校时、盘面、取格与依据命中（服务端确定性计算，不调模型） */
   preflight(recordId: string, school?: string): Promise<AiReportPreflight> {
-    const q = new URLSearchParams({ recordId, ...(school ? { school } : {}) }).toString()
-    return apiGet<AiReportPreflight>(`/paipan/report/preflight?${q}`)
+    const query = queryString([['recordId', recordId], ['school', school]])
+    return apiGet<AiReportPreflight>(`/paipan/report/preflight?${query}`)
   },
   generate(recordId: string, options?: { reportType?: string; regenerate?: boolean }): Promise<AiReportResult> {
     return apiPost<AiReportResult>(

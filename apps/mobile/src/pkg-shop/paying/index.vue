@@ -103,6 +103,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, reLaunch } from '@/utils/router'
+import { queryString } from '@/utils/query-string'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
 import { orderPaymentAction } from '@/lib/payment-recovery'
@@ -712,15 +713,16 @@ async function completePaidOrder(st: { type?: string; targetId?: string }, newly
     reLaunch(paidBusinessTarget(st))
     return
   }
-  const successQuery = new URLSearchParams({ orderId: orderId.value })
-  if (returnLiveRoomId.value) successQuery.set('returnLiveRoomId', returnLiveRoomId.value)
-  if (returnRecordId.value) successQuery.set('returnRecordId', returnRecordId.value)
-  if (returnVoiceScene.value && returnVoiceContextId.value) {
-    successQuery.set('returnVoiceScene', returnVoiceScene.value)
-    successQuery.set('returnVoiceContextId', returnVoiceContextId.value)
-    if (returnVoiceSectionId.value) successQuery.set('returnVoiceSectionId', returnVoiceSectionId.value)
-  }
-  setTimeout(() => { if (!leaving) redirectTo(`/shop/pay-success?${successQuery.toString()}`) }, 900)
+  const voiceReturn = Boolean(returnVoiceScene.value && returnVoiceContextId.value)
+  const successQuery = queryString([
+    ['orderId', orderId.value],
+    ['returnLiveRoomId', returnLiveRoomId.value || undefined],
+    ['returnRecordId', returnRecordId.value || undefined],
+    ['returnVoiceScene', voiceReturn ? returnVoiceScene.value : undefined],
+    ['returnVoiceContextId', voiceReturn ? returnVoiceContextId.value : undefined],
+    ['returnVoiceSectionId', voiceReturn ? returnVoiceSectionId.value || undefined : undefined],
+  ])
+  setTimeout(() => { if (!leaving) redirectTo(`/shop/pay-success?${successQuery}`) }, 900)
 }
 
 function clearTimers(which: 'cd' | 'poll' | 'all') {
