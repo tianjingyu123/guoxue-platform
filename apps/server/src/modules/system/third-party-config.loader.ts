@@ -215,6 +215,36 @@ export class ThirdPartyConfigLoader implements OnModuleInit, OnModuleDestroy {
         if (!value) missingFields.push(field?.label || fieldKey);
       }
 
+      // 微信支付公钥模式必须同时具备公钥与公钥 ID。平台证书模式可以两项都不填；
+      // 只填一项时，运行时会 fail-closed，就绪度也必须如实显示为未完成。
+      if (serviceKey === "wechat_pay") {
+        const publicKeyFields = ["publicKey", "publicKeyId"];
+        for (const fieldKey of publicKeyFields) {
+          const storedValue = String(stored[fieldKey] || "").trim();
+          let value = storedValue;
+          if (value) {
+            sources.add("DATABASE");
+          } else {
+            const mapping = mappings.find((item) => item.serviceKey === serviceKey && item.fieldKey === fieldKey);
+            value = mapping?.envNames.map((name) => process.env[name]?.trim() || "").find(Boolean) || "";
+            if (value) sources.add("ENVIRONMENT");
+          }
+          values.set(fieldKey, value);
+        }
+        const usesPublicKeyMode = publicKeyFields.some((fieldKey) => !!values.get(fieldKey));
+        if (usesPublicKeyMode) {
+          for (const fieldKey of publicKeyFields) {
+            if (!values.get(fieldKey)) {
+              missingFields.push(service.fields.find((item) => item.key === fieldKey)?.label || fieldKey);
+            }
+          }
+          const publicKeyId = values.get("publicKeyId") || "";
+          if (publicKeyId && !/^PUB_KEY_ID_[A-Z0-9]+$/.test(publicKeyId)) {
+            invalidFields.push("微信支付公钥 ID 格式错误");
+          }
+        }
+      }
+
       for (const fieldKey of required.filter((key) => key.toLowerCase().includes("url"))) {
         const value = values.get(fieldKey);
         if (!value) continue;

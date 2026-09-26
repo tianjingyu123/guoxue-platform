@@ -255,8 +255,22 @@ export class HealthService {
   }
 
   private async checkWechatPay(): Promise<HealthCheck> {
-    const mchId = process.env.WECHAT_PAY_MCH_ID;
+    const mchId = process.env.WECHAT_PAY_MCH_ID?.trim();
     if (!mchId) return { status: "unconfigured" };
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE !== "DB") {
+        return { status: "degraded", error: "WECHAT_PAY_DATABASE_CONFIG_INCOMPLETE" };
+      }
+      const allowedMchId = process.env.WECHAT_PAY_ALLOWED_MCH_ID?.trim();
+      if (!allowedMchId || allowedMchId !== mchId) {
+        return { status: "degraded", error: "WECHAT_PAY_MERCHANT_ALLOWLIST_INVALID" };
+      }
+      const hasPublicKey = !!process.env.WECHAT_PAY_PUBLIC_KEY?.trim();
+      const hasPublicKeyId = !!process.env.WECHAT_PAY_PUBLIC_KEY_ID?.trim();
+      if (hasPublicKey !== hasPublicKeyId) {
+        return { status: "degraded", error: "WECHAT_PAY_PUBLIC_KEY_PAIR_INCOMPLETE" };
+      }
+    }
     try {
       const start = Date.now();
       const res = await fetch("https://api.mch.weixin.qq.com/", {

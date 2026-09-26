@@ -55,6 +55,11 @@ describe("HealthService", () => {
     delete process.env.COS_SECRET_KEY;
     delete process.env.VOD_SUB_APP_ID;
     delete process.env.VOD_PLAY_KEY;
+    delete process.env.WECHAT_PAY_MCH_ID;
+    delete process.env.WECHAT_PAY_ALLOWED_MCH_ID;
+    delete process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE;
+    delete process.env.WECHAT_PAY_PUBLIC_KEY;
+    delete process.env.WECHAT_PAY_PUBLIC_KEY_ID;
     delete process.env.TENCENT_CVM_ROLE_NAME;
     process.env.TENCENT_CREDENTIAL_MODE = "static";
   });
@@ -181,6 +186,44 @@ describe("HealthService", () => {
         Offset: 0,
         Limit: 1,
       }));
+    });
+
+    it("生产微信支付未从完整数据库配置加载时保持降级", async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      process.env.WECHAT_PAY_MCH_ID = "1748964663";
+      process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "INVALID";
+      try {
+        const result = await svc.check();
+        expect(result.status).toBe("degraded");
+        expect(result.checks.payment).toEqual({
+          status: "degraded",
+          error: "WECHAT_PAY_DATABASE_CONFIG_INCOMPLETE",
+        });
+      } finally {
+        if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previousNodeEnv;
+      }
+    });
+
+    it("生产微信支付公钥与公钥 ID 不成对时保持降级", async () => {
+      const previousNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      process.env.WECHAT_PAY_MCH_ID = "1748964663";
+      process.env.WECHAT_PAY_ALLOWED_MCH_ID = "1748964663";
+      process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "DB";
+      process.env.WECHAT_PAY_PUBLIC_KEY = "configured-public-key";
+      try {
+        const result = await svc.check();
+        expect(result.status).toBe("degraded");
+        expect(result.checks.payment).toEqual({
+          status: "degraded",
+          error: "WECHAT_PAY_PUBLIC_KEY_PAIR_INCOMPLETE",
+        });
+      } finally {
+        if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previousNodeEnv;
+      }
     });
 
     it("VOD SearchMedia 权限缺失时降级且不向健康响应泄露云端详情", async () => {
