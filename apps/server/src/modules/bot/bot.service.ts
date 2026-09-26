@@ -410,6 +410,7 @@ export class BotService {
   /** 非流式对话 */
   async chat(botConfigId: string, userId: string, dto: ChatDto) {
     const bot = await this.getBotOrThrow(botConfigId);
+    await this.assertOwnedConversation(botConfigId, userId, dto.conversationId);
 
     const dailyCount = await this.getUserDailyCount(userId, botConfigId);
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
@@ -474,8 +475,9 @@ export class BotService {
   }
 
   /** 流式对话前置校验（与非流式 chat 同一套门控：每日限次 + AI 计费额度），先于 SSE 头执行 */
-  async precheckChat(botConfigId: string, userId: string) {
+  async precheckChat(botConfigId: string, userId: string, conversationId?: string) {
     const bot = await this.getBotOrThrow(botConfigId);
+    await this.assertOwnedConversation(botConfigId, userId, conversationId);
     const dailyCount = await this.getUserDailyCount(userId, botConfigId);
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
@@ -622,7 +624,7 @@ export class BotService {
           const convId = dto.conversationId || randomUUID();
           subscriber.next({ type: "meta", conversationId: convId }); // 先下发供前端续聊 + 外层审计取用
           // 组装 messages：system(人设) + 历史 + 当前 query（历史仅续聊时按 conversationId 拉取）
-          const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
+          const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId, userId) : [];
           const messages: AiMessage[] = [
             ...(bot.systemPrompt ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }] : []),
             ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
@@ -651,7 +653,7 @@ export class BotService {
     dto: { query: string; conversationId?: string },
   ) {
     const conversationId = dto.conversationId || randomUUID();
-    const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
+    const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId, userId) : [];
     const messages: AiMessage[] = [
       ...(bot.systemPrompt
         ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }]
@@ -677,10 +679,20 @@ export class BotService {
     return withUserAnswerExperience(`${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`);
   }
 
-  /** 获取对话历史 */
-  async getChatHistory(botConfigId: string, conversationId: string) {
+  /** 续聊会话必须属于当前用户；在扣额度前检查，避免把他人的远端会话号交给模型。 */
+  private async assertOwnedConversation(botConfigId: string, userId: string, conversationId?: string) {
+    if (!conversationId) return;
+    const owned = await this.prisma.botChatLog.findFirst({
+      where: { botConfigId, userId, conversationId },
+      select: { id: true },
+    });
+    if (!owned) throw new BusinessException(ErrorCode.NOT_FOUND, "对话不存在");
+  }
+
+  /** 获取当前用户自己的对话历史 */
+  async getChatHistory(botConfigId: string, conversationId: string, userId: string) {
     const logs = await this.prisma.botChatLog.findMany({
-      where: { botConfigId, conversationId },
+      where: { botConfigId, conversationId, userId },
       orderBy: { createdAt: "asc" },
       take: 100,
     });

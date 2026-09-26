@@ -136,13 +136,13 @@ describe("BotController", () => {
     await ctrl.chatStream({ user: { id: "u1" } } as any, res as any, "bot1", { query: "问题" } as any);
     res.emit("close");
     expect(onUnsubscribe).toHaveBeenCalledTimes(1);
-    expect(mockBotSvc.precheckChat).toHaveBeenCalledWith("bot1", "u1");
+    expect(mockBotSvc.precheckChat).toHaveBeenCalledWith("bot1", "u1", undefined);
   });
 
   it("GET /bots/:id/chat-history/:conversationId — 对话历史", async () => {
-    const result: any = await ctrl.getChatHistory("bot1", "conv1");
+    const result: any = await ctrl.getChatHistory({ user: { id: "u1" } } as any, "bot1", "conv1");
     expect(result).toHaveLength(1);
-    expect(mockBotSvc.getChatHistory).toHaveBeenCalledWith("bot1", "conv1");
+    expect(mockBotSvc.getChatHistory).toHaveBeenCalledWith("bot1", "conv1", "u1");
   });
 
   it("GET /bots/manage/approvals — 审批列表", async () => {

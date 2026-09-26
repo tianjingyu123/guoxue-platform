@@ -38,7 +38,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
   },
   user: { findUnique: jest.fn() },
-  botChatLog: { count: jest.fn(), create: jest.fn() },
+  botChatLog: { count: jest.fn(), create: jest.fn(), findFirst: jest.fn(), findMany: jest.fn() },
   userBotQuota: { upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findUnique: jest.fn() },
   // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
@@ -87,6 +87,37 @@ describe("BotService", () => {
     expect(mockPrisma.botChatLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ response: "先读原文。" }),
     }));
+  });
+
+  describe("对话归属隔离", () => {
+    const bot = { id: "b1", name: "国学助手", botId: "coze-1", apiKey: "enc", runtime: "coze", isFree: true, dailyLimit: 5, pricePer10Coin: 100 };
+
+    it("历史查询始终按当前用户过滤", async () => {
+      mockPrisma.botChatLog.findMany.mockResolvedValue([]);
+      expect(await svc.getChatHistory("b1", "other-conversation", "u1")).toEqual([]);
+      expect(mockPrisma.botChatLog.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { botConfigId: "b1", conversationId: "other-conversation", userId: "u1" },
+      }));
+    });
+
+    it("非流式续聊在扣额度和调用模型前拒绝他人会话", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.botChatLog.findFirst.mockResolvedValue(null);
+      await expect(svc.chat("b1", "u1", { query: "接着说", conversationId: "other-conversation" } as any)).rejects.toThrow(/对话不存在/);
+      expect(mockPrisma.botChatLog.findFirst).toHaveBeenCalledWith({
+        where: { botConfigId: "b1", userId: "u1", conversationId: "other-conversation" }, select: { id: true },
+      });
+      expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
+      expect(mockCoze.chat).not.toHaveBeenCalled();
+    });
+
+    it("流式续聊在 SSE 头与扣额度前拒绝他人会话", async () => {
+      mockPrisma.botConfig.findUnique.mockResolvedValue(bot);
+      mockPrisma.botChatLog.findFirst.mockResolvedValue(null);
+      await expect(svc.precheckChat("b1", "u1", "other-conversation")).rejects.toThrow(/对话不存在/);
+      expect(mockPrisma.userBotQuota.upsert).not.toHaveBeenCalled();
+      expect(mockCoze.chatStreamEx).not.toHaveBeenCalled();
+    });
   });
 
   describe("consumeQuota — AI 计费（会员免费/试用/追问包）", () => {

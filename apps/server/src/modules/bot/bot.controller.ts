@@ -296,7 +296,7 @@ export class BotController {
   ) {
     // 门控与非流式 chat 完全同参（每日限次 + AI 计费额度），且先于 SSE 头发送，
     // 额度耗尽时以普通错误响应返回购买引导
-    const bot = await this.svc.precheckChat(id, req.user.id);
+    const bot = await this.svc.precheckChat(id, req.user.id, dto.conversationId);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -335,10 +335,11 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getChatHistory(
+    @Req() req: Request,
     @Param("id") id: string,
     @Param("conversationId") conversationId: string,
   ) {
-    return this.svc.getChatHistory(id, conversationId);
+    return this.svc.getChatHistory(id, conversationId, req.user.id);
   }
 
   // ───────── 语音通话 ─────────
