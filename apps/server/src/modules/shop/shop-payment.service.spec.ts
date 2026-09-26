@@ -280,7 +280,7 @@ describe("ShopPaymentService", () => {
     it("小程序虚拟订单支付成功后自动上报交付", async () => {
       process.env.WECHAT_MINI_APP_ID = "wx-mini"
       const order = {
-        id: "o-wx-virtual", userId: "u1", type: "CIRCLE_JOIN", amount: "88", status: "PENDING",
+        id: "o-wx-virtual", userId: "u1", type: "BOT_SERVICE", amount: "88", status: "PENDING",
         payTransactionId: "WX-MERCHANT-VIRTUAL", shippingInfo: null,
       }
       mockPrisma.order.findUnique.mockResolvedValue(order)

@@ -59,19 +59,28 @@ try {
 if (!sharedResolved) {
   check("A4 共享 node_modules 客户端未被候选字段污染", true, "共享客户端当前不可解析（依赖链接未建），无覆盖风险");
 } else {
-  const shared = sharedReq("@prisma/client");
-  const dirty = [];
-  for (const { model, field } of CANDIDATE_FIELDS) {
-    const fields = fieldsOf(shared.Prisma, model);
-    if (fields?.includes(field)) dirty.push(`${model}.${field}`);
+  try {
+    const shared = sharedReq("@prisma/client");
+    const dirty = [];
+    for (const { model, field } of CANDIDATE_FIELDS) {
+      const fields = fieldsOf(shared.Prisma, model);
+      if (fields?.includes(field)) dirty.push(`${model}.${field}`);
+    }
+    check(
+      "A4 共享 node_modules 客户端未被候选字段污染",
+      dirty.length === 0,
+      dirty.length
+        ? `已被污染：${dirty.join("、")} → 有人把候选 schema 生成进了共享目录，主工作区与其他窗口正在用错误的客户端`
+        : "共享客户端形态=主线",
+    );
+  } catch (error) {
+    // 全新隔离工作树虽有 @prisma/client 包，但从未向 node_modules 生成默认客户端。
+    // 这与客户端被候选 schema 污染不同；只允许明确的“尚未生成”状态。
+    const ungenerated = error?.code === "MODULE_NOT_FOUND" &&
+      /\.prisma[\\/]client[\\/]default/.test(error.message);
+    check("A4 共享 node_modules 客户端未被候选字段污染", ungenerated,
+      ungenerated ? "隔离工作树默认客户端尚未生成" : String(error.message).split("\n")[0]);
   }
-  check(
-    "A4 共享 node_modules 客户端未被候选字段污染",
-    dirty.length === 0,
-    dirty.length
-      ? `已被污染：${dirty.join("、")} → 有人把候选 schema 生成进了共享目录，主工作区与其他窗口正在用错误的客户端`
-      : "共享客户端形态=主线",
-  );
 }
 
 // ══ A1 / A2 / A3：装钩子并检查候选客户端 ══
