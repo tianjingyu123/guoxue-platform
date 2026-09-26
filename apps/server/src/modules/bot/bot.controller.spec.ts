@@ -6,6 +6,8 @@ import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { EventEmitter } from "events";
+import { Observable } from "rxjs";
 
 const mockSSE = {} as any;
 const mockCozeSvc = { createBot: jest.fn(), listBots: jest.fn(), getBot: jest.fn(), updateBot: jest.fn(), deleteBot: jest.fn() };
@@ -24,6 +26,8 @@ const mockBotSvc = {
   chat: jest.fn().mockResolvedValue({ reply: "你好！有什么可以帮你的？" }),
   getBotForChat: jest.fn().mockResolvedValue({ botId: "bot1", apiKey: "key123" }),
   chatStream: jest.fn().mockReturnValue(jest.fn()),
+  precheckChat: jest.fn().mockResolvedValue({ id: "bot1", botId: "coze-1", apiKey: "key123", quotaCharge: "trial" }),
+  chatStreamRich: jest.fn(),
   getChatHistory: jest.fn().mockResolvedValue([{ role: "user", content: "你好" }]),
   getBotApprovalList: jest.fn().mockResolvedValue([{ circleId: "c1", status: "PENDING" }]),
   approveBot: jest.fn().mockResolvedValue({ circleId: "c1", approved: true }),
@@ -121,6 +125,18 @@ describe("BotController", () => {
     const result: any = await ctrl.chat(req, "bot1", dto);
     expect(result.reply).toContain("你好");
     expect(mockBotSvc.chat).toHaveBeenCalledWith("bot1", "u1", dto);
+  });
+
+  it("SSE 连接首字前断开时取消上游订阅", async () => {
+    const onUnsubscribe = jest.fn();
+    mockBotSvc.chatStreamRich.mockReturnValue(new Observable(() => onUnsubscribe));
+    const res = Object.assign(new EventEmitter(), {
+      setHeader: jest.fn(), flushHeaders: jest.fn(), writableEnded: false,
+    });
+    await ctrl.chatStream({ user: { id: "u1" } } as any, res as any, "bot1", { query: "问题" } as any);
+    res.emit("close");
+    expect(onUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(mockBotSvc.precheckChat).toHaveBeenCalledWith("bot1", "u1");
   });
 
   it("GET /bots/:id/chat-history/:conversationId — 对话历史", async () => {
