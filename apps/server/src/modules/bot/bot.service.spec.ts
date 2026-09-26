@@ -221,6 +221,18 @@ describe("BotService", () => {
       });
     });
 
+    it("非流式回答审计保存失败时归还额度并保留原错误", async () => {
+      mockCoze.chat.mockResolvedValue({ content: "已有回答", conversationId: "c1" });
+      mockReco.build.mockResolvedValue({ content: "已有回答", recommendation: null });
+      mockPrisma.botChatLog.create.mockRejectedValue(new Error("audit write failed"));
+      await expect(svc.chat("b1", "u1", { query: "问题" } as any)).rejects.toThrow("audit write failed");
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.userBotQuota.updateMany).toHaveBeenLastCalledWith({
+        where: { userId: "u1", botConfigId: "b1", freeUsed: { gt: 0 } },
+        data: { freeUsed: { decrement: 1 } },
+      });
+    });
+
     it("流式首字前上游报错只归还一次", async () => {
       const checked = await svc.precheckChat("b1", "u1");
       mockCoze.chatStreamEx.mockReturnValue(new Observable((subscriber) => subscriber.error(new Error("stream failed"))));

@@ -448,16 +448,22 @@ export class BotService {
       recommendation = null;
     }
 
-    await this.prisma.botChatLog.create({
-      data: {
-        userId,
-        botConfigId,
-        query: dto.query,
-        response: cleanContent,
-        conversationId: result.conversationId,
-        chatId: result.chatId,
-      },
-    });
+    try {
+      await this.prisma.botChatLog.create({
+        data: {
+          userId,
+          botConfigId,
+          query: dto.query,
+          response: cleanContent,
+          conversationId: result.conversationId,
+          chatId: result.chatId,
+        },
+      });
+    } catch (err) {
+      // 回答尚未交给客户端；审计记录保存失败时不应让用户白扣一次追问。
+      await this.releaseFailedQuotaSafely(botConfigId, userId, charge);
+      throw err;
+    }
 
     // 合规：AI 输出统一附带风险免责声明（前端在气泡下方展示）
     return { ...result, content: cleanContent, disclaimer: RISK_DISCLAIMER, recommendation };
