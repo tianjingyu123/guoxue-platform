@@ -16,6 +16,7 @@ import { xiaobuVoiceApi, type VoiceTopupPacks } from '@/lib/xiaobu-voice-data'
 const info = ref<VoiceTopupPacks | null>(null)
 const loading = ref(true)
 const error = ref('')
+const unavailable = ref(false)
 const picked = ref(0)
 const buying = ref(false)
 /** 从圈子语音页进入时带的圈子编号：服务端校验后记圈主分成，无效则按普通充值处理 */
@@ -37,13 +38,16 @@ onLoad((q) => {
 async function load() {
   loading.value = true
   error.value = ''
+  unavailable.value = false
   try {
     info.value = await xiaobuVoiceApi.topupPacks()
     if (info.value.packs.length && !info.value.packs.some((p) => p.minutes === picked.value)) {
       picked.value = info.value.packs[Math.min(1, info.value.packs.length - 1)].minutes
     }
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
+    const message = (e as Error)?.message || '加载失败'
+    unavailable.value = /接口不存在|请求失败\(404\)|\/voice\/topup\/packs/.test(message)
+    error.value = unavailable.value ? '语音时长充值暂未开放，请稍后再来' : message
   } finally {
     loading.value = false
   }
@@ -95,7 +99,7 @@ onShow(load)
     <view v-if="loading" class="state"><text class="hint">加载中…</text></view>
     <view v-else-if="error" class="state">
       <text class="state-text">{{ error }}</text>
-      <view class="btn" @tap="load"><text class="btn-text">重试</text></view>
+      <view class="btn" @tap="unavailable ? goBack() : load()"><text class="btn-text">{{ unavailable ? '返回' : '重试' }}</text></view>
     </view>
     <template v-else-if="info">
       <view class="card">
