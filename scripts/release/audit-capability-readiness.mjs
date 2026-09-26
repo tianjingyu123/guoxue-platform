@@ -64,6 +64,7 @@ const botController = read("apps/server/src/modules/bot/bot.controller.ts");
 const botService = read("apps/server/src/modules/bot/bot.service.ts");
 const cozeService = read("apps/server/src/modules/bot/coze.service.ts");
 const ttsController = read("apps/server/src/modules/tts/tts.controller.ts");
+const ttsAudioResponse = read("apps/server/src/modules/tts/audio-response.ts");
 const audiobook = read("apps/mobile/src/pkg-classics/audiobooks/player.vue");
 
 const voiceSubPackage = pages.subPackages?.find((item) => item.root === "pkg-agent");
@@ -153,9 +154,10 @@ const checks = [
     pass:
       has(ttsController, '@Post("synthesize")') &&
       has(ttsController, '@Get("synthesize")') &&
-      has(ttsController, '"Accept-Ranges": "bytes"') &&
-      has(ttsController, "res.status(206)"),
-    file: "apps/server/src/modules/tts/tts.controller.ts",
+      has(ttsController, "sendAudioWithRange(req, res, audio, contentType") &&
+      has(ttsAudioResponse, '"Accept-Ranges": "bytes"') &&
+      has(ttsAudioResponse, "res.status(206)"),
+    file: "apps/server/src/modules/tts/audio-response.ts",
   },
   {
     name: "发布脚本覆盖 H5、微信小程序、App 和 Harmony 四端构建",
