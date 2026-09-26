@@ -328,8 +328,9 @@ function sharePageHarness(share) {
 test('当前第三方结果页转换为热卜承接链接，App入口不直接外发', () => {
   const { api } = runtime()
   assert.equal(api.publicLegacyResultUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc'), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
-  const landing = api.legacyShareLandingUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc')
+  const landing = api.legacyShareLandingUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc', 'https://api.rebugx.cn/h5')
   assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\?target=/u)
+  assert.equal(api.legacyShareLandingUrl('https://www.yrydai.com/p1.php?id=abc'), '')
   assert.equal(decodeURIComponent(new URL(landing).searchParams.get('target')), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
 })
 
@@ -337,7 +338,7 @@ test('App 无全局 URL 时仍能转换公开盘面，保留数字推荐来源�
   const { api } = runtime({}, {}, false)
   const result = 'https://www.yrydai.cn/app_p1.php?mod=bazi&act=view&id=fixture-1&ruid=123'
   assert.equal(api.publicLegacyResultUrl(result), 'https://www.yrydai.cn/p1.php?mod=bazi&act=view&id=fixture-1&ruid=123')
-  assert.match(api.legacyShareLandingUrl(result), /legacy-paipan-share\/index\?target=/u)
+  assert.match(api.legacyShareLandingUrl(result, 'https://api.rebugx.cn/h5'), /legacy-paipan-share\/index\?target=/u)
   assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'ruid=abc')), '')
   assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'token=SECRET')), '')
 })
@@ -357,7 +358,7 @@ test('两个网页桥均只接收受控数字推荐来源', () => {
 
 test('有公开结果时微信优先分享热卜网页卡片', async () => {
   const { api, calls, options } = runtime()
-  const request = { ...fixture(), url: api.legacyShareLandingUrl('https://www.yrydai.cn/share.php?id=1') }
+  const request = { ...fixture(), url: api.legacyShareLandingUrl('https://www.yrydai.cn/share.php?id=1', 'https://api.rebugx.cn/h5') }
   assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
   const native = calls.find(x => x[0] === 'share')[1]
   assert.equal(native.type, 0)

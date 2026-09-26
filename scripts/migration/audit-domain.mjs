@@ -23,6 +23,7 @@ const ignoredParts = new Set([
   "artifacts",
   "backups",
   ".cache",
+  ".prisma-candidate",
 ]);
 const textExtensions = new Set([
   ".ts",
@@ -113,6 +114,7 @@ function classify(relative, line) {
   if (isCommentOnly(line)) return "注释";
   if (
     relative.includes("/prisma/migrations/") ||
+    relative === "scripts/ops/audit-three-candidate-readonly-20260919.sh" ||
     relative.includes("/__fixtures__/") ||
     relative.endsWith(".spec.ts") ||
     relative.endsWith(".test.ts") ||

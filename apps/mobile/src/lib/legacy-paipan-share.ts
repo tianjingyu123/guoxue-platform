@@ -40,7 +40,7 @@ export function publicLegacyResultUrl(value: unknown): string {
 }
 
 /** 分享给外部用户的是热卜承接页，第三方结果地址只作为受控 iframe 目标。 */
-export function legacyShareLandingUrl(target: unknown, base = 'https://api.rebugx.cn/h5'): string {
+export function legacyShareLandingUrl(target: unknown, base = ''): string {
   const result = publicLegacyResultUrl(target)
   if (!result) return ''
   const root = String(base || '').replace(/\/+$/u, '')

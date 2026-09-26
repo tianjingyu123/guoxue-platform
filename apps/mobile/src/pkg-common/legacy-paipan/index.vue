@@ -14,7 +14,7 @@ import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parse
 // #endif
 
 let entryContext = readLegacyPaipanContext()
-const legacyShareBase = String(import.meta.env.VITE_PUBLIC_H5_URL || 'https://api.rebugx.cn/h5')
+const legacyShareBase = String(import.meta.env.VITE_PUBLIC_H5_URL || '')
 onLoad((query) => { entryContext = readLegacyPaipanContext(query || {}) })
 
 const loading = ref(true)
