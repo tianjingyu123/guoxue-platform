@@ -33,6 +33,10 @@ const COLLAPSED_ROWS = 3;
 const COLLAPSED_COUNT = GRID_COLS * COLLAPSED_ROWS; // 收起时显示 3 排
 
 const showAllTools = ref(false);
+const miniUpgradeOnly = ref(false);
+// #ifdef MP-WEIXIN
+miniUpgradeOnly.value = true;
+// #endif
 const editing = ref(false);
 const favIds = ref<string[]>([]);
 const entryLoading = ref(true);
@@ -308,6 +312,10 @@ onLoad((query?: Record<string, string>) => {
         : "tool";
   entryStationId = String(query?.stationId || "");
   nativeQaRequested = query?.nativeQa === "1";
+  // #ifdef MP-WEIXIN
+  // 内部 QA 入口仍由服务端 nativeQaAccess 校验；普通访客直接看到暂停说明。
+  miniUpgradeOnly.value = !nativeQaRequested;
+  // #endif
   // #ifdef H5
   if (nativeQaRequested && typeof document !== "undefined") {
     const meta = document.createElement("meta");
@@ -319,6 +327,13 @@ onLoad((query?: Record<string, string>) => {
 });
 
 onMounted(() => {
+  // #ifdef MP-WEIXIN
+  // 首发小程序不开放排盘，不先触发登录或第三方入口请求。
+  if (miniUpgradeOnly.value) {
+    entryLoading.value = false;
+    return;
+  }
+  // #endif
   void loadPaipanEntry();
 });
 onShow(() => {
@@ -332,7 +347,14 @@ onShow(() => {
 </script>
 
 <template>
-  <view v-if="entryLoading || legacyRouting" class="entry-gate" role="status" aria-live="polite">
+  <view v-if="miniUpgradeOnly" class="entry-gate" role="status" aria-live="polite">
+    <app-icon name="clock-3" :size="56" color="#8A6A3F" />
+    <text class="entry-gate-title">热卜排盘工具正在升级中</text>
+    <text class="entry-gate-desc">暂时仅对 APP 用户和微信公众号用户开放，小程序端恢复后我们会第一时间通知。</text>
+    <button class="degraded-retry degraded-primary" @tap="browsePublicContent">返回热卜首页</button>
+  </view>
+
+  <view v-else-if="entryLoading || legacyRouting" class="entry-gate" role="status" aria-live="polite">
     <view class="entry-gate-spinner" />
     <text class="entry-gate-title">正在进入排盘工具</text>
     <text class="entry-gate-desc">正在安全连接排盘记录与服务</text>
