@@ -16,5 +16,10 @@
 
 ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "reason" TEXT;
 
+-- sourceId：被追回收益的来源 id（圈主分成为 CircleMember.id）。
+-- 退款成功后成员行会被删除，之后无法再由 (circleId, userId) 反推成员 id，
+-- 而候选收益行正是按 sourceId 关联 —— 不记下来，转人工的待办就无从核对。
+ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "sourceId" TEXT;
+
 CREATE INDEX IF NOT EXISTS "CommissionRecall_status_createdAt_idx"
   ON "CommissionRecall" ("status", "createdAt");
