@@ -1501,6 +1501,28 @@ export class CommissionService {
    * @param sourceId 来源记录ID
    * @param amount 原始金额
    */
+  /**
+   * 解析圈子收益的分成（平台抽成 / 圈主实得 / 比例），与 recordCircleRevenue 同一套口径。
+   *
+   * 抽出来是为了让「按订单幂等记账」的调用方（ShopPaymentService.recordCircleRevenueOnce）
+   * 能先占住唯一键、再回填金额，而不必让 recordCircleRevenue 自己再插一行。
+   * 本方法只读配置、不写任何记录。
+   */
+  async resolveCircleRevenueSplit(
+    circleId: string,
+    amount: number,
+  ): Promise<{ platformFee: number; ownerShare: number; splitRate: number }> {
+    let fee = await this.resolveCircleSplit(circleId, amount);
+    if (!fee) fee = await this.calculatePlatformFee("circle_join", amount);
+    const platformFee = fee?.platformFee || 0;
+    const ownerShare = amount - platformFee;
+    return {
+      platformFee,
+      ownerShare: Math.round(ownerShare * 100) / 100,
+      splitRate: amount > 0 ? Math.round((ownerShare / amount) * 10000) / 10000 : 0,
+    };
+  }
+
   async recordCircleRevenue(circleId: string, type: string, sourceId: string, amount: number) {
     // ── 圈子双轨（董事长 2026-07-14 拍板）──
     // 平台分成由该圈子的【收款主体】决定，而不是按收入类型查全局费率：

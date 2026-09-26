@@ -37,6 +37,9 @@ const ROOT = process.env.REPRO_SRC_ROOT ||
   "D:/gx-deploy-91/.worktrees/entitlement-audit-20260918/apps/server/src";
 const { ShopPaymentService } = req(`${ROOT}/modules/shop/shop-payment.service.ts`);
 const { CircleMembershipService } = req(`${ROOT}/modules/circle/services/circle-membership.service.ts`);
+const { CommissionService } = req(`${ROOT}/modules/commission/commission.service.ts`);
+const { ShopOrderLifecycleService } = req(`${ROOT}/modules/shop/shop-order-lifecycle.service.ts`);
+const { CIRCLE_REVENUE_TYPE } = req(`${ROOT}/modules/shop/circle-fulfillment.ts`);
 
 const prisma = new PrismaClient({ datasources: { db: { url: args.dsn } } });
 const DAY = 86_400_000;
@@ -57,20 +60,17 @@ const redisStub = {
   get: async () => null,
   set: async () => {},
   delByPattern: async (p) => { cacheDeleted.push(`pattern:${p}`); },
+  setNX: async () => true,
   runExclusive: async (_k, _t, fn) => fn(),
   getClient: () => null,
 };
-const revenueCalls = [];
-const commissionStub = {
-  recordCircleRevenue: async (circleId, type, sourceId, amount) => {
-    revenueCalls.push({ circleId, type, sourceId, amount });
-    // 真写一行，供 I5 用退款追回的原始 SQL 反查
-    await prisma.circleRevenueRecord.create({
-      data: { circleId, type, sourceId, amount, platformFee: amount * 0.5, ownerShare: amount * 0.5, splitRate: 0.5 },
-    });
-  },
-};
 const noop = new Proxy({}, { get: () => async () => undefined });
+
+// 佣金用**真实 CommissionService**：断言看数据库里的 CircleRevenueRecord，不看调用次数。
+// （早期版本用「记录调用次数」的桩，新实现改为服务自己按订单幂等落库后，该桩已失效。）
+const makeCommission = () => new CommissionService(prisma, noop, redisStub);
+const revRows = (circleId) =>
+  prisma.circleRevenueRecord.findMany({ where: { circleId, type: CIRCLE_REVENUE_TYPE } });
 
 function makePaymentService() {
   const svc = new ShopPaymentService(
@@ -85,7 +85,7 @@ function makePaymentService() {
     noop,            // attribution
     { invalidateOrderCache: async () => {}, settleGroupBuyIfNeeded: async () => {}, getOrder: async () => null },
     undefined,       // huifu
-    commissionStub,  // commissionSvc
+    makeCommission(), // commissionSvc（真实服务）
     undefined,       // coinSvc
   );
   return svc;
@@ -97,7 +97,7 @@ function makeCircleService() {
     { calculateTargetPrice: async () => ({ effectivePrice: 199, originalPrice: 199, appliedPromotion: null }) },
     {},              // shared
     undefined,       // coinService
-    commissionStub,  // commissionService
+    makeCommission(), // commissionService（真实服务）
     undefined,       // notificationService
     undefined,       // governance
   );
@@ -149,27 +149,52 @@ async function fixture({ type = "CIRCLE_JOIN", memberExpireAt, status = "PAID", 
   return { owner, user, circle, order };
 }
 
-/** 模拟真实支付回调：与 processPaidOrder 相同的结构 —— 事务内翻 PAID 并调 runPaidPostProcessors */
-async function paymentCallback(svc, orderId) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  await prisma.$transaction(async (tx) => {
-    await tx.order.updateMany({ where: { id: orderId, status: "PENDING" }, data: { status: "PAID", paidAt: new Date() } });
-    await svc.runPaidPostProcessors(order.status === "PENDING" ? { ...order, status: "PAID" } : order, tx);
-  });
-  // 与 processPaidOrder 提交后的收尾一致
-  await svc.settleCircleAfterCommit({
-    id: order.id, userId: order.userId, targetId: order.targetId,
-    payAmount: order.payAmount, amount: order.amount,
-  });
+/** 真实 ShopOrderLifecycleService（管理员线下确认收款：真实公开入口，内部走
+ *  runPaidPostProcessors + settleCircleAfterCommit 的完整链路） */
+function makeLifecycle(paymentSvc) {
+  return new ShopOrderLifecycleService(
+    prisma,
+    redisStub,
+    { recordOrderCommissionAndFee: async () => {}, recordOrderPlatformFee: async () => {} },
+    { invalidateOrderCache: async () => {}, settleGroupBuyIfNeeded: async () => {} },
+    paymentSvc,
+  );
+}
+
+let manualSeq = 0;
+/**
+ * 走**真实入口**把订单变成已支付并完成后处理。
+ * 早期版本在这里手搓了一段「事务内翻 PAID + 调 runPaidPostProcessors + 调 settleCircleAfterCommit」，
+ * 等于测试自己补了生产路径里不存在的调用，把 adminPayOrder 漏掉收尾的缺口盖住了。
+ * 现在一律走 ShopOrderLifecycleService.adminPayOrder。
+ */
+async function payViaRealEntry(svc, orderId) {
+  const lifecycle = makeLifecycle(svc);
+  return lifecycle.adminPayOrder(orderId, `${RUN}-manual-${++manualSeq}`, `${RUN}-op`);
+}
+
+/**
+ * 走**真实网关回调路径**：直接调用 ShopPaymentService 的 processPaidOrder。
+ * 它是私有方法，但它是生产里微信/支付宝回调实际执行的那段代码（见 :641 / :764 调用点），
+ * 直接调用等于跑完整真实链路，而不是另写一份。这里不额外补任何生产不存在的调用。
+ */
+async function payViaGatewayPath(svc, orderId, tradeNo) {
+  const o = await prisma.order.findUnique({ where: { id: orderId } });
+  return svc["processPaidOrder"](
+    { id: o.id, type: o.type, userId: o.userId, amount: o.amount, targetId: o.targetId, referrerId: o.referrerId },
+    "WECHAT",
+    tradeNo,
+    Number(o.amount),
+  );
 }
 
 // ─────────────────────────── 场景 ───────────────────────────
 
 async function i1() {
-  cacheDeleted.length = 0; revenueCalls.length = 0;
+  cacheDeleted.length = 0;
   const svc = makePaymentService();
   const f = await fixture({ status: "PENDING" });
-  await paymentCallback(svc, f.order.id);
+  await payViaRealEntry(svc, f.order.id);
   const [m, o] = await Promise.all([
     prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: f.circle, userId: f.user } } }),
     prisma.order.findUnique({ where: { id: f.order.id }, select: { status: true } }),
@@ -179,15 +204,16 @@ async function i1() {
   check("I1 提交后清了成员与圈子详情缓存",
     cacheDeleted.includes(`circles:member:${f.circle}:${f.user}`) && cacheDeleted.includes(`circles:detail:${f.circle}`),
     cacheDeleted.join(","));
-  const mine1 = revenueCalls.filter((x) => x.circleId === f.circle);
-  check("I1 记了一次圈子收益", mine1.length === 1, JSON.stringify(mine1));
-  check("I1 收益 sourceId 是成员 id（退款追回依赖）", mine1[0]?.sourceId === m?.id,
-    `sourceId=${mine1[0]?.sourceId} memberId=${m?.id}`);
+  const rows1 = await revRows(f.circle);
+  check("I1 库里恰有一条圈子收益且金额正确", rows1.length === 1 && Number(rows1[0].amount) > 0,
+    JSON.stringify(rows1.map((r) => ({ amount: Number(r.amount), orderId: r.orderId, sourceId: r.sourceId }))));
+  check("I1 收益 sourceId=成员 id、orderId=订单 id", rows1[0]?.sourceId === m?.id && rows1[0]?.orderId === f.order.id,
+    `sourceId=${rows1[0]?.sourceId} memberId=${m?.id} orderId=${rows1[0]?.orderId}`);
   return f;
 }
 
 async function i2() {
-  cacheDeleted.length = 0; revenueCalls.length = 0;
+  cacheDeleted.length = 0;
   const svc = makePaymentService();
   const f = await fixture();                  // 已 PAID 但未履约
   const r = await svc.retryCircleFulfillment(new Date(Date.now() - DAY), new Date(Date.now() + DAY), 50);
@@ -198,34 +224,38 @@ async function i2() {
   check("I2 真实补偿入口完成履约", !!m && o.status === "COMPLETED", `member=${!!m} status=${o.status} r=${JSON.stringify(r)}`);
   check("I2 补偿也做了缓存失效",
     cacheDeleted.includes(`circles:member:${f.circle}:${f.user}`), cacheDeleted.join(","));
-  const mine = revenueCalls.filter((x) => x.circleId === f.circle);
-  check("I2 补偿也记了一次收益", mine.length === 1, JSON.stringify(mine));
+  const mine = await revRows(f.circle);
+  check("I2 补偿也在库里记了一次收益", mine.length === 1 && Number(mine[0].amount) > 0,
+    JSON.stringify(mine.map((r) => Number(r.amount))));
   // 再跑一次补偿：本单已 COMPLETED，不应再被扫到，也不得重复履约或重复记账
-  const before = revenueCalls.length;
+  const before = (await revRows(f.circle)).length;
   const r2 = await svc.retryCircleFulfillment(new Date(Date.now() - DAY), new Date(Date.now() + DAY), 50);
   const stillCandidate = await prisma.order.count({
     where: { id: f.order.id, status: { in: ["PAID", "SHIPPED"] } },
   });
   check("I2 二次补偿不再把本单当候选（已 COMPLETED）", stillCandidate === 0, `候选=${stillCandidate} r2=${JSON.stringify(r2)}`);
-  check("I2 二次补偿未重复记账", revenueCalls.length === before, `${before} → ${revenueCalls.length}`);
+  const after2 = (await revRows(f.circle)).length;
+  check("I2 二次补偿未重复记账", after2 === before, `${before} → ${after2}`);
 }
 
 async function i3(f1) {
-  cacheDeleted.length = 0; revenueCalls.length = 0;
+  cacheDeleted.length = 0;
   const circleSvc = makeCircleService();
+  const beforeRows = (await revRows(f1.circle)).length;
   // I1 里服务端已履约，客户端仍会补调 confirmJoin
   const res = await circleSvc.confirmJoin(f1.circle, f1.user, { orderId: f1.order.id, payMethod: "WECHAT" })
     .then((r) => ({ ok: true, r })).catch((e) => ({ ok: false, e: e?.message }));
   check("I3 旧 confirmJoin 重复调用返回已完成结果，不再抛错", res.ok && res.r?.alreadyFulfilled === true,
     res.ok ? `alreadyFulfilled=${res.r?.alreadyFulfilled}` : `抛错：${res.e}`);
-  check("I3 旧 confirmJoin 未重复记账", revenueCalls.length === 0, JSON.stringify(revenueCalls));
+  const afterRows = (await revRows(f1.circle)).length;
+  check("I3 旧 confirmJoin 未重复记账", afterRows === beforeRows, `${beforeRows} → ${afterRows}`);
   const cnt = await prisma.circleMember.count({ where: { circleId: f1.circle, userId: f1.user } });
   check("I3 旧 confirmJoin 未重复履约", cnt === 1, `members=${cnt}`);
 
   // confirmRenew：服务端已履约续费单后，客户端补调
   const f = await fixture({ type: "CIRCLE_RENEW", memberExpireAt: new Date(Date.now() + 30 * DAY), status: "PENDING" });
   const svc = makePaymentService();
-  await paymentCallback(svc, f.order.id);
+  await payViaRealEntry(svc, f.order.id);
   const after = await prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: f.circle, userId: f.user } } });
   const expAfterServer = after.expireAt.getTime();
   const res2 = await circleSvc.confirmRenew(f.circle, f.user, { orderId: f.order.id })
@@ -242,7 +272,7 @@ async function i4() {
   const a = await fixture({ status: "PENDING" });
   const b = await fixture({ status: "PENDING" });
   const svc = makePaymentService();
-  await paymentCallback(svc, a.order.id);   // a 已履约
+  await payViaRealEntry(svc, a.order.id);   // a 已履约
   // 用 a 的订单去 confirm b 的圈子 → 归属不符，不得被认定为已履约
   const crossCircle = await circleSvc.confirmJoin(b.circle, b.user, { orderId: a.order.id })
     .then(() => ({ ok: true })).catch((e) => ({ ok: false, e: e?.message }));
@@ -256,10 +286,10 @@ async function i4() {
 }
 
 async function i5() {
-  cacheDeleted.length = 0; revenueCalls.length = 0;
+  cacheDeleted.length = 0;
   const svc = makePaymentService();
   const f = await fixture({ status: "PENDING" });
-  await paymentCallback(svc, f.order.id);
+  await payViaRealEntry(svc, f.order.id);
   const m = await prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: f.circle, userId: f.user } } });
   // 用 circle-refund.service.ts:229-231 的原始查询验证追回链路能找到这条收益
   const rows = await prisma.$queryRawUnsafe(
@@ -274,18 +304,34 @@ async function i5() {
 async function i6() {
   cacheDeleted.length = 0;
   const svc = makePaymentService();
-  // 管理员线下确认收款路径：ShopOrderLifecycleService.adminPayOrder 调的也是 runPaidPostProcessors
   const f = await fixture({ status: "PENDING" });
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({ where: { id: f.order.id }, data: { status: "PAID", paidAt: new Date(), payMethod: "OFFLINE" } });
-    const o = await tx.order.findUnique({ where: { id: f.order.id } });
-    await svc.runPaidPostProcessors(o, tx);
-  });
-  await svc.settleCircleAfterCommit({ id: f.order.id, userId: f.user, targetId: f.circle, payAmount: 199, amount: 199 });
+  await payViaRealEntry(svc, f.order.id); // 真实 adminPayOrder
   const m = await prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: f.circle, userId: f.user } } });
-  check("I6 管理员确认收款路径同样完成履约", !!m, m ? "已入圈" : "未入圈");
-  check("I6 管理员路径也做了缓存失效",
+  const rows = await revRows(f.circle);
+  check("I6 真实 adminPayOrder 完成履约", !!m, m ? "已入圈" : "未入圈");
+  check("I6 真实 adminPayOrder 做了缓存失效",
     cacheDeleted.includes(`circles:member:${f.circle}:${f.user}`), cacheDeleted.join(","));
+  check("I6 真实 adminPayOrder 记了收益", rows.length === 1 && Number(rows[0].amount) > 0,
+    JSON.stringify(rows.map((r) => Number(r.amount))));
+}
+
+/** I7 真实网关回调路径（processPaidOrder）同样完成履约 + 缓存 + 收益 */
+async function i7() {
+  cacheDeleted.length = 0;
+  const svc = makePaymentService();
+  const f = await fixture({ status: "PENDING" });
+  await payViaGatewayPath(svc, f.order.id, `${RUN}-gw-tx`);
+  const [m, o, rows] = await Promise.all([
+    prisma.circleMember.findUnique({ where: { circleId_userId: { circleId: f.circle, userId: f.user } } }),
+    prisma.order.findUnique({ where: { id: f.order.id }, select: { status: true } }),
+    revRows(f.circle),
+  ]);
+  check("I7 真实网关回调路径完成履约", !!m && o.status === "COMPLETED", `member=${!!m} status=${o.status}`);
+  check("I7 网关路径做了缓存失效",
+    cacheDeleted.includes(`circles:member:${f.circle}:${f.user}`) && cacheDeleted.includes(`circles:detail:${f.circle}`),
+    cacheDeleted.join(","));
+  check("I7 网关路径记了收益", rows.length === 1 && Number(rows[0].amount) > 0,
+    JSON.stringify(rows.map((r) => Number(r.amount))));
 }
 
 // ─────────────────────────── 主流程 ───────────────────────────
@@ -298,6 +344,7 @@ try {
   await i4();
   await i5();
   await i6();
+  await i7();
   await cleanup();
   console.log(lines.join("\n"));
   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);

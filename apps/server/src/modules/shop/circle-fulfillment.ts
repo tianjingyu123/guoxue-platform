@@ -38,6 +38,23 @@ import { Prisma, OrderStatus, OrderType } from "@prisma/client";
  */
 
 export const CIRCLE_ORDER_TYPES = ["CIRCLE_JOIN", "CIRCLE_RENEW"] as const;
+
+/**
+ * 圈子入圈/续费收益的记录类型。
+ * 必须与 `circle-refund.service.ts:229-231` 的追回查询 `type='circle_join'` 一致，
+ * 也与既有 confirmJoin/confirmRenew 传给 recordCircleRevenue 的取值一致。
+ */
+export const CIRCLE_REVENUE_TYPE = "circle_join";
+
+/**
+ * 支付后处理器的返回结果。
+ * 之所以要有返回值：圈子履约必须把结果带回调用方，让调用方在**事务提交后**做
+ * 缓存失效与收益记账。用返回值沿调用链传递，不用服务实例上的共享状态。
+ */
+export type PaidPostProcessOutcome = {
+  /** 仅圈子订单有值 */
+  circle?: FulfillResult;
+};
 type CircleOrderType = (typeof CIRCLE_ORDER_TYPES)[number];
 
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;

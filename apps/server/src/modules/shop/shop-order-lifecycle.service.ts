@@ -51,6 +51,12 @@ export class ShopOrderLifecycleService {
       this.paymentSvc.triggerPostCommitTasks?.(order);
       await this.orderSvc.settleGroupBuyIfNeeded(orderId)
         .catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
+      // 圈子订单：首次确认可能翻了状态但后处理未完成，重试时走同一套幂等履约补齐。
+      if (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW") {
+        await this.paymentSvc
+          .retryCircleFulfillmentForOrder(orderId)
+          .catch((e) => this.logger.error(`圈子履约补齐失败 order=${orderId}`, e));
+      }
       return { success: true, orderId, payTransactionId, replayed: true };
     }
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
@@ -58,16 +64,24 @@ export class ShopOrderLifecycleService {
     // CAS 状态翻转防并发重复确认 + 同事务跑支付后处理器。
     // ⚠️ 后处理器不可省：它负责会员开通/分站激活/运营商建号。此前本方法绕过了它，
     //    导致线下确认收款的订单「变 PAID 但权益不开通」（钱收了货不发）。与网关回调路径同口径。
-    await this.prisma.$transaction(async (tx) => {
+    const postProcess = await this.prisma.$transaction(async (tx) => {
       const flipped = await tx.order.updateMany({
         where: { id: orderId, status: "PENDING" },
         data: { status: "PAID", paidAt: new Date(), payMethod: "MANUAL", payTransactionId },
       });
       if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
-      await this.paymentSvc.runPaidPostProcessors(order, tx);
+      return this.paymentSvc.runPaidPostProcessors(order, tx);
     });
     this.paymentSvc.triggerPostCommitTasks?.(order);
     await this.orderSvc.invalidateOrderCache(orderId, order.userId);
+    // 圈子履约的事务后收尾（缓存失效 + 收益记账）——与网关回调路径同口径。
+    // 早期版本漏了这一步：线下确认收款的圈子订单会「履约了但成员缓存不失效、收益不记账」。
+    if (postProcess?.circle) {
+      await this.paymentSvc.settleCircleAfterCommit(
+        { id: order.id, userId: order.userId, targetId: order.targetId ?? "", payAmount: order.payAmount, amount: order.amount },
+        postProcess.circle,
+      );
+    }
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);
     await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
