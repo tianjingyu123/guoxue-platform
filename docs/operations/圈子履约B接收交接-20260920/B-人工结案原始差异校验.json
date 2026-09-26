@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-09-20T14:50:56.0479472Z",
+  "sourceWorktree": "D:/gx-deploy-91/.worktrees/circle-fulfillment-receive-20260919",
+  "sourceHead": "6fbadf16db0130657858d2507b74811288e2d980",
+  "sourceBranch": "codex/circle-fulfillment-receive-20260919",
+  "patchSha256": "af2b20015e762d086d2205de5e24d9c4730392c28bdcf29bf5982e03559bc72f",
+  "files": [
+    {
+      "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+      "bytes": 332023,
+      "sha256": "42695464eb23b127b5aa7a9b986acbcca6e0ace7076c592628d1b5258425b6be",
+      "baseBlob": "0c1b62f534c51780d8930faad9bbb05ed39eacab",
+      "workingBlob": "8eb7f3da80e41505d5a86e8d20a130372fc1ae5d"
+    },
+    {
+      "path": "apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql",
+      "bytes": 2299,
+      "sha256": "ebbac1b319f6beb1b4f5cacecadbeebe6a7993dba5e2d9d7a8c18ab4adf8381b",
+      "baseBlob": "672c84120c24bcadc20ba5dffcf12c6435e537c6",
+      "workingBlob": "704fb6a3e221dcd4c4facad6cd14cd9759b072db"
+    },
+    {
+      "path": "apps/server/prisma/schema.prisma",
+      "bytes": 328254,
+      "sha256": "3e8dd238af6531acda7daf02940891247b0e3a913584d32f918aaf786c27afea",
+      "baseBlob": "77ba0d3a9833be03ec25572691a13affc95cae54",
+      "workingBlob": "6a3d2e540825a311c4c29d83141d4ee1608fec11"
+    },
+    {
+      "path": "apps/server/src/modules/circle-refund/circle-refund.controller.ts",
+      "bytes": 5165,
+      "sha256": "a9b396e86b74fe7c56e27eb597ddcf65d988ac1d58526dd35adf45a0bdb3ba89",
+      "baseBlob": "536736377b759a62335d64bef13cbddc4828115d",
+      "workingBlob": "e8ed2ae27d2de7a3c1a467ba15e708da9c91b16f"
+    },
+    {
+      "path": "apps/server/src/modules/circle-refund/circle-refund.service.ts",
+      "bytes": 39990,
+      "sha256": "2fbf8583bfd2c410ac609984b80c038dfb703d3f60ef21688228ac6c3b5244e0",
+      "baseBlob": "f4f88517db5bacba157ecc4b4f3e1d3f79d04657",
+      "workingBlob": "c01387481651dc7c74b15668a733e8be9014f6bc"
+    },
+    {
+      "path": "scripts/ops/circle-fulfillment-repro/revenue.mjs",
+      "bytes": 58292,
+      "sha256": "ee6d765079d196951ad23c762cb9f6f66ce6f9688423ce3a7388752a479fb278",
+      "baseBlob": "b1cfa74afd710a0c4d482fe2194956deadf139e7",
+      "workingBlob": "eac8884538d4df27e621586acf3d33c5cc59479c"
+    }
+  ]
+}

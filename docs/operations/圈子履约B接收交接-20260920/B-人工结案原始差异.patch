@@ -1,0 +1,510 @@
+diff --git a/apps/server/prisma/migrations-deploy/full-baseline.sql b/apps/server/prisma/migrations-deploy/full-baseline.sql
+index 0c1b62f534c51780d8930faad9bbb05ed39eacab..8eb7f3da80e41505d5a86e8d20a130372fc1ae5d 100644
+--- a/apps/server/prisma/migrations-deploy/full-baseline.sql
++++ b/apps/server/prisma/migrations-deploy/full-baseline.sql
+@@ -5477,6 +5477,10 @@ CREATE TABLE "CommissionRecall" (
+     "status" TEXT NOT NULL DEFAULT 'pending',
+     "reason" TEXT,
+     "sourceId" TEXT,
++    "resolvedAt" TIMESTAMP(3),
++    "resolvedBy" TEXT,
++    "resolutionNote" TEXT,
++    "resolvedRevenueId" TEXT,
+     "offsetCompletedAt" TIMESTAMP(3),
+     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
+diff --git a/apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql b/apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql
+index 672c84120c24bcadc20ba5dffcf12c6435e537c6..704fb6a3e221dcd4c4facad6cd14cd9759b072db 100644
+--- a/apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql
++++ b/apps/server/prisma/migrations/20260919090000_add_commission_recall_reason/migration.sql
+@@ -21,5 +21,13 @@ ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "reason" TEXT;
+ -- 而候选收益行正是按 sourceId 关联 —— 不记下来，转人工的待办就无从核对。
+ ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "sourceId" TEXT;
+ 
++-- 人工结案的记录与凭据。
++-- 「能查看超期」不等于闭环：待办必须有终点，且终点要留下「谁、何时、依据什么、认定哪一笔」。
++-- 全部可空，历史行保持 NULL；该表在本次改动前没有任何读取方，新增列不影响既有逻辑。
++ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP(3);
++ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "resolvedBy" TEXT;
++ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "resolutionNote" TEXT;
++ALTER TABLE "CommissionRecall" ADD COLUMN IF NOT EXISTS "resolvedRevenueId" TEXT;
++
+ CREATE INDEX IF NOT EXISTS "CommissionRecall_status_createdAt_idx"
+   ON "CommissionRecall" ("status", "createdAt");
+diff --git a/apps/server/prisma/schema.prisma b/apps/server/prisma/schema.prisma
+index 77ba0d3a9833be03ec25572691a13affc95cae54..6a3d2e540825a311c4c29d83141d4ee1608fec11 100644
+--- a/apps/server/prisma/schema.prisma
++++ b/apps/server/prisma/schema.prisma
+@@ -7198,6 +7198,15 @@ model CommissionRecall {
+   /// 而候选收益行正是按 sourceId 关联的 —— 不记下来，转人工的那条待办就无从核对。
+   /// 可空：历史行保持 NULL。
+   sourceId          String?
++  /// 人工结案时间。`pending_manual` 只是「待办产生」，结案才是这条待办的终点。
++  resolvedAt        DateTime?
++  /// 结案操作人（User.id）。与 AuditLog 互为佐证：这里是业务结论，那里是访问轨迹。
++  resolvedBy        String?
++  /// 结案依据（凭据）。接口层强制必填且有最小长度——空白依据等于没有核对过。
++  resolutionNote    String?
++  /// 「确需调整」时人工判定的那条收益行 id（`CircleRevenueRecord.id`）。
++  /// 「无需调整」时为空。系统从不自行挑选这一行，只校验人工指定的这一行确属本笔退款。
++  resolvedRevenueId String?
+   offsetCompletedAt DateTime?
+   createdAt         DateTime  @default(now())
+ 
+diff --git a/apps/server/src/modules/circle-refund/circle-refund.controller.ts b/apps/server/src/modules/circle-refund/circle-refund.controller.ts
+index 536736377b759a62335d64bef13cbddc4828115d..e8ed2ae27d2de7a3c1a467ba15e708da9c91b16f 100644
+--- a/apps/server/src/modules/circle-refund/circle-refund.controller.ts
++++ b/apps/server/src/modules/circle-refund/circle-refund.controller.ts
+@@ -92,8 +92,32 @@ export class CircleRefundController {
+       "自动冲抵等于回到「猜」，而这些行正因为判定不出才存在。",
+   })
+   @ApiBearerAuth()
+-  adminManualRecalls(@Query("limit") limit?: string, @Query("offset") offset?: string) {
+-    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset) });
++  adminManualRecalls(
++    @Query("limit") limit?: string,
++    @Query("offset") offset?: string,
++    @Query("state") state?: "pending" | "resolved",
++  ) {
++    return this.svc.getManualRecalls({ limit: Number(limit), offset: Number(offset), state });
++  }
++
++  @Post("manual-recalls/:id/resolve")
++  @RedLineGate(RedLine.MONEY)
++  @Auditable({ action: "圈主分成追回人工结案", targetType: "COMMISSION_RECALL" })
++  @UseGuards(JwtAuthGuard, RolesGuard)
++  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
++  @ApiOperation({
++    summary: "人工结案一条待办（无需调整 / 按指定收益行冲正）",
++    description:
++      "两种结论：no_change（核实后无需调整，不动资金）、adjust（确需调整，按人工指定的 revenueRecordId 冲正）。" +
++      "系统不挑选收益行，只校验指定的那一行确属本笔退款。核对依据必填。重复提交会被拒绝。",
++  })
++  @ApiBearerAuth()
++  resolveManualRecall(
++    @Param("id") id: string,
++    @Req() req: Request,
++    @Body() body: { decision?: string; revenueRecordId?: string; note?: string },
++  ) {
++    return this.svc.resolveManualRecall(id, req.user.id, body);
+   }
+ 
+   @Post(":id/admin-review")
+diff --git a/apps/server/src/modules/circle-refund/circle-refund.service.ts b/apps/server/src/modules/circle-refund/circle-refund.service.ts
+index f4f88517db5bacba157ecc4b4f3e1d3f79d04657..c01387481651dc7c74b15668a733e8be9014f6bc 100644
+--- a/apps/server/src/modules/circle-refund/circle-refund.service.ts
++++ b/apps/server/src/modules/circle-refund/circle-refund.service.ts
+@@ -59,6 +59,27 @@ export const RECALL_MANUAL_REASONS = {
+ } as const;
+ export type RecallManualReason = (typeof RECALL_MANUAL_REASONS)[keyof typeof RECALL_MANUAL_REASONS];
+ 
++/**
++ * 人工核对后的两种结论。**没有第三种** —— 系统不提供「先放着」这个选项，
++ * 待办要么被认定无需调整，要么按人工指定的那一笔冲正，两者都算结案。
++ */
++export const MANUAL_RESOLUTIONS = {
++  /** 核实后确认**无需调整**：不写任何冲正行，只留结案记录与依据 */
++  NO_CHANGE: "no_change",
++  /** 核实后**确需调整**：按人工指定的那一条收益行冲正 */
++  ADJUST: "adjust",
++} as const;
++export type ManualResolution = (typeof MANUAL_RESOLUTIONS)[keyof typeof MANUAL_RESOLUTIONS];
++
++/** 结案后的台账状态。与自动冲正的 `completed` 区分开，报表能分辨人工与自动 */
++const RESOLVED_STATUS: Record<ManualResolution, string> = {
++  no_change: "manual_no_change",
++  adjust: "manual_adjusted",
++};
++
++/** 结案依据的最小长度。空白依据等于没有核对过，留下来也没有复核价值 */
++const MIN_RESOLUTION_NOTE_LENGTH = 10;
++
+ function round2(n: number): number {
+   return Math.round(n * 100) / 100;
+ }
+@@ -476,9 +497,14 @@ export class CircleRefundService {
+    * `overdue` / `slaDays` 把超出处理时限（`MANUAL_RECALL_SLA_DAYS`）的待办标出来。
+    * **只标不做**：不告警、不自动冲抵、不改任何状态。
+    */
+-  async getManualRecalls(params: { limit?: number; offset?: number } = {}) {
++  async getManualRecalls(params: { limit?: number; offset?: number; state?: "pending" | "resolved" } = {}) {
+     const limit = Math.min(Math.max(1, Math.floor(Number(params.limit ?? 50))), 200);
+     const offset = Math.max(0, Math.floor(Number(params.offset ?? 0)));
++    // `resolved` 用于复核与对账：结案记录必须查得回来，否则「有凭据」只是说法。
++    const resolved = params.state === "resolved";
++    const statuses = resolved
++      ? [RESOLVED_STATUS.no_change, RESOLVED_STATUS.adjust]
++      : ["pending_manual"];
+ 
+     const slaDays = MANUAL_RECALL_SLA_DAYS;
+     const slaMs = slaDays * 24 * 60 * 60 * 1000;
+@@ -486,11 +512,13 @@ export class CircleRefundService {
+     const [summary, totalRows, overdueRows, rows] = await Promise.all([
+       this.prisma.$queryRawUnsafe<any[]>(
+         `SELECT coalesce("reason", 'unknown') AS "reason", count(*)::int AS "count"
+-         FROM "CommissionRecall" WHERE "status" = 'pending_manual'
++         FROM "CommissionRecall" WHERE "status" = ANY($1::text[])
+          GROUP BY 1 ORDER BY 2 DESC`,
++        statuses,
+       ),
+       this.prisma.$queryRawUnsafe<any[]>(
+-        `SELECT count(*)::int AS "n" FROM "CommissionRecall" WHERE "status" = 'pending_manual'`,
++        `SELECT count(*)::int AS "n" FROM "CommissionRecall" WHERE "status" = ANY($1::text[])`,
++        statuses,
+       ),
+       this.prisma.$queryRawUnsafe<any[]>(
+         `SELECT count(*)::int AS "n" FROM "CommissionRecall"
+@@ -499,19 +527,22 @@ export class CircleRefundService {
+         slaDays,
+       ),
+       this.prisma.$queryRawUnsafe<any[]>(
+-        `SELECT r."id", r."refundId", r."userId" AS "ownerId", r."reason",
+-                r."sourceId" AS "memberId", r."createdAt",
++        `SELECT r."id", r."refundId", r."userId" AS "ownerId", r."reason", r."status",
++                r."sourceId" AS "memberId", r."createdAt", r."amount" AS "recalledAmount",
++                r."resolvedAt", r."resolvedBy", r."resolutionNote", r."resolvedRevenueId",
+                 q."circleId", q."userId" AS "memberUserId", q."orderId",
+                 q."paidAmount", q."actualRefund", q."refundedAt",
+-                c."name" AS "circleName", u."nickname" AS "ownerNickname"
++                c."name" AS "circleName", u."nickname" AS "ownerNickname",
++                w."nickname" AS "resolvedByNickname"
+          FROM "CommissionRecall" r
+          LEFT JOIN "CircleRefundRequest" q ON q."id" = r."refundId"
+          LEFT JOIN "Circle" c ON c."id" = q."circleId"
+          LEFT JOIN "User" u ON u."id" = r."userId"
+-         WHERE r."status" = 'pending_manual'
+-         ORDER BY r."createdAt" DESC
++         LEFT JOIN "User" w ON w."id" = r."resolvedBy"
++         WHERE r."status" = ANY($3::text[])
++         ORDER BY r."createdAt" ASC
+          LIMIT $1 OFFSET $2`,
+-        limit, offset,
++        limit, offset, statuses,
+       ),
+     ]);
+ 
+@@ -528,6 +559,7 @@ export class CircleRefundService {
+ 
+     const now = Date.now();
+     return {
++      state: resolved ? "resolved" : "pending",
+       total: Number(totalRows[0]?.n ?? 0),
+       /** 超出处理时限、仍未处理的条数。只标不做 */
+       overdue: Number(overdueRows[0]?.n ?? 0),
+@@ -540,7 +572,7 @@ export class CircleRefundService {
+         return {
+           ...r,
+           ageDays: Math.floor(ageMs / (24 * 60 * 60 * 1000)),
+-          overdue: ageMs > slaMs,
++          overdue: !resolved && ageMs > slaMs,
+           // memberId 为空说明该行由旧版本写入（`sourceId` 是本次新增列），只能人工按订单反查
+           candidates: r.memberId ? candidates.filter((c) => c.sourceId === r.memberId) : [],
+         };
+@@ -548,6 +580,160 @@ export class CircleRefundService {
+     };
+   }
+ 
++  /**
++   * **人工结案**一条 `pending_manual` 追回待办。
++   *
++   * 这是「转人工」这条路的终点。只能看、不能结案的待办不是闭环：待办会一直堆着，
++   * 超期标记也只是把堆积显示出来而已。
++   *
++   * ── 两种结论，没有第三种 ────────────────────────────────────────────────
++   * | 结论 | 写什么 | 不写什么 |
++   * |---|---|---|
++   * | `no_change` 核实后无需调整 | 结案记录 + 依据 | **不写任何冲正行**，不动资金 |
++   * | `adjust`   核实后确需调整 | 按**人工指定**的那条收益行冲正 + 结案记录 + 依据 | 不自行挑选收益行 |
++   *
++   * ── 系统在这里做什么、不做什么 ──────────────────────────────────────────
++   * **不做**：不推断、不挑选、不批量处理。哪一笔该冲正由人给出，系统一条都不猜 ——
++   * 这条待办之所以存在，正是因为系统判定不出来。
++   * **做**：校验人工指定的那一行**确属本笔退款**（同圈子、同成员、类型与金额为正），
++   * 对不上就拒绝。人可以判断，但不能指向一条毫无关系的收益行。
++   *
++   * ── 凭据 ───────────────────────────────────────────────────────────────
++   * `resolutionNote` 强制必填且有最小长度：空白依据等于没有核对过，留下来也没有复核价值。
++   * `resolvedBy` / `resolvedAt` 记业务结论，控制器上的 `@Auditable` 记访问轨迹，两者互为佐证。
++   *
++   * ── 幂等 ───────────────────────────────────────────────────────────────
++   * 入口对台账行 `FOR UPDATE`，锁内状态非 `pending_manual` 直接拒绝。
++   * 重复提交不会写出第二条冲正行，也不会把已结案的待办改成另一个结论。
++   */
++  async resolveManualRecall(
++    recallId: string,
++    operatorId: string,
++    body: { decision?: string; revenueRecordId?: string; note?: string },
++  ) {
++    const decision = body?.decision as ManualResolution | undefined;
++    if (decision !== MANUAL_RESOLUTIONS.NO_CHANGE && decision !== MANUAL_RESOLUTIONS.ADJUST) {
++      throw new BusinessException(
++        ErrorCode.BAD_REQUEST,
++        `结论必须是 ${MANUAL_RESOLUTIONS.NO_CHANGE}（无需调整）或 ${MANUAL_RESOLUTIONS.ADJUST}（确需调整）`,
++      );
++    }
++    const note = (body?.note ?? "").trim();
++    if (note.length < MIN_RESOLUTION_NOTE_LENGTH) {
++      throw new BusinessException(
++        ErrorCode.BAD_REQUEST,
++        `请填写核对依据，不少于 ${MIN_RESOLUTION_NOTE_LENGTH} 个字（写明依据哪笔订单、哪条收益行做出判断）`,
++      );
++    }
++    if (decision === MANUAL_RESOLUTIONS.ADJUST && !body?.revenueRecordId) {
++      throw new BusinessException(
++        ErrorCode.BAD_REQUEST,
++        "确需调整时必须指定要冲正的那一条收益行（revenueRecordId）；系统不会替你挑",
++      );
++    }
++
++    return this.prisma.$transaction(async (tx) => {
++      // ① 台账行级串行化：锁内状态为准，重复提交在这里被拒
++      const locked = (
++        await tx.$queryRawUnsafe<any[]>(
++          `SELECT "id","refundId","userId","status","sourceId" FROM "CommissionRecall"
++           WHERE "id" = $1 FOR UPDATE`,
++          recallId,
++        )
++      )[0];
++      if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "待办不存在");
++      if (locked.status !== "pending_manual") {
++        throw new BusinessException(ErrorCode.BAD_REQUEST, `该待办已结案（当前状态 ${locked.status}），不可重复处理`);
++      }
++
++      const refund = (
++        await tx.$queryRawUnsafe<any[]>(
++          `SELECT "id","circleId","userId","orderId","paidAmount" FROM "CircleRefundRequest" WHERE "id" = $1`,
++          locked.refundId,
++        )
++      )[0];
++      if (!refund) throw new BusinessException(ErrorCode.BAD_REQUEST, "待办对应的退款申请不存在，无法核对");
++
++      // ② 无需调整：只留结案记录，一分钱不动
++      if (decision === MANUAL_RESOLUTIONS.NO_CHANGE) {
++        await tx.$executeRawUnsafe(
++          `UPDATE "CommissionRecall"
++           SET "status" = $2, "resolvedAt" = CURRENT_TIMESTAMP, "resolvedBy" = $3, "resolutionNote" = $4
++           WHERE "id" = $1`,
++          recallId, RESOLVED_STATUS.no_change, operatorId, note,
++        );
++        this.logger.log(`追回待办结案（无需调整）recall=${recallId} refund=${refund.id} by=${operatorId}`);
++        return { id: recallId, status: RESOLVED_STATUS.no_change, ownerRecalled: 0, revenueRecordId: null };
++      }
++
++      // ③ 确需调整：校验人工指定的那一行确属本笔退款
++      if (!locked.sourceId) {
++        throw new BusinessException(
++          ErrorCode.BAD_REQUEST,
++          "该待办没有记录成员 id（历史数据），无法校验收益行归属；请走线下财务流程处理，不要在此冲正",
++        );
++      }
++      const revenue = (
++        await tx.$queryRawUnsafe<any[]>(
++          `SELECT "id","circleId","sourceId","type","amount","ownerShare" FROM "CircleRevenueRecord"
++           WHERE "id" = $1`,
++          body.revenueRecordId,
++        )
++      )[0];
++      if (!revenue) throw new BusinessException(ErrorCode.BAD_REQUEST, "指定的收益行不存在");
++      if (
++        revenue.type !== "circle_join" ||
++        revenue.circleId !== refund.circleId ||
++        revenue.sourceId !== locked.sourceId ||
++        Number(revenue.amount) <= 0
++      ) {
++        throw new BusinessException(
++          ErrorCode.BAD_REQUEST,
++          "指定的收益行不属于本笔退款（需同圈子、同成员、类型 circle_join 且金额为正），已拒绝冲正",
++        );
++      }
++
++      // ④ 按**人工认定的那一行自身的金额**冲正，账面对该行净为零。
++      //    与自动 `exact` 档同一口径：那一档要求收益行金额与已付金额相等，因此两者本就一致；
++      //    这里没有相等这个前提（金额对不上恰恰是转人工的原因之一），所以必须以认定行为准，
++      //    否则会留下差额且无人知道。
++      const ownerRecalled = Number(revenue.ownerShare);
++      await tx.circleRevenueRecord.create({
++        data: {
++          circleId: refund.circleId,
++          type: "circle_join_refund",
++          sourceId: locked.sourceId,
++          orderId: refund.orderId ?? null,
++          amount: -Number(revenue.amount),
++          platformFee: 0,
++          ownerShare: -ownerRecalled,
++          splitRate: 0,
++        },
++      });
++      await tx.$executeRawUnsafe(
++        `UPDATE "CircleRefundRequest" SET "ownerRecalled" = $2, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = $1`,
++        refund.id, ownerRecalled,
++      );
++      await tx.$executeRawUnsafe(
++        `UPDATE "CommissionRecall"
++         SET "status" = $2, "amount" = $3, "resolvedAt" = CURRENT_TIMESTAMP,
++             "resolvedBy" = $4, "resolutionNote" = $5, "resolvedRevenueId" = $6
++         WHERE "id" = $1`,
++        recallId, RESOLVED_STATUS.adjust, -ownerRecalled, operatorId, note, revenue.id,
++      );
++      this.logger.log(
++        `追回待办结案（已冲正）recall=${recallId} refund=${refund.id} 收益行=${revenue.id} ` +
++          `圈主分成追回=${ownerRecalled} by=${operatorId}`,
++      );
++      return {
++        id: recallId,
++        status: RESOLVED_STATUS.adjust,
++        ownerRecalled,
++        revenueRecordId: revenue.id,
++      };
++    });
++  }
++
+   private async getById(id: string) {
+     const rows = await this.prisma.$queryRawUnsafe<any[]>(
+       `SELECT * FROM "CircleRefundRequest" WHERE id=$1 LIMIT 1`, id,
+diff --git a/scripts/ops/circle-fulfillment-repro/revenue.mjs b/scripts/ops/circle-fulfillment-repro/revenue.mjs
+index b1cfa74afd710a0c4d482fe2194956deadf139e7..eac8884538d4df27e621586acf3d33c5cc59479c 100644
+--- a/scripts/ops/circle-fulfillment-repro/revenue.mjs
++++ b/scripts/ops/circle-fulfillment-repro/revenue.mjs
+@@ -930,6 +930,134 @@ async function r19() {
+     `台账=${JSON.stringify(after)} 本用例圈子下的冲正行=${reversals}`);
+ }
+ 
++/**
++ * R20 人工结案闭环：记录、凭据、两种结论、拒绝条件、幂等。
++ *
++ * 「能查看超期」不等于闭环 —— 待办必须有终点。这里验证终点本身：
++ * 谁结的案、依据什么、认定哪一笔、有没有真的动钱、能不能查回来、能不能重复结案。
++ */
++async function r20() {
++  const svc = new CircleRefundService(prisma);
++  const OP = `${RUN}-operator`;
++  await prisma.user.create({ data: { id: OP, nickname: "核对人" } });
++
++  /** 造一条 ambiguous 待办，返回待办行与两条候选收益 */
++  async function makePending() {
++    const f = await fixture();
++    const a = await fulfillOrder(f.order.id);          // 199
++    const ro = await renewOrder(f, 199);
++    const b = await fulfillOrder(ro.id);               // 199，同额 → 消歧失败
++    const rid = await runRefund({
++      circleId: f.circle, userId: f.user, orderId: null, paidAmount: 199, actualRefund: 150,
++    });
++    const recall = (await prisma.$queryRawUnsafe(
++      `SELECT * FROM "CommissionRecall" WHERE "refundId" = $1`, rid))[0];
++    return { f, rid, recall, candidates: [a, b] };
++  }
++
++  // ── ① 结论：无需调整 ──
++  {
++    const { f, recall } = await makePending();
++    const r = await svc.resolveManualRecall(recall.id, OP, {
++      decision: "no_change", note: "已核对订单与收益行，本笔收益从未记上，无需冲正",
++    });
++    check("R20 无需调整：结案成功且不动资金", r.status === "manual_no_change" && r.ownerRecalled === 0,
++      JSON.stringify(r));
++    const rows = await prisma.circleRevenueRecord.count({
++      where: { circleId: f.circle, type: "circle_join_refund" },
++    });
++    check("R20 无需调整：一条冲正行都不写", rows === 0, `冲正行=${rows}`);
++    const after = (await prisma.$queryRawUnsafe(
++      `SELECT "status","resolvedBy","resolutionNote","resolvedAt","resolvedRevenueId" FROM "CommissionRecall" WHERE "id"=$1`,
++      recall.id))[0];
++    check("R20 无需调整：留下操作人、时间与依据（凭据可复核）",
++      after.status === "manual_no_change" && after.resolvedBy === OP &&
++        !!after.resolvedAt && (after.resolutionNote ?? "").length >= 10 && after.resolvedRevenueId === null,
++      JSON.stringify(after));
++  }
++
++  // ── ② 结论：确需调整，按人工指定的那一行冲正 ──
++  let adjusted = null;
++  {
++    const { f, rid, recall, candidates } = await makePending();
++    const pick = candidates[0];
++    const r = await svc.resolveManualRecall(recall.id, OP, {
++      decision: "adjust", revenueRecordId: pick.id,
++      note: `经核对，被退订单对应入圈那一笔收益 ${pick.id}，按该笔追回圈主分成`,
++    });
++    check("R20 确需调整：按指定收益行冲正",
++      r.status === "manual_adjusted" && Math.abs(r.ownerRecalled - Number(pick.ownerShare)) < 0.01 &&
++        r.revenueRecordId === pick.id,
++      JSON.stringify(r));
++    const rows = await prisma.circleRevenueRecord.findMany({
++      where: { circleId: f.circle, type: "circle_join_refund" },
++    });
++    check("R20 确需调整：恰写一条冲正行，金额以认定行为准（对该行净为零）",
++      rows.length === 1 && Math.abs(Number(rows[0].amount) + Number(pick.amount)) < 0.01 &&
++        Math.abs(Number(rows[0].ownerShare) + Number(pick.ownerShare)) < 0.01,
++      JSON.stringify(rows.map((x) => ({ amount: x.amount, ownerShare: x.ownerShare }))));
++    const req = (await prisma.$queryRawUnsafe(
++      `SELECT "ownerRecalled" FROM "CircleRefundRequest" WHERE "id"=$1`, rid))[0];
++    check("R20 确需调整：退款申请的圈主追回金额被回填（转人工时是 0）",
++      Math.abs(Number(req.ownerRecalled) - Number(pick.ownerShare)) < 0.01, `ownerRecalled=${req.ownerRecalled}`);
++    adjusted = { rid, recallId: recall.id, pick, circleId: f.circle };
++  }
++
++  // ── ③ 幂等：重复结案被拒，不写第二条冲正行 ──
++  {
++    let err = null;
++    await svc.resolveManualRecall(adjusted.recallId, OP, {
++      decision: "no_change", note: "尝试重复结案，应当被拒绝，不得改写已有结论",
++    }).catch((e) => { err = e; });
++    check("R20 幂等：已结案的待办不可重复处理", !!err && /已结案/.test(err.message ?? ""),
++      err ? err.message : "未拒绝（错误）");
++    const rows = await prisma.circleRevenueRecord.count({
++      where: { circleId: adjusted.circleId, type: "circle_join_refund" },
++    });
++    check("R20 幂等：重复提交不产生第二条冲正行", rows === 1, `冲正行=${rows}`);
++  }
++
++  // ── ④ 拒绝条件：凭据太短 / 未指定收益行 / 指定了不属于本笔的收益行 ──
++  {
++    const { recall } = await makePending();
++    const other = await makePending(); // 另一笔退款的收益行，归属不符
++
++    const cases = [
++      ["凭据太短被拒", { decision: "no_change", note: "已核对" }, /不少于/],
++      ["确需调整但未指定收益行被拒", { decision: "adjust", note: "确认需要调整这一笔的圈主分成" }, /必须指定/],
++      ["结论取值非法被拒", { decision: "maybe", note: "这是一个不存在的结论取值用于验证" }, /结论必须是/],
++      ["指定不属于本笔退款的收益行被拒",
++        { decision: "adjust", revenueRecordId: other.candidates[0].id, note: "故意指向别笔退款的收益行以验证归属校验" },
++        /不属于本笔退款/],
++    ];
++    for (const [name, body, re] of cases) {
++      let err = null;
++      await svc.resolveManualRecall(recall.id, OP, body).catch((e) => { err = e; });
++      check(`R20 ${name}`, !!err && re.test(err.message ?? ""), err ? err.message : "未拒绝（错误）");
++    }
++    const still = (await prisma.$queryRawUnsafe(
++      `SELECT "status" FROM "CommissionRecall" WHERE "id"=$1`, recall.id))[0];
++    check("R20 被拒的提交不改变待办状态", still.status === "pending_manual", still.status);
++  }
++
++  // ── ⑤ 结案记录查得回来；待办列表不再包含已结案的 ──
++  {
++    const resolvedPage = await svc.getManualRecalls({ limit: 100, state: "resolved" });
++    const hit = resolvedPage.items.find((i) => i.id === adjusted.recallId);
++    check("R20 结案记录可查回（复核与对账用）",
++      !!hit && hit.status === "manual_adjusted" && hit.resolvedBy === OP &&
++        hit.resolvedRevenueId === adjusted.pick.id && (hit.resolutionNote ?? "").length >= 10,
++      JSON.stringify({ status: hit?.status, by: hit?.resolvedBy, rev: hit?.resolvedRevenueId }));
++    check("R20 结案记录带出操作人昵称（人能看懂是谁处理的）",
++      hit?.resolvedByNickname === "核对人", `nickname=${hit?.resolvedByNickname}`);
++    const pendingPage = await svc.getManualRecalls({ limit: 200 });
++    check("R20 已结案的不再出现在待办列表里",
++      !pendingPage.items.some((i) => i.id === adjusted.recallId), `待办 ${pendingPage.total} 条`);
++    check("R20 已结案的不参与超期统计",
++      resolvedPage.items.every((i) => i.overdue === false), "resolved 列表不标超期");
++  }
++}
++
+ // ─────────────────────────── 主流程 ───────────────────────────
+ try {
+   console.log("=== 圈子履约 · 收益与真实入口验证 ===");
+@@ -938,6 +1066,7 @@ try {
+   await r7(); await r8(); await r9(); await r10(); await r11(); await r12();
+   await r13(); await r14(); await r15(); await r16();
+   await r17(); await r18(); await r19();
++  await r20();
+   await cleanup();
+   console.log(lines.join("\n"));
+   console.log(`=== ${pass} 通过 / ${fail} 失败 ===`);
