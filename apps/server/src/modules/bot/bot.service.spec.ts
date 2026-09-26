@@ -45,6 +45,11 @@ const mockPrisma = {
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     findMany: jest.fn(),
   },
+  botQuotaPurchase: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({ id: "purchase-1" }),
+    update: jest.fn(),
+  },
   // 购包扣币与配额发放同事务：透传 tx=mockPrisma，回调内 tx.userBotQuota 即复用上方 mock
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
@@ -331,11 +336,22 @@ describe("BotService", () => {
       const mockCoin = { spend: jest.fn().mockResolvedValue({}) };
       (svc as any).coin = mockCoin;
       mockPrisma.userBotQuota.upsert.mockResolvedValue({ id: "q1", paidRemaining: 10 });
-      const result = await svc.purchaseUses("b1", "u1");
+      const result = await svc.purchaseUses("b1", "u1", "bot-purchase-request-001");
       // 扣币与充值在同一事务：spend 末参透传 tx
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 100, scene: "BOT_CALL" }), expect.anything());
       expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.botQuotaPurchase.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ userId: "u1", botConfigId: "b1", requestId: "bot-purchase-request-001" }),
+      }));
       expect(result).toEqual({ purchased: 10, paidRemaining: 10 });
+    });
+
+    it("同一购包请求重试直接返回首笔结果，不再次扣币", async () => {
+      mockPrisma.botQuotaPurchase.findUnique.mockResolvedValueOnce({ purchased: 10, paidRemainingAfter: 10 });
+      const mockCoin = { spend: jest.fn() };
+      (svc as any).coin = mockCoin;
+      expect(await svc.purchaseUses("b1", "u1", "bot-purchase-request-001")).toEqual({ purchased: 10, paidRemaining: 10 });
+      expect(mockCoin.spend).not.toHaveBeenCalled();
     });
 
     it("免费智能体不可购买", async () => {

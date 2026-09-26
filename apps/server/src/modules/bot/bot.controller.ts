@@ -261,8 +261,8 @@ export class BotController {
   @ApiResponse({ status: 201, description: "购买成功" })
   @ApiResponse({ status: 400, description: "余额不足或该智能体免费" })
   @ApiBearerAuth()
-  purchaseUses(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.purchaseUses(id, req.user.id);
+  purchaseUses(@Req() req: Request, @Param("id") id: string, @Body("requestId") requestId?: string) {
+    return this.svc.purchaseUses(id, req.user.id, requestId);
   }
 
   @Post(":id/chat")
