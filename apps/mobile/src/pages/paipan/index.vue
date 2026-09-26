@@ -261,9 +261,8 @@ async function loadPaipanEntry() {
       });
       return;
     }
-    allowNative.value = true;
-    favIds.value = getFavorites();
-    await loadPlatformAgents();
+    // runtime 已明确为 legacy；入口响应若未给出旧版地址，绝不能回退展示隔离的新排盘。
+    throw new Error("排盘入口状态与当前服务模式不一致，请稍后重试");
   } catch (error) {
     qaNotFound.value = nativeQaRequested;
     const message = (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
