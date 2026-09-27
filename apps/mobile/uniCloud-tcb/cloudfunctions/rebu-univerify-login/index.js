@@ -4,6 +4,8 @@ const crypto = require('crypto')
 
 /** 不做 URL 化：仅由本 App 的 uniCloud.callFunction 调用。云端不得记录明文手机号或凭据。 */
 exports.main = async (event) => {
+  // 腾讯云入门版云函数固定 3 秒超时；为验号和回传响应预留余量。
+  const startedAt = Date.now()
   const appid = process.env.REBU_DCLOUD_APPID || ''
   const apiBase = process.env.REBU_API_URL || ''
   const secret = process.env.REBU_UNIVERIFY_SHARED_SECRET || ''
@@ -34,11 +36,15 @@ exports.main = async (event) => {
     const nonce = crypto.randomBytes(16).toString('hex')
     const signature = crypto.createHmac('sha256', secret)
       .update(`${phone}\n${timestamp}\n${nonce}\n${referrerCode}`).digest('hex')
+    const exchangeTimeoutMs = Math.min(1800, 2600 - (Date.now() - startedAt))
+    if (exchangeTimeoutMs < 300) {
+      return { code: 'LOGIN_FAILED', message: '快捷登录暂不可用，请使用验证码登录' }
+    }
     const response = await uniCloud.httpclient.request(`${apiBase.replace(/\/$/, '')}/api/v1/auth/internal/univerify`, {
       method: 'POST',
       contentType: 'json',
       dataType: 'json',
-      timeout: 10000,
+      timeout: exchangeTimeoutMs,
       data: { phone, timestamp, nonce, signature, referrerCode },
     })
     const payload = response?.data
