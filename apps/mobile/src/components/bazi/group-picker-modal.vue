@@ -3,6 +3,7 @@
 import { ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { baziGroups, loadBaziHistory } from '@/pkg-paipan/bazi/bazi-history'
 
 const props = withDefaults(defineProps<{ open: boolean; initialGroup?: string }>(), { initialGroup: '全部' })
 const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', v: string): void }>()
@@ -16,23 +17,37 @@ useOverlayScrollLock(
   },
 )
 
-const groups = ref([
-  { name: '全部', count: 11 },
-  { name: '家人', count: 3 },
-  { name: '朋友', count: 5 },
-  { name: '客户', count: 2 },
-])
+const groups = ref<{ name: string; count: number }[]>([])
 const selected = ref(props.initialGroup)
 const showAddInput = ref(false)
 const newName = ref('')
 
-watch(() => props.open, (v) => { if (v) selected.value = props.initialGroup })
+function reloadGroups() {
+  const records = loadBaziHistory()
+  groups.value = baziGroups.load().map((name) => ({
+    name,
+    count: name === '全部' ? records.length : records.filter((record) => record.group === name).length,
+  }))
+}
+
+watch(() => props.open, (v) => {
+  if (!v) return
+  reloadGroups()
+  selected.value = groups.value.some((item) => item.name === props.initialGroup) ? props.initialGroup : '全部'
+  showAddInput.value = false
+  newName.value = ''
+})
 
 function confirm() { emit('confirm', selected.value); emit('close') }
 function addGroup() {
   const n = newName.value.trim()
   if (!n) return
-  groups.value.push({ name: n, count: 0 })
+  if (groups.value.some((item) => item.name === n)) {
+    uni.showToast({ title: '该分组已存在', icon: 'none' })
+    return
+  }
+  baziGroups.save([...groups.value.map((item) => item.name), n])
+  reloadGroups()
   selected.value = n
   newName.value = ''
   showAddInput.value = false
@@ -84,7 +99,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
         </view>
 
         <view v-if="showAddInput" class="gp-add-input">
-          <input v-model="newName" class="gp-input" placeholder="输入分组名称" confirm-type="done" @confirm="addGroup" />
+          <input v-model="newName" class="gp-input" placeholder="输入分组名称" maxlength="10" confirm-type="done" @confirm="addGroup" />
           <view class="gp-add-btn" :class="{ 'gp-add-btn-off': !newName.trim() }"
             role="button" :aria-disabled="!newName.trim()" tabindex="0"
             @tap="addGroup" @keydown="activateOnKeyboard($event, addGroup)"><text class="gp-add-btn-text">添加</text></view>
