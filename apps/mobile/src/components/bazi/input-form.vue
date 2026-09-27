@@ -175,24 +175,22 @@ function handleSubmit() {
           <app-icon name="chevron-right" :size="28" color="#9ca3af" />
         </view>
       </view>
-      <!-- 时间选项 -->
+      <!-- 时间选项与存档：同属本次排盘设置，窄屏可自然换行。 -->
       <view class="bf-opts bf-bd">
-        <view v-for="o in options" :key="o.key" class="bf-opt"
-          role="checkbox" :aria-checked="optState[o.key]" tabindex="0"
-          @tap="toggleOpt(o.key)" @keydown="activateOnKeyboard($event, () => toggleOpt(o.key))">
-          <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
-            <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
+        <view class="bf-opts-list">
+          <view v-for="o in options" :key="o.key" class="bf-opt"
+            role="checkbox" :aria-checked="optState[o.key]" tabindex="0"
+            @tap="toggleOpt(o.key)" @keydown="activateOnKeyboard($event, () => toggleOpt(o.key))">
+            <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
+              <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
+            </view>
+            <text class="bf-opt-label">{{ o.label }}</text>
           </view>
-          <text class="bf-opt-label">{{ o.label }}</text>
         </view>
-      </view>
-      <!-- 保存 -->
-      <view class="bf-solar bf-bd">
-        <view class="bf-save">
+        <view class="bf-save" role="switch" :aria-checked="saveRecord" tabindex="0"
+          @tap="saveRecord = !saveRecord" @keydown="activateOnKeyboard($event, () => saveRecord = !saveRecord)">
           <text class="bf-save-label">保存</text>
-          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }"
-            role="switch" :aria-checked="saveRecord" tabindex="0"
-            @tap="saveRecord = !saveRecord" @keydown="activateOnKeyboard($event, () => saveRecord = !saveRecord)">
+          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }">
             <view class="bf-switch-dot" :class="{ 'bf-switch-dot-on': saveRecord }" />
           </view>
         </view>
@@ -213,7 +211,7 @@ function handleSubmit() {
 <style scoped lang="scss">
 .bf-card { background: var(--card); border-radius: 32rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); border: 2rpx solid rgba(0,0,0,0.06); overflow: hidden; }
 .bf-bd { border-bottom: 2rpx solid rgba(0,0,0,0.06); }
-.bf-row { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
+.bf-row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 20rpx 32rpx; }
 .bf-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
 .bf-star { font-size: 22rpx; color: var(--brand); margin-left: 4rpx; }
 .bf-name-input { flex: 1; margin-left: 32rpx; text-align: right; font-size: 28rpx; color: var(--text-soft); }
@@ -222,24 +220,24 @@ function handleSubmit() {
 .bf-gbtn-on { background: var(--card); box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.08); }
 .bf-gtext { font-size: 28rpx; font-weight: 500; color: var(--text-soft); }
 .bf-gtext-on { color: var(--brand); }
-.bf-link { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; }
+.bf-link { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 20rpx 32rpx; }
 .bf-link-l { display: flex; align-items: center; gap: 20rpx; }
-.bf-icon { width: 56rpx; height: 56rpx; border-radius: 16rpx; background: var(--indigo-light); display: flex; align-items: center; justify-content: center; }
+.bf-icon { width: 48rpx; height: 48rpx; border-radius: 14rpx; background: var(--indigo-light); display: flex; align-items: center; justify-content: center; }
 .bf-link-r { display: flex; align-items: center; gap: 8rpx; }
 .bf-value { font-size: 28rpx; color: var(--text-soft); }
-.bf-opts { display: flex; align-items: center; gap: 48rpx; padding: 24rpx 32rpx; background: rgba(0,0,0,0.02); }
-.bf-opt { display: flex; align-items: center; gap: 12rpx; }
+.bf-opts { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 10rpx; padding: 8rpx 28rpx; background: rgba(0,0,0,0.02); }
+.bf-opts-list { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12rpx; }
+.bf-opt { display: flex; align-items: center; gap: 10rpx; min-height: 44px; }
 .bf-check { width: 32rpx; height: 32rpx; border-radius: 8rpx; border: 4rpx solid #d1d5db; background: var(--card); display: flex; align-items: center; justify-content: center; }
 .bf-check-on { border-color: var(--brand); background: var(--brand); }
-.bf-opt-label { font-size: 22rpx; color: var(--text-soft); }
-.bf-solar { display: flex; align-items: center; justify-content: flex-end; padding: 24rpx 32rpx; background: rgba(0,0,0,0.01); }
-.bf-save { display: flex; align-items: center; gap: 16rpx; }
-.bf-save-label { font-size: 22rpx; color: var(--text-soft); }
+.bf-opt-label { font-size: 26rpx; color: var(--text-soft); }
+.bf-save { display: flex; align-items: center; gap: 12rpx; min-height: 44px; flex-shrink: 0; }
+.bf-save-label { font-size: 26rpx; color: var(--text-soft); }
 .bf-switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: #d1d5db; position: relative; }
 .bf-switch-on { background: var(--brand); }
 .bf-switch-dot { position: absolute; top: 8rpx; left: 8rpx; width: 32rpx; height: 32rpx; background: #fff; border-radius: 999rpx; box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.15); transition: transform 0.2s; }
 .bf-switch-dot-on { transform: translateX(40rpx); }
-.bf-submit-wrap { padding: 32rpx; }
-.bf-submit { padding: 28rpx; background: var(--brand); border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.3); }
+.bf-submit-wrap { padding: 24rpx 32rpx; }
+.bf-submit { min-height: 44px; padding: 20rpx; background: var(--brand); border-radius: 24rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.3); }
 .bf-submit-text { display: block; text-align: center; font-size: 32rpx; font-weight: 700; color: #fff; }
 </style>
