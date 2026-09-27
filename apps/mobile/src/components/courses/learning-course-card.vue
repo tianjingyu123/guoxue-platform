@@ -15,18 +15,19 @@ const props = withDefaults(defineProps<{
 })
 
 const learningCopy = computed(() => {
-  const intro = String(props.data.intro || '').trim()
-  return intro || `围绕《${props.data.title}》建立清晰的学习框架`
+  return String(props.data.intro || '').trim()
 })
 
-const categoryText = computed(() => String(props.data.category || '精品课程'))
+const categoryText = computed(() => String(props.data.category || '').trim())
+const hasPrice = computed(() => typeof props.data.price === 'number' && Number.isFinite(props.data.price) && props.data.price >= 0)
 
 const accessibilityLabel = computed(() => {
   const priceText = props.data.free
     ? '免费'
-    : `价格 ${formatPrice(props.data.price)} 元`
+    : hasPrice.value ? `价格 ${formatPrice(props.data.price)} 元` : '价格待查看'
   const studentsText = props.data.students ? `，${formatCount(props.data.students)} 人在学` : ''
-  return `查看课程：${props.data.title}，${learningCopy.value}${studentsText}，${priceText}`
+  const introText = learningCopy.value ? `，${learningCopy.value}` : ''
+  return `查看课程：${props.data.title}${introText}${studentsText}，${priceText}`
 })
 
 function open(event?: unknown) {
@@ -55,7 +56,7 @@ function openOnKeyboard(event: KeyboardEvent) {
     <view class="cover">
       <smart-cover class="cover-image" :src="data.cover" :title="data.title" type="course" deco />
       <view class="cover-shade" />
-      <view class="course-chip">
+      <view v-if="categoryText" class="course-chip">
         <app-icon name="book-open" :size="20" color="#FFFFFF" />
         <text class="course-chip-text">{{ categoryText }}</text>
       </view>
@@ -65,7 +66,7 @@ function openOnKeyboard(event: KeyboardEvent) {
       <view class="content-spine"><view class="spine-node" /></view>
       <text class="title serif">{{ data.title }}</text>
 
-      <view class="outcome">
+      <view v-if="learningCopy" class="outcome">
         <text class="outcome-label">你将学到</text>
         <text class="outcome-text">{{ learningCopy }}</text>
       </view>
@@ -86,13 +87,12 @@ function openOnKeyboard(event: KeyboardEvent) {
           <smart-avatar :src="data.teacherAvatar" :name="data.teacher" class="avatar" />
           <text class="teacher-name">{{ data.teacher }}</text>
         </view>
-        <text v-else class="teacher-name">平台精选</text>
-
         <view class="price-wrap">
           <text v-if="data.free" class="free">免费</text>
+          <text v-else-if="!hasPrice" class="price-unknown">查看价格</text>
           <template v-else>
             <text class="price">¥{{ formatPrice(data.price) }}</text>
-            <text v-if="data.originalPrice && data.originalPrice > (data.price || 0)" class="original-price">
+            <text v-if="data.originalPrice && data.originalPrice > (data.price ?? 0)" class="original-price">
               ¥{{ formatPrice(data.originalPrice) }}
             </text>
           </template>
@@ -225,6 +225,7 @@ function openOnKeyboard(event: KeyboardEvent) {
 .price-wrap { display: flex; align-items: baseline; gap: 6rpx; }
 .price { color: #c41e3a; font-size: 29rpx; font-weight: 800; }
 .free { color: #2d8b5d; font-size: 25rpx; font-weight: 700; }
+.price-unknown { color: #756b60; font-size: 22rpx; font-weight: 600; }
 .original-price { color: #aaa097; font-size: 18rpx; text-decoration: line-through; }
 .cta {
   display: flex;
