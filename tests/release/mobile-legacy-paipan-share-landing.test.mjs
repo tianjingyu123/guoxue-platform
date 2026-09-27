@@ -8,7 +8,11 @@ const script = html.match(/<script>([\s\S]*?)<\/script>/u)?.[1]
 assert.ok(script)
 
 function load(target, browser = {}) {
-  const nodes = Object.fromEntries(['title', 'detail', 'continue', 'result-frame', 'result-share', 'result-message'].map(id => [id, { textContent: '', href: '', src: '', style: {} }]))
+  const ids = ['title', 'detail', 'continue', 'result-frame', 'result-share', 'result-message', 'share-mask', 'share-hint', 'share-close', 'share-friend', 'share-timeline', 'share-poster', 'share-copy', 'poster-mask', 'poster-close', 'poster-image', 'poster-save']
+  const nodes = Object.fromEntries(ids.map(id => {
+    const classes = new Set()
+    return [id, { textContent: '', href: '', src: '', style: {}, classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) } }]
+  }))
   const redirects = []
   const body = { className: '' }
   const location = {
@@ -40,10 +44,13 @@ test('已验证格式的八字结果在热卜外壳内显示，分享目标仍�
   assert.equal(actual.body.className, 'result')
   assert.equal(actual.nodes['result-frame'].src, target)
   await actual.nodes['result-share'].onclick()
+  assert.equal(actual.nodes['share-mask'].classList.contains('open'), true)
+  await actual.nodes['share-friend'].onclick()
   assert.equal(shared.length, 1)
   assert.equal(shared[0].url, 'https://gx.yrydai.com/h5/pkg-common/legacy-paipan-share/index/?target=fixture')
   assert.match(html, /href="\/h5\/"/u)
   assert.match(html, /navigator\.share\(\{ title: '热卜八字排盘', url: location\.href \}\)/u)
+  assert.match(html, /生成海报/u)
 })
 
 test('无目标或敏感、伪造、非数字来源不得跳转', () => {

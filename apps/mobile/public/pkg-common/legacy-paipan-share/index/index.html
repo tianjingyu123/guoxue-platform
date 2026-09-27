@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <title>热卜国学 · 排盘分享</title>
+  <meta name="description" content="在热卜国学查看这份排盘结果。">
+  <meta property="og:title" content="热卜国学 · 排盘结果">
+  <meta property="og:description" content="在热卜国学查看这份排盘结果。">
   <style>
     :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
     * { box-sizing: border-box; }
@@ -15,19 +18,31 @@
     p { margin: 0; color: #796f69; line-height: 1.7; }
     a { display: none; margin-top: 28px; padding: 13px 20px; border-radius: 13px; background: #9e1f2a; color: #fff; font-weight: 600; text-decoration: none; }
     a:focus-visible { outline: 3px solid #edb8bd; outline-offset: 3px; }
-    body.result { display: block; }
+    body.result { display: block; place-items: normal; background: #fff; }
     #result-shell { display: none; }
     body.result main { display: none; }
-    body.result #result-shell { display: block; }
-    .result-head { height: 58px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e8dfd4; }
-    .result-head strong { display: block; color: #9e1f2a; font-size: 16px; }
-    .result-head small { display: block; color: #756c65; font-size: 12px; }
-    #result-frame { display: block; width: 100%; height: calc(100dvh - 58px); border: 0; background: #fff; }
-    .result-actions { position: fixed; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; gap: 10px; align-items: center; min-height: 68px; padding: 9px 16px calc(9px + env(safe-area-inset-bottom)); border-top: 1px solid #e8dfd4; background: #fff; }
-    .result-actions a, .result-actions button { display: block; flex: 1; margin: 0; padding: 12px 8px; border-radius: 12px; font: inherit; font-weight: 600; text-align: center; }
-    .result-actions a { border: 1px solid #e4d8d0; background: #fff; color: #4a3833; }
-    .result-actions button { border: 1px solid #9e1f2a; background: #9e1f2a; color: #fff; }
-    #result-message { position: fixed; z-index: 3; right: 16px; bottom: 86px; left: 16px; display: none; padding: 12px 16px; border-radius: 12px; background: #332b29; color: #fff; text-align: center; }
+    body.result #result-shell { display: block; width: 100%; }
+    #result-frame { display: block; width: 100%; height: 100dvh; border: 0; background: #fff; }
+    .result-actions { position: fixed; z-index: 2; bottom: 0; left: 0; display: flex; width: 66.667%; min-height: 48px; border-top: 1px solid #e8dfd4; background: #fff; }
+    .result-actions a, .result-actions button { display: block; flex: 1; margin: 0; min-height: 48px; padding: 12px 2px calc(12px + env(safe-area-inset-bottom)); border: 0; border-right: 1px solid #eee7de; border-radius: 0; background: #fff; color: #4a3833; font: inherit; font-size: 14px; font-weight: 600; text-align: center; }
+    .result-actions button { color: #9e1f2a; }
+    #result-message { position: fixed; z-index: 3; right: 16px; bottom: 64px; left: 16px; display: none; padding: 12px 16px; border-radius: 12px; background: #332b29; color: #fff; text-align: center; }
+    .share-mask { position: fixed; z-index: 5; inset: 0; display: none; align-items: end; background: rgba(20, 16, 15, .46); }
+    .share-mask.open { display: flex; }
+    .share-sheet { width: 100%; padding: 20px 18px calc(18px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: #fff; box-shadow: 0 -16px 40px rgba(20, 16, 15, .1); }
+    .share-sheet h2 { margin: 0 0 4px; font-size: 18px; }
+    .share-sheet p { margin: 0 0 16px; font-size: 13px; color: #766f6b; }
+    .share-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .share-grid button, .share-close, .poster-save { width: 100%; min-height: 48px; border: 1px solid #ebe5de; border-radius: 12px; background: #faf8f5; color: #342d29; font: inherit; font-size: 15px; font-weight: 600; }
+    .share-grid button:active, .share-close:active, .poster-save:active { background: #f0ebe5; }
+    .share-close { margin-top: 14px; border: 0; background: #f1efec; }
+    .share-hint { display: none; margin: 14px 0 0; padding: 11px 12px; border-radius: 10px; background: #f9f2ee; color: #6c4539; font-size: 13px; line-height: 1.5; }
+    .share-hint.show { display: block; }
+    .poster-mask { position: fixed; z-index: 6; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: rgba(20, 16, 15, .86); }
+    .poster-mask.open { display: flex; }
+    .poster-mask img { display: block; width: min(100%, 360px); max-height: 77vh; object-fit: contain; border-radius: 14px; }
+    .poster-save { width: min(100%, 360px); background: #fff; }
+    .poster-close { position: absolute; top: 24px; right: 20px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: #fff; font-size: 25px; }
   </style>
 </head>
 <body>
@@ -38,14 +53,33 @@
     <a id="continue" rel="noreferrer">继续打开排盘</a>
   </main>
   <section id="result-shell" aria-label="热卜排盘结果">
-    <header class="result-head"><strong>热卜国学</strong><small>排盘结果</small></header>
     <iframe id="result-frame" title="排盘结果" referrerpolicy="no-referrer"></iframe>
     <nav class="result-actions" aria-label="排盘分享操作">
-      <a id="result-home" href="/h5/">返回热卜</a>
-      <button id="result-share" type="button">分享当前排盘</button>
+      <a id="result-home" href="/h5/">回热卜</a>
+      <button id="result-share" type="button">分享</button>
     </nav>
     <div id="result-message" role="status"></div>
   </section>
+  <div id="share-mask" class="share-mask" role="dialog" aria-modal="true" aria-label="分享排盘">
+    <div class="share-sheet">
+      <h2>分享这份排盘</h2>
+      <p>结果含个人信息，请确认对方愿意接收。</p>
+      <div class="share-grid">
+        <button id="share-friend" type="button">微信好友</button>
+        <button id="share-timeline" type="button">朋友圈</button>
+        <button id="share-poster" type="button">生成海报</button>
+        <button id="share-copy" type="button">复制链接</button>
+      </div>
+      <div id="share-hint" class="share-hint" role="status"></div>
+      <button id="share-close" class="share-close" type="button">取消</button>
+    </div>
+  </div>
+  <div id="poster-mask" class="poster-mask" role="dialog" aria-modal="true" aria-label="排盘分享海报">
+    <button id="poster-close" class="poster-close" type="button" aria-label="关闭">×</button>
+    <img id="poster-image" alt="包含排盘链接二维码的分享海报">
+    <button id="poster-save" class="poster-save" type="button">保存海报</button>
+  </div>
+  <script src="./uqrcode.js" defer></script>
   <script>
     (() => {
       // 仅已实测的具体结果页尝试内嵌；其他地址仍按原路径打开，首次微信授权待单独验收。
@@ -80,24 +114,71 @@
       if (isVerifiedResult) {
         document.body.className = 'result';
         document.getElementById('result-frame').src = target;
-        document.getElementById('result-share').onclick = async () => {
-          const message = document.getElementById('result-message');
+        const mask = document.getElementById('share-mask');
+        const hint = document.getElementById('share-hint');
+        const posterMask = document.getElementById('poster-mask');
+        const showHint = (text) => { hint.textContent = text; hint.classList.add('show'); };
+        document.getElementById('result-share').onclick = () => { mask.classList.add('open'); hint.classList.remove('show'); };
+        document.getElementById('share-close').onclick = () => mask.classList.remove('open');
+        mask.onclick = (event) => { if (event.target === mask) mask.classList.remove('open'); };
+        const inWechat = /MicroMessenger/i.test(navigator.userAgent);
+        const nativeShare = async (channel) => {
+          if (inWechat) {
+            showHint(`请点右上角“···”，选择“${channel === 'friend' ? '发送给朋友' : '分享到朋友圈'}”。微信网页需要由你在原生菜单确认发送。`);
+            return;
+          }
           try {
             if (navigator.share) {
               await navigator.share({ title: '热卜八字排盘', url: location.href });
               return;
             }
-            if (navigator.clipboard?.writeText) {
-              await navigator.clipboard.writeText(location.href);
-              message.textContent = '热卜分享链接已复制，也可点微信右上角分享';
-            } else {
-              message.textContent = '请点微信右上角“···”分享当前热卜页面';
+          } catch { return; }
+          showHint('此浏览器不支持直接分享，可生成海报或复制链接。');
+        };
+        document.getElementById('share-friend').onclick = () => nativeShare('friend');
+        document.getElementById('share-timeline').onclick = () => nativeShare('timeline');
+        document.getElementById('share-copy').onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(location.href);
+            showHint('链接已复制，可粘贴给好友。');
+          } catch { showHint('请使用微信右上角“···”复制链接。'); }
+        };
+        document.getElementById('poster-close').onclick = () => posterMask.classList.remove('open');
+        document.getElementById('share-poster').onclick = () => {
+          try {
+            const qr = new window.UQRCode();
+            qr.data = location.href;
+            qr.margin = 0;
+            qr.make();
+            const canvas = document.createElement('canvas');
+            canvas.width = 750; canvas.height = 1100;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f8f5ee'; ctx.fillRect(0, 0, 750, 1100);
+            ctx.fillStyle = '#9e1f2a'; ctx.fillRect(0, 0, 750, 20);
+            ctx.fillStyle = '#342a24'; ctx.font = 'bold 36px sans-serif'; ctx.fillText('热卜国学', 72, 112);
+            ctx.fillStyle = '#9e1f2a'; ctx.font = 'bold 62px sans-serif'; ctx.fillText('一份国学排盘', 72, 284);
+            ctx.fillStyle = '#756b63'; ctx.font = '30px sans-serif'; ctx.fillText('扫描下方二维码，查看完整结果', 72, 356);
+            ctx.fillStyle = '#fff'; ctx.fillRect(140, 432, 470, 470);
+            const count = qr.moduleCount;
+            if (!count || count > 177) throw new Error('qr-size');
+            ctx.fillStyle = '#292421';
+            for (let row = 0; row < count; row++) {
+              for (let col = 0; col < count; col++) {
+                if (!qr.modules[row][col].isBlack) continue;
+                const x = 165 + Math.round(col * 420 / count);
+                const y = 457 + Math.round(row * 420 / count);
+                ctx.fillRect(x, y, Math.round((col + 1) * 420 / count) - Math.round(col * 420 / count), Math.round((row + 1) * 420 / count) - Math.round(row * 420 / count));
+              }
             }
-          } catch {
-            message.textContent = '请点微信右上角“···”分享当前热卜页面';
-          }
-          message.style.display = 'block';
-          setTimeout(() => { message.style.display = 'none'; }, 4000);
+            ctx.fillStyle = '#756b63'; ctx.font = '25px sans-serif'; ctx.fillText('结果含个人信息，请谨慎转发', 72, 1000);
+            document.getElementById('poster-image').src = canvas.toDataURL('image/png');
+            mask.classList.remove('open'); posterMask.classList.add('open');
+          } catch { showHint('海报生成失败，请使用微信菜单分享或复制链接。'); }
+        };
+        document.getElementById('poster-save').onclick = () => {
+          if (inWechat) { alert('请长按海报图片，选择保存图片'); return; }
+          const link = document.createElement('a'); link.href = document.getElementById('poster-image').src;
+          link.download = '热卜国学排盘.png'; link.click();
         };
         return;
       }
