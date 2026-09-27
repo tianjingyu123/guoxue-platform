@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { assertMigrationSqlLineEndings } from "./migration-line-endings.mjs";
 import path from "node:path";
 import process from "node:process";
 import { assertClientEvidenceConsistency } from "./lib/client-evidence-consistency.mjs";
@@ -201,6 +202,11 @@ for (const relativePath of files) {
   // 已在工作树中删除、但仍存在于 Git 索引中的文件不应进入发布包。
   if (!sourceStat) continue;
   if (!sourceStat.isFile()) continue;
+
+  // Prisma 的已执行迁移按原始字节校验；固定包不得带入 Windows CRLF。
+  if (relativePath.startsWith("apps/server/prisma/migrations/") && relativePath.endsWith("/migration.sql")) {
+    assertMigrationSqlLineEndings(relativePath, await readFile(source));
+  }
 
   if (sourceStat.size <= 5 * 1024 * 1024) {
     const content = await readFile(source, "utf8").catch(() => "");
