@@ -9,7 +9,8 @@ export type PaipanRuntimeMode = "legacy" | "native" | "unknown";
 
 function readModeSnapshot(): PaipanRuntimeMode {
   const mode = uni.getStorageSync(MODE_KEY);
-  if (mode !== "legacy" && mode !== "native") return "unknown";
+  // native 必须由本次服务端探针明确确认；旧快照不能在回切 legacy 后继续展示新排盘。
+  if (mode !== "legacy") return "unknown";
   const observedAt = Number(uni.getStorageSync(MODE_OBSERVED_AT_KEY));
   if (!Number.isFinite(observedAt) || Date.now() - observedAt > MODE_SNAPSHOT_TTL_MS) {
     return "unknown";
@@ -28,9 +29,8 @@ export function hydratePaipanRuntime(): Promise<PaipanRuntimeMode> {
       return mode;
     })
     .catch(() => {
-      // 探针短暂不可用时只复用十分钟内服务端明确下发的模式。
-      // 没有有效快照时保持 unknown，由入口页停在可重试错误态；不得在
-      // legacy 正式运营期因网络故障泄露或回退到隔离的新排盘。
+      // 探针短暂不可用时只复用十分钟内的 legacy 快照。
+      // native 无论快照多新都必须重新得到服务端确认，避免模式回切后泄露新入口。
       return readModeSnapshot();
     })
     .finally(() => {

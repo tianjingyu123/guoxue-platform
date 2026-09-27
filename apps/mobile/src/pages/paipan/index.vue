@@ -49,6 +49,7 @@ const menuSafeRight = getMiniProgramMenuSafeRight();
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
+let shownOnce = false;
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -343,6 +344,10 @@ onShow(() => {
     return;
   }
   favIds.value = getFavorites();
+  // Tab 页面可能长期驻留；恢复展示时重新向服务端确认 native 是否仍开放。
+  const revisiting = shownOnce;
+  shownOnce = true;
+  if (revisiting && allowNative.value && !miniUpgradeOnly.value) void loadPaipanEntry();
 });
 </script>
 
