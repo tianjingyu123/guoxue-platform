@@ -738,7 +738,7 @@ export class PaipanReportService {
 
     throw new BusinessException(
       ErrorCode.BAD_REQUEST,
-      "该盘类型暂不支持生成有依据的文字报告（当前支持八字、紫微斗数、六爻、梅花易数、奇门遁甲与大六壬），请先查看盘面",
+      "该盘类型暂不支持生成有依据的文字报告，请先查看盘面",
     );
   }
 
@@ -767,7 +767,7 @@ export class PaipanReportService {
     if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "排盘记录不存在");
     if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该排盘记录");
 
-    // 盘类型支持与否由 prepareChart 统一判定（八字 / 六爻）
+    // 盘类型支持与否由 prepareChart 统一判定。
     const plan = await this.prepareChart(record);
     const evidence = await this.retrieveEvidence(plan, school);
     if (plan.paipanType === "liuyao") return this.liuyaoPreflight(plan, evidence);
@@ -775,6 +775,7 @@ export class PaipanReportService {
     if (plan.paipanType === "qimen") return this.qimenPreflight(plan, evidence);
     if (plan.paipanType === "daliuren") return this.daliurenPreflight(plan, evidence);
     if (plan.paipanType === "ziwei") return this.ziweiPreflight(plan, evidence);
+    if (plan.paipanType !== "bazi") return this.otherChartPreflight(plan, evidence);
 
     const chart = record.resultData as unknown as BaziResult;
     const facts = plan.facts as ReturnType<PaipanReportService["extractBaziFacts"]>;
@@ -818,6 +819,30 @@ export class PaipanReportService {
         evidenceCount: evidence.length,
         schools,
       },
+    };
+  }
+
+  /** 其余已接入盘式先展示真实引擎事实与依据，不借用八字的四柱、格局或校时步骤。 */
+  private otherChartPreflight(
+    plan: Awaited<ReturnType<PaipanReportService["prepareChart"]>>,
+    evidence: EvidenceItem[],
+  ) {
+    const books = [...new Set(evidence.filter((e) => e.quotable).map((e) => e.source))];
+    const schools = [...new Set(evidence.map((e) => e.school).filter(Boolean) as string[])];
+    return {
+      steps: [
+        { key: "chart", title: "核对盘面", detail: `${plan.titlePrefix}引擎结果已校验：${plan.summaryLine}` },
+        { key: "structure", title: "梳理盘面事实", detail: `已提取 ${plan.factLines.length} 条可核对的盘面事实` },
+        {
+          key: "evidence",
+          title: "检索依据",
+          detail: evidence.length
+            ? `命中 ${evidence.length} 条已审核依据${books.length ? `，涉及 ${books.length} 部典籍` : ""}${schools.length ? `，门派：${schools.join("、")}` : ""}`
+            : "知识库暂无与本盘匹配的已审核依据，报告将如实说明",
+        },
+        { key: "compose", title: "组织报告", detail: `按${plan.titlePrefix}专用模板组织` },
+      ],
+      seals: { pan: true, pai: schools.length > 0, dian: books.length > 0, evidenceCount: evidence.length, schools },
     };
   }
 

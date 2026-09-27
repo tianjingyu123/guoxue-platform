@@ -88,7 +88,7 @@ const limitation = computed(() => content.value?.sections.find((s) => s.type ===
 const WUXING_ORDER = ['木', '火', '土', '金', '水'] as const
 const WUXING_CLASS: Record<string, string> = { 木: 'wx-wood', 火: 'wx-fire', 土: 'wx-earth', 金: 'wx-metal', 水: 'wx-water' }
 
-// 盘类型：八字出「命书」，六爻出「卦书」，共用同一套章节卡 / 术语 / 问小卜 / 推演
+// 各盘式共用章节卡、术语、问小卜和推演；盘面图形只展示已适配的类型。
 const paipanType = computed(() => content.value?.metadata?.paipanType || 'bazi')
 const isLiuyao = computed(() => paipanType.value === 'liuyao')
 const isMeihua = computed(() => paipanType.value === 'meihua')
@@ -96,17 +96,19 @@ const isQimen = computed(() => paipanType.value === 'qimen')
 const isLiuren = computed(() => paipanType.value === 'daliuren')
 const isZiwei = computed(() => paipanType.value === 'ziwei')
 const pageTitle = computed(() => {
-  if (isQimen.value) return '小卜局书'
-  if (isLiuren.value) return '小卜课书'
-  if (isLiuyao.value || isMeihua.value) return '小卜卦书'
-  return '小卜命书'
+  const titles: Record<string, string> = {
+    bazi: '小卜命书', ziwei: '小卜命书', yangpan: '小卜命书',
+    liuyao: '小卜卦书', meihua: '小卜卦书',
+    qimen: '小卜局书', 'qimen-yin': '小卜局书',
+    daliuren: '小卜课书', jinkoujue: '小卜课书', xiaoliuren: '小卜课书',
+    xuankong: '小卜宅书', bazhai: '小卜宅书',
+  }
+  return titles[paipanType.value] || '小卜报告'
 })
 
 // 图形数据由服务端按引擎字段生成；旧报告若无则回落到 facts 的字面计数
 const chart = computed(() =>
-  isLiuyao.value || isMeihua.value || isQimen.value || isLiuren.value || isZiwei.value
-    ? undefined
-    : (content.value?.chartView as AiReportChartView | undefined),
+  paipanType.value === 'bazi' ? (content.value?.chartView as AiReportChartView | undefined) : undefined,
 )
 const zw = computed(() => (isZiwei.value ? (content.value?.chartView as AiZiweiChartView | undefined) : undefined))
 const lr = computed(() => (isLiuren.value ? (content.value?.chartView as AiDaliurenChartView | undefined) : undefined))

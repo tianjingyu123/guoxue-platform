@@ -230,6 +230,33 @@ describe("PaipanReportService", () => {
     expect(pf.seals).toMatchObject({ pai: false, dian: false, evidenceCount: 0 });
   });
 
+  it.each([
+    ["jinkoujue", "金口诀"],
+    ["xuankong", "玄空"],
+    ["bazhai", "八宅"],
+    ["qimen-yin", "阴盘奇门"],
+    ["xiaoliuren", "小六壬"],
+    ["yangpan", "阳盘命理"],
+  ])("%s 推演页不套用八字四柱或格局", async (paipanType, titlePrefix) => {
+    const { svc, prisma, gateway } = setup();
+    prisma.paipanRecord.findUnique.mockResolvedValue({ id: "rec-1", userId: "u1", paipanType, resultData: {} });
+    jest.spyOn(svc as any, "prepareChart").mockResolvedValue({
+      paipanType,
+      titlePrefix,
+      summaryLine: "已核对的盘面摘要",
+      factLines: ["事实甲", "事实乙"],
+    });
+    jest.spyOn(svc as any, "retrieveEvidence").mockResolvedValue([]);
+
+    const pf = await svc.preflight("u1", "rec-1");
+    expect(pf.steps.map((step) => step.key)).toEqual(["chart", "structure", "evidence", "compose"]);
+    expect(pf.steps[0].detail).toContain(`${titlePrefix}引擎结果已校验`);
+    expect(pf.steps[1].detail).toContain("2 条可核对的盘面事实");
+    expect(pf.steps.map((step) => step.detail).join(" ")).not.toMatch(/四柱|格局|真太阳时/);
+    expect(pf.seals).toMatchObject({ pan: true, pai: false, dian: false, evidenceCount: 0 });
+    expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
   it("getReport 校验归属与场景", async () => {
     const { svc, gateway, commerce } = setup();
     gateway.chat.mockResolvedValue({ content: modelJson(), model: "m" });
