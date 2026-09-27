@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { chinaMonthStartUtc } from "../../common/china-month";
 
 /**
  * 佣-V2 管理奖默认比率（与 commission.service 同口径·2026-07-04 拍板）：
@@ -76,7 +77,7 @@ export class StationDashboardService {
    */
   async getOverview(stationId: string) {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc(now);
 
     const [earningsAgg, station] = await Promise.all([
       this.prisma.stationEarning.aggregate({
@@ -205,8 +206,7 @@ export class StationDashboardService {
         ? Number(operator.mgmtRate)
         : MGMT_RATE_DEFAULTS[operator.channelType] ?? MGMT_RATE_DEFAULTS.ONLINE;
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
 
     const grouped = await this.prisma.operatorEarning.groupBy({
       by: ["sourceStationId"],

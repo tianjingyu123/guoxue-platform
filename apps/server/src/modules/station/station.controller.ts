@@ -9,6 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { chinaMonthStartUtc } from "../../common/china-month";
 
 @ApiTags("分站系统")
 @ApiBearerAuth()
@@ -37,8 +38,7 @@ export class StationController {
     const station = await this.svc.getStationByUserId(req.user.id);
     if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
 
     const [lockedUsers, monthOrders, monthEarning, selfPurchaseSaved] = await Promise.all([
       this.svc.countLockedUsers(station.id),

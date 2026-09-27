@@ -10,6 +10,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RemindDormantStationsDto, UpdateMyOperatorDto } from "./station.dto";
 import { NotificationService } from "../notification/notification.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { chinaMonthStartUtc } from "../../common/china-month";
 
 /** 平台管理角色（后台可代查任意站长/运营商仪表盘）。仅这两类角色允许透传 stationId/operatorId 指定查看对象。 */
 function isPlatformAdmin(req: Request): boolean {
@@ -152,8 +153,7 @@ export class OperatorDashboardController {
   async getOverview(@Req() req: Request, @Query("operatorId") operatorId?: string) {
     const { operator, stations } = await this.getOperatorStations(req, operatorId);
     const stationIds = stations.map(s => s.id);
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
 
     const earningsAgg = await this.prisma.stationEarning.aggregate({
       where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
@@ -234,8 +234,7 @@ export class OperatorDashboardController {
       select: { id: true, name: true, code: true, totalEarning: true, status: true, createdAt: true },
     });
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
     const stationIds = stations.map(s => s.id);
     const monthEarnings = await this.prisma.stationEarning.aggregate({
       where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
@@ -324,8 +323,7 @@ export class OperatorDashboardController {
       orderBy: { totalEarning: "desc" },
     });
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
     const stationIds = stations.map(s => s.id);
 
     const [monthEarnings, monthMgmtBonuses] = await Promise.all([
@@ -449,8 +447,7 @@ export class StationAdminOverviewController {
   @ApiQuery({ name: "top", required: false, description: "Top 榜条数（默认 10，上限 50）" })
   async getOperatorsOverview(@Query("top") top = 10) {
     const topN = Math.min(Math.max(Number(top) || 10, 1), 50);
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
 
     const [totalOperators, activeOperators, offlineOperators, totalStations, monthAgg, monthByOperator] = await Promise.all([
       this.prisma.operator.count(),

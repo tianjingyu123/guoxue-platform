@@ -8,6 +8,7 @@ import { InsightService } from "../track/insight.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { StationPinnedService } from "./station-pinned.service";
+import { chinaMonthStartUtc } from "../../common/china-month";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -524,8 +525,7 @@ export class StationService {
       }),
     ]);
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = chinaMonthStartUtc();
     const monthEarnings = await this.prisma.stationEarning.aggregate({
       where: { stationId, createdAt: { gte: monthStart } },
       _sum: { earned: true, amount: true },
