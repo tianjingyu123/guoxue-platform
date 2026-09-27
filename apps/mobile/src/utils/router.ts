@@ -328,8 +328,8 @@ const ROUTE_MAP: Record<string, string> = {
   // （/common/scan 已退役 2026-07-14：注释说"从 offline/checkin 扫码入口调起"，实际零入口——
   //   全项目唯一的 uni.scanCode 在 pkg-offline/manage-checkin，它自己走 offlineManageApi.signIn
   //   真后端核销，根本不跳这页。页内还硬编码 /pay/transfer、/auth/register 等死链。.vue 已删）
-  // 交易申诉（3步表单：选订单/选类型/填详情→提交进度时间线，fallback /orders）
-  '/appeal': '/pkg-order/appeal/index',
+  // 历史交易申诉入口统一落到真正写入后台的售后/纠纷流程。
+  '/appeal': '/pkg-order/dispute/index',
   // 成为合作伙伴（讲师招募：intro权益介绍→apply申请表单→success提交成功）
   // 历史分站公告整页占位已退役，旧入口统一落到真实平台公告中心。
   '/announcements': '/pkg-notices/index/index',
