@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <title>热卜国学 · 打开排盘</title>
+  <title>热卜国学 · 排盘分享</title>
   <style>
     :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
     * { box-sizing: border-box; }
@@ -15,6 +15,19 @@
     p { margin: 0; color: #796f69; line-height: 1.7; }
     a { display: none; margin-top: 28px; padding: 13px 20px; border-radius: 13px; background: #9e1f2a; color: #fff; font-weight: 600; text-decoration: none; }
     a:focus-visible { outline: 3px solid #edb8bd; outline-offset: 3px; }
+    body.result { display: block; }
+    #result-shell { display: none; }
+    body.result main { display: none; }
+    body.result #result-shell { display: block; }
+    .result-head { height: 58px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e8dfd4; }
+    .result-head strong { display: block; color: #9e1f2a; font-size: 16px; }
+    .result-head small { display: block; color: #756c65; font-size: 12px; }
+    #result-frame { display: block; width: 100%; height: calc(100dvh - 58px); border: 0; background: #fff; }
+    .result-actions { position: fixed; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; gap: 10px; align-items: center; min-height: 68px; padding: 9px 16px calc(9px + env(safe-area-inset-bottom)); border-top: 1px solid #e8dfd4; background: #fff; }
+    .result-actions a, .result-actions button { display: block; flex: 1; margin: 0; padding: 12px 8px; border-radius: 12px; font: inherit; font-weight: 600; text-align: center; }
+    .result-actions a { border: 1px solid #e4d8d0; color: #4a3833; }
+    .result-actions button { border: 1px solid #9e1f2a; background: #9e1f2a; color: #fff; }
+    #result-message { position: fixed; z-index: 3; right: 16px; bottom: 86px; left: 16px; display: none; padding: 12px 16px; border-radius: 12px; background: #332b29; color: #fff; text-align: center; }
   </style>
 </head>
 <body>
@@ -24,9 +37,18 @@
     <p id="detail">即将前往排盘页面，请稍候。</p>
     <a id="continue" rel="noreferrer">继续打开排盘</a>
   </main>
+  <section id="result-shell" aria-label="热卜排盘结果">
+    <header class="result-head"><strong>热卜国学</strong><small>排盘结果</small></header>
+    <iframe id="result-frame" title="排盘结果" referrerpolicy="no-referrer"></iframe>
+    <nav class="result-actions" aria-label="排盘分享操作">
+      <a id="result-home" href="/h5/">返回热卜</a>
+      <button id="result-share" type="button">分享当前排盘</button>
+    </nav>
+    <div id="result-message" role="status"></div>
+  </section>
   <script>
     (() => {
-      // 第三方微信授权必须在顶层页面完成；不在跨域 iframe 内承载登录。
+      // 仅已实测的具体结果页尝试内嵌；其他地址仍按原路径打开，首次微信授权待单独验收。
       const raw = new URLSearchParams(location.search).get('target') || '';
       const match = raw.length <= 2048 && raw.match(/^https:\/\/((?:www\.)?(?:yrydai\.(?:cn|com)|rebu\.net\.cn))(\/[A-Za-z0-9_./-]*)(?:\?([^#]*))?$/i);
       let target = '';
@@ -45,6 +67,38 @@
       if (!target) {
         document.getElementById('title').textContent = '分享链接无效';
         document.getElementById('detail').textContent = '请让分享者重新打开公开排盘页面后分享。';
+        return;
+      }
+      const resultUrl = new URL(target);
+      const isVerifiedResult = resultUrl.hostname === 'www.yrydai.com' &&
+        resultUrl.pathname === '/p1.php' &&
+        resultUrl.searchParams.get('mod') === 'bazi' &&
+        resultUrl.searchParams.get('act') === 'baziPan' &&
+        /^\d{1,20}$/.test(resultUrl.searchParams.get('id') || '') &&
+        [...resultUrl.searchParams.keys()].every((key) => ['mod', 'act', 'id', 'ruid'].includes(key)) &&
+        (!resultUrl.searchParams.has('ruid') || /^\d{1,20}$/.test(resultUrl.searchParams.get('ruid') || ''));
+      if (isVerifiedResult) {
+        document.body.className = 'result';
+        document.getElementById('result-frame').src = target;
+        document.getElementById('result-share').onclick = async () => {
+          const message = document.getElementById('result-message');
+          try {
+            if (navigator.share) {
+              await navigator.share({ title: '热卜八字排盘', url: location.href });
+              return;
+            }
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(location.href);
+              message.textContent = '热卜分享链接已复制，也可点微信右上角分享';
+            } else {
+              message.textContent = '请点微信右上角“···”分享当前热卜页面';
+            }
+          } catch {
+            message.textContent = '请点微信右上角“···”分享当前热卜页面';
+          }
+          message.style.display = 'block';
+          setTimeout(() => { message.style.display = 'none'; }, 4000);
+        };
         return;
       }
       const link = document.getElementById('continue');
