@@ -11,6 +11,7 @@ import {
   WechatLoginDto,
   AppleLoginDto,
   MiniPhoneLoginDto,
+  UniverifyCallbackDto,
   UpdateProfileDto,
   ChangePasswordDto,
   RegisterDeviceDto,
@@ -24,6 +25,7 @@ import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 import { maskPhone } from "../../common/crypto.util";
 import { Request } from "express";
+import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 @ApiTags("认证")
 @Controller("auth")
@@ -33,6 +35,7 @@ export class AuthController {
     private auth: AuthService,
     private wechat: WechatService,
     private systemService: SystemService,
+    private univerifyBridge: UniverifyBridgeService,
   ) {}
 
   @Post("register/phone")
@@ -194,6 +197,20 @@ export class AuthController {
   @UseGuards(StrictRedisThrottleGuard)
   miniPhoneLogin(@Body() dto: MiniPhoneLoginDto) {
     return this.auth.miniPhoneLogin(dto);
+  }
+
+  @Post("internal/univerify")
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({ summary: "云函数交换运营商已核验手机号；拒绝客户端直接传手机号登录" })
+  async univerifyExchange(@Body() dto: UniverifyCallbackDto, @Req() req: Request) {
+    const result = await this.univerifyBridge.exchange(dto);
+    this.systemService.logAudit({
+      userId: result.user.id,
+      action: "LOGIN",
+      detail: "App 本机号码授权登录",
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("快捷登录审计写入失败", err));
+    return result;
   }
 
   @Get("me")

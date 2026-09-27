@@ -34,7 +34,7 @@
         <text>{{ preferWechatLogin ? '使用验证码或密码登录' : '使用微信快捷登录' }}</text>
       </view>
       <!-- 登录方式：手机验证码 + 密码 -->
-      <view v-if="!preferWechatLogin" class="tabs" role="tablist" aria-label="选择登录方式">
+      <view v-if="showAccountLogin" class="tabs" role="tablist" aria-label="选择登录方式">
         <view
           class="tab"
           :class="{ active: loginType === 'phone' }"
@@ -62,7 +62,7 @@
       <!-- 登录表单 -->
       <view class="form">
         <!-- 手机号 -->
-        <view v-if="!preferWechatLogin" class="input-wrap">
+        <view v-if="showAccountLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="phone" :size="20" color="#999999" />
           </view>
@@ -80,7 +80,7 @@
         </view>
 
         <!-- 验证码 -->
-        <view v-if="!preferWechatLogin && loginType === 'phone'" class="input-wrap">
+        <view v-if="showAccountLogin && loginType === 'phone'" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="message-circle" :size="20" color="#999999" />
           </view>
@@ -113,7 +113,7 @@
         </view>
 
         <!-- 密码 -->
-        <view v-else-if="!preferWechatLogin" class="input-wrap">
+        <view v-else-if="showAccountLogin" class="input-wrap">
           <view class="input-icon">
             <AppIcon name="lock" :size="20" color="#999999" />
           </view>
@@ -142,7 +142,7 @@
         <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
 
         <!-- 忘记密码 -->
-        <view v-if="!preferWechatLogin && loginType === 'password'" class="forgot-row">
+        <view v-if="showAccountLogin && loginType === 'password'" class="forgot-row">
           <text
             class="forgot-link"
             role="link"
@@ -171,8 +171,24 @@
           </view>
         </view>
 
+        <!-- #ifdef APP-PLUS -->
+        <view v-if="showAppPhoneQuickLogin && !useAppAccountLogin" class="app-phone-quick">
+          <view class="app-phone-quick-title">用本机号码，快速继续</view>
+          <view class="app-phone-quick-desc">确认运营商授权后，直接回到刚才的页面</view>
+          <view class="app-phone-quick-button" role="button" tabindex="0"
+            @tap="handleAppPhoneQuickLogin" @keydown="activateOnKeyboard($event, handleAppPhoneQuickLogin)">
+            {{ isLoading ? '登录中...' : '本机号码一键登录' }}
+          </view>
+          <view class="app-phone-quick-note" role="button" tabindex="0"
+            @tap="useAppAccountLogin = true" @keydown="activateOnKeyboard($event, () => useAppAccountLogin = true)">
+            使用验证码或密码登录
+          </view>
+        </view>
+        <!-- #endif -->
+
         <!-- 登录按钮 -->
         <view
+          v-if="!showAppPhoneQuickLogin || useAppAccountLogin || preferWechatLogin"
           class="submit-btn"
           :class="{ 'submit-btn-disabled': (!preferWechatLogin && !canSubmit) || isLoading }"
           role="button"
@@ -187,7 +203,7 @@
         </view>
 
         <!-- 注册入口 -->
-        <view v-if="!preferWechatLogin" class="register-row">
+        <view v-if="showAccountLogin" class="register-row">
           <text class="register-normal">还没有账号？</text>
           <text
             class="register-link"
@@ -363,6 +379,9 @@ const showWechatLogin = ref(false)
 const showAppleLogin = ref(false)
 const isMiniProgram = ref(false)
 const showMiniQuickSheet = ref(false)
+const showAppPhoneQuickLogin = ref(false)
+const useAppAccountLogin = ref(false)
+const showAccountLogin = computed(() => !preferWechatLogin.value && (!showAppPhoneQuickLogin.value || useAppAccountLogin.value))
 
 onLoad((query) => {
   paipanEntry.value = String(query?.paipan || '') === '1'
@@ -380,6 +399,7 @@ showMiniQuickSheet.value = true
 
 // #ifdef APP-PLUS
 onLoad(() => {
+  showAppPhoneQuickLogin.value = String((import.meta as any).env?.VITE_UNIVERIFY_ENABLED || '') === 'true'
   try {
     const system = uni.getSystemInfoSync()
     showAppleLogin.value = String(system.platform || '').toLowerCase() === 'ios'
@@ -770,6 +790,42 @@ async function handleMiniPhoneLogin(event: { detail?: { code?: string; errMsg?: 
 // #endif
 
 // #ifdef APP-PLUS
+async function handleAppPhoneQuickLogin() {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const grant = await new Promise<{ openid: string; access_token: string }>((resolve, reject) => {
+      uni.login({
+        provider: 'univerify',
+        success: (result: any) => {
+          const auth = result?.authResult
+          if (auth?.openid && auth?.access_token) resolve(auth)
+          else reject(new Error('未取得手机号授权'))
+        },
+        fail: (result: { errMsg?: string }) => reject(new Error(result?.errMsg || '已取消手机号授权')),
+      })
+    })
+    const res = await authApi.appPhoneLogin(grant.openid, grant.access_token)
+    const loginData = res.data
+    if (!res.success || !loginData?.token) throw new Error(res.message || '手机号快捷登录失败')
+    clearAuthSession({ preserveLoginRedirect: true })
+    setToken(loginData.token)
+    setRefreshToken(loginData.refreshToken || '')
+    setUserInfo(loginData.user)
+    await goAfterLogin()
+  } catch (e) {
+    error.value = (e as Error)?.message || '手机号快捷登录失败，请使用验证码登录'
+  } finally {
+    try { uni.closeAuthView() } catch { /* 授权页可能已自行关闭 */ }
+    isLoading.value = false
+  }
+}
+
 interface AppleFullName {
   familyName?: string
   givenName?: string
@@ -933,6 +989,35 @@ onUnmounted(() => {
 }
 
 /* 切换 tab */
+.app-phone-quick {
+  margin: 12rpx 0 24rpx;
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: #fff;
+  border: 1rpx solid #e9ded9;
+  box-shadow: 0 12rpx 36rpx rgba(52, 28, 25, 0.06);
+}
+.app-phone-quick-title { font-size: 34rpx; font-weight: 700; color: #292523; }
+.app-phone-quick-desc { margin: 8rpx 0 24rpx; font-size: 25rpx; color: #66605c; }
+.app-phone-quick-button {
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22rpx;
+  background: #b91c36;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 650;
+}
+.app-phone-quick-note {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #695f5b;
+  font-size: 26rpx;
+}
 .tabs {
   display: flex;
   align-items: center;

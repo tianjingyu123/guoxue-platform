@@ -166,6 +166,13 @@ export class RedisService implements OnModuleDestroy {
     return true;
   }
 
+  /** 跨节点身份凭据防重放必须使用真实 Redis；不可降级为单进程内存。 */
+  async setNXShared(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用，拒绝身份凭据交换");
+    return (await conn.set(key, value, "EX", ttlSeconds, "NX")) === "OK";
+  }
+
   /** 仅当值等于 expected 时删除（锁持有者校验释放），返回是否删除 */
   async compareAndDelete(key: string, expected: string): Promise<boolean> {
     const conn = await this.getConn();

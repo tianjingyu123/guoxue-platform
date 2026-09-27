@@ -6,6 +6,7 @@ import { WechatService } from "./wechat.service";
 import { SystemService } from "../system/system.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 const mockAuthSvc = {
   phoneRegister: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三", phone: "138****1234" } }),
@@ -39,6 +40,7 @@ describe("AuthController", () => {
         { provide: AuthService, useValue: mockAuthSvc },
         { provide: WechatService, useValue: mockWechatSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: UniverifyBridgeService, useValue: { exchange: jest.fn() } },
       ],
     })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })

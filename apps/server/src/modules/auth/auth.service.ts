@@ -237,41 +237,46 @@ export class AuthService {
     // 验证短信验证码
     await this.verifySmsCode(dto.phone, dto.code);
 
-    let user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
+    return this.loginVerifiedPhone(dto.phone, dto.referrerCode);
+  }
+
+  /** 仅供服务端已验真的手机号通道调用；不得直接暴露为客户端手机号登录接口。 */
+  async loginVerifiedPhone(phone: string, referrerCode?: string) {
+    let user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
     if (!user) {
       // 新用户自动注册（并发时捕获 P2002）
       try {
         user = await this.prisma.user.create({
           data: {
-            nickname: `用户${dto.phone.slice(-4)}`,
-            ...buildPhoneFields(dto.phone), // M4 灰度双写
+            nickname: `用户${phone.slice(-4)}`,
+            ...buildPhoneFields(phone), // M4 灰度双写
             auths: {
               create: {
                 provider: "PHONE",
                 namespace: "phone",
-                subject: phoneHmac(dto.phone),
-                credential: phoneHmac(dto.phone),
+                subject: phoneHmac(phone),
+                credential: phoneHmac(phone),
               },
             }, // M4 Auth不存明文phone
           },
         });
       } catch (e: unknown) {
         if (isUniqueConstraintError(e)) {
-          user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(dto.phone) } });
+          user = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
         } else {
           throw e;
         }
       }
       // 此时 user 必定非空：create 成功或 P2002 后重查成功
       const registered = user!;
-      if (dto.referrerCode) {
-        await this.bindReferral(registered.id, dto.referrerCode);
+      if (referrerCode) {
+        await this.bindReferral(registered.id, referrerCode);
       }
       await this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
     }
 
     // 存量密码用户首次使用短信登录时补齐手机号身份，保持各端身份解析规则一致。
-    await this.ensurePhoneIdentity(user!.id, dto.phone);
+    await this.ensurePhoneIdentity(user!.id, phone);
 
     this.importToIm(user!.id, user!.nickname);
     return this.buildLoginResult(user!.id);

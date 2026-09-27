@@ -1,0 +1,8 @@
+{
+  "name": "rebu-univerify-login",
+  "version": "1.0.0",
+  "main": "index.js",
+  "extensions": {
+    "uni-cloud-verify": {}
+  }
+}

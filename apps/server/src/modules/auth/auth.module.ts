@@ -15,6 +15,7 @@ import { WebhookModule } from "../webhook/webhook.module";
 import { SmsModule } from "../sms/sms.module";
 import { serverConfig } from "../../config/server-config";
 import { AppleLoginService } from "./apple-login.service";
+import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { AppleLoginService } from "./apple-login.service";
     SmsModule,
   ],
   controllers: [AuthController, AccountController],
-  providers: [AuthService, AccountService, WechatService, AppleLoginService, JwtStrategy, StationAccessGuard, MemberGuard],
+  providers: [AuthService, UniverifyBridgeService, AccountService, WechatService, AppleLoginService, JwtStrategy, StationAccessGuard, MemberGuard],
   exports: [AuthService, WechatService, JwtModule],
 })
 export class AuthModule {}

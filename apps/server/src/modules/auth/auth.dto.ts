@@ -176,6 +176,30 @@ export class MiniPhoneLoginDto {
   clientKey?: string;
 }
 
+/** 仅 uniCloud 云函数向服务端交换已核验手机号；签名密钥只存在两端服务环境。 */
+export class UniverifyCallbackDto {
+  @IsString()
+  @Matches(/^1[3-9]\d{9}$/)
+  phone: string;
+
+  @IsInt()
+  timestamp: number;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{32}$/)
+  nonce: string;
+
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  signature: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  @Matches(/^[A-Za-z0-9_-]*$/)
+  referrerCode?: string;
+}
+
 export class BindWechatDto {
   @ApiProperty({ description: "微信授权 code" })
   @IsString()

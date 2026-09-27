@@ -8,6 +8,12 @@ import { apiGet } from '@/utils/request'
 // #endif
 import { getTempReferrer } from '@/utils/referral'
 
+// #ifdef APP-PLUS
+declare const uniCloud: {
+  callFunction(input: { name: string; data: Record<string, unknown> }): Promise<{ result?: { code?: number | string; message?: string; data?: RawAuthData } }>
+}
+// #endif
+
 export interface UserInfo {
   id: string
   nickname: string
@@ -68,6 +74,24 @@ function getWechatClientKey(): string | undefined {
 }
 
 export const authApi = {
+  // #ifdef APP-PLUS
+  /** 运营商凭据只交给绑定的 uniCloud 云函数，客户端不读取或提交明文手机号。 */
+  async appPhoneLogin(openid: string, accessToken: string): Promise<AuthResponse> {
+    try {
+      if (typeof uniCloud === 'undefined' || !uniCloud.callFunction) throw new Error('快捷登录服务尚未就绪')
+      const response = await uniCloud.callFunction({
+        name: 'rebu-univerify-login',
+        data: { openid, access_token: accessToken, referrerCode: getTempReferrer() },
+      })
+      const result = response?.result
+      if (result?.code !== 0) return { success: false, message: result?.message || '手机号快捷登录失败' }
+      return adaptAuthResult(result.data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '手机号快捷登录失败' }
+    }
+  },
+  // #endif
+
   // #ifdef H5
   /** 获取公众号网页授权地址。redirectUri/state 由登录页生成，服务端仍会校验回调域名。 */
   async getWechatOAuthUrl(redirectUri: string, state: string): Promise<string> {
