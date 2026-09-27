@@ -127,6 +127,7 @@
             },
             "sdkConfigs" : {
                 "oauth" : {
+                    "univerify" : {},
                     "apple" : {},
                     "weixin" : {
                         "appid" : "wxb3c0f47634f99c0b",
