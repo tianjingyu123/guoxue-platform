@@ -63,8 +63,12 @@ test('所有自定义导航页面必须声明状态栏、刘海或挖孔安全�
   const missing = []
   for (const [route, page] of registeredPages()) {
     if (page.style?.navigationStyle !== 'custom') continue
-    // 旧失败深链仅显示加载态并立即转入统一查单页，没有自定义导航栏。
+    // 旧失败和旧申诉深链仅显示加载态并立即转入统一页面，没有自定义导航栏。
     if (route === 'pkg-shop/pay-fail/index') continue
+    if (route === 'pkg-order/appeal/index') {
+      assert.match(pageSource(route), /redirectTo\(`\/orders\/dispute/u)
+      continue
+    }
     if (!safeAreaEvidence.test(pageSource(route))) missing.push(route)
   }
   assert.deepEqual(missing, [], `以下自定义导航页面没有安全区证据：\n${missing.join('\n')}`)
@@ -127,7 +131,6 @@ test('认证、即时通信与直播关键页同时保留 H5 刘海安全区兜�
 })
 
 const stickySafePages = [
-  'pkg-order/appeal/index',
   'pkg-classics/search/index',
   'pkg-classics/companion/index',
   'pkg-classics/collection/index',
