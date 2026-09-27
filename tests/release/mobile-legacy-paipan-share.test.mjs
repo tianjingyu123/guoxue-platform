@@ -171,6 +171,7 @@ test('公开链接仍可使用系统text分享，不生成图片、不带网页�
   const message = calls.find(x => x[0] === 'system')[1]
   assert.equal(message.type, 'text')
   assert.equal(message.href, request.url)
+  assert.equal(message.content.includes(request.url), false, '系统追加 href 时正文不能再复制一遍网址')
   assert.equal(calls.some(x => ['capture', 'share', 'save'].includes(x[0])), false)
 })
 
@@ -364,6 +365,8 @@ test('有公开结果时微信优先分享热卜网页卡片', async () => {
   assert.equal(native.type, 0)
   assert.equal(native.scene, 'WXSceneSession')
   assert.equal(native.href, request.url)
+  assert.equal(native.imageUrl, '/static/legacy-paipan-share-thumb.png')
+  assert.ok(fs.statSync('apps/mobile/src/static/legacy-paipan-share-thumb.png').size < 20 * 1024)
   assert.equal(calls.some(x => x[0] === 'capture'), false)
 })
 

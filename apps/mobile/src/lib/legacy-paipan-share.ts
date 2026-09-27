@@ -193,6 +193,8 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       await callback<void>((ok, fail) => uni.share({
         provider: 'weixin', scene: action === 'link-timeline' ? 'WXSceneTimeline' : 'WXSceneSession',
         type: 0, href: request.url, title: request.title, summary: request.text || '在热卜查看排盘结果',
+        // 微信图文分享要求缩略图；使用包内小图，避免第三方图床失效或泄露排盘资料。
+        imageUrl: '/static/legacy-paipan-share-thumb.png',
         success: () => ok(), fail,
       }), 0)
       return 'requested'
@@ -201,7 +203,8 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       // 系统分享只支持 text/image；不得沿用旧公共工具里无效的 type:web。
       await callback<void>((ok, fail) => plus.share.sendWithSystem({
         type: 'text', href: request.url, title: request.title,
-        content: `${request.title}\n${request.text ? request.text + '\n' : ''}${request.url}`,
+        // Android 系统分享会自行追加 href，正文再放一次会使微信消息出现重复长网址。
+        content: `${request.title}${request.text ? '\n' + request.text : ''}`,
       }, () => ok(), fail), 0)
       return 'requested'
     }
