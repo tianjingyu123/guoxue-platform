@@ -1,15 +1,30 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, rmdir, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 
 import { auditMobileNativeBundle } from "../../scripts/release/audit-mobile-native-bundle.mjs";
 import {
   resolveClientEnv,
+  rewriteLegacyPublicAssetSource,
   shouldInlineNativeDynamicImports,
   validateProductionClientEnv,
 } from "../../apps/mobile/vite.config.ts";
+
+test("项目目录联接构建仍把旧资源地址改写到正式静态域名", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "rebu-mobile-alias-"));
+  const alias = join(directory, "launch-mobile");
+  try {
+    await symlink(resolve("apps/mobile"), alias, "junction");
+    const source = `const cover = 'https://api.rebugx.cn/assets/example.webp'`;
+    const transformed = rewriteLegacyPublicAssetSource(source, join(alias, "src/lib/home-data.ts"), "https://static.rebugx.cn", resolve("apps/mobile/src"));
+    assert.equal(transformed, `const cover = 'https://static.rebugx.cn/assets/example.webp'`);
+  } finally {
+    await unlink(alias).catch(() => {});
+    await rmdir(directory);
+  }
+});
 
 async function withFixture(
   manifest,

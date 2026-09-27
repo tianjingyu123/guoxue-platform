@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 import { resolve } from "path";
-import { readFileSync } from "fs";
+import { readFileSync, realpathSync } from "fs";
 
 const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
 const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
@@ -89,23 +89,27 @@ export function emitWechatOauthCallback(): Plugin {
   };
 }
 
-export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
+export function rewriteLegacyPublicAssetSource(code: string, id: string, publicAssetOrigin: string, sourceDirectory: string): string | null {
+  if (!code.includes(`${LEGACY_PUBLIC_ORIGIN}/assets`)) return null;
+  let canonicalId: string;
+  try {
+    // HBuilderX 可能从项目别名或目录联接构建，以真实路径确认仍是本项目源码。
+    canonicalId = realpathSync(id.split("?", 1)[0]).replaceAll("\\", "/");
+  } catch { return null; }
+  const sourceRoot = realpathSync(sourceDirectory).replaceAll("\\", "/") + "/";
+  if (!canonicalId.startsWith(sourceRoot)) return null;
   const targetOrigin = normalizeOrigin(publicAssetOrigin) || LEGACY_PUBLIC_ORIGIN;
+  return code.replaceAll(`${LEGACY_PUBLIC_ORIGIN}/assets`, `${targetOrigin}/assets`);
+}
+
+export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
+  const sourceDirectory = resolve(__dirname, "src");
   return {
     name: "rewrite-legacy-public-assets",
     enforce: "pre",
     transform(code, id) {
-      const normalizedId = id.replaceAll("\\", "/");
-      if (
-        !normalizedId.includes("/apps/mobile/src/") ||
-        !code.includes(`${LEGACY_PUBLIC_ORIGIN}/assets`)
-      ) {
-        return null;
-      }
-      return {
-        code: code.replaceAll(`${LEGACY_PUBLIC_ORIGIN}/assets`, `${targetOrigin}/assets`),
-        map: null,
-      };
+      const rewritten = rewriteLegacyPublicAssetSource(code, id, publicAssetOrigin, sourceDirectory);
+      return rewritten === null ? null : { code: rewritten, map: null };
     },
   };
 }
