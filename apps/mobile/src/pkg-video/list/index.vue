@@ -2,7 +2,7 @@
   <view class="video-list-page">
     <!-- 公共短视频列表仅保留浏览与搜索；发布入口由具备权限的特定圈子提供 -->
     <view class="vl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="vl-topbar">
+      <view class="vl-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
         <text class="vl-title-main">短视频</text>
         <view
           class="vl-search-btn"
@@ -244,6 +244,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo, navigateToContent } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   videoApi,
   formatVideoNumber,
@@ -252,6 +253,7 @@ import {
 } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight(12)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
 type TabId = 'recommend' | 'follow' | 'hot'
