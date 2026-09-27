@@ -1,7 +1,7 @@
 const { test, after } = require('node:test')
 const assert = require('node:assert/strict')
 const crypto = require('node:crypto')
-const cloud = require('../../apps/mobile/uniCloud-aliyun/cloudfunctions/rebu-univerify-login/index.js')
+const cloud = require('../../apps/mobile/uniCloud-tcb/cloudfunctions/rebu-univerify-login/index.js')
 
 const secret = 'test-only-univerify-bridge-secret-32bytes'
 const previous = {
