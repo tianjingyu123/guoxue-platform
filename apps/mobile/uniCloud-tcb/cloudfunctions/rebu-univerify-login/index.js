@@ -3,7 +3,7 @@
 const crypto = require('crypto')
 
 /** 不做 URL 化：仅由本 App 的 uniCloud.callFunction 调用。云端不得记录明文手机号或凭据。 */
-exports.main = async (event) => {
+exports.main = async (event, context) => {
   // 腾讯云入门版云函数固定 3 秒超时；为验号和回传响应预留余量。
   const startedAt = Date.now()
   const appid = process.env.REBU_DCLOUD_APPID || ''
@@ -11,6 +11,9 @@ exports.main = async (event) => {
   const secret = process.env.REBU_UNIVERIFY_SHARED_SECRET || ''
   if (!appid || !/^https:\/\//.test(apiBase) || secret.length < 32) {
     return { code: 'CONFIG_UNAVAILABLE', message: '快捷登录暂不可用，请使用验证码登录' }
+  }
+  if (context?.APPID !== appid) {
+    return { code: 'INVALID_APP', message: '快捷登录授权无效，请使用验证码登录' }
   }
   const openid = String(event?.openid || '')
   const accessToken = String(event?.access_token || '')

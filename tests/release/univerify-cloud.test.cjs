@@ -35,7 +35,7 @@ test('云函数只在运营商验号后把签名手机号送到本站，客户�
       },
     },
   }
-  const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token', referrerCode: 'share-1' })
+  const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token', referrerCode: 'share-1' }, { APPID: '__UNI__277B108' })
   assert.deepEqual(result, { code: 0, data: { accessToken: 'session', refreshToken: 'refresh' } })
   assert.equal(sent.url, 'https://api.example.test/api/v1/auth/internal/univerify')
   assert.ok(sent.options.timeout > 0 && sent.options.timeout <= 1800)
@@ -62,7 +62,7 @@ test('验号耗尽入门版函数时限时不再发起后端登录请求', async
     httpclient: { request: async () => { requested = true } },
   }
   try {
-    const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token' })
+    const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token' }, { APPID: '__UNI__277B108' })
     assert.equal(result.code, 'LOGIN_FAILED')
     assert.equal(requested, false)
   } finally {
@@ -75,4 +75,13 @@ test('没有服务端配置时不消耗取号次数，也不建立会话', async
   global.uniCloud = { getPhoneNumber: () => { throw new Error('不得取号') } }
   const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token' })
   assert.equal(result.code, 'CONFIG_UNAVAILABLE')
+})
+
+test('非本应用调用不消耗取号次数', async () => {
+  process.env.REBU_DCLOUD_APPID = '__UNI__277B108'
+  process.env.REBU_API_URL = 'https://api.example.test'
+  process.env.REBU_UNIVERIFY_SHARED_SECRET = secret
+  global.uniCloud = { getPhoneNumber: () => { throw new Error('不得取号') } }
+  const result = await cloud.main({ openid: 'grant-openid', access_token: 'grant-token' }, { APPID: '__UNI__OTHER' })
+  assert.equal(result.code, 'INVALID_APP')
 })
