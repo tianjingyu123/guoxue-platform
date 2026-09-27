@@ -20,6 +20,7 @@ describe("StationPaipanSyncService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.PAIPAN_MODE = "legacy";
+    delete process.env.PAIPAN_LEGACY_ENTRY_ENABLED;
     process.env.PAIPAN_LEGACY_DISPLAY_VERSION = "1";
     process.env.PAIPAN_OPERATION_H5_BASE = "https://www.yrydai.cn/guoxueApp.php";
     process.env.PAIPAN_REFERRAL_BASE = "https://www.yrydai.com/p1.php";
@@ -91,6 +92,32 @@ describe("StationPaipanSyncService", () => {
       url: null,
       attributionReady: true,
     });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("新版公开时旧版按钮默认关闭，不提前读取用户资料", async () => {
+    process.env.PAIPAN_MODE = "native";
+    expect(service.getRuntime()).toEqual({ mode: "native", legacyAvailable: false });
+    await expect(service.getUserLaunchEntry("user-1")).rejects.toBeInstanceOf(BusinessException);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("旧版主动入口开启后仅点击时签发，普通新版入口仍不签发", async () => {
+    process.env.PAIPAN_MODE = "native";
+    process.env.PAIPAN_LEGACY_ENTRY_ENABLED = "true";
+    prisma.user.findUnique.mockResolvedValue({ phone: "13000000000", phoneEnc: null, attributionStationId: null });
+    expect(service.getRuntime()).toEqual({ mode: "native", legacyAvailable: true });
+    await expect(service.getUserEntry("user-1")).resolves.toEqual({ mode: "native", url: null, attributionReady: true });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    const entry = await service.getUserLaunchEntry("user-1");
+    expect(entry.mode).toBe("native");
+    expect(new URL(entry.url!).searchParams.get("go")).toBe("tool");
+    expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+  });
+
+  it("小程序首发关闭时拒绝旧版主动入口，即使其他客户端已开放", async () => {
+    process.env.PAIPAN_LEGACY_ENTRY_ENABLED = "true";
+    await expect(service.getUserLaunchEntry("user-1", "mini")).rejects.toBeInstanceOf(BusinessException);
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 

@@ -20,6 +20,7 @@ onLoad((query) => { entryContext = readLegacyPaipanContext(query || {}) })
 const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
+const returnPath = ref('/pages/index/index')
 const loginRequired = ref(false)
 const miniProgramUnavailable = ref(false)
 const h5Fallback = ref(false)
@@ -656,7 +657,8 @@ function navigateLegacyBack() {
 }
 
 function returnToNewSystem() {
-  navigateTo('/pages/index/index')
+  if (returnPath.value === '/pages/index/index') navigateTo('/pages/index/index')
+  else navigateTo('/pages/paipan/index')
 }
 
 function openLogin() {
@@ -673,11 +675,12 @@ async function loadEntry() {
   try {
     // 正常入口由上一页一次性交接已生成的地址；直接深链进入时才回源请求。
     const entry = consumeLegacyPaipanEntry(entryContext) || await requestLegacyPaipanEntry(entryContext)
-    if (entry.mode !== 'legacy') {
+    if (entry.mode !== 'legacy' && !entry.url) {
       uni.reLaunch({ url: '/pages/paipan/index' })
       return
     }
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('排盘工具地址未正确配置')
+    returnPath.value = entry.mode === 'native' ? '/pages/paipan/index' : '/pages/index/index'
     legacyUrl.value = entry.url
     // #ifdef H5
     openLegacyH5()
@@ -808,7 +811,7 @@ onBackPress(() => {
     <text class="desc">{{ error }}</text>
     <button v-if="loginRequired" class="action primary" @tap="openLogin">微信或手机号快捷进入</button>
     <button v-else class="action primary" @tap="loadEntry">重试</button>
-    <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
+    <button class="action" @tap="returnToNewSystem">{{ returnPath === '/pages/index/index' ? '返回热卜首页' : '返回新版排盘' }}</button>
   </view>
 
   <!-- #ifdef H5 -->

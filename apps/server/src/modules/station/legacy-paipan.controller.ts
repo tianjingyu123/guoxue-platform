@@ -32,6 +32,16 @@ export class LegacyPaipanController {
     return this.service.getUserEntry(req.user.id, targetClient);
   }
 
+  @Get("launch")
+  @Header("Cache-Control", "no-store")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "用户主动打开旧版排盘时签发入口" })
+  getLaunchEntry(@Req() req: Request, @Query("client") client?: string) {
+    const targetClient = client === "h5" || client === "mini" ? client : "app";
+    return this.service.getUserLaunchEntry(req.user.id, targetClient);
+  }
+
   @Get("account")
   @Header("Cache-Control", "no-store")
   @UseGuards(JwtAuthGuard)

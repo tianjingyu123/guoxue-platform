@@ -32,8 +32,9 @@ export const legacyPaipanApi = {
   // 普通入口虽然需要登录，但 401 只能由排盘页面显示登录提示，不能触发全局 reLaunch
   // 劫持首页、圈子、发现等游客可访问页面。
   entry: () => apiGetOptionalAuth<LegacyPaipanEntry>(legacyToolEntryPath()),
+  launch: () => apiGetOptionalAuth<LegacyPaipanEntry>(legacyToolEntryPath().replace('/entry', '/launch')),
   account: () => apiGetOptionalAuth<LegacyPaipanEntry>("/legacy-paipan/account"),
-  runtime: () => apiGet<{ mode: "legacy" | "native" }>("/legacy-paipan/runtime"),
+  runtime: () => apiGet<{ mode: "legacy" | "native"; legacyAvailable: boolean }>("/legacy-paipan/runtime"),
   nativeQaAccess: () => apiGet<{ allowed: true }>("/legacy-paipan/native-qa/access"),
   stationEntry: (stationId: string) =>
     apiGetOptionalAuth<{ mode: "legacy" | "native"; url: string | null }>(
@@ -57,7 +58,7 @@ export function requestLegacyPaipanEntry(context: LegacyPaipanContext) {
     if (!context.stationId) return Promise.reject(new Error("分站入口缺少标识，请返回原分站重试"));
     return legacyPaipanApi.stationEntry(context.stationId);
   }
-  return context.target === "account" ? legacyPaipanApi.account() : legacyPaipanApi.entry();
+  return context.target === "account" ? legacyPaipanApi.account() : legacyPaipanApi.launch();
 }
 
 /** 编译目标决定入口类型；客户端标识不代替服务端登录验证。 */

@@ -42,6 +42,7 @@ const favIds = ref<string[]>([]);
 const entryLoading = ref(true);
 const entryError = ref("");
 const legacyRouting = ref(false);
+const legacyAvailable = ref(false);
 const allowNative = ref(false);
 const qaNotFound = ref(false);
 const loginRequired = ref(false);
@@ -210,6 +211,7 @@ function removeFav(id: string) {
 async function loadPaipanEntry() {
   entryLoading.value = true;
   entryError.value = "";
+  legacyAvailable.value = false;
   allowNative.value = false;
   qaNotFound.value = false;
   loginRequired.value = false;
@@ -228,6 +230,11 @@ async function loadPaipanEntry() {
     // 不得在 legacy 模式下自动回退或泄露新排盘。
     const runtimeMode = await hydratePaipanRuntime();
     if (runtimeMode === "native") {
+      // 旧版主动入口与新版运行模式分离；探针失败时只隐藏按钮，不影响新版使用。
+      try {
+        const availability = await legacyPaipanApi.runtime();
+        legacyAvailable.value = availability.mode === "native" && availability.legacyAvailable === true;
+      } catch { legacyAvailable.value = false; }
       allowNative.value = true;
       favIds.value = getFavorites();
       await loadPlatformAgents();
@@ -392,6 +399,23 @@ onShow(() => {
       <!-- 今日时刻 Hero -->
       <view class="section-px hero-wrap">
         <today-hero />
+      </view>
+
+      <view v-if="legacyAvailable" class="section-px legacy-wrap">
+        <view
+          class="legacy-entry"
+          role="link"
+          tabindex="0"
+          aria-label="进入旧版排盘工具"
+          @tap="navigateTo('/pkg-common/legacy-paipan/index')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-common/legacy-paipan/index'))"
+        >
+          <view class="legacy-entry-copy">
+            <text class="legacy-entry-title">习惯旧版排盘？</text>
+            <text class="legacy-entry-desc">继续使用熟悉的旧版工具</text>
+          </view>
+          <text class="legacy-entry-action">进入旧版</text>
+        </view>
       </view>
 
       <!-- 从业者工作台入口（对应 V0 workspace-entry.tsx）
@@ -811,6 +835,21 @@ onShow(() => {
 .paipan {
   min-height: 100vh;
 }
+.legacy-wrap { margin-top: 12rpx; }
+.legacy-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 22rpx 26rpx;
+  border: 1rpx solid rgba(139, 106, 74, 0.2);
+  border-radius: 18rpx;
+  background: #fffdfa;
+}
+.legacy-entry-copy { display: flex; flex-direction: column; gap: 5rpx; }
+.legacy-entry-title { color: #463528; font-size: 25rpx; font-weight: 700; }
+.legacy-entry-desc { color: #8b7b6d; font-size: 21rpx; }
+.legacy-entry-action { flex-shrink: 0; color: #8b4d37; font-size: 23rpx; font-weight: 700; }
 .entry-gate {
   min-height: 100vh;
   padding: 0 56rpx 150rpx;

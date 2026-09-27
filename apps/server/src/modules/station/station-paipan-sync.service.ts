@@ -24,11 +24,24 @@ export class StationPaipanSyncService {
   ) {}
 
   getRuntime() {
-    return { mode: this.runtime.getMode() };
+    return { mode: this.runtime.getMode(), legacyAvailable: this.legacyEntryAvailable() };
+  }
+
+  private legacyEntryAvailable(): boolean {
+    return !this.runtime.isNative() || process.env.PAIPAN_LEGACY_ENTRY_ENABLED === "true";
   }
 
   async getUserEntry(userId: string, client: "app" | "h5" | "mini" = "app"): Promise<LegacyPaipanEntry> {
     return this.getSignedUserEntry(userId, "tool", client);
+  }
+
+  /** 用户主动进入旧版时单独签发；不改变新版排盘的默认路由。 */
+  async getUserLaunchEntry(userId: string, client: "app" | "h5" | "mini" = "app"): Promise<LegacyPaipanEntry> {
+    if (client === "mini" || !this.legacyEntryAvailable()) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "旧版排盘入口暂未开放");
+    }
+    const entry = await this.getSignedUserEntry(userId, "tool", client, true);
+    return { ...entry, mode: this.runtime.getMode() };
   }
 
   async getUserAccountEntry(userId: string): Promise<LegacyPaipanEntry> {
@@ -176,8 +189,9 @@ export class StationPaipanSyncService {
     userId: string,
     target: "tool" | "my",
     client: "app" | "h5" | "mini" = "app",
+    forceLegacy = false,
   ): Promise<LegacyPaipanEntry> {
-    if (this.runtime.isNative()) return { mode: "native", url: null, attributionReady: true };
+    if (this.runtime.isNative() && !forceLegacy) return { mode: "native", url: null, attributionReady: true };
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { phone: true, phoneEnc: true, attributionStationId: true },
