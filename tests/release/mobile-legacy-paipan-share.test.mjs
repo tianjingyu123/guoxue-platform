@@ -330,7 +330,7 @@ test('当前第三方结果页转换为热卜承接链接，App入口不直接�
   const { api } = runtime()
   assert.equal(api.publicLegacyResultUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc'), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
   const landing = api.legacyShareLandingUrl('https://www.yrydai.com/app_p1.php?mod=bazi&id=abc', 'https://api.rebugx.cn/h5')
-  assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\?target=/u)
+  assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\/\?target=/u)
   assert.equal(api.legacyShareLandingUrl('https://www.yrydai.com/p1.php?id=abc'), '')
   assert.equal(decodeURIComponent(new URL(landing).searchParams.get('target')), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
 })
@@ -339,7 +339,7 @@ test('App 无全局 URL 时仍能转换公开盘面，保留数字推荐来源�
   const { api } = runtime({}, {}, false)
   const result = 'https://www.yrydai.cn/app_p1.php?mod=bazi&act=view&id=fixture-1&ruid=123'
   assert.equal(api.publicLegacyResultUrl(result), 'https://www.yrydai.cn/p1.php?mod=bazi&act=view&id=fixture-1&ruid=123')
-  assert.match(api.legacyShareLandingUrl(result, 'https://api.rebugx.cn/h5'), /legacy-paipan-share\/index\?target=/u)
+  assert.match(api.legacyShareLandingUrl(result, 'https://api.rebugx.cn/h5'), /legacy-paipan-share\/index\/\?target=/u)
   assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'ruid=abc')), '')
   assert.equal(api.publicLegacyResultUrl(result.replace('ruid=123', 'token=SECRET')), '')
 })

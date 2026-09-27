@@ -45,7 +45,7 @@ export function legacyShareLandingUrl(target: unknown, base = ''): string {
   if (!result) return ''
   const root = String(base || '').replace(/\/+$/u, '')
   if (!/^https:\/\/[A-Za-z0-9.-]+(?:\/[^?#]*)?$/u.test(root)) return ''
-  return `${root}/pkg-common/legacy-paipan-share/index?target=${encodeURIComponent(result)}`
+  return `${root}/pkg-common/legacy-paipan-share/index/?target=${encodeURIComponent(result)}`
 }
 
 export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | null {
