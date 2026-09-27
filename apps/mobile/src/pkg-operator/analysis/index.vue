@@ -1,27 +1,13 @@
 <template>
   <view class="analysis-page">
-    <!-- 自定义导航：朱红渐变 + 周期 Tab（statusBarHeight 由组件处理） -->
+    <!-- 自定义导航：statusBarHeight 由组件处理 -->
     <app-nav-bar
       title="业绩分析"
       :show-back="true"
       background="linear-gradient(135deg, #A01828, #C41E3A)"
       color="#ffffff"
       :no-border="true"
-    >
-      <template #center>
-        <view class="period-tab">
-          <view
-            v-for="p in periods"
-            :key="p.key"
-            class="period-item"
-            :class="{ on: activePeriod === p.key }"
-            @tap="switchPeriod(p.key)"
-          >
-            <text class="period-txt" :class="{ on: activePeriod === p.key }">{{ p.label }}</text>
-          </view>
-        </view>
-      </template>
-    </app-nav-bar>
+    />
 
     <view class="an-body">
       <!-- 三态：加载中（骨架） -->
@@ -44,7 +30,7 @@
       <view v-else-if="isEmpty" class="state-empty">
         <text class="state-empty-icon">📊</text>
         <text class="state-empty-text">暂无团队业绩数据</text>
-        <text class="state-empty-sub">名下暂无站长，或本周期无经营记录</text>
+        <text class="state-empty-sub">名下暂无站长</text>
       </view>
 
       <!-- 数据渲染 -->
@@ -54,10 +40,10 @@
           <view class="kpi-cell">
             <view class="kpi-lbl">
               <view class="kpi-di gold" />
-              <text class="kpi-lbl-txt">团队总收益(元)</text>
+              <text class="kpi-lbl-txt">团队本月收益(元)</text>
             </view>
             <text class="kpi-num gold">{{ formatPrice(kpi.totalEarning) }}</text>
-            <text class="kpi-foot">累计口径 · 环比待埋点</text>
+            <text class="kpi-foot">名下站长本月收益合计</text>
           </view>
           <view class="kpi-cell">
             <view class="kpi-lbl">
@@ -70,62 +56,24 @@
           <view class="kpi-cell">
             <view class="kpi-lbl">
               <view class="kpi-di blue" />
-              <text class="kpi-lbl-txt">有收益站长</text>
+              <text class="kpi-lbl-txt">本月有收益站长</text>
             </view>
             <text class="kpi-num">{{ kpi.activeCount }}</text>
-            <text class="kpi-foot">累计收益大于零 / 共 {{ kpi.memberCount }} 人</text>
+            <text class="kpi-foot">本月收益大于零 / 共 {{ kpi.memberCount }} 人</text>
           </view>
           <view class="kpi-cell">
             <view class="kpi-lbl">
               <view class="kpi-di orange" />
-              <text class="kpi-lbl-txt">人均收益(元)</text>
+              <text class="kpi-lbl-txt">本月人均收益(元)</text>
             </view>
             <text class="kpi-num">{{ formatPrice(kpi.avgEarning) }}</text>
-            <text class="kpi-foot">团队均摊</text>
+            <text class="kpi-foot">按名下站长人数均摊</text>
           </view>
         </view>
 
-        <!-- 收益走势折线（团队级每日趋势后端未埋点 → 诚实降级空态） -->
+        <!-- 成员本月收益分解（真实 commission，按收益降序） -->
         <view class="card">
-          <text class="card-title">团队收益走势</text>
-          <text class="card-sub">近 30 天 · 单位：元</text>
-          <view class="chart-empty">
-            <view class="chart-empty-grid">
-              <view v-for="i in 4" :key="i" class="chart-grid-line" />
-            </view>
-            <text class="chart-empty-txt">每日收益趋势数据待埋点接入</text>
-          </view>
-          <view class="cl-x">
-            <text class="cl-x-txt">近30天</text>
-            <text class="cl-x-txt">—</text>
-            <text class="cl-x-txt">今日</text>
-          </view>
-        </view>
-
-        <!-- 转化漏斗（访问/点击/成交埋点后端未接 → 诚实降级空态） -->
-        <view class="card">
-          <text class="card-title">转化漏斗</text>
-          <text class="card-sub">从访问到付费的转化路径</text>
-          <view class="funnel">
-            <view
-              v-for="f in funnelStages"
-              :key="f.key"
-              class="fn-row"
-            >
-              <view class="fn-bar" :style="{ width: f.width, background: f.bg }">
-                <text class="fn-bar-txt">{{ f.name }}</text>
-              </view>
-              <view class="fn-meta">
-                <text class="fn-rate">{{ f.rate }}</text>
-              </view>
-            </view>
-          </view>
-          <text class="funnel-note">漏斗需推广埋点数据支持，当前展示为口径示意</text>
-        </view>
-
-        <!-- 成员业绩分解（真实 commission，按收益降序） -->
-        <view class="card">
-          <text class="card-title mb10">成员业绩分解</text>
+          <text class="card-title mb10">成员本月收益</text>
           <view
             v-for="(m, i) in sortedMembers"
             :key="m.id"
@@ -161,17 +109,6 @@ const error = ref('')
 const isEmpty = ref(false)
 const members = ref<MemberPerf[]>([])
 
-// 周期 Tab：后端 getAnalysisMembers 无 period 参数 → 仅作口径切换视觉，数据不造假
-const periods = [
-  { key: '7d', label: '7天' },
-  { key: '30d', label: '30天' },
-  { key: '90d', label: '90天' },
-]
-const activePeriod = ref('30d')
-function switchPeriod(k: string) {
-  activePeriod.value = k
-}
-
 onMounted(async () => {
   await loadData()
 })
@@ -194,13 +131,13 @@ async function retry() {
   await loadData()
 }
 
-// —— KPI 聚合（真实收益，环比/客单价后端无 → 降级为口径说明） ——
+// —— KPI 聚合：接口返回名下站长本月收益 ——
 const kpi = computed(() => {
   const list = members.value
   const totalEarning = list.reduce((s, m) => s + (m.commission || 0), 0)
   const memberCount = list.length
   const activeCount = list.filter((m) => (m.commission || 0) > 0).length
-  const avgEarning = memberCount > 0 ? Math.round(totalEarning / memberCount) : 0
+  const avgEarning = memberCount > 0 ? totalEarning / memberCount : 0
   return { totalEarning, memberCount, activeCount, avgEarning }
 })
 
@@ -226,13 +163,6 @@ function avatarBg(i: number) {
   return AVATAR_BGS[i % AVATAR_BGS.length]
 }
 
-// —— 转化漏斗：后端埋点未接，四段口径示意（宽度固定示意，比率显示待接入） ——
-const funnelStages = [
-  { key: 'visit', name: '访问', width: '100%', bg: 'linear-gradient(90deg, #5AA0E0, #4A90D9)', rate: '待埋点' },
-  { key: 'click', name: '点击', width: '74%', bg: 'linear-gradient(90deg, #6AB98C, #4FA876)', rate: 'CTR —' },
-  { key: 'order', name: '下单', width: '42%', bg: 'linear-gradient(90deg, #E0A94A, #C9A96E)', rate: '— %' },
-  { key: 'paid', name: '付费', width: '30%', bg: 'linear-gradient(90deg, #C41E3A, #A01828)', rate: 'CVR —' },
-]
 </script>
 
 <style lang="scss" scoped>
@@ -240,36 +170,6 @@ const funnelStages = [
   min-height: 100vh;
   background: #faf8f5;
   padding-bottom: 60rpx;
-}
-
-/* 周期 Tab（导航栏 center 插槽内） */
-.period-tab {
-  flex: 1;
-  display: flex;
-  gap: 4rpx;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 16rpx;
-  padding: 6rpx;
-  margin: 0 20rpx;
-}
-.period-item {
-  flex: 1;
-  height: 52rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12rpx;
-}
-.period-item.on {
-  background: #ffffff;
-}
-.period-txt {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.7);
-}
-.period-txt.on {
-  color: #c41e3a;
-  font-weight: 600;
 }
 
 .an-body {
@@ -347,91 +247,6 @@ const funnelStages = [
 .card-title.mb10 {
   margin-bottom: 20rpx;
 }
-.card-sub {
-  display: block;
-  font-size: 21rpx;
-  color: #999999;
-  margin-top: 6rpx;
-}
-
-/* —— 收益走势折线空态 —— */
-.chart-empty {
-  height: 280rpx;
-  margin-top: 26rpx;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.chart-empty-grid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.chart-grid-line {
-  height: 2rpx;
-  background: #f1ede6;
-}
-.chart-empty-txt {
-  position: relative;
-  font-size: 22rpx;
-  color: #999999;
-}
-.cl-x {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14rpx;
-}
-.cl-x-txt {
-  font-size: 19rpx;
-  color: #999999;
-}
-
-/* —— 转化漏斗 —— */
-.funnel {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  margin-top: 26rpx;
-}
-.fn-row {
-  display: flex;
-  align-items: center;
-  gap: 22rpx;
-}
-.fn-bar {
-  height: 72rpx;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 26rpx;
-  min-width: 120rpx;
-}
-.fn-bar-txt {
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-.fn-meta {
-  flex: 1;
-}
-.fn-rate {
-  font-size: 20rpx;
-  color: #999999;
-}
-.funnel-note {
-  display: block;
-  font-size: 20rpx;
-  color: #999999;
-  margin-top: 20rpx;
-  line-height: 1.5;
-}
-
 /* —— 成员业绩分解 —— */
 .mb {
   display: flex;
