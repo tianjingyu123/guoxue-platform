@@ -8,6 +8,7 @@ import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
 import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
 import { isClientFeatureEnabled } from '@/lib/remote-config'
+import { iosCashPaymentBlocked } from '@/utils/ios-cash-payment-boundary'
 // #ifdef H5
 import { paymentMethodName } from '@/utils/payment-device'
 // #endif
@@ -1775,6 +1776,11 @@ export const shopApi = {
    */
   async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string; clientRequestId?: string }): Promise<{ id: string; amount: number; status: string; reused?: boolean }> {
     const orderType = String(payload.type || 'PRODUCT').toUpperCase()
+    // #ifdef APP-PLUS
+    if (iosCashPaymentBlocked(uni.getSystemInfoSync().platform, orderType, Boolean(payload.addressId))) {
+      throw new Error('iOS 数字权益暂未开放购买')
+    }
+    // #endif
     const featureKey = orderType === 'MEMBER' ? 'member_purchase' : 'shop_checkout'
     if (!isClientFeatureEnabled(featureKey, true)) {
       throw new Error(orderType === 'MEMBER'

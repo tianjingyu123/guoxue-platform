@@ -106,6 +106,7 @@ import { redirectTo, reLaunch } from '@/utils/router'
 import { queryString } from '@/utils/query-string'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
+import { iosCashPaymentBlocked } from '@/utils/ios-cash-payment-boundary'
 import { orderPaymentAction } from '@/lib/payment-recovery'
 import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
@@ -154,7 +155,7 @@ const paymentOwner = String(getUserInfo<{ id?: string }>()?.id || '')
 const isIosApp = uni.getSystemInfoSync().platform === 'ios'
 iosPaymentGuard = isIosApp
 function iosCashOrderBlocked(order: { type?: string; hasShippingInfo: boolean }): boolean {
-  return isIosApp && (order.type !== 'PRODUCT' || !order.hasShippingInfo)
+  return iosCashPaymentBlocked(isIosApp ? 'ios' : 'android', order.type, order.hasShippingInfo)
 }
 async function startVerifiedAlipay() {
   try {
