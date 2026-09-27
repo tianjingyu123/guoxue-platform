@@ -57,6 +57,22 @@ test("正式域名硬编码到未批准的运行时代码时仍阻断", async ()
   );
 });
 
+test("HBuilderX 导出资源不混入源码域名审计", async () => {
+  await withWorkspace(
+    {
+      "apps/mobile/unpackage/resources/__UNI__277B108/www/app-service.js":
+        'const productionBundle = "https://api.rebugx.cn";\n',
+      "apps/mobile/src/manifest.json": JSON.stringify({
+        app: { domains: ["applinks:api.rebugx.cn"] },
+      }),
+    },
+    async (workspace) => {
+      const result = runAudit(workspace);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    },
+  );
+});
+
 test("远程配置先识别预发布再识别正式域名时通过", async () => {
   await withWorkspace(
     {

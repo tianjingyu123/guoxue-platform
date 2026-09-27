@@ -73,7 +73,12 @@ const demoDataPatterns = [
 ];
 
 const normalize = (file) => path.relative(root, file).replaceAll("\\", "/");
-const isIgnored = (file) => normalize(file).split("/").some((part) => ignoredParts.has(part));
+const isIgnored = (file) => {
+  const relative = normalize(file);
+  // HBuilderX 在源码目录下生成 App 资源；审计源码时不能把编译产物当作运行时源文件。
+  if (relative === "apps/mobile/unpackage/resources" || relative.startsWith("apps/mobile/unpackage/resources/")) return true;
+  return relative.split("/").some((part) => ignoredParts.has(part));
+};
 const targetPattern = new RegExp(
   `(^|[^a-z0-9.-])${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^a-z0-9.-])`,
   "i",
