@@ -82,16 +82,16 @@ onShow(() => {
   <view class="page">
     <!-- ══ 顶部导航 ══ -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+      <view class="nav-back" role="button" tabindex="0" aria-label="返回上一页" hover-class="btn-press" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
         <app-icon name="arrow-left" :size="34" color="#2C2C2C" />
       </view>
       <text class="nav-title serif">我的学习</text>
     </view>
 
     <!-- ══ Error 态 ══ -->
-    <view v-if="error" class="state-wrap">
+    <view v-if="error" class="state-wrap" role="alert" aria-live="assertive">
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" hover-class="btn-press" @tap="loadData"><text class="retry-text">重试</text></view>
+      <view class="retry-btn" role="button" tabindex="0" aria-label="重新加载我的学习" hover-class="btn-press" @tap="loadData" @keydown.enter="loadData" @keydown.space.prevent="loadData"><text class="retry-text">重试</text></view>
     </view>
 
     <!-- ══ Loading 骨架屏（对应正常态结构：数据条 / 标题 / 在学卡×2 / 标题 / 次入口）══ -->
@@ -112,7 +112,7 @@ onShow(() => {
       </view>
       <text class="empty-title serif">开始你的国学之旅</text>
       <text class="empty-desc">还没有课程，去发现感兴趣的{{ '\n' }}易学与国学好课吧</text>
-      <view class="empty-btn" hover-class="btn-press" @tap="goExplore">
+      <view class="empty-btn" role="link" tabindex="0" aria-label="浏览全部课程" hover-class="btn-press" @tap="goExplore" @keydown.enter="goExplore" @keydown.space.prevent="goExplore">
         <text class="empty-btn-txt">去逛逛课程</text>
       </view>
     </view>
@@ -140,11 +140,11 @@ onShow(() => {
       <template v-if="learningCourses.length">
         <view
           v-for="c in learningCourses" :key="c.id"
-          class="learn-card" hover-class="card-press" @tap="toEnrolledSame(c)"
+          class="learn-card" role="link" tabindex="0" :aria-label="`继续学习：${c.title}，已学 ${coursePct(c)}%`" hover-class="card-press" @tap="toEnrolledSame(c)" @keydown.enter="toEnrolledSame(c)" @keydown.space.prevent="toEnrolledSame(c)"
         >
           <view class="learn-cover">
             <view class="ratio-169">
-              <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" />
+              <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" deco :deco-size="40" />
             </view>
           </view>
           <view class="learn-info">
@@ -152,18 +152,19 @@ onShow(() => {
             <view class="progress-track"><view class="progress-fill" :style="{ width: coursePct(c) + '%' }" /></view>
             <text class="learn-meta">已学 {{ coursePct(c) }}% · 上次学到第 {{ Math.min(c.completedLessons + 1, c.totalLessons || 1) }} 讲</text>
           </view>
-          <view class="btn-continue" hover-class="btn-press" @tap.stop="toEnrolledSame(c)">
+          <view class="btn-continue" aria-hidden="true">
             <text class="btn-continue-txt">继续学</text>
           </view>
         </view>
       </template>
       <view v-else class="mini-empty">
         <text class="mini-empty-txt">在学课程都学完啦，去发现更多好课</text>
+        <view class="mini-empty-link" role="link" tabindex="0" aria-label="浏览更多课程" @tap="goExplore" @keydown.enter="goExplore" @keydown.space.prevent="goExplore">浏览课程</view>
       </view>
 
       <!-- ── 区块3 已完成（次区块·可折叠·默认展开）── -->
       <template v-if="doneCourses.length">
-        <view class="done-head" hover-class="tab-press" @tap="doneExpanded = !doneExpanded">
+        <view class="done-head" role="button" tabindex="0" :aria-expanded="doneExpanded ? 'true' : 'false'" aria-label="展开或收起已完成课程" hover-class="tab-press" @tap="doneExpanded = !doneExpanded" @keydown.enter="doneExpanded = !doneExpanded" @keydown.space.prevent="doneExpanded = !doneExpanded">
           <text class="section-title serif done-title">已完成</text>
           <view class="done-count">
             <text class="done-count-txt">{{ doneCourses.length }} 门</text>
@@ -174,7 +175,7 @@ onShow(() => {
           <view v-for="c in doneCourses" :key="c.id" class="done-card">
             <view class="learn-cover">
               <view class="ratio-169">
-                <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" />
+                <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" deco :deco-size="40" />
               </view>
             </view>
             <view class="learn-info">
@@ -184,8 +185,8 @@ onShow(() => {
                 <text class="done-check-txt">已完成全部 {{ c.totalLessons }} 讲</text>
               </view>
             </view>
-            <view class="btn-cert" hover-class="btn-press" @tap="viewCertificate(c)">
-              <text class="btn-cert-txt">查看证书</text>
+            <view class="btn-cert" role="link" tabindex="0" :aria-label="`查看 ${c.title} 的学习证书`" hover-class="btn-press" @tap="viewCertificate(c)" @keydown.enter="viewCertificate(c)" @keydown.space.prevent="viewCertificate(c)">
+              <text class="btn-cert-txt">学习证书</text>
             </view>
           </view>
         </template>
@@ -193,17 +194,17 @@ onShow(() => {
 
       <!-- ── 区块4 底部次入口（我的收藏 / 我的评价 / 我的作业）── -->
       <view class="entries">
-        <view class="entry" hover-class="tab-press" @tap="goFavorites">
+        <view class="entry" role="link" tabindex="0" aria-label="我的收藏" hover-class="tab-press" @tap="goFavorites" @keydown.enter="goFavorites" @keydown.space.prevent="goFavorites">
           <view class="entry-icon"><app-icon name="heart" :size="30" color="#C41E3A" /></view>
           <text class="entry-name">我的收藏</text>
           <app-icon name="chevron-right" :size="30" color="#999999" />
         </view>
-        <view class="entry" hover-class="tab-press" @tap="goReviews">
+        <view class="entry" role="link" tabindex="0" aria-label="我的评价" hover-class="tab-press" @tap="goReviews" @keydown.enter="goReviews" @keydown.space.prevent="goReviews">
           <view class="entry-icon"><app-icon name="star" :size="30" color="#C9A96E" :fill="true" /></view>
           <text class="entry-name">我的评价</text>
           <app-icon name="chevron-right" :size="30" color="#999999" />
         </view>
-        <view class="entry" hover-class="tab-press" @tap="goWorks">
+        <view class="entry" role="link" tabindex="0" aria-label="我的作业" hover-class="tab-press" @tap="goWorks" @keydown.enter="goWorks" @keydown.space.prevent="goWorks">
           <view class="entry-icon"><app-icon name="edit" :size="30" color="#6E6E73" /></view>
           <text class="entry-name">我的作业</text>
           <app-icon name="chevron-right" :size="30" color="#999999" />
@@ -217,7 +218,7 @@ onShow(() => {
 /* ── 视觉 token（V0 委托书第七节）── */
 .page { min-height: 100vh; background: #FAF8F5; }
 .serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
-.btn-press { opacity: 0.6; }
+.btn-press { opacity: 0.88; }
 .card-press { transform: scale(0.98); }
 .tab-press { opacity: 0.7; }
 
@@ -225,22 +226,22 @@ onShow(() => {
 .nav {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 20rpx;
-  padding: 24rpx 40rpx 20rpx;
+  padding: 16rpx 24rpx;
   background: #FAF8F5;
 }
 .nav-back {
-  width: 68rpx; height: 68rpx; border-radius: 999rpx;
+  width: 88rpx; height: 88rpx; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   background: #FFFFFF; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
 }
 .nav-title { font-size: 40rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
 
 /* ── 内容主体间距 ── */
-.body-pad { padding: 24rpx 40rpx 64rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.body-pad { padding: 20rpx 24rpx 64rpx; display: flex; flex-direction: column; gap: 20rpx; }
 
 /* ── 区块1 顶部数据条 ── */
 .stats {
-  background: #FFFFFF; border-radius: 36rpx; padding: 36rpx 32rpx;
+  background: #FFFFFF; border-radius: 26rpx; padding: 26rpx 20rpx;
   display: flex; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
 }
 .stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
@@ -257,52 +258,53 @@ onShow(() => {
 .section-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; margin-top: 12rpx; }
 
 /* ── 通用横排封面（100px 小图·16:9）── */
-.learn-cover { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; overflow: hidden; }
+.learn-cover { width: 176rpx; grid-row: 1 / 3; border-radius: 16rpx; overflow: hidden; }
 .ratio-169 { position: relative; width: 100%; padding-top: 56.25%; }
 .learn-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* ── 区块2 在学课程卡 ── */
 .learn-card {
-  background: #FFFFFF; border-radius: 36rpx; padding: 28rpx;
-  display: flex; gap: 24rpx; align-items: center;
-  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+  background: #FFFFFF; border: 1rpx solid rgba(63,48,36,.08); border-radius: 22rpx; padding: 20rpx;
+  display: grid; grid-template-columns: 176rpx minmax(0, 1fr); gap: 10rpx 18rpx; align-items: start;
+  box-shadow: 0 5rpx 18rpx rgba(45,36,27,.05);
 }
-.learn-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.learn-info { min-width: 0; display: flex; flex-direction: column; gap: 10rpx; }
 .learn-title {
   font-size: 30rpx; font-weight: 600; color: #2C2C2C; line-height: 1.4;
-  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .progress-track { height: 8rpx; border-radius: 4rpx; background: #F8F4EC; overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 4rpx; background: #C41E3A; }
 .learn-meta {
   font-size: 24rpx; color: #999999;
-  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .btn-continue {
-  flex-shrink: 0; background: #C41E3A; border-radius: 999rpx;
-  padding: 16rpx 28rpx; display: flex; align-items: center; justify-content: center;
+  justify-self: start; background: #C41E3A; border-radius: 999rpx;
+  padding: 12rpx 24rpx; display: flex; align-items: center; justify-content: center;
 }
 .btn-continue-txt { font-size: 26rpx; font-weight: 600; color: #FFFFFF; }
 
 /* ── 在学为空的轻提示 ── */
 .mini-empty { padding: 48rpx 0; text-align: center; }
 .mini-empty-txt { font-size: 26rpx; color: #BBBBBB; }
+.mini-empty-link { display: inline-flex; min-height: 72rpx; align-items: center; padding: 0 26rpx; color: #C41E3A; font-size: 25rpx; }
 
 /* ── 区块3 已完成 ── */
-.done-head { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
+.done-head { display: flex; align-items: center; justify-content: space-between; min-height: 88rpx; margin-top: 12rpx; }
 .done-title { margin-top: 0; }
 .done-count { display: flex; align-items: center; gap: 8rpx; }
 .done-count-txt { font-size: 26rpx; color: #999999; }
 .done-card {
-  background: #FFFFFF; border-radius: 36rpx; padding: 28rpx;
-  display: flex; gap: 24rpx; align-items: center;
-  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+  background: #FFFFFF; border: 1rpx solid rgba(63,48,36,.08); border-radius: 22rpx; padding: 20rpx;
+  display: grid; grid-template-columns: 176rpx minmax(0, 1fr); gap: 10rpx 18rpx; align-items: start;
+  box-shadow: 0 5rpx 18rpx rgba(45,36,27,.05);
 }
 .done-check { display: flex; align-items: center; gap: 10rpx; }
 .done-check-txt { font-size: 24rpx; color: #34A853; }
 .btn-cert {
-  flex-shrink: 0; background: rgba(201,169,110,0.14); border-radius: 999rpx;
-  padding: 16rpx 28rpx; display: flex; align-items: center; justify-content: center;
+  justify-self: start; background: rgba(201,169,110,0.14); border-radius: 999rpx;
+  padding: 12rpx 24rpx; display: flex; align-items: center; justify-content: center;
 }
 .btn-cert-txt { font-size: 26rpx; font-weight: 600; color: #8A6D3B; }
 
