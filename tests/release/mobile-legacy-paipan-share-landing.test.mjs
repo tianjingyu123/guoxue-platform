@@ -36,7 +36,7 @@ test('非已验证结果地址保留数字推荐来源，使用顶层跳转', ()
   assert.doesNotMatch(html, /<web-view|innerHTML|localStorage/u)
 })
 
-test('已验证格式的八字结果在热卜外壳内显示，分享目标仍是热卜页', async () => {
+test('已验证格式的八字结果尝试在热卜外壳内加载，分享目标仍是热卜页', async () => {
   const target = 'https://www.yrydai.com/p1.php?mod=bazi&act=baziPan&id=123456&ruid=5'
   const shared = []
   const actual = load(target, { share: async payload => shared.push(payload) })
@@ -49,6 +49,7 @@ test('已验证格式的八字结果在热卜外壳内显示，分享目标仍�
   assert.equal(shared.length, 1)
   assert.equal(shared[0].url, 'https://gx.yrydai.com/h5/pkg-common/legacy-paipan-share/index/?target=fixture')
   assert.match(html, /href="\/h5\/"/u)
+  assert.match(html, /id="result-home" href="\/h5\/">返回首页<\/a>/u)
   assert.match(html, /navigator\.share\(\{ title: '热卜八字排盘', url: location\.href \}\)/u)
   assert.match(html, /生成海报/u)
 })
