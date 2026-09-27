@@ -4,7 +4,7 @@
  *           ②购买确认改半屏弹层（PurchaseSheet·全程弹层完成不跳页）
  *           ③秒杀态挂详情价格区（仅价格区差异·派生自 originalPrice>price）
  * 三态：未购态（含购买半屏弹层）/ 已购态（进度+继续学习）/ 秒杀态（价格区差异）
- * 真连接口全部保留：courseApi.getDetail/getChapters/getReviews/checkAccess/isFavorited/toggleFavorite
+ * 真连接口全部保留：courseApi.getDetail/getChapters/getReviewPage/checkAccess/isFavorited/toggleFavorite
  */
 import { ref, computed, onMounted, nextTick, getCurrentInstance } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
@@ -37,6 +37,7 @@ const course = ref<any>(null)
 const chapters = ref<any[]>([])
 // 评价列表，模板裸访问 user/rating 等字段，保留 any
 const reviews = ref<any[]>([])
+const reviewTotal = ref(0)
 const reviewsLoading = ref(true)
 const reviewsError = ref(false)
 const recItems = ref<RecommendItem[]>([])
@@ -251,8 +252,11 @@ async function loadReviews(id: string, seq: number) {
   reviewsLoading.value = true
   reviewsError.value = false
   try {
-    const result = await courseApi.getReviews(id)
-    if (seq === detailLoadSeq) reviews.value = result
+    const result = await courseApi.getReviewPage(id)
+    if (seq === detailLoadSeq) {
+      reviews.value = result.reviews
+      reviewTotal.value = result.total
+    }
   } catch {
     if (seq === detailLoadSeq) reviewsError.value = true
   } finally {
@@ -559,7 +563,7 @@ onMounted(() => {
               :color="i <= Math.round(course.rating) ? '#C9A96E' : '#EDE7DD'" :fill="i <= Math.round(course.rating)"
             />
           </view>
-          <text class="review-count">{{ reviewsLoading ? '评价加载中' : reviewsError ? '评价暂不可用' : `${reviews.length} 条评价` }}</text>
+          <text class="review-count">{{ reviewsLoading ? '评价加载中' : reviewsError ? '评价暂不可用' : `${reviewTotal} 条评价` }}</text>
         </view>
         <view v-if="reviewsLoading" class="empty-line" role="status">
           <text class="empty-txt">正在加载评价…</text>
@@ -594,7 +598,7 @@ onMounted(() => {
         <!-- 🔴 补入口：评价页（F3·含学员写评价）此前是**孤岛**——全项目没有任何地方能跳进去，
              详情页这块只是展示摘要。结果就是"能看别人的评价，但自己永远写不了"。 -->
         <view class="review-more" role="link" tabindex="0" aria-label="查看课程评价与写评价" @tap="goReviews" @keydown.enter="goReviews" @keydown.space.prevent="goReviews">
-          <text class="review-more-t">{{ reviewsError || reviewsLoading ? '查看评价 · 写评价' : reviews.length ? '查看全部评价 · 写评价' : '写第一条评价' }}</text>
+          <text class="review-more-t">{{ reviewsError || reviewsLoading ? '查看评价 · 写评价' : reviewTotal ? '查看全部评价 · 写评价' : '写第一条评价' }}</text>
           <app-icon name="chevron-right" :size="26" color="#999" />
         </view>
       </view>
