@@ -3,7 +3,8 @@ import { copyFile, mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 
 const directory = path.join('pkg-common', 'legacy-paipan-share', 'index')
-for (const [name, minimumSize] of [['index.html', 1000], ['uqrcode.js', 1000], ['uqrcode-LICENSE.md', 100]]) {
+// 首次接收者的旧站授权无法在 iframe 内可靠完成，正式分享页只保留顶层跳转资源。
+for (const [name, minimumSize] of [['index.html', 1000]]) {
   const relative = path.join(directory, name)
   const source = path.resolve('public', relative)
   const target = path.resolve('dist', 'build', 'h5', relative)
