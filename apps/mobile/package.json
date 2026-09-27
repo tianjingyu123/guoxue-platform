@@ -11,7 +11,7 @@
     "build:mp-weixin": "uni build -p mp-weixin && node scripts/relocate-mp-shared-components.mjs && node scripts/prune-mp-static.mjs && node scripts/validate-mp-wxml.mjs && node scripts/validate-mp-artifacts.mjs && node scripts/check-mp-size.mjs",
     "build:mp-harmony": "uni build -p mp-harmony",
     "dev:h5": "uni -p h5",
-    "build:h5": "uni build -p h5",
+    "build:h5": "uni build -p h5 && node scripts/copy-paipan-share-landing.mjs",
     "lint": "eslint src --ext .vue,.ts",
     "type-check": "vue-tsc --noEmit",
     "scan-mock": "bash scripts/scan-mock-imports.sh",

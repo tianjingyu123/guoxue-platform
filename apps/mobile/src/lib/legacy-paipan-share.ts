@@ -39,7 +39,7 @@ export function publicLegacyResultUrl(value: unknown): string {
   return publicLegacyShareUrl(value.replace(/\/app_p1\.php(?=\?|$)/iu, '/p1.php'))
 }
 
-/** 分享给外部用户的是热卜承接页，第三方结果地址只作为受控 iframe 目标。 */
+/** 分享给外部用户的是热卜承接页，第三方公开地址由承接页校验后顶层打开。 */
 export function legacyShareLandingUrl(target: unknown, base = ''): string {
   const result = publicLegacyResultUrl(target)
   if (!result) return ''

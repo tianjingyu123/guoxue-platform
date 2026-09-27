@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <title>热卜国学 · 打开排盘</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #faf8f5; color: #28231f; }
+    main { width: min(100% - 40px, 420px); padding: 36px 24px; border: 1px solid #eee7de; border-radius: 24px; background: #fff; text-align: center; box-shadow: 0 16px 45px rgba(59, 37, 26, .06); }
+    .brand { color: #9e1f2a; font-size: 16px; font-weight: 700; letter-spacing: .08em; }
+    h1 { margin: 30px 0 8px; font-size: 24px; line-height: 1.35; }
+    p { margin: 0; color: #796f69; line-height: 1.7; }
+    a { display: none; margin-top: 28px; padding: 13px 20px; border-radius: 13px; background: #9e1f2a; color: #fff; font-weight: 600; text-decoration: none; }
+    a:focus-visible { outline: 3px solid #edb8bd; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">热卜国学</div>
+    <h1 id="title">正在打开排盘</h1>
+    <p id="detail">即将前往排盘页面，请稍候。</p>
+    <a id="continue" rel="noreferrer">继续打开排盘</a>
+  </main>
+  <script>
+    (() => {
+      // 第三方微信授权必须在顶层页面完成；不在跨域 iframe 内承载登录。
+      const raw = new URLSearchParams(location.search).get('target') || '';
+      const match = raw.length <= 2048 && raw.match(/^https:\/\/((?:www\.)?(?:yrydai\.(?:cn|com)|rebu\.net\.cn))(\/[A-Za-z0-9_./-]*)(?:\?([^#]*))?$/i);
+      let target = '';
+      if (match && !/(?:^|\/)(?:\.{1,2})(?:\/|$)/.test(match[2]) &&
+          !/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|\/my\.php/i.test(match[2])) {
+        const seen = new Set();
+        const pairs = match[3] ? match[3].split('&') : [];
+        const allowed = pairs.every((pair) => {
+          const item = pair.match(/^(id|aid|cid|tid|shareId|type|mod|act|ruid|m|c|a|page)=([A-Za-z0-9_-]{1,100})$/);
+          if (!item || seen.has(item[1]) || (item[1] === 'ruid' && !/^\d{1,20}$/.test(item[2]))) return false;
+          seen.add(item[1]);
+          return true;
+        });
+        if (allowed) target = raw.replace(/\/app_p1\.php(?=\?|$)/i, '/p1.php');
+      }
+      if (!target) {
+        document.getElementById('title').textContent = '分享链接无效';
+        document.getElementById('detail').textContent = '请让分享者重新打开公开排盘页面后分享。';
+        return;
+      }
+      const link = document.getElementById('continue');
+      link.href = target;
+      link.style.display = 'inline-block';
+      location.replace(target);
+    })();
+  </script>
+</body>
+</html>
