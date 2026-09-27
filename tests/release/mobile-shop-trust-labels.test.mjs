@@ -20,12 +20,12 @@ test('普通商家商品不冒充官方自营或平台严选', async () => {
   assert.match(category, /p\.isOfficialSelfOwned \? '官方自营' : p\.isSelected \? '平台严选' : '商家商品'/u)
 })
 
-test('商品详情认证文案严格跟随自营或严选标记', async () => {
+test('商品详情仅展示有依据的身份和交易提示', async () => {
   const detail = await read('apps/mobile/src/pkg-mall/product/detail.vue')
 
+  assert.match(detail, /v-if="product\.isOfficialSelfOwned"[^>]*>官方自营</u)
   assert.match(detail, /v-else-if="product\.isSelected"[^>]*>平台严选</u)
-  assert.match(detail, /product\.isOfficialSelfOwned \? '官方自营' : product\.isSelected \? '品质认证' : '平台交易保障'/u)
-  assert.match(detail, /product\.isOfficialSelfOwned \? '官方直营' : product\.isSelected \? '平台严选' : '订单售后可追踪'/u)
+  assert.match(detail, /发货时间与售后规则，请以结算页和订单信息为准/u)
+  assert.doesNotMatch(detail, /假一赔十|48小时内|7天退换|无理由退换/u)
   assert.match(detail, /库存 \{\{ currentStock \}\}/u, '商品详情与规格弹层必须显示同一 SKU 库存口径')
-  assert.doesNotMatch(detail, /<text class="guard-desc">平台严选<\/text>/u)
 })

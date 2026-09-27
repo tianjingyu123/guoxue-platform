@@ -497,7 +497,7 @@ const checks = [
         'role="alert" aria-live="assertive"',
         'aria-label="重新加载商城"',
         ':aria-label="entry.label"',
-        'aria-label="进入国学好物季专题会场"',
+        'aria-label="浏览全部商品"',
         'aria-label="查看全部商品分类"',
         ':aria-label="`浏览商品分类：${cat.name}`"',
       ]) &&
