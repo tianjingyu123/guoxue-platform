@@ -428,6 +428,12 @@ function confirmAgreementRead() {
  */
 async function handlePurchase() {
   if (purchasing.value || !selectedPlan.value) return
+  // #ifdef APP-PLUS
+  if (uni.getSystemInfoSync().platform === 'ios') {
+    uni.showToast({ title: 'iOS 会员购买暂未开放', icon: 'none' })
+    return
+  }
+  // #endif
   if (!agreementChecked.value) {
     uni.showToast({ title: '请先阅读并同意会员服务协议', icon: 'none' })
     return

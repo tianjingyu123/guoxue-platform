@@ -147,9 +147,28 @@ const submitting = ref(false)
 const oauthCallbackCode = ref('')
 const oauthAuthorizeUrl = ref('')
 const useHuifuAlipay = ref(false)
+let iosPaymentGuard = false
 // #ifdef APP-PLUS
 const huifuAlipay = ref<{ resume(): Promise<void>; pause(): void } | null>(null)
 const paymentOwner = String(getUserInfo<{ id?: string }>()?.id || '')
+const isIosApp = uni.getSystemInfoSync().platform === 'ios'
+iosPaymentGuard = isIosApp
+function iosCashOrderBlocked(order: { type?: string; hasShippingInfo: boolean }): boolean {
+  return isIosApp && (order.type !== 'PRODUCT' || !order.hasShippingInfo)
+}
+async function startVerifiedAlipay() {
+  try {
+    const order = await shopApi.getOrderPayState(orderId.value, true)
+    if (leaving) return
+    if (order.paid) { await completePaidOrder(order, false); return }
+    if (order.status !== 'PENDING') throw new Error('订单当前状态不可支付')
+    if (iosCashOrderBlocked(order)) throw new Error('iOS 数字权益暂未开放购买')
+    useHuifuAlipay.value = true
+  } catch (error) {
+    status.value = 'failed'
+    failReason.value = (error as Error)?.message || '订单核验失败，请稍后重试'
+  }
+}
 let alipayReturned = false
 let nativePageActive = true
 onShow(() => { void huifuAlipay.value?.resume() })
@@ -238,7 +257,8 @@ onLoad((q) => {
   }
   // #ifdef APP-PLUS
   if (payMethod.value === 'alipay') {
-    useHuifuAlipay.value = true
+    if (isIosApp) void startVerifiedAlipay()
+    else useHuifuAlipay.value = true
     return
   }
   // #endif
@@ -253,7 +273,7 @@ async function checkOrderBeforePay(returnedFromProvider = false) {
   failReason.value = ''
   clearTimers('all')
   try {
-    const st = await shopApi.getOrderPayState(orderId.value)
+    const st = await shopApi.getOrderPayState(orderId.value, iosPaymentGuard)
     if (leaving) return
     const action = orderPaymentAction(st.status, st.paid, returnedFromProvider)
     if (action === 'deliver') {
@@ -262,6 +282,14 @@ async function checkOrderBeforePay(returnedFromProvider = false) {
       status.value = 'failed'
       failReason.value = st.status === 'REFUNDED' ? '该订单已退款，请查看订单详情' : '该订单已取消，请重新下单'
     } else if (action === 'pay') {
+      // 旧待付单或直达支付链接也必须服从 iOS 数字权益收银边界。
+      // #ifdef APP-PLUS
+      if (iosCashOrderBlocked(st)) {
+        status.value = 'failed'
+        failReason.value = 'iOS 数字权益暂未开放购买'
+        return
+      }
+      // #endif
       void startPaying()
     } else {
       resumePolling()

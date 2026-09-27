@@ -42,3 +42,26 @@ test('恢复状态3也先交服务端验票', async () => {
   assert.equal(await api.recoverPendingAppleIapTransactions(), 1);
   assert.deepEqual(calls, ['verify', 'finish']);
 });
+test('iOS 旧待付单只允许有收货信息的实物从现金收银入口继续', () => {
+  const paying = fs.readFileSync(path.resolve(__dirname, '../../apps/mobile/src/pkg-shop/paying/index.vue'), 'utf8');
+  const helper = paying.match(/function iosCashOrderBlocked\([^]*?\n}/)?.[0];
+  assert.ok(helper, '收银页必须存在统一订单类型守卫');
+  const blocked = compileIosGuard(helper, true);
+  const android = compileIosGuard(helper, false);
+  assert.equal(blocked({ type: 'MEMBER', hasShippingInfo: false }), true);
+  assert.equal(blocked({ type: 'COURSE', hasShippingInfo: false }), true);
+  assert.equal(blocked({ type: 'PRODUCT', hasShippingInfo: false }), true);
+  assert.equal(blocked({ type: 'PRODUCT', hasShippingInfo: true }), false);
+  assert.equal(android({ type: 'COURSE', hasShippingInfo: false }), false);
+  assert.match(paying, /if \(iosCashOrderBlocked\(st\)\)/);
+  assert.match(paying, /if \(iosCashOrderBlocked\(order\)\)/);
+  const vip = fs.readFileSync(path.resolve(__dirname, '../../apps/mobile/src/pkg-profile/vip/index.vue'), 'utf8');
+  assert.match(vip, /if \(uni\.getSystemInfoSync\(\)\.platform === 'ios'\)/);
+});
+function compileIosGuard(helper, isIosApp) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(`${helper}; exports.blocked = iosCashOrderBlocked`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { exports, isIosApp });
+  return exports.blocked;
+}
