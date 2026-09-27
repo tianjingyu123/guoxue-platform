@@ -213,6 +213,18 @@ describe("CozeService", () => {
       };
     }
 
+    it("客户端取消订阅会中止 Coze 上游 HTTP 请求", async () => {
+      mockFetch.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => reject(new Error("已取消")));
+      }));
+      const sub = svc.chatStreamEx(chatParams).subscribe();
+      await new Promise((resolve) => setImmediate(resolve));
+      const signal = mockFetch.mock.calls[0][1].signal as AbortSignal;
+      expect(signal.aborted).toBe(false);
+      sub.unsubscribe();
+      expect(signal.aborted).toBe(true);
+    });
+
     it("流式对话返回 Observable，逐步发射内容", async () => {
       const reader = makeSSEReader(
         'data: {"content":"你好"}\n\n',

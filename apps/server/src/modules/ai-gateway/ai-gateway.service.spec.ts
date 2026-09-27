@@ -153,5 +153,18 @@ describe("AiGatewayService", () => {
       for await (const chunk of svc.chatStream(req)) collected.push(chunk);
       expect(collected).toEqual(["x", "\n\n[AI服务切换中，以下内容由备用模型生成]\n\n", "y", "z"]);
     });
+
+    it("用户取消流式会话后不再请求备用模型", async () => {
+      const controller = new AbortController();
+      mockRouter.resolve.mockResolvedValue({ ...baseResolve, model: "main", fallbackModel: "backup" });
+      mockDeepSeek.chatStream.mockReturnValueOnce(asyncIterableError("a", new AiTimeoutError()));
+      await expect((async () => {
+        for await (const chunk of svc.chatStream({ ...req, options: { signal: controller.signal } })) {
+          if (chunk === "a") controller.abort();
+        }
+      })()).rejects.toThrow(AiTimeoutError);
+      expect(mockDeepSeek.chatStream).toHaveBeenCalledTimes(1);
+      expect(mockDeepSeek.chatStream).toHaveBeenCalledWith("main", req.messages, expect.objectContaining({ signal: controller.signal }));
+    });
   });
 });

@@ -53,6 +53,8 @@ export interface AiChatOptions {
   timeout?: number;
   /** 古籍等完整性敏感场景须确认模型正常结束，截断不得计为成功。 */
   requireCompleteStream?: boolean;
+  /** 调用方退出流式会话时取消上游请求；不得用于自动重试。 */
+  signal?: AbortSignal;
 }
 
 export interface AiChatResponse {

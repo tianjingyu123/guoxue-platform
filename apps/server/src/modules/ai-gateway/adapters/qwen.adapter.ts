@@ -103,7 +103,9 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const signal = AbortSignal.timeout(timeout);
+    const signal = options?.signal
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(timeout)])
+      : AbortSignal.timeout(timeout);
 
     const body = {
       model,

@@ -100,7 +100,9 @@ export class LocalModelAdapter implements AiModelAdapter {
     options?: AiChatOptions,
   ): AsyncIterable<string> {
     const timeout = options?.timeout ?? 60_000;
-    const signal = AbortSignal.timeout(timeout);
+    const signal = options?.signal
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(timeout)])
+      : AbortSignal.timeout(timeout);
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.apiKey) {
