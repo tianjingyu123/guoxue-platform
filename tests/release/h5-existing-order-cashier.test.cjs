@@ -283,11 +283,20 @@ test('安卓真实checkout、原订单、购买弹层均一键进入默认支付
   const detail=realFunction('pkg-order/detail/index.vue','goPay','APP-PLUS',{order,uni,...native,navigateTo:p=>paths.push(p),goLegacyPay:()=>{throw Error('wrong branch')}})
   await detail(); assert.equal(paths.pop(),'/shop/paying?orderId=order-one&method=alipay')
   order.value.status='completed'; await detail(); assert.equal(paths.length,0)
-  const state={paying:{value:false},props:{product:{id:'product'},bizType:'PRODUCT'},hasSku:{value:false},selectedSku:{value:null},quantity:{value:1},total:{value:0.01},payMethod:{value:'alipay'}}
+  const state={paying:{value:false},props:{product:{id:'product'},bizType:'PRODUCT'},iosDigitalPurchaseUnavailable:{value:false},hasSku:{value:false},selectedSku:{value:null},quantity:{value:1},total:{value:0.01},payMethod:{value:'alipay'}}
   const sheet=realFunction('components/common/purchase-sheet.vue','onPay','APP-PLUS',{...state,...native,uni,purchaseApi:{createOrder:async()=>{creates++;return{id:'order-sheet'}}},onClose:()=>{},navigateTo:p=>paths.push(p)})
   await sheet(); assert.equal(creates,2); assert.match(paths.pop(),/orderId=order-sheet&method=alipay/)
   assert.equal(script('components/common/purchase-sheet.vue').includes('v-for="m in payMethods"'),false)
   assert.equal(script('pkg-shop/checkout/index.vue').includes('v-for="m in payMethods"'),false)
+})
+test('iOS数字内容未接通内购时不会先创建现金订单', async () => {
+  let created=0
+  const onPay=realFunction('components/common/purchase-sheet.vue','onPay','APP-PLUS',{
+    paying:{value:false},props:{product:{id:'course-one'},bizType:'COURSE'},iosDigitalPurchaseUnavailable:{value:true},
+    purchaseApi:{createOrder:async()=>{created++}},
+  })
+  await onPay()
+  assert.equal(created,0)
 })
 test('旧paying显式非微信链接提前转汇付，绝不触发微信授权/支付', () => {
   const source = ts.createSourceFile('page.ts', script('pkg-shop/paying/index.vue'), ts.ScriptTarget.Latest, true)
