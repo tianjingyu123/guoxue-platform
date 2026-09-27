@@ -33,6 +33,7 @@ const recordIdFromQuery = ref('')
 // save=false 时这张盘不落任何档：既不写本地记录，也不向后端建记录。
 const groupFromQuery = ref('')
 const shouldSave = ref(true)
+const savingForAnalysis = ref(false)
 
 const userInput = reactive({
   name: '', gender: '男',
@@ -148,6 +149,22 @@ async function saveRecord(result: any) {
   }
 
   saveWithGroup({ ...params, serverId })
+}
+
+/** 用户原本选择不保存时，只有明确点此操作才允许把本盘存入历史并开启点评。 */
+async function saveForAnalysis() {
+  if (savingForAnalysis.value || shouldSave.value || !baziResult.value) return
+  savingForAnalysis.value = true
+  shouldSave.value = true
+  try {
+    await saveRecord(baziResult.value)
+  } catch {
+    // 本地落档也失败时维持原选择，避免误称已经保存。
+    shouldSave.value = false
+    uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+  } finally {
+    savingForAnalysis.value = false
+  }
 }
 
 onLoad((q: Record<string, string> = {}) => {
@@ -311,7 +328,14 @@ function onShare() {
         <similar-cases :pillars="myPillars" />
         <case-library-entry method="BAZI" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
-        <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
+        <school-analysis v-if="shouldSave && !savingForAnalysis" :input="userInput" :record-id="recordIdFromQuery" />
+        <view v-else class="save-analysis-entry">
+          <text class="save-analysis-title">{{ savingForAnalysis ? '正在保存本盘' : '本次排盘未保存' }}</text>
+          <text class="save-analysis-sub">师父点评需要保存此盘；仅查看盘面无需保存。</text>
+          <view class="save-analysis-action" @tap="saveForAnalysis">
+            <text class="save-analysis-action-text">{{ savingForAnalysis ? '保存中…' : '保存此盘并开启点评' }}</text>
+          </view>
+        </view>
         <!-- 小卜 AI 文字报告：需已保存的排盘记录（报告按记录归属鉴权） -->
         <view v-if="recordIdFromQuery" class="xb-entry" @tap="navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${recordIdFromQuery}`)">
           <app-icon name="sparkles" :size="36" color="#C41E3A" />
@@ -420,6 +444,11 @@ function onShare() {
 .xb-entry-text { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
 .xb-entry-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink); }
 .xb-entry-sub { font-size: 24rpx; color: var(--text-soft); }
+.save-analysis-entry { margin: 24rpx; padding: 28rpx; background: var(--card); border-radius: 20rpx; border: 2rpx solid var(--border, rgba(0,0,0,0.08)); display: flex; flex-direction: column; gap: 12rpx; }
+.save-analysis-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink); }
+.save-analysis-sub { font-size: 24rpx; line-height: 1.5; color: var(--text-soft); }
+.save-analysis-action { align-self: flex-start; margin-top: 8rpx; padding: 18rpx 24rpx; border-radius: 14rpx; background: var(--brand); }
+.save-analysis-action-text { font-size: 26rpx; font-weight: 600; color: #fff; }
 /* 悬浮笔记按钮 */
 .fab { position: fixed; right: 24rpx; bottom: 40rpx; z-index: 10; width: 88rpx; height: 88rpx; background: var(--card); border-radius: 999rpx; box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.15); border: 2rpx solid var(--border, rgba(0,0,0,0.08)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
 .fab-text { font-size: 18rpx; color: var(--brand); font-weight: 500; }
