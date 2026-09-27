@@ -152,6 +152,25 @@
           >忘记密码？</text>
         </view>
 
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreedTerms ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreedTerms = !agreedTerms"
+          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
+        >
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
+            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
+          </view>
+          <view class="terms-text">
+            <text class="terms-normal">我已阅读并同意</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
+            <text class="terms-normal">和</text>
+            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+          </view>
+        </view>
+
         <!-- 登录按钮 -->
         <view
           class="submit-btn"
@@ -258,25 +277,6 @@
           </view>
         </view>
 
-        <!-- 协议勾选 -->
-        <view
-          class="terms-row"
-          role="checkbox"
-          :aria-checked="agreedTerms ? 'true' : 'false'"
-          tabindex="0"
-          @tap="agreedTerms = !agreedTerms"
-          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
-        >
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
-            <AppIcon v-if="agreedTerms" name="check" :size="15" color="#ffffff" />
-          </view>
-          <view class="terms-text">
-            <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
-            <text class="terms-normal">和</text>
-            <text class="terms-link" role="link" tabindex="0" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
-          </view>
-        </view>
         <button
           class="mini-phone-button"
           :class="{ 'mini-phone-button-disabled': !agreedTerms || isLoading }"

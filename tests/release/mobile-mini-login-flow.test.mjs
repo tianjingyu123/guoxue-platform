@@ -17,6 +17,9 @@ test('小程序进入登录页立即展示真实的一键手机号授权层，�
   assert.match(login, /\.mini-auth-mask\s*\{[\s\S]*background: #faf8f5/u)
   assert.match(login, /\.mini-phone-button-disabled\s*\{[\s\S]*color: #25633f/u)
   assert.match(login, /if \(!agreedTerms\.value\)[\s\S]*请先阅读并同意用户协议和隐私政策/u)
+  const quickSheet = login.match(/<view v-if="showMiniQuickSheet" class="mini-auth-mask"[\s\S]*?<!-- #endif -->/u)?.[0] || ''
+  assert.equal((quickSheet.match(/我已阅读并同意/gu) || []).length, 1)
+  assert.match(login, /class="form"[\s\S]*class="terms-row"[\s\S]*class="submit-btn"/u)
 })
 
 test('手机号授权结果接入现有后端接口并沿用统一登录回跳', () => {
