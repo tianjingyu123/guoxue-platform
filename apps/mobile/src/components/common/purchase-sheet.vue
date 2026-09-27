@@ -49,6 +49,12 @@
       </view>
       <!-- #endif -->
 
+      <view v-else-if="iosDigitalPurchaseUnavailable" class="ps-paid">
+        <text class="ps-paid__title">暂未开放购买</text>
+        <text class="ps-paid__sub">此内容的苹果应用内购买正在准备中</text>
+        <button @tap="onClose">返回</button>
+      </view>
+
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="ps-head">
@@ -190,6 +196,12 @@ const props = withDefaults(defineProps<{
 }>(), { allowQty: true })
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'paid', orderId: string): void }>()
+let isIosApp = false
+// #ifdef APP-IOS
+isIosApp = true
+// #endif
+// 数字商品未接通对应 IAP 商品时，不先创建现金订单再让收银页报错。
+const iosDigitalPurchaseUnavailable = computed(() => isIosApp && props.bizType !== 'PRODUCT')
 // #ifdef H5
 const instance = getCurrentInstance()?.proxy
 const QR_PX = 176
@@ -372,6 +384,7 @@ function startPaymentPolling() {
  */
 async function onPay() {
   if (paying.value || !props.product) return
+  if (iosDigitalPurchaseUnavailable.value) return
   if (hasSku.value && !selectedSku.value) return
   paying.value = true
   try {
