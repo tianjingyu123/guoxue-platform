@@ -6,9 +6,13 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import { type ProductCardData } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
-const props = defineProps<{ data: ProductCardData }>()
+const props = withDefaults(defineProps<{ data: ProductCardData; variant?: 'grid' | 'list' }>(), {
+  variant: 'grid',
+})
+const hasPrice = computed(() => props.data.price != null && Number.isFinite(Number(props.data.price)))
 const saving = computed(() => {
-  const price = Number(props.data.price || 0)
+  if (!hasPrice.value) return 0
+  const price = Number(props.data.price)
   const original = Number(props.data.originalPrice || 0)
   return original > price ? original - price : 0
 })
@@ -22,7 +26,8 @@ const accessibilityLabel = computed(() => {
   const subtitle = props.data.subtitle ? `，${props.data.subtitle}` : ''
   const sales = props.data.sales ? `，已售 ${props.data.sales}` : ''
   const stock = props.data.stock != null && props.data.stock > 0 ? '，现货' : ''
-  return `选购商品：${props.data.title}${subtitle}${sales}${stock}，到手价 ${formatPrice(props.data.price)} 元`
+  const price = hasPrice.value ? `，价格 ${formatPrice(props.data.price)} 元` : '，详情查看价格'
+  return `查看商品：${props.data.title}${subtitle}${sales}${stock}${price}`
 })
 
 function open(event?: unknown) { navigateToContent(`/mall/product/${props.data.id}`, event) }
@@ -37,6 +42,7 @@ function openOnKeyboard(event: KeyboardEvent) {
 <template>
   <view
     class="card sales-card"
+    :class="{ 'sales-card--list': variant === 'list' }"
     data-content-card
     role="link"
     :aria-label="accessibilityLabel"
@@ -64,8 +70,9 @@ function openOnKeyboard(event: KeyboardEvent) {
       <view class="foot">
         <view class="price-block">
           <text class="price-prefix">到手价</text>
-          <text class="price"><text class="price-cny">¥</text>{{ formatPrice(data.price) }}</text>
-          <text v-if="data.originalPrice && data.originalPrice > (data.price || 0)" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
+          <text v-if="hasPrice" class="price"><text class="price-cny">¥</text>{{ formatPrice(data.price) }}</text>
+          <text v-else class="price-pending">查看价格</text>
+          <text v-if="saving > 0" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
         <text class="buy">立即选购</text>
       </view>
@@ -120,6 +127,14 @@ function openOnKeyboard(event: KeyboardEvent) {
 .price { flex-shrink: 0; color: #c41e3a; font-size: 31rpx; font-weight: 750; line-height: 1.1; }
 .price-cny { font-size: 20rpx; font-weight: 400; }
 .price-orig { color: #aaa096; font-size: 18rpx; text-decoration: line-through; }
+.price-pending { color: #625a52; font-size: 23rpx; font-weight: 600; }
+.sales-card--list { display: flex; min-height: 196rpx; margin-bottom: 0; }
+.sales-card--list .cover { width: 168rpx; flex: 0 0 168rpx; padding-bottom: 0; }
+.sales-card--list .body { min-width: 0; flex: 1; padding: 14rpx; }
+.sales-card--list .eyebrow { max-height: 28rpx; }
+.sales-card--list .subtitle { -webkit-line-clamp: 1; }
+.sales-card--list .foot { margin-top: 8rpx; padding-top: 8rpx; }
+.sales-card--list .buy { display: none; }
 .buy {
   flex-shrink: 0; margin-left: auto; padding: 9rpx 13rpx; border-radius: 999rpx;
   color: #fff; font-size: 20rpx; font-weight: 650;

@@ -52,7 +52,7 @@ function categoryDisplayName(name: string) {
     : name
 }
 
-const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
+const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name || '综合排序')
 const hasFilter = computed(() => priceMin.value !== undefined || priceMax.value !== undefined)
 
 // 分类/搜索/价格/排序全部作为查询参数下沉后端；切任一条件即重载第一页
@@ -76,7 +76,17 @@ async function loadTabs() {
   } catch { /* 分类 tab 拉取失败不阻塞商品列表 */ }
 }
 
-onLoad(() => { loadTabs(); refresh() })
+onLoad((options?: Record<string, string>) => {
+  if (options?.cat) {
+    try {
+      activeCategory.value = decodeURIComponent(options.cat)
+    } catch {
+      activeCategory.value = options.cat
+    }
+  }
+  void loadTabs()
+  void refresh()
+})
 onReachBottom(() => loadMore())
 
 function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
@@ -186,6 +196,15 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
             placeholder-class="search-ph"
             @confirm="onSearch"
           />
+          <view
+            v-if="searchQuery"
+            class="search-clear"
+            role="button"
+            aria-label="清空商品搜索"
+            tabindex="0"
+            @tap="searchQuery = ''; refresh()"
+            @keydown="activateOnKeyboard($event, () => { searchQuery = ''; refresh() })"
+          ><AppIcon name="x" :size="26" color="var(--text-soft)" /></view>
         </view>
       </view>
     </view>
@@ -245,7 +264,7 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
       <view class="main">
         <!-- 排序栏 -->
         <view class="sort-bar">
-          <view class="sort-dropdown">
+          <view v-if="categorySortOptions.length" class="sort-dropdown">
             <view
               class="sort-trigger"
               role="button"
@@ -294,7 +313,7 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
 
         <!-- 商品网格 -->
         <view v-if="categoryProducts.length" class="grid">
-          <ProductCard v-for="p in categoryProducts" :key="p.id" :data="toProductCard(p)" />
+          <ProductCard v-for="p in categoryProducts" :key="p.id" :data="toProductCard(p)" variant="list" />
         </view>
         <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><AppIcon name="search" :size="56" color="var(--text-soft)" /></view>
@@ -394,6 +413,7 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
 .search-box { flex: 1; position: relative; display: flex; align-items: center; height: 68rpx; background: var(--surface-sunken); border-radius: 999rpx; padding: 0 28rpx 0 64rpx; }
 .search-icon { position: absolute; left: 20rpx; top: 50%; transform: translateY(-50%); }
 .search-input { flex: 1; font-size: 26rpx; color: var(--text-strong); }
+.search-clear { width: 52rpx; height: 52rpx; display: flex; align-items: center; justify-content: center; }
 .search-ph { color: var(--text-soft); }
 /* 主体 */
 .body { display: flex; }
@@ -500,7 +520,7 @@ function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
 .filter-text { font-size: 26rpx; color: var(--text-soft); }
 .filter-text-on { color: var(--brand); }
 /* 网格 */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; padding: 16rpx; }
+.grid { display: flex; flex-direction: column; gap: 12rpx; padding: 12rpx; }
 .g-card-press { opacity: 0.85; }
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
