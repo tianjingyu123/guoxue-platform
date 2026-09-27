@@ -112,6 +112,8 @@ function handleSubmit() {
     `city=${encodeURIComponent(birthPlace.value.city)}`,
     `district=${encodeURIComponent(birthPlace.value.district)}`,
     `trueSolar=${useTrueSolarTime.value}`, `earlyZi=${useEarlyZiHour.value}`, `dst=${useDaylightSaving.value}`,
+    `group=${encodeURIComponent(group.value)}`,
+    `save=${saveRecord.value}`,
   ].join('&')
   navigateTo(`/paipan/bazi/result?${q}`)
 }
@@ -202,7 +204,7 @@ function handleSubmit() {
       </view>
     </view>
 
-    <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" @close="showDatePicker = false" @confirm="onDateConfirm" />
+    <date-picker-modal :open="showDatePicker" :initial-date="{ year: birthDate.year, month: birthDate.month, day: birthDate.day, hour: birthDate.hour, minute: birthDate.minute }" :initial-mode="birthDate.isLunar ? 'lunar' : 'solar'" @close="showDatePicker = false" @confirm="onDateConfirm" />
     <location-picker-modal :open="showLocationPicker" :initial-location="birthPlace.province ? birthPlace : undefined" @close="showLocationPicker = false" @confirm="(v) => birthPlace = v" />
     <group-picker-modal :open="showGroupPicker" :initial-group="group" @close="showGroupPicker = false" @confirm="(v) => group = v" />
   </view>
