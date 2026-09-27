@@ -59,7 +59,7 @@
           <text class="cell-label">优惠券</text>
         </view>
         <!-- 券抵扣与明细行同口径（displayCouponDiscount=后端试算，多商品券仅抵首单），避免顶部显原始面值与明细不一致 -->
-        <text class="cell-value active">{{ selectedCoupon ? '-¥' + displayCouponDiscount.toFixed(2) : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
+        <text class="cell-value active">{{ selectedCoupon ? (estimate ? '-¥' + displayCouponDiscount.toFixed(2) : '核算中') : (coupons.length > 0 ? coupons.length + '张可用' : '暂无可用') }}</text>
         <app-icon name="chevron-right" :size="32" color="#999999" />
       </view>
 
@@ -82,7 +82,8 @@
         <view class="amount-row" v-if="displayCouponDiscount > 0"><text>优惠券抵扣</text><text class="discount">-¥{{ displayCouponDiscount.toFixed(2) }}</text></view>
         <!-- 分销自购立减：仅后端试算确认有该身份优惠时展示（拿不到身份不猜） -->
         <view class="amount-row" v-if="estimate && estimate.selfDiscount > 0"><text>分销自购立减</text><text class="discount">-¥{{ estimate.selfDiscount.toFixed(2) }}</text></view>
-        <view class="amount-row total"><text>实付金额</text><text class="pay-amount">¥{{ displayPayTotal.toFixed(2) }}</text></view>
+        <view class="amount-row total"><text>{{ estimate ? '实付金额' : '金额待核算' }}</text><text class="pay-amount">{{ estimate ? '¥' + displayPayTotal.toFixed(2) : '—' }}</text></view>
+        <text v-if="!estimate" class="estimate-tip">{{ estimateLoading ? '正在核算价格与运费…' : '价格与运费核算暂不可用，提交时将重新核对。' }}</text>
       </view>
       <view style="height: 140rpx;" />
     </scroll-view>
@@ -95,12 +96,12 @@
     <view class="footer">
       <view class="footer-total">
         <view class="ft-line">
-          <text class="ft-label">合计:</text>
-          <text class="ft-amount">¥{{ displayPayTotal.toFixed(2) }}</text>
+          <text class="ft-label">{{ estimate ? '合计:' : '待核算:' }}</text>
+          <text class="ft-amount">{{ estimate ? '¥' + displayPayTotal.toFixed(2) : '—' }}</text>
         </view>
         <text v-if="displaySaved > 0" class="ft-saved">已优惠 ¥{{ displaySaved.toFixed(2) }}</text>
       </view>
-      <view class="pay-btn" @tap="submitOrder"><text>提交订单</text></view>
+      <view class="pay-btn" role="button" tabindex="0" :aria-disabled="submitting ? 'true' : 'false'" @tap="submitOrder" @keydown.enter="submitOrder" @keydown.space.prevent="submitOrder"><text>{{ submitting ? '提交中…' : '提交订单' }}</text></view>
     </view>
 
     <!-- 地址选择 -->
@@ -183,18 +184,19 @@ const contentSource = ref<{ type?: string; id?: string }>({})
 const SOURCE_TYPES = ['LIVE', 'ARTICLE', 'VIDEO']
 
 const goodsTotal = computed(() => items.value.reduce((s: number, i: any) => s + i.price * i.quantity, 0))
-const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
-
 /*
  * 后端试算（POST /shop/orders/estimate）：与下单定价引擎同口径（活动价×数量 − 券 − 分销自购立减），
  * 保证「展示价 = 下单实付」。多商品与提交订单同规则逐单试算（券只用于第一单）后求和。
- * 试算失败（网络/旧后端）回退前端预估（displayX 兜底 goodsTotal/payTotal），且不显示自购立减行（拿不到身份不猜）。
+ * 报价失效或请求失败时不展示旧的「实付」，提交前必须重新取得服务端试算。
  */
 const estimate = ref<OrderEstimate | null>(null)
+const estimateLoading = ref(false)
 let estimateSeq = 0
 async function refreshEstimate() {
   const seq = ++estimateSeq
-  if (!items.value.length || !currentAddress.value) { estimate.value = null; return }
+  estimate.value = null
+  if (!items.value.length || !currentAddress.value) { estimateLoading.value = false; return }
+  estimateLoading.value = true
   try {
     const results: OrderEstimate[] = []
     for (let i = 0; i < items.value.length; i++) {
@@ -217,16 +219,18 @@ async function refreshEstimate() {
     }), { goodsAmount: 0, shippingFee: 0, couponDiscount: 0, selfDiscount: 0, payableAmount: 0 })
   } catch (e) {
     if (seq !== estimateSeq) return
-    estimate.value = null // 回退前端预估
-    console.warn('[checkout] 订单试算失败，回退前端预估', e)
+    estimate.value = null
+    console.warn('[checkout] 订单试算失败，需重新核对后提交', e)
+  } finally {
+    if (seq === estimateSeq) estimateLoading.value = false
   }
 }
 watch([items, selectedCoupon, currentAddress], () => { refreshEstimate() }, { deep: false })
 
-// 展示口径：试算可用用试算（=实付），否则回退前端预估
+// 展示口径：只有服务端试算可用时才显示实付金额和优惠。
 const displayGoods = computed(() => estimate.value ? estimate.value.goodsAmount : goodsTotal.value)
-const displayCouponDiscount = computed(() => estimate.value ? estimate.value.couponDiscount : (selectedCoupon.value?.value || 0))
-const displayPayTotal = computed(() => estimate.value ? estimate.value.payableAmount : payTotal.value)
+const displayCouponDiscount = computed(() => estimate.value?.couponDiscount || 0)
+const displayPayTotal = computed(() => estimate.value?.payableAmount || 0)
 const displaySaved = computed(() => displayCouponDiscount.value + (estimate.value?.selfDiscount || 0))
 
 async function fetchCheckoutData() {
@@ -336,11 +340,15 @@ async function submitOrder() {
     uni.showToast({ title: '结算内容已变化，请到我的订单处理已生成订单', icon: 'none' })
     return
   }
+  submitting.value = true
   if (!estimate.value) {
     await refreshEstimate()
-    if (!estimate.value) { uni.showToast({ title: '价格与运费核算失败，请重试', icon: 'none' }); return }
+    if (!estimate.value) {
+      submitting.value = false
+      uni.showToast({ title: '价格与运费核算失败，请重试', icon: 'none' })
+      return
+    }
   }
-  submitting.value = true
   try {
     // #ifdef APP-PLUS
     assertAndroidPaymentMethod(uni.getSystemInfoSync().platform, payMethod.value)

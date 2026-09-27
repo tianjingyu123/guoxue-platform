@@ -23,4 +23,5 @@ test('商城结算空地址卡展示明确提示并直接进入新增地址', as
 test('商城空地址回归已接入移动端正式门禁', async () => {
   const pkg = JSON.parse(await readFile(packagePath, 'utf8'))
   assert.match(pkg.scripts['release:test-mobile-native-bundle'], /mobile-shop-checkout-address\.test\.mjs/u)
+  assert.match(pkg.scripts['release:test-mobile-native-bundle'], /mobile-shop-estimate-race\.test\.cjs/u)
 })
