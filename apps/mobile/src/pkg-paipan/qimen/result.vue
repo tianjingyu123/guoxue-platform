@@ -7,6 +7,7 @@ import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
+import { routeClockPart } from '@/lib/paipan/route-clock'
 import { getToken } from '@/utils/storage'
 import { qimenApi, type QimenResult, type QimenInput } from '@/lib/qimen-data'
 import { computePaipan } from '@/lib/paipan/engine-client'
@@ -174,8 +175,8 @@ onLoad((opts: Record<string, string> = {}) => {
   q.year = Number(opts.year) || 2026
   q.month = Number(opts.month) || 5
   q.day = Number(opts.day) || 17
-  q.hour = Number(opts.hour) || 13
-  q.minute = Number(opts.minute) || 59
+  q.hour = routeClockPart(opts.hour, 13, 23)
+  q.minute = routeClockPart(opts.minute, 59, 59)
   q.panMethod = opts.panMethod || 'zhuan'
   q.flyMethod = opts.flyMethod || 'yinyang'
   q.startMethod = opts.startMethod || 'zhirun'

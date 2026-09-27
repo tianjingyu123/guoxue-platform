@@ -8,6 +8,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { routeClockPart } from '@/lib/paipan/route-clock'
 import { yangpanApi, type YangpanResult, type YangpanInput } from '@/lib/yangpan-data'
 import { saveYangpanHistory } from './yangpan-history'
 
@@ -143,8 +144,8 @@ onLoad((opts: Record<string, string> = {}) => {
   q.year = Number(opts.year) || 1990
   q.month = Number(opts.month) || 1
   q.day = Number(opts.day) || 1
-  q.hour = Number(opts.hour) || 12
-  q.minute = Number(opts.minute) || 0
+  q.hour = routeClockPart(opts.hour, 12, 23)
+  q.minute = routeClockPart(opts.minute, 0, 59)
   q.panMethod = opts.panMethod || 'zhuan'
   q.jigongMethod = opts.jigongMethod || 'kungong'
   q.startMethod = opts.startMethod || 'chaibu'
