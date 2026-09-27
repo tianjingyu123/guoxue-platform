@@ -309,9 +309,10 @@ function sharePageHarness(share) {
     legacyChildWebview: child, legacyPageVisible: true, legacyDocumentVersion: 1, legacyShareBusy: false,
     parseLegacyShareBridgeUrl: api.parseLegacyShareBridgeUrl,
     legacyShareLandingUrl: api.legacyShareLandingUrl,
+    publicLegacyResultUrl: api.publicLegacyResultUrl,
     legacyShareBase: 'https://api.rebugx.cn/h5',
     LegacyShareError: api.LegacyShareError,
-    isTrustedLegacyUrl: url => url.startsWith('https://www.yrydai.cn/'),
+    isTrustedLegacyUrl: url => /^https:\/\/www\.yrydai\.(?:cn|com)\//u.test(url),
     shareLegacyPaipan: share,
     captureLegacyShareImage: async (target, canProceed) => {
       assert.equal(target, child)
@@ -333,6 +334,18 @@ test('当前第三方结果页转换为热卜承接链接，App入口不直接�
   assert.match(landing, /^https:\/\/api\.rebugx\.cn\/h5\/pkg-common\/legacy-paipan-share\/index\/\?target=/u)
   assert.equal(api.legacyShareLandingUrl('https://www.yrydai.com/p1.php?id=abc'), '')
   assert.equal(decodeURIComponent(new URL(landing).searchParams.get('target')), 'https://www.yrydai.com/p1.php?mod=bazi&id=abc')
+})
+
+test('切换盘面后优先分享当前结果，工具页仍可使用旧站提供的公开结果地址', async () => {
+  const seen = []
+  const { context, child } = sharePageHarness(async request => { seen.push(request.url); return 'requested' })
+  child.getURL = () => 'https://www.yrydai.com/app_p1.php?mod=bazi&act=baziPan&id=202'
+  await context.requestLegacyShare(bridgeUrl({ ...fixture(), url: 'https://www.yrydai.com/p1.php?mod=bazi&act=baziPan&id=101' }), child)
+  assert.equal(new URL(seen[0]).searchParams.get('target'), 'https://www.yrydai.com/p1.php?mod=bazi&act=baziPan&id=202')
+
+  child.getURL = () => 'https://www.yrydai.cn/paipan.php'
+  await context.requestLegacyShare(bridgeUrl({ ...fixture(), url: 'https://www.yrydai.cn/share.php?id=303' }), child)
+  assert.equal(new URL(seen[1]).searchParams.get('target'), 'https://www.yrydai.cn/share.php?id=303')
 })
 
 test('App 无全局 URL 时仍能转换公开盘面，保留数字推荐来源并拒绝敏感参数', () => {

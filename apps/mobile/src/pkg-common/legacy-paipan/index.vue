@@ -10,7 +10,7 @@ import { consumeLegacyReturn, markLegacyDeparture, validateLegacyNavigation } fr
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
 // #ifdef APP-PLUS
-import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, publicLegacyResultUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
 // #endif
 
 let entryContext = readLegacyPaipanContext()
@@ -505,9 +505,11 @@ async function requestLegacyShare(url: string, child: any) {
     uni.showToast({ title: '分享内容无效，请返回排盘页面重新生成', icon: 'none' })
     return
   }
-  // 旧页原生 shareWX 不传链接；以发起分享时子 WebView 的当前结果地址为准。
-  if (!request.url) request.url = legacyShareLandingUrl(requestUrl, legacyShareBase)
-  else request.url = legacyShareLandingUrl(request.url, legacyShareBase)
+  // 当前明确是结果页时以子 WebView 的实时地址为准，避免切盘后沿用旧页缓存的上一份分享链接。
+  // 当前还在工具页时才接受旧页给出的独立公开结果地址。
+  const currentResult = publicLegacyResultUrl(requestUrl)
+  const currentHasResultId = /\/p1\.php\?/iu.test(currentResult) && /[?&]id=[A-Za-z0-9_-]{1,100}(?:&|$)/u.test(currentResult)
+  request.url = legacyShareLandingUrl(currentHasResultId ? currentResult : request.url || requestUrl, legacyShareBase)
   const documentVersion = legacyDocumentVersion
   const canProceed = () => {
     try {
