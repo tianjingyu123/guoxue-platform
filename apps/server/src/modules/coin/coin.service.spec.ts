@@ -322,6 +322,19 @@ describe("CoinService", () => {
   });
 
   describe("直播送礼消费保护", () => {
+    it.each([
+      [false, new Date("1990-01-01T00:00:00.000Z"), false, "IDENTITY_REQUIRED"],
+      [true, null, false, "AGE_REQUIRED"],
+      [true, new Date(), false, "MINOR_NOT_ALLOWED"],
+      [true, new Date("1990-01-01T00:00:00.000Z"), true, null],
+    ])("隔离模拟认证状态 identity=%s 的送礼资格", async (identityVerified, birthday, eligible, reason) => {
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ identityVerified, birthday })
+      const result = await svc.getLiveGiftSpendingPreference("qa-memory-only")
+      expect(result.eligible).toBe(eligible)
+      expect(result.ineligibleReason).toBe(reason)
+      expect(result).not.toHaveProperty("birthday")
+    })
+
     beforeEach(() => {
       mockPrisma.user.findUnique.mockResolvedValue({
         identityVerified: true,
