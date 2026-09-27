@@ -263,7 +263,8 @@ const paymentMethodName = computed(() =>
   ALL_PAY_METHODS.find((item) => item.id === payMethod.value)?.name || '所选方式',
 )
 // #endif
-const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
+// 售后与权益以订单及商品的实际规则为准，收银层不承诺所有商品均可无理由退换。
+const tipText = computed(() => (props.bizType === 'PRODUCT' ? '支付后可在订单中查看物流与售后' : '支付确认后可在订单中查看对应权益'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
   if (hasSku.value && !selectedSku.value) return '请选择规格'
