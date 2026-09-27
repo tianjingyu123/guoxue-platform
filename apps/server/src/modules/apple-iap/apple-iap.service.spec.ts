@@ -8,6 +8,7 @@ function createPrismaMock() {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     appleIapNotification: {
       create: jest.fn(),
@@ -43,6 +44,87 @@ describe("AppleIapService", () => {
   const transactionId = "2000000123456789";
   const productId = "com.rebu.iosapprebu.coins1000";
 
+  it("正式服务不回退沙盒免费交易", () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const { prisma } = createPrismaMock();
+      expect((new AppleIapService(prisma as never) as any).configuredEnvironments())
+        .toEqual([Environment.PRODUCTION]);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+  });
+
+  it.each([undefined, "other-user"])("首次交易账号标记缺失或不匹配时拒绝发币：%s", async (token) => {
+    const { prisma, tx } = createPrismaMock();
+    const service = new AppleIapService(prisma as never);
+    prisma.appleIapPurchase.findUnique.mockResolvedValue(null);
+    jest.spyOn(service as never, "fetchVerifiedTransaction" as never).mockResolvedValue({
+      environment: Environment.SANDBOX,
+      payload: { transactionId, productId, bundleId: "com.rebu.iosapprebu",
+        type: Type.CONSUMABLE, quantity: 1, appAccountToken: token },
+    } as never);
+    await expect(service.verifyPurchase("user-1", { transactionId, productId })).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.virtualCoinAccount.upsert).not.toHaveBeenCalled();
+  });
+
+  it("并发退款状态已被其他通知更新时不重复扣币", async () => {
+    const { prisma, tx } = createPrismaMock();
+    tx.appleIapPurchase.findUnique.mockResolvedValue({ userId: "user-1", status: "VERIFIED", amountCoin: 1000 });
+    tx.appleIapPurchase.updateMany.mockResolvedValue({ count: 0 });
+    await expect((new AppleIapService(prisma as never) as any).applyChargeback(tx, transactionId, "REFUNDED"))
+      .resolves.toBe("ALREADY_CHARGED_BACK");
+    expect(tx.virtualCoinAccount.update).not.toHaveBeenCalled();
+    expect(tx.virtualCoinTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it("两条不同退款通知同时读取旧状态后只扣币一次", async () => {
+    const { prisma, tx } = createPrismaMock();
+    let storedStatus = "VERIFIED";
+    let readers = 0;
+    let release!: () => void;
+    const bothRead = new Promise<void>((resolve) => { release = resolve; });
+    tx.appleIapPurchase.findUnique.mockImplementation(async () => {
+      const snapshot = { userId: "user-1", status: storedStatus, amountCoin: 1000 };
+      if (++readers === 2) release();
+      await bothRead;
+      return snapshot;
+    });
+    tx.appleIapPurchase.updateMany.mockImplementation(async ({ where, data }) => {
+      if (storedStatus !== where.status) return { count: 0 };
+      storedStatus = data.status;
+      return { count: 1 };
+    });
+    tx.virtualCoinAccount.update.mockResolvedValue({ balance: 0 });
+    const service = new AppleIapService(prisma as never) as any;
+    const results = await Promise.all([
+      service.applyChargeback(tx, transactionId, "REFUNDED"),
+      service.applyChargeback(tx, transactionId, "REFUNDED"),
+    ]);
+    expect(results.sort()).toEqual(["ALREADY_CHARGED_BACK", "REFUNDED"]);
+    expect(tx.virtualCoinAccount.update).toHaveBeenCalledTimes(1);
+    expect(tx.virtualCoinTransaction.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("退款撤销抢占失败不能重复发币", async () => {
+    const { prisma, tx } = createPrismaMock();
+    tx.appleIapPurchase.findUnique.mockResolvedValue({ userId: "user-1", status: "REFUNDED", amountCoin: 1000 });
+    tx.appleIapPurchase.updateMany.mockResolvedValue({ count: 0 });
+    await expect((new AppleIapService(prisma as never) as any).reverseChargeback(tx, transactionId)).resolves.toBe("STATE_CHANGED");
+    expect(tx.virtualCoinAccount.update).not.toHaveBeenCalled();
+  });
+
+  it("退款撤销不能恢复已被撤销资格的交易", async () => {
+    const { prisma, tx } = createPrismaMock();
+    tx.appleIapPurchase.findUnique.mockResolvedValue({ status: "REVOKED" });
+    await expect((new AppleIapService(prisma as never) as any).reverseChargeback(tx, transactionId)).resolves.toBe("NOT_REFUNDED");
+    expect(tx.appleIapPurchase.updateMany).not.toHaveBeenCalled();
+    expect(tx.virtualCoinAccount.update).not.toHaveBeenCalled();
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -70,6 +152,7 @@ describe("AppleIapService", () => {
         currency: "CNY",
         price: 100000,
         purchaseDate: 1_750_000_000_000,
+        appAccountToken: "user-1",
       },
     } as never);
 
@@ -172,8 +255,8 @@ describe("AppleIapService", () => {
       applyChargeback: (...args: unknown[]) => Promise<string>;
     }).applyChargeback(tx, transactionId, "REFUNDED", 1_750_000_000_000, 1))
       .resolves.toBe("REFUNDED");
-    expect(tx.appleIapPurchase.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { transactionId },
+    expect(tx.appleIapPurchase.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { transactionId, status: "VERIFIED" },
       data: expect.objectContaining({ status: "REFUNDED", revocationReason: 1 }),
     }));
     expect(tx.virtualCoinTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
