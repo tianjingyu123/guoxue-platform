@@ -155,8 +155,10 @@
   .node-icon { height: 34px; width: 34px; border-radius: 10px; } .node-icon svg { height: 18px; width: 18px; }
   .network-node b { font-size: 14px; } .network-node > span:last-child { font-size: 11px; }
   .network-caption { font-size: 10px !important; } .resource-composition { width: 100%; }
+  .period-switch button { min-width: 44px; min-height: 44px; }
   .command-intelligence { padding: 0 12px 18px; } .intelligence-grid { grid-template-columns: minmax(0,1fr); }
   .hero-metric dd { font-size: 40px; } .business-panel .hero-metric dd { font-size: 36px; }
   .operations-strip { align-items: flex-start; flex-direction: column; gap: 10px; line-height: 1.8; }
+  .operations-strip a { display: inline-flex; align-items: center; min-height: 44px; }
   .command-updated { display: block; margin: 7px 0 0; line-height: 1.7; }
 }

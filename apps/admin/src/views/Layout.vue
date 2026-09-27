@@ -658,6 +658,10 @@ async function logout() {
   top: 10px;
   left: 12px;
   z-index: 4000;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
   padding: 9px 14px;
   border-radius: var(--radius-md);
   background: #fff;
@@ -972,7 +976,7 @@ async function logout() {
 @media (max-width: 1080px) {
   .command-trigger-label,
   .command-trigger kbd { display: none; }
-  .command-trigger { width: 34px; justify-content: center; padding: 0; }
+  .command-trigger { width: 44px; height: 44px; justify-content: center; padding: 0; }
 }
 
 /* 通知 */
@@ -1053,7 +1057,11 @@ async function logout() {
 @media (max-width: 768px) {
   .el-header { padding: 0 14px; }
   .el-main { --workspace-gutter: 14px; padding: 18px var(--workspace-gutter) 30px; }
-  .command-trigger { min-width: 38px; }
+  .mobile-toggle,
+  .command-trigger,
+  .notify-btn,
+  .account-trigger { min-width: 44px; min-height: 44px; }
+  .notify-btn { width: 44px; height: 44px; }
   .breadcrumb-group, .breadcrumb-sep { display: none; }
 }
 </style>
