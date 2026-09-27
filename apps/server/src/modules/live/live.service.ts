@@ -426,7 +426,7 @@ export class LiveService {
           targetId: room.id,
           category: "LIVE",
           circleId: room.circleId ?? undefined,
-        });
+        }, `LIVE_STARTED:${room.id}`);
         await this.prisma.liveBooking.updateMany({
           where: { id: { in: bookings.map((item) => item.id) }, notifiedAt: null },
           data: { notifiedAt: new Date() },
@@ -490,7 +490,7 @@ export class LiveService {
             targetId: room.id,
             category: "LIVE",
             circleId: room.circleId ?? undefined,
-          });
+          }, `LIVE_REMINDER:${room.id}`);
           await this.prisma.liveBooking.updateMany({
             where: { id: { in: bookings.map((item) => item.id) }, remindedAt: null },
             data: { remindedAt: new Date() },

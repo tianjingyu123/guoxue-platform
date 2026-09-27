@@ -930,7 +930,7 @@ describe("LiveService", () => {
         circleId: "c1",
         targetType: "LIVE_ROOM",
         targetId: "r1",
-      }));
+      }), "LIVE_STARTED:r1");
       expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: { in: ["b1", "b2"] }, notifiedAt: null },
       }));
@@ -974,7 +974,7 @@ describe("LiveService", () => {
         userIds: ["u1"],
         type: "LIVE_REMINDER",
         content: expect.stringMatching(/约 [45] 分钟后开始/),
-      }));
+      }), "LIVE_REMINDER:r-catchup");
     });
 
     it("开播补偿会分批处理超过单批上限的预约用户", async () => {

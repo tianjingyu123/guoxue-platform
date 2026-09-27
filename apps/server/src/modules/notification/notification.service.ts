@@ -96,10 +96,15 @@ export class NotificationService {
     }
   }
 
-  /** 批量发送通知 */
-  async batchSend(dto: BatchSendDto) {
-    const data = dto.userIds.map(userId => ({
+  /** 批量发送通知。事件键仅供内部可重试任务使用，按收件人落数据库唯一键。 */
+  async batchSend(dto: BatchSendDto, eventKey?: string) {
+    if (eventKey && dto.userIds.some((userId) => `${userId}:${eventKey}`.length > 255)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键过长");
+    }
+    const userIds = eventKey ? [...new Set(dto.userIds)] : dto.userIds;
+    const data = userIds.map(userId => ({
       userId,
+      ...(eventKey ? { idempotencyKey: `${userId}:${eventKey}` } : {}),
       type: dto.type,
       title: dto.title,
       content: dto.content,
@@ -107,56 +112,73 @@ export class NotificationService {
       targetId: dto.targetId,
     }));
 
-    await this.prisma.notification.createMany({ data });
+    // 重试任务只推送本次真正插入的收件人；数据库唯一键挡住进程崩溃后的再次写入。
+    const created = eventKey
+      ? await this.prisma.notification.createManyAndReturn({ data, skipDuplicates: true, select: { id: true, userId: true } })
+      : null;
+    if (!eventKey) await this.prisma.notification.createMany({ data });
+    const insertedUsers = created ? created.map((row) => row.userId) : userIds;
 
     // 圈内通知分类落库（createMany 拿不到 id，按 用户集合+type+target+5分钟窗口 补打标；失败不阻断）
-    if (dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category) && dto.userIds.length > 0) {
+    if (dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category) && insertedUsers.length > 0) {
+      const categorySql = created
+        ? `UPDATE "Notification" SET "category"=$1, "circleId"=$2 WHERE id = ANY($3)`
+        : `UPDATE "Notification" SET "category"=$1, "circleId"=$2
+           WHERE "userId" = ANY($3) AND "type"=$4 AND "targetId" IS NOT DISTINCT FROM $5
+             AND "category" IS NULL AND "createdAt" > NOW() - INTERVAL '5 minutes'`;
       await this.prisma
         .$executeRawUnsafe(
-          `UPDATE "Notification" SET "category"=$1, "circleId"=$2
-           WHERE "userId" = ANY($3) AND "type"=$4 AND "targetId" IS NOT DISTINCT FROM $5
-             AND "category" IS NULL AND "createdAt" > NOW() - INTERVAL '5 minutes'`,
-          dto.category, dto.circleId ?? null, dto.userIds, dto.type, dto.targetId ?? null,
+          categorySql,
+          ...(created
+            ? [dto.category, dto.circleId ?? null, created.map((row) => row.id)]
+            : [dto.category, dto.circleId ?? null, insertedUsers, dto.type, dto.targetId ?? null]),
         )
         .catch((err) => this.logger.warn("圈内通知分类批量落库失败", err));
     }
 
+    if (!insertedUsers.length) return { success: true, count: 0, pushSkipped: 0 };
+
     // 批量读取推送偏好，过滤关闭推送的用户
-    const prefsKeys = dto.userIds.map((uid) => `notification:prefs:${uid}`);
+    const prefsKeys = insertedUsers.map((uid) => `notification:prefs:${uid}`);
     const prefsResults = await Promise.all(prefsKeys.map((k) => this.redis.getJson<any>(k).catch(() => null)));
     const pushDisabled = new Set<string>();
-    for (let i = 0; i < dto.userIds.length; i++) {
+    for (let i = 0; i < insertedUsers.length; i++) {
       const prefs = prefsResults[i];
       if (prefs && prefs.PUSH_ENABLED === false) {
-        pushDisabled.add(dto.userIds[i]);
+        pushDisabled.add(insertedUsers[i]);
       }
     }
 
-    const enabledUsers = dto.userIds.filter((uid) => !pushDisabled.has(uid));
+    const enabledUsers = insertedUsers.filter((uid) => !pushDisabled.has(uid));
     if (enabledUsers.length === 0) {
       this.logger.log("所有目标用户均已关闭推送，跳过");
-      return { success: true, count: data.length, pushSkipped: dto.userIds.length };
+      return { success: true, count: insertedUsers.length, pushSkipped: insertedUsers.length };
     }
 
-    // 批量预取所有用户的 auth 信息，避免 N+1 查询
-    const auths = await this.prisma.auth.findMany({
-      where: { userId: { in: enabledUsers } },
-      select: { userId: true, provider: true, openId: true },
-    });
-    const authsByUser = new Map<string, { provider: string; openId: string | null }[]>();
-    for (const a of auths) {
-      const list = authsByUser.get(a.userId) || [];
-      list.push(a);
-      authsByUser.set(a.userId, list);
+    try {
+      // 批量预取所有用户的 auth 信息，避免 N+1 查询
+      const auths = await this.prisma.auth.findMany({
+        where: { userId: { in: enabledUsers } },
+        select: { userId: true, provider: true, openId: true },
+      });
+      const authsByUser = new Map<string, { provider: string; openId: string | null }[]>();
+      for (const a of auths) {
+        const list = authsByUser.get(a.userId) || [];
+        list.push(a);
+        authsByUser.set(a.userId, list);
+      }
+
+      // 批量推送（仅推送给开启推送的用户）
+      const pushDto = { type: dto.type, title: dto.title, content: dto.content };
+      for (const userId of enabledUsers) {
+        this.sendPushWithAuths(userId, pushDto, authsByUser.get(userId) || []).catch((err) => this.logger.warn("通知发送失败", err));
+      }
+    } catch (err) {
+      // 站内通知已成功落库；可选外部推送准备失败不能触发业务任务重投并重复建通知。
+      this.logger.warn("批量站内通知已落库，但外部推送准备失败", err);
     }
 
-    // 批量推送（仅推送给开启推送的用户）
-    const pushDto = { type: dto.type, title: dto.title, content: dto.content };
-    for (const userId of enabledUsers) {
-      this.sendPushWithAuths(userId, pushDto, authsByUser.get(userId) || []).catch((err) => this.logger.warn("通知发送失败", err));
-    }
-
-    return { success: true, count: data.length, pushSkipped: pushDisabled.size };
+    return { success: true, count: insertedUsers.length, pushSkipped: pushDisabled.size };
   }
 
   /**

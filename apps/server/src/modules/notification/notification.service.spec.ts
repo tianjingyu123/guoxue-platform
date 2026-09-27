@@ -25,6 +25,7 @@ const mockPrisma = {
   notification: {
     create: jest.fn(),
     createMany: jest.fn(),
+    createManyAndReturn: jest.fn(),
     findMany: jest.fn(),
     findFirst: jest.fn(),
     findUnique: jest.fn(),
@@ -133,6 +134,32 @@ describe("NotificationService", () => {
         userIds: [], type: "SYSTEM", title: "群发", content: "测试",
       });
       expect(result.count).toBe(0);
+    });
+
+    it("直播补偿重试时只为本次新增的用户建站内通知和准备推送", async () => {
+      mockPrisma.notification.createManyAndReturn
+        .mockResolvedValueOnce([{ id: "n1", userId: "u1" }])
+        .mockResolvedValueOnce([]);
+      const dto = { userIds: ["u1", "u1"], type: "LIVE_STARTED", title: "已开播", content: "点击进入", targetType: "LIVE_ROOM", targetId: "r1", category: "LIVE" as const };
+      expect((await svc.batchSend(dto, "LIVE_STARTED:r1")).count).toBe(1);
+      expect((await svc.batchSend(dto, "LIVE_STARTED:r1")).count).toBe(0);
+      expect(mockPrisma.notification.createManyAndReturn).toHaveBeenCalledWith(expect.objectContaining({
+        skipDuplicates: true,
+        data: [expect.objectContaining({ idempotencyKey: "u1:LIVE_STARTED:r1" })],
+      }));
+      expect(mockPrisma.auth.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+    });
+
+    it("直播站内通知已落库后推送准备失败仍返回成功，补偿重试不再建第二条", async () => {
+      mockPrisma.notification.createManyAndReturn
+        .mockResolvedValueOnce([{ id: "n2", userId: "u2" }])
+        .mockResolvedValueOnce([]);
+      mockPrisma.auth.findMany.mockRejectedValueOnce(new Error("push auth unavailable"));
+      const dto = { userIds: ["u2"], type: "LIVE_REMINDER", title: "即将开播", content: "请准备" };
+      await expect(svc.batchSend(dto, "LIVE_REMINDER:r2")).resolves.toEqual(expect.objectContaining({ count: 1 }));
+      await expect(svc.batchSend(dto, "LIVE_REMINDER:r2")).resolves.toEqual(expect.objectContaining({ count: 0 }));
+      expect(mockPrisma.notification.createManyAndReturn).toHaveBeenCalledTimes(2);
     });
   });
 
