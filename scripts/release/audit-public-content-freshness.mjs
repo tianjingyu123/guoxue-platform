@@ -103,7 +103,7 @@ async function main() {
   const apiBase = valueOf(
     args,
     "--api-base",
-    process.env.PUBLIC_API_BASE_URL || "https://pre-api.rebugx.cn/api/v1",
+    process.env.PUBLIC_API_BASE_URL || "https://api.rebugx.cn/api/v1",
   ).replace(/\/$/u, "");
   const reportPath = valueOf(args, "--report", process.env.PUBLIC_CONTENT_REPORT || "");
   const now = valueOf(args, "--now", new Date().toISOString());
