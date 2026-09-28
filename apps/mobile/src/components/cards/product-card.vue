@@ -25,7 +25,7 @@ const trustLabel = computed(() => {
 const accessibilityLabel = computed(() => {
   const subtitle = props.data.subtitle ? `，${props.data.subtitle}` : ''
   const sales = props.data.sales ? `，已售 ${props.data.sales}` : ''
-  const stock = props.data.stock != null && props.data.stock > 0 ? '，现货' : ''
+  const stock = props.data.stock === 0 ? '，暂时缺货' : props.data.stock != null && props.data.stock > 0 ? '，现货' : ''
   const price = hasPrice.value ? `，价格 ${formatPrice(props.data.price)} 元` : '，详情查看价格'
   return `查看商品：${props.data.title}${subtitle}${sales}${stock}${price}`
 })
@@ -54,6 +54,7 @@ function openOnKeyboard(event: KeyboardEvent) {
     <view class="cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
       <text v-if="saving > 0" class="saving-badge">立省 ¥{{ formatPrice(saving) }}</text>
+      <text v-if="data.stock === 0" class="stock-badge">暂时缺货</text>
     </view>
     <view class="body">
       <view class="eyebrow">
@@ -74,7 +75,7 @@ function openOnKeyboard(event: KeyboardEvent) {
           <text v-else class="price-pending">查看价格</text>
           <text v-if="saving > 0" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
-        <text class="buy">立即选购</text>
+        <text class="buy" :class="{ 'buy--unavailable': data.stock === 0 }">{{ data.stock === 0 ? '查看详情' : '立即选购' }}</text>
       </view>
     </view>
   </view>
@@ -101,6 +102,7 @@ function openOnKeyboard(event: KeyboardEvent) {
   font-size: 20rpx; font-weight: 700;
   box-shadow: 0 4rpx 12rpx rgba(196,30,58,.22);
 }
+.stock-badge { position: absolute; top: 14rpx; right: 14rpx; padding: 7rpx 12rpx; border-radius: 8rpx; background: rgba(35,31,28,.82); color: #fff; font-size: 20rpx; font-weight: 600; }
 .body { padding: 18rpx 18rpx 20rpx; background: linear-gradient(180deg,#fff 0%,#fffcf7 100%); }
 .eyebrow { min-height: 32rpx; display: flex; align-items: center; gap: 8rpx; overflow: hidden; }
 .select-tag,.benefit-tag { flex-shrink: 0; padding: 3rpx 8rpx; border-radius: 6rpx; font-size: 18rpx; line-height: 1.3; }
@@ -141,4 +143,5 @@ function openOnKeyboard(event: KeyboardEvent) {
   background: linear-gradient(135deg,#c41e3a,#a81730);
   box-shadow: 0 4rpx 12rpx rgba(196,30,58,.18);
 }
+.buy--unavailable { background: #79736c; box-shadow: none; }
 </style>
