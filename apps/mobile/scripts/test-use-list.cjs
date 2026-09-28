@@ -50,6 +50,18 @@ async function main() {
   nextPage.resolve({ items: ['甲的下一页'] })
   await oldPage
   assert.deepEqual(paging.list.value, ['乙'])
+
+  // 无 total 的接口返回整页时，静默回页刷新不能提前判定已经到底。
+  const noTotal = useList({
+    pageSize: 1,
+    fetcher: ({ page }) => Promise.resolve({ items: [`第${page}页`] }),
+  })
+  await noTotal.refresh()
+  await noTotal.revalidate()
+  assert.equal(noTotal.hasMore.value, true)
+  await noTotal.loadMore()
+  assert.deepEqual(noTotal.list.value, ['第1页', '第2页'])
+
   console.log('useList 竞态验证通过：刷新保留最新分类，旧分页不会混入新分类')
 }
 

@@ -108,12 +108,14 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
     let latestTotal = 0
     let lastSize = 0
     let lastPage = 1
+    let hasServerTotal = false
     try {
       for (let p = 1; p <= loadedPages; p++) {
         const res = await opts.fetcher(buildParams(p))
         if (requestVersion !== version) return
         items.push(...res.items)
         latestTotal = res.total ?? items.length
+        hasServerTotal = res.total !== undefined
         lastSize = res.items.length
         lastPage = p
         if (lastSize < pageSize) break
@@ -121,7 +123,8 @@ export function useList<T, P extends Record<string, any> = Record<string, never>
       list.value = items
       total.value = latestTotal
       page.value = lastPage
-      hasMore.value = lastSize >= pageSize && items.length < latestTotal
+      // 未返回 total 时沿用整页即可能还有下一页的约定，不能静默刷新后提前封死上拉。
+      hasMore.value = lastSize >= pageSize && (!hasServerTotal || items.length < latestTotal)
       error.value = ''
     } catch { /* 网络失败保留当前分页与内容 */ }
     finally { revalidating = false }
