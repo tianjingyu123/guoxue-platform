@@ -48,7 +48,9 @@ const loading = ref(true)
 const errMsg = ref('')
 const result = ref<YangpanResult | null>(null)
 const saving = ref(false)
+const openingReport = ref(false)
 const serverRecordId = ref('')
+let savePromise: Promise<string> | null = null
 
 function buildInput(): YangpanInput {
   return {
@@ -92,19 +94,56 @@ function saveRecord(r: YangpanResult | null) {
   })
 }
 
-/** 保存排盘记录（需登录，防重复提交） */
-async function onSave() {
-  if (saving.value) return
-  if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
+/** 保存与报告共用同一记录；连点时复用在途请求，避免生成多条付费目标。 */
+function ensureSavedRecord(): Promise<string> {
+  if (serverRecordId.value) return Promise.resolve(serverRecordId.value)
+  if (savePromise) return savePromise
   saving.value = true
+  savePromise = yangpanApi.save(buildInput())
+    .then((saved) => {
+      if (!saved.id) throw new Error('排盘记录保存失败，请重试')
+      serverRecordId.value = saved.id
+      return saved.id
+    })
+    .finally(() => {
+      saving.value = false
+      savePromise = null
+    })
+  return savePromise
+}
+
+function goLoginFromResult() {
   try {
-    const saved = await yangpanApi.save(buildInput())
-    serverRecordId.value = saved.id
+    const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+    if (page?.route) {
+      const query = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+      uni.setStorageSync('login:redirect', `/${page.route}${query ? `?${query}` : ''}`)
+    }
+  } catch { /* 回跳记录失败不阻断登录 */ }
+  navigateTo('/pkg-auth/login/index')
+}
+
+async function onSave() {
+  if (!getToken()) { goLoginFromResult(); return }
+  try {
+    await ensureSavedRecord()
     uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
+  }
+}
+
+async function openXiaobuReport() {
+  if (!result.value || openingReport.value) return
+  if (!getToken()) { goLoginFromResult(); return }
+  openingReport.value = true
+  try {
+    const id = await ensureSavedRecord()
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '报告准备失败，请重试', icon: 'none' })
   } finally {
-    saving.value = false
+    openingReport.value = false
   }
 }
 
@@ -467,6 +506,10 @@ function goToBazi() {
         </template>
       </tool-ai-analysis>
 
+      <view class="cta-report" :class="{ disabled: saving || openingReport }" @tap="openXiaobuReport">
+        <text class="cta-report-t">{{ openingReport ? '正在准备…' : '生成小卜命书' }}</text>
+      </view>
+
       <!-- 免责声明 -->
       <view class="dc-wrap"><disclaimer variant="fortune" tone="card" /></view>
       </template>
@@ -620,6 +663,9 @@ function goToBazi() {
 .cta-save { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 48rpx; background: var(--secondary, rgba(0,0,0,0.04)); border: 2rpx solid var(--border); border-radius: 20rpx; }
 .cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }
+.cta-report { margin: 0 24rpx; padding: 26rpx 24rpx; display: flex; justify-content: center; background: var(--bg-card, #fff); border: 2rpx solid var(--brand); border-radius: 20rpx; }
+.cta-report.disabled { opacity: 0.55; }
+.cta-report-t { color: var(--brand); font-size: 28rpx; font-weight: 600; }
 
 .dc-wrap { padding: 24rpx; }
 

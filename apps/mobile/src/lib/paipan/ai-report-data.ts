@@ -325,6 +325,10 @@ export const aiReportApi = {
   saveDaliurenRecord(params: Record<string, unknown>): Promise<{ id: string }> {
     return apiPost<{ id: string }>('/paipan/daliuren/save', params)
   },
+  /** 小六壬：按当前课式保存本人记录，生成课书时用同一 recordId 核对权益。 */
+  saveXiaoliurenRecord(params: Record<string, unknown>): Promise<{ id: string }> {
+    return apiPost<{ id: string }>('/paipan/xiaoliuren/save', params)
+  },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
     const query = queryString([['recordId', recordId], ['reportType', reportType]])

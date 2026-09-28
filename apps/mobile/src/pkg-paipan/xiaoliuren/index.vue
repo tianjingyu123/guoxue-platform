@@ -10,7 +10,9 @@ import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
 import { saveXiaoliurenHistory } from './xiaoliuren-history'
 import { formatJieqiRange } from '@/lib/paipan/jieqi'
 import {
@@ -70,15 +72,62 @@ function onTimeChange(e: { detail: { value: string } }) {
   dateTime.value = { ...dateTime.value, hour: h, minute: mi }
 }
 
-/** 报数解析：逗号/空格分隔的 1~3 个正整数 */
+/** 与服务端报数输入一致：1 至 3 个、每个 1 至 99。 */
 function parseNumbers(raw: string): number[] {
-  return raw.split(/[,，\s]+/).filter((n) => /^\d+$/.test(n)).map(Number).filter((n) => n > 0)
+  const parts = raw.trim().split(/[,，\s]+/).filter(Boolean)
+  if (parts.length < 1 || parts.length > 3 || parts.some((n) => !/^\d+$/.test(n) || Number(n) < 1 || Number(n) > 99)) return []
+  return parts.map(Number)
 }
 const numbersValid = computed(() => qikeMode.value !== 'number' || parseNumbers(numbers.value).length > 0)
 
 /** 起课结果：掐指推算在服务端（第 4 步），四柱/农历仍在本地算用于展示 */
 const result = ref<PaipanResult | null>(null)
 const submitting = ref(false)
+const preparingReport = ref(false)
+const savedReportRecord = ref({ key: '', id: '' })
+
+function reportInput() {
+  const t = dateTime.value
+  return {
+    matter: matter.value.trim(),
+    year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute,
+    school: school.value,
+    numbers: qikeMode.value === 'number' ? numbersArr.value : undefined,
+  }
+}
+
+async function openXiaobuReport() {
+  if (!result.value || preparingReport.value) return
+  if (!getToken()) {
+    const t = dateTime.value
+    const replay = { matter: matter.value, ...t, school: school.value, qikeMode: qikeMode.value, numbers: numbers.value }
+    try { uni.setStorageSync('login:redirect', `/pkg-paipan/xiaoliuren/index?replay=${encodeURIComponent(JSON.stringify(replay))}`) }
+    catch { /* 回跳失败不阻断登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  if (qikeMode.value === 'number' && !numbersValid.value) {
+    uni.showToast({ title: '请填写 1 至 3 个有效数字', icon: 'none' })
+    return
+  }
+  preparingReport.value = true
+  try {
+    const input = reportInput()
+    const key = JSON.stringify(input)
+    let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
+    if (!id) {
+      const record = await aiReportApi.saveXiaoliurenRecord(input)
+      if (!record.id) throw new Error('课盘保存失败，请重试')
+      id = record.id
+      savedReportRecord.value = { key, id }
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '课书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
+}
 
 async function fetchResult(): Promise<PaipanResult> {
   const t = dateTime.value
@@ -95,6 +144,7 @@ async function openResult(save: boolean) {
   submitting.value = true
   try {
     const r = await fetchResult()
+    savedReportRecord.value = { key: '', id: '' }
     result.value = r
     selectedPalace.value = null
     phase.value = 'result'
@@ -622,6 +672,9 @@ function handleBack() {
         </view>
 
         <!-- 重新排盘 -->
+        <view class="report-entry" :class="{ 'report-entry-busy': preparingReport }" @tap="openXiaobuReport">
+          <text class="report-entry-text">{{ preparingReport ? '正在准备…' : '生成小卜课书' }}</text>
+        </view>
         <view
           class="reset-btn"
           @tap="phase = 'input'"
@@ -686,6 +739,9 @@ function handleBack() {
 </template>
 
 <style scoped lang="scss">
+.report-entry { display: flex; align-items: center; justify-content: center; min-height: 88rpx; border: 2rpx solid var(--brand); border-radius: 20rpx; background: var(--bg-card, #fff); }
+.report-entry-busy { opacity: 0.55; }
+.report-entry-text { color: var(--brand); font-size: 28rpx; font-weight: 600; }
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; height: 0; }
 .inner { padding: 24rpx 24rpx 48rpx; display: flex; flex-direction: column; gap: 24rpx; }
