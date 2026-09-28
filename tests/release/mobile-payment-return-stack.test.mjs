@@ -152,7 +152,7 @@ test('App 跳入小程序后账号不符立即止步，未发起支付的查单�
     const context = {
       ...state, checkingOrder: false, submitting: { value: false }, leaving: false,
       orderId: { value: 'order-1' }, iosPaymentGuard: false,
-      shopApi: { getOrderPayState: async () => { throw new Error(message) } },
+      shopApi: { getOrderPayState: async (_orderId, fresh) => { assert.equal(fresh, true); throw new Error(message) } },
       orderLookupFailure: payment.orderLookupFailure,
       clearTimers: () => {}, resumePolling: () => { polls += 1; state.status.value = 'confirming' },
       startPaying: () => { paymentCalls += 1 },

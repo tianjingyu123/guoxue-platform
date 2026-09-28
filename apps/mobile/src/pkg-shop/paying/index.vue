@@ -150,12 +150,10 @@ const submitting = ref(false)
 const oauthCallbackCode = ref('')
 const oauthAuthorizeUrl = ref('')
 const useHuifuAlipay = ref(false)
-let iosPaymentGuard = false
 // #ifdef APP-PLUS
 const huifuAlipay = ref<{ resume(): Promise<void>; pause(): void } | null>(null)
 const paymentOwner = String(getUserInfo<{ id?: string }>()?.id || '')
 const isIosApp = uni.getSystemInfoSync().platform === 'ios'
-iosPaymentGuard = isIosApp
 function iosCashOrderBlocked(order: { type?: string; hasShippingInfo: boolean }): boolean {
   return iosCashPaymentBlocked(isIosApp ? 'ios' : 'android', order.type, order.hasShippingInfo)
 }
@@ -290,7 +288,8 @@ async function checkOrderBeforePay(returnedFromProvider = false) {
   orderAccessDenied.value = false
   clearTimers('all')
   try {
-    const st = await shopApi.getOrderPayState(orderId.value, iosPaymentGuard)
+    // 首次进入必须直读本人订单最新状态；缓存中的旧 PENDING 不能再次触发收银台。
+    const st = await shopApi.getOrderPayState(orderId.value, true)
     if (leaving) return
     const action = orderPaymentAction(st.status, st.paid, returnedFromProvider)
     if (action === 'deliver') {
