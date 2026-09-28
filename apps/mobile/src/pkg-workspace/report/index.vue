@@ -12,7 +12,7 @@
  */
 import { ref, computed } from 'vue'
 import { buildH5Url } from '@/utils/share'
-import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
+import { onBackPress, onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -103,16 +103,24 @@ onLoad((q) => {
   id.value = (q?.id as string) || ''
   load()
 })
-onShow(async () => {
+let refreshSequence = 0
+async function refreshReportOnShow() {
   if (!report.value) return
-  const [reportResult, proResult] = await Promise.allSettled([wsApi.getReport(id.value), wsApi.pro()])
+  const sequence = ++refreshSequence
+  const requestedId = id.value
+  const originalReport = report.value
+  const [reportResult, proResult] = await Promise.allSettled([wsApi.getReport(requestedId), wsApi.pro()])
+  if (sequence !== refreshSequence || requestedId !== id.value) return
   if (proResult.status === 'fulfilled') isPro.value = proResult.value.isPro
-  // 回到页面时刷新另一设备的撤回／换链状态；请求期间开始编辑则保留本地稿。
-  if (reportResult.status === 'fulfilled' && !dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) {
+  // 保存完成后dirty会恢复false，仍须核对请求前的报告，避免迟到刷新覆盖已保存的新稿。
+  if (reportResult.status === 'fulfilled' && report.value === originalReport && !dirty.value && !saving.value && !sharing.value && !unsharing.value && !rewriting.value && !drafting.value) {
     report.value = reportResult.value
     chapters.value = (reportResult.value.chapters ?? []).map((c) => ({ ...c }))
   }
-})
+}
+onShow(refreshReportOnShow)
+onHide(() => { refreshSequence++ })
+onUnload(() => { refreshSequence++ })
 
 /** 兜底按钮：有 id 则重试加载，无 id（缺参）则返回上一页 */
 function onFallback() {
