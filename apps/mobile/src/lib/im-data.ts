@@ -336,6 +336,7 @@ function notifyCategory(t: string): string {
 function notifyLink(targetType?: string | null, targetId?: string | null): string | undefined {
   if (!targetType || !targetId) return undefined
   const t = targetType.toUpperCase()
+  if (t === 'FEEDBACK') return '/feedback?tab=history'
   if (t.includes('COURSE')) return `/pkg-course/detail?id=${targetId}`
   // POST 必须先于 ARTICLE/CIRCLE 判断：帖子(含 CIRCLE_POST)走帖子详情页，被当文章打开必空
   if (t.includes('POST')) return `/pkg-circle/circles/post?id=${targetId}`
