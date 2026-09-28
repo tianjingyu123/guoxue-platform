@@ -604,9 +604,10 @@ export class CircleMembershipService {
   }
 
   private async _cleanupExpiredMembers() {
+    const cutoff = new Date();
     const expired = await this.prisma.circleMember.findMany({
       where: {
-        expireAt: { lt: new Date() },
+        expireAt: { lt: cutoff },
         role: { not: "OWNER" },
       },
       select: { id: true, circleId: true, userId: true },
@@ -616,37 +617,48 @@ export class CircleMembershipService {
 
     // 分批处理
     const batchSize = 100;
+    let removedCount = 0;
     for (let i = 0; i < expired.length; i += batchSize) {
       const batch = expired.slice(i, i + batchSize);
-      const ids = batch.map((m) => m.id);
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.circleMember.deleteMany({ where: { id: { in: ids } } });
+      const removed = await this.prisma.$transaction(async (tx) => {
+        const deleted: typeof batch = [];
+        for (const member of batch) {
+          // 查询名单后可能已续费或升为圈主，必须在实际写入时再次核对。
+          const result = await tx.circleMember.deleteMany({ where: {
+            id: member.id, expireAt: { lt: cutoff }, role: { not: "OWNER" },
+          } });
+          if (result.count > 0) deleted.push(member);
+        }
+        if (!deleted.length) return deleted;
         // 批量获取各圈子成员数
-        const circleIds = [...new Set(batch.map((m) => m.circleId))];
+        const circleIds = [...new Set(deleted.map((m) => m.circleId))];
         const counts = await tx.circleMember.groupBy({
           by: ["circleId"],
           where: { circleId: { in: circleIds } },
           _count: { id: true },
         });
-        for (const { circleId, _count } of counts) {
+        const countByCircle = new Map(counts.map(({ circleId, _count }) => [circleId, _count.id]));
+        for (const circleId of circleIds) {
           await tx.circle.update({
             where: { id: circleId },
-            data: { memberCount: _count.id },
+            data: { memberCount: countByCircle.get(circleId) ?? 0 },
           });
         }
+        return deleted;
       });
+      if (!removed.length) continue;
+      removedCount += removed.length;
 
       // 清除缓存（pipeline 批量删除）+ 发送通知
       const redis = this.redis.getClient();
       if (redis) {
         const pipeline = redis.pipeline();
-        for (const m of batch) {
+        for (const m of removed) {
           pipeline.del(`circles:member:${m.circleId}:${m.userId}`);
         }
         await pipeline.exec();
       }
-      for (const m of batch) {
+      for (const m of removed) {
         if (this.notificationService) {
           this.notificationService.send(m.userId, {
             type: "CIRCLE_EXPIRED",
@@ -661,7 +673,7 @@ export class CircleMembershipService {
       }
     }
 
-    this.logger.log(`已清理 ${expired.length} 个过期圈子成员`);
+    this.logger.log(`已清理 ${removedCount} 个过期圈子成员`);
   }
 
   /** 到期前提醒（提前7天/3天/1天·分布式锁防多实例重复） */
