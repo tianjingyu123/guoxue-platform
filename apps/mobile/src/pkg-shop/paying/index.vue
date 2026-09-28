@@ -103,6 +103,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, reLaunch } from '@/utils/router'
+import { paidOrderNext } from '@/lib/paid-order-next'
 import { queryString } from '@/utils/query-string'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
@@ -650,6 +651,10 @@ function paidBusinessTarget(st: { type?: string; targetId?: string }): string {
   }
   if (targetId && st.type === 'COURSE') return `/courses/${encodeURIComponent(targetId)}?paymentSuccess=1`
   if (st.type === 'MEMBER') return '/vip?paymentSuccess=1'
+  const service = paidOrderNext(st.type, targetId, returnRecordId.value, {
+    scene: returnVoiceScene.value, contextId: returnVoiceContextId.value, sectionId: returnVoiceSectionId.value,
+  })
+  if (service) return service.path
   return `/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`
 }
 
@@ -736,8 +741,8 @@ async function completePaidOrder(st: { type?: string; targetId?: string }, newly
   status.value = 'success'
   if (newlyObserved) track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
   clearTimers('all')
-  // 圈子已由本人订单的服务端状态确认付款；直接进圈子，由详情页再次核验并补做权益确认。
-  if (st.targetId && (st.type === 'CIRCLE_JOIN' || st.type === 'CIRCLE_RENEW')) {
+  // 已由本人订单确认付款的数字服务直接返回业务页；目标页仍独立校验权益。
+  if (paidBusinessTarget(st) !== `/orders/${encodeURIComponent(orderId.value)}?paymentReturn=1`) {
     leaving = true
     reLaunch(paidBusinessTarget(st))
     return

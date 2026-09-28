@@ -71,14 +71,27 @@ test('服务端确认圈子订单已付后直接进圈子，普通订单仍走�
   assert.ok(startTarget >= 0 && endTarget > startTarget && startComplete >= 0 && endComplete > startComplete)
   const requireMobile = createRequire(resolve(root, 'apps/mobile/package.json'))
   const ts = requireMobile('typescript')
+  const nextExports = {}
+  runInNewContext(ts.transpileModule(
+    `${queryString}\n${source('apps/mobile/src/lib/paid-order-next.ts').replace(/^import .*$/m, '')}`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText, { exports: nextExports })
   const executable = ts.transpileModule(
     `${queryString}\n${paying.slice(startTarget, endTarget)}\n${paying.slice(startComplete, endComplete)}\nglobalThis.runPaid = completePaidOrder`,
     { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
   ).outputText
 
-  for (const [state, expected] of [
+  for (const [state, expected, origin = {}] of [
     [{ type: 'CIRCLE_JOIN', targetId: 'circle 1' }, '/circles/circle%201?paymentSuccess=1&paymentOrderId=order-1'],
     [{ type: 'CIRCLE_RENEW', targetId: 'circle 1' }, '/circles/circle%201?paymentSuccess=1&paymentOrderId=order-1'],
+    [{ type: 'COURSE', targetId: 'course 1' }, '/courses/course%201?paymentSuccess=1'],
+    [{ type: 'MEMBER' }, '/vip?paymentSuccess=1'],
+    [{ type: 'XIAOBU_REPORT', targetId: 'record:general' }, '/pkg-paipan/bazi/ai-report?recordId=record&reportType=general'],
+    [{ type: 'XIAOBU_MEMBER' }, '/pkg-agent/agent/xiaobu-member'],
+    [{ type: 'VOICE_MINUTES' }, '/pkg-agent/agent/xiaobu-voice-topup'],
+    [{ type: 'PRACTITIONER_PRO' }, '/pkg-workspace/index/index'],
+    [{ type: 'VOICE_MINUTES' }, '/pkg-agent/agent/xiaobu-voice?scene=circle_assistant&contextId=c%201', { scene: 'circle_assistant', contextId: 'c 1' }],
+    [{ type: 'XIAOBU_MEMBER' }, '/pkg-paipan/bazi/ai-report?recordId=r%201', { recordId: 'r 1' }],
     [{ type: 'GOODS', targetId: 'goods-1' }, '/shop/pay-success?orderId=order-1'],
   ]) {
     const routes = []
@@ -86,8 +99,9 @@ test('服务端确认圈子订单已付后直接进圈子，普通订单仍走�
     const context = {
       orderId: { value: 'order-1' }, status: { value: 'paying' }, amount: { value: '1' },
       payMethod: { value: 'wechat' }, leaving: false,
-      returnLiveRoomId: { value: '' }, returnRecordId: { value: '' },
-      returnVoiceScene: { value: '' }, returnVoiceContextId: { value: '' }, returnVoiceSectionId: { value: '' },
+      returnLiveRoomId: { value: '' }, returnRecordId: { value: origin.recordId || '' },
+      returnVoiceScene: { value: origin.scene || '' }, returnVoiceContextId: { value: origin.contextId || '' }, returnVoiceSectionId: { value: '' },
+      paidOrderNext: nextExports.paidOrderNext,
       settleCircleIfNeeded: async () => { settlementCalls += 1 },
       clearTimers: () => {}, track: { purchase: () => {} },
       reLaunch: (route) => routes.push(['reLaunch', route]),
