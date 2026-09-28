@@ -10,9 +10,10 @@ async function run({target = 'tool', mode = 'legacy', error, url = 'https://www.
   const entry = async (kind) => { calls.push(kind); if (error) throw Error(error); return {mode:'legacy', url}; };
   const c = {entryTarget:target, entryStationId:'s', nativeQaRequested:false,
     hydratePaipanRuntime:async()=>mode, getFavorites:()=>[], loadPlatformAgents:async()=>{},
+    paipanReturnPath:()=>'/pages/paipan/index',
     stageLegacyPaipanEntry:e=>staged.push(e), uni:{navigateTo:e=>navigated.push(e.url)},
-    legacyPaipanApi:{entry:()=>entry('tool'), account:()=>entry('account'), stationEntry:()=>entry('station')}};
-  for (const k of ['entryLoading','entryError','allowNative','qaNotFound','loginRequired','favIds','legacyRouting']) c[k]={value:null};
+    legacyPaipanApi:{entry:()=>entry('tool'), account:()=>entry('account'), stationEntry:()=>entry('station'), runtime:async()=>({mode:'native',legacyAvailable:true})}};
+  for (const k of ['entryLoading','entryError','legacyAvailable','allowNative','qaNotFound','loginRequired','favIds','legacyRouting']) c[k]={value:null};
   vm.runInNewContext(ts.transpileModule(method+';globalThis.run=loadPaipanEntry', {compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,c);
   await c.run(); return {c,calls,staged,navigated};
 }
