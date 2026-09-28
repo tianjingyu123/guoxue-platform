@@ -8,6 +8,28 @@ import { runInNewContext } from 'node:vm'
 const root = process.cwd()
 const source = file => readFileSync(resolve(root, file), 'utf8')
 
+test('汇付仅按服务端已确认的同一订单直达圈子或课程，未知结果回订单', () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const code = ts.transpileModule(source('apps/mobile/src/utils/existing-order-huifu.ts'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText
+  const exports = {}
+  runInNewContext(code, { exports })
+  const route = exports.confirmedHuifuDestination
+  const base = { id: 'o 1', amount: 10, status: 'PAID', type: 'CIRCLE_JOIN', targetId: 'c/1' }
+  assert.equal(route('o 1', base), '/circles/c%2F1?paymentSuccess=1&paymentOrderId=o%201')
+  assert.equal(route('o 1', { ...base, type: 'CIRCLE_RENEW' }), '/circles/c%2F1?paymentSuccess=1&paymentOrderId=o%201')
+  assert.equal(route('o 1', { ...base, type: 'COURSE' }), '/course/c%2F1')
+  for (const order of [null, { ...base, id: 'other' }, { ...base, targetId: null },
+    ...['PENDING', 'REFUNDED', 'CANCELLED', 'UNKNOWN'].map(status => ({ ...base, status }))]) {
+    assert.equal(route('o 1', order), '/orders/o%201?paymentReturn=1')
+  }
+  assert.equal(route('o 1', { ...base, type: 'PRODUCT' }), '/orders/o%201?paymentReturn=1')
+  const page = source('apps/mobile/src/pkg-shop/huifu-paying/index.vue')
+  assert.match(page, /confirmedHuifuDestination\(orderId, verifiedOrder\)/u)
+  assert.match(page, /assertAccount\(\); verifiedOrder = order/u)
+})
+
 test('支付成功、取消和结果页使用根路由结束交易栈', () => {
   const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
   const success = source('apps/mobile/src/pkg-shop/pay-success/index.vue')

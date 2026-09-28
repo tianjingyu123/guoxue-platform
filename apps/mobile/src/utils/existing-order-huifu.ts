@@ -5,6 +5,7 @@ export interface ExistingPayOrder {
   status: string
   amount: string | number
   type?: string
+  targetId?: string | null
   payMethod?: string | null
   payTransactionId?: string | null
 }
@@ -45,6 +46,16 @@ export function isHuifuChannel(value: unknown): value is HuifuChannel {
 export function existingOrderCashierRoute(orderId: string, channel: HuifuChannel, confirmed = false): string {
   if (!orderId || !isHuifuChannel(channel)) throw new Error('支付入口参数无效')
   return `/pkg-shop/huifu-paying/index?orderId=${encodeURIComponent(orderId)}&method=${channel}${confirmed ? '&confirmed=1' : ''}`
+}
+/** 仅使用本人订单接口确认的状态与业务目标，不接受页面参数冒充付款结果。 */
+export function confirmedHuifuDestination(orderId: string, order: ExistingPayOrder | null): string {
+  const fallback = orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders'
+  if (!order || order.id !== orderId || !['PAID', 'SHIPPED', 'COMPLETED'].includes(order.status)) return fallback
+  if (order.targetId && ['CIRCLE_JOIN', 'CIRCLE_RENEW'].includes(order.type || '')) {
+    return `/circles/${encodeURIComponent(order.targetId)}?paymentSuccess=1&paymentOrderId=${encodeURIComponent(orderId)}`
+  }
+  if (order.targetId && order.type === 'COURSE') return `/course/${encodeURIComponent(order.targetId)}`
+  return fallback
 }
 export function createExistingOrderHuifu(d: Dependencies) {
   let disposed = false

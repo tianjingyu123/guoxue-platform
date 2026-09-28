@@ -29,7 +29,7 @@ import { apiGet } from '@/utils/request'
 import { getUserInfo } from '@/utils/storage'
 import { purchaseApi } from '@/lib/purchase-data'
 import { drawQrToCanvas } from '@/utils/qrcode'
-import { createExistingOrderHuifu, isHuifuChannel, type ExistingPayOrder, type HuifuAttempt, type HuifuCashierView } from '@/utils/existing-order-huifu'
+import { createExistingOrderHuifu, confirmedHuifuDestination, isHuifuChannel, type ExistingPayOrder, type HuifuAttempt, type HuifuCashierView } from '@/utils/existing-order-huifu'
 import { isAlipayMobileBrowser, alipaySchemeForQr, existingAlipayLaunchUrl } from '@/utils/huifu-alipay-h5'
 import { isPaymentMobile } from '@/utils/payment-device'
 import { h5PaymentOptions } from '@/utils/h5-payment-options'
@@ -55,6 +55,7 @@ let checks = 0
 let loaded = false
 let lastQr = ''
 let returnedAfterPayment = false
+let verifiedOrder: ExistingPayOrder | null = null
 function unavailableReason() {
   if (view.value.phase === 'success') return ''
   const option = h5PaymentOptions(browserUserAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === view.value.channel)
@@ -64,7 +65,9 @@ function returnAfterConfirmedPayment() {
   if (returnedAfterPayment || !pageActive || !visible || view.value.phase !== 'success') return
   if (String(getUserInfo<{ id?: string }>()?.id || '') !== paymentAccountId) return
   returnedAfterPayment = true
-  backToOrder()
+  const destination = confirmedHuifuDestination(orderId, verifiedOrder)
+  leaveCashier()
+  reLaunch(destination)
 }
 function stopPolling() { if (timer) clearTimeout(timer); timer = null }
 function schedule() {
@@ -114,12 +117,15 @@ function removeBrowserListeners() {
   if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', resumeFromBrowser)
   if (typeof window !== 'undefined') window.removeEventListener('pageshow', resumeFromBrowser)
 }
-function backToOrder() {
+function leaveCashier() {
   pageActive = false
   removeBrowserListeners()
   visible = false
   stopPolling()
   flow?.dispose()
+}
+function backToOrder() {
+  leaveCashier()
   reLaunch(orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders')
 }
 onLoad(async (q) => {
@@ -141,7 +147,7 @@ onLoad(async (q) => {
   flow = createExistingOrderHuifu({
     orderId, channel, now: Date.now, mobile: mobilePayment,
     initializationBlockedReason: unavailableReason,
-    readOrder: async (fresh = false) => { assertAccount(); const order = await apiGet<ExistingPayOrder>(`/shop/orders/${encodeURIComponent(orderId)}${fresh ? '/current' : ''}`); assertAccount(); return order },
+    readOrder: async (fresh = false) => { assertAccount(); const order = await apiGet<ExistingPayOrder>(`/shop/orders/${encodeURIComponent(orderId)}${fresh ? '/current' : ''}`); assertAccount(); verifiedOrder = order; return order },
     createPayment: (id, method) => { assertAccount(); return purchaseApi.payByChannel(id, method) },
     queryPayment: (reference) => { assertAccount(); return purchaseApi.queryHuifuPayment(reference) },
     loadAttempt: () => { assertAccount(); return (uni.getStorageSync(key) || null) as HuifuAttempt | null },
