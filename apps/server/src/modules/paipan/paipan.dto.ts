@@ -742,6 +742,10 @@ export class XuankongInputDto {
   @IsInt() @Min(1864) @Max(2100)
   year: number;
 
+  @ApiPropertyOptional({ description: "手动指定元运（1–9）；不传时按建造或入伙年份推算", example: 8 })
+  @IsOptional() @IsInt() @Min(1) @Max(9)
+  period?: number;
+
   @ApiPropertyOptional({ description: "是否起替卦（默认起）" })
   @IsOptional() @IsBoolean()
   tiGua?: boolean;

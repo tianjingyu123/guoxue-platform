@@ -16,6 +16,7 @@
 import type { ReportSignal } from "./paipan-report-knowledge.service";
 
 export interface XuankongGong {
+  palace?: number;
   gongName?: string;
   direction?: string;
   yunStar?: number;
@@ -28,7 +29,7 @@ export interface XuankongGong {
 }
 
 export interface XuankongResultData {
-  input?: { shan?: string; xiang?: string; year?: number; tiGua?: boolean };
+  input?: { shan?: string; xiang?: string; year?: number; period?: number; tiGua?: boolean };
   basicInfo?: {
     yuanYun?: number;
     yunRange?: string;

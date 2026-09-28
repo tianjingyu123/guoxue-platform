@@ -1024,7 +1024,8 @@ export class PaipanService {
     }
     // 替卦是特定山向才起的特殊做法，不是常规——默认不起，由用户显式选择
     const useTi = dto.tiGua === true;
-    const period = xkYuanYunOf(dto.year);
+    const inferredPeriod = xkYuanYunOf(dto.year);
+    const period = dto.period ?? inferredPeriod;
     const chart = computeXuankongChart(period, sittingIdx, useTi);
 
     const YUAN_CN = ["地元龙", "天元龙", "人元龙"];
@@ -1032,6 +1033,7 @@ export class PaipanService {
 
     // 组装成报告层认的形态（basicInfo / gongs / geJu），字段含义与旧结构一致
     const gongs = [1, 2, 3, 4, 6, 7, 8, 9, 5].map((p) => ({
+      palace: p,
       gongName: XK_PALACE_INFO[p].name,
       direction: XK_PALACE_INFO[p].direction,
       yunStar: chart.yunPan[p],
@@ -1042,10 +1044,12 @@ export class PaipanService {
     }));
 
     return {
-      input: { shan: dto.shan, xiang: XK_MOUNTAINS[facingIdx], year: dto.year, tiGua: useTi },
+      input: { shan: dto.shan, xiang: XK_MOUNTAINS[facingIdx], year: dto.year, period, tiGua: useTi },
       basicInfo: {
         yuanYun: period,
-        yunRange: `${xkYunRange(dto.year)}（${period}运）`,
+        yunRange: dto.period && dto.period !== inferredPeriod
+          ? `手动指定${period}运（${dto.year}年按年份为${inferredPeriod}运）`
+          : `${xkYunRange(dto.year)}（${period}运）`,
         shanLong: YUAN_CN[XK_MOUNTAIN_YUAN[sittingIdx]],
         xiangLong: YUAN_CN[XK_MOUNTAIN_YUAN[facingIdx]],
         tiGuaType: useTi ? "both" : "none",
