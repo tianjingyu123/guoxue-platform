@@ -338,13 +338,18 @@ function goAddAddress() {
   navigateTo('/pkg-account/address-edit/index')
 }
 // 从地址编辑页返回时刷新地址列表（新增地址立即可选）；首次加载中跳过避免重复请求
-onShow(() => {
-  if (loading.value || !source.value) return
-  shopApi.getCheckout(source.value).then((result) => {
+async function refreshAddressesOnReturn() {
+  if (loading.value || !source.value || submitting.value) return
+  try {
+    const result = await shopApi.getCheckout(source.value)
+    if (submitting.value) return
     addresses.value = result.addresses || []
-    if (!currentAddress.value) currentAddress.value = addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
-  }).catch(() => {})
-})
+    // 同一地址可能已改省份；替换为新对象，触发报价重算。已删除则回落到有效地址。
+    currentAddress.value = addresses.value.find((a: ShippingAddress) => a.id === currentAddress.value?.id)
+      || addresses.value.find((a: ShippingAddress) => a.isDefault) || addresses.value[0] || null
+  } catch { /* 请求失败时保留当前选择，提交仍由服务端校验。 */ }
+}
+onShow(() => { void refreshAddressesOnReturn() })
 
 async function submitOrder() {
   if (submitting.value) return

@@ -60,6 +60,41 @@ test('新报价失败时不保留旧实付金额', async () => {
   assert.equal(estimateLoading.value, false)
 })
 
+test('返回结算时更新同 ID 地址，删除后选择有效地址或清空', async () => {
+  const currentAddress = { value: { id: 'a', province: '旧省份' } }
+  const addresses = { value: [] }
+  let returned = [{ id: 'a', province: '新省份' }]
+  const refresh = loadPageFunction('refreshAddressesOnReturn', {
+    currentAddress, addresses, loading: { value: false }, source: { value: 'product:p' },
+    submitting: { value: false }, shopApi: { getCheckout: async () => ({ addresses: returned }) },
+  })
+  await refresh()
+  assert.equal(currentAddress.value, returned[0])
+  assert.equal(currentAddress.value.province, '新省份')
+  returned = [{ id: 'b', isDefault: true }]
+  await refresh()
+  assert.equal(currentAddress.value.id, 'b')
+  returned = []
+  await refresh()
+  assert.equal(currentAddress.value, null)
+})
+
+test('回页刷新晚到时不改变正在提交的地址', async () => {
+  let finish
+  const result = new Promise(resolve => { finish = resolve })
+  const currentAddress = { value: { id: 'a' } }
+  const submitting = { value: false }
+  const refresh = loadPageFunction('refreshAddressesOnReturn', {
+    currentAddress, addresses: { value: [] }, loading: { value: false }, source: { value: 'product:p' },
+    submitting, shopApi: { getCheckout: () => result },
+  })
+  const pending = refresh()
+  submitting.value = true
+  finish({ addresses: [{ id: 'b' }] })
+  await pending
+  assert.equal(currentAddress.value.id, 'a')
+})
+
 test('报价重核期间连续点提交只启动一次核算', async () => {
   let finishQuote
   const quote = new Promise((resolve) => { finishQuote = resolve })
