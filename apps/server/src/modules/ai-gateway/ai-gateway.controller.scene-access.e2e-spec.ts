@@ -33,15 +33,13 @@ import { chineseValidationExceptionFactory } from "../../common/validation-chine
  *   → 全局管道 SanitizePipe + ValidationPipe（配置逐项对齐 main.ts:154-163）
  *   → 真实 AiGatewayController
  *   → 真实 ChatSceneAccessService（含最终生效参数解析）
- *   → 网关替身（逐字复刻 ai-gateway.service.ts:93 的 {...routeOptions, ...req.options} 合并，
- *      且 routeOptions 由与被测服务同一份路由配置按 model-router.service.ts resolve() 的取值链推导）
+ *   → 真实 AiGatewayService + ModelRouterService.resolve（配置存储、缓存、计量使用替身）
  *   → 真实 DeepSeekAdapter → 桩模型
  * ```
  *
  * 所有"最终发给供应商的参数"断言都取自**桩模型实际收到的请求体**，不是替身的内部状态。
  *
- * **为什么用网关替身**：`ai-gateway.service.ts` 在主工作区有未提交改动，本候选基于 HEAD
- * 且不改该文件（本轮限定只影响通用 HTTP 入口，不擅自改变其他内部调用）。
+ * 当前接收工作树已整合网关源码，不再复刻网关参数合并逻辑，避免替身掩盖真实入口差异。
  */
 
 const ROUTE_MODEL = "deepseek-stub-model";
@@ -133,8 +131,11 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   let app: INestApplication;
   const stub = new StubModelServer();
   let gatewayCalls = 0;
-  /** 被测服务与网关替身共用同一份路由配置，单个用例内可改 */
+  /** 被测服务与真实路由共用同一份配置，单个用例内可改 */
   let routingConfig: ModelRoutingConfig = CONFIG_COMPATIBLE;
+  const previousKey = process.env.DEEPSEEK_API_KEY;
+  const previousBase = process.env.DEEPSEEK_BASE_URL;
+  const previousFetch = global.fetch;
 
   beforeAll(async () => {
     // Jest 的 node 环境不会稳定继承 Node 18+ 的全局 fetch；显式注入，避免测试环境误连供应商失败。
@@ -145,43 +146,38 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
 
     const adapter = new DeepSeekAdapter();
 
-    /** 复刻 model-router.service.ts resolve() 的 options 取值链 */
-    const routeOptionsOf = (scene: string) => {
-      const sc = routingConfig.scenes?.[scene] || routingConfig.default;
-      return {
-        temperature: sc?.temperature ?? routingConfig.default?.temperature ?? 0.3,
-        maxTokens: sc?.maxTokens ?? routingConfig.default?.maxTokens ?? 2048,
-        topP: sc?.topP ?? routingConfig.default?.topP ?? 0.9,
-      };
-    };
-
-    // 网关替身：合并逻辑逐字复刻 ai-gateway.service.ts:93 / :188
-    const gatewayDouble = {
-      async chat(req: { scene: string; messages: any[]; options?: any }) {
+    const router = new ModelRouterService({} as any, {} as any, {} as any);
+    jest.spyOn(router, "getRoutingConfig").mockImplementation(async () => routingConfig);
+    // 本轮只验证场景权限和参数传递；不调用计费模型、真实缓存、计量或审计落库。
+    const gateway = new AiGatewayService(
+      router,
+      { log: async () => undefined } as any,
+      { record: async () => undefined } as any,
+      { lookup: async () => null, store: async () => undefined } as any,
+      adapter,
+      {} as any, {} as any, {} as any,
+      { recordAiCall: () => undefined, recordSemanticCacheHit: () => undefined } as any,
+      { setGateway: () => undefined } as any,
+      { setGateway: () => undefined } as any,
+    );
+    const realChat = gateway.chat.bind(gateway);
+    const realStream = gateway.chatStream.bind(gateway);
+    jest.spyOn(gateway, "chat").mockImplementation((req) => {
         gatewayCalls++;
-        const merged = { ...routeOptionsOf(req.scene), ...req.options };
-        return adapter.chat(ROUTE_MODEL, req.messages, merged);
-      },
-      async *chatStream(req: { scene: string; messages: any[]; options?: any }) {
+        return realChat(req);
+    });
+    jest.spyOn(gateway, "chatStream").mockImplementation((req) => {
         gatewayCalls++;
-        const merged = { ...routeOptionsOf(req.scene), ...req.options };
-        yield* adapter.chatStream(ROUTE_MODEL, req.messages, merged);
-      },
-    };
+        return realStream(req);
+    });
 
     const moduleRef = await Test.createTestingModule({
       controllers: [AiGatewayController],
       providers: [
         ChatSceneAccessService,
         StreamUnifierService,
-        { provide: AiGatewayService, useValue: gatewayDouble },
-        {
-          provide: ModelRouterService,
-          useValue: {
-            getRoutingConfig: async () => routingConfig,
-            getSceneBudgets: async () => ({ defaultModel: ROUTE_MODEL, scenes: {}, totalScenes: 0 }),
-          },
-        },
+        { provide: AiGatewayService, useValue: gateway },
+        { provide: ModelRouterService, useValue: router },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -213,6 +209,12 @@ describe("AI 通用对话接口 · 场景准入与输入收口（HTTP 入口）"
   afterAll(async () => {
     await app?.close();
     await stub.stop();
+    if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = previousKey;
+    if (previousBase === undefined) delete process.env.DEEPSEEK_BASE_URL;
+    else process.env.DEEPSEEK_BASE_URL = previousBase;
+    global.fetch = previousFetch;
+    jest.restoreAllMocks();
   });
 
   beforeEach(() => {
