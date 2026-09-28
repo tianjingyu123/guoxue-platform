@@ -11,6 +11,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
+import { defaultDigitalPaymentMethod } from '@/utils/default-digital-payment'
 import { xiaobuVoiceApi, type XiaobuMemberOverview } from '@/lib/xiaobu-voice-data'
 
 const info = ref<XiaobuMemberOverview | null>(null)
@@ -58,12 +59,13 @@ async function buy() {
   const plan = pickedPlan.value
   buying.value = true
   try {
+    const method = await defaultDigitalPaymentMethod()
     if (pendingOrder.value?.planKey === plan.key) {
       const previous = pendingOrder.value
       const state = await shopApi.getOrderPayState(previous.id)
       if (state.status === 'PENDING') {
         const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
-        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}${returnQuery}`)
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=${method}&confirmed=1&amount=${previous.amount}${returnQuery}`)
         return
       }
       if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
@@ -77,7 +79,7 @@ async function buy() {
     if (!order.id) throw new Error('订单创建失败')
     pendingOrder.value = { id: order.id, amount: Number(order.amount) || plan.priceYuan, planKey: plan.key }
     const returnQuery = returnRecordId.value ? `&returnRecordId=${encodeURIComponent(returnRecordId.value)}` : ''
-    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}${returnQuery}`)
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=${method}&confirmed=1&amount=${pendingOrder.value.amount}${returnQuery}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

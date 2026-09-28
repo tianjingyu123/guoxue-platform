@@ -10,6 +10,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { queryString } from '@/utils/query-string'
+import { defaultDigitalPaymentMethod } from '@/utils/default-digital-payment'
 import { shopApi } from '@/lib/shop-data'
 import { xiaobuVoiceApi, type VoiceTopupPacks } from '@/lib/xiaobu-voice-data'
 
@@ -57,6 +58,7 @@ async function buy() {
   if (buying.value || !picked.value) return
   buying.value = true
   try {
+    const method = await defaultDigitalPaymentMethod()
     // 金额由服务端按分钟档位计算，这里的数量固定 1
     const order = await shopApi.createOrder({
       type: 'VOICE_MINUTES',
@@ -69,7 +71,8 @@ async function buy() {
     const voiceReturn = Boolean(returnVoiceScene.value && returnVoiceContextId.value)
     const payQuery = queryString([
       ['orderId', order.id],
-      ['method', 'wechat'],
+      ['method', method],
+      ['confirmed', '1'],
       ['amount', String(Number(order.amount) || pack?.amountYuan || 0)],
       ['returnVoiceScene', voiceReturn ? returnVoiceScene.value : undefined],
       ['returnVoiceContextId', voiceReturn ? returnVoiceContextId.value : undefined],
