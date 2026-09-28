@@ -6,12 +6,18 @@ const ts = require('typescript')
 
 const source = fs.readFileSync(path.join(__dirname, '../src/pkg-order/lib/order-data.ts'), 'utf8')
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+const evidenceSource = fs.readFileSync(path.join(__dirname, '../src/utils/after-sale-evidence.ts'), 'utf8')
+const evidenceExports = {}
+vm.runInNewContext(ts.transpileModule(evidenceSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS },
+}).outputText, { exports: evidenceExports })
 let rows = []
 let pathUsed = ''
 const moduleExports = {}
 vm.runInNewContext(js, {
   exports: moduleExports,
   require: (name) => {
+    if (name === '@/utils/after-sale-evidence') return evidenceExports
     assert.equal(name, '@/utils/request')
     return { apiGet: async (url) => { pathUsed = url; return { items: rows } }, apiPost() {}, apiPut() {} }
   },
