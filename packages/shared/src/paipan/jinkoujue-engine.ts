@@ -110,7 +110,7 @@ export interface JkjOptions {
   jieqiRange?: string
   /** 农历标签（纯展示，如「八月初八」） */
   lunarLabel?: string
-  /** 地分（manual 直接给支；number 给报数；random 忽略） */
+  /** 地分（manual 直接给支；number 给报数；random 可传起课时已抽定的支，未传才现场抽取） */
   difenMethod: DifenMethod
   difenZhi?: string
   difenNumber?: number
@@ -340,7 +340,7 @@ export function computeJinkoujue(opts: JkjOptions): JkjResult {
 
   // ── 地分 ──
   let difenZhi: string
-  if (opts.difenMethod === "manual" && opts.difenZhi) {
+  if ((opts.difenMethod === "manual" || opts.difenMethod === "random") && opts.difenZhi) {
     difenZhi = opts.difenZhi
   } else if (opts.difenMethod === "number" && opts.difenNumber != null) {
     difenZhi = zAt((opts.difenNumber - 1) % 12)
