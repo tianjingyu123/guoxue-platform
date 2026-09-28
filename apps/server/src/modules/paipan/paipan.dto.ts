@@ -136,6 +136,20 @@ export class ZiweiInputDto {
   lunarYearZhi: string;
 }
 
+/** 消费者紫微盘保存：直接使用结果页的公历输入，由服务端同一安星引擎重算。 */
+export class ZiweiConsumerSaveDto {
+  @ApiProperty({ description: "姓名" }) @IsString() @MinLength(1) @MaxLength(30) name: string;
+  @ApiProperty({ enum: ["男", "女"] }) @IsIn(["男", "女"]) gender: "男" | "女";
+  @ApiProperty({ minimum: 1900, maximum: 2100 }) @IsInt() @Min(1900) @Max(2100) y: number;
+  @ApiProperty({ minimum: 1, maximum: 12 }) @IsInt() @Min(1) @Max(12) m: number;
+  @ApiProperty({ minimum: 1, maximum: 31 }) @IsInt() @Min(1) @Max(31) d: number;
+  @ApiProperty({ minimum: 0, maximum: 23 }) @IsInt() @Min(0) @Max(23) hour: number;
+  @ApiProperty({ minimum: 0, maximum: 59 }) @IsInt() @Min(0) @Max(59) minute: number;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() useTrueSolar?: boolean;
+  @ApiPropertyOptional({ minimum: -180, maximum: 180 }) @IsOptional() @IsNumber() @Min(-180) @Max(180) lng?: number;
+  @ApiPropertyOptional({ minimum: 1900, maximum: 2100 }) @IsOptional() @IsInt() @Min(1900) @Max(2100) nowYear?: number;
+}
+
 export class BaziRecordQueryDto {
   @ApiPropertyOptional({ description: "页码", default: 1, minimum: 1 })
   @IsOptional()

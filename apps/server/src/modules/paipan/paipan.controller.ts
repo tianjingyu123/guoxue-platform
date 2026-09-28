@@ -19,7 +19,7 @@ import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { PaipanReportService } from "./paipan-report.service";
 import { PaipanReportDialogueService } from "./paipan-report-dialogue.service";
-import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto, GenerateReportDto, AskReportDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, ShanxiangMapDto, ShanxiangImageDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, ZiweiConsumerSaveDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto, GenerateReportDto, AskReportDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, ShanxiangMapDto, ShanxiangImageDto } from "./paipan.dto";
 import { SubmitCaseFeedbackDto, ReviewCaseFeedbackDto, CaseFeedbackQueryDto, FollowUpQueryDto } from "./paipan-case-feedback.dto";
 import { PaipanCaseFeedbackService } from "./paipan-case-feedback.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -362,6 +362,15 @@ export class PaipanController {
   @ApiResponse({ status: 429, description: "请求过于频繁" })
   ziweiCalc(@Req() req: Request, @Body() dto: ZiweiInputDto) {
     return this.paipan.calcZiweiAndSave(req.user.id, dto);
+  }
+
+  /** 消费者紫微结果页与 AI 命书共用同一安星算法。 */
+  @Post("ziwei/consumer-save")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "保存消费者紫微盘并返回核对盘面" })
+  @ApiBearerAuth()
+  ziweiConsumerSave(@Req() req: Request, @Body() dto: ZiweiConsumerSaveDto) {
+    return this.paipan.saveZiweiConsumerRecord(req.user.id, dto);
   }
 
   /** 获取紫微排盘记录详情 */

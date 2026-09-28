@@ -355,6 +355,13 @@ export const aiReportApi = {
   }> {
     return apiPost('/paipan/bazhai/save', params)
   },
+  /** 消费者紫微盘与预览同源重算，结果页核对十二宫后才进入命书。 */
+  saveZiweiConsumerRecord(params: Record<string, unknown>): Promise<{
+    id: string
+    chart: import('@/pkg-paipan/lib/ziwei-types').ZiweiChart
+  }> {
+    return apiPost('/paipan/ziwei/consumer-save', params)
+  },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
     const query = queryString([['recordId', recordId], ['reportType', reportType]])

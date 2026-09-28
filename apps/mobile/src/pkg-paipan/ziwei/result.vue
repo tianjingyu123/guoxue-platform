@@ -18,6 +18,8 @@ import { computePaipan } from '@/lib/paipan/engine-client'
 import type { ZiweiChart } from '@/pkg-paipan/lib/ziwei-types'
 import { saveZiweiHistory, shichenLabel } from './ziwei-history'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
 let hdrTitle = '紫微排盘'
@@ -41,8 +43,50 @@ const loadError = ref('')
 const loading = ref(false)
 /** 服务端请求失败（区别于参数错误：可「重新排盘」） */
 const netError = ref(false)
-type ZiweiPending = { name: string; gender: '男' | '女'; y: number; m: number; d: number; hour: number; minute: number; city?: string; lng?: number; useTrueSolar: boolean }
+type ZiweiPending = { name: string; gender: '男' | '女'; y: number; m: number; d: number; hour: number; minute: number; city?: string; lng?: number; useTrueSolar: boolean; nowYear: number }
 let pending: ZiweiPending | null = null
+const preparingReport = ref(false)
+const savedReportRecord = ref({ key: '', id: '' })
+
+async function openXiaobuReport() {
+  const p = pending
+  const displayed = chart.value
+  if (!p || !displayed || preparingReport.value) return
+  if (!getToken()) {
+    try {
+      const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+      if (page?.route) {
+        const query = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+        uni.setStorageSync('login:redirect', `/${page.route}${query ? `?${query}` : ''}`)
+      }
+    } catch { /* 无法保存回跳时仍可登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  preparingReport.value = true
+  try {
+    const input = {
+      name: p.name, gender: p.gender, y: p.y, m: p.m, d: p.d,
+      hour: p.hour, minute: p.minute, useTrueSolar: p.useTrueSolar,
+      lng: p.lng, nowYear: p.nowYear,
+    }
+    const key = JSON.stringify(input)
+    let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
+    if (!id) {
+      const record = await aiReportApi.saveZiweiConsumerRecord(input)
+      if (!record.id || JSON.stringify(record.chart) !== JSON.stringify(displayed)) {
+        throw new Error('紫微盘与报告数据不一致，暂不能生成命书')
+      }
+      id = record.id
+      savedReportRecord.value = { key, id }
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '命书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
+}
 
 /** 服务端安星（第 4 步：算法只在服务端）；nowYear 取本机当年，定流年与现行大限（与原本地计算一致） */
 async function compute() {
@@ -54,7 +98,7 @@ async function compute() {
   try {
     const r = await computePaipan<{ chart: ZiweiChart; adjusted: { hour: number; minute: number } }>('ziwei', {
       y: p.y, m: p.m, d: p.d, hour: p.hour, minute: p.minute, gender: p.gender, name: p.name,
-      useTrueSolar: p.useTrueSolar, lng: p.lng, nowYear: new Date().getFullYear(),
+      useTrueSolar: p.useTrueSolar, lng: p.lng, nowYear: p.nowYear,
     })
     chart.value = r.chart
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -89,7 +133,7 @@ onLoad((q: Record<string, string> = {}) => {
     const lng = typeof p.lng === 'number' ? p.lng : undefined
     const city = typeof p.city === 'string' ? p.city : undefined
 
-    pending = { name, gender, y, m, d, hour, minute, city, lng, useTrueSolar }
+    pending = { name, gender, y, m, d, hour, minute, city, lng, useTrueSolar, nowYear: new Date().getFullYear() }
     compute()
   } catch (e) {
     loadError.value = (e as Error)?.message || '排盘参数无效'
@@ -166,6 +210,10 @@ function onShare() {
 
         <case-library-entry method="ZIWEI" />
 
+        <view class="xiaobu-report-entry" @tap="openXiaobuReport">
+          <text>{{ preparingReport ? '正在核对盘面…' : '生成小卜命书' }}</text>
+        </view>
+
         <generate-report-button
           v-if="chart"
           tool-key="ziwei"
@@ -215,4 +263,5 @@ $serif: Georgia, 'Songti SC', serif;
 .note-tag { flex-shrink: 0; background: rgba(201, 169, 110, 0.18); border-radius: 8rpx; padding: 4rpx 14rpx; margin-top: 4rpx; }
 .note-tag-text { font-family: $serif; font-size: 22rpx; font-weight: 700; color: var(--gold); }
 .note-text { font-family: $serif; font-size: 26rpx; line-height: 1.7; color: var(--text-ink); }
+.xiaobu-report-entry { display: flex; justify-content: center; align-items: center; min-height: 82rpx; border: 2rpx solid var(--brand); border-radius: 14rpx; color: var(--brand); background: #fff; font-size: 28rpx; font-weight: 700; }
 </style>

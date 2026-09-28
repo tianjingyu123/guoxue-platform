@@ -5,9 +5,11 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
+import { BaziInputDto, ZiweiInputDto, ZiweiConsumerSaveDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { calcBazi, calcSiZhu, calcTrueSolarTime, calcAllJieQi, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
+import { computeZiwei as computeZiweiConsumer, toZiweiChart } from "./engine/ziwei-engine";
+import { toZiweiReportData } from "./engine/ziwei-report-adapter";
 import { calculateQimenYang } from "../tool-registry/calculators/qimen.calculator";
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
@@ -194,6 +196,34 @@ export class PaipanService {
       input,
       result,
     };
+  }
+
+  /** 消费者结果页的紫微盘：按预览同源算法重算后保存，不接收客户端盘面。 */
+  async saveZiweiConsumerRecord(userId: string, dto: ZiweiConsumerSaveDto) {
+    const date = new Date(Date.UTC(dto.y, dto.m - 1, dto.d));
+    if (date.getUTCFullYear() !== dto.y || date.getUTCMonth() + 1 !== dto.m || date.getUTCDate() !== dto.d) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "出生日期无效");
+    }
+    const result = computeZiweiConsumer({
+      year: dto.y, month: dto.m, day: dto.d, hour: dto.hour, minute: dto.minute,
+      gender: dto.gender, useTrueSolar: dto.useTrueSolar === true, lng: dto.lng,
+    });
+    const chart = toZiweiChart(result, dto.name, dto.y, dto.nowYear ?? new Date().getFullYear());
+    const reportData = toZiweiReportData(result);
+    const record = await this.prisma.paipanRecord.create({
+      data: {
+        userId,
+        clientName: dto.name,
+        clientBirth: encrypt(`${dto.y}-${dto.m}-${dto.d} ${dto.hour}:${dto.minute}`),
+        paipanType: "ZIWEI",
+        inputParams: {
+          name: dto.name, gender: dto.gender, useTrueSolar: dto.useTrueSolar === true,
+          lunarYearGan: result.lunar.yearGan, lunarYearZhi: result.lunar.yearZhi,
+        } as any,
+        resultData: reportData as any,
+      },
+    });
+    return { id: record.id, chart };
   }
 
   /** 获取单条紫微排盘记录 */

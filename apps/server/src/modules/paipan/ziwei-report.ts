@@ -34,6 +34,7 @@ export interface ZiweiGong {
 }
 
 export interface ZiweiResultData {
+  source?: "ziwei-engine-v2";
   wuXingJu?: string;
   mingGong?: ZiweiGong;
   gongWei?: ZiweiGong[];
@@ -141,7 +142,7 @@ export function extractZiweiFacts(data: ZiweiResultData, input?: ZiweiInputData)
     yearGanZhi: input?.lunarYearGan && input?.lunarYearZhi ? `${input.lunarYearGan}${input.lunarYearZhi}` : undefined,
     wuXingJu: data.wuXingJu,
     mingGongZhi: ming?.zhi,
-    mingGong: ming ? `命宫在${ming.gan}${ming.zhi}　${starLine(ming)}` : undefined,
+    mingGong: ming ? `命宫在${ming.gan}${ming.zhi}\u3000${starLine(ming)}` : undefined,
     mingMainStars: mingStars.main,
     /** 无主星要借对宫，这是紫微的固定处理，必须写明而不是略过 */
     mingNoMainStar: mingStars.main.length === 0,
@@ -149,7 +150,7 @@ export function extractZiweiFacts(data: ZiweiResultData, input?: ZiweiInputData)
       ? `对宫${ming.duiGong}（${gongOf(data, ming.duiGong)?.zhi ?? ""}）：${starLine(gongOf(data, ming.duiGong))}`
       : undefined,
     shenGong: shenName,
-    shenGongLine: shen ? `身宫在${shenName}（${shen.gan}${shen.zhi}）　${starLine(shen)}` : undefined,
+    shenGongLine: shen ? `身宫在${shenName}（${shen.gan}${shen.zhi}）\u3000${starLine(shen)}` : undefined,
     /** 命身同宫：本性与后天着力处合一，论断口径不同，要单独标出来 */
     shenSameAsMing: !!shenName && shenName === "命宫",
     sanFang,
@@ -163,11 +164,13 @@ export function extractZiweiFacts(data: ZiweiResultData, input?: ZiweiInputData)
       const g = gongOf(data, name);
       if (!g) return "";
       const daXian =
-        g.daXianStart != null && g.daXianEnd != null ? `　大限${g.daXianStart}-${g.daXianEnd}岁` : "";
+        g.daXianStart != null && g.daXianEnd != null ? `\u3000大限${g.daXianStart}-${g.daXianEnd}岁` : "";
       return `${name}（${g.gan}${g.zhi}）：${starLine(g)}${g.shenGong ? "　【身宫】" : ""}${daXian}`;
     }).filter(Boolean),
     /** 引擎未计算庙旺利陷，如实声明；模型据此不得自行断庙陷 */
-    miaoXianNote: "本盘未计算星曜庙旺利陷",
+    miaoXianNote: data.source === "ziwei-engine-v2"
+      ? "本报告仅据星曜落宫组织事实，不以庙旺利陷作论断"
+      : "本盘未计算星曜庙旺利陷",
   };
 }
 
