@@ -63,7 +63,8 @@ const savedReportRecord = ref({ key: '', id: '' })
 async function openXiaobuReport() {
   const p = params.value
   if (!p || !chart.value || preparingReport.value) return
-  if (!getToken()) {
+  const token = getToken()
+  if (!token) {
     try {
       const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
       if (page?.route) {
@@ -85,10 +86,12 @@ async function openXiaobuReport() {
       shan: MOUNTAINS[p.sitting], xiang: MOUNTAINS[(p.sitting + 12) % 24],
       year: p.year, period: p.period, tiGua: p.ti,
     }
-    const key = JSON.stringify(input)
+    // 换号后不得复用上一个账号已保存的宅盘记录。
+    const key = `${token}:${JSON.stringify(input)}`
     let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
     if (!id) {
       const record = await aiReportApi.saveXuankongRecord(input)
+      if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
       if (!record.id) throw new Error('宅盘保存失败，请重试')
       const localChart = chart.value
       const sameChart = localChart && record.result?.basicInfo?.yuanYun === p.period
@@ -103,6 +106,7 @@ async function openXiaobuReport() {
       id = record.id
       savedReportRecord.value = { key, id }
     }
+    if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
     navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '宅书准备失败，请重试', icon: 'none' })

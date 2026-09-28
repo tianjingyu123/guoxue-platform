@@ -52,7 +52,8 @@ async function openXiaobuReport() {
   const p = pending
   const displayed = chart.value
   if (!p || !displayed || preparingReport.value) return
-  if (!getToken()) {
+  const token = getToken()
+  if (!token) {
     try {
       const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
       if (page?.route) {
@@ -70,16 +71,19 @@ async function openXiaobuReport() {
       hour: p.hour, minute: p.minute, useTrueSolar: p.useTrueSolar,
       lng: p.lng, nowYear: p.nowYear,
     }
-    const key = JSON.stringify(input)
+    // 同一页面可能在换号后仍保留旧记录；缓存必须绑定本次登录态。
+    const key = `${token}:${JSON.stringify(input)}`
     let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
     if (!id) {
       const record = await aiReportApi.saveZiweiConsumerRecord(input)
+      if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
       if (!record.id || JSON.stringify(record.chart) !== JSON.stringify(displayed)) {
         throw new Error('紫微盘与报告数据不一致，暂不能生成命书')
       }
       id = record.id
       savedReportRecord.value = { key, id }
     }
+    if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
     navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '命书准备失败，请重试', icon: 'none' })

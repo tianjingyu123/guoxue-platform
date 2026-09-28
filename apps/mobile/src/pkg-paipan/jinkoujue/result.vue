@@ -127,11 +127,13 @@ const activeTab = computed(() => JKJ_KNOWLEDGE.find((t) => t.id === tab.value) ?
 const saved = ref(false)
 const preparingReport = ref(false)
 const reportRecordId = ref('')
+const reportRecordKey = ref('')
 
 async function openXiaobuReport() {
   if (!result.value || !q.value || preparingReport.value) return
   const query = q.value
-  if (!getToken()) {
+  const token = getToken()
+  if (!token) {
     try {
       const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
       if (page?.route) {
@@ -148,7 +150,8 @@ async function openXiaobuReport() {
   }
   preparingReport.value = true
   try {
-    if (!reportRecordId.value) {
+    const key = `${token}:${JSON.stringify(query)}`
+    if (reportRecordKey.value !== key || !reportRecordId.value) {
       const record = await aiReportApi.saveJinkoujueRecord({
         matter: query.topic,
         year: query.year, month: query.month, day: query.day, hour: query.hour, minute: query.minute,
@@ -159,9 +162,12 @@ async function openXiaobuReport() {
         guirenSchool: query.gs,
         guiType: query.gt,
       })
+      if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
       if (!record.id) throw new Error('课盘保存失败，请重试')
       reportRecordId.value = record.id
+      reportRecordKey.value = key
     }
+    if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
     navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(reportRecordId.value)}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '课书准备失败，请重试', icon: 'none' })
