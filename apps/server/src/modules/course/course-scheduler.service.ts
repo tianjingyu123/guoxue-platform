@@ -120,26 +120,27 @@ export class CourseSchedulerService {
         select: { targetId: true, userId: true, paidAt: true },
       });
 
-      // 按课程分组
-      const ordersByCourse = new Map<string, { userId: string; paidAt: Date }[]>();
+      // 与课程访问权限一致：同一用户续购后按最新有效已付订单计算，避免旧单误报或重复提醒。
+      const ordersByCourse = new Map<string, Map<string, Date>>();
       for (const o of allOrders) {
-        const list = ordersByCourse.get(o.targetId) || [];
-        list.push({ userId: o.userId, paidAt: o.paidAt! });
-        ordersByCourse.set(o.targetId, list);
+        const users = ordersByCourse.get(o.targetId) || new Map<string, Date>();
+        const previous = users.get(o.userId);
+        if (!previous || o.paidAt!.getTime() > previous.getTime()) users.set(o.userId, o.paidAt!);
+        ordersByCourse.set(o.targetId, users);
       }
 
       const now = Date.now();
       let notified = 0;
 
       for (const course of courses) {
-        const orders = ordersByCourse.get(course.id) || [];
+        const orders = ordersByCourse.get(course.id) || new Map<string, Date>();
         const userIdsToNotify: string[] = [];
 
-        for (const order of orders) {
-          const expiresAt = order.paidAt.getTime() + course.validityDays * 86400000;
+        for (const [userId, paidAt] of orders) {
+          const expiresAt = paidAt.getTime() + course.validityDays * 86400000;
           const remainingDays = Math.ceil((expiresAt - now) / 86400000);
           if (remainingDays > 0 && remainingDays <= 3) {
-            userIdsToNotify.push(order.userId);
+            userIdsToNotify.push(userId);
           }
         }
 

@@ -94,6 +94,38 @@ describe("CourseSchedulerService", () => {
       }));
     });
 
+    it("续购后不被旧单误报，乱序订单仍按最新有效付款计算", async () => {
+      mockPrisma.course.findMany.mockResolvedValue([{ id: "c1", title: "课程", validityDays: 30 }]);
+      mockPrisma.order.findMany.mockResolvedValue([
+        { targetId: "c1", userId: "u1", paidAt: new Date() },
+        { targetId: "c1", userId: "u1", paidAt: new Date(Date.now() - 28 * 86400000) },
+      ]);
+      await svc.checkExpiringCourses();
+      expect(mockNotification.batchSend).not.toHaveBeenCalled();
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ["PAID", "COMPLETED"] }, paidAt: { not: null } }),
+      }));
+    });
+
+    it("同一用户多笔临近到期单一次只提醒一次，课程之间互不串用", async () => {
+      const paidAt = new Date(Date.now() - 28 * 86400000);
+      mockPrisma.course.findMany.mockResolvedValue([
+        { id: "c1", title: "课程一", validityDays: 30 },
+        { id: "c2", title: "课程二", validityDays: 30 },
+      ]);
+      mockPrisma.order.findMany.mockResolvedValue([
+        { targetId: "c1", userId: "u1", paidAt },
+        { targetId: "c1", userId: "u1", paidAt },
+        { targetId: "c2", userId: "u1", paidAt: new Date() },
+        { targetId: "c1", userId: "u2", paidAt },
+      ]);
+      await svc.checkExpiringCourses();
+      expect(mockNotification.batchSend).toHaveBeenCalledTimes(1);
+      expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
+        userIds: ["u1", "u2"], targetId: "c1",
+      }));
+    });
+
     it("未到期的课程不发送提醒", async () => {
       // 刚刚购买，有效期365天 → 还剩365天，不在3天提醒范围内
       const justNow = new Date();
