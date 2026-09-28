@@ -13,6 +13,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import type { JkjResult, DifenMethod } from '@/pkg-paipan/lib/jinkoujue-types'
 import { computePaipan } from '@/lib/paipan/engine-client'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
+import { getToken } from '@/utils/storage'
 import { JKJ_KNOWLEDGE, type KnowledgeEntry } from '@/pkg-paipan/lib/jinkoujue-data'
 
 const HISTORY_KEY = 'rebu:jinkoujue-history'
@@ -123,6 +125,50 @@ const activeTab = computed(() => JKJ_KNOWLEDGE.find((t) => t.id === tab.value) ?
 
 // ─── 保存 / 分享 ───
 const saved = ref(false)
+const preparingReport = ref(false)
+const reportRecordId = ref('')
+
+async function openXiaobuReport() {
+  if (!result.value || !q.value || preparingReport.value) return
+  const query = q.value
+  if (!getToken()) {
+    try {
+      const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+      if (page?.route) {
+        const params = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+        uni.setStorageSync('login:redirect', `/${page.route}${params ? `?${params}` : ''}`)
+      }
+    } catch { /* 回跳记录失败不阻断登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  if (query.topic.length > 60 || (query.dm === 'number' && (!query.dn || query.dn > 9999))) {
+    uni.showToast({ title: '事项或报数超出课书范围，请重新起课', icon: 'none' })
+    return
+  }
+  preparingReport.value = true
+  try {
+    if (!reportRecordId.value) {
+      const record = await aiReportApi.saveJinkoujueRecord({
+        matter: query.topic,
+        year: query.year, month: query.month, day: query.day, hour: query.hour, minute: query.minute,
+        difenMethod: query.dm,
+        difenZhi: query.dm === 'number' ? undefined : query.dz,
+        difenNumber: query.dm === 'number' ? query.dn : undefined,
+        jiangMethod: query.jm,
+        guirenSchool: query.gs,
+        guiType: query.gt,
+      })
+      if (!record.id) throw new Error('课盘保存失败，请重试')
+      reportRecordId.value = record.id
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(reportRecordId.value)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '课书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
+}
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
@@ -352,6 +398,9 @@ function handleShare() {
           </view>
         </view>
 
+        <view class="report-entry" :class="{ 'report-entry-busy': preparingReport }" @tap="openXiaobuReport">
+          <text class="report-entry-text">{{ preparingReport ? '正在准备…' : '生成小卜课书' }}</text>
+        </view>
         <disclaimer
           variant="custom"
           tone="subtle"
@@ -381,6 +430,9 @@ function handleShare() {
 </template>
 
 <style scoped lang="scss">
+.report-entry { display: flex; align-items: center; justify-content: center; min-height: 88rpx; border: 2rpx solid var(--brand); border-radius: 20rpx; background: var(--card, #fff); }
+.report-entry-busy { opacity: 0.55; }
+.report-entry-text { color: var(--brand); font-size: 28rpx; font-weight: 600; }
 .page { min-height: 100vh; background: var(--bg-paper); display: flex; flex-direction: column; }
 .body { flex: 1; }
 .body-inner { padding: 24rpx 24rpx 200rpx; display: flex; flex-direction: column; gap: 24rpx; }

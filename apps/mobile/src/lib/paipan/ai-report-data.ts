@@ -329,6 +329,10 @@ export const aiReportApi = {
   saveXiaoliurenRecord(params: Record<string, unknown>): Promise<{ id: string }> {
     return apiPost<{ id: string }>('/paipan/xiaoliuren/save', params)
   },
+  /** 金口诀：随机地分已在起课时确定，保存时须传同一地支。 */
+  saveJinkoujueRecord(params: Record<string, unknown>): Promise<{ id: string }> {
+    return apiPost<{ id: string }>('/paipan/jinkoujue/save', params)
+  },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
     const query = queryString([['recordId', recordId], ['reportType', reportType]])
