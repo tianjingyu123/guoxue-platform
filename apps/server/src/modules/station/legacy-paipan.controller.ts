@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Header, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -12,6 +12,7 @@ export class LegacyPaipanController {
 
   @Get("entry")
   @UseGuards(JwtAuthGuard)
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "获取首发期旧排盘 H5 签名入口" })
   @ApiResponse({ status: 200, description: "返回 legacy/native 模式与入口地址" })
   @ApiResponse({ status: 400, description: "用户尚未绑定手机号" })
@@ -22,6 +23,7 @@ export class LegacyPaipanController {
 
   @Get("launch")
   @UseGuards(JwtAuthGuard)
+  @Header("Cache-Control", "private, no-store")
   @ApiOperation({ summary: "用户主动进入旧版排盘时签发入口" })
   getLaunchEntry(@Req() req: Request) {
     return this.service.getUserLaunchEntry(req.user.id);
