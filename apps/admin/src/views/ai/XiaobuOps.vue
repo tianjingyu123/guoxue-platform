@@ -209,7 +209,7 @@
             <el-input id="xo-grant-reason" v-model="grant.reason" placeholder="如：内测补偿、圈主预付" style="width:240px" maxlength="200" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="granting" @click="doGrant">确认发放</el-button>
+            <el-button type="primary" :loading="granting" @click="doGrant">{{ pendingGrant ? '核验并重试上次发放' : '确认发放' }}</el-button>
           </el-form-item>
         </el-form>
 
@@ -298,6 +298,7 @@ const quotaInfo = ref<QuotaInfo | null>(null);
 const quotaLoading = ref(false);
 const grant = reactive({ minutes: 30, reason: "" });
 const granting = ref(false);
+const pendingGrant = ref<Parameters<typeof xiaobuOpsApi.grant>[0] | null>(null);
 
 function minutes(sec: number) {
   return `${(sec / 60).toFixed(1)} 分钟`;
@@ -338,29 +339,46 @@ async function loadQuota() {
 }
 
 async function doGrant() {
-  if (!grant.reason.trim() || grant.reason.trim().length < 2) {
+  if (granting.value) return;
+  // 确认前固定对象、金额与原因；结果未知时只重试同一请求，不生成第二笔额度。
+  const input = pendingGrant.value ?? {
+    ownerType: quota.ownerType, ownerId: quota.ownerId.trim(), minutes: grant.minutes,
+    reason: grant.reason.trim(), requestId: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  };
+  if (!input.ownerId || !Number.isInteger(input.minutes) || input.minutes <= 0) {
+    ElMessage.warning('请填写发放对象和有效分钟数');
+    return;
+  }
+  if (input.reason.length < 2) {
     ElMessage.warning("请填写发放原因");
     return;
   }
+  granting.value = true;
   try {
     await ElMessageBox.confirm(
-      `向${quota.ownerType === "user" ? "用户" : "圈子"} ${quota.ownerId} 发放 ${grant.minutes} 分钟语音额度？`,
+      `向${input.ownerType === "user" ? "用户" : "圈子"} ${input.ownerId} 发放 ${input.minutes} 分钟语音额度？${pendingGrant.value ? '本次沿用上次请求号，已到账不会重复发放。' : ''}`,
       "确认发放",
       { type: "warning", confirmButtonText: "发放", cancelButtonText: "取消" },
     );
   } catch {
+    granting.value = false;
     return;
   }
-  granting.value = true;
-  // 同一次确认只生成一个请求号：网络重试不会重复发放
-  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  pendingGrant.value = input;
   try {
-    const r = await xiaobuOpsApi.grant({ ownerType: quota.ownerType, ownerId: quota.ownerId.trim(), minutes: grant.minutes, reason: grant.reason.trim(), requestId });
+    const r = await xiaobuOpsApi.grant(input);
+    pendingGrant.value = null;
     ElMessage.success(r.duplicated ? "该请求已发放过，未重复发放" : "已发放");
-    grant.reason = "";
-    loadQuota();
+    if (grant.reason.trim() === input.reason) grant.reason = "";
+    if (quota.ownerType === input.ownerType && quota.ownerId.trim() === input.ownerId) void loadQuota();
   } catch (e) {
-    ElMessage.error(errMsg(e, "发放失败"));
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status && [400, 401, 403, 404, 422].includes(status)) {
+      pendingGrant.value = null;
+      ElMessage.error(errMsg(e, '请求未被接受，请核对输入或权限后重试'));
+    } else {
+      ElMessage.error(`${errMsg(e, "发放结果暂未确认")}。请使用上次请求重试；离开页面前请核对额度流水，勿另发一笔。`);
+    }
   } finally {
     granting.value = false;
   }
