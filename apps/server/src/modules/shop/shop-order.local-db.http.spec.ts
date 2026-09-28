@@ -24,6 +24,8 @@ import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { ShopAttributionService } from "./shop-attribution.service";
+import { NotificationController } from "../notification/notification.controller";
+import { NotificationService } from "../notification/notification.service";
 
 const localUrl = process.env.REBU_LOCAL_ORDER_TEST_URL || "";
 const isIsolatedLocalDb = (() => {
@@ -79,7 +81,7 @@ const isIsolatedLocalDb = (() => {
     });
     const module = await Test.createTestingModule({
       imports: [PassportModule.register({ defaultStrategy: "jwt" })],
-      controllers: [ShopController],
+      controllers: [ShopController, NotificationController],
       providers: [
         JwtStrategy, ActiveUserGuard,
         { provide: PrismaService, useValue: prisma },
@@ -93,6 +95,7 @@ const isIsolatedLocalDb = (() => {
         { provide: LogisticsService, useValue: {} },
         { provide: SystemService, useValue: { logAudit: async () => undefined } },
         { provide: WechatService, useValue: {} },
+        { provide: NotificationService, useValue: new NotificationService(prisma as any, redis as any, {} as any, {} as any) },
       ],
     })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
@@ -163,5 +166,25 @@ const isIsolatedLocalDb = (() => {
     await request(app.getHttpServer()).get(url).set("Authorization", `Bearer ${otherToken}`).expect(403);
     const cachedOwn = await request(app.getHttpServer()).get(url).set("Authorization", `Bearer ${token}`).expect(200);
     expect(cachedOwn.body.id).toBe(order.id);
+  });
+
+  it("可读通知指向他人订单时，点击目标仍被订单权限拒绝", async () => {
+    const order = await prisma.order.findFirstOrThrow({ where: { userId } });
+    const notice = await prisma.notification.create({ data: {
+      userId: otherUserId, type: "SYSTEM", title: "合成权限测试", content: "测试通知不授予订单访问权",
+      targetType: "ORDER", targetId: order.id,
+    } });
+    try {
+      const detail = await request(app.getHttpServer()).get(`/api/v1/notifications/${notice.id}`)
+        .set("Authorization", `Bearer ${otherToken}`).expect(200);
+      expect(detail.body.targetType).toBe("ORDER");
+      expect(detail.body.targetId).toBe(order.id);
+      await request(app.getHttpServer()).get(`/api/v1/shop/orders/${detail.body.targetId}`)
+        .set("Authorization", `Bearer ${otherToken}`).expect(403);
+      await request(app.getHttpServer()).get(`/api/v1/shop/orders/${detail.body.targetId}`)
+        .set("Authorization", `Bearer ${token}`).expect(200);
+    } finally {
+      await prisma.notification.deleteMany({ where: { id: notice.id } });
+    }
   });
 });
