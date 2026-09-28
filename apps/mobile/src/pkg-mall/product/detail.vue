@@ -83,7 +83,7 @@ onLoad((query) => {
 const { toAppMessage, toTimeline, openPoster } = useShare()
 const productShareTitle = computed(() => `发现一件值得看看好物：${product.value?.title || '平台严选'}`)
 const productShareSummary = computed(() => {
-  const raw = product.value?.subtitle || product.value?.description || '平台严选好物，详情、评价与服务保障一页看清。'
+  const raw = product.value?.subtitle || product.value?.description || '商品详情与评价一页看清。'
   return String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90)
 })
 const productShareMeta = computed(() => {
