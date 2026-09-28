@@ -203,8 +203,8 @@ export class VersionController {
 
   private activate(id: string, operatorId: string, rollback: boolean) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
+      await tx.$queryRawUnsafe(
+        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
         `app-version:${id}`,
       );
       const target = await tx.appVersion.findUnique({ where: { id } });
@@ -230,8 +230,8 @@ export class VersionController {
       }
 
       // 按平台串行切换，而不是按记录锁；确保多节点并发发布也只有一个 ACTIVE。
-      await tx.$executeRawUnsafe(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
+      await tx.$queryRawUnsafe(
+        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
         `app-version-platform:${target.platform}`,
       );
       const current = await tx.appVersion.findFirst({
