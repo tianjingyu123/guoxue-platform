@@ -16,7 +16,7 @@ const mockPrisma: any = {
     update: jest.fn(),
     delete: jest.fn(),
   },
-  $queryRawUnsafe: jest.fn().mockResolvedValue([{ locked: 1 }]),
+  $executeRawUnsafe: jest.fn(),
   $transaction: jest.fn(),
 };
 
@@ -189,19 +189,19 @@ describe("VersionController", () => {
 
       await ctrl.publish("draft-1", req);
 
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         1,
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         "app-version:draft-1",
       );
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         2,
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         "app-version-platform:android",
       );
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[0])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
         .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[1])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
         .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
 
       expect(mockPrisma.appVersion.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -226,11 +226,11 @@ describe("VersionController", () => {
 
       await expectNotFound(ctrl.publish(missingVersionId, req));
 
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         `app-version:${missingVersionId}`,
       );
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[0])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
         .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
     });
 
@@ -302,19 +302,19 @@ describe("VersionController", () => {
 
       await ctrl.rollback("old-1", req);
 
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         1,
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         "app-version:old-1",
       );
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenNthCalledWith(
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         2,
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         "app-version-platform:harmony",
       );
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[0])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
         .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[1])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
         .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
 
       expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -328,11 +328,11 @@ describe("VersionController", () => {
 
       await expectNotFound(ctrl.rollback(missingVersionId, req));
 
-      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        "SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext($1))",
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
         `app-version:${missingVersionId}`,
       );
-      expect(mockPrisma.$queryRawUnsafe.mock.invocationCallOrder[0])
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
         .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
     });
 
