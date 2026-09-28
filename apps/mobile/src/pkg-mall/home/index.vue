@@ -355,10 +355,10 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
 .cart-badge { position: absolute; top: -10rpx; right: -10rpx; z-index: 2; min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 600; line-height: 1; display: flex; align-items: center; justify-content: center; border: 2rpx solid #faf8f5; box-sizing: border-box; }
 .card-press { opacity: 0.85; }
 
-.body { padding: 32rpx; display: flex; flex-direction: column; gap: 40rpx; }
+.body { padding: 32rpx; display: flex; flex-direction: column; gap: 28rpx; }
 
 /* 快捷入口 */
-.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24rpx; }
+.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
 .quick-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 24rpx 0; border-radius: 24rpx; background: var(--card); }
 .quick-icon { width: 80rpx; height: 80rpx; border-radius: 999rpx; background: var(--secondary); display: flex; align-items: center; justify-content: center; }
 .quick-label { font-size: 24rpx; color: var(--text-strong); }
@@ -534,7 +534,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
 .guess-head { display: flex; align-items: center; justify-content: center; gap: 16rpx; margin-bottom: 24rpx; }
 .guess-line { width: 64rpx; height: 2rpx; background: var(--border); }
 .guess-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
-.prod-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; }
+.prod-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12rpx; }
 .products-empty { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 48rpx 16rpx; color: var(--text-soft); font-size: 24rpx; }
 .products-empty view { color: var(--brand); font-weight: 600; }
 
