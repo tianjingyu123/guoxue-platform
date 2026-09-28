@@ -13,7 +13,7 @@
  * 合规：客户档案存的是**他人**的生辰与电话，属敏感个人信息。列表只显示脱敏手机，
  * 详情才解密；CRM 侧不提供任何导出端点（防数据贩卖）。
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -31,6 +31,9 @@ const keyword = ref('')
 /** 详情弹层（进来才解密生辰/手机） */
 const detail = ref<any>(null)
 const detailLoading = ref(false)
+let detailSequence = 0
+const completingReminder = ref('')
+onUnmounted(() => { detailSequence++; detail.value = null })
 
 /** 建档/编辑弹层 */
 const formOpen = ref(false)
@@ -74,26 +77,40 @@ onShow(() => {
 })
 
 async function openDetail(id: string) {
+  const sequence = ++detailSequence
   detailLoading.value = true
   detail.value = { id }
+  const requestedDetail = detail.value
   try {
-    detail.value = await wsApi.getClient(id)
+    const result = await wsApi.getClient(id)
+    if (sequence !== detailSequence || detail.value !== requestedDetail) return
+    detail.value = result
   } catch (e: any) {
+    if (sequence !== detailSequence || detail.value !== requestedDetail) return
     detail.value = null
     uni.showToast({ title: e?.message || '加载失败', icon: 'none' })
   } finally {
-    detailLoading.value = false
+    if (sequence === detailSequence) detailLoading.value = false
   }
 }
 
 async function completeReminder(id: string) {
-  if (!detail.value?.id) return
+  if (!detail.value?.id || completingReminder.value) return
+  const clientId = detail.value.id
+  const sequence = detailSequence
+  completingReminder.value = id
   try {
     await wsApi.markReminderDone(id)
-    await openDetail(detail.value.id)
+    // 关闭或切换客户后，不用旧回访请求重新打开详情，也不刷新另一位客户。
+    if (sequence !== detailSequence || detail.value?.id !== clientId) return
+    await openDetail(clientId)
     uni.showToast({ title: '已完成回访', icon: 'success' })
   } catch (e: any) {
-    uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+    if (sequence === detailSequence && detail.value?.id === clientId) {
+      uni.showToast({ title: e?.message || '更新失败', icon: 'none' })
+    }
+  } finally {
+    completingReminder.value = ''
   }
 }
 
@@ -335,7 +352,7 @@ function dateText(iso?: string | null): string {
             <view v-for="r in detail.reminders" :key="r.id" class="cm-log">
               <text class="cm-log-note">{{ r.aiDraft || '联系客户，完成本次回访' }}</text>
               <view class="cm-btn cm-btn--ghost" @tap="completeReminder(r.id)">
-                <text class="cm-btn-txt cm-btn-txt--ghost">标记完成</text>
+                <text class="cm-btn-txt cm-btn-txt--ghost">{{ completingReminder === r.id ? '处理中…' : '标记完成' }}</text>
               </view>
             </view>
           </view>
