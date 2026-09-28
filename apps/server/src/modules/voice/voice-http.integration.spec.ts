@@ -8,6 +8,7 @@ import { ThrottleGuard, StrictThrottleGuard } from "../../common/throttle.guard"
 import { SystemService } from "../system/system.service";
 import { DEFAULT_VOICE_BILLING, VoiceQuotaService } from "./voice-quota.service";
 import { VoiceContextBuilder } from "./voice-context.builder";
+import { XiaobuCommerceService } from "./xiaobu-commerce.service";
 import { VoiceSessionService } from "./voice-session.service";
 import { VoiceDeviceService } from "./voice-device.service";
 import { VoiceDeviceHandoffService } from "./voice-device-handoff.service";
@@ -26,6 +27,13 @@ import { UnavailableXiaozhiProvider } from "./provider/unavailable-xiaozhi.provi
  * 限流守卫放行。供应商为模拟/暂未开放两种，不代表真实接通。
  */
 const dbUrl = process.env.XIAOBU_IT_DATABASE_URL;
+if (dbUrl) {
+  const target = new URL(dbUrl);
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(target.hostname)
+    || !/^\/[a-z0-9_]*test[a-z0-9_]*$/i.test(target.pathname)) {
+    throw new Error("语音集成测试仅允许本机明确命名的 test 隔离库");
+  }
+}
 const run = dbUrl ? describe : describe.skip;
 
 /** 测试身份：x-test-user=<userId>，x-test-roles=A,B；没有头就是未登录 */
@@ -53,6 +61,7 @@ async function makeApp(prisma: PrismaClient, provider: any, chargeUsers = true):
       { provide: VOICE_PROVIDER, useValue: provider },
       VoiceQuotaService,
       VoiceContextBuilder,
+      XiaobuCommerceService,
       VoiceDeviceService,
       VoiceSessionService,
       VoiceDeviceHandoffService,
@@ -82,6 +91,7 @@ run("小卜语音 HTTP 层契约", () => {
   beforeAll(async () => {
     process.env.XIAOBU_DEVICE_PEPPER = "it-only-pepper-0123456789abcdef0123456789";
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+    await prisma.user.create({ data: { id: alice, nickname: "合成语音测试用户" } });
     mock = new MockXiaozhiProvider();
     mockApp = await makeApp(prisma, mock);
     unavailApp = await makeApp(prisma, new UnavailableXiaozhiProvider());
@@ -98,6 +108,7 @@ run("小卜语音 HTTP 层契约", () => {
     await prisma.voiceSession.deleteMany({ where: { id: { in: sids } } });
     await prisma.voiceQuotaAccount.deleteMany({ where: { id: { in: accs } } });
     await prisma.voiceDevice.deleteMany({ where: { productSku: { startsWith: prefix } } });
+    await prisma.user.deleteMany({ where: { id: alice } });
     await mockApp?.close();
     await unavailApp?.close();
     await prisma.$disconnect();
@@ -168,7 +179,7 @@ run("小卜语音 HTTP 层契约", () => {
     await request(unavailApp.getHttpServer()).post("/api/v1/voice/provider-callbacks/mock/usage").send("{}").expect(404);
   });
 
-  it("设备：普通用户不能进后台；客服只读；运营可登记与停用", async () => {
+  it("设备：普通用户不能进后台；客服只读；运营可登记；未激活设备不可通话", async () => {
     await as(mockApp, alice).get("/admin/xiaobu/devices").expect(403);
     await as(mockApp, bob, "CUSTOMER_SERVICE").get("/admin/xiaobu/devices").expect(200);
     await as(mockApp, bob, "CUSTOMER_SERVICE").post("/admin/xiaobu/devices", { serial: "SN123456", productSku: `${prefix}-sku` }).expect(403);
@@ -203,6 +214,16 @@ run("小卜语音 HTTP 层契约", () => {
     const grant = { ownerType: "user", ownerId: alice, minutes: 5, reason: "测试补偿", requestId: `${prefix}-grant-1` };
     await as(mockApp, "cs", "CUSTOMER_SERVICE").post("/admin/xiaobu/quota/grant", grant).expect(403);
     await as(mockApp, "fin", "FINANCE_ADMIN").post("/admin/xiaobu/quota/grant", grant).expect(403);
+    const before = await prisma.voiceQuotaAccount.findUniqueOrThrow({ where: { ownerType_ownerId: { ownerType: "user", ownerId: alice } } });
+    const first = await as(mockApp, "op", "OPERATION_ADMIN").post("/admin/xiaobu/quota/grant", grant).expect(201);
+    const retry = await as(mockApp, "op", "OPERATION_ADMIN").post("/admin/xiaobu/quota/grant", grant).expect(201);
+    expect(first.body.duplicated).toBe(false);
+    expect(retry.body.duplicated).toBe(true);
+    expect(retry.body.ledger.id).toBe(first.body.ledger.id);
+    expect(first.body.ledger).toMatchObject({ operatorId: "op", note: grant.reason, seconds: 300 });
+    const after = await prisma.voiceQuotaAccount.findUniqueOrThrow({ where: { id: before.id } });
+    expect(after.balanceSeconds - before.balanceSeconds).toBe(300);
+    expect(await prisma.voiceQuotaLedger.count({ where: { idempotencyKey: `admin-grant:${grant.requestId}` } })).toBe(1);
     await as(mockApp, alice).get("/admin/xiaobu/provider").expect(403);
     const p = await as(mockApp, "op", "OPERATION_ADMIN").get("/admin/xiaobu/provider").expect(200);
     expect(p.body).toMatchObject({ providerId: "mock", isMock: true });
