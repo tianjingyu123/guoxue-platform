@@ -18,6 +18,8 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
 import {
   MOUNTAINS,
   CN_NUM,
@@ -55,6 +57,59 @@ const editingName = ref(false)
 const flyDate = ref({ year: 2026, month: 7, day: 1, hour: 12, minute: 0 })
 const showDatePicker = ref(false)
 const selectedPalace = ref<number | null>(null)
+const preparingReport = ref(false)
+const savedReportRecord = ref({ key: '', id: '' })
+
+async function openXiaobuReport() {
+  const p = params.value
+  if (!p || !chart.value || preparingReport.value) return
+  if (!getToken()) {
+    try {
+      const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+      if (page?.route) {
+        const query = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+        uni.setStorageSync('login:redirect', `/${page.route}${query ? `?${query}` : ''}`)
+      }
+    } catch { /* 回跳记录失败不阻断登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  if (p.year < 1864 || p.year > 2100) {
+    uni.showToast({ title: '宅书支持 1864 至 2100 年，请重新选年', icon: 'none' })
+    return
+  }
+  preparingReport.value = true
+  try {
+    const input = {
+      name: customer.value.trim(),
+      shan: MOUNTAINS[p.sitting], xiang: MOUNTAINS[(p.sitting + 12) % 24],
+      year: p.year, period: p.period, tiGua: p.ti,
+    }
+    const key = JSON.stringify(input)
+    let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
+    if (!id) {
+      const record = await aiReportApi.saveXuankongRecord(input)
+      if (!record.id) throw new Error('宅盘保存失败，请重试')
+      const localChart = chart.value
+      const sameChart = localChart && record.result?.basicInfo?.yuanYun === p.period
+        && record.result.gongs?.length === 9
+        && new Set(record.result.gongs.map(({ palace }) => palace)).size === 9
+        && record.result.gongs.every(({ palace, yunStar, shanStar, xiangStar }) =>
+          Number.isInteger(palace) && palace >= 1 && palace <= 9
+          && yunStar === localChart.yunPan[palace]
+          && shanStar === localChart.shanPan[palace]
+          && xiangStar === localChart.xiangPan[palace])
+      if (!sameChart) throw new Error('宅盘与报告数据不一致，暂不能生成宅书')
+      id = record.id
+      savedReportRecord.value = { key, id }
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '宅书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -393,6 +448,9 @@ const palaceDetail = computed(() => {
         </paper-card>
         <text class="hint hint-pb">绿色为山、红色为向、蓝色为水口；外圈为排龙十二神（自水口双山顺布）</text>
 
+        <view class="report-entry" :class="{ 'report-entry-busy': preparingReport }" @tap="openXiaobuReport">
+          <text class="report-entry-text">{{ preparingReport ? '正在准备…' : '生成小卜宅书' }}</text>
+        </view>
         <disclaimer
           variant="custom"
           tone="subtle"
@@ -450,6 +508,9 @@ const palaceDetail = computed(() => {
 </template>
 
 <style scoped lang="scss">
+.report-entry { display: flex; align-items: center; justify-content: center; min-height: 88rpx; border: 2rpx solid var(--brand); border-radius: 20rpx; background: var(--card, #fff); }
+.report-entry-busy { opacity: 0.55; }
+.report-entry-text { color: var(--brand); font-size: 28rpx; font-weight: 600; }
 $serif: Georgia, 'Songti SC', serif;
 $green: #2f9d6a;
 $red: #ef4444;

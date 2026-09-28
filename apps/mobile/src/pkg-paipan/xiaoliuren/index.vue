@@ -110,6 +110,10 @@ async function openXiaobuReport() {
     uni.showToast({ title: '请填写 1 至 3 个有效数字', icon: 'none' })
     return
   }
+  if (matter.value.trim().length > 60) {
+    uni.showToast({ title: '所问事项最多 60 字，请精简后再生成课书', icon: 'none' })
+    return
+  }
   preparingReport.value = true
   try {
     const input = reportInput()

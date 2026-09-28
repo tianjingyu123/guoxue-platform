@@ -333,6 +333,16 @@ export const aiReportApi = {
   saveJinkoujueRecord(params: Record<string, unknown>): Promise<{ id: string }> {
     return apiPost<{ id: string }>('/paipan/jinkoujue/save', params)
   },
+  /** 玄空：显式传结果页已选择的元运，避免仅按建造年份推算而保存成另一盘。 */
+  saveXuankongRecord(params: Record<string, unknown>): Promise<{
+    id: string
+    result: {
+      basicInfo: { yuanYun: number }
+      gongs: Array<{ palace: number; yunStar: number; shanStar: number; xiangStar: number }>
+    }
+  }> {
+    return apiPost('/paipan/xuankong/save', params)
+  },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
     const query = queryString([['recordId', recordId], ['reportType', reportType]])
