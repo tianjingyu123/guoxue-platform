@@ -19,12 +19,14 @@ RUN pnpm install --frozen-lockfile
 
 # 构建
 RUN pnpm --dir apps/server exec prisma generate
+RUN node scripts/release/verify-prisma-build.mjs apps/server --write /app/prisma-build-receipt.json
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 # nest build 编译大型项目需要更多堆内存（默认 2GB 会 OOM）
 ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN pnpm build:server
+RUN node scripts/release/verify-prisma-build.mjs apps/server --verify /app/prisma-build-receipt.json
 RUN pnpm build:admin
 RUN pnpm --filter @guoxue/mobile build:h5
 RUN node scripts/migration/check-client-artifacts.mjs apps/mobile/dist/build/h5 \
@@ -59,6 +61,9 @@ COPY --from=builder /app/packages/bazi-engine/package.json ./packages/bazi-engin
 COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist
 COPY --from=builder /app/packages/ziwei-engine/package.json ./packages/ziwei-engine/
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/prisma-build-receipt.json ./
+COPY --from=builder /app/scripts/release/verify-prisma-build.mjs ./scripts/release/
+RUN node scripts/release/verify-prisma-build.mjs apps/server --verify /app/prisma-build-receipt.json
 COPY --from=builder /app/apps/admin/dist ./admin-dist
 COPY --from=builder /app/apps/mobile/dist/build/h5 ./h5-dist
 
