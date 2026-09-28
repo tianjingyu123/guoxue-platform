@@ -19,7 +19,7 @@
     <template v-else>
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
-      <view class="address-card" @tap="onAddressCardTap">
+      <view class="address-card" role="button" tabindex="0" aria-label="选择或添加收货地址" @tap="onAddressCardTap" @keydown.enter="onAddressCardTap" @keydown.space.prevent="onAddressCardTap">
         <app-icon name="map-pin" :size="40" color="#C41E3A" />
         <view class="address-info" v-if="currentAddress">
           <view class="addr-top">
@@ -53,7 +53,7 @@
       </view>
 
       <!-- 优惠券 -->
-      <view class="cell" @tap="showCoupon = true">
+      <view class="cell" role="button" tabindex="0" aria-label="选择优惠券" @tap="showCoupon = true" @keydown.enter="showCoupon = true" @keydown.space.prevent="showCoupon = true">
         <view class="cell-left">
           <app-icon name="tag" :size="36" color="#C41E3A" />
           <text class="cell-label">优惠券</text>
@@ -105,10 +105,13 @@
     </view>
 
     <!-- 地址选择 -->
-    <view v-if="showAddress" class="mask" @tap="showAddress = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择收货地址</text>
-        <view v-for="a in addresses" :key="a.id" class="addr-option" @tap="selectAddress(a)">
+    <view v-if="showAddress" class="mask" @tap="showAddress = false" @touchmove.self.prevent>
+      <view class="sheet address-sheet" role="dialog" aria-modal="true" aria-label="选择收货地址" tabindex="-1" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">选择收货地址</text>
+          <view class="sheet-close" role="button" tabindex="0" aria-label="关闭地址选择" @tap="showAddress = false" @keydown.enter="showAddress = false" @keydown.space.prevent="showAddress = false"><app-icon name="x" :size="30" color="#666666" /></view>
+        </view>
+        <view v-for="a in addresses" :key="a.id" class="addr-option" role="button" tabindex="0" :aria-label="`选择收货地址：${a.name}，${a.province}${a.city}${a.district}${a.address}`" @tap="selectAddress(a)" @keydown.enter="selectAddress(a)" @keydown.space.prevent="selectAddress(a)">
           <view class="addr-option-info">
             <view class="addr-top"><text class="addr-name">{{ a.name }}</text><text class="addr-phone">{{ a.phone }}</text></view>
             <text class="addr-detail">{{ a.province }}{{ a.city }}{{ a.district }}{{ a.address }}</text>
@@ -117,8 +120,10 @@
         </view>
         <!-- 添加新地址入口（新用户无地址时的唯一通道，此前缺失导致卡死） -->
         <view
+          role="button" tabindex="0" aria-label="添加新收货地址"
           style="display:flex;align-items:center;justify-content:center;gap:10rpx;padding:28rpx;margin-top:12rpx;border:2rpx dashed #C41E3A;border-radius:16rpx;"
           @tap="goAddAddress"
+          @keydown.enter="goAddAddress" @keydown.space.prevent="goAddAddress"
         >
           <app-icon name="plus" :size="32" color="#C41E3A" />
           <text style="font-size:28rpx;color:#C41E3A;font-weight:500;">添加新地址</text>
@@ -127,14 +132,17 @@
     </view>
 
     <!-- 优惠券选择 -->
-    <view v-if="showCoupon" class="mask" @tap="showCoupon = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheet-title">选择优惠券</text>
-        <view class="coupon-option" @tap="selectCoupon(null)">
+    <view v-if="showCoupon" class="mask" @tap="showCoupon = false" @touchmove.self.prevent>
+      <view class="sheet coupon-sheet" role="dialog" aria-modal="true" aria-label="选择优惠券" tabindex="-1" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">选择优惠券</text>
+          <view class="sheet-close" role="button" tabindex="0" aria-label="关闭优惠券选择" @tap="showCoupon = false" @keydown.enter="showCoupon = false" @keydown.space.prevent="showCoupon = false"><app-icon name="x" :size="30" color="#666666" /></view>
+        </view>
+        <view class="coupon-option" role="button" tabindex="0" aria-label="不使用优惠券" @tap="selectCoupon(null)" @keydown.enter="selectCoupon(null)" @keydown.space.prevent="selectCoupon(null)">
           <text>不使用优惠券</text>
           <view class="radio" :class="{ checked: !selectedCoupon }"><view v-if="!selectedCoupon" class="radio-dot" /></view>
         </view>
-        <view v-for="c in coupons" :key="c.id" class="coupon-option" @tap="selectCoupon(c)">
+        <view v-for="c in coupons" :key="c.id" class="coupon-option" role="button" tabindex="0" :aria-label="`使用优惠券：${c.name}`" @tap="selectCoupon(c)" @keydown.enter="selectCoupon(c)" @keydown.space.prevent="selectCoupon(c)">
           <view><text class="co-name">{{ c.name }} -¥{{ c.value }}</text><text class="co-min">满{{ c.minAmount }}可用</text></view>
           <view class="radio" :class="{ checked: selectedCoupon && selectedCoupon.id === c.id }"><view v-if="selectedCoupon && selectedCoupon.id === c.id" class="radio-dot" /></view>
         </view>
@@ -159,6 +167,7 @@ import { h5PaymentOptions } from '@/utils/h5-payment-options'
 import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 // #endif
 import { requestKeysFor, hasPendingCheckoutAttempt, clearCheckoutAttempt } from '@/lib/checkout-request-keys'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const loading = ref(true)
 const error = ref('')
@@ -171,6 +180,16 @@ const selectedCoupon = ref<CheckoutCoupon | null>(null)
 const payMethod = ref('wechat')
 const showAddress = ref(false)
 const showCoupon = ref(false)
+useOverlayScrollLock(() => showAddress.value, {
+  onEscape: () => { showAddress.value = false },
+  focusContainerSelector: '.address-sheet',
+  initialFocusSelector: '.address-sheet .sheet-close',
+})
+useOverlayScrollLock(() => showCoupon.value, {
+  onEscape: () => { showCoupon.value = false },
+  focusContainerSelector: '.coupon-sheet',
+  initialFocusSelector: '.coupon-sheet .sheet-close',
+})
 const submitting = ref(false)
 const pendingAttempt = ref(hasPendingCheckoutAttempt())
 // 多商品逐单创建时，缓存已成功建单；失败重试只复用同一结算选择下的订单。
@@ -474,8 +493,10 @@ async function submitOrder() {
 .pending-attempt { padding: 18rpx 30rpx; background: #FFF5E6; color: #744B17; font-size: 24rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
 .pending-attempt view { flex-shrink: 0; color: #8E4218; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }
-.sheet { width: 100%; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; max-height: 70vh; }
+.sheet { width: 100%; box-sizing: border-box; background: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 24rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); max-height: 70vh; overflow-y: auto; }
+.sheet-head { position: sticky; top: -24rpx; z-index: 1; display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #1A1A1A; display: block; margin-bottom: 24rpx; }
+.sheet-close { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .addr-option, .coupon-option { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; border-bottom: 2rpx solid #F5F5F5; }
 .addr-option-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .co-name { font-size: 28rpx; color: #1A1A1A; display: block; }
