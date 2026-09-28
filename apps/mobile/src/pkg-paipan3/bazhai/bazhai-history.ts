@@ -15,6 +15,9 @@ export interface BazhaiParams {
   gender: BazhaiGender
   /** 出生年份（选填，0=未填） */
   birthYear: number
+  /** 新记录保存完整公历生日，供立春边界判定；旧记录可为空。 */
+  birthMonth?: number
+  birthDay?: number
 }
 
 export interface BazhaiRecord {

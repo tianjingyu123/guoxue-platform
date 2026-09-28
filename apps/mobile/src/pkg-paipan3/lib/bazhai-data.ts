@@ -1,4 +1,5 @@
 // 八宅风水核心数据与算法
+import { findTerm } from '@guoxue/shared/paipan/jieqi'
 
 // 八卦（后天）与方位
 export const GUAS = ["坎", "艮", "震", "巽", "离", "坤", "兑", "乾"] as const
@@ -168,6 +169,13 @@ export function mingGua(birthYear: number, gender: "male" | "female"): Gua {
   }
   if (n === 5) return gender === "male" ? "坤" : "艮"
   return MING_MAP[n]
+}
+
+/** 出生日期按北京时间中午与立春比较；与服务端无时刻输入时的口径一致。 */
+export function mingYearOfBirth(year: number, month?: number, day?: number): number {
+  if (!month || !day) return year // 兼容仅记录年份的旧课盘；旧盘不可据此直接购买报告
+  const birthAtNoonBeijing = Date.UTC(year, month - 1, day, 12) - 8 * 3600000
+  return birthAtNoonBeijing < findTerm(year, '立春').getTime() ? year - 1 : year
 }
 
 /** 宅命是否相配（同为东四或同为西四） */

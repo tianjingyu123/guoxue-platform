@@ -16,7 +16,8 @@
     "type-check": "vue-tsc --noEmit",
     "scan-mock": "bash scripts/scan-mock-imports.sh",
     "verify": "tsx scripts/verify-all.ts",
-    "check:xuankong-chart-parity": "tsx scripts/check-xuankong-chart-parity.ts"
+    "check:xuankong-chart-parity": "tsx scripts/check-xuankong-chart-parity.ts",
+    "check:bazhai-chart-parity": "tsx scripts/check-bazhai-chart-parity.ts"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5020320260803001",

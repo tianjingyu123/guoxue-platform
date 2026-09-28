@@ -16,7 +16,7 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { MOUNTAINS } from '@/pkg-paipan3/lib/xuankong-data'
-import { sittingGua, mingGua, GUA_INFO, groupName } from '@/pkg-paipan3/lib/bazhai-data'
+import { sittingGua, mingGua, mingYearOfBirth, GUA_INFO, groupName } from '@/pkg-paipan3/lib/bazhai-data'
 import {
   loadBazhaiHistory,
   clearBazhaiHistory,
@@ -32,8 +32,6 @@ let hdrTitle = '八宅排盘'
 hdrTitle = '八宅文化研究'
 // #endif
 
-const CURRENT_YEAR = new Date().getFullYear()
-
 function shanxiangLabel(i: number): string {
   return `${MOUNTAINS[i]}山${MOUNTAINS[(i + 12) % 24]}向`
 }
@@ -43,26 +41,41 @@ const customer = ref('')
 const sittingIdx = ref<number | null>(null)
 const gender = ref<BazhaiGender>('male')
 const birthYear = ref<number | null>(null)
+const birthMonth = ref<number | null>(null)
+const birthDay = ref<number | null>(null)
+const birthDateText = computed(() => birthYear.value && birthMonth.value && birthDay.value
+  ? `${birthYear.value}-${String(birthMonth.value).padStart(2, '0')}-${String(birthDay.value).padStart(2, '0')}` : '')
+const todayText = (() => {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+})()
 
 // picker 选项：坐向带宅卦标注；年份首项「暂不填写」保持选填语义
 const SHANXIANG_LABELS = MOUNTAINS.map((_, i) => {
   const g = sittingGua(i)
   return `${shanxiangLabel(i)}（${g}宅·${groupName(g)}）`
 })
-const YEAR_LIST = Array.from({ length: 100 }, (_, i) => CURRENT_YEAR - i)
-const YEAR_LABELS = ['暂不填写', ...YEAR_LIST.map((y) => `${y}年`)]
 
 function onSittingChange(e: { detail: { value: string | number } }) {
   sittingIdx.value = Number(e.detail.value)
 }
-function onYearChange(e: { detail: { value: string | number } }) {
-  const idx = Number(e.detail.value)
-  birthYear.value = idx === 0 ? null : YEAR_LIST[idx - 1]
+function onBirthDateChange(e: { detail: { value: string } }) {
+  const [year, month, day] = e.detail.value.split('-').map(Number)
+  if (!year || !month || !day) return
+  birthYear.value = year
+  birthMonth.value = month
+  birthDay.value = day
+}
+function clearBirthDate() {
+  birthYear.value = null
+  birthMonth.value = null
+  birthDay.value = null
 }
 
 // ── 实时预览 ──
 const zhai = computed(() => (sittingIdx.value !== null ? sittingGua(sittingIdx.value) : null))
-const ming = computed(() => (birthYear.value !== null ? mingGua(birthYear.value, gender.value) : null))
+const ming = computed(() => (birthYear.value !== null
+  ? mingGua(mingYearOfBirth(birthYear.value, birthMonth.value ?? undefined, birthDay.value ?? undefined), gender.value) : null))
 const matched = computed(() =>
   zhai.value && ming.value ? GUA_INFO[zhai.value].group === GUA_INFO[ming.value].group : null,
 )
@@ -101,6 +114,8 @@ function handleSubmit() {
     sitting: sittingIdx.value,
     gender: gender.value,
     birthYear: birthYear.value ?? 0,
+    birthMonth: birthMonth.value ?? undefined,
+    birthDay: birthDay.value ?? undefined,
   }
   navigateTo(`/pkg-paipan3/bazhai/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
 }
@@ -155,23 +170,19 @@ function handleSubmit() {
                     <text class="chip-text" :class="{ 'chip-text-on': gender === 'female' }">女</text>
                   </view>
                 </view>
-                <picker
-                  mode="selector"
-                  :range="YEAR_LABELS"
-                  :value="birthYear === null ? 0 : YEAR_LIST.indexOf(birthYear) + 1"
-                  @change="onYearChange"
-                >
+                <picker mode="date" :value="birthDateText || todayText" start="1900-01-01" :end="todayText" @change="onBirthDateChange">
                   <view class="sel-btn" :class="{ 'sel-btn-on': birthYear !== null }">
                     <text class="sel-btn-text" :class="{ 'sel-btn-text-off': birthYear === null }">
-                      {{ birthYear === null ? '出生年份(选填)' : `${birthYear}年` }}
+                      {{ birthDateText || '出生日期(选填)' }}
                     </text>
                     <app-icon name="chevron-down" :size="26" color="var(--text-soft)" />
                   </view>
                 </picker>
+                <text v-if="birthYear !== null" class="row-preview" @tap="clearBirthDate">清除</text>
               </view>
             </view>
             <text v-if="ming" class="row-preview">{{ ming }}命 · {{ groupName(ming) }}命</text>
-            <text class="row-hint">命卦以出生年份定（立春为岁首，年初出生者请留意）。填写后可分析宅命相配与个人吉方。</text>
+            <text class="row-hint">按出生日期和立春分界计算命卦；不填仍可查看宅盘，生成个人宅书需填写。</text>
           </view>
 
           <!-- 宅命预览 -->

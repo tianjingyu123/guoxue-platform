@@ -15,6 +15,8 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
 import { MOUNTAINS } from '@/pkg-paipan3/lib/xuankong-data'
 import {
   type Gua,
@@ -25,6 +27,7 @@ import {
   younianStars,
   sittingGua,
   mingGua,
+  mingYearOfBirth,
   isMatch,
   groupName,
 } from '@/pkg-paipan3/lib/bazhai-data'
@@ -43,13 +46,68 @@ const customer = ref('')
 const editingName = ref(false)
 const panMode = ref<'zhai' | 'ming'>('zhai')
 const selectedGua = ref<Gua | null>(null)
+const preparingReport = ref(false)
+const savedReportRecord = ref({ key: '', id: '' })
+
+async function openXiaobuReport() {
+  const p = params.value
+  if (!p || !zhai.value || preparingReport.value) return
+  if (!p.birthMonth || !p.birthDay || p.birthYear < 1900 || p.birthYear > new Date().getFullYear()) {
+    uni.showToast({ title: '请返回选择完整出生日期，再生成个人宅书', icon: 'none' })
+    return
+  }
+  if (!ming.value) return
+  if (!getToken()) {
+    try {
+      const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+      if (page?.route) {
+        const query = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+        uni.setStorageSync('login:redirect', `/${page.route}${query ? `?${query}` : ''}`)
+      }
+    } catch { /* 回跳记录失败不阻断登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  preparingReport.value = true
+  try {
+    const input = {
+      name: customer.value.trim(),
+      birthYear: p.birthYear, birthMonth: p.birthMonth, birthDay: p.birthDay,
+      gender: p.gender === 'male' ? '男' : '女',
+      zuoShan: zhai.value,
+    }
+    const key = JSON.stringify(input)
+    let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
+    if (!id) {
+      const record = await aiReportApi.saveBazhaiRecord(input)
+      if (!record.id) throw new Error('宅盘保存失败，请重试')
+      const sameStars = (actual: Array<{ direction: string; star: string }> | undefined, expected: Record<Gua, StarName>) =>
+        actual?.length === 8 && new Set(actual.map((fang) => fang.direction)).size === 8
+        && actual.every((fang) => Object.prototype.hasOwnProperty.call(expected, fang.direction)
+          && expected[fang.direction as Gua] === fang.star)
+      if (record.result?.zhaiGua?.guaName !== zhai.value
+        || record.result?.mingGua?.guaName !== ming.value
+        || !sameStars(record.result.baFang, zhaiStars.value!)
+        || !sameStars(record.result.mingBaFang, mingStars.value!)) {
+        throw new Error('宅盘与报告数据不一致，暂不能生成宅书')
+      }
+      id = record.id
+      savedReportRecord.value = { key, id }
+    }
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '宅书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
+}
 
 // ─── 排盘（本地重算） ───
 const zhai = computed<Gua | null>(() => (params.value ? sittingGua(params.value.sitting) : null))
 const ming = computed<Gua | null>(() => {
   const p = params.value
   if (!p || !p.birthYear) return null
-  return mingGua(p.birthYear, p.gender)
+  return mingGua(mingYearOfBirth(p.birthYear, p.birthMonth, p.birthDay), p.gender)
 })
 const zhaiStars = computed(() => (zhai.value ? younianStars(zhai.value) : null))
 const mingStars = computed(() => (ming.value ? younianStars(ming.value) : null))
@@ -122,11 +180,22 @@ onLoad((q: Record<string, string> = {}) => {
     if (!(sitting >= 0 && sitting <= 23)) throw new Error('坐向参数无效')
     const birthYear = Number(p.birthYear) || 0
     if (birthYear && (birthYear < 1000 || birthYear > 9999)) throw new Error('出生年份无效')
+    const birthMonth = p.birthMonth === undefined ? undefined : Number(p.birthMonth)
+    const birthDay = p.birthDay === undefined ? undefined : Number(p.birthDay)
+    if ((birthMonth === undefined) !== (birthDay === undefined)) throw new Error('出生日期不完整')
+    if (birthMonth !== undefined && birthDay !== undefined) {
+      const date = new Date(Date.UTC(birthYear, birthMonth - 1, birthDay))
+      if (date.getUTCFullYear() !== birthYear || date.getUTCMonth() + 1 !== birthMonth || date.getUTCDate() !== birthDay) {
+        throw new Error('出生日期无效')
+      }
+    }
     params.value = {
       customer: String(p.customer || '').slice(0, 20),
       sitting,
       gender: p.gender === 'female' ? 'female' : 'male',
       birthYear,
+      birthMonth,
+      birthDay,
     }
     customer.value = params.value.customer
     persist()
@@ -330,6 +399,10 @@ const guaDetail = computed(() => {
 
         <text class="note">断语仅供参考，实际布局请结合峦头形势与具体户型综合而定。</text>
 
+        <view class="report-entry" :class="{ 'report-entry-busy': preparingReport }" @tap="openXiaobuReport">
+          <text class="report-entry-text">{{ preparingReport ? '正在准备…' : '生成小卜宅书' }}</text>
+        </view>
+
         <disclaimer
           variant="custom"
           tone="subtle"
@@ -384,6 +457,9 @@ const guaDetail = computed(() => {
 </template>
 
 <style scoped lang="scss">
+.report-entry { display: flex; align-items: center; justify-content: center; min-height: 88rpx; border: 2rpx solid var(--brand); border-radius: 20rpx; background: var(--card, #fff); }
+.report-entry-busy { opacity: 0.55; }
+.report-entry-text { color: var(--brand); font-size: 28rpx; font-weight: 600; }
 $serif: Georgia, 'Songti SC', serif;
 $green: #2f9d6a;
 

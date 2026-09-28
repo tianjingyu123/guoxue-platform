@@ -343,6 +343,18 @@ export const aiReportApi = {
   }> {
     return apiPost('/paipan/xuankong/save', params)
   },
+  /** 八宅：服务端用完整生日计算立春命理年，保存后仍与结果页双盘逐方核对。 */
+  saveBazhaiRecord(params: Record<string, unknown>): Promise<{
+    id: string
+    result: {
+      zhaiGua: { guaName: string }
+      mingGua: { guaName: string }
+      baFang: Array<{ direction: string; star: string }>
+      mingBaFang: Array<{ direction: string; star: string }>
+    }
+  }> {
+    return apiPost('/paipan/bazhai/save', params)
+  },
   /** 这份报告能否生成：免费 / 会员 / 已购；否则返回单份价格与会员档位 */
   access(recordId: string, reportType = 'general'): Promise<AiReportAccess> {
     const query = queryString([['recordId', recordId], ['reportType', reportType]])
