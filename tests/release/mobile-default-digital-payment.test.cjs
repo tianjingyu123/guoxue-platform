@@ -81,3 +81,39 @@ test('购买成功跳转使用已选默认渠道且保留原服务上下文', as
     assert.equal(params.get(page === 'xiaobu-member' ? 'returnRecordId' : 'returnVoiceContextId'), 'r 1')
   }
 })
+
+test('报告和从业者购买：新单和原单使用默认渠道，已付或未知不重复建单', async () => {
+  for (const [file, name] of [['pkg-paipan/bazi/ai-report.vue', 'buyReport'], ['pkg-workspace/pro/index.vue', 'purchase']]) {
+    const script = read(file).split('<script setup lang="ts">')[1].split('</script>')[0]
+    const ast = ts.createSourceFile('page.ts', script, ts.ScriptTarget.Latest, true)
+    const fn = ast.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name)
+    for (const state of ['NEW', 'PENDING', 'PAID', 'UNKNOWN', 'DISABLED']) {
+      let created = 0; let refreshed = 0; const routes = []; const messages = []
+      const busy = { value: false }
+      const previous = state === 'NEW' ? null : { id: 'old', amount: 10, targetId: 'record:general' }
+      const api = compile(`${fn.getText(ast)}\nexports.run=${name}`, {
+        buyingReport: busy, purchasing: busy, paywall: { value: { reportType: 'general', priceYuan: 10 } },
+        recordId: { value: 'record' }, pro: { value: { price: 10 } },
+        pendingReportOrder: { value: previous }, pendingOrder: { value: previous },
+        track: { custom() {} }, checkAccessThenLoad: async () => { refreshed++ }, load: async () => { refreshed++ },
+        defaultDigitalPaymentMethod: async () => { if (state === 'DISABLED') throw Error('渠道关闭'); return 'alipay' },
+        shopApi: { getOrderPayState: async () => ({ status: state, paid: state === 'PAID' }),
+          createOrder: async () => { created++; return { id: 'new', amount: 10 } } },
+        navigateTo: route => routes.push(route), uni: { showToast: ({ title }) => messages.push(title) },
+      })
+      await api.run()
+      assert.equal(busy.value, false)
+      assert.equal(created, state === 'NEW' ? 1 : 0)
+      if (['NEW', 'PENDING'].includes(state)) {
+        assert.equal(routes.length, 1)
+        const params = new URLSearchParams(routes[0].split('?')[1])
+        assert.equal(params.get('method'), 'alipay'); assert.equal(params.get('confirmed'), '1')
+        assert.equal(params.get('orderId'), state === 'NEW' ? 'new' : 'old')
+      } else {
+        assert.equal(routes.length, 0)
+        if (state === 'PAID') assert.equal(refreshed, 1)
+        else assert.equal(messages.length, 1)
+      }
+    }
+  }
+})

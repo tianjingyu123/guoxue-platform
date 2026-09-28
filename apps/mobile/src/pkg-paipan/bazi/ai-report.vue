@@ -14,6 +14,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { wsApi } from '@/pkg-workspace/lib/workspace-api'
 import { shopApi } from '@/lib/shop-data'
+import { defaultDigitalPaymentMethod } from '@/utils/default-digital-payment'
 import { getToken, getUserInfo } from '@/utils/storage'
 import { track } from '@/composables/useTrack'
 import {
@@ -537,13 +538,14 @@ async function buyReport() {
   buyingReport.value = true
   track.custom('paipan_report_buy_click', { reportType: offer.reportType })
   try {
+    const method = await defaultDigitalPaymentMethod()
     const targetId = `${recordId.value}:${offer.reportType}`
     if (pendingReportOrder.value?.targetId === targetId) {
       const previous = pendingReportOrder.value
       const state = await shopApi.getOrderPayState(previous.id)
       if (!paywall.value) return
       if (state.status === 'PENDING') {
-        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=${method}&confirmed=1&amount=${previous.amount}`)
         return
       }
       if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
@@ -557,7 +559,7 @@ async function buyReport() {
     if (!order.id) throw new Error('订单创建失败')
     pendingReportOrder.value = { id: order.id, amount: Number(order.amount) || offer.priceYuan || 0, targetId }
     track.custom(order.reused ? 'paipan_report_order_resumed' : 'paipan_report_order_created', { reportType: offer.reportType })
-    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingReportOrder.value.amount}`)
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=${method}&confirmed=1&amount=${pendingReportOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
   } finally {

@@ -16,6 +16,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { shopApi } from '@/lib/shop-data'
+import { defaultDigitalPaymentMethod } from '@/utils/default-digital-payment'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { wsApi, type ProStatus } from '../lib/workspace-api'
@@ -53,11 +54,12 @@ async function purchase() {
   purchasing.value = true
   track.custom('practitioner_pro_buy_click', { renewal: !!pro.value?.isPro })
   try {
+    const method = await defaultDigitalPaymentMethod()
     if (pendingOrder.value) {
       const previous = pendingOrder.value
       const state = await shopApi.getOrderPayState(previous.id)
       if (state.status === 'PENDING') {
-        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=wechat&amount=${previous.amount}`)
+        navigateTo(`/shop/paying?orderId=${encodeURIComponent(previous.id)}&method=${method}&confirmed=1&amount=${previous.amount}`)
         return
       }
       if (!state.paid && state.status !== 'CANCELLED' && state.status !== 'REFUNDED') {
@@ -71,7 +73,7 @@ async function purchase() {
     if (!order.id) throw new Error('订单创建失败')
     pendingOrder.value = { id: order.id, amount: Number(order.amount) || pro.value?.price || 0 }
     track.custom(order.reused ? 'practitioner_pro_order_resumed' : 'practitioner_pro_order_created', { renewal: !!pro.value?.isPro })
-    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=wechat&amount=${pendingOrder.value.amount}`)
+    navigateTo(`/shop/paying?orderId=${encodeURIComponent(order.id)}&method=${method}&confirmed=1&amount=${pendingOrder.value.amount}`)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请稍后重试', icon: 'none' })
   } finally {
