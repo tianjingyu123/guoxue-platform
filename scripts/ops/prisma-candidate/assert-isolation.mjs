@@ -4,9 +4,9 @@
  *
  * 断言顺序是有讲究的：A4 必须在装解析钩子**之前**跑，否则它查的就不是共享目录了。
  *
- *  A4 共享 `node_modules` 里那一份客户端**没有**候选字段 ——
- *     这条证明候选生成没有覆盖主工作区，而不只是证明候选自己是对的。
- *     A4 失败说明又发生了覆盖（不论是谁跑的），此时主工作区与其他窗口都在用错误的客户端。
+ *  A4 先以真实路径区分本工作树独立依赖和外部共享客户端。
+ *     独立默认客户端不参与候选验证；外部共享客户端继续检查候选字段。
+ *     该检查不证明历史上没有写入；禁止仅凭字段存在断言主工作区被污染。
  *  A1 候选客户端存在，且其 schema sha256 与当前 `schema.prisma` 一致（不是过期产物）；
  *  A2 装钩子后，`require("@prisma/client")` 实际解析到候选目录；
  *  A3 候选客户端的 DMMF 里**有**本候选新增的字段；
@@ -18,9 +18,10 @@
  */
 
 import { createRequire } from "node:module";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isLocalClient } from "./client-location.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SERVER_DIR = resolve(HERE, "../../../apps/server");
@@ -60,6 +61,9 @@ if (!sharedResolved) {
   check("A4 共享 node_modules 客户端未被候选字段污染", true, "共享客户端当前不可解析（依赖链接未建），无覆盖风险");
 } else {
   try {
+    const packagePath = realpathSync(sharedResolved);
+    const generatedPath = realpathSync(createRequire(packagePath).resolve(".prisma/client/default"));
+    const local = isLocalClient(realpathSync(ROOT), packagePath, generatedPath);
     const shared = sharedReq("@prisma/client");
     const dirty = [];
     for (const { model, field } of CANDIDATE_FIELDS) {
@@ -67,11 +71,13 @@ if (!sharedResolved) {
       if (fields?.includes(field)) dirty.push(`${model}.${field}`);
     }
     check(
-      "A4 共享 node_modules 客户端未被候选字段污染",
-      dirty.length === 0,
-      dirty.length
-        ? `已被污染：${dirty.join("、")} → 有人把候选 schema 生成进了共享目录，主工作区与其他窗口正在用错误的客户端`
-        : "共享客户端形态=主线",
+      "A4 默认客户端位置与共享候选字段边界",
+      local || dirty.length === 0,
+      local
+        ? `包和生成物均在本工作树；默认客户端不作当前schema证据：${generatedPath}`
+        : dirty.length
+          ? `外部客户端含候选字段，需核查其归属与版本：${generatedPath}；${dirty.join("、")}`
+          : `外部客户端未含候选字段：${generatedPath}`,
     );
   } catch (error) {
     // 全新隔离工作树虽有 @prisma/client 包，但从未向 node_modules 生成默认客户端。
