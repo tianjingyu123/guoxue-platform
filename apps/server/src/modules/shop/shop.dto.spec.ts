@@ -68,6 +68,14 @@ describe("Shop DTO 校验", () => {
       const dto = Object.assign(new OrderListQueryDto(), {});
       const errors = await validate(dto); expect(errors.length).toBe(0);
     });
+    it("订单类型接受实际订单枚举，拒绝误混入的运费模板类型", async () => {
+      for (const type of ["PRODUCT", "COURSE", "CIRCLE_JOIN", "XIAOBU_REPORT"]) {
+        const dto = Object.assign(new OrderListQueryDto(), { type });
+        expect(await validate(dto)).toHaveLength(0);
+      }
+      const freightType = Object.assign(new OrderListQueryDto(), { type: "FIXED" });
+      expect(await validate(freightType)).not.toHaveLength(0);
+    });
   });
 
   describe("支付回调地址", () => {

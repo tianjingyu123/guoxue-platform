@@ -1,6 +1,7 @@
 import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, ArrayNotEmpty, ArrayMaxSize, Min, Max, IsBoolean, IsObject, IsIn, MinLength, MaxLength, IsPositive, Matches } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { OrderType } from "@prisma/client";
 
 export enum ProductStatus {
   PENDING = "PENDING",
@@ -401,7 +402,7 @@ export class OrderListQueryDto {
   orderNo?: string;
 
   @ApiPropertyOptional({ description: "订单类型" })
-  @IsOptional() @IsIn(["FREE", "FIXED", "CONDITIONAL"])
+  @IsOptional() @IsEnum(OrderType)
   type?: string;
 
   @ApiPropertyOptional({ description: "订单状态" })
