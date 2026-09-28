@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { seedPoetry } from "./seeds/poetry.seed";
+import { buildPhoneFields } from "../src/common/crypto.util";
 
 const prisma = new PrismaClient();
 
@@ -33,9 +34,9 @@ async function main() {
   const adminPwd = await bcrypt.hash(adminSeedPassword, 10);
   const admin = await prisma.user.upsert({
     where: { phone: "13800000000" },
-    update: {},
+    update: buildPhoneFields("13800000000"),
     create: {
-      phone: "13800000000",
+      ...buildPhoneFields("13800000000"),
       nickname: "国学管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -48,9 +49,9 @@ async function main() {
   const teacherPwd = await bcrypt.hash(teacherSeedPassword, 10);
   const teacher = await prisma.user.upsert({
     where: { phone: "13800000001" },
-    update: {},
+    update: buildPhoneFields("13800000001"),
     create: {
-      phone: "13800000001",
+      ...buildPhoneFields("13800000001"),
       nickname: "李玄明",
       avatar: "/static/avatars/teacher1.png",
       auths: { create: { provider: "PASSWORD", credential: teacherPwd } },
@@ -60,9 +61,9 @@ async function main() {
 
   const teacher2 = await prisma.user.upsert({
     where: { phone: "13800000002" },
-    update: {},
+    update: buildPhoneFields("13800000002"),
     create: {
-      phone: "13800000002",
+      ...buildPhoneFields("13800000002"),
       nickname: "王清音",
       avatar: "/static/avatars/teacher2.png",
       auths: { create: { provider: "PASSWORD", credential: teacherPwd } },
@@ -75,9 +76,9 @@ async function main() {
   const adminPwd2 = await bcrypt.hash(operatorSeedPassword, 10);
   await prisma.user.upsert({
     where: { phone: "13800000003" },
-    update: {},
+    update: buildPhoneFields("13800000003"),
     create: {
-      phone: "13800000003",
+      ...buildPhoneFields("13800000003"),
       nickname: "财务管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -86,9 +87,9 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { phone: "13800000004" },
-    update: {},
+    update: buildPhoneFields("13800000004"),
     create: {
-      phone: "13800000004",
+      ...buildPhoneFields("13800000004"),
       nickname: "客服管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -97,9 +98,9 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { phone: "13800000005" },
-    update: {},
+    update: buildPhoneFields("13800000005"),
     create: {
-      phone: "13800000005",
+      ...buildPhoneFields("13800000005"),
       nickname: "商品品控",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -107,10 +108,10 @@ async function main() {
     },
   });
   await prisma.user.upsert({
-    where: { phone: "13800000001" },
-    update: {},
+    where: { phone: "13800000006" },
+    update: buildPhoneFields("13800000006"),
     create: {
-      phone: "13800000001",
+      ...buildPhoneFields("13800000006"),
       nickname: "运营管理员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -118,10 +119,10 @@ async function main() {
     },
   });
   await prisma.user.upsert({
-    where: { phone: "13800000002" },
-    update: {},
+    where: { phone: "13800000007" },
+    update: buildPhoneFields("13800000007"),
     create: {
-      phone: "13800000002",
+      ...buildPhoneFields("13800000007"),
       nickname: "内容审核员",
       avatar: "/static/avatars/admin.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
@@ -604,7 +605,7 @@ async function main() {
           // 演示数据：时长按内容篇幅推导(8~30分)、首章免费试看、音视频课配演示媒体
           duration: Math.round(Math.min(1800, Math.max(480, (ch.content?.length ?? 900) / 1.4))),
           freeTrial: ch.sortOrder === 0,
-          mediaUrl: c.type === "TEXT" ? null : DEMO_MEDIA_URL[c.type],
+          mediaUrl: DEMO_MEDIA_URL[c.type],
         },
       });
     }
@@ -2241,9 +2242,9 @@ async function main() {
   // 24. 创建示范分站
   const stationUser = await prisma.user.upsert({
     where: { phone: "13900000001" },
-    update: {},
+    update: buildPhoneFields("13900000001"),
     create: {
-      phone: "13900000001",
+      ...buildPhoneFields("13900000001"),
       nickname: "长安国学馆",
       avatar: "/static/avatars/station1.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -2272,9 +2273,9 @@ async function main() {
   // 25. 创建运营商
   const operatorUser = await prisma.user.upsert({
     where: { phone: "13900000002" },
-    update: {},
+    update: buildPhoneFields("13900000002"),
     create: {
-      phone: "13900000002",
+      ...buildPhoneFields("13900000002"),
       nickname: "国学推广合伙人",
       avatar: "/static/avatars/operator1.png",
       auths: { create: { provider: "PASSWORD", credential: adminPwd } },
@@ -2336,12 +2337,24 @@ async function main() {
   }
   console.log("✅ 内容管理: " + sampleContents.length + " 篇");
 
-  // 28. 研究院成员
+  // 28. 研究院与成员
+  const institute = await (prisma as any).institute.create({
+    data: {
+      name: "华夏国学研究院",
+      intro: "汇聚国学讲师与研修者，开展课程、活动与内容共建。",
+      adminUserId: admin.id,
+      contactName: admin.nickname,
+      contactPhone: admin.phone,
+      status: "ACTIVE",
+    },
+  });
   await (prisma as any).instituteMember.create({
     data: {
+      instituteId: institute.id,
       userId: teacher2.id,
       role: "TYPE_A",
       deposit: 3000,
+      joinYear: new Date().getFullYear(),
       tasksCompleted: 2,
       tasksRequired: 5,
       status: "ACTIVE",
@@ -2418,17 +2431,21 @@ async function main() {
 
   // 31. 经典阅读进度（为管理员在学习经典时记录进度）
   const classicChapters = await prisma.classicChapter.findMany({ take: 20 });
-  for (let i = 0; i < Math.min(classicChapters.length, 15); i++) {
+  // ReadingProgress 按「用户 + 书籍」唯一，每本书仅取一个章节。
+  const progressChapters = Array.from(
+    new Map(classicChapters.map((chapter) => [chapter.bookId, chapter])).values(),
+  ).slice(0, 15);
+  for (const chapter of progressChapters) {
     await prisma.readingProgress.create({
       data: {
         userId: admin.id,
-        bookId: classicChapters[i].bookId,
-        chapterId: classicChapters[i].id,
+        bookId: chapter.bookId,
+        chapterId: chapter.id,
         progress: Math.floor(Math.random() * 100) + 1,
       },
     });
   }
-  console.log("✅ 阅读进度: " + Math.min(classicChapters.length, 15) + " 条");
+  console.log("✅ 阅读进度: " + progressChapters.length + " 条");
 
   // 32. 书签
   const firstBook = await prisma.classicBook.findFirst();
