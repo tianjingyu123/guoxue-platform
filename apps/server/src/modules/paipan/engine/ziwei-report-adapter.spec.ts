@@ -3,6 +3,7 @@ import { toZiweiReportData } from "./ziwei-report-adapter";
 import { buildZiweiChartView, extractZiweiFacts } from "../ziwei-report";
 import { PaipanService } from "../paipan.service";
 import { PaipanReportService } from "../paipan-report.service";
+import { ENGINES } from "./engine-registry";
 
 process.env.ENCRYPTION_KEY = "test-key-for-32-byte-encryption!";
 
@@ -64,5 +65,17 @@ describe("消费者紫微盘与命书同源", () => {
       name: "测试", gender: "男", y: 2026, m: 2, d: 30, hour: 10, minute: 0,
     })).rejects.toThrow("出生日期无效");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("与公开预览入口同盘（真太阳时 %s）", async (useTrueSolar) => {
+    const input = {
+      name: "测试", gender: "男" as const, y: 1990, m: 1, d: 20,
+      hour: 10, minute: 20, lng: 116.4, useTrueSolar, nowYear: 2026,
+    };
+    const preview = ENGINES.ziwei.run(ENGINES.ziwei.parse(input));
+    const create = jest.fn().mockResolvedValue({ id: "own-record" });
+    const service = new PaipanService({ paipanRecord: { create } } as any, {} as any);
+    const saved = await service.saveZiweiConsumerRecord("owner-1", input);
+    expect(saved.chart).toEqual((preview as { chart: unknown }).chart);
   });
 });
