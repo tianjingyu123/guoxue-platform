@@ -63,8 +63,8 @@
         <text class="title">支付失败</text>
         <text class="sub">{{ failReason || '请重新尝试' }}</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : returnLiveRoomId ? '返回直播间' : '返回订单' }}</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
+          <view class="btn ghost" @tap="orderAccessDenied ? returnHome() : handleCancel()"><text>{{ orderAccessDenied ? '返回首页' : isRecharge ? '返回钱包' : returnLiveRoomId ? '返回直播间' : '返回订单' }}</text></view>
+          <view class="btn primary" @tap="orderAccessDenied ? switchPaymentAccount() : handleRetry()"><app-icon :name="orderAccessDenied ? 'user' : 'refresh-cw'" :size="30" color="#fff" /><text>{{ orderAccessDenied ? '使用下单账号登录' : rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -108,10 +108,10 @@ import { queryString } from '@/utils/query-string'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
 import { iosCashPaymentBlocked } from '@/utils/ios-cash-payment-boundary'
-import { orderPaymentAction } from '@/lib/payment-recovery'
+import { orderPaymentAction, orderLookupFailure } from '@/lib/payment-recovery'
 import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
-import { getUserInfo } from '@/utils/storage'
+import { clearAuthSession, getUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
 import { promoteWechatPaymentPage, navigateWechatAuthorization } from '@/utils/wechat-top-level'
@@ -145,6 +145,7 @@ const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
 const failReason = ref('')
+const orderAccessDenied = ref(false)
 const submitting = ref(false)
 const oauthCallbackCode = ref('')
 const oauthAuthorizeUrl = ref('')
@@ -286,6 +287,7 @@ async function checkOrderBeforePay(returnedFromProvider = false) {
   checkingOrder = true
   status.value = 'confirming'
   failReason.value = ''
+  orderAccessDenied.value = false
   clearTimers('all')
   try {
     const st = await shopApi.getOrderPayState(orderId.value, iosPaymentGuard)
@@ -310,9 +312,16 @@ async function checkOrderBeforePay(returnedFromProvider = false) {
       resumePolling()
     }
   } catch (e) {
-    // 状态不可知时只查原订单，不能盲目唤起第二笔付款。
-    console.warn('[paying] 支付前订单核验失败，继续查原订单', e)
-    if (!leaving) resumePolling()
+    const reason = orderLookupFailure((e as Error)?.message || '', returnedFromProvider)
+    if (reason === 'login') return // 401 已由请求层保留原页并跳转快捷登录
+    if (reason === 'wait') { if (!leaving) resumePolling(); return }
+    clearTimers('all')
+    status.value = 'failed'
+    orderAccessDenied.value = reason === 'account'
+    failReason.value = reason === 'account'
+      ? '此订单属于另一个账号，请使用下单手机号登录'
+      : reason === 'missing' ? '订单不存在或链接已失效，请从原订单重新进入'
+        : '暂时无法核实订单状态，请重试；不会重复扣款'
   } finally {
     checkingOrder = false
   }
@@ -353,6 +362,7 @@ async function startPaying() {
   // #endif
   // #ifdef MP-WEIXIN
   // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
+  let paymentParamsReady = false
   try {
     let p
     if (isRecharge.value) {
@@ -363,6 +373,10 @@ async function startPaying() {
     } else {
       p = await shopApi.payOrderJsapi(orderId.value)
     }
+    if (!p?.timeStamp || !p?.nonceStr || !p?.package || !p?.paySign) {
+      throw new Error('微信支付参数不完整，请稍后重试')
+    }
+    paymentParamsReady = true
     if (leaving) return
     await new Promise<void>((resolve, reject) => {
       uni.requestPayment({
@@ -380,6 +394,12 @@ async function startPaying() {
     const msg = (e as Error)?.message || ''
     if (msg.includes('取消') || msg.includes('cancel')) {
       status.value = 'cancelled'
+      clearTimers('all')
+      return
+    }
+    if (!paymentParamsReady) {
+      status.value = 'failed'
+      failReason.value = msg || '微信支付暂不可用，请稍后重试'
       clearTimers('all')
       return
     }
@@ -779,6 +799,30 @@ function clearTimers(which: 'cd' | 'poll' | 'all') {
 
 function returnTarget() {
   return isRecharge.value ? '/pkg-mine/wallet/index' : `/orders/${orderId.value}`
+}
+
+function returnHome() {
+  leaving = true
+  clearTimers('all')
+  reLaunch('/pages/index/index')
+}
+
+/** 仅在用户主动选择后切换账号，保留原订单定位并走小程序手机号快捷授权。 */
+function switchPaymentAccount() {
+  if (!orderAccessDenied.value || !orderId.value) return
+  const redirect = `/pkg-shop/paying/index?${queryString([
+    ['orderId', orderId.value], ['method', payMethod.value], ['amount', amount.value],
+    ['fromApp', '1'], ['returnLiveRoomId', returnLiveRoomId.value || undefined],
+    ['returnRecordId', returnRecordId.value || undefined],
+    ['returnVoiceScene', returnVoiceScene.value || undefined],
+    ['returnVoiceContextId', returnVoiceContextId.value || undefined],
+    ['returnVoiceSectionId', returnVoiceSectionId.value || undefined],
+  ])}`
+  clearAuthSession()
+  try { uni.setStorageSync('login:redirect', redirect) } catch { /* 登录成功后仍可回订单中心 */ }
+  leaving = true
+  clearTimers('all')
+  uni.reLaunch({ url: '/pkg-auth/login/index' })
 }
 
 function handleCancel() {

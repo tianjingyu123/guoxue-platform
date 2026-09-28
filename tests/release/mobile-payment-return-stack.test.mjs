@@ -124,3 +124,79 @@ test('支付后订单详情返回订单中心，订单中心再返回商城', ()
   assert.match(list, /custom-back @back="handleBack"/u)
   assert.match(list, /if \(fromPayment\.value\) \{ reLaunch\('\/mall'\); return \}/u)
 })
+
+test('App 跳入小程序后账号不符立即止步，未发起支付的查单故障不会无限等待', async () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const start = paying.indexOf('async function checkOrderBeforePay(')
+  const end = paying.indexOf('\nfunction resumePolling(', start)
+  assert.ok(start >= 0 && end > start)
+  const helper = ts.transpileModule(source('apps/mobile/src/lib/payment-recovery.ts'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText
+  const payment = {}
+  runInNewContext(helper, { exports: payment })
+  const executable = ts.transpileModule(`${paying.slice(start, end)}\nglobalThis.runCheck = checkOrderBeforePay`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText
+
+  for (const [message, returned, expectedStatus, expectedDenied, expectedPoll] of [
+    ['只能查看自己的订单', false, 'failed', true, 0],
+    ['订单不存在', false, 'failed', false, 0],
+    ['network failed', false, 'failed', false, 0],
+    ['network failed', true, 'confirming', false, 1],
+  ]) {
+    const state = { status: { value: 'loading' }, failReason: { value: '' }, orderAccessDenied: { value: false } }
+    let polls = 0
+    let paymentCalls = 0
+    const context = {
+      ...state, checkingOrder: false, submitting: { value: false }, leaving: false,
+      orderId: { value: 'order-1' }, iosPaymentGuard: false,
+      shopApi: { getOrderPayState: async () => { throw new Error(message) } },
+      orderLookupFailure: payment.orderLookupFailure,
+      clearTimers: () => {}, resumePolling: () => { polls += 1; state.status.value = 'confirming' },
+      startPaying: () => { paymentCalls += 1 },
+    }
+    runInNewContext(executable, context)
+    await context.runCheck(returned)
+    assert.equal(state.status.value, expectedStatus, message)
+    assert.equal(state.orderAccessDenied.value, expectedDenied, message)
+    assert.equal(polls, expectedPoll, message)
+    assert.equal(paymentCalls, 0, message)
+  }
+  assert.match(paying, /orderAccessDenied \? '使用下单账号登录'/u)
+  assert.match(paying, /clearAuthSession\(\)[\s\S]*?uni\.setStorageSync\('login:redirect', redirect\)/u)
+})
+
+test('小程序微信付款参数缺失或预下单失败时直接报错，不把未调起支付误判为待确认', async () => {
+  const ts = createRequire(resolve(root, 'apps/mobile/package.json'))('typescript')
+  const paying = source('apps/mobile/src/pkg-shop/paying/index.vue')
+  const start = paying.indexOf('  let paymentParamsReady = false')
+  const end = paying.indexOf('  // #endif', start)
+  assert.ok(start >= 0 && end > start)
+  const executable = ts.transpileModule(`async function runPayment() {\n${paying.slice(start, end)}\n}\nglobalThis.runPayment = runPayment`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+  }).outputText
+  for (const payParams of [null, { timeStamp: '1', nonceStr: 'n', package: '', paySign: 's' }]) {
+    const status = { value: 'paying' }
+    const failReason = { value: '' }
+    let requests = 0
+    let clears = 0
+    const context = {
+      status, failReason, leaving: false,
+      isRecharge: { value: false }, orderId: { value: 'order-1' },
+      shopApi: { payOrderJsapi: async () => {
+        if (payParams === null) throw new Error('预下单失败')
+        return payParams
+      } },
+      clearTimers: () => { clears += 1 },
+      uni: { requestPayment: () => { requests += 1 } },
+    }
+    runInNewContext(executable, context)
+    await context.runPayment()
+    assert.equal(status.value, 'failed')
+    assert.ok(failReason.value)
+    assert.equal(requests, 0)
+    assert.equal(clears, 1)
+  }
+})
