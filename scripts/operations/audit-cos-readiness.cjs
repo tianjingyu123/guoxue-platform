@@ -67,19 +67,22 @@ async function main() {
   });
   const params = { Bucket: bucket, Region: region };
 
-  const acl = await cos.getBucketAcl(params);
   const result = {
     bucket,
     region,
     credentialMode: "instance-role",
-    acl: {
-      ownerConfigured: Boolean(acl.Owner?.ID),
-      grants: (acl.AccessControlPolicy?.Grants || []).map((grant) => ({
-        permission: grant.Permission,
-        granteeType: grant.Grantee?.Type,
-        granteeUri: grant.Grantee?.URI || undefined,
-      })),
-    },
+    acl: await readOptional(
+      () => cos.getBucketAcl(params),
+      (acl) => ({
+        configured: true,
+        ownerConfigured: Boolean(acl.Owner?.ID),
+        grants: (acl.AccessControlPolicy?.Grants || []).map((grant) => ({
+          permission: grant.Permission,
+          granteeType: grant.Grantee?.Type,
+          granteeUri: grant.Grantee?.URI || undefined,
+        })),
+      }),
+    ),
     cors: await readOptional(
       () => cos.getBucketCors(params),
       (data) => ({
