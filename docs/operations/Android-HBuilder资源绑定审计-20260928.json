@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "errors": [],
+  "files": 488,
+  "changedFiles": [
+    "app-service.js",
+    "manifest.json"
+  ],
+  "appId": "__UNI__277B108",
+  "versionCode": "253",
+  "genericBundleSha256": "fada0fdf150490f47fa8e900338669b22165b908372b0befd4fb8e0d20f2e44e",
+  "officialBundleSha256": "a43d84a383f8f791dd0aec269bff86203d23c7b1ee3bee5600da1e95c631e100",
+  "spaceBound": true
+}
