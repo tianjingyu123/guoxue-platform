@@ -172,15 +172,28 @@ async function startVerifiedAlipay() {
   }
 }
 let alipayReturned = false
+let pendingAlipayReturn: AlipayOrderState | null = null
 let nativePageActive = true
 onShow(() => { void huifuAlipay.value?.resume() })
-onShow(() => { nativePageActive = true })
+onShow(() => { nativePageActive = true; flushAlipayReturn() })
 onHide(() => { nativePageActive = false; huifuAlipay.value?.pause() })
 onUnmounted(() => { nativePageActive = false })
 async function onHuifuAlipayPaid(order: AlipayOrderState) {
-  if (alipayReturned || !nativePageActive || order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) return
+  if (alipayReturned || leaving || !nativePageActive || order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) return
   alipayReturned = true
   await settleCircleIfNeeded(order)
+  pendingAlipayReturn = order
+  flushAlipayReturn()
+}
+function flushAlipayReturn() {
+  const order = pendingAlipayReturn
+  if (!order || leaving || !nativePageActive) return
+  if (order.id !== orderId.value || !paymentOwner || paymentOwner !== String(getUserInfo<{ id?: string }>()?.id || '')) {
+    pendingAlipayReturn = null
+    return
+  }
+  pendingAlipayReturn = null
+  leaving = true
   reLaunch(paidBusinessTarget(order))
 }
 // #endif

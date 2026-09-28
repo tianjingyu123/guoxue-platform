@@ -441,8 +441,8 @@ test('订单返回首次直读，后续缓存不回退同账号原单；退款�
 test('安卓真实付款完成只回原订单一次，账号变化不跳转',async()=>{
   for (const owner of ['owner','other']) {
     const paths=[];let settles=0
-    const paid=realFunction('pkg-shop/paying/index.vue','onHuifuAlipayPaid','APP-PLUS',{
-      alipayReturned:false,nativePageActive:true,paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:owner}),
+    const paid=realFunctions('pkg-shop/paying/index.vue',['onHuifuAlipayPaid','flushAlipayReturn'],'APP-PLUS',{
+      alipayReturned:false,pendingAlipayReturn:null,leaving:false,nativePageActive:true,paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:owner}),
       settleCircleIfNeeded:async()=>{settles++},paidBusinessTarget:()=>'/orders/one?paymentReturn=1',reLaunch:p=>paths.push(p),
     })
     await paid({id:'one',status:'PAID'});await paid({id:'one',status:'PAID'})
@@ -480,6 +480,29 @@ test('真实微信轮询：收银返回只触发有限直读，圈子订单PAID�
     await scheduled();assert.equal(reads[1],false)
     now+=30000;paid=true;await scheduled();assert.equal(status.value,'success')
     assert.deepEqual(paths,['/circles/circle-one?paymentSuccess=1&paymentOrderId=one'])
+  }
+})
+
+test('支付宝权益确认期间离开或换号不跳转，后台返回只继续一次',async()=>{
+  for (const change of ['leave','account','hide']) {
+    let finish;let account='owner';const paths=[]
+    const gate=new Promise(resolve=>{finish=resolve})
+    // 同一个执行上下文暴露动作，模拟 await 期间发生的生命周期变化。
+    const text=script('pkg-shop/paying/index.vue','APP-PLUS')
+    const ast=ts.createSourceFile('page.ts',text,ts.ScriptTarget.Latest,true)
+    const names=['onHuifuAlipayPaid','flushAlipayReturn']
+    const functions=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&names.includes(n.name?.text)).map(n=>n.getText(ast)).join('\n')
+    const api=compile(`let alipayReturned=false,pendingAlipayReturn=null,leaving=false,nativePageActive=true;\n${functions}\nexports.pay=onHuifuAlipayPaid;exports.flush=flushAlipayReturn;exports.leave=()=>{leaving=true};exports.hide=()=>{nativePageActive=false};exports.show=()=>{nativePageActive=true;flushAlipayReturn()}`,{
+      paymentOwner:'owner',orderId:{value:'one'},getUserInfo:()=>({id:account}),
+      settleCircleIfNeeded:()=>gate,paidBusinessTarget:()=>'/circles/one',reLaunch:p=>paths.push(p),
+    })
+    const pending=api.pay({id:'one',status:'PAID'})
+    if(change==='leave')api.leave()
+    if(change==='hide')api.hide()
+    if(change==='account')account='other'
+    finish();await pending;assert.equal(paths.length,0)
+    api.show();api.flush()
+    assert.deepEqual(paths,change==='hide'?['/circles/one']:[])
   }
 })
 
