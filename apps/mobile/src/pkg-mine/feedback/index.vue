@@ -178,6 +178,7 @@ const pageTitle = computed(() => selectedType.value === 'complaint' ? '投诉与
 
 onLoad((query) => {
   if (!query) return
+  if (query.tab === 'history') activeTab.value = 'history'
   if (query.type) selectedType.value = String(query.type)
   sourceScene.value = decodeURIComponent(String(query.source || ''))
   sourceReference.value = decodeURIComponent(String(query.reference || ''))

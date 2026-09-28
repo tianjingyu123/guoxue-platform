@@ -1,19 +1,25 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
 import { maskPhone, maskEmail, maskIdCard } from "../../common/crypto.util";
+import { NotificationService } from "../notification/notification.service";
 import {
   FeedbackListQueryDto,
   UpdateFeedbackStatusDto,
   NON_TICKET_TYPES,
 } from "./feedback-admin.dto";
 
+// 历史 result 可能是内部处理备注，只有此版本明确作为用户回复写入的内容才对用户可见。
+const PUBLIC_REPLY_PREFIX = "[public-reply:v1]\n";
+
 @Injectable()
 export class FeedbackService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(FeedbackService.name);
+
+  constructor(private prisma: PrismaService, private notifications: NotificationService) {}
 
   async getFeedbackTypes() {
     const types = [
@@ -31,11 +37,17 @@ export class FeedbackService {
   }
 
   async getHistoryFeedbacks(userId: string) {
-    return this.prisma.feedback.findMany({
+    const rows = await this.prisma.feedback.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      select: { id: true, type: true, content: true, images: true, status: true, createdAt: true },
+      select: { id: true, type: true, content: true, images: true, status: true, result: true, createdAt: true },
     });
+    return rows.map(({ result, ...row }) => ({
+      ...row,
+      reply: row.status === "resolved" && result?.startsWith(PUBLIC_REPLY_PREFIX)
+        ? result.slice(PUBLIC_REPLY_PREFIX.length)
+        : null,
+    }));
   }
 
   async submitFeedback(userId: string, data: { type: string; content: string; contact?: string; images?: string[] }) {
@@ -99,7 +111,9 @@ export class FeedbackService {
       contactMasked: this.maskContact(f.contact),
       hasContact: Boolean(f.contact),
       imageCount: f.images?.length ?? 0,
-      result: f.result ?? "",
+      result: this.maskContent(f.result?.startsWith(PUBLIC_REPLY_PREFIX)
+        ? f.result.slice(PUBLIC_REPLY_PREFIX.length)
+        : f.result),
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
       // 场景 C 的诊断编号写在正文头部固定格式，这里提取出来单列
@@ -219,7 +233,7 @@ export class FeedbackService {
   async adminUpdateStatus(id: string, dto: UpdateFeedbackStatusDto) {
     const current = await this.prisma.feedback.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, userId: true, type: true },
     });
     if (!current) throw new BusinessException(ErrorCode.NOT_FOUND, "反馈不存在");
     if (current.status === dto.status) {
@@ -232,15 +246,34 @@ export class FeedbackService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "回退到待处理必须填写原因");
     }
 
+    const publicReply = dto.status === "resolved" ? dto.result!.trim().slice(0, 1000 - PUBLIC_REPLY_PREFIX.length) : null;
+    const changedAt = new Date();
     const changed = await this.prisma.feedback.updateMany({
       where: { id, status: current.status },
       data: {
         status: dto.status,
-        ...(dto.result?.trim() ? { result: dto.result.trim().slice(0, 1000) } : {}),
+        updatedAt: changedAt,
+        ...(publicReply !== null
+          ? { result: `${PUBLIC_REPLY_PREFIX}${publicReply}` }
+          : dto.result?.trim() ? { result: dto.result.trim().slice(0, 1000) } : {}),
       },
     });
     if (changed.count !== 1) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "状态已被他人变更，请刷新后重试");
+    }
+    // 结案先落库再建站内通知；通知失败不能回滚反馈状态。旧内部备注绝不进入通知正文。
+    if (dto.status === "resolved" && !NON_TICKET_TYPES.includes(current.type as typeof NON_TICKET_TYPES[number])) {
+      try {
+        await this.notifications.sendOnce(current.userId, `FEEDBACK_RESOLVED:${id}:${changedAt.getTime()}`, {
+          type: "SYSTEM",
+          title: "反馈已有处理结果",
+          content: "你提交的反馈已有处理结果，可在“我的反馈”查看。",
+          targetType: "FEEDBACK",
+          targetId: id,
+        });
+      } catch (err) {
+        this.logger.warn(`反馈已结案但站内通知发送失败 id=${id}`, err);
+      }
     }
     return { id, status: dto.status };
   }

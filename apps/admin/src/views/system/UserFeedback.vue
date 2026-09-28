@@ -157,7 +157,8 @@ function openFlow(row: FeedbackRow, target: string) {
   flow.open = true;
   flow.id = row.id;
   flow.target = target;
-  flow.result = row.result || "";
+  // 列表只返回脱敏备注；每次流转都要求写新的依据，避免把旧备注或脱敏串再次保存。
+  flow.result = "";
 }
 const flowNeedsResult = computed(() => flow.target === "resolved" || flow.target === "pending");
 async function submitFlow() {
@@ -482,7 +483,7 @@ onMounted(() => {
         type="textarea"
         :rows="4"
         :placeholder="flow.target === 'resolved'
-          ? '必填：写清怎么处理的，用户在 App 内能看到状态变化'
+          ? '必填：写给用户看的处理回复。将显示在“我的反馈”并发送站内提醒，勿填写内部信息'
           : flow.target === 'pending' ? '必填：为什么退回' : '可选：备注'"
       />
       <template #footer>

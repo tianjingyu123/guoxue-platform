@@ -1328,6 +1328,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
     circle: `/circle/${targetId}`, order: `/orders/${targetId}`, live: `/live/${targetId}`,
     station: '/pkg-operator/station-home/index',
     report: `/report/result/${targetId}`,
+    feedback: '/feedback?tab=history',
   }
   return map[t] || ''
 }

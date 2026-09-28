@@ -23,9 +23,10 @@ import { UserGrowthModule } from "../user-growth/user-growth.module";
 import { AuthModule } from "../auth/auth.module";
 import { PersonalDataExportService } from "./personal-data-export.service";
 import { PreferredNameService } from "../dialogue/preferred-name.service";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
-  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule, SettlementModule, UserGrowthModule, AuthModule],
+  imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule, SettlementModule, UserGrowthModule, AuthModule, NotificationModule],
   // CreationRankingsController 必须置于 UserController 之前：GET users/creation-rankings 是静态段，
   // 若 users/:id 先注册会将其吞掉（Express 按注册序匹配）
   controllers: [CreationRankingsController, UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
