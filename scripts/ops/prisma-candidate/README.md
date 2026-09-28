@@ -69,3 +69,7 @@ npx jest -c ../../scripts/ops/prisma-candidate/jest.candidate.config.cjs --testP
   **权威的类型检查是上面的 `tsc`**，jest 这里只保证模块映射指向候选（A7 断言）。
 - 生成物 `apps/server/.prisma-candidate/` 不进版本库（该目录内自带 `.gitignore`）。
 - 仍需 `node_modules` junction 提供 NestJS 等其余依赖；隔离的只有 Prisma 客户端这一项。
+
+## 2026-09-28 当前接收环境补充
+
+上文junction、旧字段和默认类型失败是原接收时间点的历史记录，不代表当前环境。现工作树默认包及生成物realpath都位于本工作树，隔离断言11/11通过。正式发布新增scripts/release/verify-prisma-build.mjs：区分排版差异与schema词元差异，同时绑定实际生成版本与依赖/CLI版本；在Docker编译前、编译后、运行阶段复制后核验同一记录。当前默认客户端schema结构与最终源码一致，标准Nest构建及编译服务加载成功。专用候选客户端仍用于已有隔离测试；不因当前一致而向共享node_modules生成，不把历史字节hash差异误写成结构错配。Linux最终镜像尚待实构建。
