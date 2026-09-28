@@ -14,7 +14,15 @@ test('汇付仅按服务端已确认的同一订单直达圈子或课程，未�
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText
   const exports = {}
-  runInNewContext(code, { exports })
+  function load(file, dependencies = {}) {
+    const exports = {}
+    runInNewContext(ts.transpileModule(source(file), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText,
+      { exports, require: name => { assert.ok(dependencies[name], name); return dependencies[name] } })
+    return exports
+  }
+  const query = load('apps/mobile/src/utils/query-string.ts')
+  const paidNext = load('apps/mobile/src/lib/paid-order-next.ts', { '@/utils/query-string': query })
+  runInNewContext(code, { exports, require: () => paidNext })
   const route = exports.confirmedHuifuDestination
   const base = { id: 'o 1', amount: 10, status: 'PAID', type: 'CIRCLE_JOIN', targetId: 'c/1' }
   assert.equal(route('o 1', base), '/circles/c%2F1?paymentSuccess=1&paymentOrderId=o%201')
@@ -26,7 +34,17 @@ test('汇付仅按服务端已确认的同一订单直达圈子或课程，未�
   }
   assert.equal(route('o 1', { ...base, type: 'PRODUCT' }), '/orders/o%201?paymentReturn=1')
   const page = source('apps/mobile/src/pkg-shop/huifu-paying/index.vue')
-  assert.match(page, /confirmedHuifuDestination\(orderId, verifiedOrder\)/u)
+  assert.match(page, /confirmedHuifuDestination\(orderId, verifiedOrder, returnContext\)/u)
+  const context = { returnVoiceScene: 'report_dialogue', returnVoiceContextId: 'r&1', returnVoiceSectionId: 's1', redirect: 'https://example.com' }
+  assert.equal(route('o 1', { ...base, type: 'VOICE_MINUTES' }, context), '/pkg-agent/agent/xiaobu-voice?scene=report_dialogue&contextId=r%261&sectionId=s1')
+  assert.equal(route('o 1', { ...base, type: 'XIAOBU_REPORT', targetId: 'r1:general' }), '/pkg-paipan/bazi/ai-report?recordId=r1&reportType=general')
+  assert.equal(route('o 1', { ...base, type: 'XIAOBU_MEMBER' }, { returnRecordId: 'r1' }), '/pkg-paipan/bazi/ai-report?recordId=r1')
+  assert.equal(route('o 1', { ...base, type: 'PRACTITIONER_PRO' }), '/pkg-workspace/index/index')
+  assert.equal(route('o 1', { ...base, type: 'MEMBER' }), '/vip?paymentSuccess=1')
+  assert.equal(route('o 1', { ...base, type: 'VOICE_MINUTES' }, { returnVoiceScene: 'evil', returnVoiceContextId: 'x' }), '/pkg-agent/agent/xiaobu-voice-topup')
+  const cashier = exports.existingOrderCashierRoute('o 1', 'alipay', true, context)
+  assert.ok(cashier.includes('returnVoiceContextId=r%261'))
+  assert.ok(!cashier.includes('redirect'))
   assert.match(page, /assertAccount\(\); verifiedOrder = order/u)
 })
 

@@ -212,7 +212,7 @@ onLoad((q) => {
   // #ifdef H5
   // 旧链接显式选择非微信时转入唯一汇付收银页，不能继续落入微信UA分支。
   if (q?.scene !== 'recharge' && q?.orderId && isHuifuChannel(q?.method)) {
-    redirectTo(existingOrderCashierRoute(String(q.orderId), q.method, q?.confirmed === '1'))
+    redirectTo(existingOrderCashierRoute(String(q.orderId), q.method, q?.confirmed === '1', q))
     return
   }
   // 商品/课程旧详情层可能把购买流程留在 iframe，先恢复顶层再授权或调起 JSAPI。

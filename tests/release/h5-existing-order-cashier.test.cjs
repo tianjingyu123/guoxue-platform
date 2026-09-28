@@ -10,7 +10,9 @@ function compile(code, globals = {}) {
   vm.runInNewContext(ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: mod.exports, ...globals })
   return mod.exports
 }
-const api = compile(file('utils/existing-order-huifu.ts'))
+const query = compile(file('utils/query-string.ts'))
+const paidNext = compile(file('lib/paid-order-next.ts'), { require: () => query })
+const api = compile(file('utils/existing-order-huifu.ts'), { require: () => paidNext })
 const alipayH5 = compile(file('utils/huifu-alipay-h5.ts'))
 const device = compile(file('utils/payment-device.ts'))
 const policy = compile(file('utils/h5-payment-options.ts'), { require: name => name === './payment-device' ? device : alipayH5 })

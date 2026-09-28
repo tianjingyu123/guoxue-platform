@@ -1,4 +1,5 @@
 /** H5 原订单汇付收银：只初始化支付，不创建业务订单。 */
+import { paidOrderNext } from '../lib/paid-order-next'
 export type HuifuChannel = 'alipay' | 'unionpay'
 export interface ExistingPayOrder {
   id: string
@@ -43,18 +44,33 @@ export function isHuifuChannel(value: unknown): value is HuifuChannel {
   return value === 'alipay' || value === 'unionpay'
 }
 /** 两个入口共用同一路由；付款金额最终从本人订单读取，不信任URL显示值。 */
-export function existingOrderCashierRoute(orderId: string, channel: HuifuChannel, confirmed = false): string {
+export function existingOrderCashierRoute(orderId: string, channel: HuifuChannel, confirmed = false, context: Record<string, unknown> = {}): string {
   if (!orderId || !isHuifuChannel(channel)) throw new Error('支付入口参数无效')
-  return `/pkg-shop/huifu-paying/index?orderId=${encodeURIComponent(orderId)}&method=${channel}${confirmed ? '&confirmed=1' : ''}`
+  const query = Object.entries(huifuReturnContext(context)).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join('')
+  return `/pkg-shop/huifu-paying/index?orderId=${encodeURIComponent(orderId)}&method=${channel}${confirmed ? '&confirmed=1' : ''}${query}`
+}
+export function huifuReturnContext(context: Record<string, unknown>): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const key of ['returnRecordId', 'returnVoiceScene', 'returnVoiceContextId', 'returnVoiceSectionId']) {
+    const value = context[key]
+    if (typeof value === 'string' && value.trim() && value.length <= 256) result[key] = value.trim()
+  }
+  return result
 }
 /** 仅使用本人订单接口确认的状态与业务目标，不接受页面参数冒充付款结果。 */
-export function confirmedHuifuDestination(orderId: string, order: ExistingPayOrder | null): string {
+export function confirmedHuifuDestination(orderId: string, order: ExistingPayOrder | null, context: Record<string, unknown> = {}): string {
   const fallback = orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders'
   if (!order || order.id !== orderId || !['PAID', 'SHIPPED', 'COMPLETED'].includes(order.status)) return fallback
   if (order.targetId && ['CIRCLE_JOIN', 'CIRCLE_RENEW'].includes(order.type || '')) {
     return `/circles/${encodeURIComponent(order.targetId)}?paymentSuccess=1&paymentOrderId=${encodeURIComponent(orderId)}`
   }
   if (order.targetId && order.type === 'COURSE') return `/course/${encodeURIComponent(order.targetId)}`
+  if (order.type === 'MEMBER') return '/vip?paymentSuccess=1'
+  const hints = huifuReturnContext(context)
+  const next = paidOrderNext(order.type, order.targetId || undefined, hints.returnRecordId, {
+    scene: hints.returnVoiceScene, contextId: hints.returnVoiceContextId, sectionId: hints.returnVoiceSectionId,
+  })
+  if (next) return next.path
   return fallback
 }
 export function createExistingOrderHuifu(d: Dependencies) {

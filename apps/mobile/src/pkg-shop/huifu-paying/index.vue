@@ -56,6 +56,7 @@ let loaded = false
 let lastQr = ''
 let returnedAfterPayment = false
 let verifiedOrder: ExistingPayOrder | null = null
+let returnContext: Record<string, unknown> = {}
 function unavailableReason() {
   if (view.value.phase === 'success') return ''
   const option = h5PaymentOptions(browserUserAgent, getRemoteConfig().features, typeof window !== 'undefined' && window.self === window.top).find(item => item.id === view.value.channel)
@@ -65,7 +66,7 @@ function returnAfterConfirmedPayment() {
   if (returnedAfterPayment || !pageActive || !visible || view.value.phase !== 'success') return
   if (String(getUserInfo<{ id?: string }>()?.id || '') !== paymentAccountId) return
   returnedAfterPayment = true
-  const destination = confirmedHuifuDestination(orderId, verifiedOrder)
+  const destination = confirmedHuifuDestination(orderId, verifiedOrder, returnContext)
   leaveCashier()
   reLaunch(destination)
 }
@@ -129,6 +130,7 @@ function backToOrder() {
   reLaunch(orderId ? `/orders/${encodeURIComponent(orderId)}?paymentReturn=1` : '/orders')
 }
 onLoad(async (q) => {
+  returnContext = q || {}
   orderId = String(q?.orderId || '')
   const channel = q?.method
   const accountId = String(getUserInfo<{ id?: string }>()?.id || '')
