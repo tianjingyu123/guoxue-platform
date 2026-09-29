@@ -8,6 +8,8 @@
 
 2026-09-29 只读 TAT 核验：`target-gx-env-readonly.sh` 与 `make-tat-readonly-wrapper.py` 生成的包装脚本分别顺序运行于 A、B。A（`ins-0sen8yvf`）环境文件 SHA-256 `94394368eeddfe128a571df67b16628362dc884461feb9d486a914dbc06d0352`，执行 `inv-d999ae0nrj`/`invt-d999ae0nrk`、预检 `inv-c999digq3p`/`invt-c999digq3q`；B（`ins-n0sqc627`）SHA-256 `5714776ebe165e57a8e88d9dacf9912d0ad721edb9770630928db1c19270d5e6`，执行 `inv-c999bwgshd`/`invt-c999bwgshe`、预检 `inv-a999eb0i8c`/`invt-a999eb0i8d`。均 SUCCESS、ExitCode 0；路径为普通文件、root:root、600、ext4，Python 3.14.4 可用。两台文件哈希不同，必须**逐节点独立变更**。预检均仅报告四键需要变更，没有输出文件原文；TAT 原始回执留在本机受限目录。预检包装脚本 SHA-256 `810d9f5db3aec509f5679a1dae7e24695e9eb7d7cb0fe5e9be88cf7d597513f1`。以上只读动作**没有修改正式配置**。
 
+同日用 `target-univerify-readonly.sh`（SHA-256 `17e649ca2367df1d3451ba80cd74034b701146bf05340c978286e66bcd4e72a3`）分别只读核验：A `inv-e999kk0tgw`/`invt-e999kk0tgx`，B `inv-a999migupw`/`invt-a999migupx`，均 SUCCESS、ExitCode 0。两台均**没有** `REBU_UNIVERIFY_SHARED_SECRET` 配置键，均有非空 `REDIS_URL`。未读取或输出密钥值、Redis 地址；有配置键不证明 Redis 实际连通或跨节点共享。一键登录云函数与服务端密钥配置仍待受控部署，不能开启客户端默认入口。
+
 正式执行顺序由**唯一云端操作负责人**在批准的发布窗口完成：
 
 1. 分别对 A/B 节点重新只读核身份、路径和当前文件 SHA-256；不得展示文件全文或复制凭据。当前已知两台为不同 ext4 文件，逐节点独立处理。若发布时挂载关系发生变化，先停下重新核实。
