@@ -183,6 +183,12 @@
               />
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="人工客服二维码">
+              <CosImageUpload v-model="form.serviceWechatQrUrl" />
+              <small>建议上传企业微信客服或企业成员活码；用户需要人工协助时展示，可随时替换。</small>
+            </el-form-item>
+          </el-col>
         </el-row>
 
         <el-divider content-position="left">
@@ -255,6 +261,7 @@ import { reactive, ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { systemApi } from "@/api";
 import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
 const loading = ref(false);
 const saving = ref(false);
@@ -276,6 +283,7 @@ const form = reactive<Record<string, string>>({
   servicePhone: "",
   serviceEmail: "",
   serviceWechat: "",
+  serviceWechatQrUrl: "",
   companyName: "",
   platformName: "",
   websiteUrl: "",

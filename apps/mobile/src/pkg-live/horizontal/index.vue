@@ -348,6 +348,7 @@ import { buildH5Url, shareLink } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { liveApi } from '@/lib/live-data'
 import { likeLiveRoom } from '@/pkg-live/live-interaction-api'
+import { subscribeLiveRealtime, type LiveRealtimeSubscription } from '@/pkg-live/live-realtime'
 
 // ===== 直播间数据 =====
 const loading = ref(true)
@@ -376,6 +377,14 @@ const files = ref<any[]>([])
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+
+async function leaveChat() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = danmakuGroupId
+  danmakuGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
 
 /** 当前时刻 HH:MM（聊天消息时间戳，横屏消息结构含 time 字段） */
 function nowTime(): string {
@@ -385,7 +394,8 @@ function nowTime(): string {
 
 /** 加入聊天群 + 订阅群消息上屏（仅有 imGroupId 时） */
 async function joinChat(groupId: string) {
-  if (!groupId) return
+  if (!groupId || groupId === danmakuGroupId) return
+  await leaveChat()
   danmakuGroupId = groupId
   try {
     await tim.joinGroup(groupId)
@@ -398,6 +408,33 @@ async function joinChat(groupId: string) {
       if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
     })
   } catch { /* TIM 未就绪 → 聊天降级只读空态，不阻断授课观看 */ }
+}
+
+function startRealtime(roomId: string) {
+  realtimeSubscription?.stop()
+  realtimeSubscription = subscribeLiveRealtime(roomId, {
+    onAvailability: (available) => {
+      if (available) void leaveChat()
+      else if (room.value.imGroupId) void joinChat(room.value.imGroupId)
+    },
+    onComment: (event) => {
+      if (messages.value.some((item) => String(item.id) === String(event.id))) return
+      const optimisticIndex = messages.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+      if (optimisticIndex >= 0) messages.value.splice(optimisticIndex, 1)
+      messages.value.push({ id: event.id, userName: event.userName || '观众', content: event.content, time: nowTime() })
+      if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
+    },
+    onGift: (event) => {
+      messages.value.push({
+        id: `gift-${event.recordId}`,
+        userName: event.userName || '观众',
+        content: `送出 ${event.giftName} x${event.quantity}`,
+        time: nowTime(),
+      })
+      if (messages.value.length > 80) messages.value.splice(0, messages.value.length - 80)
+    },
+    onLike: (event) => { if (Number.isFinite(event.likeCount)) likeCount.value = Math.max(0, event.likeCount) },
+  })
 }
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持占位
@@ -417,8 +454,7 @@ async function fetchData(roomId: string) {
     messages.value = data.messages
     files.value = data.files
     likeCount.value = data.room.likes || 0
-    // 有聊天群 → 加入 TIM 群实时收发
-    if (data.room.imGroupId) joinChat(data.room.imGroupId)
+    startRealtime(roomId)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -524,8 +560,8 @@ onLoad((opts) => {
 
 onUnmounted(() => {
   // 退订 TIM 群消息 + 退出聊天群
-  if (offTimMessage) offTimMessage()
-  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  realtimeSubscription?.stop()
+  void leaveChat()
   // #ifdef H5
   document.documentElement.classList.remove('hlive-wide-mode')
   // #endif

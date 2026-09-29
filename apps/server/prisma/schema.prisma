@@ -3,6 +3,35 @@ generator client {
   previewFeatures = []
 }
 
+/// 腾讯 IM 未开通期间的站内私信持久化；启用腾讯 IM 后仍保留用于平滑迁移与审计。
+model ImFallbackMessage {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  type       String   @default("TEXT")
+  content    String
+  payload    Json?
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+
+  @@index([fromUserId, toUserId, createdAt])
+  @@index([toUserId, fromUserId, createdAt])
+  @@index([toUserId, readAt, createdAt])
+}
+
+/// 过渡私信的用户侧会话设置；双方设置相互独立。
+model ImFallbackConversationPreference {
+  userId       String
+  peerUserId   String
+  isPinned     Boolean  @default(false)
+  isMuted      Boolean  @default(false)
+  hiddenBefore DateTime?
+  updatedAt    DateTime @updatedAt
+
+  @@id([userId, peerUserId])
+  @@index([userId, isPinned, updatedAt])
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -3520,6 +3549,7 @@ model BrandConfig {
   servicePhone  String   @default("") // 客服电话
   serviceEmail  String   @default("") // 客服邮箱
   serviceWechat String   @default("") // 客服微信
+  serviceWechatQrUrl String @default("") // 企业微信人工客服二维码
   companyName   String   @default("") // 协议主体：公司全称
   platformName  String   @default("热卜国学") // 协议主体：平台名
   websiteUrl    String   @default("") // 协议主体：网址

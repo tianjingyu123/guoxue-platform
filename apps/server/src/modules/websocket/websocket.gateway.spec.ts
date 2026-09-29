@@ -132,6 +132,19 @@ describe("AppGateway", () => {
     });
   });
 
+  describe("直播事务提交广播", () => {
+    it.each([
+      ["broadcastLiveComment", "live:comment_committed"],
+      ["broadcastLiveGift", "live:gift_committed"],
+      ["broadcastLiveLike", "live:like_count"],
+    ] as const)("%s 只推送到对应直播房间", (method, event) => {
+      const payload = { id: "committed-1" };
+      gw[method]("room-1", payload);
+      expect(mockServer.to).toHaveBeenCalledWith("live:room-1");
+      expect(mockServer.emit).toHaveBeenCalledWith(event, payload);
+    });
+  });
+
   // ═══════════════ 连接管理 ═══════════════
 
   describe("handleConnection", () => {

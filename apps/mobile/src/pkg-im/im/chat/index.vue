@@ -166,7 +166,7 @@ import {
   type ChatPermission,
 } from '@/lib/im-data'
 import { mineApi } from '@/lib/mine-data'
-import { useTim, type TimMessage } from '@/composables/useTim'
+import { useTim } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import { uploadImage } from '@/utils/request'
 import { getUserInfo } from '@/utils/storage'
@@ -207,6 +207,23 @@ async function scrollToBottom() {
 }
 
 let unsubscribe: (() => void) | null = null
+let fallbackPollTimer: ReturnType<typeof setInterval> | null = null
+const imMode = ref<'TENCENT' | 'FALLBACK'>('FALLBACK')
+
+async function pollFallbackMessages() {
+  if (imMode.value !== 'FALLBACK' || !peerId.value) return
+  try {
+    const res = await imApi.getC2CHistory(peerId.value)
+    const known = new Set(messages.value.map((item) => item.id))
+    const fresh = res.messages.filter((item) => !known.has(item.id))
+    if (fresh.length) {
+      messages.value.push(...fresh)
+      fillTargetFromMessages(fresh)
+      await scrollToBottom()
+    }
+    await imApi.markC2CRead(peerId.value)
+  } catch { /* 过渡轮询失败不清空当前消息，下一轮重试 */ }
+}
 
 async function loadData() {
   loading.value = true
@@ -217,26 +234,30 @@ async function loadData() {
     return
   }
   try {
-    // 登录 TIM（user-sig + account import + login）→ 拉单聊历史
-    await tim.ensureLogin()
-    const res = await tim.getC2CHistory(peerId.value)
-    messages.value = res.messageList.map(timToChatMessage)
-    fillTargetFromMessages(res.messageList)
-    await tim.setC2CRead(peerId.value)
+    const res = await imApi.getC2CHistory(peerId.value)
+    imMode.value = res.mode
+    messages.value = res.messages
+    fillTargetFromMessages(res.messages)
+    await imApi.markC2CRead(peerId.value)
   } catch (e) {
     error.value = (e as Error)?.message || '连接消息服务失败，请重试'
     loading.value = false
     return
   }
   // 订阅实时新消息（仅本会话对端发来的；flow==='in' 过滤掉 REST 发图 SyncOtherMachine 回传的自己消息，避免重复入列）
-  unsubscribe = tim.onMessage((msgs) => {
-    const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}` && m.flow === 'in')
-    if (!mine.length) return
-    messages.value.push(...mine.map(timToChatMessage))
-    fillTargetFromMessages(mine)
-    tim.setC2CRead(peerId.value)
-    scrollToBottom()
-  })
+  if (imMode.value === 'TENCENT') {
+    unsubscribe = tim.onMessage((msgs) => {
+      const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}` && m.flow === 'in')
+      if (!mine.length) return
+      const mapped = mine.map(timToChatMessage)
+      messages.value.push(...mapped)
+      fillTargetFromMessages(mapped)
+      void imApi.markC2CRead(peerId.value)
+      scrollToBottom()
+    })
+  } else {
+    fallbackPollTimer = setInterval(() => { void pollFallbackMessages() }, 3_000)
+  }
   // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
   await refreshPermission()
   // 是否在我的黑名单：驱动菜单"加入/移出黑名单"文案；查询失败按未拉黑处理不阻塞
@@ -250,11 +271,11 @@ async function loadData() {
 }
 
 // 对端昵称/头像：优先 query 传入，否则从收到的消息补齐（无独立资料端点时的诚实来源）
-function fillTargetFromMessages(msgs: TimMessage[]) {
-  const incoming = msgs.find((m) => m.flow === 'in')
+function fillTargetFromMessages(msgs: ChatMessage[]) {
+  const incoming = msgs.find((m) => !m.isSelf)
   if (!incoming) return
-  if (!props.name && incoming.nick) target.value.nickname = incoming.nick
-  if (!props.avatar && incoming.avatar) target.value.avatar = incoming.avatar
+  if (!props.name && incoming.senderName) target.value.nickname = incoming.senderName
+  if (!props.avatar && incoming.senderAvatar) target.value.avatar = incoming.senderAvatar
 }
 
 // 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
@@ -271,6 +292,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   if (unsubscribe) unsubscribe()
+  if (fallbackPollTimer) clearInterval(fallbackPollTimer)
 })
 
 function isMine(m: ChatMessage) {
@@ -318,7 +340,7 @@ function toggleMorePanel() {
 }
 
 // 图片发送权限：后端 RelationPolicy.mediaPerms.image（陌生人 NO_MEDIA 时整个"+"入口隐藏）
-const canSendImage = computed(() => permission.value.canSend && !!permission.value.media?.image)
+const canSendImage = computed(() => imMode.value === 'TENCENT' && permission.value.canSend && !!permission.value.media?.image)
 
 // ───────── 顶部"···"菜单三项 ─────────
 
@@ -388,8 +410,8 @@ async function handleSendText() {
   inputText.value = ''
   submitting.value = true
   try {
-    const sdkMsg = await tim.sendText(peerId.value, content)
-    messages.value.push(timToChatMessage(sdkMsg))
+    const message = await imApi.sendC2CText(peerId.value, content)
+    if (!messages.value.some((item) => item.id === message.id)) messages.value.push(message)
     scrollToBottom()
     // 发送成功后刷新权限：未互关时剩余条数会随发送递减
     await refreshPermission()

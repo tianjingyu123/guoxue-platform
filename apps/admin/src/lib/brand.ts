@@ -47,6 +47,8 @@ export interface BrandConfig {
   serviceEmail: string;
   /** 客服微信 */
   serviceWechat: string;
+  /** 企业微信人工客服二维码 */
+  serviceWechatQrUrl: string;
   /** 协议主体：公司全称 */
   companyName: string;
   /** 协议主体：平台名 */
@@ -69,6 +71,7 @@ const FIELD_MAP: Record<string, keyof BrandConfig> = {
   servicePhone: "servicePhone",
   serviceEmail: "serviceEmail",
   serviceWechat: "serviceWechat",
+  serviceWechatQrUrl: "serviceWechatQrUrl",
   companyName: "companyName",
   platformName: "platformName",
 };
@@ -88,6 +91,7 @@ export const BRAND = reactive<BrandConfig>({
   servicePhone: "",
   serviceEmail: "support@rebu.com",
   serviceWechat: "rebu_guoxue",
+  serviceWechatQrUrl: "",
   companyName: "",
   platformName: "热卜国学",
 });

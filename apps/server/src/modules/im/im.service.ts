@@ -72,6 +72,11 @@ export class ImService {
     }
   }
 
+  /** 供能力接口和过渡路由判定，不发起任何腾讯云请求。 */
+  isConfigured(): boolean {
+    return Boolean(this.appId && process.env.IM_ADMIN_KEY);
+  }
+
   /** 为用户生成 UserSig */
   genUserSig(userId: string) {
     this.ensureConfigured();

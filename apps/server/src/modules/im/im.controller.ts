@@ -21,6 +21,7 @@ import {
   UpdatePolicyConfigDto,
 } from "./im.dto";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { ImFallbackService } from "./im-fallback.service";
 
 @ApiTags("IM 即时通讯")
 @Controller("im")
@@ -28,7 +29,70 @@ export class ImController {
   constructor(
     private im: ImService,
     private policy: ImPolicyService,
+    private fallback: ImFallbackService,
   ) {}
+
+  /** 客户端启动时先读能力；腾讯 IM 后期开通后会自动切回，不需要改客户端。 */
+  @Get("capabilities")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  capabilities() {
+    const configured = this.im.isConfigured();
+    return {
+      mode: configured ? "TENCENT" : "FALLBACK",
+      c2c: true,
+      notifications: true,
+      groups: configured,
+      friends: configured,
+      calls: configured && Boolean(process.env.TRTC_APP_ID || process.env.IM_APP_ID),
+    };
+  }
+
+  @Get("fallback/conversations")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackConversations(@Req() req: Request) {
+    return this.fallback.conversations(req.user.id);
+  }
+
+  @Get("fallback/c2c/history")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackHistory(@Req() req: Request, @Query("toUserId") toUserId: string, @Query("count") count?: string) {
+    return this.fallback.history(req.user.id, toUserId, Number(count) || 50);
+  }
+
+  @Post("fallback/c2c/send")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackSend(@Req() req: Request, @Body() dto: SendC2CMsgDto) {
+    return this.fallback.sendText(req.user.id, dto.toUserId, dto.text);
+  }
+
+  @Put("fallback/c2c/read/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackRead(@Req() req: Request, @Param("peerUserId") peerUserId: string) {
+    return this.fallback.markRead(req.user.id, peerUserId);
+  }
+
+  @Put("fallback/conversations/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackPreference(
+    @Req() req: Request,
+    @Param("peerUserId") peerUserId: string,
+    @Body() input: { isPinned?: boolean; isMuted?: boolean },
+  ) {
+    return this.fallback.updatePreference(req.user.id, peerUserId, input);
+  }
+
+  @Delete("fallback/conversations/:peerUserId")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  fallbackClear(@Req() req: Request, @Param("peerUserId") peerUserId: string) {
+    return this.fallback.clearConversation(req.user.id, peerUserId);
+  }
 
   // ───────── 私信社交策略 ─────────
 

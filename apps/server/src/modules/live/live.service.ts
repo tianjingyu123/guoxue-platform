@@ -28,6 +28,7 @@ import {
 } from "./live-trtc.util";
 import { LivePresenceService } from "./live-presence.service";
 import { LiveMixingService } from "./live-mixing.service";
+import { AppGateway } from "../websocket/websocket.gateway";
 
 @Injectable()
 export class LiveService {
@@ -48,6 +49,7 @@ export class LiveService {
     @Optional() private im?: ImService,
     @Optional() private presence?: LivePresenceService,
     @Optional() private mixing?: LiveMixingService,
+    @Optional() private realtime?: AppGateway,
   ) {}
 
   /** 公开预告发布护栏：排期开播的场次必须同时具备首图和介绍。 */
@@ -2312,6 +2314,15 @@ export class LiveService {
           user: { select: { id: true, nickname: true, avatar: true } },
         },
       });
+      this.realtime?.broadcastLiveComment(roomId, {
+        id: created.id,
+        userId,
+        userName: created.user?.nickname || "观众",
+        avatar: created.user?.avatar || "",
+        content: created.content,
+        type: "text",
+        createdAt: created.createdAt,
+      });
       if (room.imGroupId && this.im) {
         void this.im.relayLiveGroupMsg(room.imGroupId, created.content, userId).catch((error) => {
           this.logger.warn(`直播评论 IM 实时中继失败 room=${roomId}`, error);
@@ -2341,6 +2352,12 @@ export class LiveService {
 
     const count = await this.prisma.like.count({
       where: { targetType: "LIVESTREAM", targetId: roomId },
+    });
+
+    this.realtime?.broadcastLiveLike(roomId, {
+      userId,
+      likeCount: count,
+      timestamp: Date.now(),
     });
 
     return { liked: true, likeCount: count };
@@ -2568,6 +2585,20 @@ export class LiveService {
         quantity,
       }, userId).catch((error) => {
         this.logger.warn(`直播礼物 IM 实时中继失败 room=${roomId}`, error);
+      });
+    }
+
+    if (created) {
+      this.realtime?.broadcastLiveGift(roomId, {
+        recordId: record.id,
+        userId,
+        userName: record.user?.nickname || "观众",
+        giftId: gift.id,
+        giftName: gift.name,
+        giftIcon: gift.icon || "",
+        quantity,
+        totalCoin: record.totalCoin,
+        createdAt: record.createdAt,
       });
     }
 
