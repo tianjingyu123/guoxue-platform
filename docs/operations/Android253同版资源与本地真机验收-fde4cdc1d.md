@@ -12,6 +12,7 @@
 - 在隔离目录复制本次官方资源，仅恢复旧 253 本地包骨架所需、官方导出省略的 `plus.distribute` 和 `app-harmony.distribute` 两段清单字段；其余 487 个资源文件未改。沿用旧 253 **本地测试包**的原生骨架制作本次仅供验收的签名 APK。APK 内 488/488 个 WWW 文件与该验收输入逐字节一致。
 - APK：`artifacts/release-audit-20260927/signed-fde4cdc1d-local253/rebu-1.1.0-253-preprod.apk`，30,776,609 字节，SHA-256 `cf4ebff57cf0e80b7747dcc13f2f1bb434a7e734161ac56b7e7dab6e22bd7d31`。v1/v2 签名验证均为 true，证书指纹与旧本地包一致。签名口令仅由受限本机文件传入构建进程，未输出或提交。构建日志保存在同目录上层 `android-fde4cdc1d-local253-build.log`。
 - 经用户此前授权，在已连接的 OnePlus 9R 上使用覆盖安装，不卸载、不清数据，系统返回 `Success`，版本仍是 `1.1.0 (253)`；启动前台为 `io.dcloud.PandoraEntryActivity`。实际加载首页、排盘入口和圈子“我的圈子”视图。截图：`android-fde4cdc1d-home-loaded.png`、`android-fde4cdc1d-paipan-entry.png`、`android-fde4cdc1d-circle.png`，均在 `artifacts/release-audit-20260927/`。
+- 进一步在排盘首页打开原生分享菜单，能看到微信好友、朋友圈、当前页截图、保存截图和公开链接等选项；只取消菜单，未发送或发布。Android 返回键回到热卜首页。截图：同目录 `android-fde4cdc1d-paipan-share.png`、`android-fde4cdc1d-paipan-back.png`。这只证明排盘首页的分享入口与返回，不是某个排盘结果的真实分享接收测试。
 
 ## 边界与后续
 
