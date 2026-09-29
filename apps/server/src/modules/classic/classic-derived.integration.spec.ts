@@ -139,7 +139,7 @@ run("古籍派生资产 · 真实库", () => {
     await review.approve(row.id, "op-it", { resultHash: row.resultHash, edit: { translation: "人工校订的译文", notes: ["注一"] } });
     const st = await classic.segmentTranslationStatus(target.id);
     expect(st).toMatchObject({ status: "success", reviewStatus: "approved" });
-    expect(st.result).toMatchObject({ translation: "人工校订的译文", notes: ["注一"], original: "x" }); // 其余字段保留
+    expect(st.result).toMatchObject({ translation: "人工校订的译文", notes: ["注一"], original: target.content }); // 原文以当前段落为准
     const approved = (await review.list({ review: "approved", pageSize: 50 })).rows.find((r) => r.id === row.id)!;
     expect(approved).toMatchObject({ reviewedBy: "op-it", translation: "人工校订的译文" });
 
