@@ -16,7 +16,7 @@ const FORMAL_RELEASE_CHANNELS = new Set(["formal", "production"]);
 
 const FORMAL_CLIENT_ENV = {
   VITE_API_URL: "https://api.rebugx.cn",
-  VITE_PUBLIC_H5_URL: "https://api.rebugx.cn/h5/",
+  VITE_PUBLIC_H5_URL: "https://gx.yrydai.com/h5/",
   VITE_PUBLIC_ASSET_ORIGIN: "https://static.rebugx.cn",
 } as const;
 
