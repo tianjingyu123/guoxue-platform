@@ -227,6 +227,7 @@ interface FallbackMessage {
 }
 
 let capabilitiesCache: ImCapabilities | null = null
+let capabilitiesCachedAt = 0
 
 function fallbackToChatMessage(m: FallbackMessage): ChatMessage {
   const profile = getUserInfo<{ id?: string; userId?: string; nickname?: string; avatar?: string }>() || {}
@@ -791,8 +792,9 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
 
 export const imApi = {
   async getCapabilities(force = false): Promise<ImCapabilities> {
-    if (!force && capabilitiesCache) return capabilitiesCache
+    if (!force && capabilitiesCache && Date.now() - capabilitiesCachedAt < 30_000) return capabilitiesCache
     capabilitiesCache = await apiGet<ImCapabilities>('/im/capabilities')
+    capabilitiesCachedAt = Date.now()
     return capabilitiesCache
   },
 

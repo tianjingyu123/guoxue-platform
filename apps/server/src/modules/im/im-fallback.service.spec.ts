@@ -2,23 +2,29 @@ import { ImFallbackService } from "./im-fallback.service";
 
 describe("ImFallbackService", () => {
   const prisma: any = {
+    $transaction: jest.fn(),
     imFallbackMessage: {
       create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn(),
     },
+    imC2CCounter: { upsert: jest.fn(), updateMany: jest.fn() },
     imFallbackConversationPreference: {
       findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(),
     },
     user: { findMany: jest.fn() },
   };
-  const policy: any = { evaluateC2C: jest.fn() };
+  const policy: any = { evaluateC2C: jest.fn(), getConfig: jest.fn() };
   const audit: any = { hasLocalViolation: jest.fn(), classifyTextRisk: jest.fn() };
   const ws: any = { sendToUser: jest.fn() };
   const service = new ImFallbackService(prisma, policy, audit, ws);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.$transaction.mockImplementation((fn: (tx: any) => unknown) => fn(prisma));
+    prisma.imC2CCounter.updateMany.mockResolvedValue({ count: 1 });
+  });
 
   it("关系允许时保存文本并实时推送给双方", async () => {
-    policy.evaluateC2C.mockResolvedValue({ canSend: true });
+    policy.evaluateC2C.mockResolvedValue({ canSend: true, relation: "mutual" });
     audit.hasLocalViolation.mockReturnValue([]);
     audit.classifyTextRisk.mockResolvedValue(undefined);
     const saved = { id: "m1", fromUserId: "u1", toUserId: "u2", content: "你好" };
@@ -27,6 +33,34 @@ describe("ImFallbackService", () => {
     await expect(service.sendText("u1", "u2", " 你好 ")).resolves.toEqual(saved);
     expect(prisma.imFallbackMessage.create).toHaveBeenCalledWith({
       data: { fromUserId: "u1", toUserId: "u2", type: "TEXT", content: "你好" },
+    });
+    expect(ws.sendToUser).toHaveBeenCalledTimes(2);
+    expect(prisma.imC2CCounter.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.imC2CCounter.updateMany).toHaveBeenCalledWith({
+      where: { fromUserId: "u2", toUserId: "u1" }, data: { sentCount: 0 },
+    });
+  });
+
+  it("单向关注额度耗尽时不建消息也不推送", async () => {
+    policy.evaluateC2C.mockResolvedValue({ canSend: true, relation: "following" });
+    policy.getConfig.mockResolvedValue({ followerDMQuota: 1 });
+    audit.hasLocalViolation.mockReturnValue([]);
+    prisma.imC2CCounter.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.sendText("u1", "u2", "你好")).rejects.toThrow();
+    expect(prisma.imFallbackMessage.create).not.toHaveBeenCalled();
+    expect(ws.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("单向关注发送时原子占用额度并在提交后推送", async () => {
+    policy.evaluateC2C.mockResolvedValue({ canSend: true, relation: "following" });
+    policy.getConfig.mockResolvedValue({ followerDMQuota: 1 });
+    audit.hasLocalViolation.mockReturnValue([]);
+    audit.classifyTextRisk.mockResolvedValue(undefined);
+    prisma.imFallbackMessage.create.mockResolvedValue({ id: "m2", fromUserId: "u1", toUserId: "u2", content: "你好" });
+    await service.sendText("u1", "u2", "你好");
+    expect(prisma.imC2CCounter.updateMany).toHaveBeenCalledWith({
+      where: { fromUserId: "u1", toUserId: "u2", sentCount: { lt: 1 } },
+      data: { sentCount: { increment: 1 } },
     });
     expect(ws.sendToUser).toHaveBeenCalledTimes(2);
   });

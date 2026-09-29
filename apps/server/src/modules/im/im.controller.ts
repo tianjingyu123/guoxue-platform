@@ -38,13 +38,15 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   capabilities() {
     const configured = this.im.isConfigured();
+    const trtcAppId = Number(process.env.TRTC_SDK_APP_ID || 0);
+    const trtcReady = Number.isSafeInteger(trtcAppId) && trtcAppId > 0 && Boolean(process.env.TRTC_SECRET_KEY?.trim());
     return {
       mode: configured ? "TENCENT" : "FALLBACK",
       c2c: true,
       notifications: true,
       groups: configured,
       friends: configured,
-      calls: configured && Boolean(process.env.TRTC_APP_ID || process.env.IM_APP_ID),
+      calls: configured && trtcReady,
     };
   }
 

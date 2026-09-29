@@ -23,8 +23,38 @@ export class ImFallbackService {
     if (this.audit.hasLocalViolation(content).length) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "消息包含不适合发送的内容");
     }
-    const message = await this.prisma.imFallbackMessage.create({
-      data: { fromUserId, toUserId, type: "TEXT", content },
+    const limited = relation.relation === "following" || relation.relation === "stranger";
+    const quota = limited ? (await this.policy.getConfig()).followerDMQuota : 0;
+    const message = await this.prisma.$transaction(async (tx) => {
+      if (limited) {
+        // 两节点并发发送时用数据库条件更新占用额度；消息写入失败则一起回滚。
+        await tx.imC2CCounter.upsert({
+          where: { fromUserId_toUserId: { fromUserId, toUserId } },
+          create: { fromUserId, toUserId, sentCount: 0 },
+          update: {},
+        });
+        const reserved = await tx.imC2CCounter.updateMany({
+          where: { fromUserId, toUserId, sentCount: { lt: quota } },
+          data: { sentCount: { increment: 1 } },
+        });
+        if (reserved.count !== 1) {
+          throw new BusinessException(ErrorCode.FORBIDDEN, "消息已送达，等待对方回复后才能继续");
+        }
+      } else {
+        await tx.imC2CCounter.upsert({
+          where: { fromUserId_toUserId: { fromUserId, toUserId } },
+          create: { fromUserId, toUserId, sentCount: 1 },
+          update: { sentCount: { increment: 1 } },
+        });
+      }
+      const created = await tx.imFallbackMessage.create({
+        data: { fromUserId, toUserId, type: "TEXT", content },
+      });
+      await tx.imC2CCounter.updateMany({
+        where: { fromUserId: toUserId, toUserId: fromUserId },
+        data: { sentCount: 0 },
+      });
+      return created;
     });
     this.ws.sendToUser(toUserId, "im:fallback_message", message);
     this.ws.sendToUser(fromUserId, "im:fallback_message", message);

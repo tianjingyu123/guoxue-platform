@@ -213,6 +213,7 @@ const imMode = ref<'TENCENT' | 'FALLBACK'>('FALLBACK')
 async function pollFallbackMessages() {
   if (imMode.value !== 'FALLBACK' || !peerId.value) return
   try {
+    await imApi.getCapabilities(true)
     const res = await imApi.getC2CHistory(peerId.value)
     const known = new Set(messages.value.map((item) => item.id))
     const fresh = res.messages.filter((item) => !known.has(item.id))

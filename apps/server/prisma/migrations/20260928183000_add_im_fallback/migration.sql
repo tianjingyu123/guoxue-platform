@@ -25,4 +25,4 @@ CREATE INDEX "ImFallbackMessage_toUserId_fromUserId_createdAt_idx" ON "ImFallbac
 CREATE INDEX "ImFallbackMessage_toUserId_readAt_createdAt_idx" ON "ImFallbackMessage"("toUserId", "readAt", "createdAt");
 CREATE INDEX "ImFallbackConversationPreference_userId_isPinned_updatedAt_idx" ON "ImFallbackConversationPreference"("userId", "isPinned", "updatedAt");
 
-ALTER TABLE "BrandConfig" ADD COLUMN "serviceWechatQrUrl" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "BrandConfig" ADD COLUMN IF NOT EXISTS "serviceWechatQrUrl" TEXT NOT NULL DEFAULT '';

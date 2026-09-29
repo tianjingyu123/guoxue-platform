@@ -208,6 +208,8 @@ async function loadData() {
 }
 
 onMounted(async () => {
+  // 每次进入会话页重新读取服务端能力，避免启用腾讯 IM 后沿用旧过渡模式。
+  await imApi.getCapabilities(true).catch(() => null)
   await loadData()
   const capabilities = await imApi.getCapabilities().catch(() => null)
   if (capabilities?.mode === 'FALLBACK') {

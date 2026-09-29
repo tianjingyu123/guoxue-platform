@@ -64,6 +64,40 @@ describe("ImController", () => {
     });
   });
 
+  it("GET /im/capabilities — 已配置 IM 但未配置 TRTC 时不误报可通话", () => {
+    mockImSvc.isConfigured.mockReturnValueOnce(true);
+    const priorId = process.env.TRTC_SDK_APP_ID;
+    const priorSecret = process.env.TRTC_SECRET_KEY;
+    try {
+      delete process.env.TRTC_SDK_APP_ID;
+      delete process.env.TRTC_SECRET_KEY;
+      expect(ctrl.capabilities()).toEqual({
+        mode: "TENCENT", c2c: true, notifications: true, groups: true, friends: true, calls: false,
+      });
+    } finally {
+      if (priorId === undefined) delete process.env.TRTC_SDK_APP_ID;
+      else process.env.TRTC_SDK_APP_ID = priorId;
+      if (priorSecret === undefined) delete process.env.TRTC_SECRET_KEY;
+      else process.env.TRTC_SECRET_KEY = priorSecret;
+    }
+  });
+
+  it("GET /im/capabilities — IM 与 TRTC 均配置后才开放通话", () => {
+    mockImSvc.isConfigured.mockReturnValueOnce(true);
+    const priorId = process.env.TRTC_SDK_APP_ID;
+    const priorSecret = process.env.TRTC_SECRET_KEY;
+    try {
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "test-secret";
+      expect(ctrl.capabilities().calls).toBe(true);
+    } finally {
+      if (priorId === undefined) delete process.env.TRTC_SDK_APP_ID;
+      else process.env.TRTC_SDK_APP_ID = priorId;
+      if (priorSecret === undefined) delete process.env.TRTC_SECRET_KEY;
+      else process.env.TRTC_SECRET_KEY = priorSecret;
+    }
+  });
+
   it("POST /im/fallback/c2c/send — 发送站内过渡私信", async () => {
     const req: any = { user: { id: "u1" } };
     await ctrl.fallbackSend(req, { toUserId: "u2", text: "你好" } as any);
