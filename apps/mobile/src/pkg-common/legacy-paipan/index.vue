@@ -10,7 +10,7 @@ import { consumeLegacyReturn, markLegacyDeparture, validateLegacyNavigation } fr
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
 // #ifdef APP-PLUS
-import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, publicLegacyResultUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+import { captureLegacyShareImage, legacyShareLandingUrl, LegacyShareError, parseLegacyShareBridgeUrl, publicLegacyResultUrl, releaseLegacyShareOnResume, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
 // #endif
 
 let entryContext = readLegacyPaipanContext()
@@ -37,6 +37,7 @@ let locationRequestId = 0
 let legacyDocumentVersion = 0
 let legacyPaymentBusy = false
 let legacyShareBusy = false
+let legacyShareLeftApp = false
 let legacyPaymentLoading = false
 let pendingLegacyPayment: { child: any; url: string; documentVersion: number; outcome: LegacyPaymentOutcome } | null = null
 // #endif
@@ -751,12 +752,17 @@ onMounted(() => {
 // #ifdef APP-PLUS
 onHide(() => {
   legacyPageVisible = false
+  if (legacyShareBusy) legacyShareLeftApp = true
   hideLegacyPaymentLoading()
   locationRequestId += 1
   stopLegacyCompass(false)
 })
 onShow(() => {
   legacyPageVisible = true
+  if (legacyShareLeftApp) {
+    legacyShareLeftApp = false
+    releaseLegacyShareOnResume()
+  }
   flushLegacyPaymentResult()
   if (legacyCompassWanted) startLegacyCompass()
 })

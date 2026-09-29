@@ -164,6 +164,26 @@ test('取消菜单和取消微信均不复制、不保存、不换渠道或重�
   assert.doesNotMatch(source, /setClipboardData|setStorage|console\./u)
 })
 
+test('从微信未完成的分享直接切回 App 后释放互斥，迟到回调不影响下一次分享', async () => {
+  let firstNative
+  let attempts = 0
+  const { api, options } = runtime({ share: o => {
+    attempts += 1
+    if (attempts === 1) firstNative = o
+    else o.success()
+  } })
+  const first = api.shareLegacyPaipan(fixture(), options)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(attempts, 1)
+  api.releaseLegacyShareOnResume()
+  assert.equal(await first, 'cancelled')
+  firstNative.success()
+  assert.equal(await api.shareLegacyPaipan(fixture(), options), 'requested')
+  assert.equal(attempts, 2)
+  assert.match(page, /if \(legacyShareBusy\) legacyShareLeftApp = true/u)
+  assert.match(page, /releaseLegacyShareOnResume\(\)/u)
+})
+
 test('公开链接仍可使用系统text分享，不生成图片、不带网页签名', async () => {
   const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 5 }) })
   const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://www.yrydai.cn/share.php?id=1' }))

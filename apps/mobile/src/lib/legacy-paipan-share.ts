@@ -81,6 +81,12 @@ export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | n
 type ShareOutcome = 'requested' | 'saved' | 'cancelled'
 type ShareOptions = { canProceed: () => boolean; capture: () => Promise<string> }
 let activeShare = false
+let releaseExternalShare: (() => void) | null = null
+
+/** 用户从微信/系统分享直接切回 App 时，原生回调可能永远不触发；只释放该次外部分享等待。 */
+export function releaseLegacyShareOnResume() {
+  releaseExternalShare?.()
+}
 
 function assertCurrent(options: ShareOptions) {
   if (!options.canProceed()) throw new LegacyShareError('STALE_PAGE', '页面已切换，请在当前排盘页面重新分享')
@@ -91,14 +97,17 @@ function cancelled(error: unknown): boolean {
   return e?.errCode === -2 || e?.code === -2 || /cancel|取消/iu.test(String(e?.errMsg || e?.message || ''))
 }
 
-function callback<T>(start: (ok: (value: T) => void, fail: (error?: unknown) => void) => void, timeout = 10000): Promise<T> {
+function callback<T>(start: (ok: (value: T) => void, fail: (error?: unknown) => void) => void, timeout = 10000, external = false): Promise<T> {
   return new Promise((resolve, reject) => {
     let done = false
     const timer = timeout ? setTimeout(() => finish(false), timeout) : null
+    const release = () => finish(false, { errMsg: 'cancel' })
+    if (external) releaseExternalShare = release
     function finish(ok: boolean, value?: T | unknown) {
       if (done) return
       done = true
       if (timer) clearTimeout(timer)
+      if (releaseExternalShare === release) releaseExternalShare = null
       if (ok) resolve(value as T)
       else reject(cancelled(value) ? { cancelled: true } : new LegacyShareError('UNAVAILABLE', '分享未完成，请稍后重试'))
     }
@@ -196,7 +205,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
         // 微信图文分享要求缩略图；使用包内小图，避免第三方图床失效或泄露排盘资料。
         imageUrl: '/static/legacy-paipan-share-thumb.png',
         success: () => ok(), fail,
-      }), 0)
+      }), 120000, true)
       return 'requested'
     }
     if (action === 'link') {
@@ -205,7 +214,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
         type: 'text', href: request.url, title: request.title,
         // Android 系统分享会自行追加 href，正文再放一次会使微信消息出现重复长网址。
         content: `${request.title}${request.text ? '\n' + request.text : ''}`,
-      }, () => ok(), fail), 0)
+      }, () => ok(), fail), 120000, true)
       return 'requested'
     }
     assertCurrent(options)
@@ -218,7 +227,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
     await callback<void>((ok, fail) => uni.share({
       provider: 'weixin', scene: action === 'timeline' ? 'WXSceneTimeline' : 'WXSceneSession',
       type: 2, imageUrl: imagePath, success: () => ok(), fail,
-    }), 0)
+    }), 120000, true)
     return 'requested'
   } catch (error) {
     if ((error as { cancelled?: boolean })?.cancelled) return 'cancelled'
