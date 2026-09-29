@@ -134,6 +134,18 @@ for (const template of templates) {
     "避免 /h5 与 /admin 被 SPA 前缀规则误处理",
   );
 
+  if (template.name === "CLB 回源") {
+    const businessServer = extractDirectiveBlocks(source, "server").find((block) =>
+      block.includes("server_name ${NGINX_SERVER_NAMES};"),
+    );
+    add(
+      template.name,
+      "目录补斜杠不降级 HTTPS",
+      Boolean(businessServer?.includes("absolute_redirect off;")),
+      "CLB 终止 HTTPS 后，Nginx 的静态目录自动跳转必须保留浏览器侧协议",
+    );
+  }
+
   add(
     template.name,
     "自定义缓存头不覆盖安全头",

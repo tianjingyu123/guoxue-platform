@@ -137,6 +137,9 @@ http {
     listen 80;
     server_name ${NGINX_SERVER_NAMES};
 
+    # CLB 已终止 HTTPS；目录自动补斜杠时使用相对 Location，保留用户侧的 HTTPS。
+    absolute_redirect off;
+
     # TLS 在 CLB 终止，但浏览器收到的响应仍需具备与直连 HTTPS 相同的安全头。
     include /etc/nginx/snippets/security-headers.conf;
 
