@@ -114,6 +114,11 @@ function stopTimer() {
   elapsedTimer = null
 }
 
+function isUnavailableVoiceEndpoint(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : ''
+  return /请求的接口不存在|请求失败\(404\)/.test(message)
+}
+
 async function loadCapability() {
   state.value = 'loading'
   try {
@@ -126,7 +131,12 @@ async function loadCapability() {
     }
     state.value = 'idle'
   } catch (e) {
-    errorText.value = (e as Error)?.message || '网络不太稳定，请稍后再试'
+    if (isUnavailableVoiceEndpoint(e)) {
+      notOpenText.value = '小卜语音服务正在升级，请先用文字和小卜聊。'
+      state.value = 'not_open'
+      return
+    }
+    errorText.value = '网络不太稳定，请稍后再试'
     retryable.value = true
     state.value = 'failed'
   }
@@ -173,7 +183,12 @@ async function start() {
     stopTimer()
     elapsedTimer = setInterval(tick, 1000)
   } catch (e) {
-    errorText.value = (e as Error)?.message || '没有接通，请稍后再试'
+    if (isUnavailableVoiceEndpoint(e)) {
+      notOpenText.value = '小卜语音服务正在升级，请先用文字和小卜聊。'
+      state.value = 'not_open'
+      return
+    }
+    errorText.value = '没有接通，请稍后再试'
     retryable.value = true
     state.value = 'failed'
   }
@@ -207,6 +222,7 @@ async function rate(v: 'satisfied' | 'neutral' | 'unsatisfied') {
 
 function useText() {
   if (fallback.value) redirectTo(fallback.value)
+  else if (scene.value === 'plaza') redirectTo('/agent/main')
   else goBack()
 }
 

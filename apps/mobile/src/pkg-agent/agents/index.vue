@@ -15,7 +15,7 @@
     <!-- 顶部搜索区（中性玻璃层，sticky） -->
     <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="topbar-inner">
-        <view class="tb-row">
+        <view class="tb-row" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
           <view class="tb-left">
             <view
               class="tb-back"
@@ -400,6 +400,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import SquareAgentCard from './components/square-agent-card.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { getToken } from '@/utils/storage'
 import { track } from '@/composables/useTrack'
 import { agentThemeStyle, resolveAgentTheme } from '@/lib/agent-experience'
@@ -415,6 +416,8 @@ import {
 const loading = ref(true)
 const error = ref('')
 const statusBarHeight = ref(0)
+// 小程序胶囊占据右上角；保留对话记录的实际点击区域。
+const menuSafeRight = getMiniProgramMenuSafeRight()
 const searchQuery = ref('')
 const isListening = ref(false)
 const voiceOnly = ref(false)
@@ -634,6 +637,10 @@ function goBack() {
   border-radius: 999rpx;
 }
 .tb-badge-txt { font-size: 22rpx; color: var(--agent-accent, #2b8a82); }
+/* 小程序窄屏优先保留返回、标题和对话记录；在线数量仍在广场正文展示。 */
+/* #ifdef MP-WEIXIN */
+.tb-badge { display: none; }
+/* #endif */
 .tb-history { display: flex; align-items: center; gap: 6rpx; }
 .tb-history-txt { font-size: 24rpx; color: var(--agent-secondary, #6e6e73); }
 
