@@ -111,7 +111,7 @@ run("古籍派生资产 · 真实库", () => {
     expect(gatewayCalls).toHaveLength(1);
     const ok = await classic.segmentTranslationStatus(target.id);
     expect(ok).toMatchObject({ status: "success", reviewStatus: "none" });
-    expect(ok.result.translation).toMatch(/桩译文/);
+    expect(ok.result?.translation).toMatch(/桩译文/);
 
     // 模拟整理版修订：段落内容变了（哈希随之变化）
     await prisma.classicSegment.update({ where: { id: target.id }, data: { content: `${target.content}（修订）` } });

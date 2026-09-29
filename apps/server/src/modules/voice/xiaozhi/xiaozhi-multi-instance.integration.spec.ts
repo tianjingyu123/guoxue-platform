@@ -36,7 +36,7 @@ run("小智协议终端 · 多实例顶替（真实库 + 真实 Redis）", () =>
     const system: any = { getConfig: async () => null };
     const quota = new VoiceQuotaService(prisma as any, system);
     const provider = new MockXiaozhiProvider();
-    const sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
+    const sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), provider, devices);
     const link = new XiaozhiLinkService(prisma as any, redis, devices);
     const gateway = new XiaozhiGatewayService(link, sessions, quota, prisma as any, provider, undefined, redis);
     const server = http.createServer((_req, res) => res.writeHead(404).end());

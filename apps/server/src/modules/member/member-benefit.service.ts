@@ -123,21 +123,21 @@ export class MemberBenefitService {
    */
   async *guardAiStream<T>(ticket: AiQuotaTicket, source: AsyncIterable<T>, disconnected: () => boolean = () => false): AsyncIterable<T> {
     let produced = false;
-    let errored = false;
-    let completed = false;
+    let generationFailed = false;
+    const disconnectError = new Error("解读连接已断开");
     try {
       for await (const chunk of source) {
-        if (disconnected()) throw new Error("解读连接已断开");
+        if (disconnected()) throw disconnectError;
         if (typeof chunk === "string" ? chunk.trim().length > 0 : chunk != null) produced = true;
         yield chunk;
       }
-      if (disconnected()) throw new Error("解读连接已断开");
-      completed = true;
+      if (disconnected()) throw disconnectError;
     } catch (error) {
-      errored = true;
+      // 用户已收到有效内容后主动离开仍计次；模型或上游失败则退回。
+      generationFailed = error !== disconnectError;
       throw error;
     } finally {
-      if (errored || !produced || !completed) await this.refundAiQuota(ticket);
+      if (generationFailed || !produced) await this.refundAiQuota(ticket);
     }
   }
 
@@ -175,16 +175,21 @@ export class MemberBenefitService {
         throw new BusinessException(ErrorCode.RATE_LIMITED, "今日免费 AI 次数已用完");
       }
     }
-    let completed = false;
+    let produced = false;
+    let generationFailed = false;
+    const disconnectError = new Error("解读连接已断开");
     try {
       for await (const chunk of source) {
-        if (disconnected()) throw new Error("解读连接已断开");
+        if (disconnected()) throw disconnectError;
+        if (chunk.trim()) produced = true;
         yield chunk;
       }
-      if (disconnected()) throw new Error("解读连接已断开");
-      completed = true;
+      if (disconnected()) throw disconnectError;
+    } catch (error) {
+      generationFailed = error !== disconnectError;
+      throw error;
     } finally {
-      if (!member && !completed) await this.redis.refundCounter(key);
+      if (!member && (generationFailed || !produced)) await this.redis.refundCounter(key);
     }
   }
 

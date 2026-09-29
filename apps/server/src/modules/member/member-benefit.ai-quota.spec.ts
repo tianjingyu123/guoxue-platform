@@ -100,4 +100,21 @@ describe("MemberBenefitService · AI 次数扣减与失败退回", () => {
     await drain(svc.guardAiStream(await svc.consumeAiQuota(user), ok()), 1);
     expect(await used()).toBe(2);
   });
+
+  it("两种流式入口在用户已收到正文后断开仍计次，上游异常则退回", async () => {
+    async function* ok() { yield "已生成正文"; yield "后续正文"; }
+    async function* broken() { yield "部分正文"; throw new Error("上游失败"); }
+
+    let disconnected = false;
+    const guarded = svc.guardAiStream(await svc.consumeAiQuota(user), ok(), () => disconnected)[Symbol.asyncIterator]();
+    expect((await guarded.next()).value).toBe("已生成正文");
+    disconnected = true;
+    await expect(guarded.next()).rejects.toThrow("解读连接已断开");
+    expect(await used()).toBe(1);
+
+    await drain(svc.withAiStreamQuota(user, ok()), 1);
+    expect(await used()).toBe(2);
+    await expect(drain(svc.withAiStreamQuota(user, broken()))).rejects.toThrow("上游失败");
+    expect(await used()).toBe(2);
+  });
 });

@@ -271,11 +271,15 @@ describe("SystemService", () => {
       expect(result.siteName).toBe("道商世界");
       expect(result.slogan).toBe("探寻东方智慧"); // 未配置字段仍取默认值
     });
-    it("命中缓存时不查库", async () => {
+    it("命中缓存时仅查询实时 H5 入口，不重读完整品牌配置", async () => {
       mockRedis.getJson.mockResolvedValue({ siteName: "缓存站名" });
       const result = await svc.getBrandConfig();
       expect(result.siteName).toBe("缓存站名");
-      expect(mockPrisma.brandConfig.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.brandConfig.findUnique).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.brandConfig.findUnique).toHaveBeenCalledWith({
+        where: { id: "default" },
+        select: { h5Url: true },
+      });
     });
   });
 

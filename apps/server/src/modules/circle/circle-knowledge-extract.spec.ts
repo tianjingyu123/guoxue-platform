@@ -10,7 +10,7 @@ function buildSvc() {
   const prisma = {
     paidQuestion: { findMany: jest.fn() },
     circleKnowledge: { findUnique: jest.fn() },
-    circleKnowledgeCandidate: { create: jest.fn() },
+    circleKnowledgeCandidate: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() },
   };
   const vector = {
     embed: jest.fn().mockResolvedValue([[0.1, 0.2]]),

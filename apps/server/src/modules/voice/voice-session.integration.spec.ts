@@ -27,7 +27,7 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
   function build(provider: any) {
     const quota = new VoiceQuotaService(prisma as any, system);
     const devices = new VoiceDeviceService(prisma as any);
-    const svc = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
+    const svc = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), provider, devices);
     return { quota, devices, svc };
   }
 

@@ -92,7 +92,7 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     const quota = new VoiceQuotaService(prisma as any, system);
     devices = new VoiceDeviceService(prisma as any);
     provider = new MockXiaozhiProvider();
-    sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
+    sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), provider, devices);
     link = new XiaozhiLinkService(prisma as any, redis, devices);
     gateway = new XiaozhiGatewayService(link, sessions, quota, prisma as any, provider);
     // 与线上一致：Nest 的 HTTP 路由由 OTA 控制器承担，这里直接把 OTA/激活挂成最小 HTTP 处理
@@ -290,7 +290,7 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     const quota = new VoiceQuotaService(prisma as any, { getConfig: async () => ({ configValue: JSON.stringify({ chargeUsers: true }) }) } as any);
     const orig = { quota: (gateway as any).quota, sessions: (gateway as any).sessions };
     (gateway as any).quota = quota;
-    (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), provider, devices);
+    (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), provider, devices);
     try {
       expect(await quota.getAvailable("user", alice)).toMatchObject({ balanceSeconds: 0, reservedSeconds: 0 });
       const token = (await ota() as any).websocket.token;
@@ -562,7 +562,7 @@ run("小智协议终端 · Mock 契约（真实库）", () => {
     (gateway as any).provider = new UnavailableXiaozhiProvider();
     // 会话编排用的也是同一个「暂未开放」供应商
     const quota = new VoiceQuotaService(prisma as any, { getConfig: async () => null } as any);
-    (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any), (gateway as any).provider, devices);
+    (gateway as any).sessions = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), (gateway as any).provider, devices);
     const before = await prisma.voiceSession.count({ where: { deviceId } });
     const d = await device(token);
     const closed = new Promise((res) => d.ws.once("close", res));

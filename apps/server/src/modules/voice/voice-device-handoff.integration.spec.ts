@@ -46,7 +46,7 @@ run("硬件场景接续 · 真实库", () => {
     const redis = new RedisService();
     const quota = new VoiceQuotaService(prisma as any, { getConfig: async () => null } as any);
     devices = new VoiceDeviceService(prisma as any);
-    const contexts = new VoiceContextBuilder(prisma as any);
+    const contexts = new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any);
     handoff = new VoiceDeviceHandoffService(redis, devices, contexts);
     sessions = new VoiceSessionService(prisma as any, quota, contexts, new MockXiaozhiProvider(), devices, handoff);
     const d = await devices.register("it-admin", { serial: "c0:ff:ee:00:11:22", productSku: `${tag}-sku` });

@@ -5,6 +5,7 @@ import { ShopCouponService } from "./shop-coupon.service";
 import { AfterSaleSlaService } from "./after-sale-sla.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
+import { WechatService } from "../auth/wechat.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -102,6 +103,7 @@ describe("ShopController", () => {
         { provide: ShopCouponService, useValue: mockCouponSvc },
         { provide: LogisticsService, useValue: mockLogisticsSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: WechatService, useValue: { generateUrlScheme: jest.fn().mockResolvedValue("weixin://test-pay") } },
         // 合-P2 售后SLA列表的依赖
         { provide: AfterSaleSlaService, useValue: { listWithSla: jest.fn().mockResolvedValue({ items: [], total: 0 }) } },
       ],
