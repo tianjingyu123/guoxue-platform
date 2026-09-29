@@ -227,6 +227,7 @@ export class SystemService {
     servicePhone: "",
     serviceEmail: "",
     serviceWechat: "",
+    serviceWechatQrUrl: "",
     companyName: "",
     platformName: "热卜国学",
     websiteUrl: "",

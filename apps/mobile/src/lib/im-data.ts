@@ -4,6 +4,7 @@
  */
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember, type TimFriendApplication } from '@/composables/useTim'
+import { getUserInfo } from '@/utils/storage'
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'system' | 'product'
@@ -203,6 +204,47 @@ export interface ChatPermission {
   reason?: string
   /** 富媒体发送权限（后端 RelationPolicy.mediaPerms 透传；缺省视为不可发） */
   media?: { image: boolean; voice: boolean; file: boolean }
+}
+
+export interface ImCapabilities {
+  mode: 'TENCENT' | 'FALLBACK'
+  c2c: boolean
+  notifications: boolean
+  groups: boolean
+  friends: boolean
+  calls: boolean
+}
+
+interface FallbackMessage {
+  id: string
+  fromUserId: string
+  toUserId: string
+  type: string
+  content: string
+  payload?: unknown
+  createdAt: string
+  readAt?: string | null
+}
+
+let capabilitiesCache: ImCapabilities | null = null
+
+function fallbackToChatMessage(m: FallbackMessage): ChatMessage {
+  const profile = getUserInfo<{ id?: string; userId?: string; nickname?: string; avatar?: string }>() || {}
+  const selfId = String(profile.id || profile.userId || '')
+  const timestamp = Date.parse(m.createdAt) || Date.now()
+  return {
+    id: m.id,
+    senderId: m.fromUserId,
+    senderName: m.fromUserId === selfId ? (profile.nickname || '我') : '',
+    senderAvatar: m.fromUserId === selfId ? (profile.avatar || '') : '',
+    type: 'text',
+    content: m.content,
+    status: m.readAt ? 'read' : 'sent',
+    isWithdrawn: false,
+    createdAt: formatMessageTime(timestamp),
+    timestamp,
+    isSelf: m.fromUserId === selfId,
+  }
 }
 
 // 注：旧的前端本地权限推断 getChatPermission 已删除，私信权限统一由后端 /im/relation/:id 判定（toChatPermission）
@@ -748,6 +790,12 @@ export function getRequestStatusText(status: FriendRequestStatus): string {
 // ============ API 层 ============
 
 export const imApi = {
+  async getCapabilities(force = false): Promise<ImCapabilities> {
+    if (!force && capabilitiesCache) return capabilitiesCache
+    capabilitiesCache = await apiGet<ImCapabilities>('/im/capabilities')
+    return capabilitiesCache
+  },
+
   /** 查询与目标用户的私信关系与权限（真连，错误向上抛由页面走三态，不回退假数据） */
   async getRelationPolicy(targetId: string): Promise<RelationPolicy> {
     return await apiGet<RelationPolicy>(`/im/relation/${targetId}`)
@@ -755,17 +803,33 @@ export const imApi = {
 
   /** 获取会话列表（TIM SDK 为真源：列表/未读/置顶/免打扰；错误向上抛走三态） */
   async getConversations(): Promise<ConversationItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const list = await apiGet<ConversationItem[]>('/im/fallback/conversations')
+      return list.map((item) => ({
+        ...item,
+        lastMessage: { ...item.lastMessage, time: formatMessageTime(Date.parse(String(item.updatedAt))) },
+      }))
+    }
     const list = await useTim().getConversationList()
     return list.map(timConvToConversationItem).filter((c): c is ConversationItem => c !== null)
   },
 
   /** 置顶/取消置顶会话（TIM SDK） */
   async pinConversation(conversationID: string, isPinned: boolean): Promise<void> {
+    if (conversationID.startsWith('FALLBACK')) {
+      await apiPut(`/im/fallback/conversations/${conversationID.slice('FALLBACK'.length)}`, { isPinned })
+      return
+    }
     await useTim().pinConversation(conversationID, isPinned)
   },
 
   /** 会话免打扰开关（TIM SDK） */
   async muteConversation(conv: ConversationItem, mute: boolean): Promise<void> {
+    if (conv.id.startsWith('FALLBACK')) {
+      await apiPut(`/im/fallback/conversations/${conv.targetId}`, { isMuted: mute })
+      return
+    }
     await useTim().setConversationMute(
       { type: conv.type === 'group' ? 'GROUP' : 'C2C', id: conv.targetId },
       mute,
@@ -774,7 +838,43 @@ export const imApi = {
 
   /** 删除会话（TIM SDK，聊天记录一并清除） */
   async deleteConversation(conversationID: string): Promise<void> {
+    if (conversationID.startsWith('FALLBACK') || conversationID.startsWith('C2C')) {
+      const capabilities = await this.getCapabilities()
+      if (capabilities.mode === 'FALLBACK') {
+        const peerId = conversationID.replace(/^(FALLBACK|C2C)/, '')
+        await apiDelete(`/im/fallback/conversations/${peerId}`)
+        return
+      }
+    }
     await useTim().deleteConversation(conversationID)
+  },
+
+  async getC2CHistory(toUserId: string): Promise<{ messages: ChatMessage[]; mode: ImCapabilities['mode'] }> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const res = await apiGet<{ messages: FallbackMessage[] }>(`/im/fallback/c2c/history?toUserId=${encodeURIComponent(toUserId)}&count=100`)
+      return { messages: (res.messages || []).map(fallbackToChatMessage), mode: 'FALLBACK' }
+    }
+    const res = await useTim().getC2CHistory(toUserId)
+    return { messages: res.messageList.map(timToChatMessage), mode: 'TENCENT' }
+  },
+
+  async sendC2CText(toUserId: string, content: string): Promise<ChatMessage> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      const message = await apiPost<FallbackMessage>('/im/fallback/c2c/send', { toUserId, text: content })
+      return fallbackToChatMessage(message)
+    }
+    return timToChatMessage(await useTim().sendText(toUserId, content))
+  },
+
+  async markC2CRead(toUserId: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (capabilities.mode === 'FALLBACK') {
+      await apiPut(`/im/fallback/c2c/read/${toUserId}`)
+      return
+    }
+    await useTim().setC2CRead(toUserId)
   },
 
   /**
@@ -888,6 +988,8 @@ export const imApi = {
 
   /** 获取群聊列表（TIM SDK 群名录 + 会话列表合并补齐未读/最后一条） */
   async getGroupList(): Promise<GroupListItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.groups) throw new Error('群聊功能将在腾讯 IM 开通后启用')
     const tim = useTim()
     const [groups, convs] = await Promise.all([tim.getJoinedGroupList(), tim.getConversationList()])
     const convMap = new Map<string, TimConversation>()
@@ -918,12 +1020,16 @@ export const imApi = {
 
   /** 获取好友列表（真连 GET /im/friends；错误向上抛走三态，不回退假数据） */
   async getFriends(): Promise<FriendItem[]> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('IM 好友功能将在腾讯 IM 开通后启用；关注关系不受影响')
     const res = await apiGet<{ friends: ImFriendRaw[] }>('/im/friends')
     return (res.friends || []).map(toFriendItem)
   },
 
   /** 获取好友请求列表（腾讯客户端 SDK 真源；服务端 REST 不提供待申请拉取） */
   async getFriendRequests(): Promise<FriendRequestsResponse> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友申请功能将在腾讯 IM 开通后启用')
     const tim = useTim()
     const applications = await tim.getFriendApplications()
     const pending = applications.map(toFriendRequestItem)
@@ -941,11 +1047,15 @@ export const imApi = {
 
   /** 发起好友申请（真连 POST /im/friends）。toUserId = 对方账号；remark 可选备注 */
   async addFriend(toUserId: string, remark?: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友功能将在腾讯 IM 开通后启用，可先关注对方或发送站内私信')
     await apiPost('/im/friends', { toUserId, remark })
   },
 
   /** 删除好友（真连 DELETE /im/friends/:toUserId） */
   async removeFriend(toUserId: string): Promise<void> {
+    const capabilities = await this.getCapabilities()
+    if (!capabilities.friends) throw new Error('好友功能尚未启用')
     await apiDelete(`/im/friends/${toUserId}`)
   },
 

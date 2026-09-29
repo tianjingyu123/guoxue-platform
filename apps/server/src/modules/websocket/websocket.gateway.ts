@@ -427,6 +427,22 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try { this.server.to(room).emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
   }
 
+  /**
+   * 直播互动权威广播：只允许业务服务在数据库事务提交后调用。
+   * 客户端据此区分旧版即时转发事件，避免把未落账的礼物或点赞当成成功结果。
+   */
+  broadcastLiveComment(roomId: string, data: unknown) {
+    this.sendToRoom(`live:${roomId}`, "live:comment_committed", data);
+  }
+
+  broadcastLiveGift(roomId: string, data: unknown) {
+    this.sendToRoom(`live:${roomId}`, "live:gift_committed", data);
+  }
+
+  broadcastLiveLike(roomId: string, data: unknown) {
+    this.sendToRoom(`live:${roomId}`, "live:like_count", data);
+  }
+
   /** 推送IM新消息通知（由IM回调触发） */
   notifyImMessage(userId: string, msg: {
     fromUserId: string;

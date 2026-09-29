@@ -414,9 +414,15 @@ import {
   GiftFeed,
   normalizeFromSendResponse,
   normalizeFromTimMessage,
+  normalizeLevel,
+  tierOfLevel,
   type GiftFeedRenderer,
   type NormalizedGiftEvent,
 } from '@/pkg-live/gift-feed'
+import {
+  subscribeLiveRealtime,
+  type LiveRealtimeSubscription,
+} from '@/pkg-live/live-realtime'
 import { getLiveFeed } from './presence-api'
 import { useLiveWatchPresence } from './use-live-watch-presence'
 
@@ -517,6 +523,8 @@ const isFollowing = ref(false)
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+let realtimeAvailable = false
 
 async function leaveDanmaku() {
   if (offTimMessage) { offTimMessage(); offTimMessage = null }
@@ -569,6 +577,80 @@ async function joinDanmaku(groupId: string, targetRoomId: string, requestVersion
       scrollDanmakuToBottom()
     })
   } catch { /* TIM 未就绪 → 弹幕降级只读空态，不阻断观看 */ }
+}
+
+function stopRealtime() {
+  realtimeSubscription?.stop()
+  realtimeSubscription = null
+  realtimeAvailable = false
+}
+
+/** Socket.IO 为主通道；断线或未登录时自动启用保留的 TIM，历史接口轮询继续兜底。 */
+function startRealtime(targetRoomId: string, requestVersion: number) {
+  stopRealtime()
+  realtimeSubscription = subscribeLiveRealtime(targetRoomId, {
+    onAvailability: (available) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      realtimeAvailable = available
+      if (available) void leaveDanmaku()
+      else if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId, targetRoomId, requestVersion)
+    },
+    onComment: (event) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      if (comments.value.some((item) => String(item.id) === String(event.id))) return
+      const selfUserId = giftNormalizeContext().selfUserId
+      if (selfUserId && event.userId === selfUserId) {
+        const optimisticIndex = comments.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+        if (optimisticIndex >= 0) comments.value.splice(optimisticIndex, 1)
+      }
+      comments.value.push({
+        id: event.id,
+        userName: event.userName || '观众',
+        content: event.content,
+        type: 'text',
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+      scrollDanmakuToBottom()
+    },
+    onGift: (event) => {
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+      const catalog = lookupGift(event.giftId)
+      const level = normalizeLevel(catalog?.level)
+      const giftEvent: NormalizedGiftEvent = {
+        recordId: event.recordId,
+        roomId: targetRoomId,
+        userId: event.userId,
+        userName: event.userName || '观众',
+        avatar: '',
+        giftId: event.giftId,
+        giftName: event.giftName || catalog?.name || '心意',
+        icon: event.giftIcon || catalog?.icon || '',
+        level,
+        tier: tierOfLevel(level),
+        quantity: event.quantity,
+        at: event.createdAt ? Date.parse(event.createdAt) || Date.now() : Date.now(),
+        source: 'broadcast',
+      }
+      giftFeed.push(giftEvent)
+      const selfUserId = giftNormalizeContext().selfUserId
+      if (!selfUserId || event.userId !== selfUserId) {
+        comments.value.push({
+          id: `gift-${event.recordId}`,
+          userName: giftEvent.userName,
+          content: `送出 ${giftEvent.giftName} x${giftEvent.quantity}`,
+          type: 'gift',
+          giftInfo: { name: giftEvent.giftName, icon: giftEvent.icon, count: giftEvent.quantity },
+        })
+        if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+        scrollDanmakuToBottom()
+      }
+    },
+    onLike: (event) => {
+      if (isCurrentRoomRequest(targetRoomId, requestVersion) && Number.isFinite(event.likeCount)) {
+        room.value.likeCount = Math.max(0, event.likeCount)
+      }
+    },
+  })
 }
 
 // ===== 低延时播放地址（C1）=====
@@ -637,8 +719,8 @@ async function fetchRoomData(roomId: string) {
     // H5/小程序与 App 共用同一安全契约：互动上下文异步增强，绝不阻塞自动起播。
     // 新旧服务端滚动或接口异常时保留默认的“只看不可互动”状态。
     void refreshWatchContext(roomId, requestVersion)
-    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
-    if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId, roomId, requestVersion)
+    // Socket.IO 为主；不可用时内部回退 TIM，轮询仍提供最终一致性。
+    startRealtime(roomId, requestVersion)
     // 关注态初始化（未登录/失败降级为未关注，不阻断）
     if (room.value.hostId) {
       void liveApi.isFollowingHost(room.value.hostId).then((v) => {
@@ -813,6 +895,7 @@ async function pollRoomStatus() {
     if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     room.value = { ...defaultWatchRoom, ...data.room }
     products.value = data.products
+    if (!realtimeAvailable) mergeWatchComments(data.comments)
     if (String(data.room.status || '').toUpperCase() === 'LIVING') {
       // 首次签名地址偶发失败时，状态轮询继续尝试恢复，不能让观众永久停在占位页。
       if (!playUrl.value) await fetchPlayUrl(targetRoomId, requestVersion)
@@ -1422,6 +1505,8 @@ onHide(() => {
   resumeAfterHide = true
   roomLoadVersion += 1
   stopRoomPolling()
+  stopRealtime()
+  void leaveDanmaku()
   clearEndAdvance()
   void leavePresence()
 })
@@ -1437,6 +1522,7 @@ onUnmounted(() => {
   // 离开页面前尽力保存最后位置；请求失败仍有本地缓存兜底。
   void reportReplayProgress()
   // 退订 TIM 群消息 + 退出弹幕群
+  stopRealtime()
   void leaveDanmaku()
   // 礼物反馈：清编排层定时器 + 清退场定时器，避免卸载后仍有回调改已销毁的状态
   giftFeed.destroy()

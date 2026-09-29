@@ -1,0 +1,120 @@
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { ImPolicyService } from "./im-policy.service";
+import { AuditService } from "../audit/audit.service";
+import { AppGateway } from "../websocket/websocket.gateway";
+
+@Injectable()
+export class ImFallbackService {
+  constructor(
+    private prisma: PrismaService,
+    private policy: ImPolicyService,
+    private audit: AuditService,
+    private ws: AppGateway,
+  ) {}
+
+  async sendText(fromUserId: string, toUserId: string, rawContent: string) {
+    const content = String(rawContent || "").trim().slice(0, 2000);
+    if (!content) throw new BusinessException(ErrorCode.BAD_REQUEST, "消息内容不能为空");
+    const relation = await this.policy.evaluateC2C(fromUserId, toUserId);
+    if (!relation.canSend) throw new BusinessException(ErrorCode.FORBIDDEN, relation.hint || "当前关系无法向对方发送消息");
+    if (this.audit.hasLocalViolation(content).length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "消息包含不适合发送的内容");
+    }
+    const message = await this.prisma.imFallbackMessage.create({
+      data: { fromUserId, toUserId, type: "TEXT", content },
+    });
+    this.ws.sendToUser(toUserId, "im:fallback_message", message);
+    this.ws.sendToUser(fromUserId, "im:fallback_message", message);
+    void this.audit.classifyTextRisk(content, { scene: "IM_C2C", userId: fromUserId, dataId: toUserId }).catch(() => undefined);
+    return message;
+  }
+
+  async history(userId: string, peerUserId: string, take = 50) {
+    const pref = await this.prisma.imFallbackConversationPreference.findUnique({
+      where: { userId_peerUserId: { userId, peerUserId } },
+    });
+    const messages = await this.prisma.imFallbackMessage.findMany({
+      where: {
+        OR: [
+          { fromUserId: userId, toUserId: peerUserId },
+          { fromUserId: peerUserId, toUserId: userId },
+        ],
+        ...(pref?.hiddenBefore ? { createdAt: { gt: pref.hiddenBefore } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: Math.min(Math.max(take, 1), 100),
+    });
+    return { messages: messages.reverse(), isCompleted: messages.length < take };
+  }
+
+  async markRead(userId: string, peerUserId: string) {
+    await this.prisma.imFallbackMessage.updateMany({
+      where: { fromUserId: peerUserId, toUserId: userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return { success: true };
+  }
+
+  async conversations(userId: string) {
+    const [rows, prefs] = await Promise.all([
+      this.prisma.imFallbackMessage.findMany({
+        where: { OR: [{ fromUserId: userId }, { toUserId: userId }] },
+        orderBy: { createdAt: "desc" },
+        take: 1000,
+      }),
+      this.prisma.imFallbackConversationPreference.findMany({ where: { userId } }),
+    ]);
+    const prefMap = new Map(prefs.map((p) => [p.peerUserId, p]));
+    const latest = new Map<string, (typeof rows)[number]>();
+    const unread = new Map<string, number>();
+    for (const row of rows) {
+      const peerId = row.fromUserId === userId ? row.toUserId : row.fromUserId;
+      const pref = prefMap.get(peerId);
+      if (pref?.hiddenBefore && row.createdAt <= pref.hiddenBefore) continue;
+      if (!latest.has(peerId)) latest.set(peerId, row);
+      if (row.toUserId === userId && !row.readAt) unread.set(peerId, (unread.get(peerId) || 0) + 1);
+    }
+    const peerIds = Array.from(latest.keys());
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: peerIds } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    return Array.from(latest.entries()).map(([peerId, last]) => {
+      const peer = userMap.get(peerId);
+      const pref = prefMap.get(peerId);
+      return {
+        id: `FALLBACK${peerId}`,
+        type: "private",
+        targetId: peerId,
+        targetName: peer?.nickname || "用户",
+        targetAvatar: peer?.avatar || "",
+        lastMessage: { type: "text", content: last.content, senderId: last.fromUserId, time: last.createdAt },
+        unreadCount: unread.get(peerId) || 0,
+        isPinned: pref?.isPinned || false,
+        isMuted: pref?.isMuted || false,
+        updatedAt: last.createdAt,
+      };
+    }).sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || +new Date(b.updatedAt) - +new Date(a.updatedAt));
+  }
+
+  async updatePreference(userId: string, peerUserId: string, input: { isPinned?: boolean; isMuted?: boolean }) {
+    return this.prisma.imFallbackConversationPreference.upsert({
+      where: { userId_peerUserId: { userId, peerUserId } },
+      create: { userId, peerUserId, ...input },
+      update: input,
+    });
+  }
+
+  async clearConversation(userId: string, peerUserId: string) {
+    await this.prisma.imFallbackConversationPreference.upsert({
+      where: { userId_peerUserId: { userId, peerUserId } },
+      create: { userId, peerUserId, hiddenBefore: new Date() },
+      update: { hiddenBefore: new Date() },
+    });
+    return { success: true };
+  }
+}

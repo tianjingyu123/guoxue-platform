@@ -250,6 +250,7 @@ import {
   type LiveGift,
 } from '@/lib/live-data'
 import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
+import { subscribeLiveRealtime, type LiveRealtimeSubscription } from '@/pkg-live/live-realtime'
 
 const loading = ref(true)
 const error = ref('')
@@ -288,10 +289,19 @@ const coinBalance = ref(0)
 const tim = useTim()
 let danmakuGroupId = ''
 let offTimMessage: (() => void) | null = null
+let realtimeSubscription: LiveRealtimeSubscription | null = null
+
+async function leaveDanmaku() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = danmakuGroupId
+  danmakuGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
 
 /** 加入弹幕群 + 订阅群消息上屏（仅直播中且有 imGroupId 时） */
 async function joinDanmaku(groupId: string) {
-  if (!groupId) return
+  if (!groupId || groupId === danmakuGroupId) return
+  await leaveDanmaku()
   danmakuGroupId = groupId
   try {
     await tim.joinGroup(groupId)
@@ -304,6 +314,41 @@ async function joinDanmaku(groupId: string) {
       if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
     })
   } catch { /* TIM 未就绪 → 弹幕降级留空，不阻断观看 */ }
+}
+
+function startRealtime(roomId: string) {
+  realtimeSubscription?.stop()
+  realtimeSubscription = subscribeLiveRealtime(roomId, {
+    onAvailability: (available) => {
+      if (available) void leaveDanmaku()
+      else if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId)
+    },
+    onComment: (event) => {
+      if (comments.value.some((item) => String(item.id) === String(event.id))) return
+      const optimisticIndex = comments.value.findIndex((item) => String(item.id).startsWith('local-') && item.content === event.content)
+      if (optimisticIndex >= 0) comments.value.splice(optimisticIndex, 1)
+      comments.value.push({ id: event.id, userName: event.userName || '观众', content: event.content, type: 'text' })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+    },
+    onGift: (event) => {
+      if (comments.value.some((item) => String(item.id) === `gift-${event.recordId}`)) return
+      const gift = gifts.value.find((item) => item.id === event.giftId)
+      if (gift) {
+        const id = Date.now() + Math.random()
+        giftAnimations.value.push({ id, gift, user: event.userName || '观众' })
+        setTimeout(() => { giftAnimations.value = giftAnimations.value.filter((item) => item.id !== id) }, 3000)
+      }
+      comments.value.push({
+        id: `gift-${event.recordId}`,
+        userName: event.userName || '观众',
+        content: `送出 ${event.giftName} x${event.quantity}`,
+        type: 'gift',
+        giftInfo: { name: event.giftName, icon: event.giftIcon || gift?.icon || '', count: event.quantity },
+      })
+      if (comments.value.length > 80) comments.value.splice(0, comments.value.length - 80)
+    },
+    onLike: (event) => { if (Number.isFinite(event.likeCount)) likeCount.value = Math.max(0, event.likeCount) },
+  })
 }
 
 // 低延时播放地址（C1）；仅直播中后端返回，未开播抛错→保持头像背景
@@ -327,8 +372,7 @@ async function fetchData(roomId: string) {
     coinBalance.value = giftsData.balance
     viewerCount.value = roomData.room.viewerCount || 0
     likeCount.value = roomData.room.likeCount || 0
-    // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
-    if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    startRealtime(roomId)
     // 关注态初始化（未登录/失败降级为未关注，不阻断）
     if (room.value.hostId) {
       liveApi.isFollowingHost(room.value.hostId).then((v) => { isFollowing.value = v }).catch(() => {})
@@ -364,8 +408,8 @@ function retry() {
 
 onUnmounted(() => {
   // 退订 TIM 群消息 + 退出弹幕群
-  if (offTimMessage) offTimMessage()
-  if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
+  realtimeSubscription?.stop()
+  void leaveDanmaku()
 })
 
 const floatingHearts = ref<{ id: number; x: number; scale: number }[]>([])
@@ -476,20 +520,23 @@ async function onSendGift(gift: LiveGift) {
   sendingGift = true
   showGiftPanel.value = false
   try {
-    await sendLiveGift(room.value.id, gift.id, count)
+    const sent = await sendLiveGift(room.value.id, gift.id, count)
     // 成功后飘屏 + 弹幕 + 扣余额
     const id = Date.now() + Math.random()
     giftAnimations.value.push({ id, gift, user: '我' })
     setTimeout(() => {
       giftAnimations.value = giftAnimations.value.filter((g) => g.id !== id)
     }, 3000)
-    comments.value.push({
-      id: Date.now().toString(),
-      userName: '我',
-      content: '',
-      type: 'gift',
-      giftInfo: { name: gift.name, icon: gift.icon, count },
-    })
+    const committedId = `gift-${sent.recordId}`
+    if (!comments.value.some((item) => String(item.id) === committedId)) {
+      comments.value.push({
+        id: committedId,
+        userName: '我',
+        content: `送出 ${gift.name} x${count}`,
+        type: 'gift',
+        giftInfo: { name: gift.name, icon: gift.icon, count },
+      })
+    }
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
     // 礼物广播由服务端在真实扣款成功后统一中继，客户端不能伪造礼物事件。
   } catch (e) {

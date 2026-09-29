@@ -193,6 +193,7 @@ const showDeleteConfirm = ref(false)
 const activeConv = ref<ConversationItem | null>(null)
 
 let unsubscribe: (() => void) | null = null
+let fallbackRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 async function loadData() {
   loading.value = true
@@ -206,8 +207,13 @@ async function loadData() {
   }
 }
 
-onMounted(() => {
-  loadData()
+onMounted(async () => {
+  await loadData()
+  const capabilities = await imApi.getCapabilities().catch(() => null)
+  if (capabilities?.mode === 'FALLBACK') {
+    fallbackRefreshTimer = setInterval(() => { void loadData() }, 3_000)
+    return
+  }
   // 实时刷新：新消息/已读/置顶等 SDK 会话变化直接驱动列表与未读角标
   unsubscribe = tim.onConversationsUpdated((list) => {
     conversations.value = list
@@ -217,6 +223,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   if (unsubscribe) unsubscribe()
+  if (fallbackRefreshTimer) clearInterval(fallbackRefreshTimer)
 })
 
 const totalUnread = computed(() => conversations.value.reduce((s, c) => s + c.unreadCount, 0))

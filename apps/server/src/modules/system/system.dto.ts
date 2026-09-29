@@ -84,6 +84,10 @@ export class UpdateBrandConfigDto {
   @IsOptional() @IsString() @MaxLength(50)
   serviceWechat?: string;
 
+  @ApiProperty({ description: "企业微信人工客服二维码图片地址", required: false })
+  @IsOptional() @IsString() @MaxLength(500)
+  serviceWechatQrUrl?: string;
+
   @ApiProperty({ description: "协议主体：公司全称", required: false })
   @IsOptional() @IsString() @MaxLength(100)
   companyName?: string;
