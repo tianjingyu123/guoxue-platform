@@ -333,6 +333,19 @@ export const aiReportApi = {
   saveJinkoujueRecord(params: Record<string, unknown>): Promise<{ id: string }> {
     return apiPost<{ id: string }>('/paipan/jinkoujue/save', params)
   },
+  /** 阴盘：保存与结果页完全相同的定局、真太阳时和手选局，核盘后才进入局书。 */
+  saveYinpanRecord(params: Record<string, unknown>): Promise<{
+    id: string
+    result: {
+      juNumber: number
+      dunType: 'yang' | 'yin'
+      zhiFu: string
+      zhiShiMen: string
+      gongs: Array<{ index: number; diPan: string; tianPan: string; star: string; men: string }>
+    }
+  }> {
+    return apiPost('/paipan/yinpan/save', params)
+  },
   /** 玄空：显式传结果页已选择的元运，避免仅按建造年份推算而保存成另一盘。 */
   saveXuankongRecord(params: Record<string, unknown>): Promise<{
     id: string

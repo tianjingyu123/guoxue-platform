@@ -12,7 +12,7 @@ export interface YinpanParams {
   hour: number
   minute: number
   panType: 'year' | 'hour' | 'ke'
-  /** 自定义局数（如「阳遁3局」；空=自动拆补定局） */
+  /** 自定义局数（如「阳遁3局」；空=自动数理定局） */
   customJu: string
   trueSolar: boolean
   lat: number

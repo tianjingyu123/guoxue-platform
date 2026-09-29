@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 阴盘奇门·结果页（自 V0 app/yinpan/result/page.tsx 还原）
- * onLoad 解析 payload 后请服务端排盘（POST /paipan/engine/yinpan；阴盘=转盘拆补，中宫寄坤2；2026-09-21 第 4 步迁移）。
+ * onLoad 解析 payload 后请服务端排盘（POST /paipan/engine/yinpan；与阴盘报告共用数理定局）。
  * 结构：盘面信息表 → 用神快速定位 → 主盘（外圈+九宫）→ 颜色说明 → 功能开关（移星换斗/
  * 天门地户/长生/上下局/年月日时神将）→ 移星换斗8盘 → 宫位详解弹层 → 底部工具条。
  * AI 解析区块按合规要求砍除。
@@ -14,6 +14,8 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
+import { aiReportApi } from '@/lib/paipan/ai-report-data'
 import { PALACE_NAMES, type QimenResult } from '@/pkg-paipan/lib/qimen-consts'
 import { computePaipan } from '@/lib/paipan/engine-client'
 import { trueSolarTime } from '@/lib/paipan/ganzhi'
@@ -48,7 +50,7 @@ function pad(n: number) {
 // ─── 状态 ───
 const params = ref<YinpanParams | null>(null)
 const loadError = ref('')
-/** 局数覆盖（上局/下局切换；null=自动拆补定局或入参指定局） */
+/** 局数覆盖（上局/下局切换；null=自动数理定局或入参指定局） */
 const juOverride = ref<{ isYang: boolean; num: number } | null>(null)
 
 // 功能开关
@@ -62,6 +64,8 @@ const showEditMatter = ref(false)
 const editedMatter = ref('')
 const editDraft = ref('')
 const yongShenTarget = ref<string | null>(null)
+const preparingReport = ref(false)
+const savedReportRecord = ref({ key: '', id: '' })
 
 onLoad((q: Record<string, string> = {}) => {
   try {
@@ -76,7 +80,7 @@ onLoad((q: Record<string, string> = {}) => {
     params.value = {
       matter: String(p.matter || ''),
       year, month, day, hour, minute,
-      panType: p.panType === 'year' || p.panType === 'ke' ? p.panType : 'hour',
+      panType: 'hour',
       customJu: String(p.customJu || ''),
       trueSolar: p.trueSolar === true,
       lat: Number(p.lat) || 38.93,
@@ -93,7 +97,7 @@ onLoad((q: Record<string, string> = {}) => {
   }
 })
 
-// ─── 真实排盘（阴盘=转盘拆补，中宫寄坤2）───
+// ─── 真实排盘（阴盘数理定局，中宫寄坤2）───
 const baseDate = computed(() => {
   const p = params.value
   if (!p) return null
@@ -125,7 +129,7 @@ async function fetchQr() {
     qr.value = r
     if (pendingHistory && params.value) {
       pendingHistory = false
-      saveYinpanHistory(params.value, `${panTypeLabel.value}·${juLabel.value}`)
+      saveYinpanHistory(params.value, `${panTypeLabel}·${juLabel.value}`)
     }
   } catch (e) {
     if (seq !== qrSeq) return
@@ -154,10 +158,7 @@ const sizhu = computed(() => {
 const kongZhi = computed(() => qr.value?.kongwang[3]?.zhi || '')
 const maZhi = computed(() => qr.value?.maXing || '')
 const juLabel = computed(() => qr.value?.ju.label || '')
-const panTypeLabel = computed(() => {
-  const t = params.value?.panType
-  return t === 'year' ? '年盘' : t === 'ke' ? '刻盘' : '时盘'
-})
+const panTypeLabel = '时盘'
 const lunar = computed(() => {
   const p = params.value
   return p ? lunarText(p.year, p.month, p.day) : ''
@@ -257,8 +258,66 @@ function confirmEditMatter() {
 function handleSave() {
   const p = params.value
   if (!p || !qr.value) return
-  saveYinpanHistory({ ...p, matter: editedMatter.value }, `${panTypeLabel.value}·${juLabel.value}`)
+  saveYinpanHistory({ ...p, matter: editedMatter.value }, `${panTypeLabel}·${juLabel.value}`)
   uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
+}
+
+async function openXiaobuReport() {
+  const p = params.value
+  const chart = qr.value
+  if (!p || !chart || qrLoading.value || preparingReport.value) return
+  const token = getToken()
+  if (!token) {
+    try {
+      const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> }
+      if (page?.route) {
+        const query = Object.entries(page.options || {}).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+        uni.setStorageSync('login:redirect', `/${page.route}${query ? `?${query}` : ''}`)
+      }
+    } catch { /* 回跳记录失败不阻断登录 */ }
+    navigateTo('/pkg-auth/login/index')
+    return
+  }
+  const selected = juOverride.value
+  const input = {
+    matter: editedMatter.value.trim(),
+    year: p.year, month: p.month, day: p.day, hour: p.hour, minute: p.minute,
+    trueSolar: p.trueSolar,
+    lng: p.lng,
+    juLabel: selected ? `${selected.isYang ? '阳遁' : '阴遁'}${selected.num}局` : undefined,
+  }
+  const key = `${token}:${JSON.stringify(input)}`
+  preparingReport.value = true
+  try {
+    let id = savedReportRecord.value.key === key ? savedReportRecord.value.id : ''
+    if (!id) {
+      const record = await aiReportApi.saveYinpanRecord(input)
+      if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
+      if (!record.id) throw new Error('盘面保存失败，请重试')
+      const result = record.result
+      const samePalaces = result?.gongs?.length === 9 && result.gongs.every((gong) => {
+        const palace = chart.palaces[gong.index]
+        return palace && palace.diGan === gong.diPan
+          && [palace.tianGan, palace.tianGan2].filter(Boolean).join('') === gong.tianPan
+          && [palace.star, palace.star2].filter(Boolean).join('') === gong.star
+          && palace.men === gong.men
+      })
+      if (!result || !samePalaces || result.juNumber !== chart.ju.num
+        || result.dunType !== (chart.ju.isYang ? 'yang' : 'yin')
+        || result.zhiFu !== chart.zhifu.star || result.zhiShiMen !== chart.zhishi.men) {
+        throw new Error('当前盘面与报告记录不一致，暂不能生成局书')
+      }
+      id = record.id
+      savedReportRecord.value = { key, id }
+    }
+    if (getToken() !== token) throw new Error('登录身份已变化，请重新进入')
+    if (qrLoading.value || qr.value !== chart) throw new Error('盘面已变化，请按当前盘面重新生成')
+    navigateTo(`/pkg-paipan/bazi/ai-report?recordId=${encodeURIComponent(id)}`)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '局书准备失败，请重试', icon: 'none' })
+  } finally {
+    preparingReport.value = false
+  }
 }
 
 function handleShare() {
@@ -269,7 +328,7 @@ function handleShare() {
     `【${hdrTitle}】`,
     `事项：${editedMatter.value || '未填写'}`,
     `${p.year}年${pad(p.month)}月${pad(p.day)}日 ${p.hour}时${p.minute}分`,
-    `${panTypeLabel.value}·${juLabel.value}【月将${yuejiangName.value[2] || ''}】`,
+    `${panTypeLabel}·${juLabel.value}【月将${yuejiangName.value[2] || ''}】`,
     `四柱：${sizhu.value.map((z) => z.g + z.z).join(' ')}`,
     '—— 来自热卜 · 专业排盘工具',
   ].join('\n')
@@ -433,6 +492,12 @@ function goInput() {
           tone="subtle"
           text="本工具仅供传统文化爱好者研究学习使用，占测结果不构成任何预测或建议。"
         />
+        <!-- #ifndef MP-WEIXIN -->
+        <view class="report-entry" :class="{ 'report-entry-busy': preparingReport || qrLoading }" @tap="openXiaobuReport">
+          <text class="report-entry-text">{{ preparingReport ? '正在核对盘面…' : '生成小卜局书' }}</text>
+          <text class="report-entry-note">保存前核对九宫盘；需付费时会先展示权益和价格</text>
+        </view>
+        <!-- #endif -->
         <view class="bottom-space" />
       </view>
     </scroll-view>
@@ -491,6 +556,10 @@ $serif: Georgia, 'Songti SC', serif;
 .body { flex: 1; }
 .body-inner { padding: 16rpx 0 48rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .bottom-space { height: 120rpx; }
+.report-entry { margin: 0 24rpx; padding: 24rpx; border-radius: 20rpx; background: var(--brand); display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.report-entry-busy { opacity: .65; }
+.report-entry-text { color: #fff; font-size: 30rpx; font-weight: 700; }
+.report-entry-note { color: #fff; font-size: 22rpx; text-align: center; }
 
 /* 缺参空态样式已抽至 @/components/paipan/param-error.vue */
 /* 服务端排盘加载态：占位高度与首屏盘面相当，避免结果回来时页面跳动 */

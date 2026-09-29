@@ -15,7 +15,8 @@ import { paiZhuge, zhugeVerdict } from "./zhuge-engine";
 import { computeWuyun } from "./wuyunliuqi-engine";
 import { paiFeigong } from "./feigong-engine";
 import { paiJinKouJue } from "./jinkoujue-engine";
-import { computeLiuren, computeLiuyao, computeMeihua, computeQimen, mingliJu, trueSolarTime } from "@guoxue/shared/paipan";
+import { computeLiuren, computeLiuyao, computeMeihua, computeQimen, computeQimenWithJu, mingliJu, trueSolarTime } from "@guoxue/shared/paipan";
+import { yinpanJuOf } from "../../tool-registry/calculators/qimen.calculator";
 import { Solar } from "./vendor/lunar";
 import { computeQimenLocal } from "./qimen-adapter";
 import { paiChuanren, SHENGXIAO } from "./chuanren-engine";
@@ -373,8 +374,8 @@ export const ENGINES: Record<string, EngineDef<any>> = {
   },
 
   /**
-   * 阴盘奇门（转盘拆补、暗干值使，中宫寄坤2）。请求体：墙上时间 + trueSolar/lng + juLabel（上局/下局覆盖，如「阳遁3局」）。
-   * 与 yinpan/result.vue 迁移前的 baseDate + qr 两个 computed 逐字等价。
+   * 阴盘奇门与报告共用阴盘数理定局（农历月日、年支与时支取数除九）。
+   * 请求体：墙上时间 + trueSolar/lng + juLabel（手选局覆盖，如「阳遁3局」）。
    */
   yinpan: {
     parse: (b) => {
@@ -393,12 +394,11 @@ export const ENGINES: Record<string, EngineDef<any>> = {
     run: (p) => {
       const clock = new Date(p.year, p.month - 1, p.day, p.hour, p.minute);
       const d = p.trueSolar ? trueSolarTime(clock, p.lng) : clock;
-      return computeQimen(d, {
-        panMethod: "zhuan",
-        startMethod: p.juLabel ? "custom" : "chaibu",
-        customJu: p.juLabel,
-        anganMethod: "zhishi",
-      });
+      const selected = p.juLabel && /^(阳遁|阴遁)([1-9])局$/.exec(p.juLabel);
+      const ju = selected
+        ? { isYang: selected[1] === "阳遁", num: Number(selected[2]) }
+        : yinpanJuOf(d);
+      return computeQimenWithJu(d, ju.isYang, ju.num, { panMethod: "zhuan", anganMethod: "zhishi" });
     },
   },
 

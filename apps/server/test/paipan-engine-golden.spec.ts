@@ -93,7 +93,12 @@ function runChild(tool: string, years: (number | string)[] | "all") {
   };
 }
 
-const TOOLS = fs.readdirSync(FIX).filter((f) => f.endsWith(".golden.json")).map((f) => f.replace(".golden.json", ""));
+// 阴盘起局法按 2026-09-29 用户决策从拆补改为数理定局；旧金样保留为历史证据，
+// 不能再拿旧算法指纹阻断新规则。新规则由 yinpan-preview-report-parity.spec.ts 的
+// 公开算例、自动/手选局及保存路径同盘测试守护。
+const TOOLS = fs.readdirSync(FIX)
+  .filter((f) => f.endsWith(".golden.json") && f !== "yinpan.golden.json")
+  .map((f) => f.replace(".golden.json", ""));
 
 describe("排盘引擎迁后端 · 金样对照", () => {
   it("反证：金样都在、且每个金样都有已注册的引擎（空目录会让下面全变空跑）", () => {

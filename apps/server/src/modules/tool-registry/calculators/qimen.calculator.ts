@@ -143,7 +143,7 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
  * 阳遁／阴遁以冬至、夏至为界，用引擎既有的节气表判断——
  * 注意这里用节气**只是为了定遁型**，局数本身不查节气，这正是阴盘与阳盘的分水岭。
  */
-function yinpanJuOf(d: Date): { isYang: boolean; num: number } {
+export function yinpanJuOf(d: Date): { isYang: boolean; num: number } {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { Solar } = require("lunar-javascript");
   const solar = Solar.fromDate(d);

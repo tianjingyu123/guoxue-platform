@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsInt, IsOptional, Min, Max, IsIn, MinLength, MaxLength, IsArray, ArrayMaxSize, IsBoolean, IsNumber, ValidateNested } from "class-validator";
+import { IsString, IsInt, IsOptional, Min, Max, IsIn, MinLength, MaxLength, IsArray, ArrayMaxSize, IsBoolean, IsNumber, ValidateNested, Matches } from "class-validator";
 import { Type } from "class-transformer";
 import { BAZI_SCHOOL_IDS } from "./bazi-schools";
 
@@ -823,6 +823,18 @@ export class YinpanInputDto {
   @ApiProperty({ example: 19 }) @IsInt() @Min(1) @Max(31) day: number;
   @ApiPropertyOptional({ example: 14 }) @IsOptional() @IsInt() @Min(0) @Max(23) hour?: number;
   @ApiPropertyOptional({ example: 0 }) @IsOptional() @IsInt() @Min(0) @Max(59) minute?: number;
+
+  @ApiPropertyOptional({ description: "是否按真太阳时起局" })
+  @IsOptional() @IsBoolean()
+  trueSolar?: boolean;
+
+  @ApiPropertyOptional({ description: "真太阳时经度（启用真太阳时时必填）" })
+  @IsOptional() @IsNumber() @Min(-180) @Max(180)
+  lng?: number;
+
+  @ApiPropertyOptional({ description: "手选局，留空按阴盘数理自动定局", example: "阳遁4局" })
+  @IsOptional() @IsString() @Matches(/^(阳遁|阴遁)[1-9]局$/)
+  juLabel?: string;
 }
 
 /**

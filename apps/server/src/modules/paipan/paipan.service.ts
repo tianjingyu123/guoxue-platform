@@ -1,4 +1,4 @@
-import { readShanxiangMap, readShanxiangImage, trueToMagnetic } from "@guoxue/shared/paipan";
+import { readShanxiangMap, readShanxiangImage, trueToMagnetic, trueSolarTime } from "@guoxue/shared/paipan";
 import { Injectable } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -1123,14 +1123,23 @@ export class PaipanService {
    * 摊在报告里，比任何「本平台算法精准」的说辞都有说服力。
    */
   async calcYinpan(dto: YinpanInputDto) {
-    const { calculateQimenYin } = await import("../tool-registry/calculators/qimen.calculator");
+    const { calculateQimenYin, yinpanJuOf } = await import("../tool-registry/calculators/qimen.calculator");
     const { computeYinpanJu } = (await import("@guoxue/shared/paipan")) as any;
     const { Solar } = (await import("lunar-javascript")) as any;
 
     const hour = dto.hour ?? 12;
     const minute = dto.minute ?? 0;
-    const d = new Date(dto.year, dto.month - 1, dto.day, hour, minute);
-    const result = calculateQimenYin({ datetime: d.toISOString() }) as unknown as Record<string, unknown>;
+    if (dto.trueSolar && (dto.lng === undefined || !Number.isFinite(dto.lng))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "真太阳时需要有效经度");
+    }
+    const clock = new Date(dto.year, dto.month - 1, dto.day, hour, minute);
+    const d = dto.trueSolar ? trueSolarTime(clock, dto.lng!) : clock;
+    const selected = dto.juLabel && /^(阳遁|阴遁)([1-9])局$/.exec(dto.juLabel);
+    const result = calculateQimenYin({
+      datetime: d.toISOString(),
+      customJu: selected ? Number(selected[2]) : undefined,
+      dunType: selected ? (selected[1] === "阳遁" ? "yang" : "yin") : undefined,
+    });
 
     // 取数明细：与计算器内部同一套历法口径，仅用于展示，不参与定局
     const lunar = Solar.fromDate(d).getLunar();
@@ -1140,12 +1149,17 @@ export class PaipanService {
       lunarMonth: lm.month,
       lunarDay: Number(lunar.getDay()),
       hourZhi: String(lunar.getTimeZhi()),
-      isYang: result.dunType === "yang",
+      isYang: yinpanJuOf(d).isYang,
     }).parts;
-    const juParts =
+    const autoJu = yinpanJuOf(d);
+    const autoJuLabel = `${autoJu.isYang ? "阳遁" : "阴遁"}${autoJu.num}局`;
+    const juPartsBase =
       `年支${lunar.getYearZhiByLiChun?.() ?? lunar.getYearZhi()}=${parts.yearZhi}` +
       `　农历${lm.isLeap ? "闰" : ""}${parts.lunarMonth}月=${parts.lunarMonth}　${parts.lunarDay}日=${parts.lunarDay}` +
       `　时支${lunar.getTimeZhi()}=${parts.hourZhi}　合计${parts.sum}，${parts.sum}÷9 余 ${parts.sum % 9 || 9}`;
+    const juParts = selected
+      ? `${juPartsBase}；自动参考${autoJuLabel}，本盘手选${dto.juLabel}`
+      : juPartsBase;
 
     /**
      * 补 meta.siZhu 与空亡。

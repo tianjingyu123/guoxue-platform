@@ -123,12 +123,12 @@ describe("奇门三元定局表 · 跨文件", () => {
   /**
    * ⑥ 王凤麟一脉口径一致性（2026-09-20 决策人确认穿壬与阴盘奇门、山向奇门同脉）
    *
-   * 阴盘奇门页硬编码 'chaibu' 且副标题写明「拆补定局」；穿壬必须同口径。
-   * 传统时家奇门页默认 'zhirun' 置闰、四法可切，**不属本脉**，两者不得互相看齐。
+   * 阴盘奇门已按决策人新口径改为年月日时取数除九；穿壬仍保留原有拆补法。
+   * 同属王凤麟相关工具不等于起局公式相同；传统时家奇门又是独立的置闰口径。
    */
-  it("⑥ 穿壬与阴盘奇门同为拆补；与传统时家奇门（置闰四法可切）区分开", () => {
+  it("⑥ 阴盘数理、穿壬拆补与传统时家置闰三种起局口径互不混用", () => {
     const chuanren = read("apps/server/src/modules/paipan/engine/chuanren-engine.ts");
-    // 2026-09-21 阴盘起局迁至服务端，拆补口径现写在服务端注册表的 yinpan 条目里
+    // 阴盘页面与报告共用 yinpanJuOf；不能再退回阳盘拆补。
     const yinpan = read("apps/server/src/modules/paipan/engine/engine-registry.ts");
     const qimen = read("apps/mobile/src/pkg-paipan/qimen/result.vue");
 
@@ -137,12 +137,13 @@ describe("奇门三元定局表 · 跨文件", () => {
       expect(`${n}:${t.length > 500}`).toBe(`${n}:true`);
     }
 
-    expect(yinpan).toMatch(/startMethod: p\.juLabel \? "custom" : "chaibu"/);
+    expect(yinpan).toMatch(/yinpanJuOf\(d\)/);
+    expect(yinpan).not.toMatch(/startMethod: p\.juLabel \? "custom" : "chaibu"/);
     expect(chuanren).toMatch(/input\.startMethod \?\? "chaibu"/);
     // 传统时家奇门是另一脉：默认置闰
     expect(qimen).toMatch(/startMethod: 'zhirun'/);
 
-    // 穿壬页不提供定局法切换（本脉只有一个口径，与阴盘奇门页做法一致）
+    // 穿壬页继续按自身既有口径，不跟随阴盘页面的算法切换。
     const chuanrenPage = read("apps/mobile/src/pkg-paipan/chuanren/index.vue");
     expect(chuanrenPage).not.toMatch(/maoshan|zhirun/);
     expect(chuanrenPage).toMatch(/拆补定局/);

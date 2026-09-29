@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 阴盘奇门·排盘入口页（自 V0 app/yinpan/page.tsx 还原）
- * 表单：事项 / 排盘时间（可刷新为当前）/ 排盘类型（年·时·刻）/ 局数（自动或指定）/ 真太阳时。
+ * 表单：事项 / 排盘时间（可刷新为当前）/ 时盘局数（自动或指定）/ 真太阳时。
  * V0 独立 history 页砍成本页内嵌记录卡（key: rebu:yinpan-history，上限 50）。
  */
 import { ref, computed } from 'vue'
@@ -29,8 +29,6 @@ let hdrTitle = '热卜阴盘奇门'
 hdrTitle = '奇门文化研究'
 // #endif
 
-type PanType = 'year' | 'hour' | 'ke'
-
 // ── 表单 ──
 const matter = ref('')
 const now = new Date()
@@ -41,7 +39,6 @@ const dateTime = ref({
   hour: now.getHours(),
   minute: now.getMinutes(),
 })
-const panType = ref<PanType>('hour')
 const customJu = ref('自动定局')
 const useTrueSolar = ref(false)
 const coordinates = { lat: 38.93, lng: 115.42 }
@@ -122,7 +119,7 @@ function handleSubmit() {
     day: t.day,
     hour: t.hour,
     minute: t.minute,
-    panType: panType.value,
+    panType: 'hour',
     customJu: customJu.value === '自动定局' ? '' : customJu.value,
     trueSolar: useTrueSolar.value,
     lat: coordinates.lat,
@@ -134,7 +131,7 @@ function handleSubmit() {
 
 <template>
   <view class="page">
-    <tool-header history-href="/paipan/yinpan/history" :title="hdrTitle" subtitle="阴盘遁甲 · 拆补定局" share />
+    <tool-header history-href="/paipan/yinpan/history" :title="hdrTitle" subtitle="阴盘遁甲 · 数理定局" share />
 
     <scroll-view scroll-y class="body">
       <view class="body-inner">
@@ -165,20 +162,10 @@ function handleSubmit() {
             </view>
           </view>
 
-          <!-- 排盘类型 -->
+          <!-- 当前引擎只提供逐时辰起局；不展示无实际算法差异的年盘/刻盘选项。 -->
           <view class="row row-bd">
             <text class="row-label">排盘类型</text>
-            <view class="chips">
-              <view class="chip" :class="{ 'chip-on': panType === 'year' }" @tap="panType = 'year'">
-                <text class="chip-text" :class="{ 'chip-text-on': panType === 'year' }">年盘</text>
-              </view>
-              <view class="chip" :class="{ 'chip-on': panType === 'hour' }" @tap="panType = 'hour'">
-                <text class="chip-text" :class="{ 'chip-text-on': panType === 'hour' }">时盘</text>
-              </view>
-              <view class="chip" :class="{ 'chip-on': panType === 'ke' }" @tap="panType = 'ke'">
-                <text class="chip-text" :class="{ 'chip-text-on': panType === 'ke' }">刻盘</text>
-              </view>
-            </view>
+            <text class="row-value-text">时盘 · 逐时辰起局</text>
           </view>
 
           <!-- 局数选择 -->
@@ -296,18 +283,6 @@ $serif: Georgia, 'Songti SC', serif;
 .row-value-text { font-size: 28rpx; color: var(--text-ink); }
 .matter-input { flex: 1; text-align: right; font-size: 28rpx; color: var(--text-ink); min-width: 0; }
 .input-ph { color: rgba(153, 153, 153, 0.5); }
-
-/* 选项 chips */
-.chips { display: flex; align-items: center; gap: 16rpx; flex-wrap: wrap; justify-content: flex-end; }
-.chip {
-  padding: 12rpx 24rpx;
-  border-radius: 16rpx;
-  background: rgba(0, 0, 0, 0.04);
-  &:active { background: rgba(0, 0, 0, 0.08); }
-}
-.chip-on { background: var(--brand); box-shadow: 0 2rpx 6rpx rgba(196, 30, 58, 0.25); }
-.chip-text { font-size: 26rpx; font-weight: 500; color: var(--text-ink); }
-.chip-text-on { color: #fff; }
 
 /* 局数按钮 */
 .ju-btn {
