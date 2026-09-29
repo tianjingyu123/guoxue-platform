@@ -184,7 +184,10 @@ test('双桥支付不再跳微信内网页，iOS 的 webkit 支付消息也走�
     assert.equal(assigned.some((url) => url.includes('mod=pay')), false)
   }
   assert.match(page, /action === 'legacy-payment'\) void requestLegacyPayment\(url, child\)/u)
-  assert.match(page, /onShow\(\(\) => \{\s*legacyPageVisible = true\s*flushLegacyPaymentResult\(\)/u)
+  const onShowBody = page.match(/onShow\(\(\) => \{([\s\S]*?)\n\}\)/u)?.[1]
+  assert.ok(onShowBody, '旧排盘页面应在显示恢复回调中处理付款结果')
+  assert.ok(onShowBody.indexOf('legacyPageVisible = true') >= 0)
+  assert.ok(onShowBody.indexOf('flushLegacyPaymentResult()') > onShowBody.indexOf('legacyPageVisible = true'))
   assert.match(page, /pending\.documentVersion !== legacyDocumentVersion/u)
   assert.match(page, /pending\.child\.getURL\?\.\(\) !== pending\.url/u)
 })
