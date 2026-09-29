@@ -46,7 +46,7 @@ describe("阴盘预览与报告同盘", () => {
     expect(display.zhishi.men).toBe(report.zhiShiMen);
   });
 
-  it("保存报告路径透传真太阳时和手选局，并注明自动参考局", async () => {
+  it("UTC 服务进程下，保存报告仍透传真太阳时和手选局，并注明自动参考局", async () => {
     const input = {
       year: 2026, month: 9, day: 29, hour: 14, minute: 0,
       trueSolar: true, lng: 115.42, juLabel: "阴遁3局",
@@ -55,7 +55,7 @@ describe("阴盘预览与报告同盘", () => {
     const display = engine.run("yinpan", input) as any;
     const service = Object.create(PaipanService.prototype) as PaipanService;
     const previousTz = process.env.TZ;
-    process.env.TZ = "Asia/Shanghai";
+    process.env.TZ = "UTC";
     let saved: Awaited<ReturnType<PaipanService["calcYinpan"]>>;
     try {
       saved = await service.calcYinpan(input);

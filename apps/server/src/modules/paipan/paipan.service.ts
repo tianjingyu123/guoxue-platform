@@ -10,6 +10,7 @@ import { calcBazi, calcSiZhu, calcTrueSolarTime, calcAllJieQi, type BaziInput, t
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
 import { computeZiwei as computeZiweiConsumer, toZiweiChart } from "./engine/ziwei-engine";
 import { toZiweiReportData } from "./engine/ziwei-report-adapter";
+import { withEngineTz } from "./engine/engine-tz";
 import { calculateQimenYang } from "../tool-registry/calculators/qimen.calculator";
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
@@ -1127,6 +1128,9 @@ export class PaipanService {
     const { computeYinpanJu } = (await import("@guoxue/shared/paipan")) as any;
     const { Solar } = (await import("lunar-javascript")) as any;
 
+    // 异步依赖先加载完，再把所有 Date、农历换算与引擎计算放进同步北京时间锁。
+    // 服务器进程可能为 UTC；不能把异步 Promise 传给 withEngineTz。
+    return withEngineTz(() => {
     const hour = dto.hour ?? 12;
     const minute = dto.minute ?? 0;
     if (dto.trueSolar && (dto.lng === undefined || !Number.isFinite(dto.lng))) {
@@ -1184,6 +1188,7 @@ export class PaipanService {
     };
 
     return { ...result, meta, juParts, matter: dto.matter ?? "" };
+    });
   }
 
   /** 阴盘奇门起局并保存记录（供生成课书） */
