@@ -16,11 +16,11 @@ const db = new PrismaClient();
   await db.$executeRawUnsafe('ALTER TABLE "BrandConfig" ADD COLUMN IF NOT EXISTS "serviceWechatQrUrl" TEXT NOT NULL DEFAULT \'\'');
   await db.$executeRawUnsafe(
     'UPDATE "BrandConfig" SET "serviceWechatQrUrl" = $1 WHERE "id" = $2',
-    'https://api.rebugx.cn/h5/static/customer-service/wecom-qr.png',
+    'https://gx.yrydai.com/h5/static/customer-service/wecom-qr.png',
     'default',
   );
   const rows = await db.$queryRawUnsafe('SELECT "id", "serviceWechatQrUrl" FROM "BrandConfig" WHERE "id" = $1', 'default');
-  if (!rows.length || rows[0].serviceWechatQrUrl !== 'https://api.rebugx.cn/h5/static/customer-service/wecom-qr.png') {
+  if (!rows.length || rows[0].serviceWechatQrUrl !== 'https://gx.yrydai.com/h5/static/customer-service/wecom-qr.png') {
     throw new Error('客服二维码配置写入校验失败');
   }
 })().finally(() => db.$disconnect());
