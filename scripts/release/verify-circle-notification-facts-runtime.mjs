@@ -6,9 +6,9 @@ import os from 'node:os';
 import path from 'node:path';
 
 // 只启动封闭临时空库，验证正式镜像中两处通知事实修复；不启动 HTTP 主入口或真实渠道。
-const sourceCommit = '48ac4cf4489f4a1f5241c421375da2fab3154d39';
-const sourceSha256 = 'c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284';
-const image = 'rebu-linux-verify:48ac4cf4';
+const sourceCommit = 'b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b';
+const sourceSha256 = 'c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047';
+const image = 'rebu-linux-verify:b6d1f59c';
 assert.equal(process.env.IMAGE_TAG, image);
 const postgresImage = 'pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff';
 const suffix = randomBytes(5).toString('hex');
@@ -56,7 +56,14 @@ try {
 } catch (error) { report.error = sanitize(error.message); console.error(report.error); process.exitCode = 1; }
 finally {
   docker(['rm', '-f', database], true); docker(['network', 'rm', network], true);
-  rmSync(temp, { recursive: true, force: true }); report.temporaryResourcesReleased = true;
+  // 实测资源不存在，不能仅凭清理命令已发出就宣称释放完成。
+  report.cleanup = {
+    databaseAbsent: spawnSync('docker', ['inspect', database], { stdio: 'ignore', timeout: 10000 }).status === 1,
+    networkAbsent: spawnSync('docker', ['network', 'inspect', network], { stdio: 'ignore', timeout: 10000 }).status === 1,
+  };
+  report.temporaryResourcesReleased = Object.values(report.cleanup).every(Boolean);
+  if (!report.temporaryResourcesReleased) { report.passed = false; process.exitCode = 1; }
+  rmSync(temp, { recursive: true, force: true });
   writeFileSync(path.join(results, 'circle-notification-facts-runtime.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({ sourceCommit, passed: report.passed, completedChecks: report.checks.length }));
 }

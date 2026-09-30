@@ -12,7 +12,8 @@ const pending = [];
 const check = async (name, action) => { await action(); checks.push({ name, passed: true }); };
 const redis = { runExclusive: async (_key, _ttl, action) => action() };
 // 记录站内通知事实，刻意不加载任何真实推送渠道；等待服务的异步通知完成后再断言。
-const notification = (fail = false) => ({ send: (userId, dto) => {
+const notification = (fail = false) => {
+  const send = (userId, dto) => {
   const operation = (async () => {
     if (fail) throw new Error('合成通知写入故障');
     const { type, title, content, targetType, targetId, category, circleId } = dto;
@@ -20,7 +21,9 @@ const notification = (fail = false) => ({ send: (userId, dto) => {
   })();
   pending.push(operation);
   return operation;
-} });
+  };
+  return { send, sendOnce: (userId, _eventKey, dto) => send(userId, dto) };
+};
 const settle = async () => { await Promise.allSettled(pending.splice(0)); };
 const facade = (overrides = {}) => new Proxy(db, { get: (target, key) => {
   if (key in overrides) return overrides[key];
@@ -51,7 +54,7 @@ const rewardFixture = async (balance = 100) => {
 const shared = { ensureMember: async (circleId, userId) => {
   assert(await db.circleMember.findFirst({ where: { circleId, userId } }), '合成付款用户必须为圈子成员');
 } };
-const postService = (coin = new CoinService(db, {}), failNotification = false) => new CirclePostService(db, {}, shared, undefined, coin, notification(failNotification));
+const postService = (coin = new CoinService(db, {}), failNotification = false, prisma = db) => new CirclePostService(prisma, {}, shared, undefined, coin, notification(failNotification));
 const balances = async () => {
   await settle();
   return Promise.all(['fixture-payer', 'fixture-author'].map(async userId => (await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId } })).balance));
@@ -105,15 +108,18 @@ const balances = async () => {
       assert.deepEqual(await balances(), [92, 4]); assert.equal(await db.virtualCoinTransaction.count(), 2);
       assert.match((await db.notification.findFirstOrThrow()).content, /入账 4 币/);
     });
-    await check('reward-author-ledger-failure-rolls-back-credit-and-avoids-success-wording', async () => {
-      await rewardFixture(); const coin = new CoinService(db, {});
-      const failedCreditDb = facade({ $transaction: action => db.$transaction(tx => action(new Proxy(tx, { get: (target, key) => key === 'virtualCoinTransaction'
-        ? wrap(target[key], { create: async () => { throw new Error('合成作者入账流水故障'); } }) : target[key] }))) });
+    await check('reward-author-ledger-failure-rolls-back-both-balances-and-no-notification', async () => {
+      await rewardFixture();
+      const failedCreditDb = facade({ $transaction: (action, options) => db.$transaction(tx => action(wrap(tx, {
+        virtualCoinTransaction: wrap(tx.virtualCoinTransaction, { create: async args => {
+          if (args.data.userId === 'fixture-author') throw new Error('合成作者入账流水故障');
+          return tx.virtualCoinTransaction.create(args);
+        } }),
+      })), options) });
       const failedCreditCoin = new CoinService(failedCreditDb, {});
-      await postService({ spend: coin.spend.bind(coin), refund: failedCreditCoin.refund.bind(failedCreditCoin) }).rewardPost('fixture-circle', 'fixture-post', 'fixture-payer', 8);
-      assert.deepEqual(await balances(), [92, 0]); assert.equal(await db.virtualCoinTransaction.count(), 1);
-      const content = (await db.notification.findFirstOrThrow()).content;
-      assert.match(content, /暂未入账/); assert.doesNotMatch(content, /入账 4 币/);
+      await assert.rejects(postService(failedCreditCoin, false, failedCreditDb).rewardPost('fixture-circle', 'fixture-post', 'fixture-payer', 8), /合成作者入账流水故障/);
+      assert.deepEqual(await balances(), [100, 0]); assert.equal(await db.virtualCoinTransaction.count(), 0);
+      assert.equal(await db.notification.count(), 0);
     });
     await check('reward-spend-failure-no-credit-or-notification', async () => {
       await rewardFixture(0); await assert.rejects(postService().rewardPost('fixture-circle', 'fixture-post', 'fixture-payer', 8));
