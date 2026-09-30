@@ -119,7 +119,7 @@ test('App 为没有分享按钮的第三方结果页补入口，并在点击时�
     title: '诸葛神卦', readyState: 'complete', body,
     documentElement: {}, querySelectorAll: () => [], addEventListener: () => {},
     getElementById: id => elements.get(id) || null,
-    createElement: () => ({ style: {}, setAttribute() {}, addEventListener(name, callback) { this[name] = callback } }),
+    createElement: () => ({ style: {}, setAttribute() {}, appendChild(node) { elements.set(node.id, node) }, addEventListener(name, callback) { this[name] = callback } }),
   }
   const window = {
     location: {
