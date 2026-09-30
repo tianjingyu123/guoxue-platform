@@ -1,0 +1,199 @@
+{
+  "recordedAtUtc": "2026-09-30T23:57:39.1748859Z",
+  "businessSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "isolatedAcceptance": {
+    "sourceFiles": 8,
+    "method": "fast-forward",
+    "conflicts": 0,
+    "parentDocumentHead": "3a1542fa1e6dcaf7a38c62db4233cc6cc1eb03d3",
+    "commits": [
+      "9d9e4f3c8db1ab2cb433cc9171e255c0b0a828f2",
+      "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
+    ],
+    "baseline": "c1b54ff0b23f21f43dd0045f30e8133a1dc9546c"
+  },
+  "defaultLine": {
+    "productionOperations": 0,
+    "defaultHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "defaultBranch": "master",
+    "checkedAt": "2026-09-30T23:50:07.3504313Z",
+    "pr": {
+      "merged": false,
+      "head": "c1b54ff0b23f21f43dd0045f30e8133a1dc9546c",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+      "base": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+      "number": 1,
+      "draft": true
+    },
+    "repository": "tianjingyu123/guoxue-platform",
+    "candidateHead": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-09-30T23:53:53.517Z",
+    "archive": "gx-deploy-91-launch-20260930-b6d1f59c.tar.gz",
+    "sha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "releaseId": "launch-20260930-b6d1f59c",
+    "commit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "expectedCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "fileCount": 4369,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftAsset": {
+    "digest": "sha256:c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "draft": true,
+    "assetName": "gx-deploy-91-launch-20260930-b6d1f59c.tar.gz",
+    "sourceCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "archiveSha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+    "size": 15599779,
+    "releaseId": 400058667,
+    "assetId": 602036145
+  },
+  "localRegression": {
+    "suites": 11,
+    "evidenceSha256": "b077c1998f1374637c270da1a88178a7b5fa5fead69b1f2311bd986048a06fcd",
+    "targetedEslint": true,
+    "failed": 0,
+    "passed": 287,
+    "targetedTypecheck": true
+  },
+  "officialLinux": {
+    "cleanup": {
+      "databaseAbsent": true,
+      "redisAbsent": true,
+      "networkAbsent": true,
+      "verificationImageAbsent": true
+    },
+    "verificationCommit": "2db81d5a979538a70f277f72e4e321fde7f79d89",
+    "artifactSha256": "635a3dea3611d8c1241204e28c1d462aee96c83cfd808c1c1c783403da85b001",
+    "redis": "redis_version:7.4.10",
+    "runtimeChecks": [
+      {
+        "name": "committed-reward-linked-ledgers-and-real-sendOnce",
+        "passed": true
+      },
+      {
+        "name": "credit-ledger-failure-rolls-back-payer-and-first-author-account",
+        "passed": true
+      },
+      {
+        "name": "database-failure-before-commit-no-funds-or-success-notification",
+        "passed": true
+      },
+      {
+        "name": "insufficient-balance-no-credit-or-notification",
+        "passed": true
+      },
+      {
+        "name": "sequential-replay-at-zero-remaining-balance-one-payment",
+        "passed": true
+      },
+      {
+        "name": "independent-process-identities",
+        "passed": true,
+        "pids": [
+          24,
+          25
+        ],
+        "postgresLockWaitObserved": true
+      },
+      {
+        "name": "two-independent-processes-same-request-at-zero-balance-one-payment",
+        "passed": true
+      },
+      {
+        "name": "two-independent-processes-conflicting-amount-only-first-commits",
+        "passed": true
+      },
+      {
+        "name": "request-cannot-switch-post-or-author-credit",
+        "passed": true
+      },
+      {
+        "name": "missing-credit-receipt-fails-closed-without-compensation",
+        "passed": true
+      },
+      {
+        "name": "notification-failure-release-and-retry-keeps-one-payment",
+        "passed": true
+      },
+      {
+        "name": "database-notification-unique-key-survives-redis-key-loss",
+        "passed": true
+      },
+      {
+        "name": "zero-author-share-and-odd-amount-preserve-existing-policy",
+        "passed": true
+      },
+      {
+        "name": "actual-membership-and-cross-user-notification-access",
+        "passed": true
+      }
+    ],
+    "compiledFiles": {
+      "apps/server/dist/modules/circle/services/circle-post.service.js": "fca73a66ac2db71e9fb972da8c706591254bbcc901a1b0149de88b5dc5b38213",
+      "apps/server/dist/modules/coin/coin.service.js": "75c36e6a73bedf02cf6b179ed037141fa9a2cb27ff9576a1ab485ab8a891787d"
+    },
+    "sourceBlobHashesMatched": true,
+    "independentProcesses": true,
+    "postgresLockWaitObserved": true,
+    "postgres": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "sourceFiles": {
+      "apps/server/src/modules/circle/services/circle-post.service.ts": "b7afccb1d235c939e3d3fcece67fb43bb86ce9aee30843515335901afcab95b5",
+      "apps/server/src/modules/coin/coin.service.ts": "aec1adbb3cda67662835bf129078aaa1c9e54e79c24212246b46302227ea8dc2",
+      "apps/server/prisma/schema.prisma": "6fa476e4ffc7936bce113cd31bb8d6aff4bf2823624171fabce7277280378d8b",
+      "pnpm-lock.yaml": "0b8820e247ce1b055f276c4ef72b22269b15af7d7dc916f39e59aa5e688c7d69"
+    },
+    "runConclusion": "success",
+    "unitPassed": 287,
+    "artifactBytes": 15557,
+    "runId": 36792917678,
+    "artifactId": 11133315605
+  },
+  "formalImage": {
+    "runId": 36793553471,
+    "previous48acImageIsCurrentEvidence": false,
+    "verificationCommit": "67102aa6cd686d2b8ff89f2e42960b7e88bac96f",
+    "passed": false,
+    "status": "in_progress"
+  },
+  "equalScopes": [
+    "apps/server/prisma",
+    "apps/mobile",
+    "apps/admin",
+    "packages",
+    "package.json",
+    "pnpm-lock.yaml",
+    "docker"
+  ],
+  "rollbackOrder": [
+    "b6d1f59cf",
+    "9d9e4f3c8"
+  ],
+  "unresolved": [
+    "最终固定包镜像验收",
+    "HTTP/JWT入口及通知点击目标页面权限",
+    "正式master接收与目标两节点",
+    "最终原生签名渠道和真实业务旅程",
+    "历史异常人工审计与补偿决策",
+    "提交后进程崩溃的持久化通知队列"
+  ],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本轮范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "productionDeployment": false,
+  "productionMigration": false,
+  "realMoneyOperations": 0,
+  "realNotifications": 0,
+  "historicalCompensation": false,
+  "cloudPackagingCosts": 0
+}
