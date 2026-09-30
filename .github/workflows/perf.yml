@@ -96,8 +96,9 @@ jobs:
         run: pnpm --filter @guoxue/server db:generate
         timeout-minutes: 2
 
-      - name: 执行数据库迁移
-        run: pnpm --filter @guoxue/server exec prisma migrate deploy
+      # 压测只需最终 schema 的临时空库；历史迁移链由独立迁移门禁核验。
+      - name: 创建临时压测库结构
+        run: pnpm --filter @guoxue/server exec prisma db push --skip-generate
         timeout-minutes: 3
         env:
           DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
