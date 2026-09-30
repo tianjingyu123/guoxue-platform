@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -37,6 +37,22 @@ const docker = (args, allowFailure = false) => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const save = (name, value) => writeFileSync(path.join(results, name), JSON.stringify(value, null, 2) + "\n");
 const check = (name, detail) => report.checks.push({ name, passed: true, detail });
+const parseTestResult = (output) => JSON.parse(output.trim().split("\n").findLast(line => line.startsWith("NODE_TEST_RESULT:"))?.slice(17) || "null");
+const appNode = (code) => parseTestResult(docker(["exec", app, "node", "-e", code]));
+const concurrentNode = (code) => new Promise((resolve, reject) => {
+  const child = spawn("docker", ["exec", app, "node", "-e", code]);
+  let output = "";
+  let errors = "";
+  const timer = setTimeout(() => { child.kill(); reject(new Error("独立通知进程超时")); }, 30000);
+  child.stdout.on("data", chunk => { output += chunk; });
+  child.stderr.on("data", chunk => { errors += chunk; });
+  child.on("error", error => { clearTimeout(timer); reject(error); });
+  child.on("close", status => {
+    clearTimeout(timer);
+    if (status === 0) resolve(parseTestResult(output));
+    else reject(new Error(sanitize(errors || output || "通知子进程失败")));
+  });
+});
 
 try {
   const inspect = JSON.parse(docker(["image", "inspect", image]))[0];
@@ -102,6 +118,89 @@ try {
   assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-08a5c0ac"));
   save("http-startup.json", http);
   check("production-entrypoint-health-public-http", http);
+
+  // 使用正式入口、真实 JWT/Redis/角色守卫；只在临时空库创建无个人信息的合成记录。
+  const fixture = appNode(`
+    const {createRequire}=require('module'); const req=createRequire('/app/apps/server/package.json');
+    const {PrismaClient}=req('@prisma/client'); const p=new PrismaClient();
+    (async()=>{try {
+      for(const [id,role] of [['linux-user-a',null],['linux-user-b',null],['linux-super','SUPER_ADMIN'],['linux-ops','OPERATION_ADMIN'],['linux-finance','FINANCE_ADMIN'],['linux-customer','CUSTOMER_SERVICE']])
+        await p.user.create({data:{id,nickname:'隔离验收用户',...(role?{roles:{create:{roleType:role}}}:{})}});
+      await p.order.create({data:{id:'linux-order-b',userId:'linux-user-b',type:'COURSE',targetId:'isolated-course',amount:1,status:'PAID'}});
+      await p.notification.create({data:{id:'linux-notification-a',userId:'linux-user-a',type:'SYSTEM',title:'隔离权限测试',content:'仅合成数据',targetType:'ORDER',targetId:'linux-order-b'}});
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({users:await p.user.count(),orders:await p.order.count(),notifications:await p.notification.count()}));
+    } finally {await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`);
+  assert.equal(fixture.users, 6);
+  const permissionReport = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json'); const jwt=req('jsonwebtoken');
+    const cases=[
+      ['notification-anonymous',null,'/notifications/linux-notification-a',401],
+      ['notification-owner','linux-user-a','/notifications/linux-notification-a',200],
+      ['notification-cross-user','linux-user-b','/notifications/linux-notification-a',404],
+      ['notification-target-cross-user','linux-user-a','/shop/orders/linux-order-b',403],
+      ['notification-target-owner','linux-user-b','/shop/orders/linux-order-b',200],
+      ['admin-history-super','linux-super','/notifications/admin/sent',200],
+      ['admin-history-ops','linux-ops','/notifications/admin/sent',200],
+      ['admin-history-customer-denied','linux-customer','/notifications/admin/sent',403],
+      ['admin-history-finance-denied','linux-finance','/notifications/admin/sent',403],
+      ['feedback-list-customer','linux-customer','/users/admin/feedback',200],
+      ['feedback-list-finance-denied','linux-finance','/users/admin/feedback',403],
+      ['full-profile-super','linux-super','/users/linux-user-a/profile',200],
+      ['full-profile-customer-denied','linux-customer','/users/linux-user-a/profile',403],
+      ['full-profile-finance-denied','linux-finance','/users/linux-user-a/profile',403]
+    ];
+    (async()=>{const rows=[];for(const [name,user,path,expected] of cases){const headers=user?{Authorization:'Bearer '+jwt.sign({sub:user,sessionIssuedAt:Date.now()},process.env.JWT_SECRET,{expiresIn:'5m'})}:{};
+      const response=await fetch('http://127.0.0.1:3000/api/v1'+path,{headers,signal:AbortSignal.timeout(10000)});
+      rows.push({name,status:response.status,expected,passed:response.status===expected});
+    } console.log('NODE_TEST_RESULT:'+JSON.stringify(rows));})().catch(e=>{console.error(e.message);process.exitCode=1});`);
+  save("http-permissions.json", permissionReport);
+  assert(permissionReport.every(item => item.passed), "正式 HTTP 权限用例存在失败，见 http-permissions.json");
+  check("real-jwt-global-guards-cross-user-and-admin-roles", permissionReport);
+
+  // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
+  const worker = (userId, eventKey, startAt) => `
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const {RedisService}=require('/app/apps/server/dist/redis/redis.service');const r=new RedisService();
+    const {NotificationService}=require('/app/apps/server/dist/modules/notification/notification.service');
+    const svc=new NotificationService(p,r,{},{});
+    (async()=>{try {await r.pingShared();await r.setJson('notification:prefs:'+${JSON.stringify(userId)},{PUSH_ENABLED:false},60);
+      await new Promise(done=>setTimeout(done,Math.max(0,${startAt}-Date.now())));
+      const result=await svc.sendOnce(${JSON.stringify(userId)},${JSON.stringify(eventKey)},{type:'SYSTEM',title:'隔离并发测试',content:'仅合成事件，无外部投递'});
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({created:!!result,sharedRedis:true}));
+    } finally {await r.onModuleDestroy();await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`;
+  const race = async (userId, eventKey) => {
+    const startAt = Date.now() + 2500;
+    const rows = await Promise.all([concurrentNode(worker(userId, eventKey, startAt)), concurrentNode(worker(userId, eventKey, startAt))]);
+    assert(rows.every(row => row.sharedRedis));
+    return rows;
+  };
+  const countEvent = (userId, key) => appNode(`const {createRequire}=require('module');const {PrismaClient}=createRequire('/app/apps/server/package.json')('@prisma/client');const p=new PrismaClient();p.notification.count({where:{idempotencyKey:${JSON.stringify(`${userId}:${key}`)}}}).then(count=>console.log('NODE_TEST_RESULT:'+JSON.stringify({count}))).finally(()=>p.$disconnect()).catch(()=>{process.exitCode=1});`);
+  const event = "ORDER_PAID:isolated-race";
+  const firstRace = await race("linux-user-a", event);
+  assert.equal(firstRace.filter(row => row.created).length, 1);
+  assert.equal(countEvent("linux-user-a", event).count, 1);
+  check("redis7-two-process-notification-idempotency", firstRace);
+  appNode(`const {RedisService}=require('/app/apps/server/dist/redis/redis.service');const r=new RedisService();r.pingShared().then(()=>r.del('notification:sent:linux-user-a:ORDER_PAID:isolated-race')).then(()=>console.log('NODE_TEST_RESULT:'+JSON.stringify({deleted:true}))).finally(()=>r.onModuleDestroy()).catch(()=>{process.exitCode=1});`);
+  const replay = await race("linux-user-a", event);
+  assert(replay.every(row => !row.created));
+  assert.equal(countEvent("linux-user-a", event).count, 1);
+  check("database-unique-after-redis-key-loss", replay);
+  const retryEvent = "ORDER_REFUNDED:isolated-retry";
+  const failure = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const {RedisService}=require('/app/apps/server/dist/redis/redis.service');const r=new RedisService();const {NotificationService}=require('/app/apps/server/dist/modules/notification/notification.service');const svc=new NotificationService(p,r,{},{});
+    (async()=>{try {await r.pingShared();let failed=false;try{await svc.sendOnce('linux-missing',${JSON.stringify(retryEvent)},{type:'SYSTEM',title:'隔离失败测试',content:'仅合成数据'});}catch(e){failed=true;}
+      const released=await r.get('notification:sent:linux-missing:'+${JSON.stringify(retryEvent)})===null;
+      await p.user.create({data:{id:'linux-missing',nickname:'隔离重试用户'}});
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({failed,released}));
+    }finally{await r.onModuleDestroy();await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`);
+  assert(failure.failed && failure.released);
+  const retry = await race("linux-missing", retryEvent);
+  assert.equal(retry.filter(row => row.created).length, 1);
+  assert.equal(countEvent("linux-missing", retryEvent).count, 1);
+  check("notification-failure-release-and-two-process-retry", { failure, retry });
+  save("notification-concurrency.json", { firstRace, replay, failure, retry, noExternalDelivery: true });
   report.passed = true;
 } catch (error) {
   report.error = sanitize(error.message);
