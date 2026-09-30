@@ -9,7 +9,7 @@
     {
       "name": "image-identity",
       "passed": true,
-      "detail": "sha256:9873d6ca2b70f1ec9bd929c7b81423e15548aeef0fb56beab1e55e49558ff4d8"
+      "detail": "sha256:74ace3d3d7796814bc75812eba73db2657fa7a72f3277a312686cac1e7f20f9c"
     },
     {
       "name": "prisma-source-compile-runtime-binding",
@@ -515,6 +515,304 @@
       }
     },
     {
+      "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "pay-invalid-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-expired-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-mismatched-merchant",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "pay-mismatched-amount",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "pay-entitlement-transaction-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "pay-after-rollback-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-duplicate-callback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-notification-failure-still-acknowledged",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-notification-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-invalid-signature",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-mismatched-amount",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-mismatched-transaction",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "refund-entitlement-transaction-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "refund-after-rollback-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-duplicate-callback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-notification-failure-still-acknowledged",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-notification-retry",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "pay-before-refund-non-success-states",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-processing",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-fail",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-closed",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "refund-non-success-abnormal",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          }
+        ],
+        "rawBodyWhitespaceVerified": true,
+        "rsaAndAesRealCrypto": true,
+        "dbConfigLoaderUsed": true,
+        "paymentRollbackNoSuccessNotification": true,
+        "refundRollbackNoSuccessNotification": true,
+        "notificationFailureDoesNotRollbackPaymentOrRefund": true,
+        "callbackRetriesRestoreOneNotification": true,
+        "paymentAndRefundDuplicateLedgerCounts": 1,
+        "nonSuccessRefundNeverClaimsSuccess": true,
+        "realProviderRequests": 0,
+        "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+      }
+    },
+    {
+      "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "adjust-reject-wrong-owner",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-missing-member",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-user",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-circle",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-order-type",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-circle",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-member",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-order",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-wrong-revenue-type",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-negative-revenue",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-invalid-owner-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-refund-over-paid",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-zero-refund",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-missing-revenue",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-uses-original-paid-amount",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-repeat",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-reject-already-reversed-order",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "adjust-transaction-after-reversal-insert-fails",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "adjust-transaction-retry",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "adjust-concurrent-one-success-one-denied",
+            "statuses": [
+              201,
+              400
+            ],
+            "expected": [
+              201,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "originalOrderBasisNotRefundSnapshot": true,
+        "partialOwnerRecall": 24,
+        "originalOwnerShare": 60,
+        "bindingRejectionsPreservePending": true,
+        "repeatedOrderReversalRejected": true,
+        "transactionRollbackAfterActualInsert": true,
+        "concurrentOneReversal": true,
+        "walletRecordsUnchanged": true,
+        "realTransfers": 0,
+        "auditFailureNotCovered": true,
+        "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+      }
+    },
+    {
       "name": "redis7-two-process-notification-idempotency",
       "passed": true,
       "detail": [
@@ -564,7 +862,12 @@
     }
   ],
   "passed": true,
-  "workflowRunId": 36728796169,
-  "verificationCommit": "97f3af890ae534848bc72ce05b368e7520059021",
-  "evidenceZipSha256": "83b2bb9bfea1ebaae12e28cd56c3034eb68c40ff1c1168e2ca521b5a962e9513"
+  "verification": {
+    "zipBytes": 42613,
+    "artifactId": 11107183626,
+    "zipSha256": "1b246c907a672d7ff504ec59aa8f647e61c880bacb64c35eea85098357acf8b8",
+    "runId": 36736539286,
+    "verificationCommit": "1c4a028822bb2c9e5eb1b9cfa389494442246c58",
+    "digestMatched": true
+  }
 }

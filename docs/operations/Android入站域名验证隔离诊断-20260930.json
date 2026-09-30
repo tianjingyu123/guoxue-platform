@@ -1,0 +1,25 @@
+{
+  "checkedAtUtc": "2026-09-30T15:07:51.6767113Z",
+  "androidVersion": "14",
+  "aggregateDomainStates": [
+    {
+      "state": "legacy_failure",
+      "count": 84
+    }
+  ],
+  "statementServiceInstalled": true,
+  "statementServiceExplicitlyDisabled": false,
+  "thermalOrDriverDiagnosisPerformed": false,
+  "userDefaultsChanged": false,
+  "systemVerificationForced": false,
+  "appLinkResolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+  "conclusion": "设备多应用共同验证失败，尚不能定位根因；热卜入站仍落浏览器",
+  "sourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
+  "installedApkSha256": "bca31b627c5ee8541e63e90b822b6424642ae6f64745fb42b8caf22f8a3d3da0",
+  "declaredHttpsFilter": {
+    "exportedAlias": true,
+    "host": "api.rebugx.cn",
+    "pathPrefix": "/h5/",
+    "autoVerify": true
+  }
+}
