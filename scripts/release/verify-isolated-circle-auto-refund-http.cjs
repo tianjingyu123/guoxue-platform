@@ -40,9 +40,10 @@ async function verify(id, ownerRecalled, reason, before) {
     assert.equal(recalls[0].status, 'pending_manual'); assert.equal(recalls[0].reason, reason);
     assert.equal(Number(recalls[0].amount), 0); assert.equal(revenues.length, 0);
   } else {
-    assert.equal(recalls[0].status, 'completed'); assert.equal(Number(recalls[0].amount), -ownerRecalled);
+    const negativeShare = ownerRecalled === 0 ? 0 : -ownerRecalled;
+    assert.equal(recalls[0].status, 'completed'); assert.equal(Number(recalls[0].amount), negativeShare);
     assert.equal(revenues.length, 1); assert.equal(Number(revenues[0].amount), -40);
-    assert.equal(Number(revenues[0].ownerShare), -ownerRecalled);
+    assert.equal(Number(revenues[0].ownerShare), negativeShare);
   }
 }
 (async () => {
