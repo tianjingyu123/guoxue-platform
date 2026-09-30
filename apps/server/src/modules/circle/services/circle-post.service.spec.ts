@@ -116,6 +116,12 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     expect(coin.refund).toHaveBeenCalledTimes(1);
   });
 
+  it("通知通道迟迟不返回仍立即返回已提交的资金结果", async () => {
+    notifications.sendOnce.mockReturnValue(new Promise(() => undefined));
+    await expect(service.rewardPost("circle", "post", "payer", 8)).resolves.toEqual({ success: true, amount: 8 });
+    expect(coin.refund).toHaveBeenCalledTimes(1);
+  });
+
   it("小额打赏的零分成不调用入账接口，保持既有取整口径", async () => {
     await service.rewardPost("circle", "post", "payer", 1);
     expect(coin.refund).not.toHaveBeenCalled();

@@ -519,7 +519,7 @@ export class CirclePostService {
 
     // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
     if (this.notificationService) {
-      await this.notificationService.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
+      this.notificationService.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
         type: "POST_REWARD",
         title: "收到打赏",
         content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`,
