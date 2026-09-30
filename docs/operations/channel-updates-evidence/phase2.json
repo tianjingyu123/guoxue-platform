@@ -1,0 +1,93 @@
+{
+  "verifiedAt": "2026-09-30T19:33:15.087Z",
+  "codeSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+  "localCandidateOnly": true,
+  "storeBrandChannelCount": 16,
+  "nonLegacyChannelPlatformDryRunCount": 18,
+  "verification": {
+    "serverJest": {
+      "suitesPassed": 8,
+      "testsPassed": 121,
+      "jwtAndBusinessDependencies": "test substitutes"
+    },
+    "node": {
+      "testsPassed": 47,
+      "javascriptNativeOrchestration": "simulated bridge; actual payment component evaluated"
+    },
+    "nativeCore": {
+      "groupsPassed": 10,
+      "runtime": "JVM",
+      "nodeToJavaRootSignature": true,
+      "androidVerified": false
+    },
+    "isolatedPostgres": {
+      "groupsPassed": 10,
+      "database": "localhost:55449/channel_synthetic",
+      "realMigrationAndPrisma": true,
+      "syntheticOnly": true,
+      "ownClusterStopped": true
+    },
+    "serverBuild": true,
+    "adminAndMobileTypecheck": true,
+    "changedSourceEslint": true,
+    "adminBuild": true,
+    "androidAar": {
+      "sdk": 35,
+      "sourceDirty": false,
+      "enabled": false,
+      "sha256": "dab0477d1e45570d09f332280b11c9ef3647a374945da03eab1a8f87b1ebef51"
+    },
+    "channelAppResources": {
+      "platform": "android",
+      "channelId": "xiaomi",
+      "syntheticIdentity": true,
+      "compilerReportedVersion": "5.23",
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "output": "artifacts/app-channels/rebu/android/xiaomi/0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "hookConfig": {
+        "hooksClass": "uts.sdk.modules.rebuResourceUpdater.AppHookProxy"
+      },
+      "kotlinSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+      "bundledAarMatchesSameSource": true
+    },
+    "nativeBoundary": {
+      "compatible": false,
+      "changedNativeInputs": [
+        "apps/mobile/native/resource-updater/README.md",
+        "apps/mobile/native/resource-updater/config.template.json",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+        "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+        "apps/mobile/package.json",
+        "apps/mobile/src/lib/app-distribution.ts",
+        "apps/mobile/src/manifest.json",
+        "apps/mobile/src/uni_modules/rebu-resource-updater/package.json",
+        "apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/index.uts",
+        "pnpm-lock.yaml"
+      ],
+      "nativeFingerprint": "8cbeeb7013a4b2c06d55bfe558cfe8dbb8ea8404b0b2557993816128efb29194"
+    }
+  },
+  "artifactLogSha256": {
+    "phase2-server-tests.log": "541a8e0ca1ad707a5e12420b3838612fc88efbe94633845f371cf241f83ca273",
+    "phase2-node-tests-final.log": "b549044c9b540217c2eb2eb9ade3b66fbe7c6acb4b8f44e216789654bfb8f3f8",
+    "phase2-native-tests.log": "3a3f17f1f52428bc0d17f8b5bfaf17c9ca760c2d33c7533426fbd2369a69aed4",
+    "phase2-admin-build.log": "0f609837ed3d6ed6c318f0d12fec9a33fddd6e1b8035db933b0f8390235e580c",
+    "phase2-channel-build-final.log": "2dc87c7d7e59d7e8935197b1f07257c16942dac1b5ff28d16af0b3ded26b7ba3"
+  },
+  "externalActions": {
+    "productionWrite": false,
+    "productionMigration": false,
+    "deploy": false,
+    "storeAuthentication": false,
+    "storeSubmission": false,
+    "apkBuildOrInstall": false,
+    "pushOrMerge": false
+  },
+  "pending": [
+    "真实商店账户/应用身份和具体应用更新许可",
+    "匹配的 DCloud 原生运行时、AppKey/正式签名完整包",
+    "Android provider/目录同步/Keystore/启动前时序与完整包升级迁移实测",
+    "14 项恢复用例及真实支付/直播/录音/上传验收"
+  ],
+  "buildReproduction": "AAR 与小米资源绑定本代码提交。最终证据提交只修改 docs；渠道正式构建按整提交 SHA 校验，切换到之后提交时先重新生成 AAR。"
+}

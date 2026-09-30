@@ -1,88 +1,277 @@
 {
-  "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6",
   "syntheticOnly": true,
-  "compiled": false,
-  "nativePackageVerified": false,
-  "wgtEnabled": false,
-  "channels": [
+  "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+  "nativePackagesCompiled": false,
+  "reports": [
     {
-      "channelId": "huawei",
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
       "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "channelId": "huawei",
+      "clientKey": "test-huawei-android",
+      "packageName": "test.rebu.huawei",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\huawei\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
-      "channelId": "huawei",
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
       "platform": "harmony",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "channelId": "huawei",
+      "clientKey": "test-huawei-harmony",
+      "packageName": "test.rebu.huawei",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\harmony\\huawei\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "xiaomi",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-xiaomi-android",
+      "packageName": "test.rebu.xiaomi",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\xiaomi\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "oppo",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-oppo-android",
+      "packageName": "test.rebu.oppo",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\oppo\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "oneplus",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-oneplus-android",
+      "packageName": "test.rebu.oneplus",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\oneplus\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "vivo",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-vivo-android",
+      "packageName": "test.rebu.vivo",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\vivo\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "honor",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-honor-android",
+      "packageName": "test.rebu.honor",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\honor\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "realme",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-realme-android",
+      "packageName": "test.rebu.realme",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\realme\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "tencent",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-tencent-android",
+      "packageName": "test.rebu.tencent",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\tencent\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
+      "channelId": "qihoo360",
+      "clientKey": "test-qihoo360-android",
+      "packageName": "test.rebu.qihoo360",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\qihoo360\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
+    },
+    {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
+      "channelId": "baidu",
+      "clientKey": "test-baidu-android",
+      "packageName": "test.rebu.baidu",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\baidu\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
+    },
+    {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
+      "channelId": "wandoujia",
+      "clientKey": "test-wandoujia-android",
+      "packageName": "test.rebu.wandoujia",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\wandoujia\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
+    },
+    {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
+      "channelId": "meizu",
+      "clientKey": "test-meizu-android",
+      "packageName": "test.rebu.meizu",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\meizu\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
+    },
+    {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
+      "channelId": "lenovo",
+      "clientKey": "test-lenovo-android",
+      "packageName": "test.rebu.lenovo",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\lenovo\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
+    },
+    {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "samsung",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-samsung-android",
+      "packageName": "test.rebu.samsung",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\samsung\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
+      "platform": "android",
       "channelId": "google-play",
-      "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "clientKey": "test-google-play-android",
+      "packageName": "test.rebu.google_play",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\google-play\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
-      "channelId": "app-store",
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
       "platform": "ios",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "channelId": "app-store",
+      "clientKey": "test-app-store-ios",
+      "packageName": "test.rebu.app_store",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\ios\\app-store\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     },
     {
-      "channelId": "official",
+      "sourceSha": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "productId": "rebu",
+      "applicationId": "rebu",
       "platform": "android",
-      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+      "channelId": "official",
+      "clientKey": "test-official-android",
+      "packageName": "test.rebu.official",
+      "nativeBuild": 253,
+      "resourceVersion": 0,
+      "output": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-updates-20260930\\gx-deploy-91\\artifacts\\app-channels\\rebu\\android\\official\\0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "artifactType": "compiled-resources",
+      "wgtEnabled": false,
+      "nativePackageVerified": false
     }
-  ],
-  "nativeBoundary": {
-    "self": {
-      "compatible": true,
-      "changedNativeInputs": [],
-      "nativeFingerprint": "30f4c12ecc6f0ac4874e92ce2bbf72644eb447b07640a88a6513ee82650f6e24"
-    },
-    "initialFullPackageRequired": {
-      "compatible": false,
-      "changedNativeInputs": [
-        "apps/mobile/src/lib/app-distribution.ts"
-      ],
-      "nativeFingerprint": "30f4c12ecc6f0ac4874e92ce2bbf72644eb447b07640a88a6513ee82650f6e24"
-    }
-  }
+  ]
 }
