@@ -32,6 +32,7 @@ env:
   REDIS_URL: "redis://localhost:6379"
   DISABLE_RATE_LIMIT: "true"
   BULLMQ_DISABLED: "true"
+  PERF_PROFILE: "public"
   # 仅供隔离压测服务通过生产入口校验；不指向真实线上域名。
   PUBLIC_DOMAIN: "api.example.invalid"
   PUBLIC_API_URL: "https://api.example.invalid"
@@ -158,6 +159,7 @@ jobs:
           mkdir -p results
           k6 run \
             --env SCENARIO=${{ env.SCENARIO }} \
+            --env PERF_PROFILE=${{ env.PERF_PROFILE }} \
             --env BASE_URL=${{ github.event.inputs.base_url || 'http://localhost:3000' }} \
             --out json=results/raw.json \
             --summary-export=results/summary.json \
@@ -167,6 +169,7 @@ jobs:
         if: always()
         run: |
           echo "## 性能测试报告 (${{ env.SCENARIO }})" >> $GITHUB_STEP_SUMMARY
+          echo "- 覆盖范围：公开只读首页、列表、搜索与配置；需登录或种子数据的路径未纳入本次基线" >> $GITHUB_STEP_SUMMARY
           echo "- k6 执行结果: ${{ steps.k6.outcome }}" >> $GITHUB_STEP_SUMMARY
 
           if [ -f results/summary.json ]; then

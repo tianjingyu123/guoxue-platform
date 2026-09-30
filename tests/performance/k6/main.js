@@ -455,6 +455,35 @@ function botChat() {
 // ═══════════════════════════════════════════
 
 export default function () {
+  // CI 的临时空库没有用户会话及详情样本；公开基线只测可重复访问的真实入口。
+  // 需登录、支付、AI 和详情数据的完整场景另行用受控账号与种子数据验收。
+  if (__ENV.PERF_PROFILE === "public") {
+    group("公开首页", () => {
+      healthCheck();
+      homeAggregation();
+      contentList();
+    });
+    if (__ITER % 2 === 0) {
+      group("公开列表", () => {
+        courseList();
+        productList();
+        circleList();
+        liveRooms();
+      });
+    }
+    if (__ITER % 3 === 0) {
+      group("公开搜索与配置", () => {
+        globalSearch();
+        recommendTrending();
+        publicBanners();
+        homeConfig();
+        coinTiers();
+      });
+    }
+    sleep(1 + Math.random() * 2);
+    return;
+  }
+
   healthCheck();
   sleep(0.05);
 
