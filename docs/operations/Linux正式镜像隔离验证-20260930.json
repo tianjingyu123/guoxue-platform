@@ -9,7 +9,7 @@
     {
       "name": "image-identity",
       "passed": true,
-      "detail": "sha256:5a07f5b27487bc136ccaaf906c0f7967feb39015cb05e9b6601531070899d6be"
+      "detail": "sha256:9873d6ca2b70f1ec9bd929c7b81423e15548aeef0fb56beab1e55e49558ff4d8"
     },
     {
       "name": "prisma-source-compile-runtime-binding",
@@ -367,6 +367,154 @@
       }
     },
     {
+      "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "manual-no-change-role-denied-linux-ops",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-missing-evidence",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-finance-single-operator",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-repeat-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "manual-no-change-super-single-operator",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-ops",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-approved-linux-super",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "payout-approved-linux-finance",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "payout-self-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "payout-pending-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "payout-audit-failure-denied",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-role-denied-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-ship-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "order-refund-automation-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          }
+        ],
+        "noChangeFundsUntouched": true,
+        "normalPayoutAudits": 2,
+        "auditFailureWithheldAccount": true,
+        "realTransfers": 0,
+        "shippingExecuted": false,
+        "adjustDecisionNotCovered": true,
+        "sensitiveValuesInEvidence": false
+      }
+    },
+    {
       "name": "redis7-two-process-notification-idempotency",
       "passed": true,
       "detail": [
@@ -404,11 +552,11 @@
         },
         "retry": [
           {
-            "created": true,
+            "created": false,
             "sharedRedis": true
           },
           {
-            "created": false,
+            "created": true,
             "sharedRedis": true
           }
         ]
@@ -416,7 +564,7 @@
     }
   ],
   "passed": true,
-  "workflowRunId": 36725511651,
-  "verificationCommit": "e12c31a588fc73d3c73274d1b6d522e0a6a0abdc",
-  "evidenceZipSha256": "cf31b2a974e1cb0156ce6848a525218d3ef662c81575ea0994f7812a5d395f90"
+  "workflowRunId": 36728796169,
+  "verificationCommit": "97f3af890ae534848bc72ce05b368e7520059021",
+  "evidenceZipSha256": "83b2bb9bfea1ebaae12e28cd56c3034eb68c40ff1c1168e2ca521b5a962e9513"
 }

@@ -1,0 +1,89 @@
+{
+  "checkedAtUtc": "2026-09-30T14:18:44.7705911Z",
+  "tool": "HBuilderX bundled official ADB",
+  "deviceModel": "OnePlus 9R LE2100",
+  "deviceCount": 1,
+  "authorization": "device",
+  "package": "com.rebu.apprebu",
+  "versionName": "1.1.0",
+  "versionCode": 253,
+  "apkSha256": "bca31b627c5ee8541e63e90b822b6424642ae6f64745fb42b8caf22f8a3d3da0",
+  "fixedSource": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
+  "clientLastRuntimeChange": "e32e3388febab9b50458cec72afdd3f1e2c70e77",
+  "nativeBuildScope": "Existing 253 native shell with locally assembled current client resources; not final cloud native build",
+  "actions": [
+    "Launch installed App through launcher",
+    "Open tools tab",
+    "Open own App share action sheet",
+    "Launch WeChat SelectConversationUI without selecting recipient",
+    "Return via system home and relaunch App without cancelling in WeChat",
+    "Reopen share menu and launch WeChat SelectConversationUI again",
+    "Android back to App",
+    "Tap visible home button and verify App home screenshot"
+  ],
+  "passed": [
+    "installed APK matches approved local candidate",
+    "App home public content renders",
+    "legacy tool list eventually renders",
+    "share menu opens",
+    "first native WeChat handoff",
+    "share state released on App resume without WeChat cancellation",
+    "second native WeChat handoff",
+    "Android back returns App",
+    "home button returns App home"
+  ],
+  "observation": "Initial tools capture at approximately 2 seconds was blank; after further 8 seconds tool list rendered. Bounded observation, not a persistent white screen or network latency benchmark.",
+  "serverVersionBoundary": "Public service readback remains preprod-cd055084-20260903-r1; same-version backend payment/report acceptance not proven",
+  "realMessagesSent": 0,
+  "realPaymentOperations": 0,
+  "generatedPersonalCharts": 0,
+  "installationThisRound": null,
+  "clearedUserData": null,
+  "notCovered": [
+    "specific chart result and receiving-end share",
+    "payment and entitlement end-to-end",
+    "one-click phone provider",
+    "iOS/HarmonyOS final native packages"
+  ],
+  "screenshots": [
+    {
+      "file": "android-bca31-final-home.png",
+      "bytes": 941108,
+      "sha256": "e925fb669d69819f1fdf6bd496b0d0b20391c6339b47ec46140c1d86dabd192c"
+    },
+    {
+      "file": "android-bca31-final-tools.png",
+      "bytes": 36022,
+      "sha256": "2ac3f1181c965298a69985f9f18a4eecb9767e67f3f7e8213a2e499791b2f0d9"
+    },
+    {
+      "file": "android-bca31-final-tools-ready.png",
+      "bytes": 436040,
+      "sha256": "78206e82cd83e3f5823456badc7f432a72305ca0debc2aa2fe7a29d030033755"
+    },
+    {
+      "file": "android-bca31-final-share-menu.png",
+      "bytes": 314556,
+      "sha256": "c9b360cb5b7fd8255af8f8a3bec909e954053eccff005ad728a36eeeb2c45437"
+    },
+    {
+      "file": "android-bca31-share-resume-menu.png",
+      "bytes": 314584,
+      "sha256": "89059d80ec08d7db62f09835649ccb3e79ab85855dffc0a55b6943a1efa1cf27"
+    },
+    {
+      "file": "android-bca31-final-home-return.png",
+      "bytes": 935369,
+      "sha256": "a6c2bb5b5b9483000ca76c4e4d0250b8bc3a50e90668fc7f62621304ba7fe534"
+    }
+  ],
+  "systemAppLinks": {
+    "domain": "api.rebugx.cn",
+    "before": "legacy_failure",
+    "after": "legacy_failure",
+    "systemReverificationRequested": true,
+    "certificateMatches": true,
+    "forcedApproval": false,
+    "rootCauseProven": false
+  }
+}
