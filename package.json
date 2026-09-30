@@ -160,7 +160,7 @@
       "rollup": "4.59.0",
       "protobufjs": "8.4.1",
       "glob": "10.5.0",
-      "vod-js-sdk-v6>axios": "1.18.0",
+      "vod-js-sdk-v6>axios": "1.20.0",
       "subscriptions-transport-ws>ws": "7.5.11",
       "@dcloudio/uni-mp-weixin>ws": "8.21.0",
       "@nestjs/graphql>ws": "8.21.0",
