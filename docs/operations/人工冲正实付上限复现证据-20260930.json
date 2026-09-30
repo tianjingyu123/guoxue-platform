@@ -1,0 +1,57 @@
+{
+  "sourceCommit": "9d1c74e976da3f7834ab6649b17c94081c057214",
+  "beforeSourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
+  "scope": "compiled-service-mocked-transaction-not-http",
+  "originalOrderPaid": 100,
+  "refund": 40,
+  "revenue": 1000,
+  "ownerShare": 600,
+  "before": {
+    "result": {
+      "id": "isolated-cap-recall",
+      "status": "manual_adjusted",
+      "ownerRecalled": 240,
+      "refundRatio": 0.4,
+      "revenueAmountRecalled": 400,
+      "revenueRecordId": "isolated-revenue"
+    },
+    "inserted": [
+      {
+        "circleId": "isolated-circle",
+        "type": "circle_join_refund",
+        "sourceId": "isolated-member",
+        "orderId": "isolated-order",
+        "amount": -400,
+        "platformFee": 0,
+        "ownerShare": -240,
+        "splitRate": 0
+      }
+    ],
+    "realDatabaseRequests": 0,
+    "scope": "compiled-service-mocked-transaction-not-http"
+  },
+  "after": {
+    "rejected": true,
+    "message": "指定收益行金额超过原订单实付额，禁止在线冲正，请先核对异常台账",
+    "inserted": [],
+    "realDatabaseRequests": 0
+  },
+  "unitTests": {
+    "passed": 6,
+    "total": 6,
+    "log": "artifacts/release-audit-20260927/manual-cap-jest-20260930-final.log"
+  },
+  "typecheck": {
+    "exitCode": 0,
+    "log": "artifacts/release-audit-20260927/manual-cap-typecheck-20260930-final.log"
+  },
+  "nestBuild": {
+    "exitCode": 0,
+    "log": "artifacts/release-audit-20260927/manual-cap-nest-build.log"
+  },
+  "candidateClientIsolation": {
+    "passed": 11,
+    "total": 11
+  },
+  "realFundsChanged": false
+}

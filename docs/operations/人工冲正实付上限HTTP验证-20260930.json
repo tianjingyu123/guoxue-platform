@@ -1,0 +1,163 @@
+{
+  "sourceCommit": "9d1c74e976da3f7834ab6649b17c94081c057214",
+  "officialEvidence": {
+    "zipSha256": "e6fa2e6f4ba3292faf36c7dbcea1a1edc54970b3eeff21bc2722f26c2d16ed56",
+    "verificationCommit": "86be1e84eef7571c2720de821b73575563076972",
+    "zipBytes": 42532,
+    "digestMatched": true,
+    "runId": 36742653464,
+    "artifactId": 11112195329
+  },
+  "passed": true,
+  "cases": [
+    {
+      "name": "adjust-reject-wrong-owner",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-missing-member",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-order-user",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-order-circle",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-order-type",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-revenue-circle",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-revenue-member",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-revenue-order",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-wrong-revenue-type",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-negative-revenue",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-invalid-owner-share",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-revenue-over-order-paid",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-revenue-over-discounted-paid",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-refund-over-paid",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-zero-refund",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-missing-revenue",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-uses-original-paid-amount",
+      "status": 201,
+      "expected": 201,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-repeat",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-reject-already-reversed-order",
+      "status": 400,
+      "expected": 400,
+      "passed": true
+    },
+    {
+      "name": "adjust-transaction-after-reversal-insert-fails",
+      "status": 500,
+      "expected": 500,
+      "passed": true
+    },
+    {
+      "name": "adjust-transaction-retry",
+      "status": 201,
+      "expected": 201,
+      "passed": true
+    },
+    {
+      "name": "adjust-concurrent-one-success-one-denied",
+      "statuses": [
+        201,
+        400
+      ],
+      "expected": [
+        201,
+        400
+      ],
+      "passed": true
+    }
+  ],
+  "originalOrderBasisNotRefundSnapshot": true,
+  "partialOwnerRecall": 24,
+  "originalOwnerShare": 60,
+  "bindingRejectionsPreservePending": true,
+  "repeatedOrderReversalRejected": true,
+  "transactionRollbackAfterActualInsert": true,
+  "concurrentOneReversal": true,
+  "walletRecordsUnchanged": true,
+  "realTransfers": 0,
+  "auditFailureNotCovered": true,
+  "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+}

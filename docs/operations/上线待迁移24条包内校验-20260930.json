@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
-  "archive": "gx-deploy-91-launch-20260930-08a5c0ac.tar.gz",
-  "archiveSha256": "4e4ea5a64177d6ec2ae6fd0f5e16afa36ad351bccda0ed7e774e566581266873",
+  "sourceCommit": "9d1c74e976da3f7834ab6649b17c94081c057214",
+  "archive": "gx-deploy-91-launch-20260930-9d1c74e9.tar.gz",
+  "archiveSha256": "e90d07fe078796d8266f5b3fbe1ad4f85b1c7f26e46e218dd74c2f36ec794c86",
   "priorPendingCount": 23,
   "addedMigration": "20260928183000_add_im_fallback/migration.sql",
   "count": 24,
@@ -131,5 +131,6 @@
     }
   ],
   "boundary": "本报告只验证本地源码与固定包内待迁移 SQL 字节一致；目标库待迁移状态沿用先前只读记录，未重新查询目标库，也未执行迁移。",
-  "ordering": "按 Prisma 迁移目录名字典序排列；正式执行由 prisma migrate deploy 管理，不按本 JSON 手工逐条运行。"
+  "ordering": "按 Prisma 迁移目录名字典序排列；正式执行由 prisma migrate deploy 管理，不按本 JSON 手工逐条运行。",
+  "priorSourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9"
 }
