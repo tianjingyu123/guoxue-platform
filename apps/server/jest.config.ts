@@ -5,7 +5,7 @@ const config: Config = {
   rootDir: ".",
   testRegex: ".*(\\.spec|e2e-spec)\\.ts$",
   transform: {
-    "^.+\\.(t|j)sx?$": ["ts-jest", { tsconfig: "tsconfig.json" }],
+    "^.+\\.(t|j)sx?$": ["ts-jest", { tsconfig: "tsconfig.jest.json" }],
   },
   collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts", "!src/**/.backup/**", "!src/.backup/**"],
   coveragePathIgnorePatterns: [".backup"],
