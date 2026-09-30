@@ -1,0 +1,96 @@
+{
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "runId": 36761708862,
+  "scope": "isolated-synthetic-no-real-channels",
+  "result": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "auto-over-share",
+        "status": 201,
+        "expected": 201,
+        "passed": true
+      },
+      {
+        "name": "auto-replay-over-share",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "auto-negative-share",
+        "status": 201,
+        "expected": 201,
+        "passed": true
+      },
+      {
+        "name": "auto-replay-negative-share",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "auto-amount-mismatch",
+        "status": 201,
+        "expected": 201,
+        "passed": true
+      },
+      {
+        "name": "auto-replay-amount-mismatch",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "auto-normal-partial",
+        "status": 201,
+        "expected": 201,
+        "passed": true
+      },
+      {
+        "name": "auto-replay-normal-partial",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "auto-zero-share",
+        "status": 201,
+        "expected": 201,
+        "passed": true
+      },
+      {
+        "name": "auto-replay-zero-share",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "auto-ordinary-user-denied",
+        "status": 403,
+        "expected": 403,
+        "passed": true
+      },
+      {
+        "name": "auto-concurrent-single-credit",
+        "statuses": [
+          201,
+          400
+        ],
+        "expected": [
+          201,
+          400
+        ],
+        "passed": true
+      }
+    ],
+    "partialOwnerRecall": 24,
+    "refundEach": 40,
+    "anomalousSharePendingManualWithoutOwnerDeduction": true,
+    "zeroOwnerShareRefunded": true,
+    "oneWalletCreditPerRefund": true,
+    "scope": "synthetic-http-not-real-provider-or-settlement",
+    "realTransfers": 0,
+    "withdrawnBalanceRecoveryNotCovered": true
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "zipSha256": "51f61ee99c12722f2873f44b6315802c60ccebdfd47468d5211b44e52ad55f16",
+    "digestMatched": true,
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "conclusion": "success",
+    "runId": 36762622277,
+    "artifactId": 11119143741,
+    "scope": "runner-localhost-public-smoke-not-authenticated-load-or-production",
+    "officialDigest": "sha256:51f61ee99c12722f2873f44b6315802c60ccebdfd47468d5211b44e52ad55f16",
+    "zipBytes": 27416
+  },
+  "requests": 160,
+  "checksPassed": 184,
+  "checksFailed": 0,
+  "httpFailureRate": 0,
+  "p95Ms": 7.0340348999999955,
+  "p99Ms": 14.294758519999966,
+  "scope": "runner-localhost-public-smoke-not-authenticated-load-or-production"
+}

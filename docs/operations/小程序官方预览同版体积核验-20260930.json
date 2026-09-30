@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "scope": "official-preview-compile-not-actual-phone-or-release",
+  "snapshot": {
+    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+    "files": 2748,
+    "copiedBytes": 11040838,
+    "allHashesEqual": true,
+    "appid": "wx06397e8ab26bed9e",
+    "scope": "official-preview-not-upload-or-release"
+  },
+  "mainBytes": 1889642,
+  "mainRemainingBytes": 207510,
+  "largestSubpackage": {
+    "name": "/pkg-paipan/",
+    "size": 1950310
+  },
+  "largestRemainingBytes": 146842,
+  "subpackageCount": 33,
+  "totalBytes": 12570376,
+  "passed": true
+}

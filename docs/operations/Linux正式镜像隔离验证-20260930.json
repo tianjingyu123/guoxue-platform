@@ -1,7 +1,7 @@
 {
-  "sourceCommit": "9d1c74e976da3f7834ab6649b17c94081c057214",
-  "sourceSha256": "e90d07fe078796d8266f5b3fbe1ad4f85b1c7f26e46e218dd74c2f36ec794c86",
-  "image": "rebu-linux-verify:9d1c74e9",
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "sourceSha256": "04489581b5061855705f5103f059a897441a9abe8b7bc1e8b701c1af62e32af5",
+  "image": "rebu-linux-verify:2c6b4d3d",
   "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
   "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
   "scope": "isolated-empty-db-no-real-channels",
@@ -9,7 +9,7 @@
     {
       "name": "image-identity",
       "passed": true,
-      "detail": "sha256:a6fd88621c2a224ea29fde9be076656d1dedba81af1ee93ad6b3a4edad7ddac4"
+      "detail": "sha256:ce9e5affbadcf521eca074ee49cacb5ad9a754e7345509cd3e7bdbfaa012c4ff"
     },
     {
       "name": "prisma-source-compile-runtime-binding",
@@ -19,6 +19,14 @@
         "kind": "prisma-build-binding",
         "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
         "clientVersion": "6.19.3"
+      }
+    },
+    {
+      "name": "grpc-security-version-in-runtime-image",
+      "passed": true,
+      "detail": {
+        "version": "1.14.5",
+        "actualSdkExporterResolution": true
       }
     },
     {
@@ -58,7 +66,7 @@
         {
           "path": "/api/v1/health/live",
           "status": 200,
-          "releaseId": "isolated-08a5c0ac"
+          "releaseId": "isolated-2c6b4d3d"
         },
         {
           "path": "/api/v1/health/ready",
@@ -68,7 +76,7 @@
         {
           "path": "/api/v1/health",
           "status": 200,
-          "releaseId": "isolated-08a5c0ac"
+          "releaseId": "isolated-2c6b4d3d"
         },
         {
           "path": "/api/v1/mini/home",
@@ -357,13 +365,50 @@
             "status": 429,
             "expected": 429,
             "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-contact",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-content",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-failure-withholds-images",
+            "status": 503,
+            "expected": 503,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-contact",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-content",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-audit-recovery-images",
+            "status": 201,
+            "expected": 201,
+            "passed": true
           }
         ],
         "audits": 15,
+        "recoveredAudits": 3,
         "sensitiveValuesInEvidence": false,
         "invalidMutationUnchanged": true,
         "ipScope": "loopback-only-not-real-proxy",
-        "auditFailureBehavior": "not-tested-async-source-boundary"
+        "auditFailureBehavior": "503-without-plaintext-and-three-recovery-audits"
       }
     },
     {
@@ -825,15 +870,209 @@
       }
     },
     {
+      "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "auto-over-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-over-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-negative-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-negative-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-amount-mismatch",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-amount-mismatch",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-normal-partial",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-normal-partial",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-zero-share",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "auto-replay-zero-share",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "auto-ordinary-user-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "auto-concurrent-single-credit",
+            "statuses": [
+              201,
+              400
+            ],
+            "expected": [
+              201,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "partialOwnerRecall": 24,
+        "refundEach": 40,
+        "anomalousSharePendingManualWithoutOwnerDeduction": true,
+        "zeroOwnerShareRefunded": true,
+        "oneWalletCreditPerRefund": true,
+        "scope": "synthetic-http-not-real-provider-or-settlement",
+        "realTransfers": 0,
+        "withdrawnBalanceRecoveryNotCovered": true
+      }
+    },
+    {
+      "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "merchant-feature-disabled",
+            "status": 404,
+            "expected": 404,
+            "passed": true
+          },
+          {
+            "name": "merchant-nonmerchant-denied",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "merchant-cross-shop-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-empty-tracking-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-ship",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-identical-replay",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-reship-different-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-update-shipment",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-get-shipment",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-cross-shop-query-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-cancelled-order-denied",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "merchant-logistics-insert-failure",
+            "status": 500,
+            "expected": 500,
+            "passed": true
+          },
+          {
+            "name": "merchant-retry-after-rollback",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "merchant-concurrent-single-shipment",
+            "statuses": [
+              200,
+              400
+            ],
+            "passed": true
+          }
+        ],
+        "scope": "synthetic-http-no-carrier-or-wechat-delivery",
+        "realShipments": 0,
+        "carrierIntegrationNotCovered": true,
+        "virtualDeliveryNotCovered": true
+      }
+    },
+    {
       "name": "redis7-two-process-notification-idempotency",
       "passed": true,
       "detail": [
         {
-          "created": false,
+          "created": true,
           "sharedRedis": true
         },
         {
-          "created": true,
+          "created": false,
           "sharedRedis": true
         }
       ]
@@ -873,14 +1112,5 @@
       }
     }
   ],
-  "passed": true,
-  "officialEvidence": {
-    "zipSha256": "e6fa2e6f4ba3292faf36c7dbcea1a1edc54970b3eeff21bc2722f26c2d16ed56",
-    "verificationCommit": "86be1e84eef7571c2720de821b73575563076972",
-    "zipBytes": 42532,
-    "digestMatched": true,
-    "runId": 36742653464,
-    "artifactId": 11112195329
-  },
-  "releaseIdScope": "测试注入的health标签仍为isolated-08a5c0ac；候选身份以包校验及OCI源码/hash标签为准"
+  "passed": true
 }

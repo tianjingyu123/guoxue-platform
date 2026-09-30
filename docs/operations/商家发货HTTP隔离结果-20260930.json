@@ -1,0 +1,100 @@
+{
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "runId": 36761708862,
+  "scope": "isolated-synthetic-no-real-channels",
+  "result": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "merchant-feature-disabled",
+        "status": 404,
+        "expected": 404,
+        "passed": true
+      },
+      {
+        "name": "merchant-nonmerchant-denied",
+        "status": 403,
+        "expected": 403,
+        "passed": true
+      },
+      {
+        "name": "merchant-cross-shop-denied",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "merchant-empty-tracking-denied",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "merchant-ship",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "merchant-identical-replay",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "merchant-reship-different-denied",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "merchant-update-shipment",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "merchant-get-shipment",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "merchant-cross-shop-query-denied",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "merchant-cancelled-order-denied",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "merchant-logistics-insert-failure",
+        "status": 500,
+        "expected": 500,
+        "passed": true
+      },
+      {
+        "name": "merchant-retry-after-rollback",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "merchant-concurrent-single-shipment",
+        "statuses": [
+          200,
+          400
+        ],
+        "passed": true
+      }
+    ],
+    "scope": "synthetic-http-no-carrier-or-wechat-delivery",
+    "realShipments": 0,
+    "carrierIntegrationNotCovered": true,
+    "virtualDeliveryNotCovered": true
+  }
+}

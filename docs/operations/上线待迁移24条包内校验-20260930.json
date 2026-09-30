@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "9d1c74e976da3f7834ab6649b17c94081c057214",
-  "archive": "gx-deploy-91-launch-20260930-9d1c74e9.tar.gz",
-  "archiveSha256": "e90d07fe078796d8266f5b3fbe1ad4f85b1c7f26e46e218dd74c2f36ec794c86",
+  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
+  "archive": "gx-deploy-91-launch-20260930-2c6b4d3d.tar.gz",
+  "archiveSha256": "04489581b5061855705f5103f059a897441a9abe8b7bc1e8b701c1af62e32af5",
   "priorPendingCount": 23,
   "addedMigration": "20260928183000_add_im_fallback/migration.sql",
   "count": 24,
