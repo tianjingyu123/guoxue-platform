@@ -532,16 +532,21 @@ export class BotService {
                 if (cleanContent.length > alreadySent) {
                   subscriber.next({ type: "chunk", content: cleanContent.slice(alreadySent) });
                 }
-                await this.prisma.botChatLog.create({
-                  data: {
-                    userId,
-                    botConfigId: bot.id,
-                    query: dto.query,
-                    response: cleanContent,
-                    conversationId: conversationId || undefined,
-                    chatId: chatId || undefined,
-                  },
-                });
+                try {
+                  await this.prisma.botChatLog.create({
+                    data: {
+                      userId,
+                      botConfigId: bot.id,
+                      query: dto.query,
+                      response: cleanContent,
+                      conversationId: conversationId || undefined,
+                      chatId: chatId || undefined,
+                    },
+                  });
+                } catch (err) {
+                  // 审计失败仍需告警，但不能丢掉已生成回答的续聊 ID、免责声明和完成事件。
+                  this.logger.warn(`流式对话审计落库失败: ${(err as Error).message}`);
+                }
                 subscriber.next({
                   type: "meta",
                   conversationId: conversationId || undefined,

@@ -5,6 +5,7 @@ import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
+import { lastValueFrom, of, toArray } from "rxjs";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
 jest.mock("../../common/crypto.util", () => ({
@@ -43,7 +44,7 @@ const mockPrisma = {
   $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
 };
 
-const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn() };
+const mockCoze = { isOAuthConfigured: jest.fn().mockReturnValue(false), chat: jest.fn(), chatStreamEx: jest.fn() };
 const mockReco = {
   build: jest.fn().mockResolvedValue({ content: "", recommendation: null }),
   parseProtocol: jest.fn((content: string) => ({ clean: content.replace(/<!--RECO:[\s\S]*?-->/g, "").trim(), intents: [] })),
@@ -86,6 +87,21 @@ describe("BotService", () => {
     expect(mockPrisma.botChatLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ response: "先读原文。" }),
     }));
+  });
+
+  it("流式回答审计落库失败时仍发送续聊元数据与完成事件", async () => {
+    mockCoze.chatStreamEx.mockReturnValue(of(
+      { type: "meta", conversationId: "conv-1" },
+      { type: "chunk", content: "先说结论。" },
+    ));
+    mockReco.build.mockResolvedValueOnce({ content: "先说结论。", recommendation: null });
+    mockPrisma.botChatLog.create.mockRejectedValueOnce(new Error("审计库暂不可用"));
+    const events = await lastValueFrom(svc.chatStreamRich(
+      { id: "b1", botId: "coze-1", apiKey: "test" }, "u1", { query: "论语是什么" } as any,
+    ).pipe(toArray()));
+    expect(events).toContainEqual({ type: "chunk", content: "先说结论。" });
+    expect(events).toContainEqual(expect.objectContaining({ type: "meta", conversationId: "conv-1", disclaimer: expect.any(String) }));
+    expect(mockPrisma.botChatLog.create).toHaveBeenCalledTimes(1);
   });
 
   describe("consumeQuota — AI 计费（会员免费/试用/追问包）", () => {
