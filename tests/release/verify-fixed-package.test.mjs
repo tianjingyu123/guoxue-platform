@@ -481,6 +481,7 @@ test("候选目录验真失败时不占用正式发布标识", async () => {
           EXPECTED_RELEASE_ID: releaseId,
           EXPECTED_COMMIT: commit,
           DEPLOY_TARGET: "standard",
+          NODE_ROLE: "app",
         },
       },
     );
@@ -557,6 +558,7 @@ test(
         EXPECTED_RELEASE_ID: releaseId,
         EXPECTED_COMMIT: commit,
         DEPLOY_TARGET: "standard",
+        NODE_ROLE: "app",
         ACTIVATION_RETRY_MARKER: retryMarker,
       };
 
