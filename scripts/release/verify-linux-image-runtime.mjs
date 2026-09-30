@@ -158,6 +158,57 @@ try {
   assert(permissionReport.every(item => item.passed), "正式 HTTP 权限用例存在失败，见 http-permissions.json");
   check("real-jwt-global-guards-cross-user-and-admin-roles", permissionReport);
 
+  // 合成反馈的敏感查看与审计；原始字段只在封闭容器中断言，不写结果或日志。
+  const sensitiveReport = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const assert=require('assert/strict');const jwt=req('jsonwebtoken');const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const {RedisService}=require('/app/apps/server/dist/redis/redis.service');const r=new RedisService();
+    const contact='ISOLATED-CONTACT-DO-NOT-USE';const content='合成反馈正文，禁止用于真实用户：19900000000';
+    const imageUrl='https://screenshots.example.invalid/isolated.png';const id='linux-feedback-sensitive';
+    const rows=[];const send=async(name,user,path,expected,method='GET',body,expired=false)=>{
+      const headers={Authorization:'Bearer '+jwt.sign({sub:user,sessionIssuedAt:Date.now()},process.env.JWT_SECRET,{expiresIn:expired?-60:'5m'})};
+      if(body)headers['Content-Type']='application/json';
+      const response=await fetch('http://127.0.0.1:3000/api/v1'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10000)});
+      const data=await response.json();rows.push({name,status:response.status,expected,passed:response.status===expected});
+      assert.equal(response.status,expected,name);return data.data||data;
+    };
+    (async()=>{try{
+      await r.pingShared();await p.feedback.create({data:{id,userId:'linux-user-a',type:'bug',content,contact,images:[imageUrl]}});
+      await send('notification-expired-jwt','linux-user-a','/notifications/linux-notification-a',401,'GET',null,true);
+      for(const user of ['linux-super','linux-ops','linux-customer']){
+        const detail=await send('feedback-masked-'+user,user,'/users/admin/feedback/'+id,200);
+        assert.equal(detail.contact,undefined);assert.equal(detail.images,undefined);assert.notEqual(detail.contactMasked,contact);
+        assert(!JSON.stringify(detail).includes('19900000000'));assert(!JSON.stringify(detail).includes(imageUrl));
+      }
+      for(const user of ['linux-super','linux-ops','linux-customer','linux-finance','linux-user-a']){
+        for(const kind of ['contact','content','images']){
+          const allowed=['linux-super','linux-ops'].includes(user)||(user==='linux-customer'&&kind!=='images');
+          const result=await send('feedback-reveal-'+kind+'-'+user,user,'/users/admin/feedback/'+id+'/reveal-'+kind,allowed?201:403,'POST');
+          if(allowed){if(kind==='contact')assert.equal(result.contact,contact);if(kind==='content')assert.equal(result.content,content);if(kind==='images')assert.deepEqual(result.images,[imageUrl]);}
+        }
+      }
+      await send('feedback-invalid-status-query','linux-super','/users/admin/feedback?status=not-a-status',400);
+      await send('feedback-invalid-page-query','linux-super','/users/admin/feedback?page=0',400);
+      await send('feedback-invalid-status-body','linux-super','/users/admin/feedback/'+id+'/status',400,'PUT',{status:'not-a-status'});
+      assert.equal((await p.feedback.findUnique({where:{id}})).status,'pending');
+      // 当前正式策略：SensitiveRedisThrottleGuard 不接受任何白名单豁免。
+      // HTTP来源为环回IP，再添加用户白名单，仍应按超级管理员本人累计至10次。
+      await r.setJson('admin:whitelist',['linux-super'],60);
+      for(let n=4;n<=10;n++)await send('sensitive-count-'+n,'linux-super','/users/admin/feedback/'+id+'/reveal-contact',201,'POST');
+      await send('sensitive-whitelisted-eleventh-denied','linux-super','/users/admin/feedback/'+id+'/reveal-contact',429,'POST');
+      let audits=[];for(let n=0;n<20;n++){
+        audits=await p.auditLog.findMany({where:{targetType:'FEEDBACK',targetId:id,action:{in:['查看反馈联系方式','查看反馈正文原文','查看反馈截图']}}});
+        if(audits.length===15)break;await new Promise(done=>setTimeout(done,100));
+      }
+      assert.equal(audits.length,15);assert.equal(audits.filter(a=>a.userId==='linux-super').length,10);
+      assert.equal(audits.filter(a=>a.userId==='linux-ops').length,3);assert.equal(audits.filter(a=>a.userId==='linux-customer').length,2);
+      assert(audits.every(a=>a.ip&&a.targetId===id&&!JSON.stringify(a).includes(contact)&&!JSON.stringify(a).includes(content)&&!JSON.stringify(a).includes(imageUrl)));
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({passed:true,cases:rows,audits:audits.length,sensitiveValuesInEvidence:false,invalidMutationUnchanged:true,ipScope:'loopback-only-not-real-proxy',auditFailureBehavior:'not-tested-async-source-boundary'}));
+    }finally{await r.onModuleDestroy();await p.$disconnect();}})().catch(()=>{console.error('合成反馈权限或审计断言失败，未输出原始字段');process.exitCode=1});`);
+  assert(sensitiveReport.passed);
+  save("sensitive-http-audit.json", sensitiveReport);
+  check("sensitive-feedback-roles-mask-audit-limit-and-validation", sensitiveReport);
+
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
     const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
