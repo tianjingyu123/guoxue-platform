@@ -100,6 +100,14 @@
                 "dSYMs" : false
             },
             "icons" : {
+                "android" : {
+                    "ldpi" : "unpackage/res/icons/48x48.png",
+                    "mdpi" : "unpackage/res/icons/48x48.png",
+                    "hdpi" : "unpackage/res/icons/72x72.png",
+                    "xhdpi" : "unpackage/res/icons/96x96.png",
+                    "xxhdpi" : "unpackage/res/icons/144x144.png",
+                    "xxxhdpi" : "unpackage/res/icons/192x192.png"
+                },
                 "ios" : {
                     "appstore" : "unpackage/res/icons/1024x1024.png",
                     "iphone" : {
@@ -157,6 +165,10 @@
     "app-harmony" : {
         "distribute" : {
             "bundleName" : "com.rebu.apprebu",
+            "icons" : {
+                "foreground" : "unpackage/res/icons/1024x1024.png",
+                "background" : "unpackage/res/icons/harmony-background.png"
+            },
             "modules" : {
                 "uni-oauth" : {
                     "weixin" : {
