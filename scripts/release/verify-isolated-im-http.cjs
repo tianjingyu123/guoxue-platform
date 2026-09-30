@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const p = new PrismaClient();
 const cases = []; let httpRequests = 0;
 const a = 'linux-im-a', b = 'linux-im-b', c = 'linux-im-c', failUser = 'linux-im-rollback';
+const duplexA = 'linux-im-duplex-a', duplexB = 'linux-im-duplex-b';
 async function request(user, path, method = 'GET', body) {
   httpRequests++;
   const response = await fetch('http://127.0.0.1:3000/api/v1/im/' + path, {
@@ -28,7 +29,7 @@ const preference = (user, peer) => p.imFallbackConversationPreference.findUnique
 (async () => {
   try {
     assert(!process.env.IM_SECRET_KEY && !process.env.TRTC_SECRET_KEY, '不得携带真实 IM/通话凭据');
-    for (const id of [a, b, c, failUser]) await p.user.create({ data: { id, nickname: '隔离私信测试账号' } });
+    for (const id of [a, b, c, failUser, duplexA, duplexB]) await p.user.create({ data: { id, nickname: '隔离私信测试账号' } });
     await p.imPolicyConfig.upsert({ where: { id: 'default' }, create: { id: 'default', allowStrangerDM: false, followerDMQuota: 1 }, update: { allowStrangerDM: false, followerDMQuota: 1 } });
     await send('im-capabilities-anonymous-denied', null, 'capabilities', 401);
     const caps = await send('im-fallback-capabilities', a, 'capabilities', 200);
@@ -88,6 +89,15 @@ const preference = (user, peer) => p.imFallbackConversationPreference.findUnique
     assert.equal(await p.imFallbackMessage.count({ where: { fromUserId: c } }), 0);
     const thirdConversations = await send('im-third-user-conversations-isolated', c, 'fallback/conversations', 200);
     assert.equal(thirdConversations.length, 0);
+    await p.follow.createMany({ data: [{ userId: duplexA, followedUserId: duplexB }, { userId: duplexB, followedUserId: duplexA }] });
+    const duplex = await Promise.all([
+      request(duplexA, 'fallback/c2c/send', 'POST', { toUserId: duplexB, text: '合成双向并发一' }),
+      request(duplexB, 'fallback/c2c/send', 'POST', { toUserId: duplexA, text: '合成双向并发二' }),
+    ]);
+    assert.deepEqual(duplex.map(r => r.status), [201, 201]);
+    assert.equal(await p.imFallbackMessage.count({ where: { fromUserId: { in: [duplexA, duplexB] }, toUserId: { in: [duplexA, duplexB] } } }), 2);
+    assert.equal((await counter(duplexA, duplexB)).sentCount + (await counter(duplexB, duplexA)).sentCount, 1);
+    cases.push({ name: 'im-opposite-direction-concurrency-no-deadlock', statuses: duplex.map(r => r.status), passed: true });
     console.log('NODE_TEST_RESULT:' + JSON.stringify({ passed: true, cases, httpRequests, scope: 'synthetic-http-real-jwt-postgresql-transactions-no-external-im', realMessages: 0, socketDeliveryNotCovered: true, twoApplicationProcessesNotCovered: true }));
   } finally {
     await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS isolated_im_insert_fail ON "ImFallbackMessage"').catch(() => {});

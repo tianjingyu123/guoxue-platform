@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:1843d1b0");
-const sourceCommit = "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2";
-const sourceSha256 = "5798f8fbe642137a75fe2b5f1e54afd41ad8304e993278f3247e1ca090d443bc";
+assert.equal(image, "rebu-linux-verify:ceca6455");
+const sourceCommit = "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc";
+const sourceSha256 = "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -100,7 +100,7 @@ try {
     "PUBLIC_DOMAIN=api.example.invalid", "PUBLIC_API_URL=https://api.example.invalid",
     "PUBLIC_H5_URL=https://h5.example.invalid/h5/", "PUBLIC_ASSET_ORIGIN=https://assets.example.invalid",
     "CORS_ORIGIN=https://h5.example.invalid", "WS_CORS_ORIGIN=https://h5.example.invalid",
-    "RELEASE_ID=isolated-1843d1b0",
+    "RELEASE_ID=isolated-ceca6455",
   ].join("\n") + "\n", { mode: 0o600 });
   const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv, "--entrypoint", "pnpm", image, "--dir", "/app/apps/server", "exec", "prisma", "db", "push", "--skip-generate"]);
   writeFileSync(path.join(results, "temporary-schema.log"), schemaOutput);
@@ -125,7 +125,7 @@ try {
   const routes = ["/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health", "/api/v1/mini/home", "/api/v1/contents?page=1&pageSize=1"];
   const httpScript = `Promise.all(${JSON.stringify(routes)}.map(async path=>{const r=await fetch('http://127.0.0.1:3000'+path); const body=await r.json(); return {path,status:r.status,releaseId:body.data?.releaseId||body.releaseId||null};})).then(rows=>{process.stdout.write(JSON.stringify(rows)); if(rows.some(r=>r.status!==200)) process.exitCode=1;}).catch(()=>{process.exitCode=1;})`;
   const http = JSON.parse(docker(["exec", app, "node", "-e", httpScript]));
-  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-1843d1b0"));
+  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-ceca6455"));
   save("http-startup.json", http);
   check("production-entrypoint-health-public-http", http);
 
