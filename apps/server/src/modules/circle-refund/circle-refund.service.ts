@@ -56,6 +56,8 @@ export const RECALL_MANUAL_REASONS = {
   OWNERSHIP_MISMATCH: "revenue_ownership_mismatch",
   /** 按 orderId 命中了收益行，但其金额与本次退款的已付金额对不上 */
   AMOUNT_MISMATCH: "revenue_amount_mismatch",
+  /** 收益行的圈主分成不是有限非负数，或超过该行收益 */
+  SHARE_INVALID: "revenue_share_invalid",
 } as const;
 export type RecallManualReason = (typeof RECALL_MANUAL_REASONS)[keyof typeof RECALL_MANUAL_REASONS];
 
@@ -391,8 +393,12 @@ export class CircleRefundService {
           const refundRatio = actualRefund / paidAmount;
           ownerRecalled = round2((resolved.ownerShare as number) * refundRatio);
           const revenueAmountRecalled = round2((resolved.revenueAmount as number) * refundRatio);
-          if (ownerRecalled <= 0 || revenueAmountRecalled <= 0) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的自动冲正金额为零，禁止自动冲正");
+          if (
+            !Number.isFinite(ownerRecalled) || ownerRecalled < 0 ||
+            !Number.isFinite(revenueAmountRecalled) || revenueAmountRecalled <= 0 ||
+            ownerRecalled > revenueAmountRecalled
+          ) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "按实际退款比例计算的自动冲正金额异常，禁止自动冲正");
           }
           // 冲正行带上 orderId：`CircleRevenueRecord` 的 `(type, orderId)` 唯一约束因此也覆盖
           // `circle_join_refund`，同一笔订单的冲正在**数据库层**只可能有一条。
@@ -489,10 +495,20 @@ export class CircleRefundService {
             reason: RECALL_MANUAL_REASONS.OWNERSHIP_MISMATCH,
           };
         }
-        if (Math.abs(hit.amount - Number(paidAmount)) >= 0.01) {
+        if (
+          !Number.isFinite(paidAmount) || paidAmount <= 0 ||
+          !Number.isFinite(hit.amount) || hit.amount <= 0 ||
+          Math.abs(hit.amount - paidAmount) >= 0.01
+        ) {
           return {
             kind: "mismatch", ownerShare: null, candidates: [hit],
             reason: RECALL_MANUAL_REASONS.AMOUNT_MISMATCH,
+          };
+        }
+        if (!Number.isFinite(hit.ownerShare) || hit.ownerShare < 0 || hit.ownerShare > hit.amount) {
+          return {
+            kind: "mismatch", ownerShare: null, candidates: [hit],
+            reason: RECALL_MANUAL_REASONS.SHARE_INVALID,
           };
         }
         return { kind: "exact", ownerShare: hit.ownerShare, revenueAmount: hit.amount, candidates: [hit] };
