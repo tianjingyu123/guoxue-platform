@@ -117,7 +117,7 @@ jobs:
   test:
     name: 单元测试 (${{ matrix.shard }})
     runs-on: ubuntu-24.04
-    # 首分片包含排盘金样子进程，保留完整比对并给它足够时间。
+    # 分片任务并行；每个任务内部串行运行，避免多个 Nest/Jest worker 争抢运行器内存。
     timeout-minutes: 60
     needs: [typecheck]
     strategy:
@@ -184,10 +184,7 @@ jobs:
         working-directory: apps/server
         run: |
           set -o pipefail
-          # 金样子进程占用较多内存；首分片串行，避免与另一 Jest worker 争抢资源。
-          workers=2
-          if [[ "${{ matrix.shard }}" == "1/3" ]]; then workers=1; fi
-          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers="$workers" 2>&1 | tee jest-shard.log || {
+          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --runInBand 2>&1 | tee jest-shard.log || {
             detail="$(awk '/^FAIL / { print; for (i=0; i<18; i++) { if (getline <= 0) break; print }; exit }' jest-shard.log | tr '\n' ' ' | cut -c 1-3000)"
             echo "::error title=单元测试 ${{ matrix.shard }} 失败::${detail:-请检查测试日志}"
             exit 1
