@@ -1,11 +1,10 @@
 {
-  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
-  "actualPreviewSourceCommit": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
-  "clientTreeEquivalent": true,
+  "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+  "actualPreviewSourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
   "snapshot": {
-    "sourceCommit": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
+    "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
     "files": 2749,
-    "copiedBytes": 11043293,
+    "copiedBytes": 11043224,
     "allHashesEqual": true,
     "appid": "wx06397e8ab26bed9e",
     "scope": "official-preview-not-upload-or-release"
@@ -18,16 +17,9 @@
   },
   "largestRemainingBytes": 146842,
   "subpackageCount": 33,
-  "totalBytes": 12573617,
-  "scope": "official-preview-and-simulator-error-path-not-phone-or-release",
-  "simulatorPages": [
-    "pages/index/index",
-    "pkg-im/im/conversations/index",
-    "pkg-im/im/chat/index",
-    "pkg-im/im/group-chat/index"
-  ],
-  "imNormalBackendNotCovered": true,
-  "normalBackendLimitation": "公网旧服务没有 /api/v1/im/capabilities",
-  "visibleErrorButtonsAndReturnHomePassed": true,
-  "passed": true
+  "totalBytes": 12573545,
+  "scope": "official-cli-preview-not-phone-upload-review-release",
+  "newSimulatorPageLoadAtCurrentSource": false,
+  "passed": true,
+  "priorSimulatorEvidenceSource": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2"
 }
