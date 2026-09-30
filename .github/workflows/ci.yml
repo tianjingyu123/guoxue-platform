@@ -167,6 +167,12 @@ jobs:
         working-directory: apps/server
         run: npx prisma generate
 
+      - name: 构建测试依赖工作区包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+
       - name: 运行 Prisma 迁移
         working-directory: apps/server
         run: npx prisma db push --skip-generate
@@ -178,7 +184,7 @@ jobs:
         run: |
           set -o pipefail
           npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=2 2>&1 | tee jest-shard.log || {
-            detail="$(grep -E '^(FAIL|Test Suites:|Tests:|  ●)' jest-shard.log | tail -n 12 | tr '\n' ' ' | cut -c 1-3000)"
+            detail="$(awk '/^FAIL / { print; for (i=0; i<18; i++) { if (getline <= 0) break; print }; exit }' jest-shard.log | tr '\n' ' ' | cut -c 1-3000)"
             echo "::error title=单元测试 ${{ matrix.shard }} 失败::${detail:-请检查测试日志}"
             exit 1
           }
