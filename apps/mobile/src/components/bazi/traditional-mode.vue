@@ -191,12 +191,12 @@ function daYunYears(idx: number) {
 </template>
 
 <style scoped lang="scss">
-.tm { padding: 20rpx; display: flex; flex-direction: column; gap: 16rpx; }
+.tm { padding: 16rpx 20rpx; display: flex; flex-direction: column; gap: 12rpx; }
 .card { background: var(--card); border-radius: 16rpx; border: 2rpx solid var(--border, rgba(0,0,0,0.08)); overflow: hidden; }
-.info-head { display: flex; gap: 32rpx; padding: 20rpx 24rpx; border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); }
+.info-head { display: flex; gap: 32rpx; padding: 12rpx 24rpx; border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); }
 .info-item { font-size: 26rpx; color: var(--text-ink); }
 .info-k { color: var(--brand); font-weight: 500; }
-.info-row { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 24rpx; border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); font-size: 26rpx; }
+.info-row { display: flex; align-items: center; gap: 16rpx; padding: 10rpx 24rpx; border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); font-size: 26rpx; }
 .info-row.no-bd { border-bottom: none; }
 .shrink { flex-shrink: 0; }
 .info-v { color: var(--text-ink); }
