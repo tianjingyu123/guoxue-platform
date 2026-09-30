@@ -9,6 +9,7 @@ on:
       - "scripts/release/verify-isolated-payment-http.cjs"
       - "scripts/release/verify-isolated-circle-recall-http.cjs"
       - "scripts/release/verify-isolated-circle-auto-refund-http.cjs"
+      - "scripts/release/verify-isolated-merchant-shipping-http.cjs"
   workflow_dispatch:
 
 permissions:

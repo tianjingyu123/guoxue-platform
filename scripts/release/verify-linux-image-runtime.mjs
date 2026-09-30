@@ -311,6 +311,12 @@ try {
   save("circle-auto-refund-http.json", autoReport);
   check("automatic-refund-share-cap-zero-share-and-once-only-wallet-credit", autoReport);
 
+  const shippingCode = readFileSync(new URL("./verify-isolated-merchant-shipping-http.cjs", import.meta.url), "utf8");
+  const shippingReport = appNode(shippingCode);
+  assert(shippingReport.passed);
+  save("merchant-shipping-http-transactions.json", shippingReport);
+  check("merchant-shipping-ownership-replay-rollback-and-concurrency", shippingReport);
+
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
     const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
