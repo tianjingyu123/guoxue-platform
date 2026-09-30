@@ -29,7 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          persist-credentials: false
+          # 与已通过的 CI 相同：令牌只留在临时检出配置，既不进入构建上下文也不归档。
+          # 关闭持久化会触发 checkout 的历史 gitlink 清理缺陷，导致取包前失败。
+          persist-credentials: true
           # 仅检出核验脚本，避开历史缺少 .gitmodules 声明的技能 gitlink。
           # 实际业务构建仍来自完整固定源码包，而不是这份稀疏检出。
           sparse-checkout: scripts/release
