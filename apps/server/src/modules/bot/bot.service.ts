@@ -664,16 +664,21 @@ export class BotService {
                   subscriber.error(new Error("智能体未返回有效内容，请重试"));
                   return;
                 }
-                await this.prisma.botChatLog.create({
-                  data: {
-                    userId,
-                    botConfigId: bot.id,
-                    query: dto.query,
-                    response: cleanContent,
-                    conversationId: conversationId || undefined,
-                    chatId: chatId || undefined,
-                  },
-                });
+                try {
+                  await this.prisma.botChatLog.create({
+                    data: {
+                      userId,
+                      botConfigId: bot.id,
+                      query: dto.query,
+                      response: cleanContent,
+                      conversationId: conversationId || undefined,
+                      chatId: chatId || undefined,
+                    },
+                  });
+                } catch {
+                  // 记录故障不吞掉收尾元信息；异常正文可能带提问等敏感字段，不直接输出。
+                  this.logger.warn("流式对话记录写入失败，请核查记录存储服务");
+                }
                 subscriber.next({
                   type: "meta",
                   conversationId: conversationId || undefined,

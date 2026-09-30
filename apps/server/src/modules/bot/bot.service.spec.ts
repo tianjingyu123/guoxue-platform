@@ -5,7 +5,7 @@ import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
-import { Observable } from "rxjs";
+import { lastValueFrom, Observable, of, toArray } from "rxjs";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
 jest.mock("../../common/crypto.util", () => ({
@@ -77,6 +77,26 @@ describe("BotService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("对话记录故障不丢失流式收尾且告警不含提问和数据库错误", async () => {
+    mockCoze.chatStreamEx.mockReturnValue(of(
+      { type: "meta", conversationId: "conv-audit-failure" },
+      { type: "chunk", content: "已生成的合成回答。" },
+    ));
+    mockReco.build.mockResolvedValueOnce({ content: "已生成的合成回答。", recommendation: null });
+    mockPrisma.botChatLog.create.mockRejectedValueOnce(new Error("数据库错误包含合成提问与PRIVATE_DATABASE_DETAIL"));
+    const warn = jest.spyOn((svc as any).logger, "warn").mockImplementation(() => undefined);
+    try {
+      const events = await lastValueFrom(svc.chatStreamRich(
+        { id: "b1", botId: "coze-1", apiKey: "test" }, "u1", { query: "仅用于本地验证的合成提问" } as any,
+      ).pipe(toArray()));
+      expect(events).toContainEqual({ type: "chunk", content: "已生成的合成回答。" });
+      expect(events).toContainEqual(expect.objectContaining({ type: "meta", conversationId: "conv-audit-failure", disclaimer: expect.any(String) }));
+      expect(mockPrisma.botChatLog.create).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith("流式对话记录写入失败，请核查记录存储服务");
+      expect(JSON.stringify(warn.mock.calls)).not.toMatch(/PRIVATE_DATABASE_DETAIL|合成提问/);
+    } finally { warn.mockRestore(); }
+  });
 
   it("推荐检索故障时保留已生成的回答并剥离协议标记", async () => {
     mockPrisma.botConfig.findUnique.mockResolvedValue({
