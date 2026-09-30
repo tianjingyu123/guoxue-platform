@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          persist-credentials: false
+          persist-credentials: true
           sparse-checkout: scripts/release
 
       - name: 独立检出待评审业务候选
@@ -34,7 +34,12 @@ jobs:
         with:
           ref: ${{ env.SOURCE_COMMIT }}
           path: candidate
-          persist-credentials: false
+          persist-credentials: true
+
+      - name: 检出后移除临时仓库认证头
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
