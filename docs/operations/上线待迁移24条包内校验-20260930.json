@@ -35,6 +35,11 @@
       "sha256": "485c10e8ec5e673ca1d27f78613f4422180ac075d9a627b2b3f97df14378d6ff"
     },
     {
+      "path": "20260928183000_add_im_fallback/migration.sql",
+      "bytes": 1371,
+      "sha256": "79be0ed57b9627b3d471a38f3383abf3c64a407d0c57b6d58610cd4b9c04b981"
+    },
+    {
       "path": "manual_add_couple_scene/migration.sql",
       "bytes": 788,
       "sha256": "ead573bc994f2098749ebfe4b7130f61871d0cc97987b7c378fca9e850447bd7"
@@ -123,12 +128,8 @@
       "path": "manual_z_20260926_11_notification_idempotency_key/migration.sql",
       "bytes": 193,
       "sha256": "0a41ea8da5f1fdcfafb657426f3ac2ca077104cea45a06f4225946267ad0609c"
-    },
-    {
-      "path": "20260928183000_add_im_fallback/migration.sql",
-      "bytes": 1371,
-      "sha256": "79be0ed57b9627b3d471a38f3383abf3c64a407d0c57b6d58610cd4b9c04b981"
     }
   ],
-  "boundary": "本报告只验证本地源码与固定包内待迁移 SQL 字节一致；目标库待迁移状态沿用先前只读记录，未重新查询目标库，也未执行迁移。"
+  "boundary": "本报告只验证本地源码与固定包内待迁移 SQL 字节一致；目标库待迁移状态沿用先前只读记录，未重新查询目标库，也未执行迁移。",
+  "ordering": "按 Prisma 迁移目录名字典序排列；正式执行由 prisma migrate deploy 管理，不按本 JSON 手工逐条运行。"
 }
