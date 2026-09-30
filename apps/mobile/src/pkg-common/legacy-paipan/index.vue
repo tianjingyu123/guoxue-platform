@@ -207,13 +207,13 @@ function legacyNavigationBridgeScript(): string {
       if(!document.createElement||!document.body||document.getElementById('rebu-paipan-actions'))return;
       var actions=document.createElement('div');
       actions.id='rebu-paipan-actions';
-      actions.style.cssText='position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483646;display:flex;gap:8px;';
+      actions.style.cssText='position:fixed;right:16px;bottom:calc(48px + env(safe-area-inset-bottom));z-index:2147483646;display:flex;gap:6px;';
       var home=document.createElement('button');
       home.id='rebu-paipan-home';
       home.type='button';
       home.textContent='首页';
       home.setAttribute('aria-label','返回热卜首页');
-      home.style.cssText='width:52px;height:52px;border:1px solid #e8ddd4;border-radius:26px;background:#fff;color:#463528;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.16);';
+      home.style.cssText='width:42px;height:42px;border:1px solid #e8ddd4;border-radius:21px;background:#fff;color:#463528;font-size:12px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.16);';
       home.addEventListener('click',function(event){
         event.preventDefault();
         event.stopPropagation();
@@ -224,7 +224,7 @@ function legacyNavigationBridgeScript(): string {
       button.type='button';
       button.textContent='分享';
       button.setAttribute('aria-label','分享当前排盘结果');
-      button.style.cssText='width:52px;height:52px;border:0;border-radius:26px;background:#8f1d22;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22);';
+      button.style.cssText='width:42px;height:42px;border:0;border-radius:21px;background:#8f1d22;color:#fff;font-size:12px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22);';
       button.addEventListener('click',function(event){
         event.preventDefault();
         event.stopPropagation();
