@@ -482,9 +482,14 @@ export class CirclePostService {
 
     // 分账：作者入账 50%，平台留成 50%（业务决策）。作者入账失败不回滚打赏，仅记日志。
     const authorShare = Math.floor(amount / 2);
+    let authorCredited = authorShare === 0;
     if (authorShare > 0) {
-      await this.coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`)
-        .catch((err) => this.logger.warn("打赏作者入账失败", err));
+      try {
+        await this.coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`);
+        authorCredited = true;
+      } catch (err) {
+        this.logger.warn("打赏作者入账失败", err);
+      }
     }
 
     // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
@@ -492,7 +497,9 @@ export class CirclePostService {
       this.notificationService.send(post.userId, {
         type: "POST_REWARD",
         title: "收到打赏",
-        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`,
+        content: authorCredited
+          ? `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`
+          : "有人打赏了你的帖子，作者收入暂未入账，请联系平台客服核查。",
         targetType: "POST",
         targetId: postId,
         category: "TRADE",
