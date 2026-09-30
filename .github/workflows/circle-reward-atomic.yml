@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      SOURCE_COMMIT: "9d9e4f3c8db1ab2cb433cc9171e255c0b0a828f2"
+      SOURCE_COMMIT: "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
       NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262

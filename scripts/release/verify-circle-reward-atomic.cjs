@@ -13,15 +13,24 @@ assert.match(process.env.REDIS_URL, /^redis:\/\/rebu-reward-redis-/);
 assert.match(process.env.DATABASE_URL, /@rebu-reward-db-/);
 const db = new PrismaClient();
 const redis = new RedisService();
-const checks = [], children = [];
+const checks = [], children = [], pending = [];
 const payer = 'fixture-payer', author = 'fixture-author', circle = 'fixture-circle', post = 'fixture-post';
 const wrap = (delegate, overrides) => new Proxy(delegate, { get(target, key) {
   if (key in overrides) return overrides[key];
   const value = target[key]; return typeof value === 'function' ? value.bind(target) : value;
 } });
-const notify = (prisma = db) => new NotificationService(prisma, redis, {}, {});
+const notify = (prisma = db) => {
+  const instance = new NotificationService(prisma, redis, {}, {});
+  return wrap(instance, { sendOnce: (...args) => {
+    const operation = instance.sendOnce(...args); pending.push(operation); return operation;
+  } });
+};
 const svc = (prisma = db, notification = notify()) => new CirclePostService(prisma, {}, new CircleSharedService(prisma), undefined, new CoinService(prisma, redis), notification);
-const reward = (service = svc(), amount = 8, requestId = 'request-001', postId = post, userId = payer) => service.rewardPost(circle, postId, userId, amount, undefined, requestId);
+const reward = async (service = svc(), amount = 8, requestId = 'request-001', postId = post, userId = payer) => {
+  const result = await service.rewardPost(circle, postId, userId, amount, undefined, requestId);
+  // 正式请求不等待通知；只有验证程序等待异步落库后再核对事实。
+  await Promise.allSettled(pending.splice(0)); return result;
+};
 const check = async (name, action) => { await action(); checks.push({ name, passed: true }); };
 const prepareRedis = async () => {
   await redis.setJson(`notification:prefs:${author}`, { PUSH_ENABLED: false }, 3600);
@@ -98,7 +107,7 @@ if (process.argv.includes('--worker')) {
   (async () => {
     try {
       for (const id of ['fixture-owner', author, payer, 'fixture-outsider']) await db.user.create({ data: { id, nickname: '隔离合成用户' } });
-      await db.circle.create({ data: { id: circle, name: '隔离合成圈子', tags: [], ownerId: 'fixture-owner' } });
+      await db.circle.create({ data: { id: circle, name: '隔离合成圈子', intro: '非真实业务隔离验证', tags: [], ownerId: 'fixture-owner' } });
       await db.circleMember.create({ data: { circleId: circle, userId: payer } });
       for (const id of [post, 'fixture-another-post']) await db.post.create({ data: { id, circleId: circle, userId: author, title: '合成帖子', content: '非真实业务' } });
       await prepareRedis();
