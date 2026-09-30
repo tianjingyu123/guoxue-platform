@@ -86,7 +86,7 @@ export class FeedbackController {
   @Post("admin/feedback/:id/reveal-contact")
   @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
-  @Auditable({ action: "查看反馈联系方式", targetType: "FEEDBACK" })
+  @Auditable({ action: "查看反馈联系方式", targetType: "FEEDBACK", requireSuccess: true })
   @ApiOperation({ summary: "查看反馈联系方式明文（留痕 + 限流）" })
   @ApiResponse({ status: 200, description: "成功" })
   adminRevealContact(@Param("id") id: string) {
@@ -96,7 +96,7 @@ export class FeedbackController {
   @Post("admin/feedback/:id/reveal-content")
   @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
-  @Auditable({ action: "查看反馈正文原文", targetType: "FEEDBACK" })
+  @Auditable({ action: "查看反馈正文原文", targetType: "FEEDBACK", requireSuccess: true })
   @ApiOperation({ summary: "查看反馈正文原文（留痕 + 限流）" })
   @ApiResponse({ status: 200, description: "成功" })
   adminRevealContent(@Param("id") id: string) {
@@ -106,7 +106,7 @@ export class FeedbackController {
   @Post("admin/feedback/:id/reveal-images")
   @UseGuards(JwtAuthGuard, RolesGuard, SensitiveRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @Auditable({ action: "查看反馈截图", targetType: "FEEDBACK" })
+  @Auditable({ action: "查看反馈截图", targetType: "FEEDBACK", requireSuccess: true })
   @ApiOperation({ summary: "查看反馈截图（留痕 + 限流）" })
   @ApiResponse({ status: 200, description: "成功" })
   adminRevealImages(@Param("id") id: string) {
