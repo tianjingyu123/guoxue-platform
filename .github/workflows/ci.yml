@@ -117,7 +117,7 @@ jobs:
   test:
     name: 单元测试 (${{ matrix.shard }})
     runs-on: ubuntu-24.04
-    # 分片任务并行；每个任务内部串行运行，避免多个 Nest/Jest worker 争抢运行器内存。
+    # 分片任务并行；每个任务只保留一个可按内存阈值回收的 Jest worker。
     timeout-minutes: 60
     needs: [typecheck]
     strategy:
@@ -184,8 +184,11 @@ jobs:
         working-directory: apps/server
         run: |
           set -o pipefail
-          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --runInBand 2>&1 | tee jest-shard.log || {
+          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=1 2>&1 | tee jest-shard.log || {
             detail="$(awk '/^FAIL / { print; for (i=0; i<18; i++) { if (getline <= 0) break; print }; exit }' jest-shard.log | tr '\n' ' ' | cut -c 1-3000)"
+            if [[ -z "$detail" ]]; then
+              detail="$(grep -E 'FATAL ERROR:|JavaScript heap out of memory|Allocation failed|Killed|SIGTERM|SIGKILL' jest-shard.log | tail -n 3 | tr '\n' ' ' | cut -c 1-500 || true)"
+            fi
             echo "::error title=单元测试 ${{ matrix.shard }} 失败::${detail:-请检查测试日志}"
             exit 1
           }
@@ -195,6 +198,7 @@ jobs:
           JWT_SECRET: "test-jwt-secret-32-bytes-key-!"
           ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
           NODE_ENV: test
+          NODE_OPTIONS: --max-old-space-size=3072
 
   # ─── 测试报告 ───
   test-report:

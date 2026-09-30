@@ -19,6 +19,8 @@ const config: Config = {
     },
   },
   maxWorkers: "50%",
+  // 长流水线中每个套件结束后回收高内存 worker，避免测试桩累积撑满 Node 堆。
+  workerIdleMemoryLimit: "768MB",
   coverageProvider: "v8",
   testPathIgnorePatterns: ["<rootDir>/.backup/", ".backup/"],
   testEnvironment: "node",
