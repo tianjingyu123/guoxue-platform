@@ -13,6 +13,11 @@ describe("RedisService", () => {
     await service.onModuleDestroy()
   })
 
+  it("无共享 Redis 时健康探测拒绝内存降级", async () => {
+    await service.set("health:local-only", "1")
+    await expect(service.pingShared()).rejects.toThrow("共享 Redis 不可用")
+  })
+
   // ═══════════════════ 基础 SET/GET ═══════════════════
 
   describe("set/get", () => {

@@ -5,6 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = { $queryRaw: jest.fn().mockResolvedValue(undefined) };
 const mockRedis = {
+  pingShared: jest.fn().mockResolvedValue(undefined),
   set: jest.fn().mockResolvedValue("OK"),
   get: jest.fn().mockResolvedValue("1"),
 };
@@ -94,7 +95,7 @@ describe("HealthService", () => {
     });
 
     it("Redis 异常时返回 not_ready", async () => {
-      mockRedis.get.mockRejectedValueOnce(new Error("redis down"));
+      mockRedis.pingShared.mockRejectedValueOnce(new Error("redis down"));
       const result = await svc.readiness();
       expect(result.status).toBe("not_ready");
       expect(result.db).toBe("ok");

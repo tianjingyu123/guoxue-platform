@@ -6,13 +6,14 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = { $queryRaw: jest.fn() };
-const mockRedis = { get: jest.fn(), set: jest.fn() };
+const mockRedis = { pingShared: jest.fn(), set: jest.fn(), get: jest.fn() };
 
 describe("HealthController", () => {
   let ctrl: HealthController;
 
   beforeEach(async () => {
     mockPrisma.$queryRaw.mockResolvedValue([{ 1: 1 }]);
+    mockRedis.pingShared.mockResolvedValue(undefined);
     mockRedis.set.mockResolvedValue("OK");
     mockRedis.get.mockResolvedValue("1");
 
@@ -49,7 +50,7 @@ describe("HealthController", () => {
     });
 
     it("Redis异常时返回503", async () => {
-      mockRedis.get.mockRejectedValue(new Error("Redis down"));
+      mockRedis.pingShared.mockRejectedValue(new Error("Redis down"));
       await expect(ctrl.check()).rejects.toMatchObject({ status: 503 });
     });
   });

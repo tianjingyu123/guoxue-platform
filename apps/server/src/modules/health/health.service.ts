@@ -137,6 +137,7 @@ export class HealthService {
   private async checkRedis(): Promise<HealthCheck> {
     try {
       const start = Date.now();
+      await this.redis.pingShared();
       const testKey = "health:check:" + Date.now();
       await this.redis.set(testKey, "1", 10);
       const val = await this.redis.get(testKey);

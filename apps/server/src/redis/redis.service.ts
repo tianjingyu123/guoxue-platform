@@ -100,6 +100,13 @@ export class RedisService implements OnModuleDestroy {
     return this.connecting;
   }
 
+  /** 就绪检查必须探测真实共享 Redis，不接受进程内缓存降级。 */
+  async pingShared(): Promise<void> {
+    const conn = await this.getConn();
+    if (!conn) throw new Error("共享 Redis 不可用");
+    if ((await conn.ping()) !== "PONG") throw new Error("共享 Redis PING 未成功");
+  }
+
   async get(key: string): Promise<string | null> {
     const conn = await this.getConn();
     if (conn) return conn.get(key);
