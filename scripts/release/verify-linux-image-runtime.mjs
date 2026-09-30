@@ -283,6 +283,12 @@ try {
   save("payment-refund-http-transactions.json", callbackReport);
   check("signed-encrypted-http-payment-refund-rollback-notification-retry", callbackReport);
 
+  const recallCode = readFileSync(new URL("./verify-isolated-circle-recall-http.cjs", import.meta.url), "utf8");
+  const recallReport = appNode(recallCode);
+  assert(recallReport.passed);
+  save("circle-recall-http-transactions.json", recallReport);
+  check("circle-recall-order-binding-proportion-rollback-and-concurrent-resolution", recallReport);
+
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
     const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
