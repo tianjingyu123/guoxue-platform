@@ -10,6 +10,7 @@ if (!url || !/^postgresql:\/\/channel_test@127\.0\.0\.1:55449\/channel_synthetic
 }
 process.env.DATABASE_URL = url
 process.env.NODE_ENV = 'test'
+process.env.WGT_DEPLOYMENT_ENVIRONMENT = 'test'
 process.env.ENCRYPTION_KEY = 'synthetic-channel-test-key-32byte'
 const serverRequire = createRequire(path.resolve(__dirname, '../../apps/server/package.json'))
 const { PrismaClient } = serverRequire('@prisma/client')
@@ -19,6 +20,8 @@ const { VersionController } = require('../../apps/server/dist/modules/system/ver
 const { FeatureFlagService } = require('../../apps/server/dist/modules/feature-flag/feature-flag.service')
 const { FeatureFlagController } = require('../../apps/server/dist/modules/feature-flag/feature-flag.controller')
 const { ResourceReleaseService } = require('../../apps/server/dist/modules/system/resource-release.service')
+const { WgtControlService } = require('../../apps/server/dist/modules/system/wgt-control.service')
+const { canonicalWgtControl, NATIVE_RECOVERY_CASES } = require('../../packages/shared/dist/wgt-control')
 const { canonicalManifest } = require('../../packages/shared/dist/resource-update')
 const { generateKeyPairSync, sign, createHash } = require('node:crypto')
 
@@ -51,11 +54,11 @@ async function run() {
     const versions = new VersionController(prisma, distributions)
     const registry = new DistributionController(prisma)
     const catalog = registry.catalog()
-    for (const id of ['huawei', 'xiaomi', 'oppo', 'oneplus', 'vivo', 'honor', 'realme', 'tencent', 'samsung', 'google-play', 'app-store']) assert.ok(catalog.some(channel => channel.id === id))
+    for (const id of ['huawei', 'xiaomi', 'oppo', 'oneplus', 'vivo', 'honor', 'realme', 'tencent', 'qihoo360', 'baidu', 'wandoujia', 'meizu', 'lenovo', 'samsung', 'google-play', 'app-store']) assert.ok(catalog.some(channel => channel.id === id))
     for (const channel of catalog.filter(channel => channel.id !== 'legacy')) {
       for (const platform of channel.platforms) {
         const clientKey = 'test-' + channel.id + (platform === 'android' ? '' : '-' + platform)
-        const registered = await registry.create({ productId: 'rebu', applicationId: 'rebu', platform, channelId: channel.id, clientKey, packageName: 'test.rebu.' + channel.id })
+        const registered = await registry.create({ productId: 'rebu', applicationId: 'rebu', platform, channelId: channel.id, clientKey, packageName: 'test.rebu.' + channel.id, signingCertificateSha256: 'b'.repeat(64) })
         assert.equal(registered.wgtPolicy, 'DENIED')
         assert.equal((await registry.publicRegistration(clientKey)).channelId, channel.id)
       }
@@ -127,7 +130,8 @@ async function run() {
     record('运营草稿预览不生效、发布与审计回退有效，全局急停不能被渠道放宽')
     // 临时签名私钥只在进程内，日志与仓库均不保存。
     const { privateKey, publicKey } = generateKeyPairSync('ed25519')
-    process.env.WGT_TRUSTED_PUBLIC_KEYS = JSON.stringify({ 'test-key': publicKey.export({ type: 'spki', format: 'pem' }) })
+    const rootKey = generateKeyPairSync('ed25519')
+    process.env.WGT_CONTROL_PUBLIC_ROOTS = JSON.stringify({ 'test-root': rootKey.publicKey.export({ type: 'spki', format: 'pem' }) })
     process.env.WGT_ALLOWED_ORIGINS = 'https://download.example.test'
     const bytes = Buffer.from('synthetic-resource-fixture')
     const now = Date.now()
@@ -139,13 +143,41 @@ async function run() {
       issuedAt: new Date(now).toISOString(), expiresAt: new Date(now + 3600000).toISOString(), changeType: 'web-resources',
     }
     const signed = { manifest, signature: sign(null, Buffer.from(canonicalManifest(manifest)), privateKey).toString('base64') }
-    const resources = new ResourceReleaseService(prisma, distributions)
+    const control = new WgtControlService(prisma)
+    const signedControl = (payload) => ({ payload, signature: sign(null, Buffer.from(canonicalWgtControl(payload)), rootKey.privateKey).toString('base64') })
+    const times = { schemaVersion: 1, rootKeyId: 'test-root', issuedAt: new Date(now - 1000).toISOString(), expiresAt: new Date(now + 3600000).toISOString() }
+    const authorization = signedControl({ ...times, kind: 'resource-key', keyId: 'test-key', applicationId: 'rebu', publicKeyPem: publicKey.export({ type: 'spki', format: 'pem' }) })
+    await assert.rejects(control.registerKey(signedControl({ ...authorization.payload, publicKeyPem: privateKey.export({ type: 'pkcs8', format: 'pem' }) }), 'synthetic-admin'), /公钥 PEM/)
+    await control.registerKey(authorization, 'synthetic-admin')
+    await assert.rejects(control.registerKey(authorization, 'synthetic-admin'), /keyId/)
+    const resources = new ResourceReleaseService(prisma, distributions, control)
     const resource = await resources.draft({ ...signed, rolloutPercentage: 0, targetUserIds: ['synthetic-a'] })
     await assert.rejects(resources.activate(resource.id, 'synthetic-admin'), /禁止发布 WGT/)
-    resources.verifyManifest(signed)
-    assert.throws(() => resources.verifyManifest({ ...signed, manifest: { ...manifest, byteLength: bytes.length - 1 } }))
-    assert.throws(() => resources.verifyManifest({ ...signed, signature: 'A'.repeat(86) + '==' }))
-    await prisma.appDistribution.update({ where: { clientKey: 'test-xiaomi' }, data: { wgtPolicy: 'ALLOWED', policyEvidence: '仅合成许可', recoveryEvidence: '仅模拟原生恢复', nativeFingerprint: 'a'.repeat(64) } })
+    await resources.verifyManifest(signed)
+    await assert.rejects(resources.verifyManifest({ ...signed, manifest: { ...manifest, byteLength: bytes.length - 1 } }))
+    await assert.rejects(resources.verifyManifest({ ...signed, signature: 'A'.repeat(86) + '==' }))
+    const registration = await prisma.appDistribution.findUnique({ where: { clientKey: 'test-xiaomi' } })
+    await assert.rejects(control.setEnabled(registration.id, true, 'synthetic-admin'), /尚未批准/)
+    const proof = { ...times, productId: 'rebu', applicationId: 'rebu', platform: 'android', channelId: 'xiaomi', packageName: registration.packageName, signingCertificateSha256: 'b'.repeat(64), environment: 'test', verificationLevel: 'synthetic', sourceSha: 'a'.repeat(40), sourceSha256: 'b'.repeat(64), artifactUrl: 'https://evidence.example.invalid/synthetic' }
+    const native = signedControl({ ...proof, kind: 'native-recovery', nativeBuild: 253, nativeFingerprint: 'a'.repeat(64), beforeJavascript: true, runtimeAppId: '__TEST_APP', cases: Object.fromEntries(NATIVE_RECOVERY_CASES.map(name => [name, true])) })
+    const policy = signedControl({ ...proof, kind: 'channel-policy', decision: 'PERMITTED_WEB_RESOURCES', officialSources: ['https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1080'] })
+    await assert.rejects(control.submitEvidence(registration.id, { ...native, signature: 'A'.repeat(86) + '==' }, 'synthetic-admin'))
+    await assert.rejects(control.submitEvidence(registration.id, signedControl({ ...native.payload, cases: {} }), 'synthetic-admin'), /场景缺失/)
+    await assert.rejects(control.submitEvidence(registration.id, signedControl({ ...native.payload, channelId: 'huawei' }), 'synthetic-admin'), /身份/)
+    const oldNative = await control.submitEvidence(registration.id, native, 'synthetic-admin')
+    const nativeRow = await control.submitEvidence(registration.id, native, 'synthetic-admin')
+    await assert.rejects(control.approveEvidence(oldNative.id, 'synthetic-admin'), /最新/)
+    await control.approveEvidence(nativeRow.id, 'synthetic-admin')
+    const policyRow = await control.submitEvidence(registration.id, policy, 'synthetic-admin')
+    await assert.rejects(control.setEnabled(registration.id, true, 'synthetic-admin'), /尚未批准/)
+    await control.approveEvidence(policyRow.id, 'synthetic-admin')
+    process.env.NODE_ENV = 'production'; process.env.WGT_DEPLOYMENT_ENVIRONMENT = 'production'
+    await assert.rejects(control.setEnabled(registration.id, true, 'synthetic-admin'), /环境/)
+    process.env.WGT_DEPLOYMENT_ENVIRONMENT = 'test'
+    await assert.rejects(control.setEnabled(registration.id, true, 'synthetic-admin'), /正式进程/)
+    process.env.NODE_ENV = 'test'
+    await control.setEnabled(registration.id, true, 'synthetic-admin')
+    record('真实签名准入历史：待审核不能启用，旧证据不能审批，合成证据不能进入正式环境')
     await resources.activate(resource.id, 'synthetic-admin')
     assert.ok(await resources.check('test-xiaomi', 253, 0, 'synthetic-a'))
     assert.equal(await resources.check('test-xiaomi', 252, 0, 'synthetic-a'), null)
@@ -154,10 +186,20 @@ async function run() {
     await resources.retire(resource.id)
     assert.equal(await resources.check('test-xiaomi', 253, 0, 'synthetic-a'), null)
     record('真实签名校验、未许可拒绝发布、渠道与基座范围、资源灰度及停发')
+    await resources.activate(resource.id, 'synthetic-admin', true)
+    await control.setEnabled(registration.id, false, 'synthetic-admin')
+    assert.equal((await prisma.resourceRelease.findUnique({ where: { id: resource.id } })).status, 'RETIRED')
+    const rotated = generateKeyPairSync('ed25519')
+    await control.registerKey(signedControl({ ...times, kind: 'resource-key', keyId: 'test-key-v2', applicationId: 'rebu', publicKeyPem: rotated.publicKey.export({ type: 'spki', format: 'pem' }) }), 'synthetic-admin')
+    await control.revokeKey('test-key', 'synthetic-admin')
+    await assert.rejects(resources.verifyManifest(signed), /撤销/)
+    assert.equal((await control.trustBundle('rebu')).keys.length, 1)
+    await assert.rejects(control.registerKey(authorization, 'synthetic-admin'), /keyId/)
+    record('禁用原子停发；真实公钥轮换/撤销，旧资源拒绝及不可复活 keyId')
     const report = { date: new Date().toISOString(), database: 'localhost:55449/channel_synthetic', syntheticOnly: true, passed: evidence,
       limits: ['仅本专项历史表结构与合成记录', '没有正式安装或启动前原生恢复实测', '没有生产资源签名或渠道许可'] }
     mkdirSync(path.resolve(__dirname, '../../docs/operations/channel-updates-evidence'), { recursive: true })
     writeFileSync(path.resolve(__dirname, '../../docs/operations/channel-updates-evidence/isolated-db.json'), JSON.stringify(report, null, 2) + '\n')
-  } finally { await prisma.$disconnect(); delete process.env.WGT_TRUSTED_PUBLIC_KEYS }
+  } finally { await prisma.$disconnect(); delete process.env.WGT_CONTROL_PUBLIC_ROOTS; delete process.env.WGT_DEPLOYMENT_ENVIRONMENT }
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

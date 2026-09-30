@@ -1,0 +1,12 @@
+import Application from 'android.app.Application'
+import { UTSAndroidHookProxy } from 'io.dcloud.uts'
+import ResourceRuntime from 'cn.rebu.resource.ResourceRuntime'
+
+/** 官方原生启动钩子；先同步恢复资源，再交给 uni 引擎加载 JS。 */
+export class AppHookProxy implements UTSAndroidHookProxy {
+  override onCreate(application: Application) {
+    ResourceRuntime.boot(application)
+  }
+}
+/** 确保插件进入完整包。此导出不是恢复成功声明。 */
+export function includeResourceHook(): void { }

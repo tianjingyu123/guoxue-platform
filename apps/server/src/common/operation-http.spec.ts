@@ -8,6 +8,10 @@ import { RequireFeature, FEATURE_FLAG_KEY } from "./feature-flag.decorator";
 import { evaluateOperation } from "../modules/feature-flag/operation.util";
 import { ShopController } from "../modules/shop/shop.controller";
 import { MemberController } from "../modules/member/member.controller";
+import { LiveController } from "../modules/live/live.controller";
+import { MerchantController } from "../modules/merchant/merchant.controller";
+import { LiveCredentialsGuard } from "../modules/live/live-credentials.guard";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("synthetic")
 class SyntheticController {
@@ -23,6 +27,13 @@ class SyntheticController {
   read() {
     return { syntheticOnly: true };
   }
+  @Get("new-credentials")
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature("shop_checkout", { writes: true })
+  credentials() { return { syntheticOnly: true }; }
+  @Get("rooms/:id/credentials")
+  @UseGuards(LiveCredentialsGuard)
+  roomCredentials() { return { syntheticOnly: true }; }
   @Get("existing-order")
   existing() {
     return { syntheticOnly: true, owned: true };
@@ -61,7 +72,7 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [SyntheticController],
-      providers: [FeatureFlagGuard, Reflector, { provide: FeatureFlagService, useValue: service }],
+      providers: [FeatureFlagGuard, LiveCredentialsGuard, Reflector, { provide: FeatureFlagService, useValue: service }, { provide: PrismaService, useValue: { liveRoom: { findUnique: async ({ where }: any) => ({ status: where.id === "already-live" ? "LIVING" : "SCHEDULED" }) } } }],
     }).compile();
     app = module.createNestApplication();
     await app.init();
@@ -94,6 +105,7 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   });
   it("只读允许读取、拒绝写入；统一建单不得绕过关闭的会员购买", async () => {
     state = "READ_ONLY";
+    await request(app.getHttpServer()).get("/synthetic/new-credentials").set("X-App-Client", "test-huawei").expect(404);
     await request(app.getHttpServer())
       .get("/synthetic/read")
       .set("X-App-Client", "test-huawei")
@@ -121,5 +133,21 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
       expect(Reflect.getMetadata(FEATURE_FLAG_KEY, shopPrototype[name])).toBeUndefined();
     }
     expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MemberController)).toBeUndefined();
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.createRoom)).toBe("live_start");
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.getStreamConfig)).toBe("live_start");
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MerchantController)).toBeUndefined();
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MerchantController.prototype.createApplication)).toBe("merchant_onboarding");
+    for (const method of ["getApplication", "getDepositInfo", "previewAgreement"]) {
+      const handler = (MerchantController.prototype as any)[method];
+      expect(handler).toBeDefined();
+      expect(Reflect.getMetadata(FEATURE_FLAG_KEY, handler)).toBeUndefined();
+    }
+  });
+  it("只读/关闭时拒绝未开播凭证，既有直播续期凭证仍可读取", async () => {
+    for (const value of ["READ_ONLY", "UNOPENED"]) {
+      state = value;
+      await request(app.getHttpServer()).get("/synthetic/rooms/not-started/credentials").set("X-App-Client", "test-huawei").expect(404);
+      await request(app.getHttpServer()).get("/synthetic/rooms/already-live/credentials").set("X-App-Client", "test-huawei").expect(200);
+    }
   });
 });

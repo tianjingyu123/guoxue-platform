@@ -1,4 +1,5 @@
 node_modules/
+apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/libs/*.aar
 dist/
 apps/mobile/unpackage/resources/
 apps/server/.xiaobu-dist/

@@ -238,6 +238,9 @@ importers:
       '@dcloudio/uni-cli-shared':
         specifier: 3.0.0-alpha-5020320260803001
         version: 3.0.0-alpha-5020320260803001(@vueuse/core@12.0.0(typescript@5.9.3))(postcss@8.5.18)(rollup@4.59.0)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))(vue@3.5.34(typescript@5.9.3))
+      '@dcloudio/uni-uts-v1':
+        specifier: 3.0.0-alpha-5020320260803001
+        version: 3.0.0-alpha-5020320260803001(rollup@4.59.0)
       '@dcloudio/vite-plugin-uni':
         specifier: 3.0.0-alpha-5020320260803001
         version: 3.0.0-alpha-5020320260803001(@vueuse/core@12.0.0(typescript@5.9.3))(postcss@8.5.18)(rollup@4.59.0)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))(vite@5.4.21(@types/node@25.6.2)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.46.2))(vue@3.5.34(typescript@5.9.3))
@@ -502,7 +505,7 @@ importers:
         version: 7.2.2
       ts-jest:
         specifier: ^29.2.0
-        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0)(typescript@5.9.3)
+        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3)))(typescript@5.9.3)
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@24.13.3)(typescript@5.9.3)
@@ -520,7 +523,7 @@ importers:
         version: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3))
       ts-jest:
         specifier: ^29.1.0
-        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0)(typescript@5.9.3)
+        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3)))(typescript@5.9.3)
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
@@ -541,10 +544,10 @@ importers:
         version: 29.5.14
       jest:
         specifier: ^29.7.0
-        version: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3))
+        version: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
       ts-jest:
         specifier: ^29.1.0
-        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0)(typescript@5.9.3)
+        version: 29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)))(typescript@5.9.3)
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -1481,6 +1484,9 @@ packages:
   '@dcloudio/uni-app-vue@3.0.0-alpha-5020320260803001':
     resolution: {integrity: sha512-46vqbY4NOI8ipZi7Uo83nrKmp+eAFZKz2QgBLjHM+wtw62se4z/2hYvQuxs2Y5P9m+uDmotBXr7FAPf8eZitQA==}
 
+  '@dcloudio/uni-app-x@0.7.114':
+    resolution: {integrity: sha512-Kh6RVYmzx1mW9PSXXZmYJt2kanG7mRwKy6dQ0wH/D0EjHgWHsNbXuRQ6++xwc7KOChkoqnRWr68AiQTP1CcT0Q==}
+
   '@dcloudio/uni-app@3.0.0-alpha-5020320260803001':
     resolution: {integrity: sha512-zJBNDSnmV9sDAZAPh7sTGRc1ppcg2XQAo62JWcWlOCW6qMUqXg8zmVmcRY6oG68FJA48AV+1luFm4oYU+y4WaA==}
     peerDependencies:
@@ -1549,6 +1555,50 @@ packages:
 
   '@dcloudio/uni-stat@3.0.0-alpha-5020320260803001':
     resolution: {integrity: sha512-FMhgzimlSUte4ZsEm0HGSf+B8OoFUb68xSzK7mV+gI98J7neZ9bN+1tCk0SKAr185QlIdtjMuCiyzChj3EUDaA==}
+
+  '@dcloudio/uni-uts-v1@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-bf9aatwxyO3TJ+N6Znxuuz8aOLZoxh3tx84X+JsSQUAb6gRcLllJTKekIC7Hoaf3DEUoMX+b46wdWgPSimvzjw==}
+
+  '@dcloudio/uts-darwin-arm64@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-1I5GWd+mxi+T2KD4QKk0z/Xa/GID/39VKyTXkcXZdsL73F39ZSvaN57OwRBg9ByhdC5Ky4p4LRTbXy6XEvmS1w==}
+    engines: {node: '>=10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@dcloudio/uts-darwin-x64@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-1+dlOmGhVtnSgJVdBUFuE5BnGnrUx2Q+yQsT0fjrRN/q23H1audhM6FU8VR5nDW9boaRGPDy8URkgq4LIklAXA==}
+    engines: {node: '>=10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@dcloudio/uts-linux-x64-gnu@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-AebzT7xVn0F3nqqF2pQ/VVozwXx9jgB8Jw7K7cwyjuC4ywpr2qinfKYwmrCTlNHMRYIBfShhWKtKqXFjhpuoMg==}
+    engines: {node: '>=10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [gnu]
+
+  '@dcloudio/uts-linux-x64-musl@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-CXra3nXQurs3ZqzJ6yf7frFFQYR4En6DLD9pwYZxRYSVS0WojdkQfuEjOGNBeY09LdQTeFZrQbF6+SR4QhGg/Q==}
+    engines: {node: '>=10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@dcloudio/uts-win32-ia32-msvc@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-rdQuiDt8/t1LdeKvEXXVccZvdZzd+Tqv2c6hZE/Qo/hcxXukekY5Ig9NIghDBdkiY3NNjbYZ8ZLFH8JvhuQIiA==}
+    engines: {node: '>=10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@dcloudio/uts-win32-x64-msvc@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-ZGMOMHT6A+PKL7kYGO1/PsTgJbn26s3JilHqySw90Ul1v8MN8pzs1iOcLC/lhL6j3wutmea/JHjt3CwMjTt5dQ==}
+    engines: {node: '>=10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@dcloudio/uts@3.0.0-alpha-5020320260803001':
+    resolution: {integrity: sha512-rn9rJyjJFxSoSBLNOIXMpC8OAHmX26bytF96MNUPUw5UWt74ZVzBZURtuTjnBdDN1YCDLaRlkmNdgShqm2ow5Q==}
 
   '@dcloudio/vite-plugin-uni@3.0.0-alpha-5020320260803001':
     resolution: {integrity: sha512-VVX7kq713Jsbta/zq6nc2xfrQuKzLYyP6WPNTZw0FyLTr6B+ady4Qm8YZdmC5WFoUiyF1fezWtv4d7Y8nZbmfw==}
@@ -4280,6 +4330,9 @@ packages:
   alien-signals@1.0.13:
     resolution: {integrity: sha512-OGj9yyTnJEttvzhTUWuscOvtqxq5vrhF7vL9oS0xJ2mK0ItPYP1/y+vCFebfxoEyAz0++1AIwJ5CMr+Fk3nDmg==}
 
+  android-versions@1.9.0:
+    resolution: {integrity: sha512-13O2B6PQMEM4ej9n13ePRQeckrCoKbZrvuzlLvK+9s2QmncpHDbYzZxhgapN32sJNoifN6VAHexLnd/6CYrs7Q==}
+
   ansi-colors@4.1.3:
     resolution: {integrity: sha512-/6w/C21Pm1A7aZitlI5Ni/2J6FFQN8i1Cvz3kHABAAbw93v/NlvKdVOqz7CCWz/3iv/JplRSEEZ83XION15ovw==}
     engines: {node: '>=6'}
@@ -4770,6 +4823,10 @@ packages:
   colorette@2.0.20:
     resolution: {integrity: sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w==}
 
+  colors@1.4.0:
+    resolution: {integrity: sha512-a+UqTh4kgZg/SlGvfbzDHpgRu7AAQOmmqRHJnxhRZICKFUT91brVhNNt58CMWU9PsBbv3PDCZUHbVxuDiH2mtA==}
+    engines: {node: '>=0.1.90'}
+
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
@@ -4784,6 +4841,9 @@ packages:
   comment-json@4.2.5:
     resolution: {integrity: sha512-bKw/r35jR3HGt5PEPm1ljsQQGyCrR8sFGNiN5L+ykDHdpO8Smxkrkla9Yi6NkQyUrb8V54PGhfMs6NrIwtxtdw==}
     engines: {node: '>= 6'}
+
+  commondir@1.0.1:
+    resolution: {integrity: sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg==}
 
   compare-versions@3.6.0:
     resolution: {integrity: sha512-W6Af2Iw1z4CB7q4uU4hv646dW9GQuBM+YpC0UvUCWSD8w90SJjp+ujJuXaEMtAXBtSqGfMPuFOVn4/+FlaqfBA==}
@@ -5533,6 +5593,10 @@ packages:
     resolution: {integrity: sha512-S8KoZgRZN+a5rNwqTxlZZePjT/4cnm0ROV70LedRHZ0p8u9fRID0hJUZQpkKLzro8LfmC8sx23bY6tVNxv8pQA==}
     engines: {node: '>= 18.0.0'}
 
+  find-cache-dir@3.3.2:
+    resolution: {integrity: sha512-wXZV5emFEjrridIgED11OoUKLxiYjAcqot/NJdAkOhlJ+vGzwhOAfcG5OX1jP+S0PcjEn8bdMJv+g2jwQ3Onig==}
+    engines: {node: '>=8'}
+
   find-up@3.0.0:
     resolution: {integrity: sha512-1yD6RmLI1XBfxugvORwlck6f75tYL+iR0jqwsOrOxMZyGYqUuDhJ0l4AXdO1iX/FTs9cBAMEk1gWSEx1kSbylg==}
     engines: {node: '>=6'}
@@ -5699,6 +5763,9 @@ packages:
 
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
+
+  graphlib@2.1.8:
+    resolution: {integrity: sha512-jcLLfkpoVGmH7/InMC/1hIvOPSUh38oJtGhvrOFGzioE1DZ+0YW16RgmOJhHiuWTvGiJQ9Z1Ik43JvkRPRvE+A==}
 
   graphql-depth-limit@1.1.0:
     resolution: {integrity: sha512-+3B2BaG8qQ8E18kzk9yiSdAa75i/hnnOwgSeAxVJctGQPvmeiLtqKOYF6HETCyRjiF7Xfsyal0HbLlxCQkgkrw==}
@@ -6695,6 +6762,11 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  md5-file@5.0.0:
+    resolution: {integrity: sha512-xbEFXCYVWrSx/gEKS1VPlg84h/4L20znVIulKw6kMfmBUAZNAnF00eczz9ICMl+/hjQGo5KSXRxbL/47X3rmMw==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
 
   media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
@@ -7698,6 +7770,11 @@ packages:
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
+    hasBin: true
+
+  semver@7.6.3:
+    resolution: {integrity: sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==}
+    engines: {node: '>=10'}
     hasBin: true
 
   semver@7.7.4:
@@ -10245,6 +10322,8 @@ snapshots:
 
   '@dcloudio/uni-app-vue@3.0.0-alpha-5020320260803001': {}
 
+  '@dcloudio/uni-app-x@0.7.114': {}
+
   '@dcloudio/uni-app@3.0.0-alpha-5020320260803001(@dcloudio/types@3.4.31)(@vueuse/core@12.0.0(typescript@5.9.3))(postcss@8.5.18)(rollup@4.59.0)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))(vite@5.4.21(@types/node@25.6.2)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.46.2))(vue@3.5.34(typescript@5.9.3))':
     dependencies:
       '@dcloudio/types': 3.4.31
@@ -10614,6 +10693,59 @@ snapshots:
       - supports-color
       - ts-node
       - vue
+
+  '@dcloudio/uni-uts-v1@3.0.0-alpha-5020320260803001(rollup@4.59.0)':
+    dependencies:
+      '@babel/code-frame': 7.24.7
+      '@dcloudio/uni-app-x': 0.7.114
+      '@dcloudio/uts': 3.0.0-alpha-5020320260803001
+      '@rollup/pluginutils': 5.1.0(rollup@4.59.0)
+      '@vue/shared': 3.4.21
+      adm-zip: 0.6.1
+      android-versions: 1.9.0
+      colors: 1.4.0
+      debug: 4.3.7
+      fast-glob: 3.3.3
+      find-cache-dir: 3.3.2
+      fs-extra: 10.1.0
+      graphlib: 2.1.8
+      jsonc-parser: 3.3.1
+      lodash: 4.18.1
+      md5-file: 5.0.0
+      object-hash: 3.0.0
+      semver: 7.6.3
+      source-map: 0.7.6
+      source-map-js: 1.2.1
+    transitivePeerDependencies:
+      - rollup
+      - supports-color
+
+  '@dcloudio/uts-darwin-arm64@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts-darwin-x64@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts-linux-x64-gnu@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts-linux-x64-musl@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts-win32-ia32-msvc@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts-win32-x64-msvc@3.0.0-alpha-5020320260803001':
+    optional: true
+
+  '@dcloudio/uts@3.0.0-alpha-5020320260803001':
+    optionalDependencies:
+      '@dcloudio/uts-darwin-arm64': 3.0.0-alpha-5020320260803001
+      '@dcloudio/uts-darwin-x64': 3.0.0-alpha-5020320260803001
+      '@dcloudio/uts-linux-x64-gnu': 3.0.0-alpha-5020320260803001
+      '@dcloudio/uts-linux-x64-musl': 3.0.0-alpha-5020320260803001
+      '@dcloudio/uts-win32-ia32-msvc': 3.0.0-alpha-5020320260803001
+      '@dcloudio/uts-win32-x64-msvc': 3.0.0-alpha-5020320260803001
 
   '@dcloudio/vite-plugin-uni@3.0.0-alpha-5020320260803001(@vueuse/core@12.0.0(typescript@5.9.3))(postcss@8.5.18)(rollup@4.59.0)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))(vite@5.4.21(@types/node@25.6.2)(lightningcss@1.32.0)(sass@1.99.0)(terser@5.46.2))(vue@3.5.34(typescript@5.9.3))':
     dependencies:
@@ -11302,6 +11434,41 @@ snapshots:
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
       jest-config: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3))
+      jest-haste-map: 29.7.0
+      jest-message-util: 29.7.0
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-resolve-dependencies: 29.7.0
+      jest-runner: 29.7.0
+      jest-runtime: 29.7.0
+      jest-snapshot: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      jest-watcher: 29.7.0
+      micromatch: 4.0.8
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-ansi: 6.0.1
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  '@jest/core@29.7.0(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))':
+    dependencies:
+      '@jest/console': 29.7.0
+      '@jest/reporters': 29.7.0
+      '@jest/test-result': 29.7.0
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      '@types/node': 24.13.3
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-changed-files: 29.7.0
+      jest-config: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -13587,6 +13754,10 @@ snapshots:
 
   alien-signals@1.0.13: {}
 
+  android-versions@1.9.0:
+    dependencies:
+      semver: 7.8.5
+
   ansi-colors@4.1.3: {}
 
   ansi-escapes@4.3.2:
@@ -14139,6 +14310,8 @@ snapshots:
 
   colorette@2.0.20: {}
 
+  colors@1.4.0: {}
+
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
@@ -14154,6 +14327,8 @@ snapshots:
       esprima: 4.0.1
       has-own-prop: 2.0.0
       repeat-string: 1.6.1
+
+  commondir@1.0.1: {}
 
   compare-versions@3.6.0: {}
 
@@ -14272,6 +14447,21 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-config: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3))
+      jest-util: 29.7.0
+      prompts: 2.4.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
+  create-jest@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
+    dependencies:
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      exit: 0.1.2
+      graceful-fs: 4.2.11
+      jest-config: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
       jest-util: 29.7.0
       prompts: 2.4.2
     transitivePeerDependencies:
@@ -15120,6 +15310,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  find-cache-dir@3.3.2:
+    dependencies:
+      commondir: 1.0.1
+      make-dir: 3.1.0
+      pkg-dir: 4.2.0
+
   find-up@3.0.0:
     dependencies:
       locate-path: 3.0.0
@@ -15301,6 +15497,10 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   graphemer@1.4.0: {}
+
+  graphlib@2.1.8:
+    dependencies:
+      lodash: 4.18.1
 
   graphql-depth-limit@1.1.0(graphql@16.14.0):
     dependencies:
@@ -15743,6 +15943,25 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest-cli@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
+      '@jest/test-result': 29.7.0
+      '@jest/types': 29.6.3
+      chalk: 4.1.2
+      create-jest: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
+      exit: 0.1.2
+      import-local: 3.2.0
+      jest-config: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      yargs: 17.7.2
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   jest-config@27.5.1(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
     dependencies:
       '@babel/core': 7.29.0
@@ -15804,6 +16023,68 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.13.3
       ts-node: 10.9.2(@types/node@24.13.3)(typescript@5.9.3)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
+    dependencies:
+      '@babel/core': 7.29.0
+      '@jest/test-sequencer': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.29.0)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 10.5.0
+      graceful-fs: 4.2.11
+      jest-circus: 29.7.0
+      jest-environment-node: 29.7.0
+      jest-get-type: 29.6.3
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-runner: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      micromatch: 4.0.8
+      parse-json: 5.2.0
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 24.13.3
+      ts-node: 10.9.2(@types/node@25.6.2)(typescript@5.9.3)
+    transitivePeerDependencies:
+      - babel-plugin-macros
+      - supports-color
+
+  jest-config@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
+    dependencies:
+      '@babel/core': 7.29.0
+      '@jest/test-sequencer': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.29.0)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 10.5.0
+      graceful-fs: 4.2.11
+      jest-circus: 29.7.0
+      jest-environment-node: 29.7.0
+      jest-get-type: 29.6.3
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-runner: 29.7.0
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      micromatch: 4.0.8
+      parse-json: 5.2.0
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 25.6.2
+      ts-node: 10.9.2(@types/node@25.6.2)(typescript@5.9.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -16316,6 +16597,18 @@ snapshots:
       - supports-color
       - ts-node
 
+  jest@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)):
+    dependencies:
+      '@jest/core': 29.7.0(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
+      '@jest/types': 29.6.3
+      import-local: 3.2.0
+      jest-cli: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - supports-color
+      - ts-node
+
   jimp@0.10.3(debug@4.4.3):
     dependencies:
       '@babel/runtime': 7.29.2
@@ -16698,6 +16991,8 @@ snapshots:
       tmpl: 1.0.5
 
   math-intrinsics@1.1.0: {}
+
+  md5-file@5.0.0: {}
 
   media-typer@0.3.0: {}
 
@@ -17672,6 +17967,8 @@ snapshots:
 
   semver@6.3.1: {}
 
+  semver@7.6.3: {}
+
   semver@7.7.4: {}
 
   semver@7.8.0: {}
@@ -18275,12 +18572,32 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0)(typescript@5.9.3):
+  ts-jest@29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3)))(typescript@5.9.3):
     dependencies:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
       handlebars: 4.7.9
       jest: 29.7.0(@types/node@24.13.3)(ts-node@10.9.2(@types/node@24.13.3)(typescript@5.9.3))
+      json5: 2.2.3
+      lodash.memoize: 4.1.2
+      make-error: 1.3.6
+      semver: 7.7.4
+      type-fest: 4.41.0
+      typescript: 5.9.3
+      yargs-parser: 21.1.1
+    optionalDependencies:
+      '@babel/core': 7.29.0
+      '@jest/transform': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.29.0)
+      jest-util: 29.7.0
+
+  ts-jest@29.4.9(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3)))(typescript@5.9.3):
+    dependencies:
+      bs-logger: 0.2.6
+      fast-json-stable-stringify: 2.1.0
+      handlebars: 4.7.9
+      jest: 29.7.0(@types/node@25.6.2)(ts-node@10.9.2(@types/node@25.6.2)(typescript@5.9.3))
       json5: 2.2.3
       lodash.memoize: 4.1.2
       make-error: 1.3.6

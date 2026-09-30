@@ -5,3 +5,4 @@ export * from "./error-codes";
 // 因为 types/ 里已有同名的 Gan/Zhi/QimenResult（后端旧契约），并入会撞名。
 export { APP_CHANNELS } from "./app-channels";
 export * from "./resource-update";
+export * from "./wgt-control";

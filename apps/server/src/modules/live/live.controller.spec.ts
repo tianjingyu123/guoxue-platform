@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { LiveController } from "./live.controller";
+import { LiveCredentialsGuard } from "./live-credentials.guard";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -94,6 +95,7 @@ describe("LiveController", () => {
       .overrideGuard(TencentCallbackGuard).useValue({ canActivate: () => true })
       .overrideGuard(TrtcCallbackGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(LiveCredentialsGuard).useValue({ canActivate: () => true })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(LiveController);

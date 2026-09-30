@@ -19,6 +19,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { apiGet } from '@/utils/request'
 import { purchaseApi } from '@/lib/purchase-data'
 import { getUserInfo } from '@/utils/storage'
+import { beginCriticalActivity } from '@/lib/critical-activities'
 import { createAlipayNativePayment, openHuifuAlipayWithSdk, type AlipayAttempt, type AlipayOrderState, type AlipayView } from '@/utils/huifu-alipay-native'
 
 declare const plus: {
@@ -37,6 +38,8 @@ let timer: ReturnType<typeof setTimeout> | null = null
 let stopped = false
 let visible = true
 let polls = 0
+// 覆盖直接 Native.js SDK 和外部支付宝回跳；页面隐藏时仍保留支付租约。
+let endPayment: (() => void) | undefined
 function sameOwner() { return Boolean(owner) && owner === String(getUserInfo<{ id?: string }>()?.id || '') }
 function assertOwner() { if (!sameOwner()) throw new Error('登录状态已变化，请重新进入订单') }
 const flow = createAlipayNativePayment({
@@ -62,7 +65,7 @@ const flow = createAlipayNativePayment({
     assertOwner()
     if (visible && !stopped) openHuifuAlipayWithSdk(attemptQrCode(), plus, failed, () => { if (visible && !stopped) void check() })
   },
-  update: (next) => { if (sameOwner() && !stopped) view.value = next },
+  update: (next) => { if (sameOwner() && !stopped) { view.value = next; if (['success', 'closed', 'unsupported'].includes(next.phase)) { endPayment?.(); endPayment = undefined } } },
   paid: (order) => { assertOwner(); pause(); emit('paid', order) },
   now: () => Date.now(),
   active: () => visible && !stopped && sameOwner(),
@@ -94,9 +97,9 @@ async function resume() {
   polls = 0
   await check()
 }
-function leave() { stopped = true; pause(); flow.dispose(); emit('back') }
-onMounted(async () => { await flow.start(); schedule() })
-onUnmounted(() => { stopped = true; pause(); flow.dispose() })
+function leave() { stopped = true; pause(); flow.dispose(); endPayment?.(); endPayment = undefined; emit('back') }
+onMounted(async () => { endPayment = beginCriticalActivity('payment'); await flow.start(); schedule() })
+onUnmounted(() => { stopped = true; pause(); flow.dispose(); endPayment?.(); endPayment = undefined })
 defineExpose({ resume, pause })
 </script>
 
