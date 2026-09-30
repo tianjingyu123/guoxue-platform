@@ -209,6 +209,70 @@ try {
   save("sensitive-http-audit.json", sensitiveReport);
   check("sensitive-feedback-roles-mask-audit-limit-and-validation", sensitiveReport);
 
+  // 合成财务记录：模拟正常角色请求及显式自动化请求，不打款、不退款、不发物流。
+  // 收款账户原文只在容器中断言；审计失败通过仅命中本次合成主键的临时触发器注入。
+  const financeReport = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const assert=require('assert/strict');const jwt=req('jsonwebtoken');const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const rows=[];const syntheticAccount={account:'ISOLATED-NON-PAYABLE-ACCOUNT',name:'合成账户，不能出款'};
+    const send=async(name,user,path,expected,method='GET',body,automated=false)=>{
+      const headers={Authorization:'Bearer '+jwt.sign({sub:user,sessionIssuedAt:Date.now()},process.env.JWT_SECRET,{expiresIn:'5m'})};
+      if(body)headers['Content-Type']='application/json';if(automated)headers['x-executor-type']='AUTOMATION';
+      const response=await fetch('http://127.0.0.1:3000/api/v1'+path,{method,headers,...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10000)});
+      const result=await response.json();rows.push({name,status:response.status,expected,passed:response.status===expected});
+      assert.equal(response.status,expected,name);return result.data||result;
+    };
+    (async()=>{try{
+      await p.circle.create({data:{id:'linux-finance-circle',name:'隔离财务验收',intro:'仅合成记录',tags:[],ownerId:'linux-user-b'}});
+      for(const suffix of ['finance','super']){
+        const refundId='linux-manual-refund-'+suffix;
+        await p.circleRefundRequest.create({data:{id:refundId,circleId:'linux-finance-circle',userId:'linux-user-a',paidAmount:1,dailyCost:0,usedDays:0,refundBase:1,feeAmount:0,actualRefund:1}});
+        await p.commissionRecall.create({data:{id:'linux-manual-recall-'+suffix,refundId,userId:'linux-user-b',userType:'owner',amount:0,balanceAfter:0,status:'pending_manual'}});
+      }
+      const manual='/circle-refund/manual-recalls/linux-manual-recall-finance/resolve';
+      const decision={decision:'no_change',note:'隔离人工核对合成凭据，确认无需调整任何资金'};
+      for(const user of ['linux-ops','linux-customer','linux-user-a'])await send('manual-no-change-role-denied-'+user,user,manual,403,'POST',decision);
+      await send('manual-no-change-automation-denied','linux-super',manual,403,'POST',decision,true);
+      await send('manual-no-change-missing-evidence','linux-finance',manual,400,'POST',{decision:'no_change',note:''});
+      const before={revenue:await p.circleRevenueRecord.count(),wallet:await p.userWallet.count()};
+      const finance=await send('manual-no-change-finance-single-operator','linux-finance',manual,201,'POST',decision);
+      assert.equal(finance.status,'manual_no_change');assert.equal(finance.ownerRecalled,0);
+      await send('manual-no-change-repeat-denied','linux-finance',manual,400,'POST',decision);
+      const superResult=await send('manual-no-change-super-single-operator','linux-super','/circle-refund/manual-recalls/linux-manual-recall-super/resolve',201,'POST',decision);
+      assert.equal(superResult.status,'manual_no_change');assert.equal(superResult.ownerRecalled,0);
+      for(const [suffix,operator] of [['finance','linux-finance'],['super','linux-super']]){
+        const record=await p.commissionRecall.findUnique({where:{id:'linux-manual-recall-'+suffix}});
+        assert.equal(record.status,'manual_no_change');assert.equal(record.resolvedBy,operator);assert(record.resolvedAt);
+        assert.equal(record.resolvedRevenueId,null);assert.equal(Number(record.amount),0);assert.equal(Number(record.balanceAfter),0);
+      }
+      assert.equal(await p.circleRevenueRecord.count(),before.revenue);assert.equal(await p.userWallet.count(),before.wallet);
+      for(const [id,userId,status] of [['linux-payout-approved','linux-user-a','APPROVED'],['linux-payout-self','linux-super','APPROVED'],['linux-payout-pending','linux-user-a','PENDING'],['linux-payout-audit-fail','linux-user-a','APPROVED']])
+        await p.withdrawalApplication.create({data:{id,userId,amount:1,actualAmount:1,payMethod:'BANK',accountInfo:syntheticAccount,status}});
+      const payout='/finance/withdrawals/linux-payout-approved/payout-account';
+      for(const user of ['linux-ops','linux-customer','linux-user-a'])await send('payout-role-denied-'+user,user,payout,403);
+      await send('payout-automation-denied','linux-super',payout,403,'GET',null,true);
+      for(const user of ['linux-super','linux-finance']){
+        const detail=await send('payout-approved-'+user,user,payout,200);assert.deepEqual(detail.accountInfo,syntheticAccount);
+      }
+      await send('payout-self-denied','linux-super','/finance/withdrawals/linux-payout-self/payout-account',403);
+      await send('payout-pending-denied','linux-finance','/finance/withdrawals/linux-payout-pending/payout-account',400);
+      assert.equal(await p.auditLog.count({where:{action:'REVEAL_PAYOUT_ACCOUNT',targetId:'linux-payout-approved'}}),2);
+      await p.$executeRawUnsafe(${JSON.stringify('CREATE FUNCTION isolated_audit_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."targetId" = \'linux-payout-audit-fail\' THEN RAISE EXCEPTION \'isolated audit failure\'; END IF; RETURN NEW; END $$')});
+      await p.$executeRawUnsafe('CREATE TRIGGER isolated_audit_reject BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION isolated_audit_reject()');
+      const denied=await send('payout-audit-failure-denied','linux-finance','/finance/withdrawals/linux-payout-audit-fail/payout-account',500);
+      assert(!JSON.stringify(denied).includes(syntheticAccount.account));assert.equal(await p.auditLog.count({where:{targetId:'linux-payout-audit-fail'}}),0);
+      await p.$executeRawUnsafe('DROP TRIGGER isolated_audit_reject ON "AuditLog"');await p.$executeRawUnsafe('DROP FUNCTION isolated_audit_reject()');
+      for(const user of ['linux-customer','linux-finance','linux-user-a'])await send('order-ship-role-denied-'+user,user,'/shop/orders/linux-order-b/ship',403,'PUT');
+      await send('order-ship-automation-denied','linux-super','/shop/orders/linux-order-b/ship',403,'PUT',null,true);
+      await send('order-refund-automation-denied','linux-super','/shop/orders/linux-order-b/refund',403,'PUT',{reason:'隔离拒绝路径'},true);
+      assert.equal((await p.order.findUnique({where:{id:'linux-order-b'}})).status,'PAID');
+      assert.equal(await p.withdrawalApplication.count({where:{id:{startsWith:'linux-payout-'},status:'PAID'}}),0);
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({passed:true,cases:rows,noChangeFundsUntouched:true,normalPayoutAudits:2,auditFailureWithheldAccount:true,realTransfers:0,shippingExecuted:false,adjustDecisionNotCovered:true,sensitiveValuesInEvidence:false}));
+    }finally{await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS isolated_audit_reject ON "AuditLog"').catch(()=>{});await p.$executeRawUnsafe('DROP FUNCTION IF EXISTS isolated_audit_reject()').catch(()=>{});await p.$disconnect();}})().catch(e=>{console.error('合成财务权限断言失败：'+e.message);process.exitCode=1});`);
+  assert(financeReport.passed);
+  save("finance-http-boundaries.json", financeReport);
+  check("manual-no-change-payout-audit-failure-and-write-role-boundaries", financeReport);
+
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
     const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
