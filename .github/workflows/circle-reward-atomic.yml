@@ -1,0 +1,90 @@
+name: 圈帖打赏候选原子事务隔离验证
+
+on:
+  push:
+    branches: ["codex/image-verify-20260930"]
+    paths:
+      - ".github/workflows/circle-reward-atomic.yml"
+      - "scripts/release/verify-circle-reward-atomic.cjs"
+      - "scripts/release/verify-circle-reward-atomic-runtime.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: circle-reward-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  atomic-reward:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_COMMIT: "9d9e4f3c8db1ab2cb433cc9171e255c0b0a828f2"
+      NODE_OPTIONS: "--max-old-space-size=4096"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/release
+
+      - name: 独立检出待评审业务候选
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: candidate
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: "10.33.3"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+          cache: "pnpm"
+          cache-dependency-path: candidate/pnpm-lock.yaml
+
+      - name: 在本次隔离检出中恢复依赖和Prisma客户端
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm build:prerequisites
+
+      - name: 指定回归和类型检查
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          mkdir -p ../results
+          pnpm --filter @guoxue/server exec jest --config jest.config.ts --runInBand --runTestsByPath \
+            src/modules/circle/services/circle-post.service.spec.ts \
+            src/modules/circle/circle.controller.spec.ts \
+            src/modules/coin/coin.service.spec.ts \
+            src/modules/coin/coin-transaction-boundary.spec.ts \
+            src/modules/circle/governance/circle-governance.service.spec.ts \
+            src/modules/consult-call/consult-call.service.spec.ts \
+            src/modules/question/question.service.spec.ts \
+            src/modules/call/call.service.spec.ts \
+            src/modules/live/live-quality.service.spec.ts \
+            src/modules/institute/content.service.spec.ts \
+            src/modules/paipan/paipan-ai.service.spec.ts \
+            --coverage=false --json --outputFile=../../../results/candidate-unit.json 2>&1 | tee ../results/candidate-unit.log
+          pnpm --filter @guoxue/server exec tsc --noEmit
+
+      - name: 独立编译正式后端服务源码
+        working-directory: candidate
+        run: pnpm --filter @guoxue/server build
+
+      - name: 临时PostgreSQL和Redis验证含两个独立进程
+        run: node scripts/release/verify-circle-reward-atomic-runtime.mjs
+
+      - name: 保存本轮候选验证证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: circle-reward-atomic-${{ github.run_id }}
+          path: results/
+          retention-days: 14
+          if-no-files-found: error
