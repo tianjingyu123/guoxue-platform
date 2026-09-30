@@ -1,0 +1,228 @@
+{
+  "sourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
+  "sourceSha256": "4e4ea5a64177d6ec2ae6fd0f5e16afa36ad351bccda0ed7e774e566581266873",
+  "image": "rebu-linux-verify:08a5c0ac",
+  "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
+  "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
+  "scope": "isolated-empty-db-no-real-channels",
+  "checks": [
+    {
+      "name": "image-identity",
+      "passed": true,
+      "detail": "sha256:d0ce13edfb32cfaa57c846fdca3fd0d5bc67dddc3a6dd010c128c956b2fb4cfc"
+    },
+    {
+      "name": "prisma-source-compile-runtime-binding",
+      "passed": true,
+      "detail": {
+        "schemaVersion": 1,
+        "kind": "prisma-build-binding",
+        "schemaHash": "4004f698511cae3b29ef3aef324bf00bab417160724de2938dd17ed0f06e67d5",
+        "clientVersion": "6.19.3"
+      }
+    },
+    {
+      "name": "admin-h5-base-and-public-config",
+      "passed": true,
+      "detail": [
+        {
+          "name": "admin",
+          "prefix": "/admin/",
+          "fileCount": 503
+        },
+        {
+          "name": "h5",
+          "prefix": "/h5/",
+          "fileCount": 1177
+        }
+      ]
+    },
+    {
+      "name": "postgres-major-match",
+      "passed": true,
+      "detail": {
+        "actual": "18.6 (Debian 18.6-1.pgdg13+2)",
+        "targetObserved": "18.4",
+        "patchMatchRequiredForFinalAcceptance": true
+      }
+    },
+    {
+      "name": "temporary-empty-db-final-schema",
+      "passed": true,
+      "detail": "仅创建临时空库结构，不验证生产迁移链"
+    },
+    {
+      "name": "production-entrypoint-health-public-http",
+      "passed": true,
+      "detail": [
+        {
+          "path": "/api/v1/health/live",
+          "status": 200,
+          "releaseId": "isolated-08a5c0ac"
+        },
+        {
+          "path": "/api/v1/health/ready",
+          "status": 200,
+          "releaseId": null
+        },
+        {
+          "path": "/api/v1/health",
+          "status": 200,
+          "releaseId": "isolated-08a5c0ac"
+        },
+        {
+          "path": "/api/v1/mini/home",
+          "status": 200,
+          "releaseId": null
+        },
+        {
+          "path": "/api/v1/contents?page=1&pageSize=1",
+          "status": 200,
+          "releaseId": null
+        }
+      ]
+    },
+    {
+      "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+      "passed": true,
+      "detail": [
+        {
+          "name": "notification-anonymous",
+          "status": 401,
+          "expected": 401,
+          "passed": true
+        },
+        {
+          "name": "notification-owner",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "notification-cross-user",
+          "status": 404,
+          "expected": 404,
+          "passed": true
+        },
+        {
+          "name": "notification-target-cross-user",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "notification-target-owner",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-super",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-ops",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "admin-history-customer-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "admin-history-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "feedback-list-customer",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "feedback-list-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "full-profile-super",
+          "status": 200,
+          "expected": 200,
+          "passed": true
+        },
+        {
+          "name": "full-profile-customer-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        },
+        {
+          "name": "full-profile-finance-denied",
+          "status": 403,
+          "expected": 403,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "redis7-two-process-notification-idempotency",
+      "passed": true,
+      "detail": [
+        {
+          "created": true,
+          "sharedRedis": true
+        },
+        {
+          "created": false,
+          "sharedRedis": true
+        }
+      ]
+    },
+    {
+      "name": "database-unique-after-redis-key-loss",
+      "passed": true,
+      "detail": [
+        {
+          "created": false,
+          "sharedRedis": true
+        },
+        {
+          "created": false,
+          "sharedRedis": true
+        }
+      ]
+    },
+    {
+      "name": "notification-failure-release-and-two-process-retry",
+      "passed": true,
+      "detail": {
+        "failure": {
+          "failed": true,
+          "released": true
+        },
+        "retry": [
+          {
+            "created": false,
+            "sharedRedis": true
+          },
+          {
+            "created": true,
+            "sharedRedis": true
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true,
+  "workflowRunId": 36723300125,
+  "verificationCommit": "d55c651241be0bb6167cc04ae890a97ca81645b2",
+  "evidenceZipSha256": "3fe1b71c612bacc744ab9e76880aa0960576cf0be90435589bb7dd7b5710fe69"
+}
