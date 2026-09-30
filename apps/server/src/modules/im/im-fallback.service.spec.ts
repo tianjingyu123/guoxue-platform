@@ -71,4 +71,16 @@ describe("ImFallbackService", () => {
     expect(prisma.imFallbackMessage.updateMany).not.toHaveBeenCalled();
     expect(prisma.imFallbackConversationPreference.upsert).toHaveBeenCalled();
   });
+
+  it("会话偏好只允许置顶和免打扰，不能由请求体改写用户、对端或隐藏时点", async () => {
+    await service.updatePreference("u1", "u2", {
+      isPinned: true, isMuted: false, userId: "victim", peerUserId: "other",
+      hiddenBefore: new Date("2099-01-01"),
+    } as any);
+    expect(prisma.imFallbackConversationPreference.upsert).toHaveBeenCalledWith({
+      where: { userId_peerUserId: { userId: "u1", peerUserId: "u2" } },
+      create: { userId: "u1", peerUserId: "u2", isPinned: true, isMuted: false },
+      update: { isPinned: true, isMuted: false },
+    });
+  });
 });

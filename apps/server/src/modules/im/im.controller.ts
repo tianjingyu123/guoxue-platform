@@ -19,6 +19,7 @@ import {
   SendImageDto,
   SendCustomDto,
   UpdatePolicyConfigDto,
+  UpdateFallbackConversationDto,
 } from "./im.dto";
 import { RedLineGate, RedLine } from "../../common/red-lines";
 import { ImFallbackService } from "./im-fallback.service";
@@ -84,7 +85,7 @@ export class ImController {
   fallbackPreference(
     @Req() req: Request,
     @Param("peerUserId") peerUserId: string,
-    @Body() input: { isPinned?: boolean; isMuted?: boolean },
+    @Body() input: UpdateFallbackConversationDto,
   ) {
     return this.fallback.updatePreference(req.user.id, peerUserId, input);
   }

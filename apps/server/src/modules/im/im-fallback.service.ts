@@ -132,10 +132,14 @@ export class ImFallbackService {
   }
 
   async updatePreference(userId: string, peerUserId: string, input: { isPinned?: boolean; isMuted?: boolean }) {
+    // 所属用户和对端只来自鉴权及路径；内部调用同样不能透传任意数据库字段。
+    const preference: { isPinned?: boolean; isMuted?: boolean } = {};
+    if (typeof input.isPinned === "boolean") preference.isPinned = input.isPinned;
+    if (typeof input.isMuted === "boolean") preference.isMuted = input.isMuted;
     return this.prisma.imFallbackConversationPreference.upsert({
       where: { userId_peerUserId: { userId, peerUserId } },
-      create: { userId, peerUserId, ...input },
-      update: input,
+      create: { userId, peerUserId, ...preference },
+      update: preference,
     });
   }
 

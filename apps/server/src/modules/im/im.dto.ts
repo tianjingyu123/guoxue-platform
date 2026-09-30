@@ -1,6 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsOptional, IsArray, MinLength, IsBoolean, IsInt, Min, Max } from "class-validator";
 
+export class UpdateFallbackConversationDto {
+  @ApiPropertyOptional({ description: "置顶此会话" })
+  @IsOptional()
+  @IsBoolean()
+  isPinned?: boolean;
+
+  @ApiPropertyOptional({ description: "此会话免打扰" })
+  @IsOptional()
+  @IsBoolean()
+  isMuted?: boolean;
+}
+
 export class GenUserSigDto {
   @ApiPropertyOptional({ description: "用户ID（不传则使用当前登录用户）" })
   @IsString()
