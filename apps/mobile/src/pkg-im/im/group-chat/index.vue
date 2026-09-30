@@ -338,8 +338,8 @@ const poller = createVisiblePoller(async (isCurrent) => {
     loading.value = false
     await nextTick()
     if (isCurrent() && (firstLoad || fresh.length)) await scrollToBottom(isCurrent)
-  } catch (e) {
-    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '加载群聊数据失败，请重试'
+  } catch {
+    if (isCurrent() && !loaded) error.value = '暂时无法加载群聊，请稍后重试'
   } finally {
     if (isCurrent()) loading.value = false
   }

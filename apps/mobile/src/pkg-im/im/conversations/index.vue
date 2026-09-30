@@ -217,8 +217,8 @@ const poller = createVisiblePoller(async (isCurrent) => {
           .filter((c): c is ConversationItem => c !== null)
       })
     }
-  } catch (e) {
-    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '加载会话列表失败，请重试'
+  } catch {
+    if (isCurrent() && !loaded) error.value = '暂时无法加载私信，请稍后重试'
   } finally {
     if (isCurrent()) loading.value = false
   }

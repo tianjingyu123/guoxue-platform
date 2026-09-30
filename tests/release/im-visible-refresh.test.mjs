@@ -175,10 +175,10 @@ test('聊天隐藏期间迟到历史不更新、不标已读；卸载后无后�
 
 test('初次网络失败后重试恢复，重复重试仅一次后续请求', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
-  const r = pageRuntime('chat', { getCapabilities: async () => { throw Error('初次断网') } })
+  const r = pageRuntime('chat', { getCapabilities: async () => { throw Error('请求的接口不存在：/api/v1/im/capabilities') } })
   t.after(() => r.hooks.unmount())
   r.hooks.mount(); await settle()
-  assert.equal(r.page.loading.value, false); assert.equal(r.page.error.value, '初次断网')
+  assert.equal(r.page.loading.value, false); assert.equal(r.page.error.value, '暂时无法连接消息服务，请稍后重试')
   const retry = deferred(); let calls = 0
   r.imApi.getCapabilities = async () => { calls++; return retry.promise }
   r.page.loadData(); r.page.loadData(); r.page.loadData(); await settle()

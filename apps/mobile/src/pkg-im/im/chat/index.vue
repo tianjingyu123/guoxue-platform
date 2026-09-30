@@ -253,8 +253,8 @@ const poller = createVisiblePoller(async (isCurrent) => {
     loading.value = false
     await nextTick()
     if (isCurrent() && hasNewMessages) await scrollToBottom(isCurrent)
-  } catch (e) {
-    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '连接消息服务失败，请重试'
+  } catch {
+    if (isCurrent() && !loaded) error.value = '暂时无法连接消息服务，请稍后重试'
   } finally {
     if (isCurrent()) loading.value = false
   }
