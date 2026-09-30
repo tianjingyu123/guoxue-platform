@@ -981,8 +981,13 @@ add(
     "name: 迁移与上线代码门禁",
     "runs-on: ubuntu-24.04",
     "pnpm install --frozen-lockfile",
-    "run: pnpm release:gate:code",
   ]) &&
+    (ciReleaseSafetyJob.includes("run: pnpm release:gate:code") ||
+      hasAll(ciReleaseSafetyJob, [
+        "set -o pipefail",
+        "pnpm release:gate:code 2>&1 | tee release-gate.log",
+        "exit 1",
+      ])) &&
     !ciReleaseSafetyJob.includes("continue-on-error") &&
     ciWorkflow.includes("needs: [test, lint, release-safety]") &&
     ciWorkflow.includes("needs: [typecheck, lint, test, release-safety]"),
