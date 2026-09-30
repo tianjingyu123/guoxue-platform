@@ -57,6 +57,8 @@ async function drop() {
       ["wrong-revenue-type", { revenue: { type: "gift" } }],
       ["negative-revenue", { revenue: { amount: -100 } }],
       ["invalid-owner-share", { revenue: { ownerShare: 101 } }],
+      ["revenue-over-order-paid", { revenue: { amount: 1000, ownerShare: 600 } }],
+      ["revenue-over-discounted-paid", { order: { payAmount: 80 } }],
       ["refund-over-paid", { refund: { actualRefund: 101 } }],
       ["zero-refund", { refund: { actualRefund: 0 } }],
     ];
