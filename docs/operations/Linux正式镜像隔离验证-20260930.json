@@ -9,7 +9,7 @@
     {
       "name": "image-identity",
       "passed": true,
-      "detail": "sha256:d0ce13edfb32cfaa57c846fdca3fd0d5bc67dddc3a6dd010c128c956b2fb4cfc"
+      "detail": "sha256:5a07f5b27487bc136ccaaf906c0f7967feb39015cb05e9b6601531070899d6be"
     },
     {
       "name": "prisma-source-compile-runtime-binding",
@@ -173,15 +173,209 @@
       ]
     },
     {
+      "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "notification-expired-jwt",
+            "status": 401,
+            "expected": 401,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-super",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-ops",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-masked-linux-customer",
+            "status": 200,
+            "expected": 200,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-super",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-ops",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-customer",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-customer",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-customer",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-finance",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-contact-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-content-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-reveal-images-linux-user-a",
+            "status": 403,
+            "expected": 403,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-status-query",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-page-query",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "feedback-invalid-status-body",
+            "status": 400,
+            "expected": 400,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-4",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-5",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-6",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-7",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-8",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-9",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-count-10",
+            "status": 201,
+            "expected": 201,
+            "passed": true
+          },
+          {
+            "name": "sensitive-whitelisted-eleventh-denied",
+            "status": 429,
+            "expected": 429,
+            "passed": true
+          }
+        ],
+        "audits": 15,
+        "sensitiveValuesInEvidence": false,
+        "invalidMutationUnchanged": true,
+        "ipScope": "loopback-only-not-real-proxy",
+        "auditFailureBehavior": "not-tested-async-source-boundary"
+      }
+    },
+    {
       "name": "redis7-two-process-notification-idempotency",
       "passed": true,
       "detail": [
         {
-          "created": true,
+          "created": false,
           "sharedRedis": true
         },
         {
-          "created": false,
+          "created": true,
           "sharedRedis": true
         }
       ]
@@ -210,11 +404,11 @@
         },
         "retry": [
           {
-            "created": false,
+            "created": true,
             "sharedRedis": true
           },
           {
-            "created": true,
+            "created": false,
             "sharedRedis": true
           }
         ]
@@ -222,7 +416,7 @@
     }
   ],
   "passed": true,
-  "workflowRunId": 36723300125,
-  "verificationCommit": "d55c651241be0bb6167cc04ae890a97ca81645b2",
-  "evidenceZipSha256": "3fe1b71c612bacc744ab9e76880aa0960576cf0be90435589bb7dd7b5710fe69"
+  "workflowRunId": 36725511651,
+  "verificationCommit": "e12c31a588fc73d3c73274d1b6d522e0a6a0abdc",
+  "evidenceZipSha256": "cf31b2a974e1cb0156ce6848a525218d3ef662c81575ea0994f7812a5d395f90"
 }

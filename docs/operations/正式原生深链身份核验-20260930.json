@@ -1,0 +1,50 @@
+{
+  "checkedAtUtc": "2026-09-30T14:02:10.298801+00:00",
+  "scope": "public-association-file-readonly-no-device-no-channel-write",
+  "sourceCommit": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
+  "checks": [
+    {
+      "host": "api.rebugx.cn",
+      "kind": "assetlinks.json",
+      "httpStatus": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "contentSha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+      "androidPackageMatch": true,
+      "knownFormalCertificateMatch": true,
+      "handlerRelationMatch": true
+    },
+    {
+      "host": "api.rebugx.cn",
+      "kind": "apple-app-site-association",
+      "httpStatus": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "contentSha256": "0b303526873ce4004237c0bbeb9bdcfa93a91455a1b9073d532e690d3899991d",
+      "iosBundleSuffixMatch": true,
+      "iosTeamAndSignedEntitlementMatch": "not-covered"
+    },
+    {
+      "host": "gx.yrydai.com",
+      "kind": "assetlinks.json",
+      "httpStatus": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "contentSha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+      "androidPackageMatch": true,
+      "knownFormalCertificateMatch": true,
+      "handlerRelationMatch": true
+    },
+    {
+      "host": "gx.yrydai.com",
+      "kind": "apple-app-site-association",
+      "httpStatus": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "contentSha256": "0b303526873ce4004237c0bbeb9bdcfa93a91455a1b9073d532e690d3899991d",
+      "iosBundleSuffixMatch": true,
+      "iosTeamAndSignedEntitlementMatch": "not-covered"
+    }
+  ],
+  "nativeSignedDeviceAcceptance": "not-covered"
+}
