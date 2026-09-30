@@ -438,7 +438,7 @@ test("候选目录验真失败时不占用正式发布标识", async () => {
       ln: "#!/usr/bin/env bash\n# 故意不创建共享证书链接，用于触发候选目录验真失败\nexit 0\n",
       mkdir:
         '#!/usr/bin/env bash\nargs=()\nskip_next=false\nfor arg in "$@"; do\n  if $skip_next; then\n    skip_next=false\n    continue\n  fi\n  if [ "$arg" = "-m" ]; then\n    skip_next=true\n    continue\n  fi\n  args+=("$arg")\ndone\nexec /usr/bin/mkdir "${args[@]}"\n',
-      stat: "#!/usr/bin/env bash\nprintf '600\\n'\n",
+      stat: "#!/usr/bin/env bash\nif [[ \"$*\" == *'/docker/nginx/well-known' ]]; then printf '755\\n'; elif [[ \"$*\" == *'/docker/nginx/well-known/'* ]]; then printf '644\\n'; else printf '600\\n'; fi\n",
     };
     for (const [name, content] of Object.entries(fakeCommands)) {
       const commandPath = path.join(fakeBin, name);
@@ -530,7 +530,7 @@ test(
 
       const fakeCommands = {
         docker: "#!/usr/bin/env bash\nexit 0\n",
-        stat: "#!/usr/bin/env bash\nprintf '600\\n'\n",
+        stat: "#!/usr/bin/env bash\nif [[ \"$*\" == *'/docker/nginx/well-known' ]]; then printf '755\\n'; elif [[ \"$*\" == *'/docker/nginx/well-known/'* ]]; then printf '644\\n'; else printf '600\\n'; fi\n",
       };
       for (const [name, content] of Object.entries(fakeCommands)) {
         const commandPath = path.join(fakeBin, name);
