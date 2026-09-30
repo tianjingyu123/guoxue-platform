@@ -87,6 +87,7 @@ jobs:
 
       - name: 构建 workspace 包
         run: |
+          pnpm --filter @guoxue/shared build
           pnpm --filter @guoxue/bazi-engine build
           pnpm --filter @guoxue/ziwei-engine build
         timeout-minutes: 5
@@ -132,6 +133,7 @@ jobs:
         uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1
 
       - name: 运行性能测试
+        id: k6
         run: |
           mkdir -p results
           k6 run \
@@ -140,21 +142,18 @@ jobs:
             --out json=results/raw.json \
             --summary-export=results/summary.json \
             tests/performance/k6/main.js
-        continue-on-error: true
 
       - name: 分析结果
         if: always()
         run: |
           echo "## 性能测试报告 (${{ env.SCENARIO }})" >> $GITHUB_STEP_SUMMARY
+          echo "- k6 执行结果: ${{ steps.k6.outcome }}" >> $GITHUB_STEP_SUMMARY
 
           if [ -f results/summary.json ]; then
             echo '```json' >> $GITHUB_STEP_SUMMARY
             cat results/summary.json | head -100 >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
 
-            # 检查阈值是否通过
-            THRESHOLDS_PASSED=$(jq -r '.metrics | select(.thresholds_passed != null) | .thresholds_passed' results/summary.json 2>/dev/null || echo "unknown")
-            echo "- 阈值检查: $THRESHOLDS_PASSED" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ 未生成性能报告文件" >> $GITHUB_STEP_SUMMARY
           fi
