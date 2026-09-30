@@ -3,10 +3,11 @@ import { ImFallbackService } from "./im-fallback.service";
 describe("ImFallbackService", () => {
   const prisma: any = {
     $transaction: jest.fn(),
+    $executeRaw: jest.fn(),
     imFallbackMessage: {
       create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn(),
     },
-    imC2CCounter: { upsert: jest.fn(), updateMany: jest.fn() },
+    imC2CCounter: { createMany: jest.fn(), updateMany: jest.fn() },
     imFallbackConversationPreference: {
       findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn(),
     },
@@ -35,7 +36,7 @@ describe("ImFallbackService", () => {
       data: { fromUserId: "u1", toUserId: "u2", type: "TEXT", content: "你好" },
     });
     expect(ws.sendToUser).toHaveBeenCalledTimes(2);
-    expect(prisma.imC2CCounter.upsert).toHaveBeenCalledTimes(1);
+    expect(prisma.imC2CCounter.createMany).toHaveBeenCalledTimes(1);
     expect(prisma.imC2CCounter.updateMany).toHaveBeenCalledWith({
       where: { fromUserId: "u2", toUserId: "u1" }, data: { sentCount: 0 },
     });

@@ -26,13 +26,16 @@ export class ImFallbackService {
     const limited = relation.relation === "following" || relation.relation === "stranger";
     const quota = limited ? (await this.policy.getConfig()).followerDMQuota : 0;
     const message = await this.prisma.$transaction(async (tx) => {
+      // 同一对用户的发送与回复串行，避免首次建计数行冲突及双向回复锁顺序相反。
+      // 事务锁跨应用节点生效，消息落库失败时自动释放，不消耗额度。
+      const pairKey = JSON.stringify([fromUserId, toUserId].sort());
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${pairKey}, 0))`;
+      await tx.imC2CCounter.createMany({
+        data: [{ fromUserId, toUserId, sentCount: 0 }],
+        skipDuplicates: true,
+      });
       if (limited) {
         // 两节点并发发送时用数据库条件更新占用额度；消息写入失败则一起回滚。
-        await tx.imC2CCounter.upsert({
-          where: { fromUserId_toUserId: { fromUserId, toUserId } },
-          create: { fromUserId, toUserId, sentCount: 0 },
-          update: {},
-        });
         const reserved = await tx.imC2CCounter.updateMany({
           where: { fromUserId, toUserId, sentCount: { lt: quota } },
           data: { sentCount: { increment: 1 } },
@@ -41,10 +44,9 @@ export class ImFallbackService {
           throw new BusinessException(ErrorCode.FORBIDDEN, "消息已送达，等待对方回复后才能继续");
         }
       } else {
-        await tx.imC2CCounter.upsert({
-          where: { fromUserId_toUserId: { fromUserId, toUserId } },
-          create: { fromUserId, toUserId, sentCount: 1 },
-          update: { sentCount: { increment: 1 } },
+        await tx.imC2CCounter.updateMany({
+          where: { fromUserId, toUserId },
+          data: { sentCount: { increment: 1 } },
         });
       }
       const created = await tx.imFallbackMessage.create({
