@@ -1,5 +1,5 @@
 {
-  "candidateSource": "7e2fc4cae3525951004a826a9f95812b0309a372",
+  "candidateSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
   "actualRuntimeSource": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
   "runId": 36768859516,
   "backendTreeEquivalent": true,
@@ -11,8 +11,8 @@
     "docker",
     "scripts/release"
   ],
-  "newLinuxRunAtCurrentSource": false,
-  "candidateFixedPackageSha256": "841b09ce6b8653d514605fa4af7d6b3216cced6d521b47d2fea60ad4579f71d5",
+  "newLinuxRunAtCurrentSource": true,
+  "candidateFixedPackageSha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
   "runtime": {
     "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
     "sourceSha256": "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474",
@@ -1379,5 +1379,10 @@
     "image-identity",
     "prisma-source-compile-runtime-binding",
     "admin-h5-base-and-public-config"
-  ]
+  ],
+  "newLinuxRunScope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
+  "newLinuxRunId": 36776045322,
+  "newLinuxArtifactBindingChecks": 3,
+  "newLinuxBusinessRegressionRerun": false,
+  "priorRuntimeIdentityChecksReplacedByCurrentBinding": true
 }

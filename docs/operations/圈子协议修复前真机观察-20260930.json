@@ -1,0 +1,74 @@
+{
+  "sourceCommit": "7e2fc4cae3525951004a826a9f95812b0309a372",
+  "clientScope": "existing253-native-shell-current489-resources",
+  "backendScope": "existing-online-old-service-not-current-candidate-backend",
+  "screenshots": [
+    {
+      "file": "android-7e2fc4ca-circle-start.png",
+      "bytes": 938086,
+      "sha256": "225049e65a4927042a707571436642399a1f5f6b257f1a6e8917bdcf18059d77",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-tab.png",
+      "bytes": 242314,
+      "sha256": "9f8ad80b9e0fa1a7d5163beaf8b48c1b45423fcfb7771b5562e0ffc951629f4c",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-discover.png",
+      "bytes": 161552,
+      "sha256": "254abb09f43cd914685dc15f1e8a056a59d73a3684f9d5b192e6f4dd2ac15d7a",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-empty-return.png",
+      "bytes": 219550,
+      "sha256": "e29757a04807cb872a93f0ba7e74628bde1c7cacc3805a35471e441ec9658d2c",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-my-return.png",
+      "bytes": 160835,
+      "sha256": "f9673af49f986157ce2952a80f2cea3acbaf50adc87012123cda0643b03769f8",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-my-stable.png",
+      "bytes": 241172,
+      "sha256": "e76597681b7e537b95e5763ddee448ffc6a692368d01b7f2fcca351e97e1e1b8",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-create-entry.png",
+      "bytes": 191353,
+      "sha256": "a7450f926093e3c7aba5d31309ce4b54d853a066ec9210404e70f0ade9a9559b",
+      "visuallyInspected": true
+    },
+    {
+      "file": "android-7e2fc4ca-circle-create-scroll.png",
+      "bytes": 244450,
+      "sha256": "f21b3513e9176b05ae42be5c9307c5a2d3c84dc2453e96301edef604bc4c144f",
+      "visuallyInspected": true
+    }
+  ],
+  "observedPaths": [
+    "home-to-circle-tab",
+    "my-circles-and-discover-switch",
+    "all-joined-empty-state",
+    "empty-state-to-my-circle-affairs",
+    "system-back-to-discover",
+    "stable-switch-back-to-my-circles",
+    "create-form-open",
+    "create-form-scroll-solid-bottom-bar"
+  ],
+  "transitionObservation": "系统返回后立即点击分区发生在过渡中，首次仍在发现；页面稳定后再点击切到我的圈子。不将首个过渡操作记为已切换。",
+  "defaultAgreementSelectedObserved": true,
+  "fixCandidate": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "fixPhoneRetestPending": true,
+  "submittedCircles": 0,
+  "joinedCircles": 0,
+  "uploads": 0,
+  "realPayments": 0,
+  "realMessages": 0
+}

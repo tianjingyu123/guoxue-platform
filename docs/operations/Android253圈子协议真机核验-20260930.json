@@ -1,0 +1,132 @@
+{
+  "install": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "scope": "existing-253-native-shell-current-js-not-final-cloud-native",
+    "appResourceFiles": 489,
+    "resourceHashesMatch": true,
+    "certificateMatches247": true,
+    "v1AndV2Verified": true,
+    "apkBytes": 30784914,
+    "apkSha256": "36d19d1db2e9a520edccbbb1133ab27a7432dc12b74ba1567763a82163af1cde",
+    "previousApkSha256": "f3aeb1f490b2263019136eda0983fa3b07090ab92358438a41af4e15a0228fdb",
+    "installedReadbackMatches": true,
+    "deviceCount": 1,
+    "deviceModel": "OnePlus 9R LE2100",
+    "dataCleared": false,
+    "uninstalled": false,
+    "cloudPackagingCalls": 0,
+    "realPaymentOperations": 0,
+    "realMessagesSent": 0
+  },
+  "observations": {
+    "sourceCommit": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+    "clientScope": "existing253-native-shell-current489-resources",
+    "backendScope": "existing-online-old-service-not-current-candidate-backend",
+    "screenshots": [
+      {
+        "file": "android-43de59ac-circle-create-checked.png",
+        "bytes": 245537,
+        "sha256": "235997484ff82f527d44ad505c16e2864c781abb853940ef1487a0f15d84f162",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-entry.png",
+        "bytes": 191789,
+        "sha256": "389b3ed0790144125c8b2cf44b03b0ad4767b1bb54711b1817142ccd3a9836c5",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-reopen-unchecked.png",
+        "bytes": 245512,
+        "sha256": "5460da0382445024d084d32574c8286a0cf406b194bfec86e6c7a67aad1604bb",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-reopen.png",
+        "bytes": 192105,
+        "sha256": "91705a43ca33cdcaea0684d4195a0dfd70ee0aba915f9bd7838146dabd469ca9",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-return.png",
+        "bytes": 241780,
+        "sha256": "15df84876c8f788ea2f08794cc90fe8ec34dc58d7c3429449045064d52425b32",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-unchecked-again.png",
+        "bytes": 245042,
+        "sha256": "0464cf72f64677a3a4b21679df1a074bf1a32513bdee047702c08a5a1eca14e6",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-create-unchecked.png",
+        "bytes": 245400,
+        "sha256": "8fd5be3564ce11ff3a227d19226369a52f2e0b47d21048cf28d8960f790e8cfa",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-start.png",
+        "bytes": 933144,
+        "sha256": "a3c9121de188f05ce7964b6bd2ffb5517381901c048b0e321d9de7ec4ef9bd7d",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-circle-tab.png",
+        "bytes": 241584,
+        "sha256": "db0e1c795505bb555f9416e65810a7847085d5e7750f40b7834ebc0c848ba959",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-circle-tab.png",
+        "bytes": 241801,
+        "sha256": "db16a3dc5eb57d734c0ed3884bb3fcca04ebd7b8423380cadf498f5652dcb0be",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-create.png",
+        "bytes": 192038,
+        "sha256": "3259995d7b3ebaab81a0f0e2a738c2b5ab086723310247c41290cc789af19a8a",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-home.png",
+        "bytes": 929764,
+        "sha256": "88b1ff06e74220d902fd982917c8bbd7de243862935e53f2ac00de2a2b4e94d6",
+        "visuallyInspected": true
+      },
+      {
+        "file": "android-43de59ac-guard-toast.png",
+        "bytes": 207080,
+        "sha256": "2cd9ca41f302d9f156236fa4a3b16438f6c2c8f7deefa74406fb1dc8952fb159",
+        "visuallyInspected": true
+      }
+    ],
+    "observedPaths": [
+      "home-to-circle-tab",
+      "create-form-open",
+      "scroll-solid-bottom-bar",
+      "agreement-initially-unchecked",
+      "tap-agreement-checked",
+      "tap-agreement-unchecked",
+      "system-back-to-circles",
+      "reopen-form-agreement-unchecked",
+      "empty-form-submit-unagreed-consent-toast"
+    ],
+    "defaultAgreementSelectedObserved": false,
+    "toggleOnObserved": true,
+    "toggleOffObserved": true,
+    "freshPageDefaultUnselectedObserved": true,
+    "submitGuardSourceReviewed": true,
+    "submitGuardRuntimeExercised": true,
+    "submittedCircles": 0,
+    "joinedCircles": 0,
+    "uploads": 0,
+    "realPayments": 0,
+    "realMessages": 0,
+    "normalCandidateBackendAcceptance": false,
+    "passed": true,
+    "emptyFormConsentToastObserved": true,
+    "networkRequestCountMeasured": false
+  }
+}
