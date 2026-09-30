@@ -3,6 +3,7 @@
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="goBack"><text class="retry-text">返回上一页</text></view>
   </view>
   <view v-else class="page">
     <DegradedBanner dep="im" text="消息服务临时维护中，收发可能延迟，请稍后再试" />
@@ -162,6 +163,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -193,40 +196,46 @@ const showDeleteConfirm = ref(false)
 const activeConv = ref<ConversationItem | null>(null)
 
 let unsubscribe: (() => void) | null = null
-let fallbackRefreshTimer: ReturnType<typeof setInterval> | null = null
+let loaded = false
+let imMode: 'TENCENT' | 'FALLBACK' = 'FALLBACK'
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+const poller = createVisiblePoller(async (isCurrent) => {
+  if (!loaded) { loading.value = true; error.value = '' }
   try {
-    conversations.value = await imApi.getConversations()
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载会话列表失败，请重试'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(async () => {
-  // 每次进入会话页重新读取服务端能力，避免启用腾讯 IM 后沿用旧过渡模式。
-  await imApi.getCapabilities(true).catch(() => null)
-  await loadData()
-  const capabilities = await imApi.getCapabilities().catch(() => null)
-  if (capabilities?.mode === 'FALLBACK') {
-    fallbackRefreshTimer = setInterval(() => { void loadData() }, 3_000)
-    return
-  }
-  // 实时刷新：新消息/已读/置顶等 SDK 会话变化直接驱动列表与未读角标
-  unsubscribe = tim.onConversationsUpdated((list) => {
+    const capabilities = await imApi.getCapabilities(true)
+    if (!isCurrent()) return
+    if (capabilities.mode !== imMode) releaseSubscription()
+    imMode = capabilities.mode
+    const list = await imApi.getConversations()
+    if (!isCurrent()) return
     conversations.value = list
-      .map(timConvToConversationItem)
-      .filter((c): c is ConversationItem => c !== null)
-  })
-})
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-  if (fallbackRefreshTimer) clearInterval(fallbackRefreshTimer)
-})
+    loaded = true
+    if (imMode === 'TENCENT' && !unsubscribe) {
+      unsubscribe = tim.onConversationsUpdated((items) => {
+        if (!isCurrent() || imMode !== 'TENCENT') return
+        conversations.value = items.map(timConvToConversationItem)
+          .filter((c): c is ConversationItem => c !== null)
+      })
+    }
+  } catch (e) {
+    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '加载会话列表失败，请重试'
+  } finally {
+    if (isCurrent()) loading.value = false
+  }
+}, () => imMode === 'FALLBACK' ? 3_000 : 30_000)
+
+function loadData() { poller.refresh() }
+function releaseSubscription() {
+  unsubscribe?.()
+  unsubscribe = null
+}
+function pauseRefresh() { poller.stop(); releaseSubscription() }
+function disposeRefresh() { poller.dispose(); releaseSubscription() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(pauseRefresh)
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 const totalUnread = computed(() => conversations.value.reduce((s, c) => s + c.unreadCount, 0))
 

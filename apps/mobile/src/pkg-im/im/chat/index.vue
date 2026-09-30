@@ -3,6 +3,7 @@
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="goBack"><text class="retry-text">返回上一页</text></view>
   </view>
   <view v-else class="page">
     <!-- 导航栏 -->
@@ -154,6 +155,8 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -200,75 +203,92 @@ const selectedMessage = ref<ChatMessage | null>(null)
 
 // scroll-into-view 需变化才触发滚动：清空一帧再置回锚点值，实现"新消息自动滚底"
 const scrollAnchor = ref('msg-end')
-async function scrollToBottom() {
+async function scrollToBottom(isCurrent = poller.capture()) {
   scrollAnchor.value = ''
   await nextTick()
-  scrollAnchor.value = 'msg-end'
+  if (isCurrent()) scrollAnchor.value = 'msg-end'
 }
 
 let unsubscribe: (() => void) | null = null
-let fallbackPollTimer: ReturnType<typeof setInterval> | null = null
 const imMode = ref<'TENCENT' | 'FALLBACK'>('FALLBACK')
+let loaded = false
+let blacklistLoaded = false
 
-async function pollFallbackMessages() {
-  if (imMode.value !== 'FALLBACK' || !peerId.value) return
-  try {
-    await imApi.getCapabilities(true)
-    const res = await imApi.getC2CHistory(peerId.value)
-    const known = new Set(messages.value.map((item) => item.id))
-    const fresh = res.messages.filter((item) => !known.has(item.id))
-    if (fresh.length) {
-      messages.value.push(...fresh)
-      fillTargetFromMessages(fresh)
-      await scrollToBottom()
-    }
-    await imApi.markC2CRead(peerId.value)
-  } catch { /* 过渡轮询失败不清空当前消息，下一轮重试 */ }
-}
-
-async function loadData() {
-  loading.value = true
-  error.value = ''
+const poller = createVisiblePoller(async (isCurrent) => {
+  if (!loaded) { loading.value = true; error.value = '' }
   if (!peerId.value) {
     error.value = '未指定聊天对象'
     loading.value = false
     return
   }
   try {
+    await imApi.getCapabilities(true)
+    if (!isCurrent()) return
     const res = await imApi.getC2CHistory(peerId.value)
+    if (!isCurrent()) return
+    const changedMode = imMode.value !== res.mode
+    if (changedMode) releaseSubscription()
     imMode.value = res.mode
-    messages.value = res.messages
+    // 切换消息源后使用该源的历史；普通刷新只追加新消息，保留本页刚发送的消息。
+    const firstLoad = !loaded
+    let hasNewMessages = firstLoad || changedMode
+    if (firstLoad || changedMode) messages.value = res.messages
+    else hasNewMessages = appendMessages(res.messages).length > 0
     fillTargetFromMessages(res.messages)
-    await imApi.markC2CRead(peerId.value)
-  } catch (e) {
-    error.value = (e as Error)?.message || '连接消息服务失败，请重试'
+    loaded = true
+    subscribeMessages(isCurrent)
+    // 已读失败不把已成功获取的历史变成整页错误。
+    await imApi.markC2CRead(peerId.value).catch(() => {})
+    if (!isCurrent()) return
+    await refreshPermission(isCurrent)
+    if (!isCurrent()) return
+    if (!blacklistLoaded) {
+      const list = await mineApi.getBlacklist().catch(() => null)
+      if (!isCurrent()) return
+      if (list) {
+        target.value.isBlocked = list.some((b) => String(b.userId) === peerId.value)
+        blacklistLoaded = true
+      }
+    }
     loading.value = false
-    return
+    await nextTick()
+    if (isCurrent() && hasNewMessages) await scrollToBottom(isCurrent)
+  } catch (e) {
+    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '连接消息服务失败，请重试'
+  } finally {
+    if (isCurrent()) loading.value = false
   }
+}, () => imMode.value === 'FALLBACK' ? 3_000 : 30_000)
+
+function loadData() { poller.refresh() }
+function appendMessages(items: ChatMessage[]) {
+  const known = new Set(messages.value.map((item) => item.id))
+  const fresh = items.filter((item) => {
+    if (known.has(item.id)) return false
+    known.add(item.id)
+    return true
+  })
+  messages.value.push(...fresh)
+  return fresh
+}
+function releaseSubscription() {
+  unsubscribe?.()
+  unsubscribe = null
+}
+function subscribeMessages(isCurrent: () => boolean) {
   // 订阅实时新消息（仅本会话对端发来的；flow==='in' 过滤掉 REST 发图 SyncOtherMachine 回传的自己消息，避免重复入列）
-  if (imMode.value === 'TENCENT') {
+  if (imMode.value === 'TENCENT' && !unsubscribe) {
     unsubscribe = tim.onMessage((msgs) => {
+      if (!isCurrent() || imMode.value !== 'TENCENT') return
       const mine = msgs.filter((m) => m.conversationID === `C2C${peerId.value}` && m.flow === 'in')
-      if (!mine.length) return
-      const mapped = mine.map(timToChatMessage)
-      messages.value.push(...mapped)
+      const mapped = appendMessages(mine.map(timToChatMessage))
+      if (!mapped.length) return
       fillTargetFromMessages(mapped)
-      void imApi.markC2CRead(peerId.value)
-      scrollToBottom()
+      void imApi.markC2CRead(peerId.value).catch(() => {})
+      void refreshPermission(isCurrent)
+      void scrollToBottom(isCurrent)
     })
-  } else {
-    fallbackPollTimer = setInterval(() => { void pollFallbackMessages() }, 3_000)
   }
-  // 私信权限真连后端 /im/relation/:id；单独获取，失败保守降级（禁止发送）不阻塞整页
-  await refreshPermission()
-  // 是否在我的黑名单：驱动菜单"加入/移出黑名单"文案；查询失败按未拉黑处理不阻塞
-  mineApi.getBlacklist()
-    .then((list) => { target.value.isBlocked = list.some((b) => String(b.userId) === peerId.value) })
-    .catch(() => {})
-  loading.value = false
-  // 初次拉历史后滚到底部：消息列表在 loading=false 后才渲染，先等一帧让列表渲染完再触发滚底
-  await nextTick()
-  scrollToBottom()
 }
 
 // 对端昵称/头像：优先 query 传入，否则从收到的消息补齐（无独立资料端点时的诚实来源）
@@ -280,21 +300,24 @@ function fillTargetFromMessages(msgs: ChatMessage[]) {
 }
 
 // 拉取与目标用户的私信关系权限（驱动输入框可用态与提示）
-async function refreshPermission() {
+let permissionRequestId = 0
+async function refreshPermission(isCurrent = poller.capture()) {
+  const requestId = ++permissionRequestId
   try {
-    permission.value = toChatPermission(await imApi.getRelationPolicy(peerId.value))
+    const policy = await imApi.getRelationPolicy(peerId.value)
+    if (isCurrent() && requestId === permissionRequestId) permission.value = toChatPermission(policy)
   } catch {
-    permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
+    if (isCurrent() && requestId === permissionRequestId) permission.value = { state: 'blocked', canSend: false, hint: '暂时无法确认会话权限，请稍后重试', reason: 'error' }
   }
 }
 
-onMounted(() => {
-  loadData()
-})
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-  if (fallbackPollTimer) clearInterval(fallbackPollTimer)
-})
+function pauseRefresh() { poller.stop(); releaseSubscription() }
+function disposeRefresh() { poller.dispose(); releaseSubscription() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(pauseRefresh)
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 function isMine(m: ChatMessage) {
   return !!m.isSelf
@@ -324,7 +347,7 @@ const inputPlaceholder = computed(() => {
     case 'waiting_reply':
       return '等待对方回复...'
     case 'blocked':
-      return '已加入黑名单'
+      return permission.value.reason === 'error' ? '暂时无法发送' : '已加入黑名单'
     case 'can_greet':
       return '发送一条打招呼消息...'
     default:

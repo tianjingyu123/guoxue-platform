@@ -3,6 +3,7 @@
   <view v-else-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view class="retry-btn" @tap="goBack"><text class="retry-text">返回上一页</text></view>
   </view>
   <view v-else class="page">
     <!-- 导航栏 -->
@@ -223,6 +224,8 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -267,13 +270,14 @@ const selectedMessage = ref<GroupChatMessage | null>(null)
 
 // scroll-into-view 需变化才触发滚动：清空一帧再置回锚点值，实现"新消息自动滚底"
 const scrollAnchor = ref('msg-end')
-async function scrollToBottom() {
+async function scrollToBottom(isCurrent = poller.capture()) {
   scrollAnchor.value = ''
   await nextTick()
-  scrollAnchor.value = 'msg-end'
+  if (isCurrent()) scrollAnchor.value = 'msg-end'
 }
 
 let unsubscribe: (() => void) | null = null
+let loaded = false
 
 // userID → 角色映射（用于给消息气泡补齐发送者角色徽标）
 const roleMap = computed(() => {
@@ -286,51 +290,80 @@ function enrichRole(m: GroupChatMessage): GroupChatMessage {
   return m
 }
 
-async function loadData() {
-  loading.value = true
-  error.value = ''
+const poller = createVisiblePoller(async (isCurrent) => {
+  if (!loaded) { loading.value = true; error.value = '' }
   if (!gid.value) {
     error.value = '未指定群聊'
     loading.value = false
     return
   }
   try {
+    const capabilities = await imApi.getCapabilities(true)
+    if (!isCurrent()) return
+    if (!capabilities.groups) {
+      releaseSubscription()
+      loaded = false
+      error.value = '群聊服务暂未开通，可返回消息页使用私信'
+      return
+    }
     // 登录 TIM（user-sig + account import + login）→ 并行拉群资料/成员/历史
     await tim.ensureLogin()
+    if (!isCurrent()) return
     const [detail, memberList, history] = await Promise.all([
       imApi.getGroupDetail(gid.value),
       imApi.getGroupMembers(gid.value),
       imApi.getGroupChatHistory(gid.value),
     ])
+    if (!isCurrent()) return
     groupDetail.value = detail
     members.value = memberList
-    messages.value = history.messages.map(enrichRole)
-    await imApi.markGroupRead(gid.value)
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载群聊数据失败，请重试'
+    const firstLoad = !loaded
+    const incoming = history.messages.map(enrichRole)
+    const fresh = firstLoad ? incoming : appendMessages(incoming)
+    if (firstLoad) messages.value = incoming
+    loaded = true
+    error.value = ''
+    if (!unsubscribe) {
+      unsubscribe = tim.onMessage((msgs) => {
+        if (!isCurrent()) return
+        const mine = msgs.filter((m) => m.conversationID === `GROUP${gid.value}`)
+        const fresh = appendMessages(mine.map(timToGroupChatMessage).map(enrichRole))
+        if (!fresh.length) return
+        void imApi.markGroupRead(gid.value).catch(() => {})
+        void scrollToBottom(isCurrent)
+      })
+    }
+    await imApi.markGroupRead(gid.value).catch(() => {})
+    if (!isCurrent()) return
     loading.value = false
-    return
+    await nextTick()
+    if (isCurrent() && (firstLoad || fresh.length)) await scrollToBottom(isCurrent)
+  } catch (e) {
+    if (isCurrent() && !loaded) error.value = (e as Error)?.message || '加载群聊数据失败，请重试'
+  } finally {
+    if (isCurrent()) loading.value = false
   }
-  // 订阅实时新消息（仅本群 GROUP{gid}）
-  unsubscribe = tim.onMessage((msgs) => {
-    const mine = msgs.filter((m) => m.conversationID === `GROUP${gid.value}`)
-    if (!mine.length) return
-    messages.value.push(...mine.map(timToGroupChatMessage).map(enrichRole))
-    imApi.markGroupRead(gid.value)
-    scrollToBottom()
-  })
-  loading.value = false
-  // 初次拉历史后滚到底部：消息列表在 loading=false 后才渲染，先等一帧让列表渲染完再触发滚底
-  await nextTick()
-  scrollToBottom()
-}
+}, () => 30_000)
 
-onMounted(() => {
-  loadData()
-})
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-})
+function appendMessages(items: GroupChatMessage[]) {
+  const known = new Set(messages.value.map((item) => item.id))
+  const fresh = items.filter((item) => {
+    if (known.has(item.id)) return false
+    known.add(item.id)
+    return true
+  })
+  messages.value.push(...fresh)
+  return fresh
+}
+function loadData() { poller.refresh() }
+function releaseSubscription() { unsubscribe?.(); unsubscribe = null }
+function pauseRefresh() { poller.stop(); releaseSubscription() }
+function disposeRefresh() { poller.dispose(); releaseSubscription() }
+onMounted(() => poller.start())
+onShow(() => poller.start())
+onHide(pauseRefresh)
+onUnload(disposeRefresh)
+onUnmounted(disposeRefresh)
 
 const canAtAll = computed(() => groupDetail.value.myRole === 'owner' || groupDetail.value.myRole === 'admin')
 const atSearchResults = computed(() => searchGroupMembersForAt(members.value, atSearchKeyword.value))
