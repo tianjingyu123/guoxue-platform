@@ -106,6 +106,8 @@ async function createFixture({
           ...requiredFiles,
           "scripts/release/verify-fixed-package.mjs",
           "docker/nginx/ssl/.gitkeep",
+          "docker/nginx/well-known/apple-app-site-association",
+          "docker/nginx/well-known/assetlinks.json",
           ...(retryActivationRuntime
             ? [
                 "scripts/release/render-monitoring-config.mjs",
