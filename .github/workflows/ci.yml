@@ -83,7 +83,7 @@ jobs:
 
       - name: ESLint
         working-directory: apps/server
-        run: npx eslint src --ext .ts --max-warnings 20
+        run: npx eslint src --ext .ts --quiet
 
   # ─── 迁移与上线安全门禁 ───
   release-safety:

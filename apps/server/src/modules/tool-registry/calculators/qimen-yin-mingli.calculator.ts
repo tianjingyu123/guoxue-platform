@@ -10,7 +10,6 @@ import {
 } from "@guoxue/bazi-engine";
 import { calculateQimenYin } from "./qimen.calculator";
 
-const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
 const GONG_NAMES = ["坎","坤","震","巽","中","乾","兑","艮","离"];
 

@@ -5,10 +5,9 @@ import { calcWuGe, strokeOf } from "@guoxue/shared/paipan";
 // 算法参考：《康熙字典》《五格剖象法》
 // 基于《康熙字典》笔画检索、五格剖象法、三才配置论
 
-import { estimateStrokeByUnicode } from "./helpers";
 
 // ── 汉字笔画库（常用姓氏+名字用字） ──
-const HANZI_STROKES: Record<string, number> = {
+const _HANZI_STROKES: Record<string, number> = {
   // 常用姓氏
   "王": 4, "李": 7, "张": 11, "刘": 15, "陈": 16, "杨": 13, "黄": 12, "赵": 14, "周": 8, "吴": 7,
   "徐": 10, "孙": 10, "马": 10, "朱": 6, "胡": 11, "郭": 15, "何": 7, "高": 10, "林": 8, "罗": 19,
@@ -243,9 +242,7 @@ export function calculateSanCaiWuGe(input: Record<string, unknown>): SanCaiWuGeR
 
   // 1. 计算各格笔画
   const surname1 = getStrokes(surnameChars[0]);
-  const surname2 = surnameChars.length > 1 ? getStrokes(surnameChars[1]) : 0;
   const given1 = getStrokes(givenNameChars[0]);
-  const given2 = givenNameChars.length > 1 ? getStrokes(givenNameChars[1]) : 0;
 
   /**
    * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。

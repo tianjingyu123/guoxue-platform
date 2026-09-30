@@ -349,7 +349,7 @@ export class XiaozhiConnection {
         uplink: { codec: "opus", sampleRate: hello.audio.sample_rate, channels: 1, frameDurationMs: hello.audio.frame_duration },
         timeoutMs: 5000,
       });
-    } catch (e: any) {
+    } catch (_e: any) {
       if (this.finished) return;
       return this.helloThenAlert("语音服务连接失败，请稍后再试", "relay_failed");
     }
@@ -440,7 +440,7 @@ export class XiaozhiConnection {
       case "tts_sentence":
         this.send({ type: "tts", state: "sentence_start", text: e.text });
         break;
-      case "audio":
+      case "audio": {
         if (this.lastDownlinkAt) {
           const gap = Date.now() - this.lastDownlinkAt;
           this.stats.maxDownlinkGapMs = Math.max(this.stats.maxDownlinkGapMs, gap);
@@ -453,6 +453,7 @@ export class XiaozhiConnection {
         this.stats.maxSendBufferBytes = Math.max(this.stats.maxSendBufferBytes, buffer.bytes);
         if (buffer.needDrain) this.stats.backpressureFrames++;
         break;
+      }
       case "tts_stop":
         this.lastDownlinkAt = 0;
         this.send({ type: "tts", state: "stop" });

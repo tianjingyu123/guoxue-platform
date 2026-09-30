@@ -3,7 +3,7 @@
 // 三合盘/三元盘/综合盘 | 二十四山 | 磁偏角 | 穿山七十二龙(真实) | 透地六十龙 | 一百二十分金 | 纳甲 | 三合水法 | 五派风水指导
 
 import type { LuoPanResult, LuoPanLayer, LuoPanType, FengShuiAdvice } from "@guoxue/shared";
-import { ringsOf, readRing, RING_CHUAN_SHAN_72, type PlateType } from "@guoxue/shared/paipan";
+import { ringsOf, readRing, type PlateType } from "@guoxue/shared/paipan";
 
 const SHAN_24 = ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"] as const;
 
@@ -23,7 +23,7 @@ const SHAN_INFO: Record<string, { yinYang: string; guaGong: string; sanYuanLong:
 };
 
 // ══ 六十甲子纳音 ══
-const NA_YIN: Record<string, string> = {
+const _NA_YIN: Record<string, string> = {
   "甲子":"海中金","乙丑":"海中金","丙寅":"炉中火","丁卯":"炉中火","戊辰":"大林木","己巳":"大林木",
   "庚午":"路旁土","辛未":"路旁土","壬申":"剑锋金","癸酉":"剑锋金","甲戌":"山头火","乙亥":"山头火",
   "丙子":"涧下水","丁丑":"涧下水","戊寅":"城头土","己卯":"城头土","庚辰":"白蜡金","辛巳":"白蜡金",
@@ -117,7 +117,7 @@ function degreeToShan(deg: number, offsetDeg = 0): { shan: string; chaoxiang: st
  * 原实现把它写成常数，等于宣称「不论朝向落在山中何处，中针恒进一位」，
  * 这在山的前半段就是错的。
  */
-function needleShan(trueDeg: number, kind: "zhong" | "feng"): string {
+function _needleShan(trueDeg: number, kind: "zhong" | "feng"): string {
   return degreeToShan(trueDeg, kind === "zhong" ? -7.5 : 7.5).shan;
 }
 

@@ -54,8 +54,6 @@ export function calculateXingmingJiexi(input: Record<string, unknown>): WuGeResu
 
   const surStrokes = strokes.slice(0, surname.length).map((x) => x.kangXiStroke);
   const givStrokes = strokes.slice(surname.length).map((x) => x.kangXiStroke);
-  const surnameStrokes = surStrokes.reduce((a, b) => a + b, 0);
-  const givenStrokes = givStrokes.reduce((a, b) => a + b, 0);
 
   /**
    * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。

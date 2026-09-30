@@ -8,6 +8,7 @@
 export function normalizeSpeechText(input: string): string {
   return input
     // 保留换行和制表符，其余 C0/C1 控制符都不能进入 XML/语音接口。
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, " ")
     // 这些是常见的复制网页、OCR 和富文本遗留的不可见字符。
     .replace(/[\u200B-\u200D\u2060\uFEFF]/g, " ")

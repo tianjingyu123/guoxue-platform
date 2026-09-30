@@ -233,12 +233,6 @@ export class CircleMembershipService {
     // requireRuleAck 强制（治理 TODO#5·2026-07-11）：付费确认链路建成员前同样校验圈规确认
     if (this.governance) await this.governance.assertRuleAck(circleId, userId);
 
-    // 计算到期时间（真实到期时间以履约结果为准，这里只作为无履约结果时的回退展示值）
-    let expireAt: Date | null = null;
-    if (circle.type === "YEARLY") {
-      expireAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    }
-
     let member: any;
     /** 本单实付金额。收益基数统一取实付价，与支付后处理器 `settleCircleAfterCommit` 同口径 */
     let legacyPaidAmount = 0;
@@ -278,8 +272,6 @@ export class CircleMembershipService {
       // 真实实现在同一事务内完成订单行 FOR UPDATE → 成员行 FOR UPDATE → 写权益 → 认领订单。
       const fulfillment = await this.prisma.$transaction((tx) => fulfillCircleOrderTx(tx, order.id));
       member = await this.applyLegacyConfirmOutcome(circleId, userId, order.id, fulfillment);
-      expireAt = fulfillment.expireAt;
-
       // 推荐人奖励：原先在 createMembership 内部，随履约迁出后在这里按同一条件触发。
       if (dto.referrerId && this.commissionService && fulfillment.outcome === "fulfilled" && fulfillment.memberId) {
         this.commissionService.recordCircleRevenue(circleId, "circle_join_referral", fulfillment.memberId, 0).catch(

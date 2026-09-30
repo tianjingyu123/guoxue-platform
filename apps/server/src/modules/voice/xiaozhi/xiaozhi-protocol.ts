@@ -90,7 +90,7 @@ export function packAudio(payload: Buffer, version: BinaryVersion, timestamp = 0
  */
 export function normalizeDeviceSerial(raw: string | undefined | null): string | null {
   const s = String(raw || "").trim();
-  const mac = s.replace(/[:\-]/g, "");
+  const mac = s.replace(/[:-]/g, "");
   if (/^[0-9A-Fa-f]{12}$/.test(mac)) return mac.toUpperCase();
   return null;
 }

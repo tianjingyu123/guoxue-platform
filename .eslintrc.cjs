@@ -45,6 +45,8 @@ module.exports = {
     'no-debugger': 'error',
     'no-var': 'error',
     'prefer-const': 'error',
+    // 中文报告和古籍正文中的全角空白属于展示内容，仍检查代码本体的异常空白。
+    'no-irregular-whitespace': ['error', { skipStrings: true, skipComments: true, skipTemplates: true, skipRegExps: true }],
     'no-empty': 'warn',
   },
   ignorePatterns: ['node_modules', 'dist', '*.js', '*.d.ts'],
@@ -101,6 +103,15 @@ module.exports = {
       files: ['apps/server/prisma/seeds/legal-documents.seed.ts'],
       rules: {
         'no-irregular-whitespace': 'off',
+      },
+    },
+    {
+      files: [
+        'apps/server/src/modules/paipan/engine/qizheng-engine.ts',
+        'apps/server/src/modules/paipan/engine/vendor/*.ts',
+      ],
+      rules: {
+        '@typescript-eslint/ban-ts-comment': 'off',
       },
     },
     {

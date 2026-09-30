@@ -22,7 +22,7 @@ export type NameVerdict =
   | { ok: false; reason: "empty" | "placeholder" | "identifier" | "too_long" | "symbols" | "ad" | "self_deprecating" | "offensive" };
 
 /** 平台与第三方的默认昵称 */
-const PLACEHOLDER = /^(微信|QQ|游客|匿名|新)?用户[_\-]?[0-9a-zA-Z]*$|^(用户|游客|匿名|未命名|昵称|nickname|user)$/i;
+const PLACEHOLDER = /^(微信|QQ|游客|匿名|新)?用户[_-]?[0-9a-zA-Z]*$|^(用户|游客|匿名|未命名|昵称|nickname|user)$/i;
 /** 一眼就是账号 ID 而不是名字：纯字母数字、带连字符的串 */
 const IDENTIFIER = /^[0-9a-zA-Z][0-9a-zA-Z_\-.]{3,}$/;
 /** 通篇符号表情，读不出来 */

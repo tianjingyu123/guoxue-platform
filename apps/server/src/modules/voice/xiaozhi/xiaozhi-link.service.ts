@@ -441,7 +441,7 @@ export class XiaozhiLinkService {
     const rec = await this.redis.getJson<SeenRecord>(`xz:seen:${String(seenId || "").slice(0, 64)}`);
     if (!rec?.serialForRegistration) throw new BusinessException(ErrorCode.NOT_FOUND, "该终端不存在或已登记");
     const view = await this.devices.register(adminId, { serial: rec.serialForRegistration, ...input });
-    const { serialForRegistration, ...rest } = rec;
+    const { serialForRegistration: _serialForRegistration, ...rest } = rec;
     await this.redis.setJson(`xz:seen:${rec.seenId}`, { ...rest, registered: true, deviceId: view.id, status: view.status }, SEEN_TTL_SECONDS);
     return view;
   }

@@ -15,6 +15,8 @@ export interface ClassicContentQuality {
   publishable: boolean;
 }
 
+// 控制字符正是正文质量检查需要匹配的输入。
+// eslint-disable-next-line no-control-regex
 const speechRiskCharacter = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]/gu;
 
 export function assessClassicContent(

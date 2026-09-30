@@ -15,7 +15,7 @@ import { TextDerivedAssetService, type TextAssetRequest } from "./text-derived-a
  */
 
 /** 允许模型增删的标点（全角/半角常用标点）与空白 */
-const PUNCT_RE = /[\s，。、；：？！“”‘’「」『』（）《》〈〉【】—…·,.;:?!"'()\[\]<>\-]/g;
+const PUNCT_RE = /[\s，。、；：？！“”‘’「」『』（）《》〈〉【】—…·,.;:?!"'()[\]<>-]/g;
 
 export function stripPunctuation(text: string): string {
   return (text || "").replace(PUNCT_RE, "");

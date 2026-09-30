@@ -143,7 +143,6 @@ const DINGLAN_MEANING: Record<string, { meaning: string; yiYong: string; jiXiong
 
 // 压白尺九星：紫白为吉
 // 出处：《协纪辨方书》紫白诀，紫白为九星中最吉，黄黑碧绿赤为凶
-const CUN_BAI_STARS = ["白", "黑", "碧", "绿", "黄", "白", "赤", "白", "紫"];
 const CUN_UNIT = 3.03;
 
 /**

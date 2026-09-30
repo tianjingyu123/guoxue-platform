@@ -263,7 +263,7 @@ export class TtsService {
   }
 
   /** 火山引擎 TTS 合成 */
-  private async volcengineSynthesize(text: string, voiceKey: string, rate: string, style: TtsStyle): Promise<Buffer> {
+  private async volcengineSynthesize(text: string, voiceKey: string, rate: string, _style: TtsStyle): Promise<Buffer> {
     const voice = VOICES[voiceKey]?.volcengine || "zh_female_qingxin"
     // 将 rate 字符串（如 "+10%", "-20%"）转为数字（1.1, 0.8）
     const rateNum = rate.replace('%', '')

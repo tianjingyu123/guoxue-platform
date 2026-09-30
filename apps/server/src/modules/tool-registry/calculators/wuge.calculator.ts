@@ -223,8 +223,6 @@ export function calculateWuGe(input: Record<string, unknown>): WuGeResult & { su
     return { char:c, kangXiStroke:ks, simpleStroke:ss, wuXing: getCharWuXing(c) as any, radical:"" };
   });
 
-  const surnameStrokes = strokes.slice(0, surname.length).reduce((s,x) => s + x.kangXiStroke, 0);
-  const givenStrokes = strokes.slice(surname.length).reduce((s,x) => s + x.kangXiStroke, 0);
   /**
    * 🔴 2026-09-19 改用 `@guoxue/shared/paipan` 的 `calcWuGe`。
    *

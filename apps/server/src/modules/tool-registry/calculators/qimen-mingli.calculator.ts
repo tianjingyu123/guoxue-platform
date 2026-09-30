@@ -12,7 +12,6 @@ import {
 } from "@guoxue/bazi-engine";
 import { calculateQimenYang } from "./qimen.calculator";
 
-const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
 const GONG_NAMES = ["坎","坤","震","巽","中","乾","兑","艮","离"];
 
@@ -23,9 +22,6 @@ const ZHI_TO_GONG_IDX: Record<string, number> = {
 };
 
 // 五行定义
-const GAN_WU_XING: Record<string, string> = {
-  "甲":"木","乙":"木","丙":"火","丁":"火","戊":"土","己":"土","庚":"金","辛":"金","壬":"水","癸":"水",
-};
 const GONG_WU_XING: Record<number, string> = { 0:"水",1:"土",2:"木",3:"木",4:"土",5:"金",6:"金",7:"土",8:"火" };
 
 // 宫位→代表地支（用于十二长生计算）

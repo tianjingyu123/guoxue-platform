@@ -28,9 +28,6 @@ const ZHI_TO_BAGUA: Record<string, string> = {
 // 每局含：局名、值符星、值使门、穿壬天将、吉凶、详解
 // ══════════════════════════════════════════════
 
-const NINE_STARS = ["天蓬","天芮","天冲","天辅","天禽","天心","天柱","天任","天英"];
-const EIGHT_MEN = ["休门","死门","伤门","杜门","开门","惊门","生门","景门"];
-const TIAN_JIANG_12 = ["贵人","螣蛇","朱雀","六合","勾陈","青龙","天空","白虎","太常","玄武","太阴","天后"];
 
 /**
  * 🔴 2026-09-19 切除：这里原有一张「七十二局表」，是**编造的**。
@@ -50,11 +47,6 @@ const TIAN_JIANG_12 = ["贵人","螣蛇","朱雀","六合","勾陈","青龙","�
  */
 
 // ══════════════════════════════════════════════
-
-/** 计算时柱地支索引 (0=子时, 1=丑时...) */
-function calcShiZhiIndex(hour: number): number {
-  return Math.floor(((hour + 1) % 24) / 2);
-}
 
 /**
  * 综合吉凶：由九宫逐宫的穿壬评分汇总而来。
@@ -111,7 +103,6 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
   }) as unknown as DaLiuRenResult;
 
   // ── 3. 七十二局计算 ──
-  const shiZhiIdx = calcShiZhiIndex(hour);
   const juNumber = qimenResult.juNumber;
 
   // ── 4. 六壬数据索引（按地支快速查找） ──

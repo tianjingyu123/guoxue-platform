@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import type { JinKouJueInput, YongShenFenXiInput, GeJuXiangJieInput, NayinXiangJieInput, SanheShuifaInput, FuxingShuifaInput } from "@guoxue/shared";
+import type { YongShenFenXiInput, GeJuXiangJieInput, NayinXiangJieInput, SanheShuifaInput, FuxingShuifaInput } from "@guoxue/shared";
 import { WannianliService } from "../wannianli/wannianli.service";
 import { VERIFIED_TOOLS, REMOVED_WRONG } from "./verification-gate";
 import {

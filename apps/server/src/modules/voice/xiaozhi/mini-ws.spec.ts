@@ -10,7 +10,7 @@ import { MiniWsConnection, acceptUpgrade, connectWs, rejectUpgrade } from "./min
 describe("mini-ws", () => {
   let server: http.Server;
   let port = 0;
-  let conns: MiniWsConnection[] = [];
+  const conns: MiniWsConnection[] = [];
   let reject401 = false;
 
   beforeAll(async () => {
