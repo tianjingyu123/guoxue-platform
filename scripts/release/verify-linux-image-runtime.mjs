@@ -128,7 +128,8 @@ try {
         await p.user.create({data:{id,nickname:'隔离验收用户',...(role?{roles:{create:{roleType:role}}}:{})}});
       await p.order.create({data:{id:'linux-order-b',userId:'linux-user-b',type:'COURSE',targetId:'isolated-course',amount:1,status:'PAID'}});
       await p.notification.create({data:{id:'linux-notification-a',userId:'linux-user-a',type:'SYSTEM',title:'隔离权限测试',content:'仅合成数据',targetType:'ORDER',targetId:'linux-order-b'}});
-      console.log('NODE_TEST_RESULT:'+JSON.stringify({users:await p.user.count(),orders:await p.order.count(),notifications:await p.notification.count()}));
+      // 正式启动可能自动建立系统账号；只核本次明确创建的合成主键，不能假定全表为六行。
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({users:await p.user.count({where:{id:{in:['linux-user-a','linux-user-b','linux-super','linux-ops','linux-finance','linux-customer']}}}),orders:await p.order.count({where:{id:'linux-order-b'}}),notifications:await p.notification.count({where:{id:'linux-notification-a'}})}));
     } finally {await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`);
   assert.equal(fixture.users, 6);
   const permissionReport = appNode(`
