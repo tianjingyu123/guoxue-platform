@@ -1,0 +1,223 @@
+{
+  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "runId": 36768859516,
+  "http": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "im-capabilities-anonymous-denied",
+        "status": 401,
+        "passed": true
+      },
+      {
+        "name": "im-fallback-capabilities",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-history-anonymous-denied",
+        "status": 401,
+        "passed": true
+      },
+      {
+        "name": "im-self-send-denied",
+        "status": 403,
+        "passed": true
+      },
+      {
+        "name": "im-stranger-policy-denied",
+        "status": 403,
+        "passed": true
+      },
+      {
+        "name": "im-last-quota-two-http-requests-one-message",
+        "statuses": [
+          403,
+          201
+        ],
+        "passed": true
+      },
+      {
+        "name": "im-third-user-cannot-read-pair",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-recipient-history",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-recipient-unread",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-third-user-read-cannot-mark-recipient",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-recipient-mark-read",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-recipient-unread-zero",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-preference-mass-assignment-rejected-by-whitelist",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-preference-invalid-boolean",
+        "status": 400,
+        "passed": true
+      },
+      {
+        "name": "im-preference-valid-mute",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-reply-resets-peer-quota",
+        "status": 201,
+        "passed": true
+      },
+      {
+        "name": "im-send-again-after-reply",
+        "status": 201,
+        "passed": true
+      },
+      {
+        "name": "im-recipient-all-three-messages",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-clear-only-own-history",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-cleared-history-empty",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-peer-history-retained",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-insert-failure-rolls-back-quota",
+        "status": 500,
+        "passed": true
+      },
+      {
+        "name": "im-retry-after-insert-failure",
+        "status": 201,
+        "passed": true
+      },
+      {
+        "name": "im-either-side-blacklist-denied",
+        "status": 403,
+        "passed": true
+      },
+      {
+        "name": "im-third-user-conversations-isolated",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "name": "im-opposite-direction-concurrency-no-deadlock",
+        "statuses": [
+          201,
+          201
+        ],
+        "passed": true
+      }
+    ],
+    "httpRequests": 28,
+    "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im",
+    "realMessages": 0,
+    "socketDeliveryNotCovered": true,
+    "twoApplicationProcessesNotCovered": true
+  },
+  "socket": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "socket-anonymous-rejected",
+        "passed": true
+      },
+      {
+        "name": "socket-expired-token-rejected",
+        "passed": true
+      },
+      {
+        "name": "socket-banned-user-rejected",
+        "passed": true
+      },
+      {
+        "name": "two-app-processes-three-real-socket-connections",
+        "passed": true
+      },
+      {
+        "name": "two-app-processes-last-quota-one-commit",
+        "statuses": [
+          201,
+          403
+        ],
+        "passed": true
+      },
+      {
+        "name": "committed-message-delivered-once-to-both-users-not-third",
+        "passed": true
+      },
+      {
+        "name": "cross-process-reply-delivery-and-quota-reset",
+        "passed": true
+      },
+      {
+        "name": "database-insert-failure-no-message-event-and-no-quota",
+        "passed": true
+      },
+      {
+        "name": "rollback-retry-commits-and-delivers-once",
+        "passed": true
+      },
+      {
+        "name": "offline-recipient-does-not-block-commit",
+        "passed": true
+      },
+      {
+        "name": "reconnect-history-recovers-offline-message-without-fake-event-replay",
+        "passed": true
+      },
+      {
+        "name": "third-user-has-neither-events-nor-history",
+        "passed": true
+      }
+    ],
+    "httpRequests": 8,
+    "socketClientVersion": "socket.io-client@4.8.4",
+    "appProcesses": 2,
+    "realSocketConnections": true,
+    "sharedRedisAdapter": true,
+    "realMessages": 0,
+    "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production",
+    "productionNodesNotCovered": true
+  },
+  "officialArtifact": {
+    "artifactId": 11123088442,
+    "zipSha256": "e2354fc37833099ec852bf9337b8e935b8616fa297d0f3766aa00d2cc3853927",
+    "zipBytes": 48645,
+    "runId": 36768859516,
+    "digestMatched": true,
+    "verificationCommit": "033946a457272055b89825b698291aa849603c69"
+  }
+}

@@ -1,22 +1,33 @@
 {
-  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
-  "scope": "official-preview-compile-not-actual-phone-or-release",
+  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "actualPreviewSourceCommit": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
+  "clientTreeEquivalent": true,
   "snapshot": {
-    "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
-    "files": 2748,
-    "copiedBytes": 11040838,
+    "sourceCommit": "1843d1b0e8a041bf82943ae4fcfb5160bf765ad2",
+    "files": 2749,
+    "copiedBytes": 11043293,
     "allHashesEqual": true,
     "appid": "wx06397e8ab26bed9e",
     "scope": "official-preview-not-upload-or-release"
   },
-  "mainBytes": 1889642,
-  "mainRemainingBytes": 207510,
+  "mainBytes": 1890595,
+  "mainRemainingBytes": 206557,
   "largestSubpackage": {
     "name": "/pkg-paipan/",
     "size": 1950310
   },
   "largestRemainingBytes": 146842,
   "subpackageCount": 33,
-  "totalBytes": 12570376,
+  "totalBytes": 12573617,
+  "scope": "official-preview-and-simulator-error-path-not-phone-or-release",
+  "simulatorPages": [
+    "pages/index/index",
+    "pkg-im/im/conversations/index",
+    "pkg-im/im/chat/index",
+    "pkg-im/im/group-chat/index"
+  ],
+  "imNormalBackendNotCovered": true,
+  "normalBackendLimitation": "公网旧服务没有 /api/v1/im/capabilities",
+  "visibleErrorButtonsAndReturnHomePassed": true,
   "passed": true
 }

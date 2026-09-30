@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "scope": "existing-253-native-shell-current-js-not-final-cloud-native",
+  "appResourceFiles": 489,
+  "resourceHashesMatch": true,
+  "certificateMatches247": true,
+  "v1AndV2Verified": true,
+  "apkBytes": 30784914,
+  "apkSha256": "7b31b2a8ae8fd7bde94bbc7dc7cf449964ca9a4e50b6f4b29515268756667d0d",
+  "previousApkSha256": "bca31b627c5ee8541e63e90b822b6424642ae6f64745fb42b8caf22f8a3d3da0",
+  "installedReadbackMatches": true,
+  "deviceCount": 1,
+  "deviceModel": "OnePlus 9R LE2100",
+  "dataCleared": false,
+  "uninstalled": false,
+  "cloudPackagingCalls": 0,
+  "realPaymentOperations": 0,
+  "realMessagesSent": 0,
+  "actions": [
+    "首页正常渲染",
+    "通知中的私信入口进入会话页",
+    "真实旧服务capabilities缺失时错误与两按钮可见",
+    "点击重试返回相同限定错误",
+    "系统Home后恢复App",
+    "点击返回上一页回通知，系统返回回首页"
+  ],
+  "normalMessageBackendNotCovered": true,
+  "screenshots": [
+    {
+      "name": "android-ceca6455-home.png",
+      "bytes": 940783,
+      "sha256": "3947d755596df9d539280091f9f730c8efa8fc242e829f3f06b49f3e7e0bb408"
+    },
+    {
+      "name": "android-ceca6455-conversations-settled.png",
+      "bytes": 61895,
+      "sha256": "2bffdbba07ac4de831ee8b77e7436a8e22abbbb992664dc3ba01bc9955463f63"
+    },
+    {
+      "name": "android-ceca6455-im-return-home-settled.png",
+      "bytes": 928596,
+      "sha256": "d8d0c32d367d1de2fe938fe8325f27918b41a40129aa3cb1e219330e94b7f754"
+    }
+  ],
+  "observation": "两个立即截图位于系统导航动画中；动画结束后独立截图完整正常，不据此断言持续分屏或白屏。错误文案含接口路径是待改善的面向用户提示，不代表新后端已上线。",
+  "newFinalNativeReleasePackage": false
+}

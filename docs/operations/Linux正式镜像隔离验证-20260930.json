@@ -1,7 +1,7 @@
 {
-  "sourceCommit": "2c6b4d3d2938bb9d1b9def72ccd41185c5e2b59a",
-  "sourceSha256": "04489581b5061855705f5103f059a897441a9abe8b7bc1e8b701c1af62e32af5",
-  "image": "rebu-linux-verify:2c6b4d3d",
+  "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
+  "sourceSha256": "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474",
+  "image": "rebu-linux-verify:ceca6455",
   "postgresImage": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff",
   "redisImage": "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
   "scope": "isolated-empty-db-no-real-channels",
@@ -9,7 +9,7 @@
     {
       "name": "image-identity",
       "passed": true,
-      "detail": "sha256:ce9e5affbadcf521eca074ee49cacb5ad9a754e7345509cd3e7bdbfaa012c4ff"
+      "detail": "sha256:61d74a74bfa5fad7c521d9e57afd91ad02ec1fefdbed69249c4e14c22b3b20cd"
     },
     {
       "name": "prisma-source-compile-runtime-binding",
@@ -41,7 +41,7 @@
         {
           "name": "h5",
           "prefix": "/h5/",
-          "fileCount": 1177
+          "fileCount": 1178
         }
       ]
     },
@@ -66,7 +66,7 @@
         {
           "path": "/api/v1/health/live",
           "status": 200,
-          "releaseId": "isolated-2c6b4d3d"
+          "releaseId": "isolated-ceca6455"
         },
         {
           "path": "/api/v1/health/ready",
@@ -76,7 +76,7 @@
         {
           "path": "/api/v1/health",
           "status": 200,
-          "releaseId": "isolated-2c6b4d3d"
+          "releaseId": "isolated-ceca6455"
         },
         {
           "path": "/api/v1/mini/home",
@@ -1064,15 +1064,234 @@
       }
     },
     {
+      "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "im-capabilities-anonymous-denied",
+            "status": 401,
+            "passed": true
+          },
+          {
+            "name": "im-fallback-capabilities",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-history-anonymous-denied",
+            "status": 401,
+            "passed": true
+          },
+          {
+            "name": "im-self-send-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-stranger-policy-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-last-quota-two-http-requests-one-message",
+            "statuses": [
+              403,
+              201
+            ],
+            "passed": true
+          },
+          {
+            "name": "im-third-user-cannot-read-pair",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-history",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-unread",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-third-user-read-cannot-mark-recipient",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-mark-read",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-unread-zero",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-preference-mass-assignment-rejected-by-whitelist",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-preference-invalid-boolean",
+            "status": 400,
+            "passed": true
+          },
+          {
+            "name": "im-preference-valid-mute",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-reply-resets-peer-quota",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-send-again-after-reply",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-recipient-all-three-messages",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-clear-only-own-history",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-cleared-history-empty",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-peer-history-retained",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-insert-failure-rolls-back-quota",
+            "status": 500,
+            "passed": true
+          },
+          {
+            "name": "im-retry-after-insert-failure",
+            "status": 201,
+            "passed": true
+          },
+          {
+            "name": "im-either-side-blacklist-denied",
+            "status": 403,
+            "passed": true
+          },
+          {
+            "name": "im-third-user-conversations-isolated",
+            "status": 200,
+            "passed": true
+          },
+          {
+            "name": "im-opposite-direction-concurrency-no-deadlock",
+            "statuses": [
+              201,
+              201
+            ],
+            "passed": true
+          }
+        ],
+        "httpRequests": 28,
+        "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im",
+        "realMessages": 0,
+        "socketDeliveryNotCovered": true,
+        "twoApplicationProcessesNotCovered": true
+      }
+    },
+    {
+      "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "passed": true,
+      "detail": {
+        "passed": true,
+        "cases": [
+          {
+            "name": "socket-anonymous-rejected",
+            "passed": true
+          },
+          {
+            "name": "socket-expired-token-rejected",
+            "passed": true
+          },
+          {
+            "name": "socket-banned-user-rejected",
+            "passed": true
+          },
+          {
+            "name": "two-app-processes-three-real-socket-connections",
+            "passed": true
+          },
+          {
+            "name": "two-app-processes-last-quota-one-commit",
+            "statuses": [
+              201,
+              403
+            ],
+            "passed": true
+          },
+          {
+            "name": "committed-message-delivered-once-to-both-users-not-third",
+            "passed": true
+          },
+          {
+            "name": "cross-process-reply-delivery-and-quota-reset",
+            "passed": true
+          },
+          {
+            "name": "database-insert-failure-no-message-event-and-no-quota",
+            "passed": true
+          },
+          {
+            "name": "rollback-retry-commits-and-delivers-once",
+            "passed": true
+          },
+          {
+            "name": "offline-recipient-does-not-block-commit",
+            "passed": true
+          },
+          {
+            "name": "reconnect-history-recovers-offline-message-without-fake-event-replay",
+            "passed": true
+          },
+          {
+            "name": "third-user-has-neither-events-nor-history",
+            "passed": true
+          }
+        ],
+        "httpRequests": 8,
+        "socketClientVersion": "socket.io-client@4.8.4",
+        "appProcesses": 2,
+        "realSocketConnections": true,
+        "sharedRedisAdapter": true,
+        "realMessages": 0,
+        "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production",
+        "productionNodesNotCovered": true
+      }
+    },
+    {
       "name": "redis7-two-process-notification-idempotency",
       "passed": true,
       "detail": [
         {
-          "created": true,
+          "created": false,
           "sharedRedis": true
         },
         {
-          "created": false,
+          "created": true,
           "sharedRedis": true
         }
       ]
