@@ -1,0 +1,88 @@
+{
+  "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6",
+  "syntheticOnly": true,
+  "compiled": false,
+  "nativePackageVerified": false,
+  "wgtEnabled": false,
+  "channels": [
+    {
+      "channelId": "huawei",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "huawei",
+      "platform": "harmony",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "xiaomi",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "oppo",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "oneplus",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "vivo",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "honor",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "realme",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "tencent",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "samsung",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "google-play",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "app-store",
+      "platform": "ios",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    },
+    {
+      "channelId": "official",
+      "platform": "android",
+      "sourceSha": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6"
+    }
+  ],
+  "nativeBoundary": {
+    "self": {
+      "compatible": true,
+      "changedNativeInputs": [],
+      "nativeFingerprint": "30f4c12ecc6f0ac4874e92ce2bbf72644eb447b07640a88a6513ee82650f6e24"
+    },
+    "initialFullPackageRequired": {
+      "compatible": false,
+      "changedNativeInputs": [
+        "apps/mobile/src/lib/app-distribution.ts"
+      ],
+      "nativeFingerprint": "30f4c12ecc6f0ac4874e92ce2bbf72644eb447b07640a88a6513ee82650f6e24"
+    }
+  }
+}
