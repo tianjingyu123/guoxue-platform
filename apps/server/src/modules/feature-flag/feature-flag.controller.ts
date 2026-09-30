@@ -1,4 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe,
+  Header,
+} from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FeatureFlagService } from "./feature-flag.service";
@@ -22,6 +24,28 @@ import { RedLineGate, RedLine } from "../../common/red-lines";
 @ApiBearerAuth()
 export class FeatureFlagController {
   constructor(private readonly service: FeatureFlagService) {}
+  @Post(":key/draft")
+  @Auditable({ action: "保存运营配置草稿", targetType: "FEATURE_FLAG" })
+  saveDraft(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request) {
+    return this.service.saveDraft(key, dto, this.operator(req));
+  }
+  @Post(":key/preview")
+  async preview(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request) {
+    return this.service.preview(
+      key,
+      dto,
+      req.user?.id,
+      await this.service.requestScope(req),
+      String(req.headers?.["x-native-build"] || ""),
+    );
+  }
+  @Post("draft/:id/publish")
+  @Roles("SUPER_ADMIN")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
+  @Auditable({ action: "发布运营配置草稿", targetType: "FEATURE_FLAG" })
+  publishDraft(@Param("id") id: string, @Req() req: Request) {
+    return this.service.publishDraft(id, this.operator(req));
+  }
 
   @Get()
   @ApiOperation({ summary: "列出所有功能开关" })
@@ -56,8 +80,7 @@ export class FeatureFlagController {
   async upsert(
     @Param("key") key: string,
     @Body() dto: UpsertFeatureFlagDto,
-    @Req() req: Request,
-  ) {
+    @Req() req: Request) {
     return this.service.upsert(key, dto, this.operator(req));
   }
 
@@ -94,7 +117,7 @@ export class FeatureFlagController {
 
   private operator(req: Request): string | undefined {
     const user = req.user as { nickname?: string; id?: string } | undefined;
-    return user?.nickname || user?.id;
+    return user?.id;
   }
 }
 
@@ -109,29 +132,41 @@ export class FeatureFlagPublicController {
   ) {}
 
   @Get("features")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取当前启用的功能列表（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getEnabledFeatures(@Req() req: Request) {
     const userId = req.user?.id;
-    return { features: await this.service.getClientFeatures(userId) };
+    const scope = await this.service.requestScope(req);
+    return { features: await this.service.getClientFeatures(userId,
+        scope,
+        String(req.headers?.["x-native-build"] || ""),
+      ),
+    };
   }
 
   @Get("client")
+  @Header("Cache-Control", "private, no-store")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取客户端远程配置 V1（公开、安全白名单、可缓存）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getClientConfig(@Req() req: Request) {
     const userId = req.user?.id;
-    const [features, ui, maintenanceEnabled] = await Promise.all([
-      this.service.getClientFeatures(userId),
+    const scope = await this.service.requestScope(req);
+    const nativeBuild = String(req.headers?.["x-native-build"] || "");
+    const [features, ui, maintenanceEnabled, operations] = await Promise.all([
+      this.service.getClientFeatures(userId, scope, nativeBuild),
       this.systemService.getUiConfig(),
       this.systemService.isMaintenanceMode(),
+      this.service.getClientOperations(userId, scope, nativeBuild),
     ]);
     const payload = {
       features,
       ui,
       maintenance: { enabled: maintenanceEnabled },
+      operations,
+      scope,
     };
     const revision = createHash("sha256")
       .update(JSON.stringify(payload))

@@ -1,8 +1,39 @@
-import { IsString, IsOptional, IsBoolean, IsIn, Matches, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsBoolean, IsIn, Matches, MaxLength,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+  ArrayMaxSize,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
-export class CreateAppVersionDto {
+export class DistributionQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z][a-z0-9-]{1,47}$/)
+  applicationId?: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z][a-z0-9-]{1,47}$/)
+  channelId?: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z][a-z0-9._-]{1,79}$/)
+  clientKey?: string;
+}
+
+export class CreateAppVersionDto extends DistributionQueryDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  rolloutPercentage?: number;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  targetUserIds?: string[];
   @ApiProperty({ description: "平台: ios/android/harmony" })
   @IsString() @IsIn(["ios", "android", "harmony"])
   platform: string;
@@ -35,6 +66,16 @@ export class CreateAppVersionDto {
 }
 
 export class UpdateAppVersionDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  rolloutPercentage?: number;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  targetUserIds?: string[];
   @ApiPropertyOptional({ description: "版本号" })
   @IsOptional() @IsString() @Matches(/^v?\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z.-]+)?$/, {
     message: "version 必须是数字点分版本号，如 1.2.0",
@@ -62,7 +103,7 @@ export class UpdateAppVersionDto {
   checksumSha256?: string;
 }
 
-export class CheckAppVersionDto {
+export class CheckAppVersionDto extends DistributionQueryDto {
   @ApiProperty({ description: "平台: ios/android/harmony" })
   @IsString() @IsIn(["ios", "android", "harmony"])
   platform: string;

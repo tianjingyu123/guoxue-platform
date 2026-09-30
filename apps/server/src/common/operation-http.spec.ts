@@ -1,0 +1,125 @@
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import { Reflector } from "@nestjs/core";
+import request from "supertest";
+import { FeatureFlagGuard } from "./feature-flag.guard";
+import { FeatureFlagService } from "../modules/feature-flag/feature-flag.service";
+import { RequireFeature, FEATURE_FLAG_KEY } from "./feature-flag.decorator";
+import { evaluateOperation } from "../modules/feature-flag/operation.util";
+import { ShopController } from "../modules/shop/shop.controller";
+import { MemberController } from "../modules/member/member.controller";
+
+@Controller("synthetic")
+class SyntheticController {
+  @Post("orders")
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature("shop_checkout")
+  order(@Body() body: unknown) {
+    return { syntheticOnly: true, body };
+  }
+  @Get("read")
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature("shop_checkout")
+  read() {
+    return { syntheticOnly: true };
+  }
+  @Get("existing-order")
+  existing() {
+    return { syntheticOnly: true, owned: true };
+  }
+}
+describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
+  let app: any;
+  let state = "OPEN",
+    emergency = false;
+  const flag = { key: "shop_checkout", enabled: true, percentage: 100, targetUserIds: [] };
+  const service = {
+    requestScope: async (req: any) =>
+      req.headers["x-app-client"] === "test-huawei"
+        ? { applicationId: "rebu", platform: "android", channelId: "huawei" }
+        : { applicationId: "rebu", platform: "android", channelId: "xiaomi" },
+    getOperationState: async (key: string, userId: string, scope: any) =>
+      key === "member_purchase" || emergency
+        ? "UNOPENED"
+        : evaluateOperation(
+            {
+              ...flag,
+              operationState: state,
+              scopeRules: [
+                {
+                  applicationId: "rebu",
+                  platform: "android",
+                  channelId: "xiaomi",
+                  state: "UNOPENED",
+                },
+              ],
+            },
+            userId,
+            scope,
+          ),
+  };
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [SyntheticController],
+      providers: [FeatureFlagGuard, Reflector, { provide: FeatureFlagService, useValue: service }],
+    }).compile();
+    app = module.createNestApplication();
+    await app.init();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+  beforeEach(() => {
+    state = "OPEN";
+    emergency = false;
+  });
+  it("关闭渠道 POST 拒绝，其他渠道开放；全局急停不能被渠道头放宽", async () => {
+    await request(app.getHttpServer())
+      .post("/synthetic/orders")
+      .set("X-App-Client", "test-xiaomi")
+      .send({ type: "PRODUCT" })
+      .expect(404);
+    await request(app.getHttpServer())
+      .post("/synthetic/orders")
+      .set("X-App-Client", "test-huawei")
+      .send({ type: "PRODUCT" })
+      .expect(201);
+    emergency = true;
+    await request(app.getHttpServer())
+      .post("/synthetic/orders")
+      .set("X-App-Client", "test-huawei")
+      .send({ type: "PRODUCT" })
+      .expect(404);
+    await request(app.getHttpServer()).get("/synthetic/existing-order").expect(200);
+  });
+  it("只读允许读取、拒绝写入；统一建单不得绕过关闭的会员购买", async () => {
+    state = "READ_ONLY";
+    await request(app.getHttpServer())
+      .get("/synthetic/read")
+      .set("X-App-Client", "test-huawei")
+      .expect(200);
+    await request(app.getHttpServer())
+      .post("/synthetic/orders")
+      .set("X-App-Client", "test-huawei")
+      .send({ type: "PRODUCT" })
+      .expect(404);
+    state = "OPEN";
+    await request(app.getHttpServer())
+      .post("/synthetic/orders")
+      .set("X-App-Client", "test-huawei")
+      .send({ type: "MEMBER" })
+      .expect(404);
+  });
+  it("正式控制器的新建单接入同一守卫；已有订单、退款、会员既有权益不继承购买开关", () => {
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, ShopController.prototype.createOrder)).toBe(
+      "shop_checkout",
+    );
+    const shopPrototype = ShopController.prototype as any;
+    for (const name of Object.getOwnPropertyNames(shopPrototype).filter((n) =>
+      /refund|myOrder|orderDetail/i.test(n),
+    )) {
+      expect(Reflect.getMetadata(FEATURE_FLAG_KEY, shopPrototype[name])).toBeUndefined();
+    }
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MemberController)).toBeUndefined();
+  });
+});

@@ -5088,6 +5088,9 @@ model FeatureFlag {
   enabled       Boolean  @default(false)
   percentage    Int      @default(100)
   targetUserIds String[] @default([])
+  operationState String @default("OPEN") // UNOPENED / OPEN / MAINTENANCE / READ_ONLY
+  emergencyDisabled Boolean @default(false)
+  scopeRules Json? // 受限应用/渠道运营规则；不能重新开启全局关闭
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -6958,6 +6961,10 @@ model LegalDocument {
 model AppVersion {
   id                      String    @id @default(uuid())
   platform                String // ios / android / harmony
+  applicationId           String @default("rebu")
+  channelId               String @default("legacy")
+  rolloutPercentage       Int @default(100)
+  targetUserIds           String[] @default([])
   version                 String
   buildNumber             String?
   changelog               String?
@@ -6967,7 +6974,7 @@ model AppVersion {
   minSupportedVersion     String?
   minSupportedBuildNumber String?
   status                  String    @default("DRAFT") // DRAFT / ACTIVE / RETIRED
-  activePlatformKey       String?   @unique // 仅 ACTIVE 记录写 platform，数据库层保证每端最多一个当前版本
+  activePlatformKey       String?   @unique // 兼容字段名，值为 applicationId:platform:channelId
   publishedAt             DateTime?
   publishedBy             String?
   retiredAt               DateTime?
@@ -6975,8 +6982,49 @@ model AppVersion {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  @@index([platform, status, publishedAt])
-  @@index([platform, version, buildNumber])
+  @@index([applicationId, platform, channelId, status, publishedAt])
+  @@unique([applicationId, platform, channelId, version, buildNumber])
+}
+
+// 应用/渠道登记只存公开身份，客户应用可扩展，不承担租户数据授权。
+model AppDistribution {
+  id String @id @default(uuid())
+  productId String
+  applicationId String
+  platform String
+  channelId String
+  clientKey String @unique
+  packageName String
+  signingCertificateSha256 String?
+  enabled Boolean @default(true)
+  wgtPolicy String @default("DENIED")
+  policyEvidence String?
+  recoveryEvidence String?
+  nativeFingerprint String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([applicationId, platform, channelId])
+}
+
+model ResourceRelease {
+  id String @id @default(uuid())
+  applicationId String
+  platform String
+  channelId String
+  resourceVersion Int
+  status String @default("DRAFT")
+  activeScopeKey String? @unique
+  manifest Json
+  signature String
+  keyId String
+  rolloutPercentage Int @default(0)
+  targetUserIds String[] @default([])
+  publishedBy String?
+  publishedAt DateTime?
+  retiredAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([applicationId, platform, channelId, resourceVersion])
+  @@index([applicationId, platform, channelId, status])
 }
 
 // ─────────────────────────────────────────────────

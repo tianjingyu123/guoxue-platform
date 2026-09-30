@@ -5,16 +5,43 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsIn,
+  ValidateNested,
   Matches,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
+import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { OperationState } from "./operation.util";
 
 export const FEATURE_FLAG_KEY_PATTERN = /^[a-z][a-z0-9._-]{1,63}$/;
 
+export class OperationRuleDto {
+  @IsString() @Matches(/^[a-z][a-z0-9-]{1,47}$/) applicationId: string;
+  @IsString() @IsIn(["android", "ios", "harmony"]) platform: string;
+  @IsString() @Matches(/^[a-z][a-z0-9-]{1,47}$/) channelId: string;
+  @IsString() @IsIn(["UNOPENED", "OPEN", "MAINTENANCE", "READ_ONLY"]) state: OperationState;
+  @IsOptional() @IsInt() @Min(0) @Max(100) percentage?: number;
+  @IsOptional() @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) targetUserIds?: string[];
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) minNativeBuild?: string;
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) maxNativeBuild?: string;
+}
+
 export class UpsertFeatureFlagDto {
+  @IsOptional() @IsString() @MaxLength(500) changeReason?: string;
+  @IsOptional()
+  @IsString()
+  @IsIn(["UNOPENED", "OPEN", "MAINTENANCE", "READ_ONLY"])
+  operationState?: OperationState;
+  @IsOptional() @IsBoolean() emergencyDisabled?: boolean;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => OperationRuleDto)
+  scopeRules?: OperationRuleDto[];
   @ApiPropertyOptional({ description: "名称" })
   @IsOptional()
   @IsString()
