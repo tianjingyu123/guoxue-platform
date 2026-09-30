@@ -19,6 +19,7 @@ describe("HealthController", () => {
   beforeAll(async () => {
     const mockPrisma = { $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]) };
     const mockRedis = {
+      pingShared: jest.fn().mockResolvedValue(true),
       set: jest.fn().mockResolvedValue(undefined),
       get: jest.fn().mockResolvedValue("1"),
     };
@@ -54,6 +55,7 @@ describe("HealthController", () => {
   it("数据库故障时返回 fail", async () => {
     const mockPrismaFail = { $queryRaw: jest.fn().mockRejectedValue(new Error("DB down")) };
     const mockRedisOk = {
+      pingShared: jest.fn().mockResolvedValue(true),
       set: jest.fn().mockResolvedValue(undefined),
       get: jest.fn().mockResolvedValue("1"),
     };

@@ -133,6 +133,7 @@ describe("Course E2E", () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
       prisma.courseChapter.findUnique.mockResolvedValue({ id: "ch1", courseId: "c1" })
+      prisma.course.findUnique.mockResolvedValue({ id: "c1", price: 0, userId: "u2" })
       prisma.courseProgress.upsert.mockResolvedValue({
         id: "p1", userId: "u1", chapterId: "ch1", completed: true, progress: 100,
       })

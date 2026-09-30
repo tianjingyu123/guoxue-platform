@@ -133,10 +133,9 @@ describe("Question E2E", () => {
         if (args?.where?.id === "u2") return { id: "u2", status: "ACTIVE", roles: [] }
         return null
       })
-      prisma.paidQuestion.findUnique.mockResolvedValue({
+      prisma.paidQuestion.findUnique.mockResolvedValueOnce({
         id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50,
-      })
-      prisma.paidQuestion.update.mockResolvedValue({
+      }).mockResolvedValueOnce({
         id: "q1", answer: "论语以学而篇为首", status: "ANSWERED",
         answeredAt: new Date().toISOString(),
         asker: { id: "u1", nickname: "张三", avatar: null },

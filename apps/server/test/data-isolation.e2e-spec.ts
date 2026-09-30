@@ -28,9 +28,9 @@ describe("Data Isolation E2E", () => {
 
   // ═══════════════════ 内容管理 station 过滤 ═══════════════════
 
-  describe("Content stationId 过滤", () => {
-    it("带 stationId 查询仅返回该分站内容", async () => {
-      prisma.content.findMany.mockResolvedValue([{ id: "c1", title: "分站A文章", stationId: STATION_A }])
+  describe("公开内容不跨入分站", () => {
+    it("匿名请求即使带 stationId 也只查询平台公开内容", async () => {
+      prisma.content.findMany.mockResolvedValue([{ id: "c1", title: "平台文章", stationId: null }])
       prisma.content.count.mockResolvedValue(1)
 
       const res = await request(app.getHttpServer())
@@ -39,30 +39,28 @@ describe("Data Isolation E2E", () => {
 
       expect(res.body.data).toHaveLength(1)
       expect(prisma.content.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ stationId: STATION_A }) }),
+        expect.objectContaining({ where: expect.objectContaining({ stationId: null, status: "PUBLISHED", deletedAt: null }) }),
       )
     })
 
-    it("匿名查询不带 stationId 只返回各分站已发布内容", async () => {
+    it("匿名查询不带 stationId 也只返回平台已发布内容", async () => {
       prisma.content.findMany.mockResolvedValue([
-        { id: "c1", stationId: STATION_A },
-        { id: "c2", stationId: STATION_B },
         { id: "c3", stationId: null },
       ])
-      prisma.content.count.mockResolvedValue(3)
+      prisma.content.count.mockResolvedValue(1)
 
       const res = await request(app.getHttpServer())
         .get("/api/v1/contents")
         .expect(200)
 
-      expect(res.body.total).toBe(3)
+      expect(res.body.total).toBe(1)
       expect(prisma.content.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "PUBLISHED" } }),
+        expect.objectContaining({ where: expect.objectContaining({ status: "PUBLISHED", stationId: null, deletedAt: null }) }),
       )
     })
 
-    it("不同分站查询结果互不干扰", async () => {
-      prisma.content.findMany.mockResolvedValue([{ id: "c2", stationId: STATION_B }])
+    it("不同 stationId 参数均不能扩大匿名内容范围", async () => {
+      prisma.content.findMany.mockResolvedValue([{ id: "c2", stationId: null }])
       prisma.content.count.mockResolvedValue(1)
 
       await request(app.getHttpServer())
@@ -70,7 +68,7 @@ describe("Data Isolation E2E", () => {
         .expect(200)
 
       expect(prisma.content.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ stationId: STATION_B }) }),
+        expect.objectContaining({ where: expect.objectContaining({ stationId: null, status: "PUBLISHED" }) }),
       )
     })
   })
