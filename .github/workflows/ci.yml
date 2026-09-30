@@ -175,7 +175,13 @@ jobs:
 
       - name: 运行测试 — shard ${{ matrix.shard }}
         working-directory: apps/server
-        run: npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=2
+        run: |
+          set -o pipefail
+          npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=2 2>&1 | tee jest-shard.log || {
+            detail="$(grep -E '^(FAIL|Test Suites:|Tests:|  ●)' jest-shard.log | tail -n 12 | tr '\n' ' ' | cut -c 1-3000)"
+            echo "::error title=单元测试 ${{ matrix.shard }} 失败::${detail:-请检查测试日志}"
+            exit 1
+          }
         env:
           DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
           REDIS_URL: redis://localhost:6379/0
