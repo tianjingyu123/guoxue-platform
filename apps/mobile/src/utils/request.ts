@@ -5,6 +5,7 @@
  */
 import { getToken, getRefreshToken, setToken, setRefreshToken, clearAuthSession } from './storage'
 import { track } from '@/composables/useTrack'
+import { distributionHeaders } from '@/lib/app-distribution'
 
 export interface ApiResponse<T> {
   code: number
@@ -229,6 +230,7 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
   const token = getToken()
   return {
     'Content-Type': 'application/json',
+    ...distributionHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...custom,
   }

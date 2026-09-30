@@ -1,4 +1,5 @@
 import { apiGet } from '@/utils/request'
+import { APP_CLIENT_KEY, clientCacheBoundary } from './app-distribution'
 
 interface AppUpdateInfo {
   version: string
@@ -56,8 +57,10 @@ function openDownload(url: string): void {
 }
 
 function promptUpdate(info: AppUpdateInfo): void {
-  const dismissed = String(uni.getStorageSync(OPTIONAL_DISMISSED_KEY) || '')
-  if (!info.forceUpdate && dismissed === info.version) return
+  const key = `${OPTIONAL_DISMISSED_KEY}:${clientCacheBoundary()}`
+  const target = `${info.version}:${info.buildNumber || ''}`
+  const dismissed = String(uni.getStorageSync(key) || '')
+  if (!info.forceUpdate && dismissed === target) return
 
   forceUpdateActive = info.forceUpdate
   uni.showModal({
@@ -70,7 +73,7 @@ function promptUpdate(info: AppUpdateInfo): void {
       if (result.confirm) {
         openDownload(String(info.downloadUrl || ''))
       } else if (!info.forceUpdate) {
-        uni.setStorageSync(OPTIONAL_DISMISSED_KEY, info.version)
+        uni.setStorageSync(key, target)
       }
     },
   })
@@ -105,6 +108,7 @@ export async function checkForAppUpdate(): Promise<void> {
       `platform=${encodeURIComponent(platform)}`,
       `version=${encodeURIComponent(version)}`,
       ...(buildNumber ? [`buildNumber=${encodeURIComponent(buildNumber)}`] : []),
+      ...(APP_CLIENT_KEY ? [`clientKey=${encodeURIComponent(APP_CLIENT_KEY)}`] : []),
     ].join('&')
     const result = await apiGet<AppUpdateResponse>(`/system/version/check?${query}`)
     if (result.hasUpdate && result.latest) {

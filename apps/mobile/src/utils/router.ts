@@ -10,10 +10,13 @@
  * 与原型 coming-soon 占位语义一致。
  */
 
-import { requestParentContentLayerClose, tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
+import { requestParentContentLayerClose, tryOpenContentDetailLayer,
+} from '@/utils/content-detail-layer'
 import { REGISTERED_PAGE_PATHS } from '@/utils/registered-page-paths'
+import { isOperationRouteAllowed } from '@/lib/operation-routes'
 
-const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
+const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index',
+]
 
 // 原型路径 → uni 实际页面路径（已迁移页面登记于此）
 const ROUTE_MAP: Record<string, string> = {
@@ -580,8 +583,10 @@ export function resolveRoute(url: string): string {
 
 /** 登录回跳仅接收已登记的站内页面；不依赖原生路由失败来阻止任意地址。 */
 export function isRegisteredAppRoute(path: string): boolean {
-  return REGISTERED_PAGE_PATHS.has(path) || MAIN_TABS.includes(path) || Object.values(ROUTE_MAP).some((target) => target.split('?')[0] === path)
+  return (
+    REGISTERED_PAGE_PATHS.has(path) || MAIN_TABS.includes(path) || Object.values(ROUTE_MAP).some((target) => target.split('?')[0] === path)
     || DYNAMIC_ROUTES.some(([, target]) => target.split('?')[0] === path)
+  )
 }
 
 export function toastComingSoon() {
@@ -590,11 +595,16 @@ export function toastComingSoon() {
 
 export function navigateTo(url: string) {
   const target = resolveRoute(url)
+  if (!isOperationRouteAllowed(target)) {
+    uni.showToast({ title: '当前功能暂不开放，请稍后重试', icon: 'none' })
+    return
+  }
   const path = target.split('?')[0]
   // 五个主页面使用自定义底部导航，并非原生 tabBar。连续 reLaunch 会反复销毁并重建
   // App 页面 WebView，iOS 真机表现为页面先出现、随后白屏；redirectTo 只替换当前页，
   // 保持单页主导航语义且不触发整个页面栈重建。
-  if (MAIN_TABS.includes(path)) { uni.redirectTo({ url: target, fail: () => toastComingSoon() }); return }
+  if (MAIN_TABS.includes(path)) { uni.redirectTo({ url: target, fail: () => toastComingSoon() })
+    return }
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
 /** 内容卡专用：H5 从来源卡片原位打开详情层；其他终端自动走普通详情页。 */
@@ -603,8 +613,20 @@ export function navigateToContent(url: string, source?: unknown) {
   if (tryOpenContentDetailLayer(target, source)) return
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
-export function redirectTo(url: string) { uni.redirectTo({ url: resolveRoute(url), fail: () => toastComingSoon() }) }
-export function reLaunch(url: string) { uni.reLaunch({ url: resolveRoute(url) }) }
+export function redirectTo(url: string) {
+  const target = resolveRoute(url)
+  if (!isOperationRouteAllowed(target)) {
+    uni.showToast({ title: '当前功能暂不开放', icon: 'none' })
+    return
+  }
+  uni.redirectTo({ url: target, fail: () => toastComingSoon() }) }
+export function reLaunch(url: string) {
+  const target = resolveRoute(url)
+  if (!isOperationRouteAllowed(target)) {
+    uni.showToast({ title: '当前功能暂不开放', icon: 'none' })
+    return
+  }
+  uni.reLaunch({ url: target }) }
 export function navigateBack(delta = 1) {
   if (requestParentContentLayerClose()) return
   uni.navigateBack({ delta })

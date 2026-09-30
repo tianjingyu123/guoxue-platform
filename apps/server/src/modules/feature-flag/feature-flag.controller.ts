@@ -1,10 +1,11 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe,
   Header,
+  Query,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FeatureFlagService } from "./feature-flag.service";
-import { CreateFeatureFlagDto, UpsertFeatureFlagDto } from "./feature-flag.dto";
+import { CreateFeatureFlagDto, UpsertFeatureFlagDto, FeaturePreviewContextDto } from "./feature-flag.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -30,13 +31,13 @@ export class FeatureFlagController {
     return this.service.saveDraft(key, dto, this.operator(req));
   }
   @Post(":key/preview")
-  async preview(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request) {
+  async preview(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request, @Query() context: FeaturePreviewContextDto = {}) {
     return this.service.preview(
       key,
       dto,
-      req.user?.id,
-      await this.service.requestScope(req),
-      String(req.headers?.["x-native-build"] || ""),
+      context.userId || req.user?.id,
+      await this.service.requestScope(context.clientKey ? { headers: { "x-app-client": context.clientKey } } : req),
+      context.nativeBuild || String(req.headers?.["x-native-build"] || ""),
     );
   }
   @Post("draft/:id/publish")

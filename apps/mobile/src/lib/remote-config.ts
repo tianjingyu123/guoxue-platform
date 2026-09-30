@@ -3,11 +3,24 @@
  *
  * 安全原则：
  * - 只接受服务端白名单字段和布尔功能开关，不执行脚本、不动态加载组件；
- * - 请求失败时使用最近一次有效快照，再退回内置默认值，绝不阻断启动；
+ * - 界面样式可沿用有效快照；写业务开关过期即关闭，绝不阻断历史读取；
  * - 预发布与正式环境缓存隔离，避免覆盖安装测试包后串用配置；
  * - 未识别字段自动忽略，保证 N/N-1 客户端兼容。
  */
 import { apiGetOptionalAuth } from '@/utils/request'
+import { shallowRef } from 'vue'
+import {
+  getToken,
+  getUserInfo,
+  getAuthContextRevision,
+  subscribeAuthContext,
+} from '@/utils/storage'
+import {
+  clientCacheBoundary,
+  APP_CLIENT_KEY,
+  APP_APPLICATION_ID,
+  APP_CHANNEL_ID,
+} from './app-distribution'
 
 export type ClientEnvironment = 'development' | 'staging' | 'production'
 
@@ -25,6 +38,7 @@ export interface RemoteConfigSnapshot {
   features: Record<string, boolean>
   ui: RemoteUiConfig
   maintenance: { enabled: boolean }
+  operations: Record<string, 'UNOPENED' | 'OPEN' | 'MAINTENANCE' | 'READ_ONLY'>
 }
 
 interface CachedRemoteConfig {
@@ -44,15 +58,21 @@ const EXPECTED_ENVIRONMENT: ClientEnvironment = (() => {
 })()
 
 // 同一设备覆盖安装预发布/正式包时仍各自保留最近有效快照，绝不串用。
-const STORAGE_KEY = `client:remote-config:v1:${EXPECTED_ENVIRONMENT}`
-const MAINTENANCE_NOTICE_KEY = `client:maintenance:last-revision:${EXPECTED_ENVIRONMENT}`
+function storageKey(): string {
+  const userId = getToken() ? getUserInfo<{ id?: string }>()?.id : undefined
+  const account = getToken()
+    ? `user:${encodeURIComponent(userId || 'pending')}:${getAuthContextRevision()}`
+    : 'anonymous'
+  return `client:remote-config:v2:${EXPECTED_ENVIRONMENT}:${clientCacheBoundary()}:${account}`
+}
+const maintenanceKey = () => `${storageKey()}:maintenance`
 
 const DEFAULT_FEATURES: Record<string, boolean> = {
   client_wechat_app_login: false,
-  live_start: true,
-  member_purchase: true,
+  live_start: false,
+  member_purchase: false,
   merchant_onboarding: false,
-  shop_checkout: true,
+  shop_checkout: false,
 }
 
 const DEFAULT_UI: RemoteUiConfig = {
@@ -77,10 +97,14 @@ function defaultSnapshot(): RemoteConfigSnapshot {
     features: { ...DEFAULT_FEATURES },
     ui: DEFAULT_UI,
     maintenance: { enabled: false },
+    operations: {},
   }
 }
 
-let current = defaultSnapshot()
+const current = shallowRef(defaultSnapshot())
+let expiryTimer: ReturnType<typeof setTimeout> | undefined
+let boundary = storageKey()
+let epoch = 0
 let fetchedAt = 0
 let inflight: Promise<RemoteConfigSnapshot> | null = null
 
@@ -102,7 +126,8 @@ function sanitizeFeatures(value: unknown): Record<string, boolean> {
 function sanitizeCategoryColors(value: unknown): Record<string, string> {
   const result = { ...DEFAULT_UI.agentCard.categoryColors }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result
-  for (const [category, cssClass] of Object.entries(value as Record<string, unknown>).slice(0, 50)) {
+  for (const [category, cssClass] of Object.entries(value as Record<string, unknown>).slice(0, 50,
+  )) {
     if (category.length <= 40 && typeof cssClass === 'string' && COLOR_CLASS_RE.test(cssClass)) {
       result[category] = cssClass
     }
@@ -115,7 +140,12 @@ function sanitizeSnapshot(value: unknown): RemoteConfigSnapshot | null {
   const raw = value as Record<string, any>
   if (raw.schemaVersion !== 1) return null
   if (!['development', 'staging', 'production'].includes(raw.environment)) return null
-  if (EXPECTED_ENVIRONMENT !== 'development' && raw.environment !== EXPECTED_ENVIRONMENT) return null
+  if (EXPECTED_ENVIRONMENT !== 'development' && raw.environment !== EXPECTED_ENVIRONMENT)
+    return null
+  if (
+    APP_CLIENT_KEY &&
+    (raw.scope?.applicationId !== APP_APPLICATION_ID || raw.scope?.channelId !== APP_CHANNEL_ID)
+  ) return null
 
   return {
     schemaVersion: 1,
@@ -135,13 +165,28 @@ function sanitizeSnapshot(value: unknown): RemoteConfigSnapshot | null {
       },
     },
     maintenance: { enabled: raw.maintenance?.enabled === true },
+    operations: sanitizeOperations(raw.operations),
   }
+}
+
+function sanitizeOperations(raw: unknown): RemoteConfigSnapshot['operations'] {
+  const result: RemoteConfigSnapshot['operations'] = {}
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result
+  for (const [key, state] of Object.entries(raw)) {
+    if (
+      FEATURE_KEY_RE.test(key) &&
+      ['UNOPENED', 'OPEN', 'MAINTENANCE', 'READ_ONLY'].includes(String(state))
+    ) {
+      result[key] = state as RemoteConfigSnapshot['operations'][string]
+    }
+  }
+  return result
 }
 
 function readCache(): CachedRemoteConfig | null {
   try {
-    const raw = uni.getStorageSync(STORAGE_KEY) as CachedRemoteConfig | string | null
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) as CachedRemoteConfig : raw
+    const raw = uni.getStorageSync(storageKey()) as CachedRemoteConfig | string | null
+    const parsed = typeof raw === 'string' ? (JSON.parse(raw) as CachedRemoteConfig) : raw
     if (!parsed || !Number.isFinite(parsed.fetchedAt)) return null
     if (Date.now() - parsed.fetchedAt > OFFLINE_CACHE_MAX_AGE) return null
     const snapshot = sanitizeSnapshot(parsed.snapshot)
@@ -153,23 +198,51 @@ function readCache(): CachedRemoteConfig | null {
 
 function persist(snapshot: RemoteConfigSnapshot, time: number): void {
   try {
-    uni.setStorageSync(STORAGE_KEY, { fetchedAt: time, snapshot })
+    uni.setStorageSync(storageKey(), { fetchedAt: time, snapshot })
   } catch {
     // 存储空间不足不能影响当前会话使用配置。
   }
 }
 
 function applyCacheIfNeeded(): void {
+  if (boundary !== storageKey()) resetContext()
   if (fetchedAt > 0) return
   const cached = readCache()
   if (!cached) return
-  current = cached.snapshot
+  current.value = cached.snapshot
   fetchedAt = cached.fetchedAt
+  scheduleExpiry()
+}
+
+function scheduleExpiry(): void {
+  if (expiryTimer !== undefined) clearTimeout(expiryTimer)
+  const scheduledEpoch = epoch
+  const delay = Math.max(0, fetchedAt + current.value.cacheTtlSeconds * 1000 - Date.now())
+  expiryTimer = setTimeout(() => {
+    if (scheduledEpoch !== epoch) return
+    // 触发 Vue 订阅，不能只在下次点击时才发现缓存过期。
+    current.value = {
+      ...current.value,
+      features: Object.fromEntries(Object.keys(current.value.features).map(key => [key, DEFAULT_FEATURES[key] ?? false])),
+      operations: Object.fromEntries(Object.keys(current.value.operations).map(key => [key, 'UNOPENED' as const])),
+    }
+  }, delay)
 }
 
 export function getRemoteConfig(): RemoteConfigSnapshot {
   applyCacheIfNeeded()
-  return current
+  if (!fetchedAt || Date.now() - fetchedAt >= current.value.cacheTtlSeconds * 1000) {
+    return {
+      ...current.value,
+      features: Object.fromEntries(
+        Object.keys(current.value.features).map((key) => [key, DEFAULT_FEATURES[key] ?? false]),
+      ),
+      operations: Object.fromEntries(
+        Object.keys(current.value.operations).map((key) => [key, 'UNOPENED' as const]),
+      ),
+    }
+  }
+  return current.value
 }
 
 export function isClientFeatureEnabled(key: string, fallback?: boolean): boolean {
@@ -179,30 +252,59 @@ export function isClientFeatureEnabled(key: string, fallback?: boolean): boolean
 
 export function hydrateRemoteConfig(force = false): Promise<RemoteConfigSnapshot> {
   applyCacheIfNeeded()
-  const ttlMs = current.cacheTtlSeconds * 1000
-  if (!force && fetchedAt > 0 && Date.now() - fetchedAt < ttlMs) return Promise.resolve(current)
+  const ttlMs = current.value.cacheTtlSeconds * 1000
+  if (!force && fetchedAt > 0 && Date.now() - fetchedAt < ttlMs) return Promise.resolve(current.value)
   if (inflight) return inflight
-
+  const requestedEpoch = epoch
   inflight = apiGetOptionalAuth<unknown>('/config/client')
     .then((response) => {
+      if (requestedEpoch !== epoch || boundary !== storageKey()) return current.value
       const snapshot = sanitizeSnapshot(response)
-      if (!snapshot) return current
-      current = snapshot
+      if (!snapshot) return current.value
+      current.value = snapshot
       fetchedAt = Date.now()
+      scheduleExpiry()
       persist(snapshot, fetchedAt)
-      return current
+      return current.value
     })
-    .catch(() => current)
-    .finally(() => { inflight = null })
+    .catch(() => {
+      if (requestedEpoch !== epoch || boundary !== storageKey()) return current.value
+      // 写业务缓存过期即关闭；历史读取和补救入口不依赖这些开关。
+      if (Date.now() - fetchedAt >= ttlMs) {
+        current.value = {
+          ...current.value,
+          features: { ...current.value.features, ...DEFAULT_FEATURES },
+        }
+      }
+      return current.value
+    })
+    .finally(() => {
+      if (requestedEpoch === epoch) inflight = null })
   return inflight
 }
+
+function resetContext(): void {
+  if (expiryTimer !== undefined) clearTimeout(expiryTimer)
+  expiryTimer = undefined
+  epoch += 1
+  boundary = storageKey()
+  fetchedAt = 0
+  inflight = null
+  current.value = defaultSnapshot()
+}
+
+subscribeAuthContext(() => {
+  resetContext()
+  // 登录/退出立即刷新；延后到用户资料写入完成，旧请求不能覆盖新账号。
+  void Promise.resolve().then(() => hydrateRemoteConfig(true))
+})
 
 /** 维护提示只展示一次；维护模式不锁死客户端，具体不可用接口仍由服务端裁决。 */
 export function notifyMaintenanceIfNeeded(snapshot = getRemoteConfig()): void {
   if (!snapshot.maintenance.enabled) return
   try {
-    if (uni.getStorageSync(MAINTENANCE_NOTICE_KEY) === snapshot.revision) return
-    uni.setStorageSync(MAINTENANCE_NOTICE_KEY, snapshot.revision)
+    if (uni.getStorageSync(maintenanceKey()) === snapshot.revision) return
+    uni.setStorageSync(maintenanceKey(), snapshot.revision)
     uni.showModal({
       title: '系统维护提示',
       content: '系统正在进行维护，部分功能可能暂时不可用。已完成的订单和个人权益不会受到影响，请稍后重试。',
