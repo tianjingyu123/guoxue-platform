@@ -22,9 +22,25 @@ export class FeatureFlagGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<import("express").Request>();
     const userId = request.user?.id;
 
-    const enabled = await this.featureFlag.isEnabled(key, userId);
+    const scope = await this.featureFlag.requestScope(request);
+    const state = await this.featureFlag.getOperationState(key, userId,
+      scope,
+      String(request.headers["x-native-build"] || ""),
+    );
+    const enabled =
+      state === "OPEN" || (state === "READ_ONLY" && ["GET", "HEAD"].includes(request.method));
     if (!enabled) {
       throw new NotFoundException("资源不存在");
+    }
+    // 会员订单也从统一建单接口进入，不能绕过 member_purchase 开关。
+    if (key === "shop_checkout" && request.body?.type === "MEMBER") {
+      const memberState = await this.featureFlag.getOperationState(
+        "member_purchase",
+        userId,
+        scope,
+        String(request.headers["x-native-build"] || ""),
+      );
+      if (memberState !== "OPEN") throw new NotFoundException("当前暂不开放会员购买");
     }
 
     return true;

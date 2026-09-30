@@ -94,15 +94,17 @@ describe("FeatureFlagService", () => {
       expect(result).toBe(false);
     });
 
-    it("Redis 缓存命中不查询数据库", async () => {
+    it("关闭能力直接读主库，不接受 Redis 中已过期的启用结果", async () => {
       const cached = {
         key: "cached_feat", enabled: true, percentage: 100,
         targetUserIds: [], name: "Cached", description: null,
       };
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.isEnabled("cached_feat", "u1");
-      expect(result).toBe(true);
-      expect(mockPrisma.featureFlag.findUnique).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+      expect(mockPrisma.featureFlag.findUnique).toHaveBeenCalledWith({
+        where: { key: "cached_feat" },
+      });
     });
 
     it("无 userId 且 percentage<100 返回 false", async () => {
@@ -167,7 +169,8 @@ describe("FeatureFlagService", () => {
 
   describe("upsert", () => {
     it("创建新开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "new_key", name: "new_key", description: null, enabled: true, percentage: 100, targetUserIds: [] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "new_key", name: "new_key", description: null, enabled: true, percentage: 100, targetUserIds: [],
+      });
       const result = await svc.upsert("new_key", { enabled: true });
       expect(result.key).toBe("new_key");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:new_key");
@@ -175,13 +178,15 @@ describe("FeatureFlagService", () => {
     });
 
     it("更新现有开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "existing", name: "existing", description: null, enabled: false, percentage: 50, targetUserIds: ["u1"] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "existing", name: "existing", description: null, enabled: false, percentage: 50, targetUserIds: ["u1"],
+      });
       const result = await svc.upsert("existing", { percentage: 50, targetUserIds: ["u1"] });
       expect(result.percentage).toBe(50);
     });
 
     it("upsert 后清除缓存", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1", name: "k1", description: null, enabled: false, percentage: 100, targetUserIds: [] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1", name: "k1", description: null, enabled: false, percentage: 100, targetUserIds: [],
+      });
       await svc.upsert("k1", {});
       expect(mockRedis.del).toHaveBeenCalledWith("feature:k1");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:list");
@@ -193,12 +198,14 @@ describe("FeatureFlagService", () => {
     });
 
     it("清理并去重指定用户列表", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "client_demo", name: "client_demo", description: null, enabled: false, percentage: 100, targetUserIds: ["u1", "u2"] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "client_demo", name: "client_demo", description: null, enabled: false, percentage: 100, targetUserIds: ["u1", "u2"],
+      });
       await svc.upsert("client_demo", { targetUserIds: [" u1 ", "u1", "", "u2"] });
       expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
         create: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
         update: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
-      }));
+      }),
+      );
     });
 
     it("每次有效变更写入可回滚快照", async () => {
@@ -210,7 +217,8 @@ describe("FeatureFlagService", () => {
 
       await svc.upsert("client_demo", {
         name: "演示", enabled: true, percentage: 25, targetUserIds: ["u1"],
-      }, "admin");
+      }, "admin",
+      );
 
       expect(mockPrisma.configVersion.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -235,7 +243,8 @@ describe("FeatureFlagService", () => {
 
       await svc.upsert("client_demo", {
         description: "新说明", enabled: true, percentage: 100, targetUserIds: [],
-      }, "admin");
+      }, "admin",
+      );
 
       expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(1, {
         data: expect.objectContaining({
@@ -284,7 +293,8 @@ describe("FeatureFlagService", () => {
       expect(result.enabled).toBe(false);
       expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
         update: expect.objectContaining({ enabled: false, percentage: 10 }),
-      }));
+      }),
+      );
     });
   });
 

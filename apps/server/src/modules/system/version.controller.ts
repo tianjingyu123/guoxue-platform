@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Body, Query, Param, UseGuards, Req } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Query, Param, UseGuards, Req,
+  Header,
+  Optional,
+} from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -11,21 +14,39 @@ import { ErrorCode } from "../../common/error-codes";
 import { isAppUpdateAvailable, isValidPlatformDownloadUrl } from "./version.util";
 import { Auditable } from "../../common/audit.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
+import { DistributionService } from "./distribution.service";
+import { versionScope, distributionKey, inRollout } from "./distribution.util";
 
 @ApiTags("版本更新")
 @Controller("system/version")
 export class VersionController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+    @Optional() private readonly distributions?: DistributionService,
+  ) {}
 
   @Get("check")
+  @Header("Cache-Control", "no-store")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "检查更新（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "platform", required: true, description: "ios/android/harmony" })
   @ApiQuery({ name: "version", required: true, description: "当前版本号 如 1.0.0" })
   @ApiQuery({ name: "buildNumber", required: false, description: "当前构建号" })
-  async check(@Query() query: CheckAppVersionDto) {
+  async check(@Query() query: CheckAppVersionDto, @Req() req?: Request) {
+    const registration = query.clientKey
+      ? await this.distributions?.resolve(query.clientKey)
+      : null;
+    if (query.clientKey && (!registration || registration.platform !== query.platform)) {
+      return { hasUpdate: false, latest: null, reason: "unknown_distribution" };
+    }
+    // 新客户端必须通过登记选择器；历史缺失参数只访问 legacy，显式未知渠道不兜底。
+    if (!query.clientKey && (query.channelId || query.applicationId)) {
+      return { hasUpdate: false, latest: null, reason: "registration_required" };
+    }
+    const scope = versionScope(registration || query);
     const latest = await this.prisma.appVersion.findFirst({
-      where: { platform: query.platform, status: "ACTIVE" },
+      where: { ...scope, status: "ACTIVE" },
       orderBy: { publishedAt: "desc" },
     });
     if (!latest) return { hasUpdate: false, latest: null };
@@ -43,14 +64,29 @@ export class VersionController {
       latest.buildNumber,
       query.buildNumber,
     );
+    // 必须升级的客户端不被可选更新灰度挡住；最低线只继承同应用同渠道。
+    const offered =
+      hasUpdate &&
+      (belowForceFloor ||
+        inRollout(
+          distributionKey(scope),
+          req?.user?.id,
+          latest.rolloutPercentage,
+          latest.targetUserIds,
+        ));
     return {
-      hasUpdate,
-      latest: hasUpdate ? {
+      hasUpdate: offered,
+      scope,
+      latest: offered
+        ? {
         version: latest.version,
         buildNumber: latest.buildNumber,
         changelog: latest.changelog,
         forceUpdate: belowForceFloor,
         downloadUrl: latest.downloadUrl,
+            checksumSha256: latest.checksumSha256,
+            applicationId: scope.applicationId,
+            channelId: scope.channelId,
         policy: belowForceFloor ? "required" : "recommended",
       } : null,
     };
@@ -67,9 +103,12 @@ export class VersionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   async adminCreate(@Body() dto: CreateAppVersionDto) {
+    const scope = versionScope(dto);
+    if (this.distributions) await this.distributions.assertRegistered(scope);
+    const { clientKey: _clientKey, ...draft } = dto;
     const duplicate = await this.prisma.appVersion.findFirst({
       where: {
-        platform: dto.platform,
+        ...scope,
         version: dto.version,
         buildNumber: dto.buildNumber || null,
       },
@@ -77,7 +116,8 @@ export class VersionController {
     if (duplicate) throw new BusinessException(ErrorCode.BAD_REQUEST, "相同平台、版本号和构建号的记录已存在");
     return this.prisma.appVersion.create({
       data: {
-        ...dto,
+        ...draft,
+        ...scope,
         buildNumber: dto.buildNumber || null,
         downloadUrl: dto.downloadUrl?.trim() || null,
         checksumSha256: dto.checksumSha256?.toLowerCase() || null,
@@ -99,12 +139,15 @@ export class VersionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   async adminUpdate(@Param("id") id: string, @Body() dto: UpdateAppVersionDto) {
-    const existing = await this.prisma.appVersion.findUnique({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `app-version:${id}`);
+      const existing = await tx.appVersion.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
     if (existing.status !== "DRAFT") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "已发布或已退役版本不可编辑，请新建草稿或执行回退");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "已发布或已退役版本不可编辑，请新建草稿或执行回退",
+        );
     }
-    return this.prisma.appVersion.update({
+    return tx.appVersion.update({
       where: { id },
       data: {
         ...dto,
@@ -114,6 +157,7 @@ export class VersionController {
           ? { checksumSha256: dto.checksumSha256.toLowerCase() || null }
           : {}),
       },
+      });
     });
   }
 
@@ -147,12 +191,18 @@ export class VersionController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "紧急停用当前版本（客户端将暂时不收到更新）" })
   async retire(@Param("id") id: string, @Req() req: Request) {
-    const existing = await this.prisma.appVersion.findUnique({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `app-version:${id}`);
+      const existing = await tx.appVersion.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
     if (existing.status !== "ACTIVE") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "只有当前生效版本可以停用");
     }
-    return this.prisma.appVersion.update({
+      await tx.$executeRawUnsafe(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `app-version-scope:${distributionKey(versionScope(existing))}`,
+      );
+      return tx.appVersion.update({
       where: { id },
       data: {
         status: "RETIRED",
@@ -160,6 +210,7 @@ export class VersionController {
         retiredAt: new Date(),
         retiredBy: req.user.id,
       },
+      });
     });
   }
 
@@ -176,12 +227,15 @@ export class VersionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   async adminDelete(@Param("id") id: string) {
-    const existing = await this.prisma.appVersion.findUnique({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `app-version:${id}`);
+      const existing = await tx.appVersion.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
     if (existing.status !== "DRAFT") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "已发布记录属于审计证据，不允许删除");
     }
-    return this.prisma.appVersion.delete({ where: { id } });
+    return tx.appVersion.delete({ where: { id } });
+    });
   }
 
   @Get()
@@ -192,9 +246,14 @@ export class VersionController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminList(@Query("platform") platform?: string) {
+  adminList(@Query("platform") platform?: string,
+    @Query("applicationId") applicationId?: string,
+    @Query("channelId") channelId?: string,
+  ) {
     const where: any = {};
     if (platform) where.platform = platform;
+    if (applicationId) where.applicationId = applicationId;
+    if (channelId) where.channelId = channelId;
     return this.prisma.appVersion.findMany({
       where,
       orderBy: [{ createdAt: "desc" }, { publishedAt: "desc" }],
@@ -205,10 +264,11 @@ export class VersionController {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
-        `app-version:${id}`,
-      );
+        `app-version:${id}`);
       const target = await tx.appVersion.findUnique({ where: { id } });
       if (!target) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
+      const scope = versionScope(target);
+      if (this.distributions) await this.distributions.assertRegistered(scope);
       const expectedStatus = rollback ? "RETIRED" : "DRAFT";
       if (target.status !== expectedStatus) {
         throw new BusinessException(
@@ -229,13 +289,13 @@ export class VersionController {
         );
       }
 
-      // 按平台串行切换，而不是按记录锁；确保多节点并发发布也只有一个 ACTIVE。
+      // 同应用同渠道串行切换，不触碰其他商店当前版本。
       await tx.$executeRawUnsafe(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
-        `app-version-platform:${target.platform}`,
+        `app-version-scope:${distributionKey(scope)}`,
       );
       const current = await tx.appVersion.findFirst({
-        where: { platform: target.platform, status: "ACTIVE" },
+        where: { ...scope, status: "ACTIVE" },
         orderBy: { publishedAt: "desc" },
       });
       if (!rollback && current && !isAppUpdateAvailable(
@@ -253,7 +313,7 @@ export class VersionController {
       const duplicate = await tx.appVersion.findFirst({
         where: {
           id: { not: id },
-          platform: target.platform,
+          ...scope,
           version: target.version,
           buildNumber: target.buildNumber,
         },
@@ -290,7 +350,7 @@ export class VersionController {
         where: { id },
         data: {
           status: "ACTIVE",
-          activePlatformKey: target.platform,
+          activePlatformKey: distributionKey(scope),
           publishedAt: now,
           publishedBy: operatorId,
           retiredAt: null,

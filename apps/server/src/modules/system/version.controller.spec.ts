@@ -153,11 +153,13 @@ describe("VersionController", () => {
       mockPrisma.appVersion.create.mockResolvedValue({
         id: "v1", platform: "ios", version: "1.1.0", buildNumber: "5", status: "DRAFT",
       });
-      const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: "5" } as any);
+      const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: "5",
+      } as any);
       expect(result.status).toBe("DRAFT");
       expect(mockPrisma.appVersion.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ status: "DRAFT", publishedAt: null }),
-      }));
+      }),
+      );
     });
 
     it("鸿蒙应用市场地址可以保存为草稿", async () => {
@@ -197,28 +199,32 @@ describe("VersionController", () => {
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         2,
         "SELECT pg_advisory_xact_lock(hashtext($1))",
-        "app-version-platform:android",
+        "app-version-scope:rebu:android:legacy",
       );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
-        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0],
+      );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
-        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0],
+      );
 
       expect(mockPrisma.appVersion.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: "active-1" },
         data: expect.objectContaining({
           status: "RETIRED", activePlatformKey: null, retiredBy: "admin-1",
         }),
-      }));
+      }),
+      );
       expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
         where: { id: "draft-1" },
         data: expect.objectContaining({
           status: "ACTIVE",
-          activePlatformKey: "android",
+          activePlatformKey: "rebu:android:legacy",
           minSupportedVersion: "1.9.0",
           minSupportedBuildNumber: "190",
         }),
-      }));
+      }),
+      );
     });
 
     it("发布不存在的合法 UUID 返回 404，且先取得事务级记录锁", async () => {
@@ -231,7 +237,8 @@ describe("VersionController", () => {
         `app-version:${missingVersionId}`,
       );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
-        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0],
+      );
     });
 
     it("发布版本——拒绝覆盖为更低构建", async () => {
@@ -244,8 +251,7 @@ describe("VersionController", () => {
         id: "active-1", status: "ACTIVE", version: "1.1.0", buildNumber: "110",
       });
       await expect(
-        ctrl.publish("draft-low", req),
-      ).rejects.toThrow("新版本必须高于当前已发布版本");
+        ctrl.publish("draft-low", req)).rejects.toThrow("新版本必须高于当前已发布版本");
       expect(mockPrisma.appVersion.update).not.toHaveBeenCalled();
     });
 
@@ -255,8 +261,8 @@ describe("VersionController", () => {
         buildNumber: "110", changelog: "安全修复", forceUpdate: true, downloadUrl: null,
       });
       await expect(
-        ctrl.publish("draft-no-url", req),
-      ).rejects.toThrow("发布地址必须是安全 HTTPS 链接");
+        ctrl.publish("draft-no-url", req)).rejects.toThrow("发布地址必须是安全 HTTPS 链接",
+      );
       expect(mockPrisma.appVersion.update).not.toHaveBeenCalled();
     });
 
@@ -277,7 +283,8 @@ describe("VersionController", () => {
     });
 
     it("删除草稿", async () => {
-      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", status: "DRAFT", platform: "ios", version: "1.0.0" });
+      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", status: "DRAFT", platform: "ios", version: "1.0.0",
+      });
       mockPrisma.appVersion.delete.mockResolvedValue({ id: "v1" });
       await ctrl.adminDelete("v1");
       expect(mockPrisma.appVersion.delete).toHaveBeenCalledWith({ where: { id: "v1" } });
@@ -296,7 +303,8 @@ describe("VersionController", () => {
         forceUpdate: false, minSupportedVersion: "1.0.0", minSupportedBuildNumber: "100",
       });
       mockPrisma.appVersion.findFirst
-        .mockResolvedValueOnce({ id: "active-1", status: "ACTIVE", platform: "harmony", version: "1.6.0", buildNumber: "160" })
+        .mockResolvedValueOnce({ id: "active-1", status: "ACTIVE", platform: "harmony", version: "1.6.0", buildNumber: "160",
+        })
         .mockResolvedValueOnce(null);
       mockPrisma.appVersion.update.mockResolvedValue({ id: "old-1", status: "ACTIVE" });
 
@@ -310,17 +318,20 @@ describe("VersionController", () => {
       expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
         2,
         "SELECT pg_advisory_xact_lock(hashtext($1))",
-        "app-version-platform:harmony",
+        "app-version-scope:rebu:harmony:legacy",
       );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
-        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0],
+      );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
-        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0],
+      );
 
       expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
         where: { id: "old-1" },
         data: expect.objectContaining({ status: "ACTIVE", minSupportedVersion: "1.0.0" }),
-      }));
+      }),
+      );
     });
 
     it("回退不存在的合法 UUID 返回 404，且先取得事务级记录锁", async () => {
@@ -333,7 +344,8 @@ describe("VersionController", () => {
         `app-version:${missingVersionId}`,
       );
       expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
-        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0],
+      );
     });
 
     it("版本列表", async () => {

@@ -6,6 +6,8 @@ import { RolesGuard } from "../../common/roles.guard";
 import { SystemService } from "../system/system.service";
 
 const mockFlagSvc = {
+  requestScope: jest.fn().mockResolvedValue(null),
+  getClientOperations: jest.fn().mockResolvedValue({ live_start: "OPEN" }),
   list: jest.fn().mockResolvedValue([{ key: "merchant_onboarding", enabled: false }]),
   getByKey: jest.fn().mockResolvedValue({ key: "merchant_onboarding", enabled: false }),
   upsert: jest.fn().mockResolvedValue({ key: "merchant_onboarding", enabled: true }),
@@ -51,7 +53,8 @@ describe("FeatureFlagController", () => {
 
   it("PUT /admin/feature-flags/:key — 创建/更新开关", async () => {
     const dto: any = { enabled: true, description: "商家入驻" };
-    const result: any = await ctrl.upsert("merchant_onboarding", dto, { user: { id: "admin1" } } as any);
+    const result: any = await ctrl.upsert("merchant_onboarding", dto, { user: { id: "admin1" },
+    } as any);
     expect(result.enabled).toBe(true);
     expect(mockFlagSvc.upsert).toHaveBeenCalledWith("merchant_onboarding", dto, "admin1");
   });
@@ -65,10 +68,10 @@ describe("FeatureFlagController", () => {
     const result: any = await ctrl.rollback(
       "merchant_onboarding",
       1,
-      { user: { nickname: "管理员" } } as any,
-    );
+      { user: { id: "admin1", nickname: "管理员" },
+    } as any);
     expect(result.enabled).toBe(false);
-    expect(mockFlagSvc.rollback).toHaveBeenCalledWith("merchant_onboarding", 1, "管理员");
+    expect(mockFlagSvc.rollback).toHaveBeenCalledWith("merchant_onboarding", 1, "admin1");
   });
 
   it("DELETE /admin/feature-flags/:key — 删除开关", async () => {
@@ -89,7 +92,7 @@ describe("FeatureFlagPublicController", () => {
   it("GET /config/features — 只返回客户端可见开关", async () => {
     const result = await ctrl.getEnabledFeatures({ user: { id: "u1" } } as any);
     expect(result.features).toEqual({ live_start: true, client_home_v2: false });
-    expect(mockFlagSvc.getClientFeatures).toHaveBeenCalledWith("u1");
+    expect(mockFlagSvc.getClientFeatures).toHaveBeenCalledWith("u1", null, "");
   });
 
   it("GET /config/client — 返回带版本与回滚标识的安全快照", async () => {
