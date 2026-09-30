@@ -49,11 +49,28 @@ const workers = async args => {
       child.on('exit', code => { if (!delivered) { clearTimeout(timer); reject(new Error(`隔离子进程提前退出:${code}`)); } });
     });
     const ready = new Promise(resolve => child.on('message', message => { if (message.ready) resolve(); }));
-    return { child, arg, result, ready };
+    const locked = new Promise(resolve => child.on('message', message => { if (message.lockHeld) resolve(); }));
+    return { child, arg, result, ready, locked };
   });
   await Promise.all(entries.map(entry => entry.ready));
-  for (const entry of entries) entry.child.send(entry.arg);
+  const holder = entries.find(entry => entry.arg.holdLock);
+  let observedWait = false;
+  if (holder) {
+    holder.child.send(holder.arg);
+    await holder.locked;
+    for (const entry of entries) if (entry !== holder) entry.child.send(entry.arg);
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const rows = await db.$queryRaw`SELECT count(*)::int AS count FROM pg_locks WHERE locktype = 'advisory' AND NOT granted`;
+      if (rows[0].count > 0) { observedWait = true; break; }
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    holder.child.send({ release: true });
+  } else {
+    for (const entry of entries) entry.child.send(entry.arg);
+  }
   const results = await Promise.all(entries.map(entry => entry.result));
+  if (holder) assert(observedWait, '必须观察到独立进程真实竞争PostgreSQL事务锁');
+  for (const result of results) result.databaseLockWaitObserved = observedWait;
   assert.equal(new Set(results.map(result => result.pid)).size, args.length);
   return results;
 };
@@ -64,7 +81,15 @@ if (process.argv.includes('--worker')) {
     await prepareRedis(); process.send({ ready: true, pid: process.pid });
     process.once('message', async arg => {
       let result;
-      try { result = { ok: true, value: await reward(svc(), arg.amount, arg.requestId) }; }
+      try {
+        const prisma = arg.holdLock ? faultTransaction((tx, action) => action(wrap(tx, { $queryRaw: async (...query) => {
+          const value = await tx.$queryRaw(...query);
+          process.send({ lockHeld: true });
+          await new Promise(resolve => process.once('message', message => { assert(message.release); resolve(); }));
+          return value;
+        } }))) : db;
+        result = { ok: true, value: await reward(svc(prisma), arg.amount, arg.requestId) };
+      }
       catch (error) { result = { ok: false, error: error.message }; }
       await close(); process.send({ done: true, pid: process.pid, ...result }, () => process.exit(0));
     });
@@ -119,14 +144,14 @@ if (process.argv.includes('--worker')) {
       });
 
       await check('two-independent-processes-same-request-at-zero-balance-one-payment', async () => {
-        await reset(8); const results = await workers([{ amount: 8, requestId: 'concurrent-001' }, { amount: 8, requestId: 'concurrent-001' }]);
+        await reset(8); const results = await workers([{ amount: 8, requestId: 'concurrent-001', holdLock: true }, { amount: 8, requestId: 'concurrent-001' }]);
         assert(results.every(result => result.ok), JSON.stringify(results));
         assert.deepEqual(await balances(), [0, 4]); assert.equal(await db.virtualCoinTransaction.count(), 2); assert.equal(await db.notification.count(), 1);
-        checks.push({ name: 'independent-process-identities', passed: true, pids: results.map(result => result.pid) });
+        checks.push({ name: 'independent-process-identities', passed: true, pids: results.map(result => result.pid), postgresLockWaitObserved: results.every(result => result.databaseLockWaitObserved) });
       });
 
       await check('two-independent-processes-conflicting-amount-only-first-commits', async () => {
-        await reset(100); const results = await workers([{ amount: 8, requestId: 'concurrent-002' }, { amount: 9, requestId: 'concurrent-002' }]);
+        await reset(100); const results = await workers([{ amount: 8, requestId: 'concurrent-002', holdLock: true }, { amount: 9, requestId: 'concurrent-002' }]);
         assert.equal(results.filter(result => result.ok).length, 1); assert.match(results.find(result => !result.ok).error, /请求编号已用于其他内容/);
         const source = await debit(); assert.deepEqual(await balances(), [100 + source.amountCoin, Math.floor(-source.amountCoin / 2)]);
         assert.equal(await db.virtualCoinTransaction.count(), 2); assert.equal(await db.notification.count(), 1);
