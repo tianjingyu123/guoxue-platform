@@ -204,19 +204,35 @@ function legacyNavigationBridgeScript(): string {
      * App 在受信页面内补一个轻量入口，点击时才读取当前 URL；最终仍由父容器做公开链接校验。
      */
     function installRebuShareButton(){
-      if(!document.createElement||!document.body||document.getElementById('rebu-paipan-share'))return;
+      if(!document.createElement||!document.body||document.getElementById('rebu-paipan-actions'))return;
+      var actions=document.createElement('div');
+      actions.id='rebu-paipan-actions';
+      actions.style.cssText='position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483646;display:flex;gap:8px;';
+      var home=document.createElement('button');
+      home.id='rebu-paipan-home';
+      home.type='button';
+      home.textContent='首页';
+      home.setAttribute('aria-label','返回热卜首页');
+      home.style.cssText='width:52px;height:52px;border:1px solid #e8ddd4;border-radius:26px;background:#fff;color:#463528;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.16);';
+      home.addEventListener('click',function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        openRebuAction('home');
+      });
       var button=document.createElement('button');
       button.id='rebu-paipan-share';
       button.type='button';
       button.textContent='分享';
       button.setAttribute('aria-label','分享当前排盘结果');
-      button.style.cssText='position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483646;width:52px;height:52px;border:0;border-radius:26px;background:#8f1d22;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22);';
+      button.style.cssText='width:52px;height:52px;border:0;border-radius:26px;background:#8f1d22;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.22);';
       button.addEventListener('click',function(event){
         event.preventDefault();
         event.stopPropagation();
         openLegacyShare('page',{title:document.title||'排盘结果',path:window.location.href});
       });
-      document.body.appendChild(button);
+      actions.appendChild(home);
+      actions.appendChild(button);
+      document.body.appendChild(actions);
     }
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installRebuShareButton,{once:true});
     else installRebuShareButton();
