@@ -4,9 +4,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 // 只在独立验证分支核本版镜像身份/Prisma/前端，不重复业务测试或启动真实服务。
-const sourceCommit = "7e2fc4cae3525951004a826a9f95812b0309a372";
-const sourceSha256 = "841b09ce6b8653d514605fa4af7d6b3216cced6d521b47d2fea60ad4579f71d5";
-const image = "rebu-linux-verify:7e2fc4ca";
+const sourceCommit = "43de59acf81e7d622edc4e57285ddf41b7ad89f2";
+const sourceSha256 = "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752";
+const image = "rebu-linux-verify:43de59ac";
 assert.equal(process.env.IMAGE_TAG, image);
 const results = path.resolve("results");
 mkdirSync(results, { recursive: true });
