@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:9d1c74e9");
-const sourceCommit = "9d1c74e976da3f7834ab6649b17c94081c057214";
-const sourceSha256 = "e90d07fe078796d8266f5b3fbe1ad4f85b1c7f26e46e218dd74c2f36ec794c86";
+assert.equal(image, "rebu-linux-verify:ea22c672");
+const sourceCommit = "ea22c672d002f7fca79af70627d4f6ffcf948d65";
+const sourceSha256 = "c6d6cde1c7c60a6aad8b8b0458f4971f65925f0bfc4c037e9da17a6369b6f478";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -95,7 +95,7 @@ try {
     "PUBLIC_DOMAIN=api.example.invalid", "PUBLIC_API_URL=https://api.example.invalid",
     "PUBLIC_H5_URL=https://h5.example.invalid/h5/", "PUBLIC_ASSET_ORIGIN=https://assets.example.invalid",
     "CORS_ORIGIN=https://h5.example.invalid", "WS_CORS_ORIGIN=https://h5.example.invalid",
-    "RELEASE_ID=isolated-08a5c0ac",
+    "RELEASE_ID=isolated-ea22c672",
   ].join("\n") + "\n", { mode: 0o600 });
   const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv, "--entrypoint", "pnpm", image, "--dir", "/app/apps/server", "exec", "prisma", "db", "push", "--skip-generate"]);
   writeFileSync(path.join(results, "temporary-schema.log"), schemaOutput);
@@ -120,7 +120,7 @@ try {
   const routes = ["/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health", "/api/v1/mini/home", "/api/v1/contents?page=1&pageSize=1"];
   const httpScript = `Promise.all(${JSON.stringify(routes)}.map(async path=>{const r=await fetch('http://127.0.0.1:3000'+path); const body=await r.json(); return {path,status:r.status,releaseId:body.data?.releaseId||body.releaseId||null};})).then(rows=>{process.stdout.write(JSON.stringify(rows)); if(rows.some(r=>r.status!==200)) process.exitCode=1;}).catch(()=>{process.exitCode=1;})`;
   const http = JSON.parse(docker(["exec", app, "node", "-e", httpScript]));
-  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-08a5c0ac"));
+  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-ea22c672"));
   save("http-startup.json", http);
   check("production-entrypoint-health-public-http", http);
 
@@ -208,8 +208,24 @@ try {
       assert.equal(audits.length,15);assert.equal(audits.filter(a=>a.userId==='linux-super').length,10);
       assert.equal(audits.filter(a=>a.userId==='linux-ops').length,3);assert.equal(audits.filter(a=>a.userId==='linux-customer').length,2);
       assert(audits.every(a=>a.ip&&a.targetId===id&&!JSON.stringify(a).includes(contact)&&!JSON.stringify(a).includes(content)&&!JSON.stringify(a).includes(imageUrl)));
-      console.log('NODE_TEST_RESULT:'+JSON.stringify({passed:true,cases:rows,audits:audits.length,sensitiveValuesInEvidence:false,invalidMutationUnchanged:true,ipScope:'loopback-only-not-real-proxy',auditFailureBehavior:'not-tested-async-source-boundary'}));
-    }finally{await r.onModuleDestroy();await p.$disconnect();}})().catch(()=>{console.error('合成反馈权限或审计断言失败，未输出原始字段');process.exitCode=1});`);
+      const failedId='linux-feedback-audit-fail';
+      await p.feedback.create({data:{id:failedId,userId:'linux-user-a',type:'bug',content,contact,images:[imageUrl]}});
+      await p.$executeRawUnsafe(${JSON.stringify('CREATE FUNCTION isolated_feedback_audit_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."targetId" = \'linux-feedback-audit-fail\' THEN RAISE EXCEPTION \'isolated audit unavailable\'; END IF; RETURN NEW; END $$')});
+      await p.$executeRawUnsafe('CREATE TRIGGER isolated_feedback_audit_reject BEFORE INSERT ON "AuditLog" FOR EACH ROW EXECUTE FUNCTION isolated_feedback_audit_reject()');
+      for(const kind of ['contact','content','images']){
+        const error=await send('feedback-audit-failure-withholds-'+kind,'linux-ops','/users/admin/feedback/'+failedId+'/reveal-'+kind,503,'POST');
+        const text=JSON.stringify(error);assert(!text.includes(contact));assert(!text.includes(content));assert(!text.includes(imageUrl));assert(!text.includes('isolated audit unavailable'));
+      }
+      assert.equal(await p.auditLog.count({where:{targetId:failedId}}),0);
+      await p.$executeRawUnsafe('DROP TRIGGER isolated_feedback_audit_reject ON "AuditLog"');
+      await p.$executeRawUnsafe('DROP FUNCTION isolated_feedback_audit_reject()');
+      for(const kind of ['contact','content','images']){
+        const result=await send('feedback-audit-recovery-'+kind,'linux-ops','/users/admin/feedback/'+failedId+'/reveal-'+kind,201,'POST');
+        if(kind==='contact')assert.equal(result.contact,contact);if(kind==='content')assert.equal(result.content,content);if(kind==='images')assert.deepEqual(result.images,[imageUrl]);
+        assert.equal(await p.auditLog.count({where:{targetId:failedId,action:kind==='contact'?'查看反馈联系方式':kind==='content'?'查看反馈正文原文':'查看反馈截图'}}),1);
+      }
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({passed:true,cases:rows,audits:audits.length,recoveredAudits:3,sensitiveValuesInEvidence:false,invalidMutationUnchanged:true,ipScope:'loopback-only-not-real-proxy',auditFailureBehavior:'503-without-plaintext-and-three-recovery-audits'}));
+    }finally{await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS isolated_feedback_audit_reject ON "AuditLog"').catch(()=>{});await p.$executeRawUnsafe('DROP FUNCTION IF EXISTS isolated_feedback_audit_reject()').catch(()=>{});await r.onModuleDestroy();await p.$disconnect();}})().catch(()=>{console.error('合成反馈权限或审计断言失败，未输出原始字段');process.exitCode=1});`);
   assert(sensitiveReport.passed);
   save("sensitive-http-audit.json", sensitiveReport);
   check("sensitive-feedback-roles-mask-audit-limit-and-validation", sensitiveReport);
@@ -288,6 +304,12 @@ try {
   assert(recallReport.passed);
   save("circle-recall-http-transactions.json", recallReport);
   check("circle-recall-order-binding-proportion-rollback-and-concurrent-resolution", recallReport);
+
+  const autoCode = readFileSync(new URL("./verify-isolated-circle-auto-refund-http.cjs", import.meta.url), "utf8");
+  const autoReport = appNode(autoCode);
+  assert(autoReport.passed);
+  save("circle-auto-refund-http.json", autoReport);
+  check("automatic-refund-share-cap-zero-share-and-once-only-wallet-credit", autoReport);
 
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
