@@ -43,7 +43,7 @@ async function drop() {
 (async () => {
   try {
     await p.circle.create({ data: { id: circleId, ownerId: "linux-user-b", name: "隔离调整核验", intro: "仅合成台账", tags: [] } });
-    await p.circle.create({ data: { id: circleId + "-other", ownerId: "linux-user-b", name: "隔离另一圈子", tags: [] } });
+    await p.circle.create({ data: { id: circleId + "-other", ownerId: "linux-user-b", name: "隔离另一圈子", intro: "仅用于拒绝错误归属测试", tags: [] } });
     const walletBefore = await p.userWallet.count();
     const scenarios = [
       ["wrong-owner", { recall: { userId: "linux-user-a" } }],
