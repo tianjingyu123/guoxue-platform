@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { FeatureFlagService } from "../modules/feature-flag/feature-flag.service";
-import { FEATURE_FLAG_KEY } from "./feature-flag.decorator";
+import { FEATURE_FLAG_KEY, FEATURE_FLAG_WRITE_KEY } from "./feature-flag.decorator";
 
 /** 功能开关守卫 — 开关未启用时返回 404 隐藏功能存在 */
 @Injectable()
@@ -23,12 +23,20 @@ export class FeatureFlagGuard implements CanActivate {
     const userId = request.user?.id;
 
     const scope = await this.featureFlag.requestScope(request);
-    const state = await this.featureFlag.getOperationState(key, userId,
+    const state = await this.featureFlag.getOperationState(
+      key,
+      userId,
       scope,
       String(request.headers["x-native-build"] || ""),
     );
+    // GET 也可能签发新业务凭证，不能仅依据 HTTP 方法当作只读。
+    const writes = this.reflector.getAllAndOverride<boolean>(FEATURE_FLAG_WRITE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     const enabled =
-      state === "OPEN" || (state === "READ_ONLY" && ["GET", "HEAD"].includes(request.method));
+      state === "OPEN" ||
+      (state === "READ_ONLY" && !writes && ["GET", "HEAD"].includes(request.method));
     if (!enabled) {
       throw new NotFoundException("资源不存在");
     }

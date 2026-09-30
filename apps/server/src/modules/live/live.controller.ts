@@ -16,6 +16,7 @@ import { RequireFeature } from "../../common/feature-flag.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
 import { StationId } from "../../common/station-id.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { LiveCredentialsGuard } from "./live-credentials.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -39,7 +40,8 @@ export class LiveController {
   // ───────── 直播间 CRUD ─────────
 
   @Post("rooms")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("live_start")
   @ApiOperation({ summary: "创建直播间" })
   @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -270,7 +272,7 @@ export class LiveController {
   }
 
   @Get("rooms/:id/stream-urls")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, LiveCredentialsGuard)
   @ApiOperation({ summary: "获取推拉流地址" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
@@ -952,7 +954,8 @@ export class LiveController {
   // ───────── 推流配置 ─────────
 
   @Get("stream-config")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("live_start", { writes: true })
   @ApiOperation({ summary: "获取推流配置（地址、密钥、推荐参数）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

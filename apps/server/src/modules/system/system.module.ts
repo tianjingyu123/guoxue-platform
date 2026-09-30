@@ -19,6 +19,8 @@ import { DistributionService } from "./distribution.service";
 import { DistributionController } from "./distribution.controller";
 import { ResourceReleaseController } from "./resource-release.controller";
 import { ResourceReleaseService } from "./resource-release.service";
+import { WgtControlService } from "./wgt-control.service";
+import { WgtControlController, WgtControlPublicController } from "./wgt-control.controller";
 
 @Global()
 @Module({
@@ -26,10 +28,12 @@ import { ResourceReleaseService } from "./resource-release.service";
   controllers: [SystemController, ImportController, LegalController, VersionController, BackupController, PermissionController,
     DistributionController,
     ResourceReleaseController,
+    WgtControlController, WgtControlPublicController,
   ],
   providers: [SystemService, ExportService, ImportService, SystemTask, BackupService, PermissionService, ThirdPartyConfigLoader, OpsActionService,
     DistributionService,
     ResourceReleaseService,
+    WgtControlService,
   ],
   exports: [SystemService, ExportService, ImportService, PermissionService, ThirdPartyConfigLoader, OpsActionService,
     DistributionService,

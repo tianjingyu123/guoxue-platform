@@ -1,4 +1,5 @@
 import type { LiveRtcConfig } from './live-mic-data'
+import { beginCriticalActivity } from '@/lib/critical-activities'
 
 type NativeModule = Record<string, (...args: any[]) => any>
 
@@ -13,6 +14,7 @@ let trtcModule: NativeModule | null = null
 let eventModule: NativeModule | null = null
 const listeners = new Map<string, (payload: any) => void>()
 let joined = false
+let endLiveActivity: (() => void) | undefined
 let localPreviewActive = false
 let localPreviewViewId = ''
 let remoteUserLeaveHandler: ((userId?: string) => void) | null = null
@@ -33,6 +35,7 @@ function ensureModules() {
   if (!trtcModule || !eventModule || typeof trtcModule.sharedInstance !== 'function') {
     throw new Error('当前安装包未包含 TRTC 原生插件，请升级到正式 App 包')
   }
+  if (!endLiveActivity) endLiveActivity = beginCriticalActivity('live')
   return { trtc: trtcModule, events: eventModule }
 }
 
@@ -137,6 +140,7 @@ export function stopLiveDevicePreview() {
   try { trtcModule.stopLocalPreview?.() } catch {}
   localPreviewActive = false
   localPreviewViewId = ''
+  if (!joined) { endLiveActivity?.(); endLiveActivity = undefined }
 }
 
 export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
@@ -263,6 +267,8 @@ export function setLiveAudioMuted(muted: boolean) {
 }
 
 export function leaveLiveAudio() {
+  endLiveActivity?.()
+  endLiveActivity = undefined
   if (trtcModule) {
     for (const userId of [...remoteVideoUsers]) stopLiveRemoteVideo(userId)
     if (localPreviewActive) {

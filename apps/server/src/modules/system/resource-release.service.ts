@@ -10,22 +10,20 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { DistributionService } from "./distribution.service";
 import { distributionKey, inRollout } from "./distribution.util";
+import { WgtControlService } from "./wgt-control.service";
 
 @Injectable()
 export class ResourceReleaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly distributions: DistributionService,
+    private readonly control: WgtControlService,
   ) {}
 
-  verifyManifest(value: SignedResourceManifest) {
+  async verifyManifest(value: SignedResourceManifest, db?: Prisma.TransactionClient) {
     try {
       assertResourceManifest(value.manifest);
-      const keys = JSON.parse(process.env.WGT_TRUSTED_PUBLIC_KEYS || "{}") as Record<
-        string,
-        string
-      >;
-      const key = keys[value.manifest.keyId];
+      const key = await this.control.trustedKey(value.manifest.keyId, value.manifest.applicationId, db);
       if (!key || !/^[A-Za-z0-9+/]{86}==$/.test(value.signature)) throw new Error("缺少可信签名");
       const publicKey = createPublicKey(key);
       if (
@@ -50,7 +48,7 @@ export class ResourceReleaseService {
   async draft(
     dto: SignedResourceManifest & { rolloutPercentage: number; targetUserIds?: string[] },
   ) {
-    this.verifyManifest(dto);
+    await this.verifyManifest(dto);
     const m = dto.manifest;
     await this.distributions.assertRegistered(m);
     return this.prisma.resourceRelease.create({
@@ -82,7 +80,8 @@ export class ResourceReleaseService {
       if (!target || target.status !== (rollback ? "RETIRED" : "DRAFT"))
         throw new BadRequestException("资源版本状态不允许发布或回退");
       const manifest = target.manifest as unknown as ResourceManifest;
-      this.verifyManifest({ manifest, signature: target.signature });
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", "wgt:key:" + manifest.keyId);
+      await this.verifyManifest({ manifest, signature: target.signature }, tx);
       const scopeKey = distributionKey(target);
       await tx.$executeRawUnsafe(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
@@ -107,6 +106,8 @@ export class ResourceReleaseService {
         registry.productId !== manifest.productId
       )
         throw new BadRequestException("渠道许可、应用身份或原生恢复证据未通过，禁止发布 WGT");
+      const proof = await this.control.assertReady(registry, tx);
+      if (proof.runtimeAppId !== manifest.runtimeAppId || proof.nativeFingerprint !== manifest.nativeFingerprint || Number(proof.nativeBuild) < manifest.minNativeBuild || Number(proof.nativeBuild) > manifest.maxNativeBuild) throw new BadRequestException("清单与已验完整包基线不匹配");
       const current = await tx.resourceRelease.findFirst({
         where: {
           applicationId: target.applicationId,
@@ -180,7 +181,9 @@ export class ResourceReleaseService {
       return null;
     const manifest = target.manifest as unknown as ResourceManifest;
     try {
-      this.verifyManifest({ manifest, signature: target.signature });
+      const proof = await this.control.assertReady(distribution);
+      if (proof.runtimeAppId !== manifest.runtimeAppId || proof.nativeFingerprint !== manifest.nativeFingerprint || Number(proof.nativeBuild) < manifest.minNativeBuild || Number(proof.nativeBuild) > manifest.maxNativeBuild) return null;
+      await this.verifyManifest({ manifest, signature: target.signature });
     } catch {
       return null;
     }

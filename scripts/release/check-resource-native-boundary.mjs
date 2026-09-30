@@ -6,13 +6,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const nativePaths = [
   'apps/mobile/src/manifest.json', 'apps/mobile/package.json', 'pnpm-lock.yaml',
   'apps/mobile/nativeplugins', 'apps/mobile/src/lib/app-distribution.ts',
+  'apps/mobile/native', 'apps/mobile/src/uni_modules',
 ]
 export function inspectNativeBoundary(base, candidate, cwd = root) {
   const files = execFileSync('git', ['diff', '--name-only', base, candidate, '--', ...nativePaths],
     { cwd, encoding: 'utf8' }).trim().split(/\r?\n/).filter(Boolean)
   const fingerprint = createHash('sha256')
-  const pluginFiles = execFileSync('git', ['ls-tree', '-r', '--name-only', candidate, '--', 'apps/mobile/nativeplugins'], { cwd, encoding: 'utf8' }).trim().split(/\r?\n/).filter(Boolean)
-  for (const name of [...nativePaths.filter(n => !n.endsWith('nativeplugins')), ...pluginFiles]) {
+  const trees = ['apps/mobile/nativeplugins', 'apps/mobile/native', 'apps/mobile/src/uni_modules']
+  const pluginFiles = execFileSync('git', ['ls-tree', '-r', '--name-only', candidate, '--', ...trees], { cwd, encoding: 'utf8' }).trim().split(/\r?\n/).filter(Boolean)
+  for (const name of [...nativePaths.filter(n => !trees.includes(n)), ...pluginFiles]) {
     fingerprint.update(name).update(execFileSync('git', ['show', candidate + ':' + name], { cwd }))
   }
   return { compatible: files.length === 0, changedNativeInputs: files, nativeFingerprint: fingerprint.digest('hex') }

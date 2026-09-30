@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 import { useAuthStore } from '@/store/auth'
+import WgtControlPanel from './WgtControlPanel.vue'
 const auth = useAuthStore()
 const rows = ref<any[]>([])
 const signedJson = ref('')
@@ -59,11 +60,12 @@ async function action(row: any, type: 'publish' | 'retire' | 'rollback') {
 </script>
 <template>
   <section class="resources">
+    <WgtControlPanel />
     <h3>签名资源版本</h3>
     <el-alert
       type="warning"
       :closable="false"
-      title="所有渠道默认禁发 WGT。生产签名、商店许可与启动前原生恢复证据缺一不可；当前无生产更新桥接器。"
+      title="所有渠道默认禁发 WGT。已开发原生扩展，正式匹配包尚待实测；生产签名、商店许可与启动前恢复证据缺一不可。"
     />
     <el-input
       v-model="signedJson"

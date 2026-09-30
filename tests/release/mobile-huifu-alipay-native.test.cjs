@@ -182,11 +182,14 @@ test('错误订单、非法金额、存储读取失败时不建支付单', async
 function componentFixture() {
   const storage=new Map(), paths=[], opened=[], events=[], hooks={}, exported={exports:{}}
   let account='account-one', now=100000, row={id:'order-one',amount:'0.01',status:'PENDING'}, delayPay=null
+  const critical = {}
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('apps/mobile/src/lib/critical-activities.ts','utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: critical })
   const modules={
     vue:{ref:value=>({value}),onMounted:fn=>{hooks.mount=fn},onUnmounted:fn=>{hooks.unmount=fn}},
     '@/utils/request':{apiGet:async path=>{paths.push(path);return {...row}}},
     '@/utils/storage':{getUserInfo:()=>({id:account})},
     '@/utils/huifu-alipay-native':mod.exports,
+    '@/lib/critical-activities':critical,
     '@/lib/purchase-data':{purchaseApi:{payByChannel:async()=>{if(delayPay)await delayPay;row={...row,payMethod:'HUIFU',payTransactionId:'HF-one'};return{outTradeNo:'HF-one',qrCode:qr}},queryHuifuPayment:async()=>({trans_stat:'P'})}},
   }
   const src=fs.readFileSync('apps/mobile/src/components/common/huifu-alipay-payment.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0]

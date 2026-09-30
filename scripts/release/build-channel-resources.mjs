@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, openSync, closeSync, unlinkSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { spawnSync, execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,6 +30,15 @@ const record = { sourceSha, ...Object.fromEntries(['productId','applicationId','
   output, artifactType: 'compiled-resources', wgtEnabled: false, nativePackageVerified: false }
 if (mode === '--dry-run') { console.log(JSON.stringify(record, null, 2)); process.exit(0) }
 if (execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts'], { cwd: root, encoding: 'utf8' }).trim()) throw new Error('源代码未干净提交，禁止渠道构建')
+if (data.platform === 'android') {
+  const native = JSON.parse(readFileSync(path.join(root, 'artifacts/native-resource-update/build.json'), 'utf8'))
+  const aar = readFileSync(path.join(root, 'apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar'))
+  if (native.sourceDirty || native.sourceSha !== sourceSha || native.aarSha256 !== createHash('sha256').update(aar).digest('hex')) throw new Error('原生 AAR 与干净候选源码不匹配，请先在同提交重建原生扩展')
+  if (native.config.enabled) {
+    for (const field of ['applicationId', 'productId', 'channelId', 'packageName', 'nativeBuild']) if (String(native.config.identity[field]) !== String(data[field])) throw new Error('已启用的原生身份与渠道构建不匹配')
+    if (native.config.clientKey !== data.clientKey || native.config.identity.nativeFingerprint !== data.nativeFingerprint) throw new Error('原生选择器/基座指纹与渠道构建不匹配')
+  }
+}
 mkdirSync(output, { recursive: true })
 const lockPath = path.join(root, 'artifacts/app-channels/.build.lock')
 const lock = openSync(lockPath, 'wx')

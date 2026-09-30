@@ -21,7 +21,6 @@ type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: 
 @ApiTags("商家入驻")
 @Controller("merchant")
 @UseGuards(JwtAuthGuard, FeatureFlagGuard)
-@RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
 @ApiBearerAuth()
 export class MerchantController {
   constructor(
@@ -35,7 +34,7 @@ export class MerchantController {
   @Get("my/metrics")
   @ApiOperation({ summary: "商家本人履约健康指标（近 N 日·履-P1）" })
   @ApiResponse({ status: 200, description: "成功" })
-  // 方法级覆盖类级 ONBOARDING 开关：本端点属经营后台能力；MerchantGuard=模块现有商家身份守卫（ACTIVE 商家·挂 request.merchant）
+  // 经营后台独立检查 BACKEND；MerchantGuard 校验现有 ACTIVE 商家身份。
   @RequireFeature(MERCHANT_FEATURE_FLAGS.BACKEND)
   @UseGuards(MerchantGuard)
   getMyMetrics(@Req() req: AuthRequest, @Query("days") days?: string) {
@@ -46,7 +45,7 @@ export class MerchantController {
   @Get("my/credit")
   @ApiOperation({ summary: "商家本人信用分与等级权益（含变动 log 明细·履-P2）" })
   @ApiResponse({ status: 200, description: "成功" })
-  // 同 my/metrics：方法级覆盖类级 ONBOARDING 开关，MerchantGuard 校验 ACTIVE 商家身份
+  // 与 my/metrics 一致，现有商家后台不继承入驻开关。
   @RequireFeature(MERCHANT_FEATURE_FLAGS.BACKEND)
   @UseGuards(MerchantGuard)
   getMyCredit(@Req() req: AuthRequest) {
@@ -55,6 +54,7 @@ export class MerchantController {
   }
 
   @Post("apply")
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
   @ApiOperation({ summary: "提交入驻申请" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -70,6 +70,7 @@ export class MerchantController {
   }
 
   @Put("application")
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
   @ApiOperation({ summary: "修改入驻申请（驳回后可重新提交）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -78,6 +79,7 @@ export class MerchantController {
   }
 
   @Post("submit")
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
   @ApiOperation({ summary: "提交审核" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -93,6 +95,7 @@ export class MerchantController {
   }
 
   @Post("pay-deposit")
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
   @ApiOperation({ summary: "保证金支付（当前免缴，在线收款未开放）" })
   @ApiResponse({ status: 400, description: "当前免缴或在线收款未开放" })
   payDeposit(@Req() req: AuthRequest, @Body() dto: PayDepositDto) {
@@ -107,6 +110,7 @@ export class MerchantController {
   }
 
   @Post("sign-agreement")
+  @RequireFeature(MERCHANT_FEATURE_FLAGS.ONBOARDING)
   @ApiOperation({ summary: "签署入驻协议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

@@ -15,6 +15,7 @@ export interface NativeResourceIdentity {
   nativeBuild: number
   resourceVersion: number
   nativeFingerprint: string
+  activeReleaseId?: string
 }
 export interface ResourceJournal {
   state: 'STAGED' | 'PENDING_HEALTH' | 'HEALTHY'
@@ -23,7 +24,7 @@ export interface ResourceJournal {
 }
 /**
  * 实现必须随完整包交付。恢复、签名公钥、原子切换与下载文件验证在原生层运行；
- * 普通 plus.runtime.install 不满足此接口。当前项目没有生产实现，不能伪造桥接器启用。
+ * 普通 plus.runtime.install 不满足此接口。原生扩展须随完整包接入并完成匹配真机验收后启用。
  */
 export interface NativeResourceBridge {
   identity(): Promise<NativeResourceIdentity>
@@ -40,6 +41,7 @@ export interface NativeResourceBridge {
   readJournal(): Promise<ResourceJournal | null>
   writeJournal(journal: ResourceJournal): Promise<void>
   activateAtomically(journal: ResourceJournal): Promise<void>
+  queueForNextColdLaunch?(journal: ResourceJournal): Promise<void>
   confirmHealthy(releaseId: string): Promise<void>
   criticalActivities(): Promise<Array<'payment' | 'live' | 'recording' | 'upload'>>
 }
@@ -139,5 +141,17 @@ export class ResourceUpdater {
     if (journal?.state !== 'PENDING_HEALTH' || journal.release.manifest.releaseId !== releaseId)
       return
     await this.bridge.confirmHealthy(releaseId)
+  }
+  async queueForNextColdLaunch(): Promise<boolean> {
+    if (this.running || !this.bridge.queueForNextColdLaunch) return false
+    this.running = true
+    try {
+      const journal = await this.bridge.readJournal()
+      if (!journal || journal.state !== 'STAGED') return false
+      await this.validate(journal.release)
+      if (!await this.bridge.verifyFile(journal.localPath, journal.release.manifest.sha256, journal.release.manifest.byteLength) || (await this.bridge.criticalActivities()).length) return false
+      await this.bridge.queueForNextColdLaunch(journal)
+      return true
+    } finally { this.running = false }
   }
 }

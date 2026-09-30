@@ -1,0 +1,31 @@
+{
+  "id": "rebu-resource-updater",
+  "displayName": "热卜原生资源恢复",
+  "version": "0.1.0",
+  "description": "完整包携带的启动恢复钩子；默认关闭，须正式匹配基座验收",
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": [],
+    "platforms": {
+      "cloud": {
+        "tcb": "n",
+        "aliyun": "n"
+      },
+      "client": {
+        "Vue": {
+          "vue2": "n",
+          "vue3": "y"
+        },
+        "App": {
+          "app-android": "y",
+          "app-ios": "n"
+        },
+        "H5-mobile": {
+          "Safari": "n",
+          "Android Browser": "n",
+          "微信浏览器(Android)": "n"
+        }
+      }
+    }
+  }
+}

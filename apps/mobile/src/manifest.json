@@ -9,6 +9,7 @@
         "enable" : false
     },
     "app-plus" : {
+        "runmode" : "liberate",
         "usingComponents" : true,
         "splashscreen" : {
             "alwaysShowBeforeRender" : true,

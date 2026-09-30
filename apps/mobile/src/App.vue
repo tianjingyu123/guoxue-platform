@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide, onError, onPageNotFound } from '@dcloudio/uni-app'
+import { onLaunch, onShow, onHide, onError, onUnhandledRejection, onPageNotFound } from '@dcloudio/uni-app'
 import { track } from '@/composables/useTrack'
 import { initWebVitals } from '@/composables/useWebVitals'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
@@ -11,6 +11,8 @@ import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-con
 import { parseAppEntryLink } from '@/utils/app-entry-link'
 import { resolveRoute } from '@/utils/router'
 import { hydratePaipanRuntime } from '@/lib/paipan-runtime'
+import { initializeResourceUpdates, observeResourceHealth, pauseResourceHealth, markResourceUnhealthy } from '@/lib/resource-update-lifecycle'
+import { installOperationRouteGuards } from '@/lib/operation-routes'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -400,6 +402,8 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  initializeResourceUpdates()
+  installOperationRouteGuards(options?.path)
   if (restoreWechatPaymentCallback(options)) return
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
@@ -452,6 +456,7 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  observeResourceHealth()
   void hydrateBrandConfig()
   // DCloud 官方约定：冷启动/恢复前台在 onShow 读取 runtime.arguments；热启动同时由
   // newintent 全局事件接管。去重逻辑会阻止持久化的旧参数造成循环跳转。
@@ -469,9 +474,11 @@ onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appSchem
   void hydratePaipanRuntime()
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失
-onHide(() => { track.flushNow() })
+onHide(() => { pauseResourceHealth(); track.flushNow() })
+onUnhandledRejection(() => { markResourceUnhealthy() })
 // 全局未捕获错误兜底（小程序/App 运行时错误、未处理 Promise rejection）
 onError((err) => {
+  markResourceUnhealthy()
   console.error('[App.onError]', err)
   try {
     track.custom('error', { msg: String(err), source: 'app' })
