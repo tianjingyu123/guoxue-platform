@@ -11,6 +11,7 @@ on:
       - "scripts/release/verify-isolated-circle-auto-refund-http.cjs"
       - "scripts/release/verify-isolated-merchant-shipping-http.cjs"
       - "scripts/release/verify-isolated-im-http.cjs"
+      - "scripts/release/verify-isolated-im-socket.cjs"
   workflow_dispatch:
 
 permissions:

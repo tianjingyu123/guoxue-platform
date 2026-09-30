@@ -17,6 +17,7 @@ const network = `rebu-verify-${suffix}`;
 const database = `rebu-db-${suffix}`;
 const redis = `rebu-redis-${suffix}`;
 const app = `rebu-app-${suffix}`;
+const secondApp = `rebu-app-second-${suffix}`;
 const temp = mkdtempSync(path.join(os.tmpdir(), "rebu-image-lab-"));
 const password = randomBytes(24).toString("hex");
 const databaseUrl = `postgresql://guoxue:${password}@${database}:5432/guoxue`;
@@ -328,6 +329,21 @@ try {
   save("im-fallback-http-transactions.json", imReport);
   check("im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback", imReport);
 
+  // 两个独立应用共享临时 PG/Redis，验证真实个人房间投递，不开放主机端口。
+  docker(["run", "-d", "--name", secondApp, "--network", network, "--env-file", appEnv, image]);
+  let secondReady = false;
+  for (let i = 0; i < 45; i++) {
+    const probe = spawnSync("docker", ["exec", secondApp, "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/ready',{signal:AbortSignal.timeout(3000)}).then(r=>{process.exitCode=r.status===200?0:1}).catch(()=>{process.exitCode=1})"], { stdio: "ignore", timeout: 10000 });
+    if (probe.status === 0) { secondReady = true; break; }
+    await sleep(2000);
+  }
+  assert(secondReady, "第二隔离应用进程就绪超时");
+  const socketCode = readFileSync(new URL("./verify-isolated-im-socket.cjs", import.meta.url), "utf8");
+  const socketReport = parseTestResult(docker(["exec", "-e", `ISOLATED_SECOND_APP=http://${secondApp}:3000`, app, "node", "-e", socketCode]));
+  assert(socketReport.passed);
+  save("im-two-process-socket-transactions.json", socketReport);
+  check("im-two-app-processes-redis-socket-privacy-quota-and-rollback", socketReport);
+
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `
     const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
@@ -381,7 +397,9 @@ try {
   // Docker stderr 也属于容器输出；统一脱敏后才保留诊断。
   const rawLogs = spawnSync("docker", ["logs", "--tail", "200", app], { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
   writeFileSync(path.join(results, "application-startup.log"), sanitize((rawLogs.stdout || "") + (rawLogs.stderr || "")));
-  for (const name of [app, database, redis]) docker(["rm", "-f", "-v", name], true);
+  const secondLogs = spawnSync("docker", ["logs", "--tail", "100", secondApp], { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
+  writeFileSync(path.join(results, "second-application-startup.log"), sanitize((secondLogs.stdout || "") + (secondLogs.stderr || "")));
+  for (const name of [secondApp, app, database, redis]) docker(["rm", "-f", "-v", name], true);
   docker(["network", "rm", network], true);
   rmSync(temp, { recursive: true, force: true });
   save("runtime-verification.json", report);
