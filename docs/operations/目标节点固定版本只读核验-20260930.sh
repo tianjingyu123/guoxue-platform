@@ -17,6 +17,8 @@ history = root / 'release-history.tsv'
 
 release_id = None
 marker = current / '.release-id'
+rollback_script = current / 'scripts' / 'release' / 'rollback-fixed-release.sh'
+verify_package_script = current / 'scripts' / 'release' / 'verify-fixed-package.mjs'
 if marker.is_file():
     release_id = marker.read_text(encoding='utf-8').strip()[:100]
 
@@ -64,5 +66,8 @@ print(json.dumps({
     'currentReleaseEvidenceExists': bool(release_id and (evidence / release_id).exists()),
     'historyExists': history.is_file(),
     'historyHasCurrent': history_has_current,
+    'currentRollbackScriptExists': rollback_script.is_file(),
+    'currentRollbackVerifyOnlySupported': rollback_script.is_file() and 'ROLLBACK_VERIFY_ONLY' in rollback_script.read_text(encoding='utf-8'),
+    'currentVerifyPackageScriptExists': verify_package_script.is_file(),
 }, ensure_ascii=False))
 PY
