@@ -142,7 +142,7 @@
     ],
     "overrides": {
       "fast-xml-parser": "4.5.5",
-      "@grpc/grpc-js": "1.14.4",
+      "@grpc/grpc-js": "1.14.5",
       "@intlify/message-resolver": "9.1.11",
       "@opentelemetry/propagator-jaeger": "2.9.0",
       "adm-zip": "0.6.1",
