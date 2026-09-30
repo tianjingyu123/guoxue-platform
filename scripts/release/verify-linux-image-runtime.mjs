@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import assert from "node:assert/strict";
@@ -100,6 +100,11 @@ try {
   const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv, "--entrypoint", "pnpm", image, "--dir", "/app/apps/server", "exec", "prisma", "db", "push", "--skip-generate"]);
   writeFileSync(path.join(results, "temporary-schema.log"), schemaOutput);
   check("temporary-empty-db-final-schema", "仅创建临时空库结构，不验证生产迁移链");
+  // 临时公私钥在封闭容器内生成并加密入临时库，由正式配置加载器读取；不伪造 DB 来源标记。
+  const callbackCode = readFileSync(new URL("./verify-isolated-payment-http.cjs", import.meta.url), "utf8");
+  const callbackSeed = parseTestResult(docker(["run", "--rm", "--network", network, "--env-file", appEnv,
+    "-e", "ISOLATED_PAYMENT_SEED=1", "--entrypoint", "node", image, "-e", callbackCode]));
+  assert(callbackSeed.syntheticEncryptedConfig);
   // 内部网络封锁外部渠道。HTTP 核验在同一封闭网络内的镜像中发起，不开放主机端口。
   docker(["run", "-d", "--name", app, "--network", network, "--env-file", appEnv, image]);
   let ready = false;
@@ -272,6 +277,11 @@ try {
   assert(financeReport.passed);
   save("finance-http-boundaries.json", financeReport);
   check("manual-no-change-payout-audit-failure-and-write-role-boundaries", financeReport);
+
+  const callbackReport = appNode(callbackCode);
+  assert(callbackReport.passed);
+  save("payment-refund-http-transactions.json", callbackReport);
+  check("signed-encrypted-http-payment-refund-rollback-notification-retry", callbackReport);
 
   // 每次启动两个独立 Node 进程，共用真实 Redis；不以进程内降级证明幂等。
   const worker = (userId, eventKey, startAt) => `

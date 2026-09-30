@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/image-verify.yml"
       - "scripts/release/verify-linux-image-runtime.mjs"
+      - "scripts/release/verify-isolated-payment-http.cjs"
   workflow_dispatch:
 
 permissions:
