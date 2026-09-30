@@ -15,6 +15,7 @@ const nodeImage = 'node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf929540
 const postgresImage = 'pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff';
 const redisImage = 'redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2';
 const suffix = randomBytes(5).toString('hex');
+const runtimeImage = `rebu-reward-runtime:${suffix}`;
 const network = `rebu-reward-${suffix}`, database = `rebu-reward-db-${suffix}`, cache = `rebu-reward-redis-${suffix}`;
 const temp = mkdtempSync(path.join(os.tmpdir(), 'rebu-reward-'));
 const password = randomBytes(24).toString('hex');
@@ -23,9 +24,9 @@ const sanitize = text => [password, databaseUrl].reduce((safe, secret) => safe.s
 for (const secret of [password, databaseUrl]) console.log(`::add-mask::${secret}`);
 const results = path.resolve('results'); mkdirSync(results, { recursive: true });
 const report = { sourceCommit, passed: false, productionDeployment: false, productionDatabaseTouched: false, realNotifications: 0, checks: [], nodeImage, postgresImage, redisImage, formalDockerfileImageTested: false, schemaScope: 'candidate-schema-temporary-empty-database', targetObservedPostgres: '18.4', targetPatchMatch: false };
-const runDocker = args => spawnSync('docker', args, { encoding: 'utf8', timeout: 300000, maxBuffer: 32 * 1024 * 1024 });
-const docker = args => {
-  const run = runDocker(args);
+const runDocker = (args, input) => spawnSync('docker', args, { input, encoding: 'utf8', timeout: 300000, maxBuffer: 32 * 1024 * 1024 });
+const docker = (args, input) => {
+  const run = runDocker(args, input);
   assert.equal(run.status, 0, sanitize(run.stderr || run.stdout || run.error?.message || 'Docker验证失败'));
   return sanitize(run.stdout || '');
 };
@@ -44,6 +45,10 @@ try {
     'apps/server/dist/modules/coin/coin.service.js',
   ].map(file => [file, createHash('sha256').update(readFileSync(path.join(candidate, file))).digest('hex')]));
   for (const image of [nodeImage, postgresImage, redisImage]) docker(['pull', image]);
+  // 与正式运行阶段同样安装SSL依赖；这是验证容器，不冒充正式Dockerfile成品镜像。
+  docker(['build', '--tag', runtimeImage, '--file', '-', temp], `FROM ${nodeImage}\nRUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl && rm -rf /var/lib/apt/lists/*\n`);
+  report.opensslVersion = docker(['run', '--rm', '--entrypoint', 'openssl', runtimeImage, 'version']).trim();
+  assert.match(report.opensslVersion, /^OpenSSL 3\./);
   docker(['network', 'create', '--internal', network]);
   const dbEnv = path.join(temp, 'database.env'), appEnv = path.join(temp, 'application.env');
   writeFileSync(dbEnv, `POSTGRES_USER=guoxue\nPOSTGRES_DB=guoxue\nPOSTGRES_PASSWORD=${password}\n`, { mode: 0o600 });
@@ -60,7 +65,7 @@ try {
   assert.equal(docker(['exec', cache, 'redis-cli', 'ping']).trim(), 'PONG');
   report.postgresVersion = docker(['exec', database, 'psql', '-U', 'guoxue', '-d', 'guoxue', '-Atc', 'SHOW server_version']).trim();
   report.redisVersion = docker(['exec', cache, 'redis-cli', 'INFO', 'server']).split('\n').find(line => line.startsWith('redis_version:'))?.trim();
-  const baseArgs = ['run', '--rm', '--network', network, '--env-file', appEnv, '--mount', `type=bind,source=${candidate},target=/app,readonly`, '--mount', `type=bind,source=${process.cwd()},target=/verification,readonly`, '--workdir', '/app/apps/server', '--entrypoint', 'node', nodeImage];
+  const baseArgs = ['run', '--rm', '--network', network, '--env-file', appEnv, '--mount', `type=bind,source=${candidate},target=/app,readonly`, '--mount', `type=bind,source=${process.cwd()},target=/verification,readonly`, '--workdir', '/app/apps/server', '--entrypoint', 'node', runtimeImage];
   const req = createRequire(path.join(candidate, 'apps/server/package.json'));
   const prismaCli = '/app/' + path.relative(candidate, req.resolve('prisma/build/index.js'));
   const schema = docker([...baseArgs, prismaCli, 'db', 'push', '--skip-generate']);
@@ -72,8 +77,8 @@ try {
   Object.assign(report, result);
 } catch (error) { report.error = sanitize(error.message); console.error(report.error); process.exitCode = 1; }
 finally {
-  runDocker(['rm', '-f', database, cache]); runDocker(['network', 'rm', network]);
-  report.cleanup = { databaseAbsent: runDocker(['inspect', database]).status === 1, redisAbsent: runDocker(['inspect', cache]).status === 1, networkAbsent: runDocker(['network', 'inspect', network]).status === 1 };
+  runDocker(['rm', '-f', database, cache]); runDocker(['network', 'rm', network]); runDocker(['image', 'rm', runtimeImage]);
+  report.cleanup = { databaseAbsent: runDocker(['inspect', database]).status === 1, redisAbsent: runDocker(['inspect', cache]).status === 1, networkAbsent: runDocker(['network', 'inspect', network]).status === 1, verificationImageAbsent: runDocker(['image', 'inspect', runtimeImage]).status === 1 };
   report.temporaryResourcesReleased = Object.values(report.cleanup).every(Boolean);
   if (!report.temporaryResourcesReleased) { process.exitCode = 1; report.passed = false; }
   rmSync(temp, { recursive: true, force: true });
