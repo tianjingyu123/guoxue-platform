@@ -1,0 +1,33 @@
+{
+  "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "actualInstalledClientSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "checkedAtUtc": "2026-09-30T22:55:46.489819+00:00",
+  "androidVersion": "14",
+  "declaredHost": "api.rebugx.cn",
+  "domainState": "legacy_failure",
+  "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+  "publicAssociationFiles": [
+    {
+      "host": "api.rebugx.cn",
+      "status": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "packageMatched": true,
+      "installedCertificateMatched": true
+    },
+    {
+      "host": "gx.yrydai.com",
+      "status": 200,
+      "redirected": false,
+      "contentType": "application/json",
+      "packageMatched": true,
+      "installedCertificateMatched": true
+    }
+  ],
+  "forcedApproval": false,
+  "userDefaultsChanged": false,
+  "networkChanged": false,
+  "secondDeviceAvailable": false,
+  "scope": "readonly-installed-domain-and-public-certificate-binding",
+  "conclusion": "公开关联文件匹配已安装包证书；自然HTTPS入站仍落浏览器，未证明设备验证失败根因"
+}

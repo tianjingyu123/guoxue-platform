@@ -353,5 +353,8 @@
   "productionMigration": false,
   "realPaymentOperations": 0,
   "realNotifications": 0,
-  "miniReviewSubmitted": false
+  "miniReviewSubmitted": false,
+  "historicalEvidenceSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "latestCandidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "currentCandidateReuseScope": "unchanged-frontends-only-not-complete-backend-tree"
 }

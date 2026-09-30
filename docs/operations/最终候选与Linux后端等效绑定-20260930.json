@@ -1,8 +1,8 @@
 {
-  "candidateSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
   "actualRuntimeSource": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
   "runId": 36768859516,
-  "backendTreeEquivalent": true,
+  "backendTreeEquivalent": false,
   "comparedPaths": [
     "apps/server",
     "packages",
@@ -12,7 +12,7 @@
     "scripts/release"
   ],
   "newLinuxRunAtCurrentSource": true,
-  "candidateFixedPackageSha256": "dfa73eb2b911f64e02595f19a468be0a339f2211052196feb93d10b779f29752",
+  "candidateFixedPackageSha256": "c42ed81b26ad4a872d611b41c0a409efb8be41f7a06e992aa2e27a5631811284",
   "runtime": {
     "sourceCommit": "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc",
     "sourceSha256": "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474",
@@ -1360,7 +1360,6 @@
     "grpc-security-version-in-runtime-image",
     "postgres-major-match",
     "temporary-empty-db-final-schema",
-    "production-entrypoint-health-public-http",
     "real-jwt-global-guards-cross-user-and-admin-roles",
     "sensitive-feedback-roles-mask-audit-limit-and-validation",
     "manual-no-change-payout-audit-failure-and-write-role-boundaries",
@@ -1374,15 +1373,27 @@
     "database-unique-after-redis-key-loss",
     "notification-failure-release-and-two-process-retry"
   ],
-  "currentImageIdentityAndClientMountNotVerified": true,
+  "currentImageIdentityAndClientMountNotVerified": false,
   "originalRuntimeIdentityChecksNotRebound": [
     "image-identity",
     "prisma-source-compile-runtime-binding",
     "admin-h5-base-and-public-config"
   ],
-  "newLinuxRunScope": "image-artifact-binding-no-app-start-no-db-no-external-channels",
-  "newLinuxRunId": 36776045322,
+  "newLinuxRunScope": "compiled-services-real-postgres-transactions-synthetic-notification-sink",
+  "newLinuxRunId": 36788059926,
   "newLinuxArtifactBindingChecks": 3,
-  "newLinuxBusinessRegressionRerun": false,
-  "priorRuntimeIdentityChecksReplacedByCurrentBinding": true
+  "newLinuxBusinessRegressionRerun": true,
+  "priorRuntimeIdentityChecksReplacedByCurrentBinding": true,
+  "changedPaths": [
+    "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+    "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.ts"
+  ],
+  "prior19EvidenceReuseScope": "unchanged-modules-and-build-inputs-not-full-current-backend-tree",
+  "currentHttpEntrypointNotRerun": true,
+  "newLinuxFocusedServiceChecks": 10,
+  "historicalEntrypointCheckNotCurrentVerification": "production-entrypoint-health-public-http",
+  "newLinuxFull19Rerun": false,
+  "newLinuxBusinessRegressionScope": "ten-focused-compiled-circle-service-real-pg-cases-not-full19-http-runtime"
 }

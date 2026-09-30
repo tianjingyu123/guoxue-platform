@@ -1,5 +1,5 @@
 {
-  "candidateSource": "43de59acf81e7d622edc4e57285ddf41b7ad89f2",
+  "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
   "matrixSource": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
   "checkedPaths": [
     "apps/server/src/modules/notification",
@@ -14,8 +14,26 @@
     "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
   ],
   "pathsExist": true,
-  "treeEquivalent": true,
+  "treeEquivalent": false,
   "allNotificationTriggersCompleted": false,
   "realChannelsVerified": false,
-  "scope": "existing-trigger-facts-not-new-trigger-development"
+  "scope": "existing-trigger-facts-not-new-trigger-development",
+  "changedPaths": [
+    "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+    "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.ts"
+  ],
+  "unchangedComparedPaths": [
+    "apps/server/src/modules/notification",
+    "apps/server/src/modules/entitlement",
+    "apps/server/src/modules/course",
+    "apps/server/src/modules/live",
+    "apps/server/src/modules/shop",
+    "apps/server/src/modules/user/feedback.service.ts",
+    "apps/server/src/modules/user/user.module.ts",
+    "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+    "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
+  ],
+  "unchangedComparedPathsEquivalent": true
 }
