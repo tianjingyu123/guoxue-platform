@@ -309,8 +309,8 @@ export class CircleService {
 
   // ───────── 帖子打赏 ─────────
 
-  rewardPost(circleId: string, postId: string, userId: string, amount: number, message?: string) {
-    return this.postSvc.rewardPost(circleId, postId, userId, amount, message);
+  rewardPost(circleId: string, postId: string, userId: string, amount: number, message?: string, requestId?: string) {
+    return this.postSvc.rewardPost(circleId, postId, userId, amount, message, requestId);
   }
 
   // ───────── 全局聚合 ─────────

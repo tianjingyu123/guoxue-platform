@@ -17,6 +17,7 @@ import { CreatePostDto } from "../circle.dto";
 import { Prisma, PostType } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
 import { CircleGovernanceService } from "../governance/circle-governance.service";
+import { createHash, randomUUID } from "node:crypto";
 
 /**
  * 圈子-帖子与互动域（从 circle.service 拆出·纯搬家不改逻辑）。
@@ -458,7 +459,16 @@ export class CirclePostService {
 
   // ───────── 帖子打赏 ─────────
 
-  async rewardPost(circleId: string, postId: string, userId: string, amount: number, message?: string) {
+  async rewardPost(circleId: string, postId: string, userId: string, amount: number, message?: string, requestId?: string) {
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏金额须为1-10000的整数");
+    }
+    if (message !== undefined && (typeof message !== "string" || message.length > 200)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏留言须为200字以内的文字");
+    }
+    if (requestId !== undefined && (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(requestId))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏请求编号须为8-128位字母、数字、下划线或短横线");
+    }
     // 校验帖子存在且属于该圈子（防止 IDOR：postId 与 circleId 必须匹配）
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -473,33 +483,46 @@ export class CirclePostService {
 
     if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
 
-    await this.coinService.spend(userId, {
-      amountCoin: amount,
-      scene: "POST_REWARD",
-      refId: postId,
-      description: `打赏帖子: ${post.title || "无标题"}`,
-    });
-
-    // 分账：作者入账 50%，平台留成 50%（业务决策）。作者入账失败不回滚打赏，仅记日志。
+    // 请求编号按付款用户隔离；未传编号的旧调用仍按每次新打赏处理。
+    const digest = createHash("sha256").update(JSON.stringify(["POST_REWARD", userId, requestId ?? randomUUID()])).digest("hex");
+    const debitId = `post-reward:${digest}`;
+    // 保持既有50%分成及向下取整；扣款、开户、作者入账和两条流水全成全败。
     const authorShare = Math.floor(amount / 2);
-    let authorCredited = authorShare === 0;
-    if (authorShare > 0) {
-      try {
-        await this.coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`);
-        authorCredited = true;
-      } catch (err) {
-        this.logger.warn("打赏作者入账失败", err);
+    const coinService = this.coinService;
+    await this.prisma.$transaction(async (tx) => {
+      // PostgreSQL事务锁跨进程生效。先锁同一请求再查账，余额不足的并发重试也能返回原结果。
+      const lockKey = BigInt.asIntN(64, BigInt(`0x${digest.slice(0, 16)}`));
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey})::text`;
+      const existing = await tx.virtualCoinTransaction.findUnique({ where: { id: debitId } });
+      if (existing) {
+        if (existing.userId !== userId || existing.type !== "SPEND" || existing.scene !== "POST_REWARD" ||
+            existing.refId !== postId || existing.amountCoin !== -amount) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏请求编号已用于其他内容，请勿重复使用");
+        }
+        const credits = await tx.virtualCoinTransaction.findMany({ where: { refId: debitId } });
+        if (authorShare === 0 ? credits.length !== 0 : credits.length !== 1 || credits[0].userId !== post.userId ||
+            credits[0].type !== "REFUND" || credits[0].scene !== "REFUND" || credits[0].amountCoin !== authorShare) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏流水不完整，请联系客服核查");
+        }
+        return;
       }
-    }
+      await coinService.spend(userId, {
+        amountCoin: amount,
+        scene: "POST_REWARD",
+        refId: postId,
+        description: `打赏帖子: ${post.title || "无标题"}`,
+      }, tx, debitId);
+      if (authorShare > 0) {
+        await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`, tx, debitId);
+      }
+    }, { maxWait: 5000, timeout: 10000 });
 
     // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
     if (this.notificationService) {
-      this.notificationService.send(post.userId, {
+      await this.notificationService.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
         type: "POST_REWARD",
         title: "收到打赏",
-        content: authorCredited
-          ? `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`
-          : "有人打赏了你的帖子，作者收入暂未入账，请联系平台客服核查。",
+        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`,
         targetType: "POST",
         targetId: postId,
         category: "TRADE",

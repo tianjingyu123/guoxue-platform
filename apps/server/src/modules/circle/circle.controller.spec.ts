@@ -34,6 +34,7 @@ const mockCircleSvc = {
   getCircleRanking: jest.fn().mockResolvedValue([{ id: "c1", memberCount: 500 }]),
   getMemberLeaderboard: jest.fn().mockResolvedValue([{ userId: "u1", postCount: 30 }]),
   getHotContentRanking: jest.fn().mockResolvedValue([{ id: "p1", likes: 100 }]),
+  rewardPost: jest.fn().mockResolvedValue({ success: true, amount: 8 }),
 };
 
 describe("CircleController", () => {
@@ -58,6 +59,21 @@ describe("CircleController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("打赏只采用登录用户身份并传递重试编号", async () => {
+    await expect(ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, "谢谢", "request-001")).resolves.toEqual({ success: true, amount: 8 });
+    expect(mockCircleSvc.rewardPost).toHaveBeenCalledWith("c1", "p1", "u1", 8, "谢谢", "request-001");
+  });
+
+  it.each([{}, null, 123, "x".repeat(201)])("打赏留言类型或长度无效时不调用业务服务", message => {
+    expect(() => ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, message as string)).toThrow("打赏留言");
+    expect(mockCircleSvc.rewardPost).not.toHaveBeenCalled();
+  });
+
+  it.each(["short", "illegal.value", "x".repeat(129), null, 123])("打赏请求编号无效时不调用业务服务", requestId => {
+    expect(() => ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, undefined, requestId as string)).toThrow("请求编号");
+    expect(mockCircleSvc.rewardPost).not.toHaveBeenCalled();
+  });
 
   it("POST /circles — 创建圈子", async () => {
     const req: any = { user: { id: "u1" } };

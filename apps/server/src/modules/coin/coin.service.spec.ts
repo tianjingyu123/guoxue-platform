@@ -16,6 +16,7 @@ const mockWechatPay = {
 
 const mockPrisma: any = {
   virtualCoinAccount: {
+    upsert: jest.fn().mockResolvedValue({ userId: "u1", balance: 100 }),
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -57,6 +58,7 @@ const mockPrisma: any = {
     if (typeof arg === "function") {
       const tx: Record<string, any> = {
         virtualCoinAccount: {
+          upsert: mockPrisma.virtualCoinAccount.upsert,
           findUnique: mockPrisma.virtualCoinAccount.findUnique,
           create: mockPrisma.virtualCoinAccount.create,
           update: mockPrisma.virtualCoinAccount.update,

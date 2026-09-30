@@ -90,7 +90,15 @@ export class CoinService {
   }
 
   /** 获取或创建虚拟币账户 */
-  async getOrCreateAccount(userId: string) {
+  async getOrCreateAccount(userId: string, prismaTx?: Prisma.TransactionClient) {
+    // 外层资金事务中的开户也必须参与回滚，不能通过根客户端提前提交。
+    if (prismaTx) {
+      return prismaTx.virtualCoinAccount.upsert({
+        where: { userId },
+        create: { userId },
+        update: {},
+      });
+    }
     let account = await this.prisma.virtualCoinAccount.findUnique({ where: { userId } });
     if (!account) {
       account = await this.prisma.virtualCoinAccount.create({ data: { userId } });
@@ -274,10 +282,11 @@ export class CoinService {
     userId: string,
     dto: { amountCoin: number; scene: string; refId?: string; description?: string },
     prismaTx?: Prisma.TransactionClient,
+    transactionId?: string,
   ) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "消费币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
     const run = async (tx: Prisma.TransactionClient) => {
       const result = await tx.virtualCoinAccount.updateMany({
@@ -292,6 +301,7 @@ export class CoinService {
       const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
       const txn = await tx.virtualCoinTransaction.create({
         data: {
+          ...(transactionId ? { id: transactionId } : {}),
           userId,
           type: "SPEND",
           amountCoin: -dto.amountCoin,
@@ -354,10 +364,11 @@ export class CoinService {
     amountCoin: number,
     description: string,
     prismaTx?: Prisma.TransactionClient,
+    refId?: string,
   ) {
     if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "退款币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
     const run = async (tx: Prisma.TransactionClient) => {
       const acc = await tx.virtualCoinAccount.update({
@@ -371,6 +382,7 @@ export class CoinService {
           amountCoin,
           balanceAfter: acc.balance,
           scene: "REFUND",
+          ...(refId ? { refId } : {}),
           description,
         },
       });

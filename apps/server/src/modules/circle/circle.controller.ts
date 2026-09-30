@@ -744,7 +744,7 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "打赏帖子" })
   @ApiBearerAuth()
-  @ApiBody({ description: "打赏参数", schema: { type: "object", properties: { amount: { type: "number", description: "打赏金额(1-10000)", example: 10 }, message: { type: "string", description: "打赏留言(最长200字)", example: "好帖！" } }, required: ["amount"] } })
+  @ApiBody({ description: "打赏参数", schema: { type: "object", properties: { amount: { type: "number", description: "打赏金额(1-10000)", example: 10 }, message: { type: "string", description: "打赏留言(最长200字)", example: "好帖！" }, requestId: { type: "string", description: "同一笔打赏的重试须复用请求编号；8-128位字母、数字、下划线或短横线", example: "reward-request-001" } }, required: ["amount"] } })
   @ApiResponse({ status: 201, description: "打赏成功" })
   @ApiResponse({ status: 400, description: "余额不足或参数无效" })
   @ApiResponse({ status: 401, description: "未认证" })
@@ -756,14 +756,18 @@ export class CircleController {
     @Req() req: Request,
     @Body("amount") amount: number,
     @Body("message") message?: string,
+    @Body("requestId") requestId?: string,
   ) {
     if (!amount || amount < 1 || amount > 10000 || !Number.isInteger(amount)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏金额须为1-10000的整数");
     }
-    if (message && message.length > 200) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏留言最长200字");
+    if (message !== undefined && (typeof message !== "string" || message.length > 200)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏留言须为200字以内的文字");
     }
-    return this.circle.rewardPost(circleId, postId, req.user.id, amount, message);
+    if (requestId !== undefined && (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,128}$/.test(requestId))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏请求编号须为8-128位字母、数字、下划线或短横线");
+    }
+    return this.circle.rewardPost(circleId, postId, req.user.id, amount, message, requestId);
   }
 
 
