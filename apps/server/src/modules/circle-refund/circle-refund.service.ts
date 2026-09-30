@@ -784,6 +784,10 @@ export class CircleRefundService {
       ) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "实际退款额或原订单实付额异常，禁止在线冲正");
       }
+      // 收益来自原订单实付，异常台账不能被人工指定后放大本次退款的追回金额。
+      if (originalRevenueAmount > orderPaidAmount) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "指定收益行金额超过原订单实付额，禁止在线冲正，请先核对异常台账");
+      }
       const refundRatio = actualRefund / orderPaidAmount;
       const ownerRecalled = round2(originalOwnerShare * refundRatio);
       const revenueAmountRecalled = round2(originalRevenueAmount * refundRatio);
