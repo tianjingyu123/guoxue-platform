@@ -13,7 +13,8 @@ export interface UiConfig {
 const DEFAULT_UI_CONFIG: UiConfig = {
   home: { bigCardInterval: 6 },
   agentCard: {
-    categoryColors: { 文案生成: 'g-copy', 分析报告: 'g-analyze', 古籍查询: 'g-classic', 办公效率: 'g-office' },
+    categoryColors: { 文案生成: 'g-copy', 分析报告: 'g-analyze', 古籍查询: 'g-classic', 办公效率: 'g-office',
+    },
   },
 }
 
@@ -24,7 +25,8 @@ export async function getUiConfig(force = false): Promise<UiConfig> {
   try {
     const data = (await hydrateRemoteConfig(force)).ui
     cached = {
-      home: { bigCardInterval: Number(data?.home?.bigCardInterval) || DEFAULT_UI_CONFIG.home.bigCardInterval },
+      home: { bigCardInterval: Number(data?.home?.bigCardInterval) || DEFAULT_UI_CONFIG.home.bigCardInterval,
+      },
       agentCard: {
         categoryColors: data?.agentCard?.categoryColors && typeof data.agentCard.categoryColors === 'object'
           ? data.agentCard.categoryColors
@@ -39,7 +41,6 @@ export async function getUiConfig(force = false): Promise<UiConfig> {
 
 /** 同步取已缓存配置（未拉取则返回默认）——供叶子组件同步读取 */
 export function getCachedUiConfig(): UiConfig {
-  if (cached) return cached
   const data = getRemoteConfig().ui
   return data || DEFAULT_UI_CONFIG
 }

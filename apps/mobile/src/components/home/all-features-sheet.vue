@@ -6,17 +6,20 @@ import { navigateTo } from '@/utils/router'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { isClientFeatureEnabled } from '@/lib/remote-config'
+import { computed } from 'vue'
 
 const emit = defineEmits<{ close: [] }>()
 
-const visibleServiceGroups = serviceGroups
+const visibleServiceGroups = computed(() =>
+  serviceGroups
   .map((group) => ({
     ...group,
     items: group.items.filter((item) =>
       item.id !== 'merchant' || isClientFeatureEnabled('merchant_onboarding', false),
     ),
   }))
-  .filter((group) => group.items.length > 0)
+  .filter((group) => group.items.length > 0),
+)
 
 useOverlayScrollLock(
   () => true,
@@ -24,8 +27,7 @@ useOverlayScrollLock(
     onEscape: () => emit('close'),
     focusContainerSelector: '.af-sheet',
     initialFocusSelector: '.af-close',
-  },
-)
+  })
 
 function go(href: string) {
   emit('close')

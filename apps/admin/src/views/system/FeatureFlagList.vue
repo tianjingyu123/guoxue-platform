@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
 import { createConfirmMessage } from '@/lib/confirm-message'
+import { APP_CHANNELS } from '@guoxue/shared'
+import { useAuthStore } from '@/store/auth'
+const auth = useAuthStore()
 
 interface FeatureFlagRow {
   id?: string
@@ -13,6 +16,9 @@ interface FeatureFlagRow {
   percentage?: number
   targetUserIds?: string[]
   updatedAt?: string
+  operationState?: string
+  emergencyDisabled?: boolean
+  scopeRules?: Array<{ applicationId: string; platform: string; channelId: string; state: string }>
 }
 
 interface FeatureFlagHistoryRow {
@@ -47,8 +53,43 @@ const form = reactive({
 })
 
 const BASE = '/admin/feature-flags'
+const operationState = ref('OPEN')
+const emergencyDisabled = ref(false)
+const scopeRules = ref<NonNullable<FeatureFlagRow['scopeRules']>>([])
+const draftId = ref('')
+const draftPreview = ref<any>(null)
+const changeReason = ref('')
+const registeredClients = ref<Array<{ clientKey: string; applicationId: string; platform: string; channelId: string }>>([])
+const previewContext = reactive({ clientKey: '', userId: '', nativeBuild: '' })
+watch([form, operationState, emergencyDisabled, scopeRules, changeReason, previewContext], () => {
+  draftId.value = ''
+  draftPreview.value = null
+}, { deep: true })
+function addScopeRule() {
+  scopeRules.value.push({
+    applicationId: 'rebu',
+    platform: 'android',
+    channelId: 'xiaomi',
+    state: 'UNOPENED',
+  })
+}
+async function publishSavedDraft() {
+  if (!draftId.value) return
+  await ElMessageBox.confirm(
+    '发布已预览的运营草稿？服务端权限将按新配置裁决；页面在刷新时同步。',
+    '运营配置发布',
+    { type: 'warning' },
+  )
+  await api.post(BASE + '/draft/' + draftId.value + '/publish')
+  draftId.value = ''
+  vis.value = false
+  await fetchList()
+}
 
-onMounted(() => fetchList())
+onMounted(() => {
+  void fetchList()
+  void api.get('/system/distributions').then(response => { registeredClients.value = response.data }).catch(() => {})
+})
 
 function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
 
@@ -59,16 +100,31 @@ async function fetchList() {
     const { data } = await api.get(BASE, { params: { page: page.value, pageSize: 20 } })
     list.value = Array.isArray(data) ? data : (data?.items ?? data?.data ?? data?.featureFlags ?? [])
     total.value = data?.total || (Array.isArray(data) ? data.length : 0)
-  } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
+  } catch { loadError.value = true
+    list.value = []
+    ElMessage.error('加载失败，请重试') } finally { loading.value = false }
 }
 
 function openCreate() {
+  changeReason.value = ''
+  operationState.value = 'UNOPENED'
+  emergencyDisabled.value = false
+  scopeRules.value = []
+  draftId.value = ''
+  draftPreview.value = null
   editingId.value = ''
-  Object.assign(form, { key: '', name: '', description: '', enabled: false, percentage: 100, targetUserIdsText: '' })
+  Object.assign(form, { key: '', name: '', description: '', enabled: false, percentage: 100, targetUserIdsText: '',
+  })
   vis.value = true
 }
 
 function openEdit(row: FeatureFlagRow) {
+  changeReason.value = ''
+  operationState.value = row.operationState || 'OPEN'
+  emergencyDisabled.value = row.emergencyDisabled || false
+  scopeRules.value = JSON.parse(JSON.stringify(row.scopeRules || []))
+  draftId.value = ''
+  draftPreview.value = null
   editingId.value = row.key
   form.key = row.key
   form.name = row.name || ''
@@ -80,8 +136,10 @@ function openEdit(row: FeatureFlagRow) {
 }
 
 async function save() {
-  if (!form.key) { ElMessage.warning('请输入标识键'); return }
-  if (!form.name) { ElMessage.warning('请输入功能名称'); return }
+  if (!form.key) { ElMessage.warning('请输入标识键')
+    return }
+  if (!form.name) { ElMessage.warning('请输入功能名称')
+    return }
   saving.value = true
   try {
     const payload = {
@@ -89,16 +147,20 @@ async function save() {
       description: form.description.trim(),
       enabled: form.enabled,
       percentage: form.percentage,
-      targetUserIds: [...new Set(form.targetUserIdsText.split(/[\n,，]/).map((id) => id.trim()).filter(Boolean))],
+      targetUserIds: [...new Set(form.targetUserIdsText.split(/[\n,，]/).map((id) => id.trim()).filter(Boolean),
+        ),
+      ],
+      operationState: operationState.value,
+      emergencyDisabled: emergencyDisabled.value,
+      scopeRules: scopeRules.value,
+      changeReason: changeReason.value.trim() || '后台运营配置调整',
     }
-    if (editingId.value) {
-      await api.put(`${BASE}/${form.key}`, payload)
-    } else {
-      await api.post(BASE, { key: form.key.trim(), ...payload })
-    }
-    ElMessage.success('已保存')
-    vis.value = false
-    fetchList()
+    const saved = await api.post(`${BASE}/${form.key.trim()}/draft`, payload)
+    const params = Object.fromEntries(Object.entries(previewContext).filter(([, value]) => value.trim()))
+    const preview = await api.post(`${BASE}/${form.key.trim()}/preview`, payload, { params })
+    draftId.value = saved.data.id
+    draftPreview.value = preview.data
+    ElMessage.success('草稿已保存并预览，尚未发布')
   } catch { } finally { saving.value = false }
 }
 
@@ -114,7 +176,7 @@ async function toggleEnabled(row: FeatureFlagRow) {
           { label: '功能', value: row.name || row.key },
           { label: '标识键', value: row.key },
         ],
-        description: `该操作立即对全平台所有用户生效，${target ? '相关功能入口将对用户开放' : '相关功能入口将立即对用户隐藏或不可用'}。`,
+        description: '服务端权限按主库配置裁决；页面会在下次刷新时同步，缓存 TTL 不是实时推送。',
         warning: row.description ? `备注：${row.description}` : undefined,
       }),
       '开关切换确认',
@@ -197,7 +259,7 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
       :closable="false"
       show-icon
       title="客户端可见开关请使用 client_ 前缀；服务端内部开关不会下发到客户端。灰度用户始终优先于百分比。"
-      style="margin-bottom:12px"
+      style="margin-bottom: 12px"
     />
 
     <el-alert
@@ -206,7 +268,7 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
       :closable="false"
       show-icon
       title="加载失败"
-      style="margin-bottom:12px"
+      style="margin-bottom: 12px"
     >
       <el-button
         size="small"
@@ -244,7 +306,12 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
             :model-value="row.enabled"
             @change="toggleEnabled(row)"
           />
-          <span :style="{ color: row.enabled ? 'var(--color-success)' : 'var(--color-error)', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? '开启' : '关闭' }}</span>
+          <span :style="{
+              color: row.enabled ? 'var(--color-success)' : 'var(--color-error)',
+              marginLeft: '6px',
+              fontSize: '12px',
+            }"
+            >{{ row.enabled ? '开启' : '关闭' }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -304,8 +371,7 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
 
     <div
       v-if="total > 0"
-      style="display:flex;justify-content:flex-end;margin-top:16px"
-    >
+      style="display: flex; justify-content: flex-end; margin-top: 16px">
       <el-pagination
         v-model:current-page="page"
         :total="total"
@@ -368,6 +434,57 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
             show-input
           />
         </el-form-item>
+        <el-form-item label="运营状态"
+          ><el-select v-model="operationState">
+            <el-option label="未开放" value="UNOPENED" /><el-option
+              label="开放"
+              value="OPEN"
+            /><el-option label="维护" value="MAINTENANCE" /><el-option
+              label="只读"
+              value="READ_ONLY"
+            /> </el-select
+        ></el-form-item>
+        <el-form-item label="变更原因"
+          ><el-input v-model="changeReason" placeholder="记录调整原因，随发布写入历史审计"
+        /></el-form-item>
+        <el-form-item label="紧急关闭"><el-switch v-model="emergencyDisabled" /></el-form-item>
+        <el-form-item label="渠道收窄">
+          <div>
+            <div v-for="(rule, index) in scopeRules" :key="index" class="scope-rule">
+              <el-input v-model="rule.applicationId" placeholder="应用" style="width: 100px" />
+              <el-select v-model="rule.platform" style="width: 100px"
+                ><el-option
+                  v-for="p in ['android', 'ios', 'harmony']"
+                  :key="p"
+                  :label="p"
+                  :value="p"
+              /></el-select>
+              <el-select v-model="rule.channelId" style="width: 140px"
+                ><el-option v-for="c in APP_CHANNELS" :key="c.id" :label="c.name" :value="c.id"
+              /></el-select>
+              <el-select v-model="rule.state" style="width: 100px"
+                ><el-option label="未开放" value="UNOPENED" /><el-option
+                  label="开放"
+                  value="OPEN" /><el-option label="维护" value="MAINTENANCE" /><el-option
+                  label="只读"
+                  value="READ_ONLY"
+              /></el-select>
+              <el-button @click="scopeRules.splice(index, 1)">移除</el-button>
+            </div>
+            <el-button @click="addScopeRule">添加渠道规则</el-button>
+            <p>
+              渠道只能收窄全局状态。全局紧急关闭使用
+              client_emergency_close；订单、已购权益、退款与客服入口保留。
+            </p>
+          </div>
+        </el-form-item>
+        <el-form-item label="预览安装渠道">
+          <el-select v-model="previewContext.clientKey" clearable placeholder="未选择时取保守交集">
+            <el-option v-for="client in registeredClients" :key="client.clientKey" :value="client.clientKey" :label="`${client.applicationId} / ${client.platform} / ${client.channelId}`" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="预览原生构建"><el-input v-model="previewContext.nativeBuild" placeholder="如 253；只影响此次模拟" /></el-form-item>
+        <el-form-item label="预览用户"><el-input v-model="previewContext.userId" placeholder="留空使用当前管理员；只影响此次模拟" /></el-form-item>
         <el-form-item label="指定用户">
           <el-input
             v-model="form.targetUserIdsText"
@@ -378,6 +495,10 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
         </el-form-item>
       </el-form>
       <template #footer>
+        <span v-if="draftPreview">预览状态：{{ draftPreview.state }}</span>
+        <el-button v-if="draftId && auth.isSuperAdmin" type="warning" @click="publishSavedDraft"
+          >发布草稿</el-button
+        >
         <el-button @click="vis = false">
           取消
         </el-button>
@@ -385,9 +506,7 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
           type="primary"
           :loading="saving"
           @click="save"
-        >
-          保存
-        </el-button>
+        > 保存并预览草稿 </el-button>
       </template>
     </el-dialog>
 
