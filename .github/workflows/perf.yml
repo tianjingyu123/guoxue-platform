@@ -30,10 +30,15 @@ env:
   PNPM_VERSION: "10.33.3"
   DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5432/guoxue"
   REDIS_URL: "redis://localhost:6379"
-  ENCRYPTION_KEY: "perf-test-key-32bytes-long!!"
-  JWT_SECRET: "perf-test-jwt-secret-key!!"
   DISABLE_RATE_LIMIT: "true"
   BULLMQ_DISABLED: "true"
+  # 仅供隔离压测服务通过生产入口校验；不指向真实线上域名。
+  PUBLIC_DOMAIN: "api.example.invalid"
+  PUBLIC_API_URL: "https://api.example.invalid"
+  PUBLIC_H5_URL: "https://h5.example.invalid/h5/"
+  PUBLIC_ASSET_ORIGIN: "https://assets.example.invalid"
+  CORS_ORIGIN: "https://h5.example.invalid"
+  WS_CORS_ORIGIN: "https://h5.example.invalid"
 
 jobs:
   perf-test:
@@ -106,6 +111,20 @@ jobs:
       - name: 构建服务
         run: pnpm --filter @guoxue/server build
         timeout-minutes: 5
+
+      - name: 生成本次隔离测试密钥
+        run: |
+          jwt_secret="$(openssl rand -hex 32)"
+          encryption_key="$(openssl rand -hex 16)"
+          bigscreen_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$encryption_key"
+          echo "::add-mask::$bigscreen_secret"
+          {
+            echo "JWT_SECRET=$jwt_secret"
+            echo "ENCRYPTION_KEY=$encryption_key"
+            echo "BIGSCREEN_SECRET=$bigscreen_secret"
+          } >> "$GITHUB_ENV"
 
       - name: 启动服务
         run: |
