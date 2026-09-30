@@ -249,11 +249,59 @@ describe("CircleGovernanceService", () => {
       mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 1 });
       await svc.processOverdueAppeals();
       const upd = mockPrisma.circleAppeal.updateMany.mock.calls[0][0];
-      expect(upd.where).toEqual({ id: "a1", status: "PENDING" });
+      expect(upd.where).toEqual({ id: "a1", status: "PENDING", deadlineAt: { lt: expect.any(Date) } });
       expect(upd.data.status).toBe("UPHELD");
       expect(upd.data.reviewerId).toBe("system");
       expect(mockPrisma.circleViolation.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { status: "REVOKED" } });
       expect(mockNotification.send.mock.calls[0][1].title).toContain("成立");
+    });
+
+    it("超时申诉CAS无变更：不撤销处理，也不谎报申诉成立", async () => {
+      mockPrisma.circleAppeal.findMany.mockResolvedValue([
+        { id: "a1", violationId: "v1", circleId: "c1", userId: "u1" },
+      ]);
+      mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 0 });
+      await svc.processOverdueAppeals();
+      expect(mockPrisma.circleViolation.update).not.toHaveBeenCalled();
+      expect(mockNotification.send).not.toHaveBeenCalled();
+    });
+
+    it("超时任务重复读取旧名单：只有实际完成裁决的一次发送通知", async () => {
+      mockPrisma.circleAppeal.findMany.mockResolvedValue([
+        { id: "a1", violationId: "v1", circleId: "c1", userId: "u1" },
+      ]);
+      mockPrisma.circleAppeal.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+      await svc.processOverdueAppeals();
+      await svc.processOverdueAppeals();
+      expect(mockPrisma.circleViolation.update).toHaveBeenCalledTimes(1);
+      expect(mockNotification.send).toHaveBeenCalledTimes(1);
+    });
+
+    it("处理撤销写入失败：不发送成功通知，保留任务故障日志", async () => {
+      mockPrisma.circleAppeal.findMany.mockResolvedValue([
+        { id: "a1", violationId: "v1", circleId: "c1", userId: "u1" },
+      ]);
+      mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.circleViolation.update.mockRejectedValueOnce(new Error("合成撤销故障"));
+      const logger = jest.spyOn((svc as any).logger, "error").mockImplementation(() => undefined);
+      try {
+        await expect(svc.processOverdueAppeals()).resolves.toBeUndefined();
+        expect(mockNotification.send).not.toHaveBeenCalled();
+        expect(logger).toHaveBeenCalled();
+      } finally {
+        logger.mockRestore();
+      }
+    });
+
+    it("申诉成立后通知失败：不回滚或阻断已提交的裁决", async () => {
+      mockPrisma.circleAppeal.findMany.mockResolvedValue([
+        { id: "a1", violationId: "v1", circleId: "c1", userId: "u1" },
+      ]);
+      mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 1 });
+      mockNotification.send.mockRejectedValueOnce(new Error("合成通知故障"));
+      await expect(svc.processOverdueAppeals()).resolves.toBeUndefined();
+      expect(mockPrisma.circleViolation.update).toHaveBeenCalledTimes(1);
+      expect(mockNotification.send).toHaveBeenCalledTimes(1);
     });
 
     it("cron 均走 redis 互斥锁（多实例防重复）", async () => {

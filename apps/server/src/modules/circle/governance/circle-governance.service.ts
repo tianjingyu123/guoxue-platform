@@ -891,15 +891,18 @@ export class CircleGovernanceService {
   @Cron(CronExpression.EVERY_HOUR)
   async processOverdueAppeals() {
     await this.redis.runExclusive("circle_governance_appeals", 600, async () => {
+      const now = new Date();
       const overdue = await this.prisma.circleAppeal.findMany({
-        where: { status: "PENDING", deadlineAt: { lt: new Date() } },
+        where: { status: "PENDING", deadlineAt: { lt: now } },
         take: 100,
       });
+      let resolvedCount = 0;
       for (const appeal of overdue) {
         try {
-          await this.prisma.$transaction(async (tx) => {
+          const changed = await this.prisma.$transaction(async (tx) => {
             const updated = await tx.circleAppeal.updateMany({
-              where: { id: appeal.id, status: "PENDING" },
+              // 旧名单可能已被人工裁决或延长时限，实际写入时再次核对。
+              where: { id: appeal.id, status: "PENDING", deadlineAt: { lt: now } },
               data: {
                 status: "UPHELD",
                 resolution: `平台未在 ${APPEAL_REPLY_HOURS} 小时内答复，按承诺自动撤销处理`,
@@ -907,10 +910,13 @@ export class CircleGovernanceService {
                 resolvedAt: new Date(),
               },
             });
-            if (updated.count > 0) {
-              await tx.circleViolation.update({ where: { id: appeal.violationId }, data: { status: "REVOKED" } });
-            }
+            if (updated.count === 0) return false;
+            await tx.circleViolation.update({ where: { id: appeal.violationId }, data: { status: "REVOKED" } });
+            return true;
           });
+          // 只有本事务实际提交了裁决，才能发送“申诉成立”。
+          if (!changed) continue;
+          resolvedCount += 1;
           const circleName = await this.getCircleName(appeal.circleId);
           this.notify(appeal.userId, {
             type: "CIRCLE_GOVERNANCE",
@@ -924,7 +930,7 @@ export class CircleGovernanceService {
           this.logger.error(`申诉超时自动裁决失败 appeal=${appeal.id}`, err);
         }
       }
-      if (overdue.length) this.logger.warn(`申诉超时自动裁决 ${overdue.length} 起（平台仲裁需提速）`);
+      if (resolvedCount) this.logger.warn(`申诉超时自动裁决 ${resolvedCount} 起（平台仲裁需提速）`);
     });
   }
 }
