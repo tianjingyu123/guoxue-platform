@@ -158,7 +158,8 @@ export class PractitionerService {
   private withReportWriteLock<T>(userId: string, action: (db: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     return this.prisma.$transaction(async (db) => {
       // 事务级咨询锁在提交后自动释放；哈希碰撞只会导致额外串行，不会串错数据。
-      await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`practitioner-report:${userId}`}))`;
+      // 锁函数返回 void，查询只返回可解析的整数，避免 Prisma 反序列化失败。
+      await db.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`practitioner-report:${userId}`}))`;
       return action(db);
     });
   }
