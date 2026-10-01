@@ -8,6 +8,7 @@ import { resolvePnpmInvocation } from './resolve-pnpm-invocation.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const require = createRequire(import.meta.url)
 const { APP_CHANNELS } = require('../../packages/shared/dist/app-channels')
+const { CLIENT_CAPABILITY_PROFILES } = require('../../packages/shared/dist/client-presentation')
 const [input, mode] = process.argv.slice(2)
 if (!input) throw new Error('用法：node build-channel-resources.mjs 已核验渠道构建身份.json [--dry-run]')
 const data = JSON.parse(readFileSync(input, 'utf8'))
@@ -49,5 +50,6 @@ try {
     { cwd: root, env: { ...process.env, ...buildEnvironment }, stdio: 'inherit', shell: false })
   if (result.status !== 0) throw new Error('渠道资源编译失败')
   writeFileSync(path.join(output, 'channel-build-identity.json'), JSON.stringify(record, null, 2) + '\n', { flag: 'wx' })
+  writeFileSync(path.join(output, 'client-capability-manifest.json'), JSON.stringify({ schemaVersion: 1, sourceSha, profileId: 'presentation-v1', ...record, resourceVersion: data.resourceVersion, capabilities: CLIENT_CAPABILITY_PROFILES['presentation-v1'], nativeCapabilities: { wgtRecovery: { implementedInSource: data.platform === 'android', requiresMatchingCompletePackage: true, enabled: false, androidMinApi: 26 } } }, null, 2) + '\n', { flag: 'wx' })
   console.log('渠道资源已编译；尚未签名完整原生包、上传或发布')
 } finally { closeSync(lock); unlinkSync(lockPath) }

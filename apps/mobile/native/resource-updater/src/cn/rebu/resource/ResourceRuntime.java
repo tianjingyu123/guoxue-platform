@@ -35,18 +35,27 @@ public final class ResourceRuntime {
     private static JSONObject activities = new JSONObject();
     private static final long started = android.os.SystemClock.elapsedRealtime();
     public static synchronized void boot(Application application) {
-        if (Build.VERSION.SDK_INT < 33 || !application.getPackageName().equals(Application.getProcessName())) return;
+        if (Build.VERSION.SDK_INT < 26 || !mainProcess(application)) return;
         app = application; root = new File(app.getFilesDir(), "rebu-resource-update");
         try {
             config = new JSONObject(read(app.getAssets().open("rebu-resource-native.json"), 32000));
-            if (!config.optBoolean("enabled", false)) return;
+            boolean enabled = config.optBoolean("enabled", false);
+            if (!enabled && !new File(root, "journal.properties").isFile()) return;
             JSONObject identity = config.getJSONObject("identity");
-            if (Arrays.asList("oppo", "honor", "samsung", "google-play", "app-store").contains(identity.getString("channelId"))) throw new SecurityException("当前原生桥接 WGT 方案按商店条款禁用");
-            PackageInfo pkg = app.getPackageManager().getPackageInfo(app.getPackageName(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);
-            byte[] certificate = pkg.signingInfo.getApkContentsSigners()[0].toByteArray();
+            PackageInfo pkg = app.getPackageManager().getPackageInfo(app.getPackageName(), Build.VERSION.SDK_INT >= 28 ? android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES : android.content.pm.PackageManager.GET_SIGNATURES);
+            byte[] certificate = Build.VERSION.SDK_INT >= 28 ? pkg.signingInfo.getApkContentsSigners()[0].toByteArray() : pkg.signatures[0].toByteArray();
             StringBuilder digest = new StringBuilder(); for (byte b : MessageDigest.getInstance("SHA-256").digest(certificate)) digest.append(String.format("%02x", b & 255));
-            if (!app.getPackageName().equals(identity.getString("packageName")) || pkg.getLongVersionCode() != identity.getLong("nativeBuild") || !digest.toString().equals(config.getString("signingCertificateSha256"))) throw new SecurityException("完整包签名或构建不匹配");
+            long installedBuild = Build.VERSION.SDK_INT >= 28 ? pkg.getLongVersionCode() : pkg.versionCode;
+            if (!app.getPackageName().equals(identity.getString("packageName")) || installedBuild != identity.getLong("nativeBuild") || !digest.toString().equals(config.getString("signingCertificateSha256"))) throw new SecurityException("完整包签名或构建不匹配");
             Map<String, String> own = new HashMap<>(); for (Iterator<String> it = identity.keys(); it.hasNext();) { String key = it.next(); own.put(key, identity.get(key).toString()); }
+            File data = new File(app.getApplicationInfo().dataDir), external = app.getExternalFilesDir(null);
+            CompleteBaseMigration.migrate(root, own, Arrays.asList(data, external == null ? null : external.getParentFile()), target -> {
+                copyCompleteBase("apps/" + identity.getString("runtimeAppId") + "/www", target);
+                JSONObject manifest = new JSONObject(read(new FileInputStream(new File(target, "manifest.json")), 1024 * 1024));
+                if (!identity.getString("runtimeAppId").equals(manifest.optString("id"))) throw new SecurityException("完整 APK 的 appid 不匹配");
+            }, name -> syncBaseDirectories());
+            if (!enabled) return;
+            if (Arrays.asList("oppo", "honor", "samsung", "google-play", "app-store").contains(identity.getString("channelId"))) throw new SecurityException("当前原生桥接 WGT 方案按商店条款禁用");
             Map<String, PublicKey> roots = new HashMap<>(); JSONObject pins = config.getJSONObject("publicRoots"); for (Iterator<String> it = pins.keys(); it.hasNext();) { String id = it.next(); roots.put(id, ResourceStore.publicKey(pins.getString(id))); }
             Set<String> origins = new HashSet<>(); JSONArray hosts = config.getJSONArray("resourceOrigins"); for (int i = 0; i < hosts.length(); i++) origins.add(hosts.getString(i));
             store = new ResourceStore(root, own, roots, origins, name -> syncDirectories(), (directory, release) -> {
@@ -66,13 +75,34 @@ public final class ResourceRuntime {
         } catch (Exception error) {
             bootCompleted = false;
             // 恢复事务未完成时不能让引擎继续加载不确定资源；保留现场供下次原生恢复。
-            boolean incomplete = store != null && !store.phase().equals("HEALTHY");
-            if (store == null && root != null) {
-                try { Properties journal = new Properties(); try (InputStream in = new FileInputStream(new File(root, "journal.properties"))) { journal.load(in); } incomplete = !journal.getProperty("phase", "HEALTHY").equals("HEALTHY") || Integer.parseInt(journal.getProperty("bootAttempts", "0")) > 0; } catch (Exception ignored) { /* 尚未建立资源事务 */ }
-            }
+            boolean incomplete = root != null && new File(root, "journal.properties").exists();
             if (incomplete) android.os.Process.killProcess(android.os.Process.myPid());
             /* 不打印证书、令牌或服务器内容 */
         }
+    }
+    private static void copyCompleteBase(String name, File target) throws Exception {
+        String[] children = app.getAssets().list(name);
+        if (children != null && children.length > 0) {
+            if (!target.isDirectory() && !target.mkdirs()) throw new IOException("完整 APK 基线目录不可写");
+            for (String child : children) { if (!child.matches("[a-zA-Z0-9._@-]+")) throw new SecurityException("APK 资源文件名不符合安全路径"); copyCompleteBase(name + "/" + child, new File(target, child)); }
+        } else {
+            try (InputStream in = app.getAssets().open(name); FileOutputStream out = new FileOutputStream(target)) { byte[] bytes = new byte[32768]; int count; while ((count = in.read(bytes)) != -1) out.write(bytes, 0, count); out.getFD().sync(); }
+        }
+    }
+    private static void syncBaseDirectories() throws IOException {
+        try {
+        Properties state = new Properties(); try (InputStream in = new FileInputStream(new File(root, "journal.properties"))) { state.load(in); }
+        List<File> directories = new ArrayList<>(); directories.add(root);
+        if (state.getProperty("runtime") != null) directories.add(new File(state.getProperty("runtime")).getParentFile());
+        for (File directory : directories) { FileDescriptor fd = Os.open(directory.getPath(), OsConstants.O_RDONLY, 0); try { Os.fsync(fd); } finally { Os.close(fd); } }
+        } catch (Exception failure) { throw new IOException("完整包迁移目录同步失败", failure); }
+    }
+    private static boolean mainProcess(Application application) {
+        if (Build.VERSION.SDK_INT >= 28) return application.getPackageName().equals(Application.getProcessName());
+        android.app.ActivityManager manager = (android.app.ActivityManager)application.getSystemService(Context.ACTIVITY_SERVICE);
+        List<android.app.ActivityManager.RunningAppProcessInfo> processes = manager.getRunningAppProcesses();
+        if (processes != null) for (android.app.ActivityManager.RunningAppProcessInfo process : processes) if (process.pid == android.os.Process.myPid()) return application.getPackageName().equals(process.processName);
+        return false;
     }
     private static void syncDirectories() throws IOException {
         try { List<File> directories = new ArrayList<>(); if (root != null) directories.add(root); if (store != null && store.runtimeParent() != null) directories.add(store.runtimeParent()); for (File directory : directories) if (directory.isDirectory()) { FileDescriptor fd = Os.open(directory.getPath(), OsConstants.O_RDONLY, 0); try { Os.fsync(fd); } finally { Os.close(fd); } } } catch (Exception error) { throw new IOException("状态目录同步失败", error); }

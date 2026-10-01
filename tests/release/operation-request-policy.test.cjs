@@ -18,4 +18,3 @@ test('独立请求策略：明确关闭和紧急关闭；历史确认、退款�
  policy.setOperationRequestSnapshotResolver(() => ({ features: { client_emergency_close: true }, operations: { client_course_purchase: 'OPEN' } }))
  assert.equal(policy.isOperationRequestAllowed('/courses/test/purchase', 'POST'), false)
 })
-

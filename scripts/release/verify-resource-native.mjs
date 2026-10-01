@@ -4,12 +4,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { createRequire } from 'node:module'
+import { nativeCryptoDependency } from './native-dependencies.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const jdk = process.env.REBU_NATIVE_JDK || 'D:/Tools/xiaozhi-build/jdk-17.0.20.1+1'
 const output = path.join(root, 'artifacts/native-recovery-test')
 mkdirSync(output, { recursive: true })
-execFileSync(path.join(jdk, 'bin/javac.exe'), ['-encoding', 'UTF-8', '-d', output, path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java'), path.join(root, 'tests/release/native/NativeRecoveryProbe.java')], { stdio: 'inherit' })
+const cryptoJar = await nativeCryptoDependency(root)
+execFileSync(path.join(jdk, 'bin/javac.exe'), ['-encoding', 'UTF-8', '-d', output, ...['ResourceCrypto.java', 'ResourceStore.java', 'CompleteBaseMigration.java'].map(name => path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource', name)), path.join(root, 'tests/release/native/NativeRecoveryProbe.java'), path.join(root, 'tests/release/native/NativeBaseMigrationProbe.java')], { stdio: 'inherit' })
+execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', output, 'cn.rebu.resource.NativeBaseMigrationProbe'], { stdio: 'inherit' })
 execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', output, 'NativeRecoveryProbe'], { stdio: 'inherit' })
+execFileSync(path.join(jdk, 'bin/java.exe'), ['-Drebu.resource.crypto=bc', '-cp', output + path.delimiter + cryptoJar, 'NativeRecoveryProbe'], { stdio: 'inherit' })
 // 由实际 Node 签名格式生成根授权，交给实际 Java 验签；私钥仅存在内存。
 const { canonicalWgtControl } = createRequire(import.meta.url)('../../packages/shared/dist/wgt-control.js')
 const roots = generateKeyPairSync('ed25519'), resource = generateKeyPairSync('ed25519')

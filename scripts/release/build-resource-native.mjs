@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } fro
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash, createPublicKey } from 'node:crypto'
+import { nativeCryptoDependency } from './native-dependencies.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const jdk = process.env.REBU_NATIVE_JDK || 'D:/Tools/xiaozhi-build/jdk-17.0.20.1+1'
 const sdk = process.env.REBU_ANDROID_SDK || 'D:/Tools/xiaozhi-build/android-sdk'
@@ -20,8 +21,15 @@ for (const pem of Object.values(config.publicRoots || {})) {
 if (config.enabled && ['oppo', 'honor', 'samsung', 'google-play', 'app-store'].includes(config.identity?.channelId)) throw new Error('当前含原生桥接的 WGT 方案不能在此商店启用')
 if (config.enabled && (!/^[a-f0-9]{64}$/.test(config.identity?.nativeFingerprint || '') || !/^[a-f0-9]{64}$/.test(config.signingCertificateSha256 || '') || !Object.keys(config.publicRoots || {}).length || !config.resourceOrigins?.length || !config.clientKey || !/^https:\/\//.test(config.apiBase))) throw new Error('启用配置必须绑定完整包身份、公钥根与 HTTPS 入口；此检查不等于真机验收')
 const output = path.join(root, 'artifacts/native-resource-update')
+const cryptoJar = await nativeCryptoDependency(root)
 const classes = path.join(output, 'classes'), bundle = path.join(output, 'bundle')
 mkdirSync(classes, { recursive: true }); mkdirSync(path.join(bundle, 'assets'), { recursive: true })
+// 仅 WGT 基座启用时打包兼容验签库；普通声明式运营不需该依赖或额外权限。
+const cryptoOutput = path.join(bundle, 'libs', 'bcprov.jar')
+if (config.enabled) { mkdirSync(path.dirname(cryptoOutput), { recursive: true }); copyFileSync(cryptoJar, cryptoOutput); writeFileSync(path.join(bundle, 'assets/bouncycastle-license.txt'), execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', cryptoJar, 'org.bouncycastle.LICENSE'], { encoding: 'utf8' })) }
+else if ((await import('node:fs')).existsSync(cryptoOutput)) (await import('node:fs')).unlinkSync(cryptoOutput)
+if (!config.enabled && (await import('node:fs')).existsSync(path.join(bundle, 'assets/bouncycastle-license.txt'))) (await import('node:fs')).unlinkSync(path.join(bundle, 'assets/bouncycastle-license.txt'))
+writeFileSync(path.join(bundle, 'proguard.txt'), '-keep class org.bouncycastle.crypto.** { *; }\n-keep class org.bouncycastle.math.** { *; }\n-keep class org.bouncycastle.util.** { *; }\n')
 const sources = path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource')
 const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
 const sourceDirty = Boolean(execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts'], { cwd: root, encoding: 'utf8' }).trim())
@@ -34,5 +42,6 @@ const aar = path.join(output, 'rebu-resource-updater.aar')
 execFileSync(path.join(jdk, 'bin/jar.exe'), ['cf', aar, '-C', bundle, '.'])
 const libs = path.join(root, 'apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/libs')
 mkdirSync(libs, { recursive: true }); copyFileSync(aar, path.join(libs, 'rebu-resource-updater.aar'))
-writeFileSync(path.join(output, 'build.json'), JSON.stringify({ sourceSha, sourceDirty, config, aarSha256: createHash('sha256').update(readFileSync(aar)).digest('hex') }, null, 2) + '\n')
+const dependency = JSON.parse(readFileSync(path.join(root, 'apps/mobile/native/resource-updater/dependencies.json'), 'utf8')).bcprov
+writeFileSync(path.join(output, 'build.json'), JSON.stringify({ sourceSha, sourceDirty, config, cryptoDependency: { version: dependency.version, sha256: dependency.sha256, bundled: config.enabled, androidMinApi: 26, licenseSha256: createHash('sha256').update(readFileSync(path.join(root, 'apps/mobile/native/resource-updater/LICENSE.bouncycastle.txt'))).digest('hex') }, aarSha256: createHash('sha256').update(readFileSync(aar)).digest('hex') }, null, 2) + '\n')
 console.log('Android SDK35 原生代码编译和 AAR 已生成；未安装/云打包/发布，未宣称 DCloud 启动钩子实测通过')

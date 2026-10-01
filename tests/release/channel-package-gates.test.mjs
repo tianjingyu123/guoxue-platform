@@ -52,12 +52,12 @@ test('真实 Git 基线允许资源变更，拒绝 SDK、原生插件和渠道�
   const commit = () => { git('add', '.'); git('-c', 'user.name=isolated-test', '-c', 'user.email=isolated@example.invalid', 'commit', '-qm', '合成基线'); return git('rev-parse', 'HEAD') }
   try {
     git('init', '-q')
-    for (const name of ['apps/mobile/src/manifest.json', 'apps/mobile/package.json', 'pnpm-lock.yaml', 'apps/mobile/src/lib/app-distribution.ts', 'apps/mobile/nativeplugins/sdk/plugin.json']) write(name, '{}')
+    for (const name of ['apps/mobile/src/manifest.json', 'apps/mobile/package.json', 'pnpm-lock.yaml', 'apps/mobile/src/lib/app-distribution.ts', 'apps/mobile/nativeplugins/sdk/plugin.json', 'apps/mobile/native/resource-updater/dependencies.json', 'scripts/release/build-resource-native.mjs', 'scripts/release/native-dependencies.mjs']) write(name, '{}')
     const base = commit(), original = inspectNativeBoundary(base, base, root)
     write('apps/mobile/src/pages/home.vue', '<template>资源修改</template>')
     const resource = commit()
     assert.equal(inspectNativeBoundary(base, resource, root).compatible, true)
-    for (const name of ['pnpm-lock.yaml', 'apps/mobile/nativeplugins/sdk/plugin.json', 'apps/mobile/src/lib/app-distribution.ts']) {
+    for (const name of ['pnpm-lock.yaml', 'apps/mobile/nativeplugins/sdk/plugin.json', 'apps/mobile/src/lib/app-distribution.ts', 'apps/mobile/native/resource-updater/dependencies.json', 'scripts/release/build-resource-native.mjs', 'scripts/release/native-dependencies.mjs']) {
       git('reset', '--hard', resource)
       write(name, '{"changed":true}')
       const changed = inspectNativeBoundary(base, commit(), root)
