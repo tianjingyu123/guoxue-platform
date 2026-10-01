@@ -6982,8 +6982,8 @@ model AppVersion {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  @@index([applicationId, platform, channelId, status, publishedAt])
   @@unique([applicationId, platform, channelId, version, buildNumber])
+  @@index([applicationId, platform, channelId, status, publishedAt])
 }
 
 // 应用/渠道登记只存公开身份，客户应用可扩展，不承担租户数据授权。
