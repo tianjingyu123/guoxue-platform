@@ -93,7 +93,10 @@ function pageRuntime(kind, overrides = {}) {
     timConvToConversationItem: (item) => item,
     goBack: () => {}, navigateTo: () => {},
   }
-  const page = vm.runInNewContext(stripTypeScriptTypes(`${source}\n;({ loading, error, loadData, ${fields} })`), context)
+  // 实际页脚本新增了胶囊安全区依赖，测试沙箱同时执行真实工具函数。
+  const menuSource = fs.readFileSync(new URL('../../apps/mobile/src/utils/mini-program-menu.ts', import.meta.url), 'utf8')
+    .replace(/^export /gm, '')
+  const page = vm.runInNewContext(stripTypeScriptTypes(`${menuSource}\n${source}\n;({ loading, error, loadData, ${fields} })`), context)
   return { page, hooks, handlers, staleHandlers, imApi, get logins() { return logins } }
 }
 
