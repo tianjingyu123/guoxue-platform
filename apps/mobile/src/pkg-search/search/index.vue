@@ -2,14 +2,18 @@
   <view class="search-page">
     <!-- 顶部搜索栏 -->
     <view class="search-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="search-bar-row">
-        <view class="back-btn" @click="goBack">
+      <view class="search-toolbar">
+        <view class="back-btn" role="button" aria-label="返回上一页" tabindex="0" hover-class="search-control--pressed" @click="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
           <app-icon name="arrow-left" :size="40" color="var(--text-main)" />
         </view>
+        <platform-support-actions compact tone="plain" />
+      </view>
+      <view class="search-bar-row">
         <view class="search-input-wrap">
           <app-icon name="search" :size="32" color="var(--text-soft)" />
           <input
             class="search-input"
+            aria-label="搜索课程、文章、古籍、达人"
             v-model="keyword"
             placeholder="搜索课程、文章、古籍、达人"
             placeholder-class="search-input-ph"
@@ -18,14 +22,13 @@
             @input="onInput"
             @confirm="doSearch(keyword)"
           />
-          <view v-if="keyword" class="clear-btn" @click="keyword = ''; suggestList = []">
+          <view v-if="keyword" class="clear-btn" role="button" aria-label="清空搜索词" tabindex="0" hover-class="search-control--pressed" @click="clearKeyword" @keydown.enter="clearKeyword" @keydown.space.prevent="clearKeyword">
             <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
-        <view class="search-action" @click="doSearch(keyword)">
+        <view class="search-action" role="button" aria-label="搜索" tabindex="0" hover-class="search-control--pressed" @click="doSearch(keyword)" @keydown.enter="doSearch(keyword)" @keydown.space.prevent="doSearch(keyword)">
           <text class="search-action-text">搜索</text>
         </view>
-        <platform-support-actions compact tone="plain" />
       </view>
     </view>
 
@@ -219,6 +222,13 @@ function goBack() {
   navigateBack()
 }
 
+function clearKeyword() {
+  if (suggestTimer) clearTimeout(suggestTimer)
+  suggestTimer = null
+  keyword.value = ''
+  suggestList.value = []
+}
+
 /** 全清历史：加二次确认（垃圾桶误触会一把清光，showModal 拦一道），确认后先清 UI 失败回滚 */
 function clearHistory() {
   uni.showModal({
@@ -280,12 +290,23 @@ function doSearch(kw: string) {
 .search-bar-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 24rpx;
+  gap: 12rpx;
+  padding: 0 24rpx 16rpx;
+}
+.search-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 24rpx;
+}
+.search-toolbar :deep(.support-action) {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
 }
 .back-btn {
-  width: 88rpx;
-  height: 88rpx;
+  width: 44px;
+  height: 44px;
   margin: 0 -16rpx;
   display: flex;
   align-items: center;
@@ -294,16 +315,19 @@ function doSearch(kw: string) {
 }
 .search-input-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12rpx;
-  height: 72rpx;
-  padding: 0 24rpx;
+  min-height: 44px;
+  padding: 0 16rpx;
   background: var(--background);
   border-radius: 36rpx;
 }
 .search-input {
   flex: 1;
+  width: 0;
+  min-width: 0;
   font-size: 28rpx;
   color: var(--text-main);
 }
@@ -311,8 +335,8 @@ function doSearch(kw: string) {
   color: var(--text-soft);
 }
 .clear-btn {
-  width: 36rpx;
-  height: 36rpx;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -320,11 +344,18 @@ function doSearch(kw: string) {
 }
 .search-action {
   flex-shrink: 0;
-  padding: 0 8rpx;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-control--pressed {
+  opacity: 0.65;
 }
 .search-action-text {
   font-size: 30rpx;
-  color: var(--gold);
+  color: var(--brand);
   font-weight: 500;
   white-space: nowrap;
 }

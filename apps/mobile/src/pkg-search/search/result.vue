@@ -2,25 +2,26 @@
   <view class="result-page">
     <!-- 顶部：搜索栏 + Tab -->
     <view class="result-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="search-bar-row">
-        <view class="back-btn" @click="goBack">
+      <view class="search-bar-row" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
+        <view class="back-btn" role="button" aria-label="返回上一页" tabindex="0" hover-class="search-control--pressed" @click="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
           <app-icon name="chevron-left" :size="44" color="var(--text-main)" />
         </view>
         <view class="search-input-wrap">
           <app-icon name="search" :size="32" color="var(--text-soft)" />
           <input
             class="search-input"
+            aria-label="搜索课程、圈子、商品"
             v-model="searchValue"
             placeholder="搜索课程、圈子、商品..."
             placeholder-class="search-input-ph"
             confirm-type="search"
             @confirm="handleSearch"
           />
-          <view v-if="searchValue" class="clear-btn" @click="searchValue = ''">
+          <view v-if="searchValue" class="clear-btn" role="button" aria-label="清空搜索词" tabindex="0" hover-class="search-control--pressed" @click="searchValue = ''" @keydown.enter="searchValue = ''" @keydown.space.prevent="searchValue = ''">
             <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
-        <view class="search-action" @click="handleSearch">
+        <view class="search-action" role="button" aria-label="搜索" tabindex="0" hover-class="search-control--pressed" @click="handleSearch" @keydown.enter="handleSearch" @keydown.space.prevent="handleSearch">
           <text class="search-action-text">搜索</text>
         </view>
       </view>
@@ -298,6 +299,9 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { searchApi, SEARCH_PAGE_SIZE, type SearchResults, type SearchTab } from '@/lib/search-data'
 import { formatPrice } from '@/utils/format'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 const tabs: { key: SearchTab; label: string }[] = [
   { key: 'all', label: '综合' },
@@ -588,8 +592,8 @@ function formatNumber(num: number) {
   padding: 16rpx 24rpx;
 }
 .back-btn {
-  width: 88rpx;
-  height: 88rpx;
+  width: 44px;
+  height: 44px;
   margin: 0 -18rpx;
   display: flex;
   align-items: center;
@@ -598,16 +602,19 @@ function formatNumber(num: number) {
 }
 .search-input-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12rpx;
-  height: 72rpx;
-  padding: 0 24rpx;
+  min-height: 44px;
+  padding: 0 16rpx;
   background: var(--background);
   border-radius: 36rpx;
 }
 .search-input {
   flex: 1;
+  width: 0;
+  min-width: 0;
   font-size: 28rpx;
   color: var(--text-main);
 }
@@ -615,8 +622,8 @@ function formatNumber(num: number) {
   color: var(--text-soft);
 }
 .clear-btn {
-  width: 36rpx;
-  height: 36rpx;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -624,7 +631,14 @@ function formatNumber(num: number) {
 }
 .search-action {
   flex-shrink: 0;
-  padding: 0 4rpx;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-control--pressed {
+  opacity: 0.65;
 }
 .search-action-text {
   font-size: 28rpx;
