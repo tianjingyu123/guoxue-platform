@@ -191,6 +191,8 @@ describe("Coin E2E", () => {
               update: prisma.virtualCoinAccount.update,
               updateMany: prisma.virtualCoinAccount.updateMany,
               findUnique: prisma.virtualCoinAccount.findUnique,
+              // 事务内开户使用upsert，保持送礼的真实服务调用和原扣款断言。
+              upsert: prisma.virtualCoinAccount.upsert,
             },
             virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
             giftRecord: {
