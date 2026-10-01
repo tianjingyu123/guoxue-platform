@@ -38,7 +38,8 @@ function runtime() {
     },
   })
   for (const file of ['utils/storage.ts', 'utils/interests.ts', 'utils/registered-page-paths.ts', 'utils/router.ts', 'lib/interest-data.ts', 'utils/auth-journey.ts']) {
-    const source = read(`apps/mobile/src/${file}`).replace(/^import[^\r\n]*$/gm, '').replace(/\bexport\s+/g, '')
+    // 路由依赖允许多行 import，必须移除完整声明，不能留下半行 TypeScript。
+    const source = read(`apps/mobile/src/${file}`).replace(/^import[\s\S]*?from\s+['"][^'"]+['"][^\r\n]*(?:\r?\n|$)/gm, '').replace(/\bexport\s+/g, '')
     vm.runInContext(stripTypeScriptTypes(source), context, { filename: file })
   }
   const api = vm.runInContext('({clearAuthSession,setToken,setUserInfo,continueAfterLogin,completeAccountInterestGuide,hasCompletedInterestGuide,getInterestThemes,interestGuideStatus,interestThemesForCategories,hydrateAccountInterests,hydrateConfirmedInterestSave,finishAuthJourney,safeLoginRedirect})', context)
