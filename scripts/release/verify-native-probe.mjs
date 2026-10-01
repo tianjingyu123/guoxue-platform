@@ -25,8 +25,8 @@ adbTimeoutMs = deviceType === 'emulator' ? 120000 : 45000
 const observationTimeoutMs = deviceType === 'emulator' ? 180000 : 18000
 if (Number(api) < 26) throw new Error('设备低于实现边界，不安装')
 const evidenceName = process.argv[4] || 'android-probe'
-if (!['android-probe', 'android-r8-probe', 'android-phase6-probe', 'android-api26-probe', 'android-phase8-api26-core', 'android-phase8-api34-core', 'android-phase9-api34-core', 'android-phase17-api26-core', 'android-phase17-api26-core-fixed'].includes(evidenceName)) throw new Error('证据名称必须在测试交接白名单内')
-if (['android-api26-probe', 'android-phase8-api26-core', 'android-phase17-api26-core', 'android-phase17-api26-core-fixed'].includes(evidenceName) && (api !== '26' || deviceType !== 'emulator')) throw new Error('API26证据只接受已核验的API26模拟器')
+if (!['android-probe', 'android-r8-probe', 'android-phase6-probe', 'android-api26-probe', 'android-phase8-api26-core', 'android-phase8-api34-core', 'android-phase9-api34-core', 'android-phase17-api26-core', 'android-phase17-api26-core-fixed', 'android-phase17-api26-core-final'].includes(evidenceName)) throw new Error('证据名称必须在测试交接白名单内')
+if (['android-api26-probe', 'android-phase8-api26-core', 'android-phase17-api26-core', 'android-phase17-api26-core-fixed', 'android-phase17-api26-core-final'].includes(evidenceName) && (api !== '26' || deviceType !== 'emulator')) throw new Error('API26证据只接受已核验的API26模拟器')
 if (['android-phase8-api34-core', 'android-phase9-api34-core'].includes(evidenceName) && (api !== '34' || deviceType !== 'physical')) throw Error('API34真机证据身份不符')
 if (/^android-phase(?:8|9|17)-/.test(evidenceName) && existsSync(path.join(root, 'docs/operations/channel-updates-evidence/' + evidenceName + '.json'))) throw Error('阶段核心证据已存在，不覆盖')
 const build = Number(process.argv[3] || 1)
@@ -38,7 +38,7 @@ if (!badging.includes("package: name='" + pkg + "'") || createHash('sha256').upd
 const installation = await installProbe(sdk, device, info, identity)
 const useStream = process.argv.includes('--stream-logs')
 if (useStream && !((api === '26' && deviceType === 'emulator') || (api === '34' && deviceType === 'physical'))) throw Error('连续观察只接受已核验API26模拟器或API34真机')
-const streamDirectory = evidenceName.startsWith('android-phase17-') ? 'artifacts/phase17-probe-log-stream' + (evidenceName.endsWith('-fixed') ? '-fixed' : '') : evidenceName.startsWith('android-phase9-') ? 'artifacts/phase9-probe-log-stream' : 'artifacts/phase8-probe-log-stream'
+const streamDirectory = evidenceName.startsWith('android-phase17-') ? 'artifacts/phase17-probe-log-stream' + (evidenceName.endsWith('-final') ? '-final' : evidenceName.endsWith('-fixed') ? '-fixed' : '') : evidenceName.startsWith('android-phase9-') ? 'artifacts/phase9-probe-log-stream' : 'artifacts/phase8-probe-log-stream'
 const logStream = useStream ? createProbeLogStream(path.join(sdk, 'platform-tools/adb.exe'), device, path.join(root, streamDirectory)) : null
 const collectLogs = cutoff => logStream ? logStream.linesAfter(cutoff) : readProbeLogs(adb).split('\n').filter(line => Number(line.trim().split(/\s+/)[0]) >= cutoff - 0.01)
 async function launch(scenario, expected, { force = true, extras = [] } = {}) {
@@ -86,7 +86,8 @@ try {
  for (const point of ['JOURNAL_SYNCED', 'OLD_MOVED', 'NEW_MOVED', 'PENDING_HEALTH']) {
   await fresh(); await launch('prepare-good', /PREPARED good/, { extras: ['--es', 'killAt', point] }); await launch('show', new RegExp('KILL_AT ' + point))
   const crashCutoff = evidence.at(-1).cutoff
-  const restored = await launch('show', /JS_READY baseline-ready/)
+  // 不强停系统已自动重建的恢复进程，避免在日志落盘后、恢复事件上报前打断它。
+  await launch('show', /JS_READY baseline-ready/, { force: false })
   // Android 可能在显式再次启动前自动重建进程；把该原生恢复纳入同一检查点证据。
   const recoveryLogs = collectLogs(crashCutoff)
   const recovery = assertCheckpointRecovery(recoveryLogs, point)
