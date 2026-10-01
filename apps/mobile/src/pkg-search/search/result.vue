@@ -300,6 +300,7 @@ import { navigateTo, navigateBack } from '@/utils/router'
 import { searchApi, SEARCH_PAGE_SIZE, type SearchResults, type SearchTab } from '@/lib/search-data'
 import { formatPrice } from '@/utils/format'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
+import { getToken } from '@/utils/storage'
 
 const menuSafeRight = getMiniProgramMenuSafeRight()
 
@@ -419,7 +420,8 @@ async function loadResults() {
       noMore.value = (res[listKey] as unknown[]).length < SEARCH_PAGE_SIZE
       pageCache.set(cacheKey, { page: 1, noMore: noMore.value })
     }
-    searchApi.saveHistory(kw) // 静默保存历史，不阻塞
+    // 搜索允许游客使用；个人历史是登录态增强项，不发必然 401 的私有请求。
+    if (getToken()) searchApi.saveHistory(kw) // 静默保存历史，不阻塞
     const hasAny = res.contents.length || res.courses.length || res.products.length ||
       res.circles.length || res.classics.length || res.users.length
     if (tab === 'all' && hasAny) {
