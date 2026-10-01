@@ -10,10 +10,11 @@ ALTER TABLE "AppVersion" ADD CONSTRAINT "AppVersion_rollout_check" CHECK ("rollo
 UPDATE "AppVersion" SET "activePlatformKey" = 'rebu:' || "platform" || ':legacy' WHERE "activePlatformKey" IS NOT NULL;
 DROP INDEX IF EXISTS "AppVersion_platform_status_publishedAt_idx";
 DROP INDEX IF EXISTS "AppVersion_platform_version_buildNumber_idx";
-CREATE INDEX "AppVersion_applicationId_platform_channelId_status_publishedAt_idx"
+-- 与 Prisma 的截断命名规则一致，避免 PostgreSQL 自行截断后产生 schema 漂移。
+CREATE INDEX "AppVersion_applicationId_platform_channelId_status_publishe_idx"
   ON "AppVersion"("applicationId", "platform", "channelId", "status", "publishedAt");
 -- 历史重复版本会明确阻塞迁移，不隐式删除审计记录；空构建号也视为同一版本。
-CREATE UNIQUE INDEX "AppVersion_applicationId_platform_channelId_version_buildNumber_key"
+CREATE UNIQUE INDEX "AppVersion_applicationId_platform_channelId_version_buildNu_key"
   ON "AppVersion"("applicationId", "platform", "channelId", "version", "buildNumber") NULLS NOT DISTINCT;
 ALTER TABLE "FeatureFlag"
   ADD COLUMN "operationState" TEXT NOT NULL DEFAULT 'OPEN',
@@ -46,6 +47,6 @@ CREATE TABLE "ResourceRelease" (
   CONSTRAINT "ResourceRelease_version_check" CHECK ("resourceVersion" > 0)
 );
 CREATE UNIQUE INDEX "ResourceRelease_activeScopeKey_key" ON "ResourceRelease"("activeScopeKey");
-CREATE UNIQUE INDEX "ResourceRelease_applicationId_platform_channelId_resourceVersion_key" ON "ResourceRelease"("applicationId","platform","channelId","resourceVersion");
+CREATE UNIQUE INDEX "ResourceRelease_applicationId_platform_channelId_resourceVe_key" ON "ResourceRelease"("applicationId","platform","channelId","resourceVersion");
 CREATE INDEX "ResourceRelease_applicationId_platform_channelId_status_idx" ON "ResourceRelease"("applicationId","platform","channelId","status");
 COMMIT;
