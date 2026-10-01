@@ -60,8 +60,8 @@ public final class ResourceStore {
         }
         return out.append('"').toString();
     }
-    public static PublicKey publicKey(String pem) throws Exception { return KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(pem.replaceAll("-----[A-Z ]+-----|\\s", "")))); }
-    private static boolean signature(String canonical, String encoded, PublicKey key) throws Exception { Signature verifier = Signature.getInstance("Ed25519"); verifier.initVerify(key); verifier.update(canonical.getBytes(StandardCharsets.UTF_8)); return verifier.verify(Base64.getDecoder().decode(encoded)); }
+    public static PublicKey publicKey(String pem) throws Exception { return ResourceCrypto.publicKey(pem); }
+    private static boolean signature(String canonical, String encoded, PublicKey key) throws Exception { return ResourceCrypto.verify(canonical, encoded, key); }
     public synchronized void authorizeKey(Map<String, Object> authorization, String sig) throws Exception {
         if (!Long.valueOf(1).equals(((Number)authorization.get("schemaVersion")).longValue()) || !"resource-key".equals(authorization.get("kind")) || !identity.get("applicationId").equals(authorization.get("applicationId")) || !signature(canonical(authorization), sig, roots.get(String.valueOf(authorization.get("rootKeyId"))))) throw new SecurityException("公钥根授权无效");
         validTime(String.valueOf(authorization.get("issuedAt")), String.valueOf(authorization.get("expiresAt")));
@@ -110,7 +110,7 @@ public final class ResourceStore {
     }
     public synchronized void verifyFile(File file, Release release) throws Exception { confined(file); if (file.length() != release.number("byteLength") || !sha(file).equals(release.text("sha256"))) throw new SecurityException("资源包被篡改或截断"); }
     public static String sha(File file) throws Exception { MessageDigest hash = MessageDigest.getInstance("SHA-256"); try (InputStream input = new FileInputStream(file)) { byte[] b = new byte[32768]; int count; while ((count = input.read(b)) != -1) hash.update(b, 0, count); } StringBuilder out = new StringBuilder(); for (byte b : hash.digest()) out.append(String.format("%02x", b & 255)); return out.toString(); }
-    private static String treeHash(File directory) throws Exception {
+    static String treeHash(File directory) throws Exception {
         SortedMap<String, String> files = new TreeMap<>(); collectHashes(directory.getCanonicalFile(), directory, files);
         MessageDigest hash = MessageDigest.getInstance("SHA-256"); hash.update(canonical(files).getBytes(StandardCharsets.UTF_8));
         StringBuilder out = new StringBuilder(); for (byte b : hash.digest()) out.append(String.format("%02x", b & 255)); return out.toString();

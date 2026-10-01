@@ -7,6 +7,7 @@ const nativePaths = [
   'apps/mobile/src/manifest.json', 'apps/mobile/package.json', 'pnpm-lock.yaml',
   'apps/mobile/nativeplugins', 'apps/mobile/src/lib/app-distribution.ts',
   'apps/mobile/native', 'apps/mobile/src/uni_modules',
+  'scripts/release/build-resource-native.mjs', 'scripts/release/native-dependencies.mjs',
 ]
 export function inspectNativeBoundary(base, candidate, cwd = root) {
   const files = execFileSync('git', ['diff', '--name-only', base, candidate, '--', ...nativePaths],
