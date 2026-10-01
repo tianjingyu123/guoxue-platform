@@ -10,6 +10,10 @@ const source = fs.readFileSync(new URL('../../apps/mobile/src/lib/im-data.ts', i
 const fn = source.match(/function notifyLink\([\s\S]*?\n\}/)?.[0]
 assert(fn, '实际通知映射入口应存在')
 const notifyLink = vm.runInNewContext(`${stripTypeScriptTypes(fn)}; notifyLink`)
+const typeFn = source.match(/function mapNotifyType\([\s\S]*?\n\}/)?.[0]
+const categoryFn = source.match(/function notifyCategory\([\s\S]*?\n\}/)?.[0]
+assert(typeFn && categoryFn)
+const classify = vm.runInNewContext(`${stripTypeScriptTypes(typeFn + '\n' + categoryFn)}; ({type:mapNotifyType, category:notifyCategory})`)
 
 test('课程到期通知直达已登记课程详情，并保留购买目标', () => {
   const link = notifyLink('COURSE', 'course-id')
@@ -55,4 +59,19 @@ test('未知类型、缺失目标和空白目标不生成死链', () => {
   for (const [type, id] of [[null, 'id'], ['COURSE', null], ['COURSE', ''], ['COURSE', '   '], ['ALIEN', 'id']]) {
     assert.equal(notifyLink(type, id), undefined)
   }
+})
+
+test('实际支付成功通知类型进入交易消息并显示订单分类', () => {
+  const payment = fs.readFileSync(new URL('../../apps/server/src/modules/shop/shop-payment.service.ts', import.meta.url), 'utf8')
+  const actualType = payment.match(/type:\s*"([^"]+)",\s*title:\s*"支付成功"/)?.[1]
+  assert(actualType, '从实际付款通知入口取得通知类型')
+  assert.equal(classify.type(actualType), 'transaction')
+  assert.equal(classify.category(actualType), '订单')
+})
+
+test('支付退款与充值保留交易分类，未知业务类型仍诚实归入系统', () => {
+  for (const type of ['PURCHASE', 'purchase', 'ORDER', 'REFUND', 'ORDER_REFUND_FAILED', 'PAYMENT', 'RECHARGE']) assert.equal(classify.type(type), 'transaction')
+  assert.equal(classify.category('REFUND'), '退款')
+  assert.equal(classify.type('COURSE_EXPIRING'), 'system')
+  assert.equal(classify.type('UNKNOWN'), 'system')
 })
