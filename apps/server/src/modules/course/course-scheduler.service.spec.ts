@@ -30,7 +30,12 @@ describe("CourseSchedulerService", () => {
     svc = mod.get(CourseSchedulerService);
   });
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockNotification.batchSend.mockReset().mockImplementation(async (dto) => ({
+      success: true, count: dto.userIds.length, pushSkipped: 0,
+    }));
+  });
 
   it("应被定义", () => expect(svc).toBeDefined());
 
@@ -86,12 +91,10 @@ describe("CourseSchedulerService", () => {
       mockPrisma.order.findMany.mockResolvedValue([
         { targetId: "c1", userId: "u1", paidAt: twoDaysAgo },
       ]);
-      mockNotification.batchSend.mockResolvedValue(undefined);
-
       await svc.checkExpiringCourses();
       expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
         title: "课程即将到期",
-      }));
+      }), `COURSE_EXPIRING:c1:${new Date().toISOString().slice(0, 10)}`);
     });
 
     it("续购后不被旧单误报，乱序订单仍按最新有效付款计算", async () => {
@@ -123,7 +126,68 @@ describe("CourseSchedulerService", () => {
       expect(mockNotification.batchSend).toHaveBeenCalledTimes(1);
       expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
         userIds: ["u1", "u2"], targetId: "c1",
-      }));
+      }), expect.stringMatching(/^COURSE_EXPIRING:c1:\d{4}-\d{2}-\d{2}$/));
+    });
+
+    it("同一天两次任务使用同一个持久事件键，次日允许继续提醒", async () => {
+      const clock = jest.spyOn(Date, "now");
+      try {
+        const start = Date.parse("2026-10-01T09:00:00.000Z");
+        clock.mockReturnValue(start);
+        mockPrisma.course.findMany.mockResolvedValue([{ id: "c1", title: "课程", validityDays: 30 }]);
+        mockPrisma.order.findMany.mockResolvedValue([
+          { targetId: "c1", userId: "u1", paidAt: new Date(start - 28 * 86400000) },
+        ]);
+        await svc.checkExpiringCourses();
+        clock.mockReturnValue(start + 60000);
+        await svc.checkExpiringCourses();
+        clock.mockReturnValue(start + 86400000);
+        await svc.checkExpiringCourses();
+        expect(mockNotification.batchSend.mock.calls.map((call) => call[1])).toEqual([
+          "COURSE_EXPIRING:c1:2026-10-01", "COURSE_EXPIRING:c1:2026-10-01", "COURSE_EXPIRING:c1:2026-10-02",
+        ]);
+      } finally {
+        clock.mockRestore();
+      }
+    });
+
+    it("一门课程通知落库失败不阻断其他课程，并允许同日重试", async () => {
+      const paidAt = new Date(Date.now() - 28 * 86400000);
+      mockPrisma.course.findMany.mockResolvedValue([
+        { id: "c1", title: "课程一", validityDays: 30 },
+        { id: "c2", title: "课程二", validityDays: 30 },
+      ]);
+      mockPrisma.order.findMany.mockResolvedValue([
+        { targetId: "c1", userId: "u1", paidAt },
+        { targetId: "c2", userId: "u2", paidAt },
+      ]);
+      mockNotification.batchSend.mockRejectedValueOnce(new Error("temporary notification DB failure"));
+      await expect(svc.checkExpiringCourses()).resolves.not.toThrow();
+      expect(mockNotification.batchSend.mock.calls.map((call) => call[0].targetId)).toEqual(["c1", "c2"]);
+      await svc.checkExpiringCourses();
+      expect(mockNotification.batchSend.mock.calls.map((call) => call[0].targetId)).toEqual(["c1", "c2", "c1", "c2"]);
+      expect(mockNotification.batchSend.mock.calls[0][1]).toBe(mockNotification.batchSend.mock.calls[2][1]);
+    });
+
+    it("日志仅统计本次实际新增通知，防重命中不记成重新发送", async () => {
+      const paidAt = new Date(Date.now() - 28 * 86400000);
+      mockPrisma.course.findMany.mockResolvedValue([{ id: "c1", title: "课程", validityDays: 30 }]);
+      mockPrisma.order.findMany.mockResolvedValue([
+        { targetId: "c1", userId: "u1", paidAt },
+        { targetId: "c1", userId: "u2", paidAt },
+      ]);
+      mockNotification.batchSend.mockResolvedValueOnce({ success: true, count: 1, pushSkipped: 0 });
+      const log = jest.spyOn((svc as any).logger, "log");
+      try {
+        await svc.checkExpiringCourses();
+        expect(log).toHaveBeenCalledWith("到期提醒: 新增 1 条课程到期站内通知");
+        log.mockClear();
+        mockNotification.batchSend.mockResolvedValueOnce({ success: true, count: 0, pushSkipped: 0 });
+        await svc.checkExpiringCourses();
+        expect(log).not.toHaveBeenCalled();
+      } finally {
+        log.mockRestore();
+      }
     });
 
     it("未到期的课程不发送提醒", async () => {
@@ -138,6 +202,25 @@ describe("CourseSchedulerService", () => {
 
       await svc.checkExpiringCourses();
       expect(mockNotification.batchSend).not.toHaveBeenCalled();
+    });
+
+    it("恰好三天进入提醒，已到期和超过三天的用户不提醒", async () => {
+      const now = Date.parse("2026-10-01T09:00:00.000Z");
+      const clock = jest.spyOn(Date, "now").mockReturnValue(now);
+      try {
+        mockPrisma.course.findMany.mockResolvedValue([{ id: "c1", title: "课程", validityDays: 30 }]);
+        mockPrisma.order.findMany.mockResolvedValue([
+          { targetId: "c1", userId: "boundary", paidAt: new Date(now - 27 * 86400000) },
+          { targetId: "c1", userId: "expired", paidAt: new Date(now - 30 * 86400000) },
+          { targetId: "c1", userId: "far", paidAt: new Date(now - 27 * 86400000 + 1) },
+        ]);
+        await svc.checkExpiringCourses();
+        expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
+          userIds: ["boundary"], targetType: "COURSE", targetId: "c1",
+        }), "COURSE_EXPIRING:c1:2026-10-01");
+      } finally {
+        clock.mockRestore();
+      }
     });
   });
 

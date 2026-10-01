@@ -130,6 +130,9 @@ export class CourseSchedulerService {
       }
 
       const now = Date.now();
+      // 全批使用同一个 UTC 日期：同日重跑/双节点只建一条站内通知，次日仍按既有频率提醒。
+      // 不改变 Cron 的运行时区；防重最终由 Notification 的收件人+事件唯一键完成。
+      const reminderDay = new Date(now).toISOString().slice(0, 10);
       let notified = 0;
 
       for (const course of courses) {
@@ -145,20 +148,25 @@ export class CourseSchedulerService {
         }
 
         if (userIdsToNotify.length > 0) {
-          await this.notification.batchSend({
-            userIds: userIdsToNotify,
-            type: "SYSTEM",
-            title: "课程即将到期",
-            content: `您购买的课程《${course.title}》即将在3天内到期，请尽快完成学习`,
-            targetType: "COURSE",
-            targetId: course.id,
-          });
-          notified += userIdsToNotify.length;
+          try {
+            const result = await this.notification.batchSend({
+              userIds: userIdsToNotify,
+              type: "SYSTEM",
+              title: "课程即将到期",
+              content: `您购买的课程《${course.title}》即将在3天内到期，请尽快完成学习`,
+              targetType: "COURSE",
+              targetId: course.id,
+            }, `COURSE_EXPIRING:${course.id}:${reminderDay}`);
+            notified += result.count;
+          } catch (err) {
+            // 一门课程失败不能饿死其他课程；未落库的事件可在同日重跑时再次尝试。
+            this.logger.error(`课程到期通知失败 course=${course.id}`, err);
+          }
         }
       }
 
       if (notified > 0) {
-        this.logger.log(`到期提醒: 向 ${notified} 名用户发送了课程到期通知`);
+        this.logger.log(`到期提醒: 新增 ${notified} 条课程到期站内通知`);
       }
     } catch (err) {
       this.logger.error("到期提醒检查失败", err);
