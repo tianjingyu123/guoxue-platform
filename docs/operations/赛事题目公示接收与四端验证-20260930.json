@@ -450,8 +450,57 @@
     }
   ],
   "ci": {
-    "runId": 36801832093,
-    "status": "进行中，未记通过"
+    "sourceCommit": "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "testsPassed": 8880,
+    "shardLogs": [
+      {
+        "jobId": 110177995727,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "844c84a2b55aed1301da31d3dfb04a45b5b3d52a30dc0056fb50fde976e9a59f",
+        "summaries": [
+          "2026-10-01T01:40:26.7472301Z Test Suites: 10 skipped, 218 passed, 218 of 228 total",
+          "2026-10-01T01:40:26.7473082Z Tests:       39 skipped, 3035 passed, 3074 total",
+          "2026-10-01T01:40:26.7474075Z Time:        136.739 s"
+        ]
+      },
+      {
+        "jobId": 110177995751,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "b25de2e24c9f5ff34019d49a9bfda2a452e0e6802262192d1f2d58ae26360a27",
+        "summaries": [
+          "2026-10-01T01:51:14.1940169Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:51:14.1940979Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T01:51:14.1941942Z Time:        782.727 s"
+        ]
+      },
+      {
+        "jobId": 110177995776,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "680b34c2b2ad7990f7d7472e4fbd55ea7bfe65524562ad0d8afabbfa6e66a3be",
+        "summaries": [
+          "2026-10-01T01:40:12.5669935Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:40:12.5670635Z Tests:       50 skipped, 3045 passed, 3095 total",
+          "2026-10-01T01:40:12.5671366Z Time:        117.122 s"
+        ]
+      }
+    ],
+    "suitesSkipped": 26,
+    "testsSkipped": 133,
+    "status": "completed",
+    "suitesPassed": 658,
+    "artifact": {
+      "id": 11135978587,
+      "name": "server-build",
+      "size_in_bytes": 7401490,
+      "digest": "sha256:3b33eb7541a8c2ad46411b81b5fc4c700cb03d67dc5124161d476ae9ecfd9be2"
+    },
+    "zipSha256": "3b33eb7541a8c2ad46411b81b5fc4c700cb03d67dc5124161d476ae9ecfd9be2",
+    "jobsPassed": 8,
+    "conclusion": "success",
+    "runId": 36801832093
   },
   "runtime": {
     "allNotificationTriggersCompleted": false,
@@ -494,8 +543,8 @@
     "不是手机实测",
     "没有正式上传提审发布",
     "无生产数据库或真实资金通知",
-    "后台成品沿用等效43de输入，未本轮重建",
-    "后端5b测试仅结构等效来源，非本版新运行"
+    "后台本地成品沿用等效43de输入，未本轮重建",
+    "本次22组HTTP与CI仅对f4固定包；后续版本单独收口"
   ],
   "releaseDecision": "NO-GO，待完整版本门槛",
   "rollback": "先单独撤回f4赛事前端，再按5b→968及原批次逆序",

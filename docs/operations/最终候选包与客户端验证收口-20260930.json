@@ -1,0 +1,409 @@
+{
+  "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+  "releaseDecision": "NO-GO",
+  "realNotifications": 0,
+  "miniPreview": {
+    "size": {
+      "total": 12721624,
+      "packages": [
+        {
+          "name": "TOTAL",
+          "size": 12721624
+        },
+        {
+          "name": "main",
+          "size": 1950575
+        },
+        {
+          "name": "/pkg-account/",
+          "size": 120557
+        },
+        {
+          "name": "/pkg-agent/",
+          "size": 294302
+        },
+        {
+          "name": "/pkg-auth/",
+          "size": 84094
+        },
+        {
+          "name": "/pkg-bounty/",
+          "size": 92733
+        },
+        {
+          "name": "/pkg-circle/",
+          "size": 1339571
+        },
+        {
+          "name": "/pkg-classics/",
+          "size": 472190
+        },
+        {
+          "name": "/pkg-common/",
+          "size": 47356
+        },
+        {
+          "name": "/pkg-competition/",
+          "size": 261116
+        },
+        {
+          "name": "/pkg-course/",
+          "size": 316627
+        },
+        {
+          "name": "/pkg-creator/",
+          "size": 96195
+        },
+        {
+          "name": "/pkg-discover/",
+          "size": 8633
+        },
+        {
+          "name": "/pkg-help/",
+          "size": 16829
+        },
+        {
+          "name": "/pkg-im/",
+          "size": 197766
+        },
+        {
+          "name": "/pkg-institute/",
+          "size": 319039
+        },
+        {
+          "name": "/pkg-live/",
+          "size": 668097
+        },
+        {
+          "name": "/pkg-mall/",
+          "size": 132687
+        },
+        {
+          "name": "/pkg-merchant/",
+          "size": 624960
+        },
+        {
+          "name": "/pkg-mine/",
+          "size": 767700
+        },
+        {
+          "name": "/pkg-notices/",
+          "size": 39319
+        },
+        {
+          "name": "/pkg-offline/",
+          "size": 323126
+        },
+        {
+          "name": "/pkg-operator/",
+          "size": 589816
+        },
+        {
+          "name": "/pkg-order/",
+          "size": 168461
+        },
+        {
+          "name": "/pkg-paipan/",
+          "size": 1959687
+        },
+        {
+          "name": "/pkg-paipan2/",
+          "size": 634410
+        },
+        {
+          "name": "/pkg-paipan3/",
+          "size": 191767
+        },
+        {
+          "name": "/pkg-profile/",
+          "size": 53503
+        },
+        {
+          "name": "/pkg-report/",
+          "size": 62202
+        },
+        {
+          "name": "/pkg-search/",
+          "size": 64246
+        },
+        {
+          "name": "/pkg-settings/",
+          "size": 80050
+        },
+        {
+          "name": "/pkg-shop/",
+          "size": 250940
+        },
+        {
+          "name": "/pkg-solar-term/",
+          "size": 22440
+        },
+        {
+          "name": "/pkg-video/",
+          "size": 222261
+        },
+        {
+          "name": "/pkg-workspace/",
+          "size": 248369
+        }
+      ]
+    }
+  },
+  "archive": {
+    "archiveSha256": "177d79608062f74525a296a750ebc2f2921d6030b99bf4f62a53d17fac2e036d",
+    "size": 15604223,
+    "assetId": 602213500,
+    "releaseId": 400058667,
+    "assetName": "gx-deploy-91-launch-20260930-4e7c962e.tar.gz",
+    "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+    "digest": "sha256:177d79608062f74525a296a750ebc2f2921d6030b99bf4f62a53d17fac2e036d",
+    "draft": true
+  },
+  "productionDeployment": false,
+  "archiveFiles": 4370,
+  "realChannelsVerified": false,
+  "conflicts": false,
+  "publicConfiguration": {
+    "api": "https://api.rebugx.cn",
+    "binding": {
+      "schemaVersion": 1,
+      "kind": "guoxue-client-public-config-binding",
+      "generatedAt": "2026-10-01T01:52:01.806Z",
+      "releaseId": "launch-20260930-4e7c962e",
+      "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+      "keys": [
+        "VITE_API_URL",
+        "VITE_PUBLIC_H5_URL",
+        "VITE_PUBLIC_ASSET_ORIGIN"
+      ],
+      "fingerprintAlgorithm": "sha256",
+      "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+    },
+    "h5": "https://gx.yrydai.com/h5/",
+    "envSource": "隔离接收树apps/mobile/.env.production；四端重新构建并逐文件哈希核验；不是未经记录的主工作区配置",
+    "environmentFileSha256": "60f323cf26f4d4e0ac534a39eb1f956902ac5a82a8218b0d3f00e9503340d871",
+    "assets": "https://static.rebugx.cn"
+  },
+  "clients": {
+    "schemaVersion": 2,
+    "generatedAt": "2026-10-01T01:52:03.133Z",
+    "releaseId": "launch-20260930-4e7c962e",
+    "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+    "environmentFile": "apps\\mobile\\.env.production",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5408,
+      "textFiles": 5344,
+      "bytes": 53736976,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "name": "管理后台",
+        "directory": "apps/admin/dist",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_H5_URL"
+        ],
+        "files": 503,
+        "textFiles": 503,
+        "sourceMaps": 0,
+        "bytes": 6449115,
+        "contentSha256": "2c6b870e22cc54bca52ad145247ea5ef829908ecaf1b5d7f8beb2ad5561281d7",
+        "success": true
+      },
+      {
+        "name": "H5",
+        "directory": "apps/mobile/dist/build/h5",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 1178,
+        "textFiles": 1161,
+        "sourceMaps": 0,
+        "bytes": 11069587,
+        "contentSha256": "c346c717d0bdc38e695f439e2f98baf526b136e5c87dcb5e297dc4951f97f4a3",
+        "success": true
+      },
+      {
+        "name": "微信小程序",
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 2748,
+        "textFiles": 2742,
+        "sourceMaps": 0,
+        "bytes": 11048009,
+        "contentSha256": "0c60c9b70ecfaaef1a19b28ecb47fc317353d8bf669205a2a2308a9e380facaa",
+        "success": true
+      },
+      {
+        "name": "App",
+        "directory": "apps/mobile/dist/build/app",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 489,
+        "textFiles": 470,
+        "sourceMaps": 0,
+        "bytes": 12735818,
+        "contentSha256": "48a0477e3ce404d1d44a59d5461ce28e7b1b0d7cd25c3aa37a6d8fbcc8bfb250",
+        "success": true
+      },
+      {
+        "name": "鸿蒙 App",
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "expectedKeys": [
+          "VITE_API_URL",
+          "VITE_PUBLIC_ASSET_ORIGIN"
+        ],
+        "files": 490,
+        "textFiles": 468,
+        "sourceMaps": 0,
+        "bytes": 12434447,
+        "contentSha256": "9f8bcdd9f99c1700fce19fc09d9386d99fcf87787e372733d2d524a4957d67c4",
+        "success": true
+      }
+    ],
+    "errors": []
+  },
+  "finalRuntime": {
+    "verificationCommit": "71f967930f12cd301f079280a550ec8b9f450ea8",
+    "checks": 22,
+    "artifactSha256": "b4b3a35078bf6b672cfb45f929aeb19433dcb63c1aeeab76603f943024e1810b",
+    "realMoneyOperations": 0,
+    "disclosureHttpCases": 8,
+    "notificationTargetScopes": {
+      "allTargets": false,
+      "order": true,
+      "post": true
+    },
+    "artifactId": 11136952671,
+    "paymentRefundHttpCases": 22,
+    "realNotifications": 0,
+    "productionDeployment": false,
+    "rewardHttpCases": 19,
+    "passed": true,
+    "cleanup": {
+      "rebu-app-second-de4afa454f": true,
+      "rebu-app-de4afa454f": true,
+      "rebu-db-de4afa454f": true,
+      "rebu-redis-de4afa454f": true,
+      "networkAbsent": true
+    },
+    "allNotificationTriggersCompleted": false,
+    "realChannelsVerified": false,
+    "postDetailHttpCases": 89,
+    "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+    "checkedAtUtc": "2026-10-01T02:13:08.1348323Z",
+    "targetNodesVerified": false,
+    "releaseDecision": "NO-GO",
+    "imageId": "sha256:c702a9aa201acafee12e79d4635ff789bfb12fea078e9cd97583acf3ad5a79be",
+    "runId": 36804307977,
+    "sourceSha256": "177d79608062f74525a296a750ebc2f2921d6030b99bf4f62a53d17fac2e036d",
+    "productionMigration": false,
+    "artifactBytes": 52689
+  },
+  "finalCi": {
+    "artifactId": 11136743119,
+    "artifactBytes": 7401490,
+    "conclusion": "success",
+    "testsSkipped": 133,
+    "checkedAtUtc": "2026-10-01T02:13:07.4996641Z",
+    "shardLogs": [
+      {
+        "jobId": 110182502220,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "1283564c2415c1c1aa6f5a74d550a40d06ca2d3ed37069e177fc5f1cda61c935",
+        "summaries": [
+          "2026-10-01T01:58:56.8831105Z Test Suites: 10 skipped, 218 passed, 218 of 228 total",
+          "2026-10-01T01:58:56.8831578Z Tests:       39 skipped, 3035 passed, 3074 total",
+          "2026-10-01T01:58:56.8832064Z Time:        107.974 s"
+        ]
+      },
+      {
+        "jobId": 110182502227,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "6ad75595a15b08972267c74b8dea3cee94435c8115de1c7adb4dbf4e6e8c4c68",
+        "summaries": [
+          "2026-10-01T02:09:45.8436156Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T02:09:45.8437048Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T02:09:45.8438120Z Time:        766.334 s"
+        ]
+      },
+      {
+        "jobId": 110182502247,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "8eae5e5ed4e9d4ad30a4893d4ccbe47fc28dc9809a29daecfa4d9cd7baa2f9b2",
+        "summaries": [
+          "2026-10-01T01:58:44.9325362Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:58:44.9326334Z Tests:       50 skipped, 3045 passed, 3095 total",
+          "2026-10-01T01:58:44.9327191Z Time:        99.976 s"
+        ]
+      }
+    ],
+    "status": "completed",
+    "jobsPassed": 8,
+    "suitesPassed": 658,
+    "artifactSha256": "eb1427d63d32142c6d4802d5770f034b4f4f90986a50626bba720405d1898e54",
+    "testsPassed": 8880,
+    "suitesSkipped": 26,
+    "sourceCommit": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+    "runId": 36803293564
+  },
+  "recordedAtUtc": "2026-10-01T02:08:20.5871609Z",
+  "homeCover": {
+    "result": {
+      "sourceCommit": "b38048fdb25ea30bff9cf19c3c56d30cd0036de8",
+      "passed": true,
+      "cases": [
+        {
+          "name": "古籍保留且题签包含正确书名",
+          "passed": true
+        },
+        {
+          "name": "短视频保留生成封面与播放标识",
+          "passed": true
+        }
+      ],
+      "restored": [
+        "request",
+        "removeStorageSync",
+        "setStorageSync"
+      ],
+      "persistedSyntheticCache": false,
+      "scope": "官方开发工具合成推荐视觉；不等于真实推荐、手机或真实渠道验收"
+    },
+    "visualReviewed": true,
+    "sha256": "eb7e84b80a1a67da21e741d23bb61a3abde79f0ac9515b175bc6a5cb56c6f5d7",
+    "screenshotSha256": "a7b80f6c516bb5412f09b496b5b25183be953b6b6ef6aca792ab514ec9d040f9"
+  },
+  "rollback": "650→f4→5b→968，再按原b6→9d及历史批次逆序；纯文档单独撤回",
+  "realMoneyOperations": 0,
+  "businessCommits": [
+    "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
+    "f4a70171dface60d4091b9130c975a8cea9cca61",
+    "650abfc5eff5a423d8189cce4f0289173c6a11c2"
+  ],
+  "interruptedRuntime": {
+    "artifactSha256": "e139863e904b687b8c5168f7f144994e6911f3456d3d2630cdefa5ccdb33a934",
+    "isPassedEvidence": false,
+    "artifactId": 11136925948,
+    "reason": "构建步骤中断；官方任务状态与取消/重试返回不一致，根因未确认；重新使用独立分组核验同一包",
+    "runId": 36803304476
+  },
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（明确范围）",
+    "线上状态未知",
+    "待发布决策"
+  ]
+}
