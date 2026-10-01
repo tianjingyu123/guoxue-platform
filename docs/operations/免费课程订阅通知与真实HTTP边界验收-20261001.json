@@ -1,0 +1,442 @@
+{
+  "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+  "receivedCommits": [
+    "5b61b4428635de3c01b9940d30424c072732e05a"
+  ],
+  "verificationSource": "a371212155f3113c77e0fbc2a4a86eef686bb5f2",
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "conflicts": [],
+  "reception": {
+    "clean": true,
+    "productionMigration": false,
+    "checkedAt": "2026-10-01T15:53:56.6639404Z",
+    "masterMerged": false,
+    "finalHead": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "receivedCommits": [
+      "5b61b4428635de3c01b9940d30424c072732e05a"
+    ],
+    "deployed": false,
+    "conflicts": [],
+    "beforeHead": "d088be0d21c346e4f94a7852dff9414669b497f6"
+  },
+  "localTests": {
+    "suites": 5,
+    "passed": 178,
+    "baseline": {
+      "failed": 5,
+      "passed": 4,
+      "total": 9
+    },
+    "newCases": 9,
+    "typecheckExit": 0,
+    "eslintErrors": 0,
+    "eslintExistingWarnings": 1
+  },
+  "ci": {
+    "testsSkipped": 133,
+    "status": "success",
+    "jobsPassed": 8,
+    "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "suitesSkipped": 26,
+    "runId": 36885519981,
+    "logs": [
+      {
+        "name": "单元测试 (2/3)",
+        "sha256": "787222434e1a3d9d4fee91f3733971c841a7e45694785ac4b619c1dcb914b9c3",
+        "jobId": 110448432802,
+        "tests": "Tests:       50 skipped, 3035 passed, 3085 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "sha256": "0005b2c844583152c0308b56d65e7d6e6d5b4f911a80c57d64092667bcfc13d2",
+        "jobId": 110448432805,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "name": "单元测试 (3/3)",
+        "sha256": "8ec17f413c2c57e4bffb89e6a51b0605d031a80d231eea1a94fee496860e8e00",
+        "jobId": 110448432900,
+        "tests": "Tests:       39 skipped, 3047 passed, 3086 total",
+        "suites": "Test Suites: 10 skipped, 220 passed, 220 of 230 total"
+      }
+    ],
+    "suitesPassed": 664,
+    "testsPassed": 8921,
+    "checkedAt": "2026-10-01T15:56:14.4907715Z"
+  },
+  "image": {
+    "artifact": {
+      "officialDigestMatches": true,
+      "id": 11175305778,
+      "sha256": "8b9ebd6f344a4ed049dd8b4bbdf5bd57f934da9a98704a3e53cddb080167e583",
+      "bytes": 57294
+    },
+    "image": "sha256:82b3a619d1c876ef3ad0d6b6f5a30bc9a6e3d605e545d079e8afcb1bf77c185e",
+    "runtimeReportSha256": "e77c346da3fcdc03cdccfbe68863823d8af366ba0fed44c5878b288749fc0edd",
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions"
+    ],
+    "verificationSource": "a371212155f3113c77e0fbc2a4a86eef686bb5f2",
+    "businessSource": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "checksPassed": 25,
+    "checkedAt": "2026-10-01T15:52:04.3024456Z",
+    "production": false,
+    "cleanupAllConfirmed": true,
+    "runId": 36886472569,
+    "passed": true,
+    "realChannels": false,
+    "sourceArchiveSha256": "fd80a5e575270348fac7c06f6e1f038a8102036545df8572affb849a89baadc2"
+  },
+  "runtime": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "anonymous-subscribe-denied",
+        "passed": true,
+        "status": 401
+      },
+      {
+        "name": "free-subscription-http-committed",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "real-di-notification-after-committed-free-order",
+        "passed": true
+      },
+      {
+        "name": "duplicate-subscribe-rejected",
+        "passed": true,
+        "status": 400
+      },
+      {
+        "name": "duplicate-subscription-no-extra-order-or-notification",
+        "passed": true
+      },
+      {
+        "name": "notification-owner-details",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "name": "notification-cross-user-details-denied",
+        "passed": true,
+        "status": 404
+      },
+      {
+        "name": "notification-anonymous-details-denied",
+        "passed": true,
+        "status": 401
+      },
+      {
+        "name": "free-course-target-access",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "name": "order-write-failure-http",
+        "passed": true,
+        "status": 500
+      },
+      {
+        "name": "real-order-failure-no-success-notification-and-lock-released",
+        "passed": true
+      },
+      {
+        "name": "notification-write-failure-subscription-still-success",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "real-notification-failure-keeps-free-order-and-releases-idempotency-lock",
+        "passed": true
+      },
+      {
+        "name": "notification-database-block-does-not-block-subscribe-http",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "http-returned-before-real-notification-db-lock-release",
+        "passed": true
+      },
+      {
+        "name": "delayed-notification-persisted-after-lock-release",
+        "passed": true
+      },
+      {
+        "name": "paid-pending-order-only",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "paid-pending-no-enrollment-success-notification",
+        "passed": true
+      },
+      {
+        "name": "same-event-replay-after-redis-key-loss-database-deduplicates",
+        "passed": true
+      }
+    ],
+    "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions",
+    "noRealMoney": true,
+    "noExternalDelivery": true,
+    "crashDurableRetryNotImplemented": true,
+    "paidCourseSeparateEnrollmentNotAdded": true
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T15:38:23.446Z",
+    "releaseId": "launch-20261001-5b61b4428",
+    "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "auditFile": "artifacts/channel-intake-20260930/package-5b61b4428/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5424,
+      "bytes": 54172345,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11139772,
+        "contentSha256": "44c964e947598f7ccb7c95991734295347878a1fc4a184f160eb20c74b28d2f3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2757,
+        "bytes": 11121296,
+        "contentSha256": "84523ac6dcc854e7ff236dbbd14d7ddd90ab49eb05c656d5dd809be5376a7172",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12892094,
+        "contentSha256": "57b67d822e882fbc79ae6a12e7bd02b6f69a61791360fe66980474a8dfa50419",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12531598,
+        "contentSha256": "352bb68dd7afa01497517c34261f26ab51d66adca9d5e2f2831687f55f5ce83f",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T15:38:34.631Z",
+    "archive": "gx-deploy-91-launch-20261001-5b61b4428.tar.gz",
+    "sha256": "fd80a5e575270348fac7c06f6e1f038a8102036545df8572affb849a89baadc2",
+    "releaseId": "launch-20261001-5b61b4428",
+    "commit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "expectedCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "fileCount": 4439,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftArchive": {
+    "checkedAt": "2026-10-01T15:39:44.3146621Z",
+    "published": false,
+    "draft": true,
+    "tag": "launch-20261001-5b61b4428",
+    "assets": [
+      {
+        "officialDigestMatches": true,
+        "assetId": 603570155,
+        "name": "gx-deploy-91-launch-20261001-5b61b4428.tar.gz",
+        "sha256": "fd80a5e575270348fac7c06f6e1f038a8102036545df8572affb849a89baadc2",
+        "bytes": 15746243
+      },
+      {
+        "officialDigestMatches": true,
+        "assetId": 603570627,
+        "name": "gx-deploy-91-launch-20261001-5b61b4428.tar.gz.sha256",
+        "sha256": "48085137c3f459b73f8a9aaca4adaf89bf9b67834fd7a636ccf12c112c6637b6",
+        "bytes": 112
+      }
+    ],
+    "releaseId": 401113127,
+    "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a"
+  },
+  "clientInputsEquivalentTo": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+  "publicConfiguration": {
+    "API": "https://api.rebugx.cn",
+    "H5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "target": "北京两节点"
+  },
+  "matrix": {
+    "freeCourse": "本批新增真实HTTP入口，零元订阅订单落库后异步通知",
+    "paidCourse": "仍复用ORDER_PAID支付成功通知，未新增独立开通事件",
+    "independentEntitlement": "未新增统一独立触发器",
+    "aiCustomerService": "即时HTTP/SSE回答，不能当作后台通知",
+    "feedback": "原CAS结案通知保留",
+    "humanChat": "全部人工回复进入统一通知中心尚未证明"
+  },
+  "uncovered": [
+    "提交后崩溃及通知失败后的自动持久补发",
+    "付费课程独立开通与全部权益/客服触发器",
+    "手机登录后通知点击",
+    "真实微信/短信/App渠道",
+    "正式Cron/北京两节点新候选身份",
+    "签名包与一键登录接通",
+    "全平台用户旅程及正式发布门槛"
+  ],
+  "rollback": {
+    "previousHead": "d088be0d21c346e4f94a7852dff9414669b497f6",
+    "code": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "order": "先撤本批5b61，再按b2→9ae→808→a5及总账逆序，文档独立"
+  },
+  "production": {
+    "deployed": false,
+    "migration": false,
+    "money": false,
+    "realNotification": false,
+    "cloudFunction": false,
+    "paidPackaging": false,
+    "miniUpload": false
+  },
+  "evidence": [
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-before.log",
+      "bytes": 5125,
+      "sha256": "e82f17f8dc74fd274c03a4d9ddb87831dbdb3c88b018b60340e72b9d63a6c23d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-tests.log",
+      "bytes": 3500,
+      "sha256": "59bc58698d7aefeb1d9d76c3ec2a360a4ed6aae4cdefafaab2b553fd36e64f6d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-eslint-final.log",
+      "bytes": 283,
+      "sha256": "0c8fffb0269c1af52a79479d69b4218365c53054da9f3c5aba0d26b2b3f95d59"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "24f92ee1ec9498be8ac26be98a60c41fa23ba2105ed85b9c4e3c5ae129fd522d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-image-verified.json",
+      "bytes": 2410,
+      "sha256": "ef16569c3905cdceb4d3333d7d6ed170ccdc73290fef12432ac8b68ed0ed2b50"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-image-5b61b4428/runtime-verification.json",
+      "bytes": 64616,
+      "sha256": "e77c346da3fcdc03cdccfbe68863823d8af366ba0fed44c5878b288749fc0edd"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-image-5b61b4428/course-free-enrollment-runtime.json",
+      "bytes": 2293,
+      "sha256": "fd032e213d5981c5b51bd9db374774b1a6439ea5e82a10b4a46b7801ddaa1f84"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-image-5b61b4428/image-identity.json",
+      "bytes": 278,
+      "sha256": "2d2a75f1be4a8f7f1e01bcf93f3eaf9d5db735e2e4f3a3a05a3bca4c795cc112"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-5b61b4428/client-config.json",
+      "bytes": 440,
+      "sha256": "5f65fc8fc420e02806820c7e01a781e792a89a278fe63934d66331bcf95d9e8d"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-5b61b4428/client-artifacts-verified.json",
+      "bytes": 1520,
+      "sha256": "199e1e782545aae88dc810a19f63cc98609f42aad19fd6bd3b762fb996370be0"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-5b61b4428/fixed-package-verified.json",
+      "bytes": 513,
+      "sha256": "953c66d681a87a1c562e4cb31ad63ba42e5245e958f75bfaabe26bb5b7cbd855"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-draft-archive.json",
+      "bytes": 757,
+      "sha256": "b050cfcf86f9f1407e586eb4d5c9201fa0d2430d5b454a05aed730df7da5e9ef"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-staging-reception.json",
+      "bytes": 371,
+      "sha256": "66c807acc635e7be04dfacfead523a04ddd4b03f3209a5c794bc8c9d9de94857"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/course-free-notification-mainline-readonly.json",
+      "bytes": 246,
+      "sha256": "809cf27afa9e0e734e139bde8c74d76aa392a2e2a37cfc672e9b9d2695046eec"
+    }
+  ],
+  "evidenceArchive": {
+    "officialDigestMatches": true,
+    "sha256": "65d1b1bdb2643f187257d5e6fc269e965b749b50c9e6ac7675c0ce17710f8091",
+    "releaseId": 401113127,
+    "assetId": 603602802,
+    "reextractAllHashesExact": true,
+    "files": 17,
+    "published": false,
+    "name": "course-free-notification-evidence-5b61b4428.tar.gz",
+    "checkedAt": "2026-10-01T15:57:45.6425247Z",
+    "bytes": 14444,
+    "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "draft": true
+  }
+}

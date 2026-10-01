@@ -1748,15 +1748,15 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
-    "releaseId": "launch-20261001-b2f5ece09",
-    "receipt": "docs/operations/消息中心刷新账号隔离与付款分类验收-20261001.json",
-    "ciRun": 36876135118,
-    "imageRun": 36878393374,
+    "sourceCommit": "5b61b4428635de3c01b9940d30424c072732e05a",
+    "releaseId": "launch-20261001-5b61b4428",
+    "receipt": "docs/operations/免费课程订阅通知与真实HTTP边界验收-20261001.json",
+    "ciRun": 36885519981,
+    "imageRun": 36886472569,
     "releaseDecision": "NO-GO",
-    "note": "消息中心与实际付款分类独立回退；干净工程preview通过，旧路径超限仍保留，未部署",
-    "evidenceAssetId": 603502210,
-    "evidenceSha256": "7863491e34fc29054c83af954f20b08a355b21d8e2eef8086206f2de2fa854ea"
+    "note": "免费课程通知独立回退；客户端等效b2；未部署",
+    "evidenceAssetId": 603602802,
+    "evidenceSha256": "65d1b1bdb2643f187257d5e6fc269e965b749b50c9e6ac7675c0ce17710f8091"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1832,6 +1832,17 @@
       "imageRun": 36859429297,
       "releaseDecision": "NO-GO",
       "note": "收货数据完整性候选；客户端304/304；本版四移动构建/preview及本地资源验真，不是真机或签名APK"
+    },
+    {
+      "sourceCommit": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+      "releaseId": "launch-20261001-b2f5ece09",
+      "receipt": "docs/operations/消息中心刷新账号隔离与付款分类验收-20261001.json",
+      "ciRun": 36876135118,
+      "imageRun": 36878393374,
+      "releaseDecision": "NO-GO",
+      "note": "消息中心与实际付款分类独立回退；干净工程preview通过，旧路径超限仍保留，未部署",
+      "evidenceAssetId": 603502210,
+      "evidenceSha256": "7863491e34fc29054c83af954f20b08a355b21d8e2eef8086206f2de2fa854ea"
     }
   ]
 }
