@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { nativeCryptoDependency } from './native-dependencies.mjs'
+import { probeHealthResources } from './probe-health-resources.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const jdk = process.env.REBU_NATIVE_JDK || 'D:/Tools/xiaozhi-build/jdk-17.0.20.1+1', sdk = process.env.REBU_ANDROID_SDK || 'D:/Tools/xiaozhi-build/android-sdk'
 const tools = path.join(sdk, 'build-tools/35.0.0'), android = path.join(sdk, 'platforms/android-35/android.jar')
@@ -37,13 +38,26 @@ writeFileSync(path.join(assets, 'grant.json'), JSON.stringify({ payload: grant, 
 const baseline = path.join(assets, 'apps/__UNI__REBUPROBE/www'); mkdirSync(baseline, { recursive: true })
 writeFileSync(path.join(baseline, 'manifest.json'), JSON.stringify({ id: '__UNI__REBUPROBE' }))
 writeFileSync(path.join(baseline, 'index.html'), '<html><body><h1>Native resource probe baseline ' + version + '</h1><script>Probe.signal("baseline-ready")</script></body></html>')
+const healthResources = probeHealthResources(root)
 for (const [index, kind] of ['bad', 'good', 'wrong-base', 'cross-channel', 'expired'].entries()) {
  const directory = path.join(output, 'fixture-' + kind); mkdirSync(directory, { recursive: true })
  writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({ id: '__UNI__REBUPROBE' }))
- writeFileSync(path.join(directory, 'index.html'), kind === 'bad' ? '<html><body><h1>Deliberately bad JS</h1><script>throw new Error("probe-bad-js")</script></body></html>' : '<html><body><h1>Verified native resources</h1><script>Probe.signal("good-ready");Probe.healthy()</script></body></html>')
+ writeFileSync(path.join(directory, 'index.html'), kind === 'bad' ? '<html><body><h1>Deliberately bad JS</h1><script>throw new Error("probe-bad-js")</script></body></html>' : '<html><body><h1>Verified native resources</h1><script>Probe.signal("good-ready");if(Probe.realHealth()){var script=document.createElement("script");script.src="health.js";document.head.appendChild(script)}else Probe.healthy()</script></body></html>')
+ writeFileSync(path.join(directory, 'health.js'), healthResources.script)
  const archive = path.join(assets, kind + '.wgt'); run(path.join(jdk, 'bin/jar.exe'), ['cfM', archive, '-C', directory, '.'])
  const bytes = readFileSync(archive), manifest = { schemaVersion: 1, releaseId: 'probe-' + kind, productId: identity.productId, applicationId: identity.applicationId, platform: 'android', channelId: kind === 'cross-channel' ? 'xiaomi' : identity.channelId, packageName: identity.packageName, runtimeAppId: identity.runtimeAppId, resourceVersion: index + 1, minNativeBuild: version, maxNativeBuild: version, nativeFingerprint: kind === 'wrong-base' ? 'b'.repeat(64) : identity.nativeFingerprint, downloadUrl: 'https://resources.example.invalid/' + kind + '.wgt', byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), keyId: 'probe-key', issuedAt: new Date(Date.now() - 60000).toISOString(), expiresAt: new Date(Date.now() + (kind === 'expired' ? -1000 : 86400000)).toISOString(), changeType: 'web-resources' }
  writeFileSync(path.join(assets, kind + '.json'), JSON.stringify({ manifest, signature: sign(null, Buffer.from(canonicalManifest(manifest)), resource.privateKey).toString('base64') }))
+}
+const tlsCertificate = process.argv.find(arg => arg.startsWith('--tls-certificate='))?.slice('--tls-certificate='.length)
+if (tlsCertificate) {
+ const certificateBytes = readFileSync(tlsCertificate)
+ if (!certificateBytes.toString('utf8').startsWith('-----BEGIN CERTIFICATE-----') || certificateBytes.toString('utf8').includes('PRIVATE KEY')) throw Error('TLS探针只接受公开证书')
+ writeFileSync(path.join(assets, 'tls-fixture-public.pem'), certificateBytes)
+
+ for (const [index, route] of ['tls-normal', 'tls-redirect', 'tls-short', 'tls-oversize', 'tls-wrongcert', 'tls-wronghost', 'tls-cancel'].entries()) {
+  const manifest = { ...JSON.parse(readFileSync(path.join(assets, 'good.json'), 'utf8')).manifest, releaseId: route, resourceVersion: 10 + index, downloadUrl: 'https://' + (route === 'tls-wronghost' ? 'localhost' : '127.0.0.1') + ':' + (route === 'tls-wrongcert' ? '58844' : '58843') + '/' + route }
+  writeFileSync(path.join(assets, route + '.json'), JSON.stringify({ manifest, signature: sign(null, Buffer.from(canonicalManifest(manifest)), resource.privateKey).toString('base64') }))
+ }
 }
 const nativeSources = path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource'), probeSources = path.join(root, 'tests/release/android-probe')
 run(path.join(jdk, 'bin/javac.exe'), ['--release', '8', '-encoding', 'UTF-8', '-cp', android, '-d', classes, ...[nativeSources, probeSources].flatMap(dir => readdirSync(dir).filter(name => name.endsWith('.java')).map(name => path.join(dir, name)))])
@@ -53,7 +67,7 @@ writeFileSync(path.join(assets, 'bouncycastle-license.txt'), run(path.join(jdk, 
 let shrinker = ['com.android.tools.r8.D8'];
 if (minified) {
  const rules = path.join(output, 'probe-rules.pro');
- writeFileSync(rules, readFileSync(path.join(root, 'apps/mobile/native/resource-updater/consumer-rules.pro'), 'utf8') + '\n-keep class cn.rebu.resourceprobe.ProbeApplication { public <init>(); }\n-keep class cn.rebu.resourceprobe.ProbeActivity { public <init>(); }\n-keepclassmembers class cn.rebu.resourceprobe.ProbeActivity$Signals { @android.webkit.JavascriptInterface <methods>; }\n-keepclassmembers class cn.rebu.resource.ResourceRuntime { private static java.lang.String session(); }\n-keepattributes RuntimeVisibleAnnotations,InnerClasses,EnclosingMethod\n');
+ writeFileSync(rules, readFileSync(path.join(root, 'apps/mobile/native/resource-updater/consumer-rules.pro'), 'utf8') + '\n-keep class cn.rebu.resourceprobe.ProbeApplication { public <init>(); }\n-keep class cn.rebu.resourceprobe.ProbeActivity { public <init>(); }\n-keepclassmembers class cn.rebu.resourceprobe.ProbeActivity$Signals { @android.webkit.JavascriptInterface <methods>; }\n-keepclassmembers class cn.rebu.resource.ResourceRuntime { private static java.lang.String session(); private static cn.rebu.resource.ResourceStore store; private static java.util.concurrent.ExecutorService worker; }\n-keepattributes RuntimeVisibleAnnotations,InnerClasses,EnclosingMethod\n');
  shrinker = ['com.android.tools.r8.R8', '--release', '--pg-conf', rules, '--pg-map-output', path.join(output, 'mapping.txt')];
 }
 run(path.join(jdk, 'bin/java.exe'), ['-cp', path.join(tools, 'lib/d8.jar'), ...shrinker, '--min-api', '26', '--lib', android, '--output', dex, classesJar, cryptoJar])
@@ -74,5 +88,5 @@ run(path.join(tools, 'zipalign.exe'), ['-f', '-p', '4', unsigned, aligned])
 // 私钥口令与库口令一致；不重复消费同一口令文件的第二行。
 run(path.join(jdk, 'bin/java.exe'), ['-jar', path.join(tools, 'lib/apksigner.jar'), 'sign', '--ks', keystore, '--ks-key-alias', 'probe', '--ks-pass', 'file:' + passwordFile, '--out', apk, aligned])
 run(path.join(jdk, 'bin/java.exe'), ['-jar', path.join(tools, 'lib/apksigner.jar'), 'verify', '--verbose', apk])
-writeFileSync(path.join(output, 'build.json'), JSON.stringify({ sourceSha: run('git', ['rev-parse', 'HEAD']).trim(), sourceDirty: Boolean(run('git', ['status', '--porcelain', '--', 'apps', 'packages', 'scripts', 'tests']).trim()), syntheticOnly: true, dcloud: false, minified, shrinker: minified ? 'R8 release' : 'D8', mappingSha256: minified ? createHash('sha256').update(readFileSync(path.join(output, 'mapping.txt'))).digest('hex') : null, consumerRulesSha256: createHash('sha256').update(readFileSync(path.join(root, 'apps/mobile/native/resource-updater/consumer-rules.pro'))).digest('hex'), apk, packageName: identity.packageName, versionCode: version, minSdk: 26, targetSdk: 35, signingCertificateSha256: certificate, sha256: createHash('sha256').update(readFileSync(apk)).digest('hex'), limits: ['Application/WebView 独立宿主，非 DCloud APK', '冷启动 OfferCheck 是合成许可回调', '资源签名私钥仅本构建进程内存'] }, null, 2) + '\n')
+writeFileSync(path.join(output, 'build.json'), JSON.stringify({ sourceSha: run('git', ['rev-parse', 'HEAD']).trim(), sourceDirty: Boolean(run('git', ['status', '--porcelain', '--', 'apps', 'packages', 'scripts', 'tests']).trim()), syntheticOnly: true, dcloud: false, tlsCertificateSha256: tlsCertificate ? createHash('sha256').update(readFileSync(tlsCertificate)).digest('hex') : null, healthModuleSourceHashes: healthResources.sourceHashes, minified, shrinker: minified ? 'R8 release' : 'D8', mappingSha256: minified ? createHash('sha256').update(readFileSync(path.join(output, 'mapping.txt'))).digest('hex') : null, consumerRulesSha256: createHash('sha256').update(readFileSync(path.join(root, 'apps/mobile/native/resource-updater/consumer-rules.pro'))).digest('hex'), apk, packageName: identity.packageName, versionCode: version, minSdk: 26, targetSdk: 35, signingCertificateSha256: certificate, sha256: createHash('sha256').update(readFileSync(apk)).digest('hex'), limits: ['Application/WebView 独立宿主，非 DCloud APK', '冷启动 OfferCheck 是合成许可回调', '资源签名私钥仅本构建进程内存'] }, null, 2) + '\n')
 console.log('独立测试 APK 构建及签名校验通过；未安装、未发布，非 DCloud 完整包')

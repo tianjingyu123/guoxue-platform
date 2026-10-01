@@ -104,9 +104,20 @@ public final class ResourceStore {
     public synchronized String phase() { return state.getProperty("phase", "HEALTHY"); }
     public File temporary(String id) throws Exception { if (!id.matches("[a-zA-Z0-9._-]{1,100}")) throw new SecurityException("资源标识非法"); return new File(root, "download-" + id + ".tmp"); }
     public File download(Release release) throws Exception {
-        validate(release); File target = temporary(release.text("releaseId"));
-        HttpURLConnection connection = (HttpURLConnection)new URL(release.text("downloadUrl")).openConnection(); connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(15000); connection.setReadTimeout(30000);
-        try { if (connection.getResponseCode() != 200) throw new IOException("资源下载失败或重定向被拒绝"); try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(target)) { byte[] buffer = new byte[32768]; long size = 0; int count; while ((count = input.read(buffer)) != -1) { size += count; if (size > release.number("byteLength")) throw new SecurityException("下载体积超出清单"); output.write(buffer, 0, count); } output.getFD().sync(); } verifyFile(target, release); return target; } catch (Exception error) { target.delete(); throw error; } finally { connection.disconnect(); }
+        ResourceTransfer transfer = new ResourceTransfer(); return download(release, transfer, transfer.ticket());
+    }
+    public File download(Release release, ResourceTransfer transfer, long ticket) throws Exception {
+        transfer.check(ticket); validate(release); transfer.check(ticket); File target = temporary(release.text("releaseId"));
+        HttpURLConnection connection = (HttpURLConnection)new URL(release.text("downloadUrl")).openConnection();
+        try (ResourceTransfer.Task task = transfer.begin(connection, ticket, 120000)) {
+            task.check(); if (connection.getResponseCode() != 200) throw new IOException("资源下载失败或重定向被拒绝");
+            try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(target)) {
+                byte[] buffer = new byte[32768]; long size = 0; int count;
+                while ((count = input.read(buffer)) != -1) { task.check(); size += count; if (size > release.number("byteLength")) throw new SecurityException("下载体积超出清单"); output.write(buffer, 0, count); }
+                task.check(); output.getFD().sync();
+            }
+            task.check(); verifyFile(target, release); task.check(); return target;
+        } catch (Exception error) { target.delete(); throw error; }
     }
     public synchronized void verifyFile(File file, Release release) throws Exception { confined(file); if (file.length() != release.number("byteLength") || !sha(file).equals(release.text("sha256"))) throw new SecurityException("资源包被篡改或截断"); }
     public static String sha(File file) throws Exception { MessageDigest hash = MessageDigest.getInstance("SHA-256"); try (InputStream input = new FileInputStream(file)) { byte[] b = new byte[32768]; int count; while ((count = input.read(b)) != -1) hash.update(b, 0, count); } StringBuilder out = new StringBuilder(); for (byte b : hash.digest()) out.append(String.format("%02x", b & 255)); return out.toString(); }

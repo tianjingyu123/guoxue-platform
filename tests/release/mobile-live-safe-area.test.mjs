@@ -310,7 +310,8 @@ test('观众连麦与主播视频使用同一 TRTC 直播场景', () => {
   const client = source('apps/mobile/src/pkg-live/live-trtc-client.ts')
 
   assert.doesNotMatch(client, /APP_SCENE_VOICE_CHAT_ROOM/)
-  assert.equal((client.match(/appScene:\s*APP_SCENE_LIVE/g) || []).length, 2)
+  // 音频/视频共用入房函数；两种实际调用的场景由 resource-health-lifecycle.test.cjs 验证。
+  assert.match(client, /appScene:\s*APP_SCENE_LIVE/)
 })
 
 test('观众连麦申请显式使用 1-6 号麦位并在占位冲突时顺延', () => {

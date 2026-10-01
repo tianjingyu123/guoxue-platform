@@ -1,0 +1,113 @@
+/** 实际JWT/权限/Prisma/PostgreSQL/审计联调；令牌、账号和完整包摘要均为隔离合成数据。 */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const { createRequire } = require('node:module');
+const root = path.resolve(__dirname, '../..');
+const expectedUrl = 'postgresql://channel_test@127.0.0.1:55449/channel_synthetic?schema=channel_auth_phase11';
+const url = process.env.REBU_CHANNEL_JWT_DATABASE_URL;
+if (url && url !== expectedUrl) throw Error('仅允许本机独立鉴权schema');
+test('实际JWT→渠道能力登记→PostgreSQL事务与审计，拒绝无效身份和范围冲突', { skip: !url, timeout: 120000 }, async () => {
+ const reportName = process.env.REBU_CHANNEL_JWT_REPORT;
+ if (!['phase11-auth-jwt-debug.json', 'phase11-auth-jwt-validation.json', 'phase11-auth-jwt-verified.json', 'phase11-auth-jwt-final.json'].includes(reportName)) throw Error('证据名称不在本轮白名单');
+ const output = path.join(root, 'artifacts', reportName); if (fs.existsSync(output)) throw Error('证据已存在，不覆盖');
+ const serverRequire = createRequire(path.join(root, 'apps/server/package.json'));
+ serverRequire('reflect-metadata');
+ serverRequire('ts-node').register({ project: path.join(root, 'apps/server/tsconfig.json'), transpileOnly: true });
+ const { Test } = serverRequire('@nestjs/testing'), { Reflector } = serverRequire('@nestjs/core');
+ const { ValidationPipe } = serverRequire('@nestjs/common'), { PassportModule } = serverRequire('@nestjs/passport');
+ const { PrismaClient } = serverRequire('@prisma/client'), jwt = serverRequire('jsonwebtoken'), request = serverRequire('supertest');
+ const { JwtStrategy } = require('../../apps/server/src/common/jwt.strategy.ts');
+ const { JwtAuthGuard } = require('../../apps/server/src/common/jwt-auth.guard.ts');
+ const { RolesGuard } = require('../../apps/server/src/common/roles.guard.ts');
+ const { RedLineGuard } = require('../../apps/server/src/common/red-lines.ts');
+ const { AuditInterceptor } = require('../../apps/server/src/common/audit.interceptor.ts');
+ const { AuditService } = require('../../apps/server/src/modules/audit/audit.service.ts');
+ const { PrismaService } = require('../../apps/server/src/prisma/prisma.service.ts');
+ const { RedisService } = require('../../apps/server/src/redis/redis.service.ts');
+ const { ClientPresentationController } = require('../../apps/server/src/modules/feature-flag/client-presentation.controller.ts');
+ const { ClientPresentationService } = require('../../apps/server/src/modules/feature-flag/client-presentation.service.ts');
+ const { FeatureFlagService } = require('../../apps/server/src/modules/feature-flag/feature-flag.service.ts');
+  const { APP_CHANNELS } = require('../../packages/shared/dist');
+ const { distributionKey } = require('../../apps/server/src/modules/system/distribution.util.ts');
+ const saved = Object.fromEntries(['NODE_ENV', 'CLIENT_CAPABILITY_ENVIRONMENT', 'JWT_SECRET', 'JWT_PREVIOUS_SECRETS'].map(key => [key, process.env[key]]));
+ process.env.NODE_ENV = 'test'; process.env.CLIENT_CAPABILITY_ENVIRONMENT = 'test';
+ const secret = crypto.randomBytes(64).toString('base64url'); process.env.JWT_SECRET = secret; process.env.JWT_PREVIOUS_SECRETS = '';
+ const prisma = new PrismaClient({ datasources: { db: { url } } }), revoked = new Map();
+ const applicationId = 'qa-auth-' + crypto.randomUUID().slice(0, 8), passed = [], acceptedIds = [], rejectedStatuses = [];
+ const report = { verifiedAt: new Date().toISOString(), sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--', 'apps', 'packages', 'scripts', 'tests'], { cwd: root, encoding: 'utf8' }).trim()), syntheticOnly: true, realJwtStrategy: true, jwtGuardReplaced: false, realPrismaPostgres: true, realAuditService: true, jwtSigningSecret: '仅本测试进程随机内存密钥；不记录令牌或密钥', redisRevocationAdapter: '隔离Map；未验证真实Redis', passed, applicationId, formalRecordRegistered: false, cEnabled: false };
+ let app;
+ try {
+  const [identity] = await prisma.$queryRawUnsafe('SELECT current_database() AS db, current_user AS actor, inet_server_port() AS port, current_schema() AS schema');
+  assert.deepEqual(identity, { db: 'channel_synthetic', actor: 'channel_test', port: 55449, schema: 'channel_auth_phase11' }); report.database = identity;
+  const clients = APP_CHANNELS.filter(channel => channel.id !== 'legacy').flatMap(channel => channel.platforms.map(platform => ({ channelId: channel.id, platform })));
+  assert.equal(clients.length, 18);
+  await prisma.appDistribution.createMany({ data: clients.map(client => ({ ...client, productId: applicationId, applicationId, clientKey: applicationId + '-' + client.channelId + '-' + client.platform, packageName: 'cn.rebu.synthetic.authqa', enabled: true, wgtPolicy: 'DENIED' })) });
+  const createUser = roleType => prisma.user.create({ data: { nickname: '独立合成鉴权账号', ...(roleType ? { roles: { create: { roleType } } } : {}) } });
+  const admin = await createUser('SUPER_ADMIN'), operation = await createUser('OPERATION_ADMIN'), ordinary = await createUser(null);
+  const token = (user, claims = {}, options = {}) => jwt.sign({ sub: user.id, sessionIssuedAt: Date.now(), ...claims }, secret, { expiresIn: '5m', ...options });
+  const adminToken = token(admin), operationToken = token(operation), userToken = token(ordinary, { roles: ['SUPER_ADMIN'] });
+  const module = await Test.createTestingModule({ imports: [PassportModule], controllers: [ClientPresentationController], providers: [Reflector, JwtStrategy, JwtAuthGuard, RolesGuard, ClientPresentationService, { provide: PrismaService, useValue: prisma }, { provide: RedisService, useValue: { get: async key => revoked.get(key) ?? null } }, { provide: FeatureFlagService, useValue: { requestScope: async () => null } }] }).compile();
+  app = module.createNestApplication({ logger: false });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalGuards(new RedLineGuard(module.get(Reflector)));
+  app.useGlobalInterceptors(new AuditInterceptor(new AuditService(prisma, null, null, null, null)));
+  await app.init();
+  await app.listen(0, '127.0.0.1');
+  const endpoint = '/admin/client-presentation/capabilities';
+  const get = bearer => { const call = request(app.getHttpServer()).get(endpoint); return bearer ? call.set('Authorization', 'Bearer ' + bearer) : call; };
+  const capability = (client = clients[0], changes = {}) => ({ applicationId, ...client, nativeBuild: '254', minResourceVersion: '0', maxResourceVersion: '2', profileId: 'presentation-v1', sourceSha: 'a'.repeat(40), installedPackageSha256: 'b'.repeat(64), verificationLevel: 'synthetic', ...changes });
+  const post = (bearer, payload, extraHeaders = {}, body = {}) => { let call = request(app.getHttpServer()).post(endpoint).set('Authorization', 'Bearer ' + bearer); for (const [key, value] of Object.entries(extraHeaders)) call = call.set(key, value); return call.send({ payload, reason: '独立合成鉴权验证', ...body }); };
+  const expectStatus = async (call, status) => { const response = await call; assert.equal(response.status, status, response.body.message); if (status >= 400) rejectedStatuses.push(status); return response; };
+  for (const bearer of [null, 'invalid', jwt.sign({ sub: admin.id }, crypto.randomBytes(64).toString('base64url')), token(admin, {}, { expiresIn: -1 })]) await expectStatus(get(bearer), 401);
+  await expectStatus(get(userToken), 403); await expectStatus(get(operationToken), 200); await expectStatus(get(adminToken), 200);
+  await expectStatus(post(operationToken, capability()), 403); await expectStatus(post(adminToken, capability(), { 'X-Executor-Type': 'AUTOMATION' }), 403);
+  assert.equal(await prisma.configVersion.count({ where: { changedBy: { in: [admin.id, operation.id, ordinary.id] } } }), 0);
+  passed.push('实际JWT拒绝缺失/非法/错误签名/过期；数据库角色裁决，令牌自报超管不提权，运营及自动化写入拒绝');
+  for (const client of clients) { const response = await expectStatus(post(adminToken, capability(client)), 201); acceptedIds.push(response.body.id); }
+  assert.equal(await prisma.configVersion.count({ where: { changedBy: admin.id } }), 18);
+  assert.equal(await prisma.appDistribution.count({ where: { applicationId, wgtPolicy: 'DENIED' } }), 18);
+  passed.push('16商店含Huawei双平台及official共18范围，经实际JWT、控制器、服务和数据库登记合成能力，C仍拒绝');
+  const google = { channelId: 'google-play', platform: 'android' };
+  for (const changes of [{ injectedField: true }, { profileId: 'unknown' }, { sourceSha: 'invalid' }, { minResourceVersion: '3' }, { channelId: 'unknown' }, { nativeBuild: 999 }, { nativeBuild: '999', minResourceVersion: 0 }]) await expectStatus(post(adminToken, capability(google, changes)), 400);
+  await expectStatus(post(adminToken, capability(google), {}, { reason: '' }), 400);
+  const disabled = await prisma.appDistribution.findFirst({ where: { applicationId, channelId: 'oneplus' } });
+  await prisma.appDistribution.update({ where: { id: disabled.id }, data: { enabled: false } });
+  await expectStatus(post(adminToken, capability({ channelId: 'oneplus', platform: 'android' }, { nativeBuild: '999' })), 400);
+  await prisma.appDistribution.update({ where: { id: disabled.id }, data: { enabled: true } });
+  process.env.CLIENT_CAPABILITY_ENVIRONMENT = 'production';
+  await expectStatus(post(adminToken, capability(google, { nativeBuild: '999' })), 400); process.env.CLIENT_CAPABILITY_ENVIRONMENT = 'test';
+  passed.push('实际接口拒绝未知字段/非法能力摘要范围/数值类型/停用渠道/缺少理由，非测试环境拒绝合成记录');
+  const overlap = capability(google, { nativeBuild: '255', minResourceVersion: '3', maxResourceVersion: '5' });
+  const raced = await Promise.all([post(adminToken, overlap), post(adminToken, overlap)]); assert.deepEqual(raced.map(response => response.status).sort(), [201, 400]); acceptedIds.push(raced.find(response => response.status === 201).body.id);
+  await expectStatus(post(adminToken, { ...overlap, nativeBuild: '000255' }), 400);
+  await expectStatus(post(adminToken, { ...overlap, minResourceVersion: '5', maxResourceVersion: '6' }), 400);
+  const adjacent = await expectStatus(post(adminToken, { ...overlap, minResourceVersion: '6', maxResourceVersion: '7' }), 201); acceptedIds.push(adjacent.body.id);
+  assert.equal(await prisma.configVersion.count({ where: { configKey: { contains: ':255:' }, changedBy: admin.id } }), 2);
+  const normalized = await expectStatus(post(adminToken, { ...overlap, nativeBuild: '000256', minResourceVersion: '0008', maxResourceVersion: '0009' }), 201); acceptedIds.push(normalized.body.id);
+  assert.deepEqual([normalized.body.value.nativeBuild, normalized.body.value.minResourceVersion, normalized.body.value.maxResourceVersion], ['256', '8', '9']);
+  const historical = capability(google, { nativeBuild: '000257', minResourceVersion: '00', maxResourceVersion: '02' });
+  const historicalRow = await prisma.configVersion.create({ data: { configKey: 'client_capability:' + distributionKey(historical) + ':000257:00-02', version: 1, changedBy: admin.id, value: historical, comment: '独立合成旧格式夹具，非正式登记' } });
+  await expectStatus(post(adminToken, capability(google, { nativeBuild: '257', minResourceVersion: '1', maxResourceVersion: '2' })), 400);
+  assert.deepEqual((await prisma.configVersion.findUnique({ where: { id: historicalRow.id } })).value, historical);
+  passed.push('真实PG事务串行化重复提交；前导零构建仍归同一范围，交叠端点拒绝，相邻范围可登记');
+  await prisma.userRole.deleteMany({ where: { userId: operation.id } }); await expectStatus(get(operationToken), 403);
+  await prisma.userRole.create({ data: { userId: operation.id, roleType: 'OPERATION_ADMIN' } });
+  for (const status of ['BANNED', 'DISABLED']) { await prisma.user.update({ where: { id: operation.id }, data: { status } }); await expectStatus(get(operationToken), 401); }
+  await prisma.user.update({ where: { id: operation.id }, data: { status: 'ACTIVE' } });
+  revoked.set('revoked:user:' + operation.id, String(Date.now())); await expectStatus(get(operationToken), 401); await expectStatus(get(token(operation)), 200);
+  passed.push('同一已签令牌随数据库角色撤销及封禁/停用失效；撤销旧会话，新会话可通过（撤销存储为Map适配）');
+  for (let attempt = 0; attempt < 30; attempt++) { if (await prisma.auditLog.count({ where: { userId: admin.id, targetId: { in: acceptedIds } } }) === acceptedIds.length) break; await new Promise(resolve => setTimeout(resolve, 20)); }
+  const auditRows = await prisma.auditLog.findMany({ where: { userId: admin.id, targetId: { in: acceptedIds } } });
+  assert.equal(auditRows.length, acceptedIds.length); assert.ok(auditRows.every(row => row.action === '登记完整包客户端能力清单' && row.targetType === 'CLIENT_CAPABILITY' && row.executor === admin.id && row.detail === 'POST ' + endpoint));
+  assert.ok(auditRows.every(row => !JSON.stringify(row).includes('Bearer ') && !JSON.stringify(row).includes(secret)));
+  passed.push('真实AuditService持久化操作者/动作/目标ID/请求路径；拒绝写入不产生成功登记，审计不保存JWT或密钥');
+  Object.assign(report, { passedAll: true, acceptedRecords: acceptedIds.length, auditRecords: auditRows.length, rejectedStatuses, channelPlatforms: clients, commonStores: 16 });
+ } catch (error) { report.passedAll = false; report.failure = error.message; throw error; }
+ finally {
+  if (app) await app.close(); await prisma.$disconnect(); report.httpAndDatabaseClientStopped = true;
+  for (const [key, value] of Object.entries(saved)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
+ }
+});

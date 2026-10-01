@@ -26,6 +26,7 @@ import java.nio.file.*;
 public final class ResourceRuntime {
     public interface Callback { void onResult(String json); }
     private static final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private static final ResourceTransfer transfer = new ResourceTransfer();
     private static ResourceStore store;
     private static JSONObject config;
     private static Application app;
@@ -109,15 +110,21 @@ public final class ResourceRuntime {
     }
     private static boolean activeMicrophone() { return app != null && !((AudioManager)app.getSystemService(Context.AUDIO_SERVICE)).getActiveRecordingConfigurations().isEmpty(); }
     public static void dispatch(String action, String json, Callback callback) {
+        // 取消信号先越过工作队列；旧请求即使随后返回，也不能继续暂存或排队。
+        boolean cancel = Arrays.asList("cancel", "session", "unhealthy").contains(action);
+        if ("busy".equals(action)) try { cancel = new JSONObject(json).getJSONObject("activities").length() > 0; } catch (JSONException ignored) { }
+        if (cancel) transfer.cancel();
+        final long ticket = transfer.ticket();
         worker.execute(() -> {
             JSONObject result = new JSONObject();
-            try { result.put("ok", true); result.put("value", execute(action, new JSONObject(json))); }
+            try { result.put("ok", true); result.put("value", execute(action, new JSONObject(json), ticket)); }
             catch (Exception error) { try { result.put("ok", false); result.put("message", error.getMessage()); } catch (JSONException ignored) { } }
             String output = result.toString(); new Handler(Looper.getMainLooper()).post(() -> callback.onResult(output));
         });
     }
-    private static Object execute(String action, JSONObject args) throws Exception {
+    private static Object execute(String action, JSONObject args, long ticket) throws Exception {
         if (!bootCompleted || store == null) throw new IllegalStateException("原生启动钩子、完整包身份或恢复未通过");
+        if (!Arrays.asList("identity", "recoveryContract", "journal", "critical", "cancel", "session", "busy", "unhealthy", "discard").contains(action)) transfer.check(ticket);
         switch (action) {
             case "identity": { JSONObject value = new JSONObject(config.getJSONObject("identity").toString()); value.put("resourceVersion", store.version()).put("activeReleaseId", store.releaseId()); return value; }
             case "recoveryContract": return new JSONObject().put("beforeJavascript", bootCompleted && store.bound()).put("atomicSwitch", store.bound()).put("verifiedBuild", config.getJSONObject("identity").getString("nativeFingerprint"));
@@ -128,7 +135,7 @@ public final class ResourceRuntime {
             }
             case "replaceTrust": { JSONArray keys = args.getJSONArray("keys"); List<Map<String, Object>> authorizations = new ArrayList<>(); List<String> signatures = new ArrayList<>(); for (int i = 0; i < keys.length(); i++) { JSONObject key = keys.getJSONObject(i); authorizations.add(values(key.getJSONObject("payload"))); signatures.add(key.getString("signature")); } store.replaceTrust(authorizations, signatures); return true; }
             case "verifySignature": { JSONObject manifest = new JSONObject(args.getString("canonical")); pending = new ResourceStore.Release(values(manifest), args.getString("signature")); if (!pending.text("keyId").equals(args.getString("keyId"))) throw new SecurityException("公钥身份不符"); store.validate(pending); return true; }
-            case "download": if (pending == null || !pending.text("downloadUrl").equals(args.getString("url")) || pending.number("byteLength") != args.getLong("bytes") || !pending.text("releaseId").equals(args.getString("releaseId"))) throw new SecurityException("下载参数不属于已验签清单"); return store.download(pending).getPath();
+            case "download": if (pending == null || !pending.text("downloadUrl").equals(args.getString("url")) || pending.number("byteLength") != args.getLong("bytes") || !pending.text("releaseId").equals(args.getString("releaseId"))) throw new SecurityException("下载参数不属于已验签清单"); return store.download(pending, transfer, ticket).getPath();
             case "verifyFile": { ResourceStore.Release release = pending != null ? pending : store.staged(); if (release == null || !release.text("sha256").equals(args.getString("sha256")) || release.number("byteLength") != args.getLong("bytes")) return false; store.verifyFile(new File(args.getString("path")), release); return true; }
             case "stage": { if (pending == null) throw new SecurityException("尚未验签"); File stage = store.stage(new File(args.getString("path")), pending); JSONObject manifest = new JSONObject(read(new FileInputStream(new File(stage, "manifest.json")), 1024 * 1024)); if (!pending.text("runtimeAppId").equals(manifest.optString("id"))) throw new SecurityException("WGT 内部 appid 不匹配"); return new File(root, "release-" + pending.text("sha256") + ".wgt").getPath(); }
             case "discard": { File file = new File(args.getString("path")).getCanonicalFile(); if (!file.getParentFile().equals(root.getCanonicalFile()) || !file.getName().startsWith("download-")) throw new SecurityException("临时文件清理越界"); file.delete(); return true; }
@@ -159,6 +166,18 @@ public final class ResourceRuntime {
         Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
     private static String session() throws Exception { File file = new File(root, "session.enc"); if (!file.exists()) return ""; try (DataInputStream in = new DataInputStream(new FileInputStream(file))) { int length = in.readInt(); if (length != 12 || file.length() > 9000) throw new SecurityException("会话密文非法"); byte[] iv = new byte[length]; in.readFully(iv); byte[] data = new byte[(int)file.length() - 4 - length]; in.readFully(data); Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.DECRYPT_MODE, sessionKey(), new GCMParameterSpec(128, iv)); return new String(cipher.doFinal(data), StandardCharsets.UTF_8); } }
-    private static String get(String address) throws Exception { URL url = new URL(address); if (!url.getProtocol().equals("https")) throw new SecurityException("准入复检必须HTTPS"); HttpURLConnection conn = (HttpURLConnection)url.openConnection(); conn.setInstanceFollowRedirects(false); conn.setConnectTimeout(3000); conn.setReadTimeout(3000); String token = session(); if (!token.isEmpty()) conn.setRequestProperty("Authorization", "Bearer " + token); try { if (conn.getResponseCode() != 200) throw new IOException("准入复检失败"); return read(conn.getInputStream(), 64000); } finally { conn.disconnect(); } }
+    private static String get(String address) throws Exception {
+        URL url = new URL(address); if (!url.getProtocol().equals("https")) throw new SecurityException("准入复检必须HTTPS");
+        HttpURLConnection conn = (HttpURLConnection)url.openConnection(); String token = session(); if (!token.isEmpty()) conn.setRequestProperty("Authorization", "Bearer " + token);
+        try (ResourceTransfer.Task task = transfer.begin(conn, transfer.ticket(), 6000)) {
+            conn.setConnectTimeout(3000); conn.setReadTimeout(3000);
+            task.check(); if (conn.getResponseCode() != 200) throw new IOException("准入复检失败");
+            try (InputStream input = conn.getInputStream(); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192]; int n;
+                while ((n = input.read(buffer)) != -1) { task.check(); if (bytes.size() + n > 64000) throw new IOException("准入复检响应超限"); bytes.write(buffer, 0, n); }
+                task.check(); return bytes.toString("UTF-8");
+            }
+        }
+    }
     private static String read(InputStream input, int limit) throws IOException { try (InputStream in = input; ByteArrayOutputStream bytes = new ByteArrayOutputStream()) { byte[] buffer = new byte[8192]; int n; while ((n = in.read(buffer)) != -1) { if (bytes.size() + n > limit) throw new IOException("原生配置/响应超限"); bytes.write(buffer, 0, n); } return bytes.toString("UTF-8"); } }
 }

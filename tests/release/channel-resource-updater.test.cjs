@@ -119,3 +119,62 @@ for (const activity of ['payment', 'live', 'recording', 'upload']) test('不打�
   assert.equal(await f.updater.activateAtColdLaunch('cold-launch'), false)
   assert.equal(f.activations, 0)
 })
+
+function delayedCall(bridge, method) {
+  const original = bridge[method]; let resume, entered
+  const ready = new Promise(resolve => { entered = resolve })
+  bridge[method] = (...args) => { entered(); return new Promise(resolve => { resume = async () => resolve(await original(...args)) }) }
+  return { ready, resume: () => resume(), restore: () => { bridge[method] = original } }
+}
+for (const method of ['identity', 'verifySignature', 'downloadToTemporary', 'verifyFile', 'stageAtomically']) test('取消后拒绝 ' + method + ' 的迟到结果，旧流程不写暂存日志', async () => {
+  const f = fixture(), delayed = delayedCall(f.bridge, method)
+  const discarded=[];f.bridge.discardTemporary=async file=>{discarded.push(file)}
+  const pending = f.updater.downloadAndStage(f.release)
+  const rejected = assert.rejects(pending, /取消/)
+  await delayed.ready; f.updater.cancel(); await delayed.resume(); await rejected
+  assert.equal(f.journal, null); assert.equal(f.activations, 0)
+  assert.equal(discarded.length, ['downloadToTemporary','verifyFile','stageAtomically'].includes(method)?1:0)
+  delayed.restore(); await f.updater.downloadAndStage(f.release)
+  assert.equal(f.journal.state, 'STAGED')
+})
+for (const method of ['readJournal', 'verifyFile', 'criticalActivities']) test('取消排队时拒绝 ' + method + ' 的迟到结果', async () => {
+  const f = fixture(); await f.updater.downloadAndStage(f.release)
+  let queued = 0; f.bridge.queueForNextColdLaunch = async () => { queued++ }
+  const delayed = delayedCall(f.bridge, method), pending = f.updater.queueForNextColdLaunch()
+  const rejected = assert.rejects(pending, /取消/)
+  await delayed.ready; f.updater.cancel(); await delayed.resume(); await rejected
+  assert.equal(queued, 0); assert.equal(f.journal.state, 'STAGED')
+})
+
+for (const event of ['auth', 'background', 'unhealthy', 'payment']) for (const point of ['trust', 'download']) test('实际生命周期在 '+point+' 等待期间发生 '+event+' 后终止旧更新', async () => {
+  const f = fixture(); let auth, busy, resumeTrust, trustEntered, queued = 0, cancels = 0
+  const trustReady = new Promise(resolve => { trustEntered = resolve })
+  Object.assign(f.bridge, { bindRuntime: async()=>true, replaceTrust: async()=>true, call: async action=>{if(action==='cancel')cancels++;return true}, queueForNextColdLaunch: async()=>{queued++} })
+  const delay = point === 'download' ? delayedCall(f.bridge,'downloadToTemporary') : null
+  const lifecycle = {}, lifecycleSource = readFileSync('apps/mobile/src/lib/resource-update-lifecycle.ts','utf8')
+  vm.runInNewContext(ts.transpileModule(lifecycleSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,
+    {exports:lifecycle,uni:{getSystemInfoSync:()=>({platform:'android'})},setTimeout,clearTimeout,require:name=>({
+      '@/utils/request':{apiGetOptionalAuth: async url=>url.includes('/trust/') ? (point==='trust' ? (trustEntered(),await new Promise(resolve=>{resumeTrust=()=>resolve({keys:[]})})) : {keys:[]}) : {update:f.release}},
+      '@/utils/storage':{getToken:()=>'',subscribeAuthContext:fn=>{auth=fn}}, './app-distribution':{APP_CLIENT_KEY:'synthetic'},
+      './resource-native-bridge':{AndroidResourceBridge:class {constructor(){return f.bridge}}}, './resource-updater':{ResourceUpdater},
+      './critical-activities':{installCriticalActivityTracking:()=>{},subscribeCriticalActivities:fn=>{busy=fn}},
+    })[name]})
+  lifecycle.initializeResourceUpdates(); await (point==='trust'?trustReady:delay.ready)
+  if(event==='auth')auth();else if(event==='background')lifecycle.pauseResourceHealth();else if(event==='unhealthy')lifecycle.markResourceUnhealthy();else busy(['payment'])
+  if(point==='trust')resumeTrust();else await delay.resume()
+  for(let i=0;i<30;i++)await Promise.resolve()
+  assert.ok(cancels>0);assert.equal(queued,0);assert.equal(f.journal,null)
+})
+
+test('更新完成后的普通切后台保留冷启动排队', async()=>{
+  const f=fixture();let queued=0,cancels=0
+  Object.assign(f.bridge,{bindRuntime:async()=>true,replaceTrust:async()=>true,call:async action=>{if(action==='cancel')cancels++;return true},queueForNextColdLaunch:async()=>{queued++}})
+  const code={}
+  vm.runInNewContext(ts.transpileModule(readFileSync('apps/mobile/src/lib/resource-update-lifecycle.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,
+    {exports:code,uni:{getSystemInfoSync:()=>({platform:'android'})},setTimeout,clearTimeout,require:name=>({
+      '@/utils/request':{apiGetOptionalAuth:async url=>url.includes('/trust/')?{keys:[]}:{update:f.release}},'@/utils/storage':{getToken:()=>'',subscribeAuthContext:()=>{}},'./app-distribution':{APP_CLIENT_KEY:'synthetic'},
+      './resource-native-bridge':{AndroidResourceBridge:class{constructor(){return f.bridge}}},'./resource-updater':{ResourceUpdater},'./critical-activities':{installCriticalActivityTracking:()=>{},subscribeCriticalActivities:()=>{}},
+    })[name]})
+  code.initializeResourceUpdates();for(let i=0;i<120;i++)await Promise.resolve()
+  assert.equal(queued,1);assert.equal(f.journal.state,'STAGED');code.pauseResourceHealth();assert.equal(cancels,0)
+})

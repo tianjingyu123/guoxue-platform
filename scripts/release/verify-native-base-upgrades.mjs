@@ -10,6 +10,8 @@ const adb = (...args) => execFileSync(path.join(sdk, 'platform-tools/adb.exe'), 
 const logsSince = cutoff => adb('logcat', '-d', '-v', 'epoch', '-s', 'REBU_RESOURCE_PROBE:I', '*:S').split('\n').filter(line => Number(line.trim().split(/\s+/)[0]) >= cutoff - 0.01)
 const formal = () => adb('shell', 'dumpsys', 'package', 'com.rebu.apprebu').split('\n').filter(line => /versionCode=|versionName=|lastUpdateTime=/.test(line)).map(line => line.trim())
 const minified = process.argv.includes('--minify')
+const evidenceName = process.argv.find(arg => arg.startsWith('--evidence-name='))?.split('=')[1] || (minified ? 'android-r8-base-upgrade' : 'android-base-upgrade')
+if (!['android-r8-base-upgrade', 'android-base-upgrade', 'android-phase6-base-upgrade'].includes(evidenceName)) throw new Error('升级证据名称非法')
 const before = formal(), evidence = []
 async function launch(scenario, expected, extras = []) {
  adb('shell', 'am', 'force-stop', pkg)
@@ -25,6 +27,9 @@ async function launch(scenario, expected, extras = []) {
  throw new Error('独立升级探针超时：' + scenario)
 }
 try {
+ // 每次升级须先有已激活且保留 previous 的健康资源；不能依赖上一套验收的结束状态。
+ await launch('prepare-good', /PREPARED good/)
+ await launch('show', /FIXTURE_HEALTH core-acknowledged/)
  for (const [index, checkpoint] of ['BASE_JOURNAL_SYNCED', 'BASE_OLD_MOVED', 'BASE_NEW_MOVED', 'BASE_PREVIOUS_MOVED', 'BASE_COMMITTED'].entries()) {
   const version = base + index + 1
   await launch('base-upgrade', /BASE_UPGRADE_PREPARED/, ['--es', 'killAt', checkpoint])
@@ -42,5 +47,5 @@ try {
   await launch('prepare-good', /PREPARED good/); await launch('show', /FIXTURE_HEALTH core-acknowledged/)
  }
  if (JSON.stringify(formal()) !== JSON.stringify(before)) throw new Error('正式包元数据改变')
- writeFileSync(path.join(root, 'docs/operations/channel-updates-evidence/' + (minified ? 'android-r8-base-upgrade' : 'android-base-upgrade') + '.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), minified, api: adb('shell', 'getprop', 'ro.build.version.sdk').trim(), packageName: pkg, evidence, formalPackageUnchanged: true, limits: ['独立测试签名 APK，同包升级保留数据', '不是 DCloud SDK 资源释放和完整包验收', '五个检查点真实杀进程；小型夹具不证明正式包启动耗时'] }, null, 2) + '\n')
+ writeFileSync(path.join(root, 'docs/operations/channel-updates-evidence/' + evidenceName + '.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), minified, api: adb('shell', 'getprop', 'ro.build.version.sdk').trim(), packageName: pkg, evidence, formalPackageUnchanged: true, limits: ['独立测试签名 APK，同包升级保留数据', '不是 DCloud SDK 资源释放和完整包验收', '五个检查点真实杀进程；小型夹具不证明正式包启动耗时'] }, null, 2) + '\n')
 } finally { adb('shell', 'am', 'force-stop', pkg) }

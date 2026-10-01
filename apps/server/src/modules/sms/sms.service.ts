@@ -390,7 +390,8 @@ export class SmsService {
       );
     }
 
-    const storedCode = await this.redis.get(codeKey);
+    // 原子消费，避免多个实例在删除前同时读到同一验证码。
+    const storedCode = await this.redis.getDel(codeKey);
 
     if (!storedCode) {
       throw new BusinessException(ErrorCode.AUTH_SMS_CODE_EXPIRED, "验证码已过期，请重新获取");
@@ -398,13 +399,12 @@ export class SmsService {
 
     if (storedCode !== code) {
       // 验证失败：递增失败计数并消耗本次验证码
-      await this.redis.set(failKey, String(failCount + 1), 1800); // 30分钟锁定
-      await this.redis.del(codeKey); // 消耗验证码，防止继续爆破
+      await this.redis.incrBy(failKey, 1, 1800); // 原子累计，滚动30分钟窗口
       throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
     }
 
-    // 验证成功：清除验证码和失败计数
-    await Promise.all([this.redis.del(codeKey), this.redis.del(failKey)]);
+    // 验证码已原子消费，成功后只清除失败计数，避免误删并发重发的新码。
+    await this.redis.del(failKey);
 
     return true;
   }

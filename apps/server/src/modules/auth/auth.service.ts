@@ -89,7 +89,8 @@ export class AuthService {
       where: { id: userId },
       select: { status: true },
     });
-    if (!user || user.status === "DISABLED")
+    // 与JWT守卫一致：风控封禁后不再通过跨端握手续发会话。
+    if (!user || user.status === "DISABLED" || user.status === "BANNED")
       throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
     return this.generateTokenPair(userId);
   }
@@ -107,7 +108,7 @@ export class AuthService {
       where: { id: userId },
       select: { status: true },
     });
-    if (!user || user.status === "DISABLED") {
+    if (!user || user.status === "DISABLED" || user.status === "BANNED") {
       throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
     }
     return this.generateTokenPair(userId);
@@ -217,6 +218,11 @@ export class AuthService {
       throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
     }
 
+    // 密码正确仍须遵守账号状态；拒绝后不得创建新会话或触发IM导入。
+    if (user.status === "BANNED" || user.status === "DISABLED") {
+      throw new BusinessException(ErrorCode.AUTH_USER_BANNED);
+    }
+
     // 登录成功：清除失败计数
     await this.redis.del(`login:fail:${dto.phone}`);
     this.importToIm(user.id, user.nickname);
@@ -226,8 +232,8 @@ export class AuthService {
   /** 登录失败计数：连续 10 次失败锁定该手机号 15 分钟（账号级，补充 IP 级限流抵御换 IP 撞库） */
   private async bumpLoginFail(phone: string) {
     const failKey = `login:fail:${phone}`;
-    const count = parseInt((await this.redis.get(failKey)) || "0", 10) + 1;
-    await this.redis.set(failKey, String(count), 900);
+    // Redis原子递增避免两个实例并发读后写覆盖，继续按每次失败刷新窗口。
+    const count = await this.redis.incrBy(failKey, 1, 900);
     if (count >= 10) {
       await this.redis.set(`login:lock:${phone}`, "LOCKED", 900);
     }
@@ -273,6 +279,11 @@ export class AuthService {
         await this.bindReferral(registered.id, referrerCode);
       }
       await this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
+    }
+
+    // 可信手机号仍须遵守本站账号状态，拒绝后不补身份或导入IM。
+    if (!user || user.status === "BANNED" || user.status === "DISABLED") {
+      throw new BusinessException(ErrorCode.AUTH_USER_BANNED);
     }
 
     // 存量密码用户首次使用短信登录时补齐手机号身份，保持各端身份解析规则一致。
@@ -1014,7 +1025,7 @@ export class AuthService {
 
   private async buildLoginResult(userId: string) {
     // 用户信息与角色并行查询（无数据依赖）
-    const [user, roles, tokenPair] = await Promise.all([
+    const [user, roles] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -1026,21 +1037,29 @@ export class AuthService {
           memberExpire: true,
           interestCategories: true,
           interestGuideCompleted: true,
+          status: true,
         },
       }),
       this.prisma.userRole.findMany({
         where: { userId },
         select: { roleType: true, bindId: true },
       }),
-      this.generateTokenPair(userId),
     ]);
+
+    // 所有复用该返回函数的登录路径在签发会话前重新核对状态。
+    if (!user) throw new BusinessException(ErrorCode.AUTH_USER_BANNED);
+    const { status, ...profile } = user;
+    if (status === "BANNED" || status === "DISABLED") {
+      throw new BusinessException(ErrorCode.AUTH_USER_BANNED);
+    }
+    const tokenPair = await this.generateTokenPair(userId);
 
     return {
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
       user: {
-        ...user,
-        interestGuideCompleted: user?.interestGuideCompleted === true || (user?.interestCategories?.length ?? 0) > 0,
+        ...profile,
+        interestGuideCompleted: profile.interestGuideCompleted === true || (profile.interestCategories?.length ?? 0) > 0,
         roles,
       },
     };

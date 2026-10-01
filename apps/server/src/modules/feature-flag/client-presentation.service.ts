@@ -366,7 +366,7 @@ export class ClientPresentationService {
   }
   /** 管理员根据核验后的完整包清单登记；不以客户端自报作为真实安装证明。 */
   async registerCapabilities(raw: Record<string, unknown>, actor: string, reason: string) {
-    const record = raw as unknown as Capability;
+    const record = { ...raw } as unknown as Capability;
     if (
       Object.keys(raw).some(
         (key) =>
@@ -394,8 +394,18 @@ export class ClientPresentationService {
       )
     )
       this.fail("应用/渠道/平台非法");
+    if (
+      typeof record.nativeBuild !== "string" ||
+      typeof record.minResourceVersion !== "string" ||
+      typeof record.maxResourceVersion !== "string"
+    )
+      this.fail("能力登记版本必须是整数字符串");
     this.range(record.nativeBuild, record.nativeBuild);
     this.range(record.minResourceVersion, record.maxResourceVersion);
+    // 规范化后再生成锁与登记前缀，防止同一构建因前导零形成不同冲突范围。
+    record.nativeBuild = BigInt(record.nativeBuild).toString();
+    record.minResourceVersion = BigInt(record.minResourceVersion).toString();
+    record.maxResourceVersion = BigInt(record.maxResourceVersion).toString();
     if (
       !Object.hasOwn(CLIENT_CAPABILITY_PROFILES, record.profileId) ||
       !/^[a-f0-9]{40}$/.test(record.sourceSha) ||
@@ -419,18 +429,28 @@ export class ClientPresentationService {
       }))
     )
       this.fail("渠道未登记");
-    const prefix = CAP + distributionKey(record) + ":" + record.nativeBuild + ":";
+    const scopePrefix = CAP + distributionKey(record) + ":";
+    const prefix = scopePrefix + record.nativeBuild + ":";
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", prefix);
       const existing = await tx.configVersion.findMany({
-        where: { configKey: { startsWith: prefix } },
+        where: { configKey: { startsWith: scopePrefix } },
       });
       if (
         existing.some((row) => {
           const other = row.value as unknown as Capability;
+          // 历史记录可能在规范化前登记；兼容旧字符串及当时可写入的整数值，不覆盖旧记录。
+          const storedVersion = (value: unknown) => {
+            if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
+              value = String(value);
+            if (typeof value !== "string" || !/^\d{1,15}$/.test(value))
+              this.fail("既有能力记录版本无效，请核查历史登记");
+            return BigInt(value as string);
+          };
+          if (storedVersion(other.nativeBuild) !== BigInt(record.nativeBuild)) return false;
           return (
-            BigInt(record.minResourceVersion) <= BigInt(other.maxResourceVersion) &&
-            BigInt(other.minResourceVersion) <= BigInt(record.maxResourceVersion)
+            BigInt(record.minResourceVersion) <= storedVersion(other.maxResourceVersion) &&
+            storedVersion(other.minResourceVersion) <= BigInt(record.maxResourceVersion)
           );
         })
       )

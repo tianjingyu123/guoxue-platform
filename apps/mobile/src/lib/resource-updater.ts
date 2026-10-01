@@ -47,17 +47,26 @@ export interface NativeResourceBridge {
 }
 export class ResourceUpdater {
   private running = false
+  private generation = 0
+
+  cancel(): void { this.generation++ }
+
+  private async current<T>(generation: number, operation: Promise<T>): Promise<T> {
+    const result = await operation
+    if (generation !== this.generation) throw new Error("资源流程已取消")
+    return result
+  }
   constructor(
     private readonly bridge: NativeResourceBridge,
     private readonly stillOffered: (releaseId: string) => Promise<boolean>,
   ) {}
 
-  private async validate(release: SignedResourceManifest) {
+  private async validate(release: SignedResourceManifest, generation: number) {
     assertResourceManifest(release.manifest)
-    const [identity, recovery] = await Promise.all([
+    const [identity, recovery] = await this.current(generation, Promise.all([
       this.bridge.identity(),
       this.bridge.recoveryContract(),
-    ])
+    ]))
     if (
       !recovery.beforeJavascript ||
       !recovery.atomicSwitch ||
@@ -82,29 +91,32 @@ export class ResourceUpdater {
       m.resourceVersion <= identity.resourceVersion
     )
       throw new Error('资源包不兼容或版本不递增')
-    if (!(await this.bridge.verifySignature(canonicalManifest(m), release.signature, m.keyId)))
+    if (!(await this.current(generation, this.bridge.verifySignature(canonicalManifest(m), release.signature, m.keyId))))
       throw new Error('资源包签名不可信')
-    if (!(await this.stillOffered(m.releaseId))) throw new Error('资源包已停发或退出灰度')
+    if (!(await this.current(generation, this.stillOffered(m.releaseId)))) throw new Error('资源包已停发或退出灰度')
   }
 
   async downloadAndStage(release: SignedResourceManifest): Promise<void> {
     if (this.running) return
     this.running = true
+    const generation = this.generation
     let path = ''
     try {
-      await this.validate(release)
+      await this.validate(release, generation)
       path = await this.bridge.downloadToTemporary(
         release.manifest.downloadUrl,
         release.manifest.byteLength,
         release.manifest.releaseId,
       )
+      // 先记住临时路径，迟到结果被拒绝时也能在 finally 清理。
+      await this.current(generation, Promise.resolve())
       if (
-        !(await this.bridge.verifyFile(path, release.manifest.sha256, release.manifest.byteLength))
+        !(await this.current(generation, this.bridge.verifyFile(path, release.manifest.sha256, release.manifest.byteLength)))
       )
         throw new Error('资源包被篡改或下载不完整')
-      await this.validate(release)
-      const localPath = await this.bridge.stageAtomically(path, release.manifest)
-      await this.bridge.writeJournal({ state: 'STAGED', release, localPath })
+      await this.validate(release, generation)
+      const localPath = await this.current(generation, this.bridge.stageAtomically(path, release.manifest))
+      await this.current(generation, this.bridge.writeJournal({ state: 'STAGED', release, localPath }))
     } finally {
       if (path) await this.bridge.discardTemporary(path).catch(() => {})
       this.running = false
@@ -115,21 +127,22 @@ export class ResourceUpdater {
   async activateAtColdLaunch(safePoint: 'cold-launch' | 'foreground'): Promise<boolean> {
     if (safePoint !== 'cold-launch' || this.running) return false
     this.running = true
+    const generation = this.generation
     try {
-      const journal = await this.bridge.readJournal()
+      const journal = await this.current(generation, this.bridge.readJournal())
       if (!journal || journal.state !== 'STAGED') return false
-      await this.validate(journal.release)
+      await this.validate(journal.release, generation)
       if (
-        !(await this.bridge.verifyFile(
+        !(await this.current(generation, this.bridge.verifyFile(
           journal.localPath,
           journal.release.manifest.sha256,
           journal.release.manifest.byteLength,
-        ))
+        )))
       )
         throw new Error('暂存文件校验失败')
-      if ((await this.bridge.criticalActivities()).length > 0) return false
+      if ((await this.current(generation, this.bridge.criticalActivities())).length > 0) return false
       // 原生层还必须在切换前再次检查关键活动，并原子持久化 PENDING_HEALTH。
-      await this.bridge.activateAtomically({ ...journal, state: 'PENDING_HEALTH' })
+      await this.current(generation, this.bridge.activateAtomically({ ...journal, state: 'PENDING_HEALTH' }))
       return true
     } finally {
       this.running = false
@@ -145,12 +158,13 @@ export class ResourceUpdater {
   async queueForNextColdLaunch(): Promise<boolean> {
     if (this.running || !this.bridge.queueForNextColdLaunch) return false
     this.running = true
+    const generation = this.generation
     try {
-      const journal = await this.bridge.readJournal()
+      const journal = await this.current(generation, this.bridge.readJournal())
       if (!journal || journal.state !== 'STAGED') return false
-      await this.validate(journal.release)
-      if (!await this.bridge.verifyFile(journal.localPath, journal.release.manifest.sha256, journal.release.manifest.byteLength) || (await this.bridge.criticalActivities()).length) return false
-      await this.bridge.queueForNextColdLaunch(journal)
+      await this.validate(journal.release, generation)
+      if (!await this.current(generation, this.bridge.verifyFile(journal.localPath, journal.release.manifest.sha256, journal.release.manifest.byteLength)) || (await this.current(generation, this.bridge.criticalActivities())).length) return false
+      await this.current(generation, this.bridge.queueForNextColdLaunch(journal))
       return true
     } finally { this.running = false }
   }

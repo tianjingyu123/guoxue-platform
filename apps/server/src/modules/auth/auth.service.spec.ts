@@ -37,6 +37,7 @@ const mockPrisma = {
 const mockJwt = { sign: jest.fn() };
 
 const mockRedis = {
+  incrBy: jest.fn().mockResolvedValue(1),
   set: jest.fn(),
   get: jest.fn(),
   getDel: jest.fn(),
@@ -140,7 +141,9 @@ describe("AuthService", () => {
 
   describe("phoneRegister", () => {
     it("注册成功", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValue({
+        id: "user-1", nickname: "张三", phone: "13800138000", status: "ACTIVE",
+      });
       (bcrypt.hash as jest.Mock).mockResolvedValue("hashed");
       mockPrisma.user.create.mockResolvedValue({
         id: "user-1",
@@ -199,7 +202,9 @@ describe("AuthService", () => {
       ).rejects.toThrow(BusinessException);
     });
     it("带推荐码注册成功", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValue({
+        id: "user-2", nickname: "李四", phone: "13900000000", status: "ACTIVE",
+      });
       (bcrypt.hash as jest.Mock).mockResolvedValue("hashed");
       mockPrisma.user.create.mockResolvedValue({
         id: "user-2",
@@ -286,7 +291,9 @@ describe("AuthService", () => {
     });
     it("新用户自动注册并登录", async () => {
       mockSms.verifyCode.mockResolvedValue(true);
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValue({
+        id: "user-2", nickname: "用户8000", phone: "13800008000", status: "ACTIVE",
+      });
       mockPrisma.user.create.mockResolvedValue({
         id: "user-2",
         nickname: "用户8000",
@@ -831,7 +838,10 @@ describe("AuthService", () => {
   describe("smsLogin with referral", () => {
     it("新用户短信登录自动注册并绑定推荐关系", async () => {
       mockSms.verifyCode.mockResolvedValue(true);
-      mockPrisma.user.findUnique.mockResolvedValue(null); // 用户不存在
+      // 首次手机号查询不存在；创建后按用户ID读取实际可用的账号。
+      mockPrisma.user.findUnique.mockResolvedValueOnce(null).mockResolvedValue({
+        id: "user-3", nickname: "用户8000", phone: "13800008000", status: "ACTIVE",
+      });
       mockPrisma.user.create.mockResolvedValue({
         id: "user-3",
         nickname: "用户8000",

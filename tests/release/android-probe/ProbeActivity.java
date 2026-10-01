@@ -8,6 +8,9 @@ import java.io.*;
 import java.util.*;
 /** 只操作 cn.rebu.resourceprobe 私有目录，不包含支付、账号或真实业务请求。 */
 public final class ProbeActivity extends Activity {
+    private WebView healthView;
+    protected void onPause() { if (healthView != null) healthView.evaluateJavascript("window.ProbeLifecycle&&ProbeLifecycle.hide()", null); super.onPause(); }
+    protected void onResume() { super.onResume(); if (healthView != null) healthView.evaluateJavascript("window.ProbeLifecycle&&ProbeLifecycle.show()", null); }
     public void onCreate(Bundle state) {
         super.onCreate(state);
         runScenario();
@@ -20,6 +23,12 @@ public final class ProbeActivity extends Activity {
         try {
             if (ProbeApplication.error != null) throw new IllegalStateException(ProbeApplication.error);
             ProbeApplication application = (ProbeApplication)getApplication();
+            if (scenario.equals("transfer")) { TransferScenarios.run(); return; }
+            if (scenario.equals("tls")) { TlsScenarios.run(application); return; }
+            if (scenario.equals("health-status")) { ProbeApplication.event("HEALTH_STATUS", "phase=" + ProbeApplication.store.phase() + ",version=" + ProbeApplication.store.version()); return; }
+            if (scenario.equals("health-early")) { ResourceRuntime.dispatch("healthy", new JSONObject().put("releaseId", ProbeApplication.store.releaseId()).toString(), result -> ProbeApplication.event("REAL_HEALTH_EARLY", result)); return; }
+            if (scenario.equals("health-error")) { if (healthView != null) healthView.evaluateJavascript("ProbeLifecycle.fail()", null); return; }
+            if (scenario.equals("health-cancel")) { java.lang.reflect.Field field = ResourceRuntime.class.getDeclaredField("store"); field.setAccessible(true); field.set(null, ProbeApplication.store); ResourceRuntime.dispatch("cancel", "{}", result -> ProbeApplication.event("REAL_CANCEL", result)); return; }
             if (scenario.startsWith("prepare-")) {
                 String kind = scenario.substring(8); if (!Arrays.asList("bad", "good", "wrong-base", "cross-channel", "expired").contains(kind)) throw new SecurityException("未知测试包");
                 JSONObject grant = new JSONObject(ProbeApplication.read(getAssets().open("grant.json")));
@@ -28,7 +37,7 @@ public final class ProbeActivity extends Activity {
                 ResourceStore.Release release = new ResourceStore.Release(values(signed.getJSONObject("manifest")), signed.getString("signature"));
                 File archive = ProbeApplication.store.temporary("fixture-" + kind); application.copyAssets(kind + ".wgt", archive);
                 ProbeApplication.store.stage(archive, release); ProbeApplication.store.requestActivation();
-                getSharedPreferences("probe", 0).edit().putString("killAt", getIntent().getStringExtra("killAt") == null ? "" : getIntent().getStringExtra("killAt")).putBoolean("denyOffer", getIntent().getBooleanExtra("denyOffer", false)).commit();
+                getSharedPreferences("probe", 0).edit().putString("killAt", getIntent().getStringExtra("killAt") == null ? "" : getIntent().getStringExtra("killAt")).putBoolean("denyOffer", getIntent().getBooleanExtra("denyOffer", false)).putBoolean("healthWindow", getIntent().getBooleanExtra("healthWindow", false)).commit();
                 ProbeApplication.event("PREPARED", kind);
             } else if (scenario.equals("tamper-archive")) {
                 ResourceStore.Release release = ProbeApplication.store.staged();
@@ -44,7 +53,7 @@ public final class ProbeActivity extends Activity {
                 boolean data = "preserved-probe-data".equals(ProbeApplication.read(new FileInputStream(new File(getFilesDir(), "synthetic-user-data.txt"))));
                 ProbeApplication.event("UPGRADE_USER_DATA", "sessionDecrypted=" + decrypted + ",dataPreserved=" + data);
             }
-            else if (scenario.equals("new-suite")) { int suite = getSharedPreferences("probe", 0).getInt("suite", 0) + 1; getSharedPreferences("probe", 0).edit().putInt("suite", suite).putBoolean("denyOffer", false).putString("killAt", "").commit(); ProbeApplication.event("NEW_SUITE", Integer.toString(suite)); }
+            else if (scenario.equals("new-suite")) { int suite = getSharedPreferences("probe", 0).getInt("suite", 0) + 1; getSharedPreferences("probe", 0).edit().putInt("suite", suite).putBoolean("denyOffer", false).putBoolean("healthWindow", false).putString("killAt", "").commit(); ProbeApplication.event("NEW_SUITE", Integer.toString(suite)); }
             else if (scenario.equals("portable")) { getSharedPreferences("probe", 0).edit().putBoolean("portable", true).commit(); ProbeApplication.event("PORTABLE_NEXT_BOOT", "bc"); }
             else if (scenario.equals("keystore")) {
                 Class<?> bridgeClass = Class.forName("cn.rebu.resource.ResourceRuntime");
@@ -69,13 +78,29 @@ public final class ProbeActivity extends Activity {
                     });
                 });
             }
-            WebView view = new WebView(this); view.getSettings().setJavaScriptEnabled(true); view.getSettings().setAllowFileAccess(true); view.addJavascriptInterface(new Signals(), "Probe");
+            if (getSharedPreferences("probe", 0).getBoolean("healthWindow", false)) {
+                // 只在独立宿主把生产健康入口绑定到合成准入的真实资源目录事务。
+                java.lang.reflect.Field field = ResourceRuntime.class.getDeclaredField("store"); field.setAccessible(true); field.set(null, ProbeApplication.store);
+                ResourceRuntime.dispatch("busy", "{\"activities\":{}}", result -> ProbeApplication.event("HEALTH_BIND", result));
+            }
+            WebView view = new WebView(this); healthView = getSharedPreferences("probe", 0).getBoolean("healthWindow", false) ? view : null; view.getSettings().setJavaScriptEnabled(true); view.getSettings().setAllowFileAccess(true); view.addJavascriptInterface(new Signals(), "Probe");
             view.setWebViewClient(new WebViewClient() { public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest request) { return true; } });
             view.setWebChromeClient(new WebChromeClient() { public boolean onConsoleMessage(ConsoleMessage message) { if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) { ProbeApplication.event("JS_ERROR", "bad-js"); try { ProbeApplication.store.unhealthy(); } catch (Exception ignored) {} } return true; } });
             setContentView(view); view.loadUrl("file://" + new File(ProbeApplication.runtime, "index.html").getPath());
         } catch (Exception failure) { ProbeApplication.event("SCENARIO_REFUSED", scenario + " " + failure.getClass().getSimpleName()); android.widget.TextView label = new android.widget.TextView(this); label.setText("测试拒绝：" + scenario); setContentView(label); }
     }
     public final class Signals {
+        @JavascriptInterface public boolean realHealth() { return getSharedPreferences("probe", 0).getBoolean("healthWindow", false); }
+        @JavascriptInterface public String runtimePath() { return ProbeApplication.runtime.getPath(); }
+        @JavascriptInterface public String grant() { try { return ProbeApplication.read(getAssets().open("grant.json")); } catch (Exception error) { throw new IllegalStateException("缺少合成授权"); } }
+        @JavascriptInterface public void event(String type, double jsTime) { if (Arrays.asList("observe", "pause", "failed").contains(type)) ProbeApplication.event("REAL_HEALTH_JS", type + " jsMs=" + jsTime); }
+        @JavascriptInterface public void call(int id, String action, String json) {
+            if (!Arrays.asList("bindRuntime", "session", "busy", "replaceTrust", "identity", "healthy", "unhealthy", "cancel").contains(action) || healthView == null) throw new SecurityException("健康宿主操作越界");
+            ResourceRuntime.dispatch(action, json, result -> {
+                ProbeApplication.event("REAL_HEALTH_NATIVE", "action=" + action + ",ok=" + result.contains("\"ok\":true") + ",phase=" + ProbeApplication.store.phase() + ",version=" + ProbeApplication.store.version());
+                if (healthView != null) healthView.evaluateJavascript("probeNativeReply(" + id + "," + JSONObject.quote(result) + ")", null);
+            });
+        }
         @JavascriptInterface public void signal(String value) { if (value.matches("[a-z-]{1,40}")) ProbeApplication.event("JS_READY", value); }
         @JavascriptInterface public void healthy() { try { ProbeApplication.store.healthy(ProbeApplication.store.releaseId()); ProbeApplication.event("FIXTURE_HEALTH", "core-acknowledged"); } catch (Exception failure) { ProbeApplication.event("HEALTH_REFUSED", failure.getClass().getSimpleName()); } }
     }

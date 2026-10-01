@@ -10,7 +10,7 @@ const jdk = process.env.REBU_NATIVE_JDK || 'D:/Tools/xiaozhi-build/jdk-17.0.20.1
 const output = path.join(root, 'artifacts/native-recovery-test')
 mkdirSync(output, { recursive: true })
 const cryptoJar = await nativeCryptoDependency(root)
-execFileSync(path.join(jdk, 'bin/javac.exe'), ['-encoding', 'UTF-8', '-d', output, ...['ResourceCrypto.java', 'ResourceStore.java', 'CompleteBaseMigration.java'].map(name => path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource', name)), path.join(root, 'tests/release/native/NativeRecoveryProbe.java'), path.join(root, 'tests/release/native/NativeBaseMigrationProbe.java')], { stdio: 'inherit' })
+execFileSync(path.join(jdk, 'bin/javac.exe'), ['-encoding', 'UTF-8', '-d', output, ...['ResourceCrypto.java', 'ResourceTransfer.java', 'ResourceStore.java', 'CompleteBaseMigration.java'].map(name => path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource', name)), path.join(root, 'tests/release/native/NativeRecoveryProbe.java'), path.join(root, 'tests/release/native/NativeBaseMigrationProbe.java')], { stdio: 'inherit' })
 execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', output, 'cn.rebu.resource.NativeBaseMigrationProbe'], { stdio: 'inherit' })
 execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', output, 'NativeRecoveryProbe'], { stdio: 'inherit' })
 execFileSync(path.join(jdk, 'bin/java.exe'), ['-Drebu.resource.crypto=bc', '-cp', output + path.delimiter + cryptoJar, 'NativeRecoveryProbe'], { stdio: 'inherit' })

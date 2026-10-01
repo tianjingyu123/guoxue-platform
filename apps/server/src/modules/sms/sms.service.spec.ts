@@ -7,6 +7,8 @@ const mockRedis: any = {
     return Promise.resolve(undefined);
   }),
   set: jest.fn().mockResolvedValue("OK"),
+  getDel: jest.fn(),
+  incrBy: jest.fn().mockResolvedValue(1),
   del: jest.fn().mockResolvedValue(1),
   ttl: jest.fn().mockResolvedValue(0),
 };
@@ -20,6 +22,7 @@ describe("SmsService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockRedis.get.mockResolvedValue(undefined);
+    mockRedis.getDel.mockReset();
     mockPrisma.smsLog.create.mockResolvedValue({});
     mockFetch.mockReset();
     global.fetch = mockFetch;
@@ -57,27 +60,38 @@ describe("SmsService", () => {
 
   describe("校验码验证", () => {
     it("成功匹配应返回true", async () => {
-      // failKey→null, codeKey→"123456"
-      mockRedis.get.mockImplementation((key: string) =>
-        key.startsWith("sms:fail:") ? Promise.resolve(null) : Promise.resolve("123456"),
-      );
+      mockRedis.getDel.mockResolvedValue("123456");
       const result = await svc.verifyCode("13800138000", "123456");
       expect(result).toBe(true);
-      expect(mockRedis.del).toHaveBeenCalled();
+      expect(mockRedis.getDel).toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:fail:LOGIN:13800138000");
+      expect(mockRedis.del).not.toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
     });
 
     it("不匹配应抛出异常（验证码被消耗）", async () => {
-      // failKey→null, codeKey→"654321"
-      mockRedis.get.mockImplementation((key: string) =>
-        key.startsWith("sms:fail:") ? Promise.resolve(null) : Promise.resolve("654321"),
-      );
+      mockRedis.getDel.mockResolvedValue("654321");
       await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow("验证码错误");
+      expect(mockRedis.incrBy).toHaveBeenCalledWith("sms:fail:LOGIN:13800138000", 1, 1800);
+      expect(mockRedis.del).not.toHaveBeenCalled();
     });
 
     it("验证码不存在应抛出异常", async () => {
-      // 两次 get 都返回 null
-      mockRedis.get.mockResolvedValue(null);
+      mockRedis.getDel.mockResolvedValue(null);
       await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow("验证码已过期");
+      expect(mockRedis.incrBy).not.toHaveBeenCalled();
+    });
+
+    it("锁定账号不消费新验证码", async () => {
+      mockRedis.get.mockResolvedValue("5");
+      await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow("30分钟");
+      expect(mockRedis.getDel).not.toHaveBeenCalled();
+    });
+
+    it("归一化场景并只消费该场景的验证码", async () => {
+      mockRedis.getDel.mockResolvedValue("123456");
+      await expect(svc.verifyCode("13800138000", "123456", "reset_password")).resolves.toBe(true);
+      expect(mockRedis.getDel).toHaveBeenCalledWith("sms:code:RESET_PASSWORD:13800138000");
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:fail:RESET_PASSWORD:13800138000");
     });
   });
 

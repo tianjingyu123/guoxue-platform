@@ -14,6 +14,8 @@ let trtcModule: NativeModule | null = null
 let eventModule: NativeModule | null = null
 const listeners = new Map<string, (payload: any) => void>()
 let joined = false
+let roomGeneration = 0
+let pendingJoin: { cancel: () => void } | undefined
 let endLiveActivity: (() => void) | undefined
 let localPreviewActive = false
 let localPreviewViewId = ''
@@ -124,15 +126,17 @@ export function stopLiveRemoteVideo(userId: string) {
  */
 export function startLiveDevicePreview(viewId: string, frontCamera = true) {
   if (!viewId) throw new Error('连麦预览视图未就绪')
-  const { trtc } = ensureModules()
-  trtc.sharedInstance()
-  if (localPreviewActive && localPreviewViewId === viewId) return
-  if (localPreviewActive) {
-    try { trtc.stopLocalPreview?.() } catch {}
-  }
-  trtc.startLocalPreview({ isFrontCamera: frontCamera, userId: viewId })
-  localPreviewActive = true
-  localPreviewViewId = viewId
+  try {
+    const { trtc } = ensureModules()
+    trtc.sharedInstance()
+    if (localPreviewActive && localPreviewViewId === viewId) return
+    if (localPreviewActive) {
+      try { trtc.stopLocalPreview?.() } catch {}
+    }
+    trtc.startLocalPreview({ isFrontCamera: frontCamera, userId: viewId })
+    localPreviewActive = true
+    localPreviewViewId = viewId
+  } catch (error) { leaveLiveAudio(); throw error }
 }
 
 export function stopLiveDevicePreview() {
@@ -140,115 +144,74 @@ export function stopLiveDevicePreview() {
   try { trtcModule.stopLocalPreview?.() } catch {}
   localPreviewActive = false
   localPreviewViewId = ''
-  if (!joined) { endLiveActivity?.(); endLiveActivity = undefined }
+  if (!joined && !pendingJoin) { endLiveActivity?.(); endLiveActivity = undefined }
+}
+
+/** 入房回调只属于本次等待；退出、超时和插件异常均释放保护。 */
+async function enterLiveRoom(config: LiveRtcConfig, viewId?: string): Promise<void> {
+  if (joined) return
+  if (pendingJoin) throw new Error('正在进入直播间，请稍后重试')
+  const generation = ++roomGeneration
+  try {
+    const { trtc } = ensureModules()
+    trtc.sharedInstance()
+    bindConnectionEvents()
+    if (viewId) bindRemoteMediaEvents()
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (pendingJoin === attempt) pendingJoin = undefined
+        if (error) reject(error)
+        else resolve()
+      }
+      const attempt = { cancel: () => finish(new Error('已退出直播间')) }
+      const timer = setTimeout(() => finish(new Error('进入直播间超时，请检查网络后重试')), 12_000)
+      pendingJoin = attempt
+      try {
+        on('onEnterRoom', (data) => {
+          if (settled || generation !== roomGeneration) return
+          const result = Number(data[0] || 0)
+          if (result <= 0) { finish(new Error('进入直播间失败（' + result + '）')); return }
+          try {
+            if (viewId && (!localPreviewActive || localPreviewViewId !== viewId)) {
+              trtc.startLocalPreview({ isFrontCamera: true, userId: viewId })
+              localPreviewActive = true
+              localPreviewViewId = viewId
+            }
+            if (config.canPublishAudio) trtc.startLocalAudio(AUDIO_QUALITY_SPEECH)
+            joined = true
+            finish()
+          } catch { finish(new Error('直播音视频启动失败，请重新进入')) }
+        })
+        on('onError', (data) => finish(new Error('TRTC 直播失败（' + Number(data[0] || -1) + '）')))
+        trtc.enterRoom({
+          sdkAppId: config.sdkAppId, userId: config.userId, userSig: config.userSig,
+          strRoomId: config.strRoomId, privateMapKey: config.privateMapKey,
+          ...(viewId && config.streamId ? { streamId: config.streamId } : {}),
+          role: ROLE_ANCHOR, appScene: APP_SCENE_LIVE,
+        })
+      } catch { finish(new Error('直播原生插件调用失败')) }
+    })
+  } catch (error) {
+    // 旧等待的失败不能清理随后新建的房间。
+    if (generation === roomGeneration) leaveLiveAudio()
+    throw error
+  }
 }
 
 export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
-  if (joined) return
-  const { trtc } = ensureModules()
-  trtc.sharedInstance()
-  bindConnectionEvents()
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        reject(new Error('进入连麦房间超时，请检查网络后重试'))
-      }
-    }, 12_000)
-
-    on('onEnterRoom', (data) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      const result = Number(data[0] || 0)
-      if (result <= 0) {
-        reject(new Error(`进入连麦房间失败（${result}）`))
-        return
-      }
-      joined = true
-      if (config.canPublishAudio) trtc.startLocalAudio(AUDIO_QUALITY_SPEECH)
-      resolve()
-    })
-    on('onError', (data) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      reject(new Error(`TRTC 连麦失败（${Number(data[0] || -1)}）`))
-    })
-
-    trtc.enterRoom({
-      sdkAppId: config.sdkAppId,
-      userId: config.userId,
-      userSig: config.userSig,
-      strRoomId: config.strRoomId,
-      privateMapKey: config.privateMapKey,
-      role: ROLE_ANCHOR,
-      // 连麦观众与视频主播必须使用同一直播场景，否则同一房间可能无法互通。
-      appScene: APP_SCENE_LIVE,
-    })
-  })
+  await enterLiveRoom(config)
 }
 
 /** 主播或获批视频嘉宾进入直播房间并启动本地预览。 */
 export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Promise<void> {
-  if (joined) return
-  if (config.mediaMode !== 'VIDEO' || !config.canPublishVideo) {
-    throw new Error('当前账号没有视频连麦权限')
-  }
+  if (config.mediaMode !== 'VIDEO' || !config.canPublishVideo) throw new Error('当前账号没有视频连麦权限')
   if (config.role === 'HOST' && !config.streamId) throw new Error('服务端未返回直播流标识')
-
-  const { trtc } = ensureModules()
-  trtc.sharedInstance()
-  bindConnectionEvents()
-  bindRemoteMediaEvents()
-
-  await new Promise<void>((resolve, reject) => {
-    let settled = false
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        reject(new Error('进入视频直播间超时，请检查网络后重试'))
-      }
-    }, 12_000)
-
-    on('onEnterRoom', (data) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      const result = Number(data[0] || 0)
-      if (result <= 0) {
-        reject(new Error(`进入视频直播间失败（${result}）`))
-        return
-      }
-      joined = true
-      if (!localPreviewActive || localPreviewViewId !== viewId) {
-        trtc.startLocalPreview({ isFrontCamera: true, userId: viewId })
-        localPreviewActive = true
-        localPreviewViewId = viewId
-      }
-      if (config.canPublishAudio) trtc.startLocalAudio(AUDIO_QUALITY_SPEECH)
-      resolve()
-    })
-    on('onError', (data) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      reject(new Error(`TRTC 视频直播失败（${Number(data[0] || -1)}）`))
-    })
-
-    trtc.enterRoom({
-      sdkAppId: config.sdkAppId,
-      userId: config.userId,
-      userSig: config.userSig,
-      strRoomId: config.strRoomId,
-      privateMapKey: config.privateMapKey,
-      ...(config.streamId ? { streamId: config.streamId } : {}),
-      role: ROLE_ANCHOR,
-      appScene: APP_SCENE_LIVE,
-    })
-  })
+  if (!viewId) throw new Error('视频直播视图未就绪')
+  await enterLiveRoom(config, viewId)
 }
 
 export function switchLiveCamera(frontCamera: boolean) {
@@ -267,8 +230,10 @@ export function setLiveAudioMuted(muted: boolean) {
 }
 
 export function leaveLiveAudio() {
-  endLiveActivity?.()
-  endLiveActivity = undefined
+  roomGeneration++
+  pendingJoin?.cancel()
+  pendingJoin = undefined
+  removeListeners()
   if (trtcModule) {
     for (const userId of [...remoteVideoUsers]) stopLiveRemoteVideo(userId)
     if (localPreviewActive) {
@@ -285,6 +250,8 @@ export function leaveLiveAudio() {
   try { trtcModule?.destroySharedInstance?.() } catch {}
   trtcModule = null
   eventModule = null
+  endLiveActivity?.()
+  endLiveActivity = undefined
 }
 
 export const leaveLiveVideo = leaveLiveAudio
