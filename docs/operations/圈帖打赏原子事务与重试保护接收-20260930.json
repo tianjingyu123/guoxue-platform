@@ -1,5 +1,5 @@
 {
-  "recordedAtUtc": "2026-09-30T23:57:39.1748859Z",
+  "recordedAtUtc": "2026-10-01T00:21:03.8021949Z",
   "businessSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
   "isolatedAcceptance": {
     "sourceFiles": 8,
@@ -159,8 +159,20 @@
     "runId": 36793553471,
     "previous48acImageIsCurrentEvidence": false,
     "verificationCommit": "67102aa6cd686d2b8ff89f2e42960b7e88bac96f",
-    "passed": false,
-    "status": "in_progress"
+    "passed": true,
+    "status": "completed",
+    "conclusion": "success",
+    "imageId": "sha256:8b15f4629d50b79c6ce06c4794a55120e51e293460a792304dd520c1b6815e94",
+    "bindingChecks": 3,
+    "transactionChecks": 10,
+    "notificationScope": "synthetic-notification-sink",
+    "artifactId": 11132383894,
+    "artifactBytes": 30647,
+    "artifactSha256": "2beaa98744065ac427c67272d89870e67422ba9142bc0a5529ef0b76553d8aa5",
+    "cleanup": {
+      "databaseAbsent": true,
+      "networkAbsent": true
+    }
   },
   "equalScopes": [
     "apps/server/prisma",
@@ -176,7 +188,6 @@
     "9d9e4f3c8"
   ],
   "unresolved": [
-    "最终固定包镜像验收",
     "HTTP/JWT入口及通知点击目标页面权限",
     "正式master接收与目标两节点",
     "最终原生签名渠道和真实业务旅程",
@@ -195,5 +206,94 @@
   "realMoneyOperations": 0,
   "realNotifications": 0,
   "historicalCompensation": false,
-  "cloudPackagingCosts": 0
+  "cloudPackagingCosts": 0,
+  "verificationOnlyCommit": {
+    "failedJob": 110152707537,
+    "sourceRuntimeEqualTo": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "failedCiRun": 36793764613,
+    "localHttpTests": 10,
+    "original": "ad85abdeef796705a59cf1fb1b9712dbeb1b665b",
+    "actualReceived": "573472715959484280efd10dbaf5af7044883bbd",
+    "reason": "旧送礼HTTP事务桩缺少upsert；补齐方法不改业务源码与原断言"
+  },
+  "officialFullCi": {
+    "checksPassed": 8,
+    "checksTotal": 8,
+    "suitesPassed": 657,
+    "unitPassed": 8863,
+    "suitesSkipped": 26,
+    "head": "573472715959484280efd10dbaf5af7044883bbd",
+    "conclusion": "success",
+    "readbackSha256": "1138d86e938b9ab7357f13c9d0f07bca1364d382856b9238fdcdbfbaa44d06a2",
+    "skippedTestsCountedAsPassed": false,
+    "runId": 36794515577,
+    "unitSkipped": 133,
+    "productionAcceptance": false,
+    "status": "completed",
+    "countsEvidence": [
+      {
+        "jobId": 110155285693,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "6bebcebd2cdb609cd3c0148dc502b02d47b35a67befbfb25e920aca7f2ccde93",
+        "summaries": [
+          "2026-10-01T00:11:55.3663743Z Test Suites: 10 skipped, 217 passed, 217 of 227 total",
+          "2026-10-01T00:11:55.3664276Z Tests:       39 skipped, 3034 passed, 3073 total",
+          "2026-10-01T00:11:55.3664961Z Time:        105.473 s"
+        ]
+      },
+      {
+        "jobId": 110155285714,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "498035a0584a186cec8f6852ce47896e4fcffbe7accbddb8f924298cdb8e6a89",
+        "summaries": [
+          "2026-10-01T00:17:36.8976363Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T00:17:36.8976738Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T00:17:36.8977232Z Time:        448.842 s"
+        ]
+      },
+      {
+        "jobId": 110155285731,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "3759bf3f207334f126be63ee68c5a64322a27c82e38589a812b6ac89162076c0",
+        "summaries": [
+          "2026-10-01T00:12:02.5958601Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T00:12:02.5959412Z Tests:       50 skipped, 3029 passed, 3079 total",
+          "2026-10-01T00:12:02.5960317Z Time:        115.019 s"
+        ]
+      }
+    ],
+    "scopes": [
+      "ESLint与Prettier",
+      "类型检查",
+      "迁移与上线代码门禁",
+      "三组测试",
+      "测试结果汇总",
+      "构建产物"
+    ],
+    "buildArtifact": {
+      "id": 11133309894,
+      "sha256": "3531293cc6a1f60049ee5959e36638ac09358c5e034c12b22a3816d334f3b961",
+      "bytes": 7401028,
+      "verified": true
+    }
+  },
+  "defaultLineReadbackBeforeDocumentCommit": {
+    "checkedAt": "2026-10-01T00:19:26.4150097Z",
+    "repository": "tianjingyu123/guoxue-platform",
+    "pr": {
+      "base": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+      "number": 1,
+      "merged": false,
+      "head": "573472715959484280efd10dbaf5af7044883bbd",
+      "draft": true
+    },
+    "productionOperations": 0,
+    "defaultHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "candidateHead": "3a1542fa1e6dcaf7a38c62db4233cc6cc1eb03d3",
+    "defaultBranch": "master"
+  }
 }
