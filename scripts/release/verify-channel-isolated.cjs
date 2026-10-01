@@ -5,7 +5,8 @@ const { execFileSync } = require('node:child_process')
 const { createRequire } = require('node:module')
 const path = require('node:path')
 const url = process.env.CHANNEL_TEST_DATABASE_URL
-if (!url || !/^postgresql:\/\/channel_test@127\.0\.0\.1:55449\/channel_synthetic$/.test(url)) {
+const intake = url === 'postgresql://channel_intake_test@127.0.0.1:55453/channel_intake_services'
+if (!intake && url !== 'postgresql://channel_test@127.0.0.1:55449/channel_synthetic') {
   throw new Error('必须指定独立本机 channel_synthetic 合成库')
 }
 process.env.DATABASE_URL = url
@@ -32,9 +33,9 @@ async function run() {
   try {
     await prisma.$connect()
     const identity = await prisma.$queryRawUnsafe('SELECT current_database() AS db, current_user AS actor, inet_server_port() AS port')
-    assert.equal(identity[0].db, 'channel_synthetic')
-    assert.equal(identity[0].actor, 'channel_test')
-    assert.equal(identity[0].port, 55449)
+    assert.equal(identity[0].db, intake ? 'channel_intake_services' : 'channel_synthetic')
+    assert.equal(identity[0].actor, intake ? 'channel_intake_test' : 'channel_test')
+    assert.equal(identity[0].port, intake ? 55453 : 55449)
     if (process.argv.includes('--reset')) {
       await prisma.$executeRawUnsafe('DROP SCHEMA public CASCADE')
       await prisma.$executeRawUnsafe('CREATE SCHEMA public')
@@ -44,7 +45,8 @@ async function run() {
     await prisma.$executeRawUnsafe('CREATE TABLE "FeatureFlag" ("id" TEXT PRIMARY KEY, "key" TEXT UNIQUE NOT NULL, "name" TEXT NOT NULL, "description" TEXT, "enabled" BOOLEAN NOT NULL DEFAULT false, "percentage" INTEGER NOT NULL DEFAULT 100, "targetUserIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[], "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)')
     await prisma.$executeRawUnsafe('CREATE TABLE "ConfigVersion" ("id" TEXT PRIMARY KEY, "configKey" TEXT NOT NULL, "value" JSONB NOT NULL, "version" INTEGER NOT NULL, "changedBy" TEXT, "comment" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)')
     await prisma.$executeRawUnsafe('INSERT INTO "AppVersion" ("id","platform","version","buildNumber","status","activePlatformKey","downloadUrl") VALUES (\'old-active\',\'android\',\'1.0.0\',\'100\',\'ACTIVE\',\'android\',\'https://download.example.test/legacy.apk\')')
-    const sql = readFileSync(path.resolve(__dirname, '../../apps/server/prisma/migrations/20260930090000_app_distribution_and_operations/migration.sql'), 'utf8')
+    // 此脚本已有 Prisma 外层事务；迁移本身的事务边界由完整 schema 的 psql 升级测试验证。
+    const sql = readFileSync(path.resolve(__dirname, '../../apps/server/prisma/migrations/20260930090000_app_distribution_and_operations/migration.sql'), 'utf8').replace(/^\s*BEGIN\s*;\s*/i, '').replace(/\s*COMMIT\s*;\s*$/i, '')
     await prisma.$transaction(async tx => {
       for (const statement of sql.split(';').map(s => s.trim()).filter(Boolean)) await tx.$executeRawUnsafe(statement)
     })
@@ -196,10 +198,11 @@ async function run() {
     assert.equal((await control.trustBundle('rebu')).keys.length, 1)
     await assert.rejects(control.registerKey(authorization, 'synthetic-admin'), /keyId/)
     record('禁用原子停发；真实公钥轮换/撤销，旧资源拒绝及不可复活 keyId')
-    const report = { date: new Date().toISOString(), database: 'localhost:55449/channel_synthetic', syntheticOnly: true, passed: evidence,
+    const report = { date: new Date().toISOString(), database: intake ? 'localhost:55453/channel_intake_services' : 'localhost:55449/channel_synthetic', syntheticOnly: true, passed: evidence,
       limits: ['仅本专项历史表结构与合成记录', '没有正式安装或启动前原生恢复实测', '没有生产资源签名或渠道许可'] }
-    mkdirSync(path.resolve(__dirname, '../../docs/operations/channel-updates-evidence'), { recursive: true })
-    writeFileSync(path.resolve(__dirname, '../../docs/operations/channel-updates-evidence/isolated-db.json'), JSON.stringify(report, null, 2) + '\n')
+    const output = path.resolve(__dirname, intake ? '../../artifacts/channel-intake-20260930' : '../../docs/operations/channel-updates-evidence')
+    mkdirSync(output, { recursive: true })
+    writeFileSync(path.join(output, 'isolated-db.json'), JSON.stringify(report, null, 2) + '\n')
   } finally { await prisma.$disconnect(); delete process.env.WGT_CONTROL_PUBLIC_ROOTS; delete process.env.WGT_DEPLOYMENT_ENVIRONMENT }
 }
 run().catch(error => { console.error(error); process.exitCode = 1 })

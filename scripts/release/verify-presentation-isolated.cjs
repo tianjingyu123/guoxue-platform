@@ -7,7 +7,8 @@ const http = require('node:http');
 const { execFileSync } = require('node:child_process');
 const { createRequire } = require('node:module');
 const root = path.resolve(__dirname, '../..');
-if (process.argv[2] !== 'postgresql://channel_test@127.0.0.1:55449/channel_synthetic') throw new Error('只允许独立本机合成库');
+const intake = process.argv[2] === 'postgresql://channel_intake_test@127.0.0.1:55453/channel_intake_services';
+if (!intake && process.argv[2] !== 'postgresql://channel_test@127.0.0.1:55449/channel_synthetic') throw new Error('只允许独立本机合成库');
 process.env.DATABASE_URL = process.argv[2]; process.env.NODE_ENV = 'test'; process.env.CLIENT_CAPABILITY_ENVIRONMENT = 'test';
 const serverRequire = createRequire(path.join(root, 'apps/server/package.json'));
 const mobileRequire = createRequire(path.join(root, 'apps/mobile/package.json'));
@@ -31,7 +32,7 @@ async function run() {
  const record = name => { passed.push(name); console.log('通过：' + name); };
  try {
   const [identity] = await prisma.$queryRawUnsafe('SELECT current_database() AS db, current_user AS actor, inet_server_port() AS port');
-  assert.deepEqual(identity, { db: 'channel_synthetic', actor: 'channel_test', port: 55449 });
+  assert.deepEqual(identity, intake ? { db: 'channel_intake_services', actor: 'channel_intake_test', port: 55453 } : { db: 'channel_synthetic', actor: 'channel_test', port: 55449 });
   await prisma.configVersion.deleteMany({ where: { OR: [{ configKey: { startsWith: 'client_presentation:' } }, { configKey: { startsWith: 'client_capability:' } }] } });
   const scope = { applicationId: 'rebu', platform: 'android', channelId: 'google-play' };
   const registry = await prisma.appDistribution.findUnique({ where: { applicationId_platform_channelId: scope } });
@@ -171,7 +172,7 @@ async function run() {
   record('同一 Vue 组件经 HTTP 按账号稳定灰度切换；本机认证注入是明确的合成适配');
   fs.mkdirSync(path.join(root, 'artifacts/presentation-verification'), { recursive: true });
   fs.writeFileSync(path.join(root, 'artifacts/presentation-verification/rendered-client.html'), dom.serialize());
-  fs.writeFileSync(path.join(root, 'docs/operations/channel-updates-evidence/presentation.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--', 'apps', 'packages', 'scripts', 'tests'], { cwd: root, encoding: 'utf8' }).trim()), syntheticOnly: true, backend: '实际 Prisma/PostgreSQL 与服务/控制器；本机 HTTP 适配及合成账号认证', client: '实际 Vue SFC/RemoteConfig/DOM，JSDOM；SDK/原生元素、图像封面与路由执行适配是测试替身', surfaces: ['home', 'discover', 'live', 'shop', 'course', 'circle', 'agent'], wgtChannel: 'google-play', wgtEnabled: false, codeDownloads: 0, passed, limits: ['没有运行正式 DCloud 安装包', '权限/审计 HTTP 在独立 Jest 中验证', '历史权益保留验证为导航/请求准入，实际订单业务依赖仍须同版预发布验收'] }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, intake ? 'artifacts/channel-intake-20260930/presentation.json' : 'docs/operations/channel-updates-evidence/presentation.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--', 'apps', 'packages', 'scripts', 'tests'], { cwd: root, encoding: 'utf8' }).trim()), syntheticOnly: true, backend: '实际 Prisma/PostgreSQL 与服务/控制器；本机 HTTP 适配及合成账号认证', client: '实际 Vue SFC/RemoteConfig/DOM，JSDOM；SDK/原生元素、图像封面与路由执行适配是测试替身', surfaces: ['home', 'discover', 'live', 'shop', 'course', 'circle', 'agent'], wgtChannel: 'google-play', wgtEnabled: false, codeDownloads: 0, passed, limits: ['没有运行正式 DCloud 安装包', '权限/审计 HTTP 在独立 Jest 中验证', '历史权益保留验证为导航/请求准入，实际订单业务依赖仍须同版预发布验收'] }, null, 2) + '\n');
   newApp.unmount(); oldApp.unmount(); blocksApp.unmount(); navApp.unmount(); for (const app of surfaceApps) app.unmount(); for (const timer of timers) clearTimeout(timer);
  } finally { if (server) await new Promise(resolve => server.close(resolve)); await prisma.$disconnect(); dom.window.close(); }
 }

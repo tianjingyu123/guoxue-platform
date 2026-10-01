@@ -1,4 +1,6 @@
+BEGIN;
 -- 仅候选迁移，生产执行须独立审批。原记录保持 legacy 范围，不猜测商店。
+-- 旧版本冲突须整批回滚，不能留下已增加的列或改写后的活动槽。
 ALTER TABLE "AppVersion"
   ADD COLUMN "applicationId" TEXT NOT NULL DEFAULT 'rebu',
   ADD COLUMN "channelId" TEXT NOT NULL DEFAULT 'legacy',
@@ -10,9 +12,9 @@ DROP INDEX IF EXISTS "AppVersion_platform_status_publishedAt_idx";
 DROP INDEX IF EXISTS "AppVersion_platform_version_buildNumber_idx";
 CREATE INDEX "AppVersion_applicationId_platform_channelId_status_publishedAt_idx"
   ON "AppVersion"("applicationId", "platform", "channelId", "status", "publishedAt");
--- 历史重复版本会明确阻塞迁移，不隐式删除审计记录。
+-- 历史重复版本会明确阻塞迁移，不隐式删除审计记录；空构建号也视为同一版本。
 CREATE UNIQUE INDEX "AppVersion_applicationId_platform_channelId_version_buildNumber_key"
-  ON "AppVersion"("applicationId", "platform", "channelId", "version", "buildNumber");
+  ON "AppVersion"("applicationId", "platform", "channelId", "version", "buildNumber") NULLS NOT DISTINCT;
 ALTER TABLE "FeatureFlag"
   ADD COLUMN "operationState" TEXT NOT NULL DEFAULT 'OPEN',
   ADD COLUMN "emergencyDisabled" BOOLEAN NOT NULL DEFAULT false,
@@ -46,3 +48,4 @@ CREATE TABLE "ResourceRelease" (
 CREATE UNIQUE INDEX "ResourceRelease_activeScopeKey_key" ON "ResourceRelease"("activeScopeKey");
 CREATE UNIQUE INDEX "ResourceRelease_applicationId_platform_channelId_resourceVersion_key" ON "ResourceRelease"("applicationId","platform","channelId","resourceVersion");
 CREATE INDEX "ResourceRelease_applicationId_platform_channelId_status_idx" ON "ResourceRelease"("applicationId","platform","channelId","status");
+COMMIT;
