@@ -1,0 +1,563 @@
+{
+  "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+  "receivedCommits": [
+    "2548d7d3c01df10ebdddfccfdb28db300be6e27f"
+  ],
+  "conflicts": [],
+  "previousBusinessSource": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+  "previousReceptionHead": "ae500a5a4e74ee4dc352c7063bc840fbbe8e0929",
+  "sourceFiles": [
+    "apps/server/src/modules/notification/notification-response-boundary.spec.ts",
+    "apps/server/src/modules/notification/notification.service.ts"
+  ],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本记录范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "local": {
+    "before": {
+      "tests": 7,
+      "failed": 3,
+      "passed": 4
+    },
+    "after": {
+      "suites": 4,
+      "passed": 152,
+      "newBoundaryTests": 9
+    },
+    "otherCallers": {
+      "suites": 2,
+      "passed": 49
+    },
+    "lintErrors": 0,
+    "typecheck": true,
+    "serverBuild": true,
+    "codeGate": true
+  },
+  "ci": {
+    "status": "success",
+    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "logs": [
+      {
+        "jobId": 110307709592,
+        "name": "单元测试 (1/3)",
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "sha256": "588f8ccd3463bcb0afb5b0150a948982812eb65087e464fa295b0e4217f1c36a",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "jobId": 110307709625,
+        "name": "单元测试 (2/3)",
+        "tests": "Tests:       50 skipped, 3023 passed, 3073 total",
+        "sha256": "3c9e8f5c67d9bcd62a3b8f2d54ae009a1ef7d3a8bb7bf3611712b59f680f02c1",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "jobId": 110307709681,
+        "name": "单元测试 (3/3)",
+        "tests": "Tests:       39 skipped, 3046 passed, 3085 total",
+        "sha256": "84da70a5e95f33b9d3e20126820daa6679480397aa9c7d0d7833692ba48cbb6b",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+      }
+    ],
+    "suitesPassed": 663,
+    "runId": 36843270807,
+    "testsSkipped": 133,
+    "suitesSkipped": 26,
+    "jobsPassed": 8,
+    "testsPassed": 8908,
+    "checkedAt": "2026-10-01T09:50:38.1287046Z"
+  },
+  "image": {
+    "runtimeReportSha256": "76566b6558bffeaa41bab17db5015669503be6b0b311c56f9f022b02afce840a",
+    "checksPassed": 23,
+    "cleanupAllConfirmed": true,
+    "sourceArchiveSha256": "1213bfa02deeaed12d677df945e167f213a0b7129d7d6fea5c9c426e2fc5366f",
+    "artifact": {
+      "officialDigestMatches": true,
+      "bytes": 55596,
+      "id": 11152696809,
+      "sha256": "b68425f45439131b4c420d0f8672e5f190b50356faa270ba75dccf1742436a5e"
+    },
+    "checkedAt": "2026-10-01T09:40:03.2978560Z",
+    "realChannels": false,
+    "passed": true,
+    "image": "sha256:edcc88047e82c472fe3bd43d407b81e628a0a1f3c5f7b82d2d2e52271c1deacb",
+    "verificationSource": "ec5e61f33e61cb453a5d8d969be042b929645b53",
+    "runId": 36843180571,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "businessSource": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "production": false
+  },
+  "callbacks": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "pay-invalid-signature",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "pay-expired-signature",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "pay-mismatched-merchant",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "pay-mismatched-amount",
+        "status": 503,
+        "expected": 503,
+        "passed": true
+      },
+      {
+        "name": "pay-entitlement-transaction-failure",
+        "status": 500,
+        "expected": 500,
+        "passed": true
+      },
+      {
+        "name": "pay-after-rollback-retry",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "pay-duplicate-callback",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "pay-notification-failure-still-acknowledged",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "pay-notification-retry",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-invalid-signature",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "refund-mismatched-amount",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "refund-mismatched-transaction",
+        "status": 400,
+        "expected": 400,
+        "passed": true
+      },
+      {
+        "name": "refund-entitlement-transaction-failure",
+        "status": 500,
+        "expected": 500,
+        "passed": true
+      },
+      {
+        "name": "refund-after-rollback-retry",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-duplicate-callback",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-notification-failure-still-acknowledged",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-notification-retry",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "pay-before-refund-non-success-states",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-non-success-processing",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-non-success-fail",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-non-success-closed",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-non-success-abnormal",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "pay-returns-before-notification-preferences-release",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      },
+      {
+        "name": "refund-returns-before-notification-preferences-release",
+        "status": 200,
+        "expected": 200,
+        "passed": true
+      }
+    ],
+    "rawBodyWhitespaceVerified": true,
+    "rsaAndAesRealCrypto": true,
+    "dbConfigLoaderUsed": true,
+    "paymentRollbackNoSuccessNotification": true,
+    "refundRollbackNoSuccessNotification": true,
+    "notificationFailureDoesNotRollbackPaymentOrRefund": true,
+    "callbackRetriesRestoreOneNotification": true,
+    "paymentAndRefundDuplicateLedgerCounts": 1,
+    "nonSuccessRefundNeverClaimsSuccess": true,
+    "paymentAndRefundRespondBeforePreferencesRelease": true,
+    "preferencesLatchOnlyInIsolatedPreload": true,
+    "realProviderRequests": 0,
+    "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T09:28:22.918Z",
+    "releaseId": "launch-20261001-2548d7d3c",
+    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "auditFile": "artifacts/channel-intake-20260930/package-2548d7d3c/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5423,
+      "bytes": 53958112,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11086442,
+        "contentSha256": "a06c162686168b0d40a9bd3804310bb21b15e2330193986e99b0c0568d718b9c",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2756,
+        "bytes": 11067495,
+        "contentSha256": "d0597e664db914b31f4f5fd79be0e377ea3c34b22ada17d77d0886a8399f666b",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12838560,
+        "contentSha256": "26c20fa6e470d1f28423876425607e2e98bed91bb1273079d7d86067c51f846c",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12478030,
+        "contentSha256": "6d6ab0344e99f5c88b6deea2f63d32ddb512d454f061a73f4203d15b269ddead",
+        "matches": true
+      }
+    ],
+    "errors": [],
+    "buildMode": "a21五类成品输入等效复用，重新逐项验真；不是本轮移动重建"
+  },
+  "publicConfig": {
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-10-01T09:28:20.501Z",
+    "releaseId": "launch-20261001-2548d7d3c",
+    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprintAlgorithm": "sha256",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T09:28:34.025Z",
+    "archive": "gx-deploy-91-launch-20261001-2548d7d3c.tar.gz",
+    "sha256": "1213bfa02deeaed12d677df945e167f213a0b7129d7d6fea5c9c426e2fc5366f",
+    "releaseId": "launch-20261001-2548d7d3c",
+    "commit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "expectedCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "fileCount": 4434,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftArchive": {
+    "published": false,
+    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "draft": true,
+    "assets": [
+      {
+        "bytes": 15717777,
+        "officialDigestMatches": true,
+        "sha256": "1213bfa02deeaed12d677df945e167f213a0b7129d7d6fea5c9c426e2fc5366f",
+        "name": "gx-deploy-91-launch-20261001-2548d7d3c.tar.gz",
+        "assetId": 602895558
+      },
+      {
+        "bytes": 112,
+        "officialDigestMatches": true,
+        "sha256": "acd91dc71433fbfc7f328a0fe5a376b92efd8cd5aeae3301220a0f0335cd0b3d",
+        "name": "gx-deploy-91-launch-20261001-2548d7d3c.tar.gz.sha256",
+        "assetId": 602896054
+      }
+    ],
+    "checkedAt": "2026-10-01T09:29:40.4630001Z",
+    "tag": "launch-20261001-2548d7d3c",
+    "releaseId": 400816590
+  },
+  "evidenceArchive": {
+    "draft": true,
+    "sha256": "f7a517dbcb9844a7f50fec011bb0ce4999372d2d32dea87c68ec0ffb160d3b88",
+    "published": false,
+    "reextractAllHashesExact": true,
+    "assetId": 602932090,
+    "name": "notification-response-evidence-2548d7d3c.tar.gz",
+    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "files": 22,
+    "releaseId": 400816590,
+    "checkedAt": "2026-10-01T09:51:25.4223254Z",
+    "officialDigestMatches": true,
+    "bytes": 58687
+  },
+  "isolatedReception": {
+    "branch": "release/launch-staging-20260927",
+    "worktree": "D:/gx-deploy-91/.worktrees/circle-fulfillment-receive-20260926",
+    "previousHead": "ae500a5a4e74ee4dc352c7063bc840fbbe8e0929",
+    "production": false,
+    "fastForwardOnly": true,
+    "conflicts": [],
+    "sourceHead": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "checkedAt": "2026-10-01T09:52:21.0794492Z"
+  },
+  "mainlineReadback": {
+    "checkedAt": "2026-10-01T09:40:48.6346476Z",
+    "draft": true,
+    "headSha": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "mergeableState": "unstable",
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "state": "open",
+    "headRef": "codex/launch-review-20260930",
+    "mergeable": true,
+    "baseRef": "master",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "prNumber": 1,
+    "defaultBranch": "master"
+  },
+  "mainlineReadbackFile": "artifacts/channel-intake-20260930/notification-response-pr-source-20261001T094048.json",
+  "mini": {
+    "sourceCommit": "a21dace32156ffb1e8743a8f3dc2d9f6bd024c10",
+    "mainBytes": 1964904,
+    "maxSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1959687
+    },
+    "totalBytes": 12742889,
+    "subpackageCount": 33,
+    "mainRemaining": 132248,
+    "maxSubpackageRemaining": 137465,
+    "previewOnly": true,
+    "uploaded": false,
+    "published": false,
+    "evidenceReused": true,
+    "newPreview": false
+  },
+  "phone": {
+    "readOnly": true,
+    "checkedAt": "2026-10-01T09:34:22.7344050Z",
+    "realDevices": [
+      {
+        "versionCode": "versionCode=253 minSdk=21 targetSdk=35",
+        "android": "14",
+        "mutation": false,
+        "versionName": "versionName=1.1.0",
+        "package": "com.rebu.apprebu",
+        "model": "LE2100"
+      }
+    ],
+    "candidate254Installed": false
+  },
+  "rollback": [
+    "文档交付独立撤回",
+    "2548d7d3c（恢复关键业务通知等待推送的旧行为）",
+    "古籍a21→50按原记录独立撤回",
+    "搜索7e及更早批按各原记录撤回"
+  ],
+  "limitations": [
+    "Redis认领、站内落库及分类写入仍被等待，本批只拆开可选推送准备",
+    "普通send及batchSend等待语义保留",
+    "不承诺进程退出后的推送补偿；未新增持久外发箱或触发入口",
+    "真实微信短信App推送、目标两节点及最终同版真机未覆盖",
+    "课程合成回调不代表所有渠道和订单类型；PG18.6与目标18.4补丁仍不同"
+  ],
+  "mutations": {
+    "productionDeployment": false,
+    "productionMigration": false,
+    "realMoney": false,
+    "realNotifications": false,
+    "paidPackaging": false,
+    "miniUpload": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-before.log",
+      "sha256": "8b7bfa95be258a840654f42c34b2691d2ae2e20d580f3ebf6ecbcf04ab97bf58"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-regression.log",
+      "sha256": "3d18581b2da09c1f4ea441201d7b147e865592f326b7eb9ef8d2e9ad26f23b83"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-other-callers.log",
+      "sha256": "8cddbd26d1802275e8078cff8b85c26f4235d8615e5af4391f991107515585d9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-build.log",
+      "sha256": "934ebc85da9eb62c17c62f67176b9dac12a9ee0a5f9f67d632ed4a314fb3ea77"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-code-gate.log",
+      "sha256": "3be027be434c1e0a0eeee0e43ee1c8ed2ee5d5266afca372a362813e02898770"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-ci-verified.json",
+      "sha256": "76af24cf0c797bc8e0e29ba70fb9c41572e6a7ec0f7ae6f695a8cb6f8dd20ad7"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-image-verified.json",
+      "sha256": "e6235bf1a0179058a25914609578868cf12a4824c76a111a16c033baa6a1a277"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-image-2548d7d3c/payment-refund-http-transactions.json",
+      "sha256": "aaa23c80c2edb1d6464f15f9d41cbbba543adf4f48b72eeab0515773ab94c22c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-draft-archive.json",
+      "sha256": "d7ef9e326b1bd2a5b492958b6709deba539abe911dc70e78b1affa212ea2f21b"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-pr-source-20261001T094048.json",
+      "sha256": "b67e09260a3c55da5924adf080a7d5be7069d02e7dad7fe83bd8916fdec3c11e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-phone-readonly.json",
+      "sha256": "00e0b0e1f9114cbd380d0d3b5b3e9fd287ec7dd23e538fbf02a51428dd4bdb28"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-prisma-local.json",
+      "sha256": "1aa46e7a70bb064f111030925e1e1c62090b3c82ab25c37188c1086da8b6f4e2"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-evidence-archive.json",
+      "sha256": "43d31014ff475868de91883142fd4d45053cf4e83ff9e652798d73be2ce1b702"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/notification-response-staging-reception.json",
+      "sha256": "49df8876e67f4e996ca65c592f767f8cc087afa62932765d0c5f8612a4cd3f3e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-2548d7d3c/client-artifacts-verified.json",
+      "sha256": "5b9527cccb9103c939b5f205f339023a91e6cbce7e913491355626fe5ac35821"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-2548d7d3c/client-config.json",
+      "sha256": "f20fc63af12480aa92fe95dff360c6c9a00c5f41c3c6b51b0d9df41832d75ac7"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-2548d7d3c/source-freeze.json",
+      "sha256": "b42fdb541739b7300fe23f900185cf023c1236b6693a015abd9a3b803f0b90fe"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-2548d7d3c/fixed-package-verified.json",
+      "sha256": "7b76acca5adaaf4b318d474e191afdb1977d1b876c29c1fd79211cdfb9d7565f"
+    }
+  ]
+}
