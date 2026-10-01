@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAttrs } from 'vue'
+import { ref, useAttrs } from 'vue'
 import { goBack as platformGoBack } from '@/utils/router'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
@@ -20,6 +20,13 @@ const emit = defineEmits<{
 }>()
 const attrs = useAttrs()
 const menuSafeRight = getMiniProgramMenuSafeRight()
+const safeTop = ref(0)
+try {
+  const info = uni.getSystemInfoSync()
+  safeTop.value = Math.max(0, info.statusBarHeight || 0, info.safeAreaInsets?.top || 0, info.safeArea?.top || 0)
+} catch {
+  safeTop.value = 0
+}
 
 // AppIcon 把颜色嵌入 SVG data URI，CSS 变量在隔离 SVG 中无效，必须用具体色值。
 const iconColor = '#2c2c2c'
@@ -40,7 +47,7 @@ function goSearch() {
 <template>
   <view class="ch-header">
     <!-- 状态栏占位 -->
-    <view class="ch-statusbar" />
+    <view class="ch-statusbar" :style="{ height: safeTop + 'px' }" />
     <view class="ch-bar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
       <view class="ch-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="onBack" @keydown.enter="onBack" @keydown.space.prevent="onBack">
         <app-icon name="arrow-left" :size="44" :color="iconColor" />

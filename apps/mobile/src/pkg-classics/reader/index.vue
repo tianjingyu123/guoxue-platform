@@ -13,6 +13,13 @@ import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 interface ChapterRef { id: string; title: string }
 // 查词热区有负外边距，多留一段胶囊间距，避免可点击范围落入系统按钮。
 const menuSafeRight = getMiniProgramMenuSafeRight(16)
+const safeTop = ref(0)
+try {
+  const info = uni.getSystemInfoSync()
+  safeTop.value = Math.max(0, info.statusBarHeight || 0, info.safeAreaInsets?.top || 0, info.safeArea?.top || 0)
+} catch {
+  safeTop.value = 0
+}
 
 const bookId = ref('')
 const bookTitle = ref('')
@@ -685,7 +692,7 @@ onLoad((q) => {
   <view class="rd" :class="`rd-theme-${theme}`">
     <!-- 顶栏 -->
     <view class="rd-top">
-      <view class="rd-statusbar" />
+      <view class="rd-statusbar" :style="{ height: safeTop + 'px' }" />
       <view class="rd-top-inner" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="rd-icon-btn" role="button" aria-label="返回古籍详情" tabindex="0" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><app-icon name="arrow-left" :size="44" :color="iconColor" /></view>
         <view class="rd-top-mid">
