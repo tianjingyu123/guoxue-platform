@@ -62,5 +62,17 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "工作台报告锁与真实库补验-20261001.json"
+  "record": "工作台报告锁与真实库补验-20261001.json",
+  "handoffCi": {
+    "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
+    "runId": 36903974810,
+    "passed": 8931,
+    "skipped": 134
+  },
+  "formalImage": {
+    "source": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "runId": 36905399615,
+    "checksPassed": 26,
+    "production": false
+  }
 }
