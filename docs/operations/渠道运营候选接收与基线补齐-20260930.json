@@ -1,0 +1,662 @@
+{
+  "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本地、23组Linux及25条真实备份副本升级范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "originalHead": "aeb2ec2bfd9889e403761f6ee68410f742e74e58",
+  "originalFork": "7edbeede79419e94534d49cb01f85b7ecbc4295f",
+  "receivedCommits": [
+    {
+      "original": "75f65241df4515b5259758f095eb3fc3ec20b6c7",
+      "received": "3db2eb5feb597f4912ceb18786c8c569e7f1a438"
+    },
+    {
+      "original": "4ecb7d9c2fce11b0b01dd81ae2a4217e7447c5c6",
+      "received": "34a616bd77f61f82bcc116e9bca598adb801a7ed"
+    },
+    {
+      "original": "b144aa309f9eab36ac4f61968ae7fda35c91934b",
+      "received": "c709ec61902d63b307a25fcca1682c97e193c0ae"
+    },
+    {
+      "original": "0cb8ec9ef6a1facc653e889ee297000dcf6f1366",
+      "received": "c3cf358e836b976bcbfa4ca35d46eae9537cda22"
+    },
+    {
+      "original": "17f710c00782e8afa4bccadd0002ba50decf3952",
+      "received": "05b42f49f27d7c9a689481b5ba4674ee175f439a"
+    },
+    {
+      "original": "02d30a6da4c36a82c4ea9f4d9d246a1da6e83743",
+      "received": "e01cedd627cbb54bcd6308253236e58e2862d0be"
+    },
+    {
+      "original": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+      "received": "3820dd43c9d81967ab944c1f6098bcfcbd33ec14"
+    },
+    {
+      "original": "1668a0cf62ed81f417b8e7729e5f0b9259432ecf",
+      "received": "b6510359ebbc59bc4e4633aebfc6507f6cf405e7"
+    },
+    {
+      "original": "08d986d61c7e24398940960b242ceb5c793a48f9",
+      "received": "db4361af1b5fb851e2948b8b5c06aa4146c71197"
+    },
+    {
+      "original": "56d3634a0fe3bb61526621b1a6356766f4cf2c76",
+      "received": "009c31eaa7d8cc67d18bd3636d23750e61f7eb97"
+    },
+    {
+      "original": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "received": "ea91925f80d313d9b1283a94d6530f073e56b76e"
+    },
+    {
+      "original": "aeb2ec2bfd9889e403761f6ee68410f742e74e58",
+      "received": "2bd75dbdb01f627447633d6ccf932cefa07efe85"
+    }
+  ],
+  "corrections": [
+    "2fade742799c736b5140b4bb27c3585af1456e57 保证渠道迁移失败整批回滚并限制空构建号重复",
+    "8d9baa56f28584ed9daf672ad4b166888c2f24e9 对齐渠道迁移索引与Prisma截断命名规则",
+    "d5db6a1e35332f935856772fe0f820a03a91dd3a 修复渠道接收后的端到端测试桩及商店版本证据绑定",
+    "f04114afa6d33206cd9e3478e3477a4b3b8b046c 修复登录兴趣旅程测试对多行路由导入的加载",
+    "14f46a06924eb3c5ecef1faebe27f98ec31a82fd 区分正式原生配置模板与隔离展示测试的域名审计用途",
+    "0b65f8d0033b15431df35c8954d590a728c8ca4a 同步渠道空库基线及升级路径的数据库约束",
+    "c38db680053ef6cf126a66f5656e98fe1243819e 对齐会员服务错误态测试与现有页面文案",
+    "8c6ff72a7c1e406ea184382f7f04fca783c659b2 为正式运行镜像补齐空库初始化所需的psql客户端",
+    "70ee2418d091c9bea87878a8ff89b879a12e28b9 对齐渠道模型属性顺序以通过Prisma生成绑定校验"
+  ],
+  "migration": {
+    "total": 128,
+    "targetCompleted": 103,
+    "pending": 25,
+    "new": "20260930090000_app_distribution_and_operations",
+    "sha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa",
+    "productionApplied": false,
+    "previous24Rehearsal": "历史证据，不等效当前25条",
+    "rehearsal": {
+      "schemaVersion": 1,
+      "result": "PASS",
+      "scope": "70ee2418 固定候选在既有生产备份临时隔离恢复库上的 25 条完整升级演练",
+      "candidate": {
+        "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+        "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+        "newMigrationSha256": "69ec1173ee000dccd78f82309e42caf64e6498760da8104ce7ddbcdc53f860aa"
+      },
+      "backup": {
+        "path": "/opt/guoxue/backups/release-bf7f9863-20260930/guoxue-bf7f9863-20260930T064107Z.dump",
+        "bytes": 1815229877,
+        "sha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5"
+      },
+      "successfulExecution": {
+        "invocationId": "inv-e9buh10ixm",
+        "taskId": "invt-e9buh10ixn",
+        "scriptSha256": "f45e7c3161553fc20567d86a94f1bac9d5fef7923d38971cf7144221d06a64cd",
+        "exitCode": 0,
+        "startedUtc": "2026-10-01T04:42:42Z",
+        "endedUtc": "2026-10-01T04:44:43Z",
+        "totalSeconds": 121
+      },
+      "validation": {
+        "completedMigrationsBefore": 103,
+        "completedMigrationsAfter": 128,
+        "failedMigrationsBefore": 0,
+        "failedMigrationsAfter": 0,
+        "publicTablesBefore": 353,
+        "publicTablesAfter": 384,
+        "duplicateBuildGroupsBefore": 0,
+        "baselineTablesCompared": 352,
+        "baselineRowCountMismatches": 0,
+        "appVersionHistoryRows": 1,
+        "appVersionHistoryDigestBefore": "b2a6e8e1ae11b3f16cfed8921686650e",
+        "appVersionHistoryDigestAfter": "b2a6e8e1ae11b3f16cfed8921686650e",
+        "featureFlagHistoryRows": 5,
+        "featureFlagHistoryDigestBefore": "65cc069759fb7153e82cbe64f414afa7",
+        "featureFlagHistoryDigestAfter": "65cc069759fb7153e82cbe64f414afa7",
+        "activePlatformKeysBefore": 1,
+        "activePlatformKeysTransformedValid": 1,
+        "validatedChecks": 4,
+        "nullsNotDistinctUniqueIndex": 1,
+        "legacyDeniedSlots": 3,
+        "distributionRows": 3,
+        "resourceReleaseRows": 0
+      },
+      "cleanupVerification": {
+        "invocationId": "inv-e9bujvg7ch",
+        "taskId": "invt-e9bujvg7ci",
+        "exitCode": 0,
+        "cleanupExitCode": 0,
+        "cleanupUtc": "2026-10-01T04:44:43Z",
+        "shadowContainer": "absent",
+        "runnerContainer": "absent",
+        "productionServerStatus": "running",
+        "productionServerHealth": "healthy"
+      },
+      "finalEvidenceCollection": {
+        "invocationId": "inv-d9bumf0fgs",
+        "taskId": "invt-d9bumf0fgt",
+        "scriptSha256": "31afa0e726bf094dd4c30a20ab86d1c69ff0639d8bdf1c066a7354c5ba2d5beb",
+        "exitCode": 0
+      },
+      "remoteEvidenceSha256": {
+        "result.txt": "5c56062a638dae40c1748330147b406fffbda28ae61e172c96474f86eecc1ae9",
+        "cleanup-result.txt": "d483bff5230f528d6b643334809d46abd7aa01bc6e1f65f2d31bfe7144542b6c",
+        "prisma-migrate-deploy.log": "6a5aead2f183df0ad28e6ea8a881206dd098ffa14f2d0941156d63525c908473",
+        "prisma-migrate-status.log": "00aa72f2e313ddcd54830e85e0780aed1818567048a23310557885e4c50eb4a1",
+        "applied-25.txt": "3f33f4f13c40154e1020fd26e0d8327d474e313e8fbde4d53f47e7d013b3c1aa",
+        "expected-25.txt": "3f33f4f13c40154e1020fd26e0d8327d474e313e8fbde4d53f47e7d013b3c1aa",
+        "counts-before.tsv": "93c948d2ce05d6f7b4a057635b253aa00e8893cb782ad912df34a3fdfe03c4cc",
+        "counts-after.tsv": "ec46e660c64d171630f2b7157b293c6d1a2c4428707a0c495e857df135b861ea",
+        "counts-baseline-compare.tsv": "4c5eb5a3eacd051b6d50b3f4c2d6d5175256d2848c800089d7f3ad6439e7b0df",
+        "migration-files.sha256": "53ecaf703067100a88523c474f60c020ef62deff1a473eafb55255ca9f3961fd",
+        "candidate-prisma-70ee2418.tar.gz": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00"
+      },
+      "limitations": {
+        "postgresRestoreVersion": "18.6",
+        "productionTargetVersion": "18.4",
+        "note": "同为 PostgreSQL 18，但存在补丁版本差异；本记录不是生产迁移、部署或发布放行。"
+      },
+      "priorScriptFailures": [
+        {
+          "invocationId": "inv-a9bu700ta1",
+          "taskId": "invt-a9bu700ta2",
+          "reason": "验收摘要错误包含按设计改写的 activePlatformKey；25 条迁移本身全部成功。"
+        },
+        {
+          "invocationId": "inv-e9buad02bu",
+          "taskId": "invt-e9buad02bv",
+          "reason": "验收脚本的 activePlatformKey SQL 引号错误；25 条迁移本身全部成功。"
+        },
+        {
+          "invocationId": "inv-e9budn0asv",
+          "taskId": "invt-e9budn0asw",
+          "reason": "检查点在 featureflag_after 赋值前引用变量；25 条迁移本身全部成功。"
+        }
+      ],
+      "mainReceiverVerification": {
+        "checkedAt": "2026-10-01T04:49:21.527Z",
+        "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "passed": true,
+        "scriptSha256": "f45e7c3161553fc20567d86a94f1bac9d5fef7923d38971cf7144221d06a64cd",
+        "run": {
+          "invocationId": "inv-e9buh10ixm",
+          "taskId": "invt-e9buh10ixn",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawReceiptSha256": "65d79525631b458e5858a87f9fc34c04888dcf4eed00aa290c410fabc86e2e19",
+          "fields": {
+            "status": "PASS",
+            "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+            "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+            "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+            "backupSha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5",
+            "postgresRestoreVersion": "18.6",
+            "productionToolVersion": "18.4",
+            "prismaCliVersion": "6.19.3",
+            "startedUtc": "2026-10-01T04:42:42Z",
+            "endedUtc": "2026-10-01T04:44:43Z",
+            "totalSeconds": "121",
+            "restoreSeconds": "107",
+            "migrateSeconds": "1",
+            "completedMigrationsBefore": "103",
+            "completedMigrationsAfter": "128",
+            "failedMigrationsBefore": "0",
+            "failedMigrationsAfter": "0",
+            "publicTablesBefore": "353",
+            "publicTablesAfter": "384",
+            "duplicateBuildGroupsBefore": "0",
+            "baselineTablesCompared": "352",
+            "baselineRowCountMismatches": "0",
+            "appVersionHistoryBefore": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "appVersionHistoryAfter": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "featureFlagHistoryBefore": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "featureFlagHistoryAfter": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "activePlatformKeysBefore": "1",
+            "activePlatformKeysTransformedValid": "1",
+            "validatedChecks": "4",
+            "nullsNotDistinctUniqueIndex": "1",
+            "legacyDeniedSlots": "3",
+            "distributionRows": "3",
+            "resourceReleaseRows": "0",
+            "shadowNetwork": "none",
+            "runnerNetwork": "container:8cf6eb10397606a51c5e8095cdc086f74f1e9cd40ebcea914e5dc5e253bfaa07",
+            "productionServerState": "running",
+            "productionServerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484"
+          }
+        },
+        "cleanup": {
+          "invocationId": "inv-e9bujvg7ch",
+          "taskId": "invt-e9bujvg7ci",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawReceiptSha256": "eac791b2078e3ab6cc31bae33afcf41c35a8c24272c52bd19031fd533e9bfb40",
+          "fields": {
+            "cleanupExitCode": "0",
+            "cleanupUtc": "2026-10-01T04:44:43Z",
+            "status": "PASS",
+            "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+            "sourceArchiveSha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+            "candidateBundleSha256": "ba543f71e11b0bd3cda8b418d95d4e4e513b7b50dac84d9ebbc701f6468a5b00",
+            "backupSha256": "e0248b9e05f155af95c4cb46ece50a14fc1680219f085b119eed0731ef2d99e5",
+            "postgresRestoreVersion": "18.6",
+            "productionToolVersion": "18.4",
+            "prismaCliVersion": "6.19.3",
+            "startedUtc": "2026-10-01T04:42:42Z",
+            "endedUtc": "2026-10-01T04:44:43Z",
+            "totalSeconds": "121",
+            "restoreSeconds": "107",
+            "migrateSeconds": "1",
+            "completedMigrationsBefore": "103",
+            "completedMigrationsAfter": "128",
+            "failedMigrationsBefore": "0",
+            "failedMigrationsAfter": "0",
+            "publicTablesBefore": "353",
+            "publicTablesAfter": "384",
+            "duplicateBuildGroupsBefore": "0",
+            "baselineTablesCompared": "352",
+            "baselineRowCountMismatches": "0",
+            "appVersionHistoryBefore": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "appVersionHistoryAfter": "1\tb2a6e8e1ae11b3f16cfed8921686650e",
+            "featureFlagHistoryBefore": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "featureFlagHistoryAfter": "5\t65cc069759fb7153e82cbe64f414afa7",
+            "activePlatformKeysBefore": "1",
+            "activePlatformKeysTransformedValid": "1",
+            "validatedChecks": "4",
+            "nullsNotDistinctUniqueIndex": "1",
+            "legacyDeniedSlots": "3",
+            "distributionRows": "3",
+            "resourceReleaseRows": "0",
+            "shadowNetwork": "none",
+            "runnerNetwork": "container:8cf6eb10397606a51c5e8095cdc086f74f1e9cd40ebcea914e5dc5e253bfaa07",
+            "productionServerState": "running",
+            "productionServerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+            "productionServerHealth": "healthy"
+          }
+        },
+        "temporaryContainersAbsent": true,
+        "productionUnchanged": true,
+        "limits": [
+          "PG18.6恢复镜像与目标PG18.4补丁不同",
+          "在线历史备份不是维护停写最终回退备份",
+          "隔离副本成功不是生产迁移、部署或资金操作授权"
+        ]
+      },
+      "finalRecordSha256": "d35a5107472bdd53cc8081395da2a194b17d18c00ecca2b066f89de5ea1aa29b",
+      "collectionRawReceiptSha256": "0e1e08c1ba4ef7d3616e20dd92ce0a57213841cc8d3274eae361fe6c17ae54c6",
+      "backupUnchangedAfterVerified": true
+    }
+  },
+  "fixedPackage": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "fileCount": 4433,
+    "sha256": "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90",
+    "size": 15709813,
+    "releaseId": 400058667,
+    "assetId": 602421574,
+    "draft": true
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T04:20:19.806Z",
+    "releaseId": "launch-20260930-70ee2418",
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "auditFile": "artifacts/channel-intake-20260930/package-70ee2418/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5423,
+      "bytes": 53933017,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11080592,
+        "contentSha256": "783a7f1fd3a1ad6f81460a32c6379faeb6e28f9069ce974e0b5e723c94ee437b",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2756,
+        "bytes": 11061803,
+        "contentSha256": "9f6c55e7895606bc497ad0c610e2da5609be54fde07bd6a81a20798496e94ae3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12831703,
+        "contentSha256": "efcb4fba96fc1bbac044e50c6035e6d11db68f28e4d3fa0c3141dc6c4a30efd5",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12471334,
+        "contentSha256": "d2fa87379896dbcb804c4169c66af8fc1931dba05035bc7a924918ecebc25d8a",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "mini": {
+    "mainBytes": 1905046,
+    "mainRemaining": 192106,
+    "maxSubpackageBytes": 1950310,
+    "maxSubpackageRemaining": 146842,
+    "totalBytes": 12595090,
+    "subpackages": 33,
+    "scope": "官方preview及11页合成503故障闭包，非手机业务验收"
+  },
+  "localEvidence": {
+    "jest": {
+      "suites": 17,
+      "passed": 393
+    },
+    "nodePassed": 52,
+    "e2eAndOperationHttp": 85,
+    "onboarding": 12,
+    "store": 6,
+    "domain": 7,
+    "baselineAndErrorSurface": 9,
+    "syntheticUpgrade": 3,
+    "emptyBaseline": 3,
+    "realLocalDbServiceGroups": 10,
+    "sfcHttpDomGroups": 8,
+    "channelDryRuns": 18,
+    "prismaBinding": 5,
+    "gateSource": "c38db680053ef6cf126a66f5656e98fe1243819e"
+  },
+  "ci": {
+    "runId": 36814615136,
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "status": "success",
+    "jobsPassed": 8,
+    "testsPassed": 8899,
+    "testsSkipped": 133,
+    "suitesPassed": 662,
+    "suitesSkipped": 26,
+    "logs": [
+      {
+        "jobId": 110217352715,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "68cfdbba20023fb10fe05a8d28afed252d3bec04a0f76ec83d920eae47be7f6a",
+        "summaries": [
+          "2026-10-01T04:36:17.8054135Z Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+          "2026-10-01T04:36:17.8054972Z Tests:       44 skipped, 2839 passed, 2883 total",
+          "2026-10-01T04:36:17.8055972Z Time:        780.288 s"
+        ]
+      },
+      {
+        "jobId": 110217352730,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "68dc4dc8bea1c06823d1940072f425d80021b798116e230b98ff9f3de56d8149",
+        "summaries": [
+          "2026-10-01T04:25:08.2287852Z Test Suites: 8 skipped, 221 passed, 221 of 229 total",
+          "2026-10-01T04:25:08.2288648Z Tests:       50 skipped, 3022 passed, 3072 total",
+          "2026-10-01T04:25:08.2289477Z Time:        116.753 s"
+        ]
+      },
+      {
+        "jobId": 110217352745,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "1fd4054056d1d0eee4498c3127c3de5097515f308a5c92c8aa7130b4c16faad6",
+        "summaries": [
+          "2026-10-01T04:24:57.3414649Z Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+          "2026-10-01T04:24:57.3415205Z Tests:       39 skipped, 3038 passed, 3077 total",
+          "2026-10-01T04:24:57.3415921Z Time:        105.768 s"
+        ]
+      }
+    ],
+    "buildArtifact": {
+      "id": 11141048431,
+      "bytes": 7458074,
+      "sha256": "64fafdf47b8e6694915e7584eb07c0a3399b6c677c63a764252bfc9b92da4ed6",
+      "localHashMatchesOfficial": true
+    }
+  },
+  "linux": {
+    "priorRunId": 36814112488,
+    "priorStatus": "构建失败，HTTP未执行",
+    "priorArtifact": 11140667620,
+    "priorArtifactSha256": "33842c62c548fc5e518e3de67587168bf18b0215ee1de5121db7b485338e2f2d",
+    "currentStatus": "success",
+    "currentRunId": 36814832194,
+    "verificationCommit": "ccbb54b24b911ec76a2373de164be9189126b9fb",
+    "imageId": "sha256:9270dd8b83dd769f8dfb7e74878876cb84d7f56d13b544c7a5aabf4153026b38",
+    "groupsPassed": 23,
+    "cleanupConfirmed": true,
+    "artifactId": 11140992809,
+    "artifactBytes": 55567,
+    "artifactSha256": "b1d61432a71f66d6751b5f9d858d57487b31785f90443951c40b3504481b4a01",
+    "bootstrap": {
+      "passed": true,
+      "ledger": {
+        "total": 128,
+        "complete": 128,
+        "failed": 0
+      },
+      "checkConstraints": [
+        "AppVersion_rollout_check",
+        "FeatureFlag_operationState_check",
+        "ResourceRelease_rollout_check",
+        "ResourceRelease_version_check"
+      ],
+      "nullsNotDistinct": true,
+      "targetUserIdsNotNull": true,
+      "compatibilitySlots": [
+        {
+          "platform": "android",
+          "wgtPolicy": "DENIED"
+        },
+        {
+          "platform": "harmony",
+          "wgtPolicy": "DENIED"
+        },
+        {
+          "platform": "ios",
+          "wgtPolicy": "DENIED"
+        }
+      ],
+      "scope": "formal-empty-bootstrap-only-not-production-upgrade"
+    },
+    "channels": {
+      "passed": true,
+      "rows": [
+        {
+          "name": "anonymous-list-denied",
+          "expected": 401,
+          "status": 401,
+          "passed": true
+        },
+        {
+          "name": "ordinary-list-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "operation-list-allowed",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "name": "operation-register-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "super-invalid-combination-denied",
+          "expected": 400,
+          "status": 400,
+          "passed": true
+        },
+        {
+          "name": "super-register-allowed",
+          "expected": 201,
+          "status": 201,
+          "passed": true
+        },
+        {
+          "name": "anonymous-public-registration",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        },
+        {
+          "name": "ordinary-operation-management-denied",
+          "expected": 403,
+          "status": 403,
+          "passed": true
+        },
+        {
+          "name": "operation-management-read-allowed",
+          "expected": 200,
+          "status": 200,
+          "passed": true
+        }
+      ],
+      "defaultWgtDenied": true,
+      "rejectedWritesLeaveNoRecord": true,
+      "publicFieldsMinimized": true,
+      "realJwtAndGuards": true,
+      "noExternalPublish": true
+    },
+    "checkNames": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "limits": [
+      "临时PG18.6/Redis7合成业务，非目标PG18.4补丁",
+      "空库bootstrap，不替代25条真实副本升级或维护备份",
+      "未真实微信/短信/App推送或真实资金，非手机签名包验收"
+    ],
+    "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
+  },
+  "cloudChanges": false,
+  "realMoney": false,
+  "realNotifications": false,
+  "miniUpload": false,
+  "paidPackaging": false,
+  "mainlineReadback": {
+    "defaultBranch": "master",
+    "mergeableState": "clean",
+    "state": "open",
+    "headSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "mergeable": true,
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "baseRef": "master",
+    "checkedAt": "2026-10-01T04:47:43.3015922Z",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "draft": true,
+    "prNumber": 1,
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "headRef": "codex/launch-review-20260930"
+  },
+  "android254Inputs": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "kind": "同源本地原生AAR与普通App资源编译输入",
+    "versionCode": 254,
+    "appId": "__UNI__277B108",
+    "runmode": "liberate",
+    "packageName": "com.rebu.apprebu",
+    "configEnabled": false,
+    "native": {
+      "sourceSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "sourceDirty": false,
+      "config": {
+        "enabled": false,
+        "identity": {
+          "applicationId": "rebu",
+          "productId": "rebu",
+          "platform": "android",
+          "channelId": "legacy",
+          "packageName": "com.rebu.apprebu",
+          "runtimeAppId": "__UNI__277B108",
+          "nativeBuild": 254,
+          "nativeFingerprint": ""
+        },
+        "clientKey": "",
+        "signingCertificateSha256": "",
+        "apiBase": "https://api.rebugx.cn/api/v1",
+        "resourceOrigins": [],
+        "publicRoots": {}
+      },
+      "cryptoDependency": {
+        "version": "1.86",
+        "sha256": "fc50334d4d87b4272e72fa95ca748ead05bdef02ef760a5b13f64ffee317cd81",
+        "bundled": false,
+        "androidMinApi": 26,
+        "licenseSha256": "b3fd8f55ca32cd4378eaef13e26893688bb4ae27ccb13b756aa823deaa17fc0e"
+      },
+      "aarSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2"
+    },
+    "resources": {
+      "files": 492,
+      "bytes": 12832051,
+      "contentSha256": "e1a8ef52b4cb827f678436d263f0e47dea00b4a168998f07bf2fa885b474b92d",
+      "bundleSha256": "73a7a3dc9fd36d77a205b5ba12d7696d4b7aeb40ed5046d3786f97deb434ffd1",
+      "manifestSha256": "6c9bf4c9db44e8dda9b079df15c57f285ac14c6357bc8e2098909e4614ba6a3d"
+    },
+    "limits": [
+      "未取得HBuilderX官方导出和同版签名APK",
+      "AAR模板C关闭、签名/基座指纹空值只用于关闭配置输入，非已验完整包身份",
+      "未启用WGT/JS，未消费云打包额度、未安装手机、未证明R8/UTS启动钩子或恢复日记链路"
+    ],
+    "nativePayloadEquivalence": {
+      "entries": 16,
+      "payloadsIdentical": true,
+      "archiveBytesMayDiffer": "ZIP元数据与时间戳"
+    },
+    "explicitDistributionInputs": {
+      "VITE_APP_APPLICATION_ID": "rebu",
+      "VITE_APP_CHANNEL_ID": "legacy",
+      "VITE_APP_CLIENT_KEY": "",
+      "VITE_APP_RESOURCE_VERSION": "0",
+      "note": "显式固化既有默认值，未注册新选择器；本次App资源身份独立于固定包内历史五端资源，不混用摘要"
+    }
+  }
+}

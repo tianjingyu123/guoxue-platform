@@ -168,5 +168,81 @@
       "allTargets": false
     },
     "checks": 20
+  },
+  "channelIntakeReceipt": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "baselineSource": "4e7c962ee14e8f0087871c15a2c31235f516d23d",
+    "paths": [
+      {
+        "path": "apps/server/src/modules/notification",
+        "baselineObject": "8f2c1b271581894f8c563b2bc99b3169fabc5059",
+        "candidateObject": "8f2c1b271581894f8c563b2bc99b3169fabc5059"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement",
+        "baselineObject": "4692dbf0bad118f51b9845af63c24f441531dc97",
+        "candidateObject": "4692dbf0bad118f51b9845af63c24f441531dc97"
+      },
+      {
+        "path": "apps/server/src/modules/shop",
+        "baselineObject": "14d387db935db80077e13736df39d35e9a109bb2",
+        "candidateObject": "14d387db935db80077e13736df39d35e9a109bb2"
+      },
+      {
+        "path": "apps/server/src/modules/course/course.service.ts",
+        "baselineObject": "2088bb4e347e75f44e1ed7113272d21705e413a5",
+        "candidateObject": "2088bb4e347e75f44e1ed7113272d21705e413a5"
+      },
+      {
+        "path": "apps/server/src/modules/live/live.service.ts",
+        "baselineObject": "8f013cd10a89c2d384ae701fdfeb365906575b54",
+        "candidateObject": "8f013cd10a89c2d384ae701fdfeb365906575b54"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.service.ts",
+        "baselineObject": "0a6a5c24415222673933d0116da64b9806e06ff4",
+        "candidateObject": "0a6a5c24415222673933d0116da64b9806e06ff4"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "baselineObject": "7f4380c9752a21b5fa10182ff9de1a5b9f5a4d7f",
+        "candidateObject": "7f4380c9752a21b5fa10182ff9de1a5b9f5a4d7f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "baselineObject": "d78e6208ca13fd0647c5aaa155a5c73706f3b86f",
+        "candidateObject": "d78e6208ca13fd0647c5aaa155a5c73706f3b86f"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "baselineObject": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+        "candidateObject": "37150cf599075785236b2b0490d3a7e5a69e2cfd"
+      },
+      {
+        "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+        "baselineObject": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+        "candidateObject": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57"
+      }
+    ],
+    "changedControllers": [
+      "course/course.controller.ts",
+      "live/live.controller.ts",
+      "circle/circle.controller.ts"
+    ],
+    "serviceTriggerPathsEquivalent": true,
+    "allNotificationTriggersCompleted": false,
+    "allNotificationTargetsVerified": false,
+    "realChannelsVerified": false,
+    "newRuntime": {
+      "runId": 36814832194,
+      "checks": 23,
+      "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "scope": "合成支付退款/圈帖通知、POST及ORDER目标权限、事务失败和两个Redis进程等选定范围"
+    },
+    "gaps": [
+      "独立权益到账、客服全部回复、课程/直播/圈务完整触发尚未全部接通或验收",
+      "真实微信/短信/App推送和目标两节点新候选状态未知",
+      "新增运营guard不等于新增业务通知入口"
+    ]
   }
 }
