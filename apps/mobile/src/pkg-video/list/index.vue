@@ -3,7 +3,12 @@
     <!-- 公共短视频列表仅保留浏览与搜索；发布入口由具备权限的特定圈子提供 -->
     <view class="vl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vl-topbar" :style="menuSafeRight ? { paddingRight: `${menuSafeRight}px` } : undefined">
-        <text class="vl-title-main">短视频</text>
+        <view class="vl-title-group">
+          <view class="vl-back-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="goBack" @keydown="activateOnKeyboard($event, goBack)">
+            <AppIcon name="arrow-left" :size="36" color="#2C2C2C" :stroke-width="2" />
+          </view>
+          <text class="vl-title-main">短视频</text>
+        </view>
         <view
           class="vl-search-btn"
           role="button"
@@ -243,7 +248,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
-import { navigateTo, navigateToContent } from '@/utils/router'
+import { navigateTo, navigateToContent, goBack } from '@/utils/router'
 import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   videoApi,
@@ -391,6 +396,9 @@ function openVideoOnKeyboard(event: KeyboardEvent, id: string) {
   letter-spacing: 2rpx;
   color: #2C2C2C;
 }
+.vl-title-group { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
+.vl-back-btn { width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; }
+.vl-back-btn:active { background-color: #EDE7DD; }
 .vl-search-btn {
   width: 68rpx;
   height: 68rpx;
