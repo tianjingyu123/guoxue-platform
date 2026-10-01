@@ -1,0 +1,107 @@
+name: 音频与报告资产真实库补验
+
+on:
+  push:
+    branches: ["codex/image-verify-20260930"]
+    paths: [".github/workflows/audio-assets-real-db-verify.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audio-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # 固定草稿附件需要写级 token 读取；不发布或修改附件。
+    permissions:
+      contents: write
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: qa_audio
+          POSTGRES_PASSWORD: isolated-runner-only
+          POSTGRES_DB: audio_test_9c8e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qa_audio -d audio_test_9c8e"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      SOURCE_COMMIT: "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94"
+      SOURCE_SHA256: "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277"
+      SOURCE_ASSET: "603772419"
+      DATABASE_URL: "postgresql://qa_audio:isolated-runner-only@127.0.0.1:5432/audio_test_9c8e"
+      XIAOBU_IT_DATABASE_URL: "postgresql://qa_audio:isolated-runner-only@127.0.0.1:5432/audio_test_9c8e"
+      XIAOBU_IT_REDIS_URL: "redis://127.0.0.1:6379"
+      NODE_ENV: test
+      BULLMQ_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          sparse-checkout: scripts/release
+      - name: 清除检出鉴权头
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: "10.33.3"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: 下载并核对固定源码
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p results "$RUNNER_TEMP/audio-source"
+          archive="$RUNNER_TEMP/audio-source.tar.gz"
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/tianjingyu123/guoxue-platform/releases/assets/$SOURCE_ASSET" \
+            --output "$archive"
+          printf '%s  %s\n' "$SOURCE_SHA256" "$archive" > "$archive.sha256"
+          node scripts/release/verify-fixed-package.mjs "$archive" "$archive.sha256" \
+            --expected-commit "$SOURCE_COMMIT" --report results/source-package.json
+          tar -xzf "$archive" -C "$RUNNER_TEMP/audio-source"
+      - name: 核对真实服务及初始化合成库
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -XAtc 'SHOW server_version' > results/postgres-version.txt
+          docker exec '${{ job.services.redis.id }}' redis-cli INFO server | grep '^redis_version:' > results/redis-version.txt
+          docker image inspect postgres:18.4 redis:7 --format '{{json .RepoDigests}}' > results/service-image-digests.json
+          source="$RUNNER_TEMP/audio-source/apps/server/prisma/migrations-deploy"
+          { printf 'BEGIN;\n'; cat "$source/full-baseline.sql" "$source/channel-operations.sql"; printf '\nCOMMIT;\n'; } \
+            | psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 > results/schema.log
+      - name: 隔离恢复依赖和 Prisma 客户端
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/audio-source"
+          pnpm install --frozen-lockfile
+          pnpm --filter @guoxue/server exec prisma generate
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+      - name: 运行音频并发去重与报告知识查询
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE"
+          cd "$RUNNER_TEMP/audio-source/apps/server"
+          # 原测试创建的额外 Redis 实例未逐一关闭；强制结束仅用于此专项，不作为资源释放验收。
+          pnpm exec jest --runInBand --no-coverage --forceExit --json --outputFile "$root/results/jest-result.json" \
+            --runTestsByPath src/modules/tts/audio-asset.service.integration.spec.ts \
+            2>&1 | tee "$root/results/jest.log"
+      - name: 保存限定范围证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: audio-assets-9c8e5e1a2-${{ github.run_id }}
+          path: results/
+          retention-days: 14
+          if-no-files-found: error
