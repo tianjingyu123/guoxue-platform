@@ -1,0 +1,138 @@
+{
+  "verifiedAt": "2026-10-01T12:29:40.094Z",
+  "sourceSha": "fbcd9f5661c9877deb52a60c96688cb8b9230ffe",
+  "sourceDirty": false,
+  "mainlineSnapshot": "e200e352eddae9337db0715f83d4b77545803393",
+  "previousValidationSource": "cf0251cbbd8454195f7bd7dfa8e4a0f2b3a1d051",
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "windowsFix": {
+    "commit": "fbcd9f5661c9877deb52a60c96688cb8b9230ffe",
+    "testAcceptsCRLF": true,
+    "generatedDataAndLicenseForcedLF": true,
+    "originalFailureRetained": true
+  },
+  "regression": {
+    "mobileTests": 304,
+    "failed": 0,
+    "skipped": 0,
+    "typecheckExitCode": 0
+  },
+  "builds": [
+    {
+      "kind": "app-resources",
+      "fileCount": 491
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1180
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2757
+    }
+  ],
+  "mp": {
+    "wxmlFiles": 629,
+    "textFiles": 2750,
+    "mainMB": 1.62,
+    "uploadEstimateMB": 1.9,
+    "subpackages": 33,
+    "allSizeGatesPassed": true
+  },
+  "previousEvidenceReuse": {
+    "unchangedInputs": {
+      "apps/server": {
+        "previousObject": "74805297a379a2e5d9de132fd5d2a0c2eadad6cc",
+        "currentObject": "74805297a379a2e5d9de132fd5d2a0c2eadad6cc",
+        "identical": true
+      },
+      "apps/admin": {
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "packages": {
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      }
+    },
+    "previousFrozenFilesVerified": 4454,
+    "serverTests": 187,
+    "serverSuites": 14,
+    "jwtGroups": 6,
+    "smsGroups": 4,
+    "sourceRebound": false
+  },
+  "review": {
+    "patch": "artifacts\\phase18-merged-current\\review-verified\\merged-from-e200e352.patch",
+    "bundle": "artifacts\\phase18-merged-current\\review-verified\\merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "490f1bc83f3ab9e6d94187afebf6d03aac2efc0a",
+    "sourceTree": "490f1bc83f3ab9e6d94187afebf6d03aac2efc0a",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts\\phase18-merged-current\\client-gate-fixed.log": {
+      "bytes": 32045,
+      "sha256": "2984c6f5226988a1fee3b5e1cc02a45ad7080f3ef55b1d0517e943df7542f0e0"
+    },
+    "artifacts\\phase18-merged-current\\client-gate.log": {
+      "bytes": 32803,
+      "sha256": "e127d651731c28739213c7e2f13df475b936baedce072beee44d6fc9520bb097"
+    },
+    "artifacts\\phase18-merged-current\\mobile-app-build.log": {
+      "bytes": 68036,
+      "sha256": "5f8d0374c5b340dc5a86cc5a640ffae90540212b2fcf39477d1035cbf865aeaa"
+    },
+    "artifacts\\phase18-merged-current\\mobile-h5-build.log": {
+      "bytes": 68258,
+      "sha256": "c396af563a69c787b8a14b90617417d1b0d797acf1023fb1438fbf933beed15a"
+    },
+    "artifacts\\phase18-merged-current\\mobile-mp-build.log": {
+      "bytes": 69059,
+      "sha256": "128daf531ba9ac4d83f1b0a0b723da3edcdcafa2e30200bd63c8f864a0987c9a"
+    },
+    "artifacts\\phase18-merged-current\\mobile-typecheck-fixed.log": {
+      "bytes": 158,
+      "sha256": "a6f5d932b8c24d0ef9f6b404a0726261da7c72ef80929f9967bba0049ebb04d4"
+    },
+    "artifacts\\phase18-merged-current\\mobile-typecheck.log": {
+      "bytes": 158,
+      "sha256": "a6f5d932b8c24d0ef9f6b404a0726261da7c72ef80929f9967bba0049ebb04d4"
+    },
+    "artifacts\\phase18-merged-current\\native-bundle-audit.log": {
+      "bytes": 166,
+      "sha256": "d388a90a07a66c21e77a6a0ad92d6d1a160217df35607c2acfe6ccd5ecc8d44c"
+    },
+    "artifacts\\phase18-merged-current\\shipping-regions-fixed.log": {
+      "bytes": 539,
+      "sha256": "6eecabcbee018654c407df7f17576bcf09fee139d37a2d6cc3cae6358f6e61ab"
+    },
+    "artifacts\\phase18-merged-current\\build-manifest.json": {
+      "bytes": 839311,
+      "sha256": "52a9bef2c94fd7a2bfe798d807c60d9156ee8ae186cbd3ea732fe3dfa1f93dda"
+    },
+    "artifacts\\phase18-merged-current\\review-verified\\merged-from-e200e352.patch": {
+      "bytes": 342488,
+      "sha256": "c8d7f61983940cb5b2790db88a869b984028a2e7513d60ca528bc8a6406c30cb"
+    },
+    "artifacts\\phase18-merged-current\\review-verified\\merged.bundle": {
+      "bytes": 101121,
+      "sha256": "228eb150c499fc3b2ddb36150548b81feb23e81a03347454d914060c2648165a"
+    }
+  },
+  "limits": [
+    "仅独立合并验证分支，未写主线、上线或上传小程序",
+    "App为资源构建，非DCloud完整签名包",
+    "旧服务端联调仍绑定cf0251原来源，仅证明输入Git对象未变和历史冻结未改，不改写旧报告",
+    "合成公开HTTPS域名，不是真实登录、支付、直播、录音或上传业务验收"
+  ],
+  "recordingNote": "摘要清单排除仍在写入的freeze.log；首次记录保留，不涉及产品或受测来源变化"
+}
