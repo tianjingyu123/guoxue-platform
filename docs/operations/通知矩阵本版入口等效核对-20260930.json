@@ -1,5 +1,5 @@
 {
-  "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "candidateSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
   "matrixSource": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
   "checkedPaths": [
     "apps/server/src/modules/notification",
@@ -11,7 +11,8 @@
     "apps/server/src/modules/user/feedback.service.ts",
     "apps/server/src/modules/user/user.module.ts",
     "apps/server/src/modules/ai-gateway/customer-service.service.ts",
-    "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
+    "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+    "apps/server/src/modules/coin"
   ],
   "pathsExist": true,
   "treeEquivalent": false,
@@ -19,10 +20,16 @@
   "realChannelsVerified": false,
   "scope": "existing-trigger-facts-not-new-trigger-development",
   "changedPaths": [
+    "apps/server/src/modules/circle/circle.controller.spec.ts",
+    "apps/server/src/modules/circle/circle.controller.ts",
+    "apps/server/src/modules/circle/circle.service.ts",
     "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
     "apps/server/src/modules/circle/governance/circle-governance.service.ts",
     "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
-    "apps/server/src/modules/circle/services/circle-post.service.ts"
+    "apps/server/src/modules/circle/services/circle-post.service.ts",
+    "apps/server/src/modules/coin/coin-transaction-boundary.spec.ts",
+    "apps/server/src/modules/coin/coin.service.spec.ts",
+    "apps/server/src/modules/coin/coin.service.ts"
   ],
   "unchangedComparedPaths": [
     "apps/server/src/modules/notification",
@@ -35,5 +42,120 @@
     "apps/server/src/modules/ai-gateway/customer-service.service.ts",
     "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
   ],
-  "unchangedComparedPathsEquivalent": true
+  "unchangedComparedPathsEquivalent": true,
+  "historical48acReceipt": {
+    "checkedPaths": [
+      "apps/server/src/modules/notification",
+      "apps/server/src/modules/entitlement",
+      "apps/server/src/modules/course",
+      "apps/server/src/modules/live",
+      "apps/server/src/modules/circle",
+      "apps/server/src/modules/shop",
+      "apps/server/src/modules/user/feedback.service.ts",
+      "apps/server/src/modules/user/user.module.ts",
+      "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
+    ],
+    "unchangedComparedPaths": [
+      "apps/server/src/modules/notification",
+      "apps/server/src/modules/entitlement",
+      "apps/server/src/modules/course",
+      "apps/server/src/modules/live",
+      "apps/server/src/modules/shop",
+      "apps/server/src/modules/user/feedback.service.ts",
+      "apps/server/src/modules/user/user.module.ts",
+      "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "apps/server/src/modules/ai-gateway/customer-service.controller.ts"
+    ],
+    "candidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+    "unchangedComparedPathsEquivalent": true,
+    "changedPaths": [
+      "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+      "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.ts"
+    ]
+  },
+  "previousCandidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
+  "checkedAtUtc": "2026-10-01T00:40:12.4020627Z",
+  "rewardNotificationEventKey": "POST_REWARD:<debitId>",
+  "rewardFundsAtomic": true,
+  "rewardNotificationAwaited": false,
+  "finalHttpRuntimeStatus": "completed-success-selected-scopes",
+  "pathObjectBindings": [
+    {
+      "path": "apps/server/src/modules/notification",
+      "matrixObject": "8f2c1b271581894f8c563b2bc99b3169fabc5059",
+      "equivalent": true,
+      "candidateObject": "8f2c1b271581894f8c563b2bc99b3169fabc5059"
+    },
+    {
+      "path": "apps/server/src/modules/entitlement",
+      "matrixObject": "4692dbf0bad118f51b9845af63c24f441531dc97",
+      "equivalent": true,
+      "candidateObject": "4692dbf0bad118f51b9845af63c24f441531dc97"
+    },
+    {
+      "path": "apps/server/src/modules/course",
+      "matrixObject": "3fd4295084ece5fd3f4cec5892e8cba6132c4d18",
+      "equivalent": true,
+      "candidateObject": "3fd4295084ece5fd3f4cec5892e8cba6132c4d18"
+    },
+    {
+      "path": "apps/server/src/modules/live",
+      "matrixObject": "7a5c276486f2f4c2c1310b459beb4b38f4c4d838",
+      "equivalent": true,
+      "candidateObject": "7a5c276486f2f4c2c1310b459beb4b38f4c4d838"
+    },
+    {
+      "path": "apps/server/src/modules/circle",
+      "matrixObject": "4de1c9fa3bbf4708ee12071bb68eaa85d957a612",
+      "equivalent": false,
+      "candidateObject": "38b8fb477c3f971031f8dba1809083002f34d597"
+    },
+    {
+      "path": "apps/server/src/modules/shop",
+      "matrixObject": "14d387db935db80077e13736df39d35e9a109bb2",
+      "equivalent": true,
+      "candidateObject": "14d387db935db80077e13736df39d35e9a109bb2"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback.service.ts",
+      "matrixObject": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+      "equivalent": true,
+      "candidateObject": "37150cf599075785236b2b0490d3a7e5a69e2cfd"
+    },
+    {
+      "path": "apps/server/src/modules/user/user.module.ts",
+      "matrixObject": "c7d7457f9782b284c32d23141f24c8216153c567",
+      "equivalent": true,
+      "candidateObject": "c7d7457f9782b284c32d23141f24c8216153c567"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "matrixObject": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+      "equivalent": true,
+      "candidateObject": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+      "matrixObject": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+      "equivalent": true,
+      "candidateObject": "30c45f619481ebfb4f2c50ea9282c8058aabbf97"
+    },
+    {
+      "path": "apps/server/src/modules/coin",
+      "matrixObject": "899ed6fef99e589b1fc4e0f8a8e79771aabeecda",
+      "equivalent": false,
+      "candidateObject": "593ef5c060c8acf9553864036734b4fe24fdb0f0"
+    }
+  ],
+  "finalHttpRuntimeRun": 36797126981,
+  "finalHttpRuntimeChecks": 20,
+  "finalHttpRuntimeSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "notificationTargetScopes": {
+    "post": false,
+    "order": true,
+    "allTargets": false
+  }
 }
