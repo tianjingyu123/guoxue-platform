@@ -33,7 +33,8 @@ try {
   if (Boolean(info.minified) !== minified) throw new Error('升级 APK 压缩模式不匹配')
   const installation = await installProbe(sdk, device, info)
   const killed = await launch('show', new RegExp('BASE_KILL_AT ' + checkpoint))
-  const recovered = await launch('keystore-read', /UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true/)
+  // 数据读取是同步事件，WebView 就绪是异步事件；两者齐备后才核验升级成功。
+  const recovered = await launch('keystore-read', /UPGRADE_USER_DATA sessionDecrypted=true,dataPreserved=true[\s\S]*JS_READY baseline-ready/)
   const logs = logsSince(killed.cutoff), text = logs.join('\n')
   if (!/JS_READY baseline-ready/.test(text) || !/BASE_ARCHIVE kept=true,previous=true/.test(text) || !new RegExp('BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=\\d+,nativeBuild=' + version).test(text)) throw new Error('基座恢复/旧资源归档未通过：' + checkpoint)
   evidence.push({ checkpoint, versionCode: version, sourceSha: info.sourceSha, sourceDirty: info.sourceDirty, minified: Boolean(info.minified), apkSha256: info.sha256, installation, logs })
