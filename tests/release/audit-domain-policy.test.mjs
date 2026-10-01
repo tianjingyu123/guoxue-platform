@@ -57,6 +57,41 @@ test("正式域名硬编码到未批准的运行时代码时仍阻断", async ()
   );
 });
 
+test("关闭的原生更新配置模板与本机展示测试按各自用途分类", async () => {
+  await withWorkspace(
+    {
+      "apps/mobile/native/resource-updater/config.template.json": JSON.stringify({
+        enabled: false,
+        apiBase: "https://api.rebugx.cn/api/v1",
+      }),
+      "scripts/release/verify-presentation-isolated.cjs":
+        'const syntheticAsset = "https://api.rebugx.cn/assets/operations/home.png";\n',
+    },
+    async (workspace) => {
+      const result = runAudit(workspace);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.match(result.stdout, /运行时 0/);
+      assert.match(result.stdout, /历史\/测试数据 1/);
+    },
+  );
+});
+
+test("其他原生代码和名称相近的核验脚本不获得域名豁免", async () => {
+  await withWorkspace(
+    {
+      "apps/mobile/native/resource-updater/runtime.json":
+        '{"apiBase":"https://api.rebugx.cn/api/v1"}',
+      "scripts/release/verify-presentation-production.cjs":
+        'const endpoint = "https://api.rebugx.cn/api/v1";\n',
+    },
+    async (workspace) => {
+      const result = runAudit(workspace);
+      assert.equal(result.status, 1);
+      assert.match(result.stdout, /运行时 2/);
+    },
+  );
+});
+
 test("HBuilderX 导出资源不混入源码域名审计", async () => {
   await withWorkspace(
     {

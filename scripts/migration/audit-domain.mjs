@@ -62,6 +62,8 @@ const approvedFormalDomainFiles = new Set([
   "apps/mobile/src/manifest.json",
   // 原生 App Link 解析器必须精确校验正式/预发布可信主机；这是安全白名单而非 API 地址兜底。
   "apps/mobile/src/utils/app-entry-link.ts",
+  // 原生更新默认关闭；公开配置模板绑定已批准的正式入口，不是未记录的运行时兜底。
+  "apps/mobile/native/resource-updater/config.template.json",
 ]);
 const APPROVED_FORMAL_BASELINE_KIND = "正式发布基线";
 
@@ -120,6 +122,8 @@ function classify(relative, line) {
   if (
     relative.includes("/prisma/migrations/") ||
     relative === "scripts/ops/audit-three-candidate-readonly-20260919.sh" ||
+    // 此脚本强制核对本机专用合成库，HTTP 及图片挂载均为隔离测试，不能部署。
+    relative === "scripts/release/verify-presentation-isolated.cjs" ||
     relative.includes("/__fixtures__/") ||
     relative.endsWith(".spec.ts") ||
     relative.endsWith(".test.ts") ||
