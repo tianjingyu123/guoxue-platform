@@ -1748,15 +1748,15 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
-    "releaseId": "launch-20261001-c4eb890b8",
-    "receipt": "docs/operations/直播预约通知失败隔离与实际重试验收-20261001.json",
-    "ciRun": 36890104221,
-    "imageRun": 36890855896,
+    "sourceCommit": "9695462de758faff9a0d278d5197aeb118bf986b",
+    "releaseId": "launch-20261001-9695462de",
+    "receipt": "docs/operations/直播预约权限与实际HTTP验收-20261001.json",
+    "ciRun": 36893285327,
+    "imageRun": 36893618525,
     "releaseDecision": "NO-GO",
-    "note": "直播预约失败隔离独立回退；客户端等效b2；未部署",
-    "evidenceAsset": 603659517,
-    "evidenceSha256": "4cd7ccd03c1f82c63ab5a8d635f5d00402965f42352452fb9370387eef2e1ee0"
+    "note": "直播预约权限独立回退，保留c4eb失败隔离；客户端等效b2；未部署",
+    "evidenceAsset": 603707900,
+    "evidenceSha256": "cbd50273d743028f929614382e793129c7029a7f14ed7d16218c5e3bf6d99850"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1854,6 +1854,17 @@
       "note": "免费课程通知独立回退；客户端等效b2；未部署",
       "evidenceAssetId": 603602802,
       "evidenceSha256": "65d1b1bdb2643f187257d5e6fc269e965b749b50c9e6ac7675c0ce17710f8091"
+    },
+    {
+      "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+      "releaseId": "launch-20261001-c4eb890b8",
+      "receipt": "docs/operations/直播预约通知失败隔离与实际重试验收-20261001.json",
+      "ciRun": 36890104221,
+      "imageRun": 36890855896,
+      "releaseDecision": "NO-GO",
+      "note": "直播预约失败隔离独立回退；客户端等效b2；未部署",
+      "evidenceAsset": 603659517,
+      "evidenceSha256": "4cd7ccd03c1f82c63ab5a8d635f5d00402965f42352452fb9370387eef2e1ee0"
     }
   ]
 }
