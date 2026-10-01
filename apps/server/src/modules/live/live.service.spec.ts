@@ -955,6 +955,50 @@ describe("LiveService", () => {
     });
   });
 
+  describe("预约入口可见性", () => {
+    it.each([
+      ["仅自己可见", "SELF_ONLY", "APPROVED"],
+      ["圈外用户", "CIRCLE_ONLY", "APPROVED"],
+      ["待审核公开预告", "PLATFORM", "PENDING"],
+      ["已下架预告", "PLATFORM", "REJECTED"],
+    ])("%s不能通过已知房间ID写入预约", async (_name, visibility, auditStatus) => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r-private", userId: "host", hostUserId: "host", circleId: "c-private",
+        status: "WAITING", visibility, auditStatus, startTime: new Date(Date.now() + 60_000),
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+
+      await expect(svc.bookRoom("r-private", "outsider")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveBooking.upsert).not.toHaveBeenCalled();
+      expect(mockPrisma.liveBooking.count).not.toHaveBeenCalled();
+    });
+
+    it("有效圈成员可以预约，沿用成员有效期判断", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r-circle", userId: "host", hostUserId: "host", circleId: "c1",
+        status: "WAITING", visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", startTime: new Date(Date.now() + 60_000),
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "membership" });
+      mockPrisma.liveBooking.upsert.mockResolvedValue({ id: "booking" });
+      await expect(svc.bookRoom("r-circle", "member")).resolves.toMatchObject({ booked: true });
+      expect(mockPrisma.circleMember.findFirst).toHaveBeenCalledWith({
+        where: { circleId: "c1", userId: "member", OR: [{ expireAt: null }, { expireAt: { gt: expect.any(Date) } }] },
+        select: { id: true },
+      });
+      expect(mockPrisma.liveBooking.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("房主仍可预约自己的有效预告", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r-own", userId: "host", hostUserId: "host", status: "WAITING",
+        visibility: "SELF_ONLY", auditStatus: "APPROVED", startTime: new Date(Date.now() + 60_000),
+      });
+      mockPrisma.liveBooking.upsert.mockResolvedValue({ id: "booking" });
+      await expect(svc.bookRoom("r-own", "host")).resolves.toMatchObject({ booked: true });
+      expect(mockPrisma.circleMember.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe("直播预约通知补偿", () => {
     it.each([
       ["开播前提醒", "remindUpcomingBookings", "remindedAt", "LIVE_REMINDER"],

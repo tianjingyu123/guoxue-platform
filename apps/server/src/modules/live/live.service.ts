@@ -1526,6 +1526,8 @@ export class LiveService {
   async bookRoom(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    // 预约不能成为绕过详情可见性的入口，也不能给圈外/隐藏预告用户创建提醒。
+    await this.assertRoomVisibilityAccess(room, userId);
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播已开始或已结束，无法预约");
     if (!room.startTime || room.startTime <= new Date()) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该直播尚未发布有效开播时间，暂不能预约");
