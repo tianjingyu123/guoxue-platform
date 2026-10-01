@@ -1,0 +1,21 @@
+{
+  "sourceSha": "80216bf8dfcbb262aed66bc039655baf76902d11",
+  "sourceDirty": false,
+  "syntheticOnly": true,
+  "dcloud": false,
+  "minified": true,
+  "shrinker": "R8 release",
+  "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+  "packageName": "cn.rebu.resourceprobe",
+  "versionCode": 39,
+  "minSdk": 26,
+  "targetSdk": 35,
+  "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+  "sha256": "96300f12abb3561eb0d00bc00610f0d925785a501cde5ac97cb939e15c2789ea",
+  "limits": [
+    "Application/WebView 独立宿主，非 DCloud APK",
+    "冷启动 OfferCheck 是合成许可回调",
+    "资源签名私钥仅本构建进程内存"
+  ],
+  "apk": ".github/native-probe/rebu-native-probe-39.apk"
+}
