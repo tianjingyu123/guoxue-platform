@@ -68,6 +68,29 @@ const noticeCount = (room, event) => p.notification.count({ where: { targetId: p
       title: '隔离合成直播', visibility: 'PLATFORM', auditStatus: 'APPROVED', status, startTime: new Date(now + minutes * 60000) } });
   }
   const bookingRoute = name => '/live/rooms/' + prefix + name + '/book';
+  for (const [name, visibility, auditStatus] of [
+    ['hidden', 'SELF_ONLY', 'APPROVED'], ['pending', 'PLATFORM', 'PENDING'],
+    ['rejected', 'PLATFORM', 'REJECTED'], ['circle', 'CIRCLE_ONLY', 'APPROVED'],
+  ]) {
+    if (name === 'circle') await p.circle.create({ data: { id: prefix + 'circle-fixture', name: '隔离预约权限圈', intro: '合成验收', tags: [], ownerId: 'linux-super' } });
+    await p.liveRoom.create({ data: { id: prefix + name, userId: 'linux-super', hostUserId: 'linux-super',
+      title: '隔离非公开预告', visibility, auditStatus, status: 'WAITING', startTime: new Date(now + 18 * 60000),
+      ...(name === 'circle' ? { circleId: prefix + 'circle-fixture' } : {}),
+    } });
+    await request('known-room-id-cannot-bypass-booking-access-' + name, a, bookingRoute(name), 404, 'POST');
+    assert.equal(await p.liveBooking.count({ where: { roomId: prefix + name, userId: a } }), 0);
+  }
+  record('denied-hidden-unreviewed-rejected-and-circle-bookings-leave-no-db-row');
+  await r.setJson('notification:prefs:linux-super', { PUSH_ENABLED: false }, 600);
+  await request('owner-may-book-own-private-preview', 'linux-super', bookingRoute('hidden'), 201, 'POST');
+  await request('owner-can-cancel-own-private-booking', 'linux-super', bookingRoute('hidden'), 200, 'DELETE');
+  const membership = await p.circleMember.create({ data: { circleId: prefix + 'circle-fixture', userId: a, expireAt: new Date(Date.now() + 60000) } });
+  await request('active-circle-member-can-book-private-circle-preview', a, bookingRoute('circle'), 201, 'POST');
+  await request('active-member-cancels-own-circle-booking', a, bookingRoute('circle'), 200, 'DELETE');
+  await p.circleMember.update({ where: { id: membership.id }, data: { expireAt: new Date(Date.now() - 60000) } });
+  await request('expired-circle-member-cannot-rebook-private-circle-preview', a, bookingRoute('circle'), 404, 'POST');
+  assert.equal((await p.liveBooking.findUnique({ where: { roomId_userId: { roomId: prefix + 'circle', userId: a } } })).status, 'CANCELLED');
+  record('expired-member-denial-does-not-reactivate-cancelled-booking');
   await request('anonymous-booking-denied', null, bookingRoute('one'), 401, 'POST');
   for (const name of ['one', 'two']) {
     await request('real-http-booking-' + name, a, bookingRoute(name), 201, 'POST');
