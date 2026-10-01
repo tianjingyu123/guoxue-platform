@@ -1,0 +1,35 @@
+{
+  "verifiedAt": "2026-10-01T00:27:48.940Z",
+  "sourceSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+  "sourceDirty": false,
+  "syntheticOnly": true,
+  "backend": "实际 Prisma/PostgreSQL 与服务/控制器；本机 HTTP 适配及合成账号认证",
+  "client": "实际 Vue SFC/RemoteConfig/DOM，JSDOM；SDK/原生元素、图像封面与路由执行适配是测试替身",
+  "surfaces": [
+    "home",
+    "discover",
+    "live",
+    "shop",
+    "course",
+    "circle",
+    "agent"
+  ],
+  "wgtChannel": "google-play",
+  "wgtEnabled": false,
+  "codeDownloads": 0,
+  "passed": [
+    "草稿不生效；新旧能力、同渠道不同版本、不同渠道同版本、资源版本和重叠优先级隔离",
+    "回退及恢复追加版本与操作者；旧草稿不能覆盖；灰度未命中可解释回落",
+    "声明式协议拒绝脚本、错 schema 和未内置组件；客户端缺模块安全省略",
+    "真实 PostgreSQL 配置经本机 HTTP 更新实际 Vue SFC DOM：入口显隐/文案/顺序/模块；旧 SFC 保留内置入口，Google Play WGT 仍关闭",
+    "同一已挂载客户端组件响应后台回退和恢复，无新代码请求",
+    "只读/维护关闭新业务，历史订单/退款/已购内容导航、已付款确认和续聊不被客户端开关取消",
+    "离线保留有效展示文案、写开关过期收窄，网络恢复及账号切换重新获取并更新组件",
+    "同一 Vue 组件经 HTTP 按账号稳定灰度切换；本机认证注入是明确的合成适配"
+  ],
+  "limits": [
+    "没有运行正式 DCloud 安装包",
+    "权限/审计 HTTP 在独立 Jest 中验证",
+    "历史权益保留验证为导航/请求准入，实际订单业务依赖仍须同版预发布验收"
+  ]
+}
