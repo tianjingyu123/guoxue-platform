@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAttrs } from 'vue'
 import { goBack as platformGoBack } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 withDefaults(defineProps<{
   title: string
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   (e: 'right'): void
 }>()
 const attrs = useAttrs()
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 // AppIcon 把颜色嵌入 SVG data URI，CSS 变量在隔离 SVG 中无效，必须用具体色值。
 const iconColor = '#2c2c2c'
@@ -39,8 +41,8 @@ function goSearch() {
   <view class="ch-header">
     <!-- 状态栏占位 -->
     <view class="ch-statusbar" />
-    <view class="ch-bar">
-      <view class="ch-btn" @tap="onBack">
+    <view class="ch-bar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
+      <view class="ch-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="onBack" @keydown.enter="onBack" @keydown.space.prevent="onBack">
         <app-icon name="arrow-left" :size="44" :color="iconColor" />
       </view>
       <text class="ch-title">{{ title }}</text>
@@ -48,10 +50,10 @@ function goSearch() {
       <view v-if="$slots.right" class="ch-right">
         <slot name="right" />
       </view>
-      <view v-else-if="rightType === 'share'" class="ch-btn" @tap="emit('right')">
+      <view v-else-if="rightType === 'share'" class="ch-btn" role="button" aria-label="分享当前古籍" tabindex="0" @tap="emit('right')" @keydown.enter="emit('right')" @keydown.space.prevent="emit('right')">
         <app-icon name="share-2" :size="40" :color="iconColor" />
       </view>
-      <view v-else-if="rightType === 'search' && showSearch" class="ch-btn" @tap="goSearch">
+      <view v-else-if="rightType === 'search' && showSearch" class="ch-btn" role="button" aria-label="搜索古籍" tabindex="0" @tap="goSearch" @keydown.enter="goSearch" @keydown.space.prevent="goSearch">
         <app-icon name="search" :size="44" :color="iconColor" />
       </view>
       <view v-else class="ch-btn ch-btn--placeholder" />
@@ -77,10 +79,14 @@ function goSearch() {
   justify-content: space-between;
   padding: 0 12rpx;
   height: 96rpx;
+  min-height: 44px;
 }
 .ch-btn {
   width: 88rpx;
   height: 88rpx;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,6 +108,9 @@ function goSearch() {
   min-width: 88rpx;
 }
 .ch-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
   font-size: 34rpx;
   font-weight: 600;
   letter-spacing: -0.5rpx;

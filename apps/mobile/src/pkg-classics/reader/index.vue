@@ -5,11 +5,14 @@ import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { classicsApi, type BookmarkItem, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import AiThinking from '@/components/classics/ai-thinking.vue'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 interface ChapterRef { id: string; title: string }
+// 查词热区有负外边距，多留一段胶囊间距，避免可点击范围落入系统按钮。
+const menuSafeRight = getMiniProgramMenuSafeRight(16)
 
 const bookId = ref('')
 const bookTitle = ref('')
@@ -683,8 +686,8 @@ onLoad((q) => {
     <!-- 顶栏 -->
     <view class="rd-top">
       <view class="rd-statusbar" />
-      <view class="rd-top-inner">
-        <view class="rd-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" :color="iconColor" /></view>
+      <view class="rd-top-inner" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
+        <view class="rd-icon-btn" role="button" aria-label="返回古籍详情" tabindex="0" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><app-icon name="arrow-left" :size="44" :color="iconColor" /></view>
         <view class="rd-top-mid">
           <text class="rd-top-title">{{ bookTitle }}</text>
           <text v-if="curChapter" class="rd-top-sub">{{ curChapter.title }}</text>
@@ -1179,9 +1182,9 @@ export default { options: { styleIsolation: 'shared' } }
   background: inherit;
 }
 .rd-statusbar { height: var(--status-bar-height, 0px); }
-.rd-top-inner { display: flex; align-items: center; gap: 16rpx; height: 92rpx; padding: 0 16rpx; }
+.rd-top-inner { display: flex; align-items: center; gap: 16rpx; height: 92rpx; min-height: 44px; padding: 0 16rpx; }
 /* 触控热区 88rpx（负 margin 抵消占位·无底色，视觉不变） */
-.rd-icon-btn { width: 88rpx; height: 88rpx; margin: -12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rd-icon-btn { width: 88rpx; height: 88rpx; min-width: 44px; min-height: 44px; margin: -12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rd-top-mid { flex: 1; min-width: 0; text-align: center; }
 .rd-top-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--rd-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-top-sub { display: block; font-size: 22rpx; color: var(--rd-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
