@@ -3819,6 +3819,9 @@ CREATE TABLE "FeatureFlag" (
     "enabled" BOOLEAN NOT NULL DEFAULT false,
     "percentage" INTEGER NOT NULL DEFAULT 100,
     "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "operationState" TEXT NOT NULL DEFAULT 'OPEN',
+    "emergencyDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "scopeRules" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -5362,6 +5365,10 @@ CREATE TABLE "LegalDocument" (
 CREATE TABLE "AppVersion" (
     "id" TEXT NOT NULL,
     "platform" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL DEFAULT 'rebu',
+    "channelId" TEXT NOT NULL DEFAULT 'legacy',
+    "rolloutPercentage" INTEGER NOT NULL DEFAULT 100,
+    "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "version" TEXT NOT NULL,
     "buildNumber" TEXT,
     "changelog" TEXT,
@@ -5380,6 +5387,49 @@ CREATE TABLE "AppVersion" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AppVersion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppDistribution" (
+    "id" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "clientKey" TEXT NOT NULL,
+    "packageName" TEXT NOT NULL,
+    "signingCertificateSha256" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "wgtPolicy" TEXT NOT NULL DEFAULT 'DENIED',
+    "policyEvidence" TEXT,
+    "recoveryEvidence" TEXT,
+    "nativeFingerprint" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppDistribution_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ResourceRelease" (
+    "id" TEXT NOT NULL,
+    "applicationId" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "resourceVersion" INTEGER NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "activeScopeKey" TEXT,
+    "manifest" JSONB NOT NULL,
+    "signature" TEXT NOT NULL,
+    "keyId" TEXT NOT NULL,
+    "rolloutPercentage" INTEGER NOT NULL DEFAULT 0,
+    "targetUserIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "publishedBy" TEXT,
+    "publishedAt" TIMESTAMP(3),
+    "retiredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ResourceRelease_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -9119,10 +9169,25 @@ CREATE INDEX "LegalDocument_type_status_idx" ON "LegalDocument"("type", "status"
 CREATE UNIQUE INDEX "AppVersion_activePlatformKey_key" ON "AppVersion"("activePlatformKey");
 
 -- CreateIndex
-CREATE INDEX "AppVersion_platform_status_publishedAt_idx" ON "AppVersion"("platform", "status", "publishedAt");
+CREATE INDEX "AppVersion_applicationId_platform_channelId_status_publishe_idx" ON "AppVersion"("applicationId", "platform", "channelId", "status", "publishedAt");
 
 -- CreateIndex
-CREATE INDEX "AppVersion_platform_version_buildNumber_idx" ON "AppVersion"("platform", "version", "buildNumber");
+CREATE UNIQUE INDEX "AppVersion_applicationId_platform_channelId_version_buildNu_key" ON "AppVersion"("applicationId", "platform", "channelId", "version", "buildNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppDistribution_clientKey_key" ON "AppDistribution"("clientKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppDistribution_applicationId_platform_channelId_key" ON "AppDistribution"("applicationId", "platform", "channelId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResourceRelease_activeScopeKey_key" ON "ResourceRelease"("activeScopeKey");
+
+-- CreateIndex
+CREATE INDEX "ResourceRelease_applicationId_platform_channelId_status_idx" ON "ResourceRelease"("applicationId", "platform", "channelId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResourceRelease_applicationId_platform_channelId_resourceVe_key" ON "ResourceRelease"("applicationId", "platform", "channelId", "resourceVersion");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TopicTag_name_key" ON "TopicTag"("name");
