@@ -1,0 +1,143 @@
+{
+  "verifiedAt": "2026-10-01T17:04:34.967Z",
+  "sourceSha": "d26974ba0e173ee8daef9005933e139915e1cefa",
+  "sourceDirty": false,
+  "mainlineSnapshot": "062f78238f2bf8bb23e1c2884baf990cb34a8246",
+  "baseSha": "839ab05a3984f66f283173026d22eadcd3258315",
+  "businessSourceCommits": [
+    "5b61b4428635de3c01b9940d30424c072732e05a",
+    "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "9695462de758faff9a0d278d5197aeb118bf986b"
+  ],
+  "changedFiles": [
+    "apps/server/src/modules/course/course-free-enrollment-notification.spec.ts",
+    "apps/server/src/modules/course/course-purchase.service.ts",
+    "apps/server/src/modules/live/live.service.spec.ts",
+    "apps/server/src/modules/live/live.service.ts"
+  ],
+  "changedFilesIdenticalToMainlineSnapshot": true,
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "regression": {
+    "serverTests": 350,
+    "suites": 9,
+    "failed": 0,
+    "skipped": 0,
+    "eslintErrors": 0,
+    "eslintWarnings": 13,
+    "serverTypecheckExitCode": 0,
+    "serverProductionBuildExitCode": 0
+  },
+  "serverBuild": {
+    "manifest": "artifacts/phase25-notification-merged-current/build-manifest.json",
+    "fileCount": 3458,
+    "manifestSha256": "014901a9134562fc75f7deaf0ef115144a451188ddd8376a4205c71e97640917"
+  },
+  "previousEvidenceReuse": {
+    "clientSource": "10863ad1732d3a3d08d8859c5069fe6cbe490e1e",
+    "clientTests": 319,
+    "clientTestsRerun": false,
+    "clientBuildsRerun": false,
+    "appH5MpBuildsPassed": true,
+    "inputs": {
+      "apps/mobile": {
+        "before": "dc64a197de7d4892ea927a03e08fc9ea5be11128",
+        "after": "dc64a197de7d4892ea927a03e08fc9ea5be11128",
+        "identical": true
+      },
+      "tests": {
+        "before": "3637ccc064bd76207aca2c9b9e2aa346e3d2ced7",
+        "after": "3637ccc064bd76207aca2c9b9e2aa346e3d2ced7",
+        "identical": true
+      },
+      "scripts": {
+        "before": "fc9344d087fe6dd3aba495bd6e8c08418ea11afc",
+        "after": "fc9344d087fe6dd3aba495bd6e8c08418ea11afc",
+        "identical": true
+      },
+      "apps/admin": {
+        "before": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "after": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "package.json": {
+        "before": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "after": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "before": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "after": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      },
+      "packages": {
+        "before": "b1249418ea49296ffb90dcd883533060126d5637",
+        "after": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      }
+    },
+    "preservedFrozenFiles": 12314,
+    "oldReport": "docs/operations/channel-updates-evidence/phase22-message-merged-current.json",
+    "oldReportSha256": "f48720184f0e8a388c2dc48ee8ab057d4d9b5392c04e0434fb5db5d385172780",
+    "oldServer45TestsRebound": false
+  },
+  "review": {
+    "patch": "artifacts/phase25-notification-merged-current/review-verified/merged-from-062f78238.patch",
+    "bundle": "artifacts/phase25-notification-merged-current/review-verified/merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "512b12b8d78de67fe1a2fc9a882149e7bfd001cd",
+    "sourceTree": "512b12b8d78de67fe1a2fc9a882149e7bfd001cd",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts/phase25-notification-merged-current/preflight.json": {
+      "bytes": 923,
+      "sha256": "4cf1f38bf49f64de416b5cac8582e99277d8e0b509b1ffa280693d821ce568be"
+    },
+    "artifacts/phase25-notification-merged-current/execution.json": {
+      "bytes": 530,
+      "sha256": "8001cc88c9c3a3ad617aeb3515d87836e91056e0b9337a2670126ac40c67a7ce"
+    },
+    "artifacts/phase25-notification-merged-current/server-tests.json": {
+      "bytes": 129853,
+      "sha256": "0a89edab41b76309fb1cfdd3d5537783a0556fedb80bd4a3f9bfb143c2c9eaf5"
+    },
+    "artifacts/phase25-notification-merged-current/server-related-regression.log": {
+      "bytes": 3967,
+      "sha256": "23b9d92a0835881cf53c755fd309c2144ff609eb3de208c1843e81f1c0a91b7b"
+    },
+    "artifacts/phase25-notification-merged-current/changed-files-eslint.log": {
+      "bytes": 1741,
+      "sha256": "066365ab8c76772a2617ff304aef8a90c51c8df6b5a6139286b4ad359ea1c27c"
+    },
+    "artifacts/phase25-notification-merged-current/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase25-notification-merged-current/server-production-build.log": {
+      "bytes": 147,
+      "sha256": "c755a2ea4d97a0a00560c339eceed1f451ed33a92d08159f0bd68d09b3328838"
+    },
+    "artifacts/phase25-notification-merged-current/build-manifest.json": {
+      "bytes": 611015,
+      "sha256": "014901a9134562fc75f7deaf0ef115144a451188ddd8376a4205c71e97640917"
+    },
+    "artifacts/phase25-notification-merged-current/review-verified/merged-from-062f78238.patch": {
+      "bytes": 503964,
+      "sha256": "7162fd84ed81ba92437b9c1dc14b6f05b31255f11fd51f03fe93af38facca71d"
+    },
+    "artifacts/phase25-notification-merged-current/review-verified/merged.bundle": {
+      "bytes": 139536,
+      "sha256": "02c19b111537b9c40b068b6bf7df2e3bcfff1ad9df1950de7f7c03b7f9be0b99"
+    }
+  },
+  "limits": [
+    "本轮仅九套350项定向测试，不是主线全量CI或完整生产镜像验收",
+    "319项客户端与三端资源构建属于明确等效的旧源码证据，未重跑或累计",
+    "主线26组数据库/HTTP验证仍绑定其原始候选，不冒充本合并版本完整镜像验证",
+    "仅独立候选合入，没有正式master接收、部署、真实通知或真实媒体",
+    "旧45项服务端回归保留原c53来源，不计入本350项累计",
+    "API31/32许可、匹配SDK完整包、真机业务、生产和商店提审仍待完成"
+  ]
+}
