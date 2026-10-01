@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:8c6ff72a");
-const sourceCommit = "8c6ff72a7c1e406ea184382f7f04fca783c659b2";
-const sourceSha256 = "b935cbaefd3946c40b34d7b0bab771036f3f6b6683c2b5c3bed0573d168b8b19";
+assert.equal(image, "rebu-linux-verify:70ee2418");
+const sourceCommit = "70ee2418d091c9bea87878a8ff89b879a12e28b9";
+const sourceSha256 = "959138e76b4dc9eb6203409bf3461d0262adcf32673a1a0e9990d968c9531d90";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -101,7 +101,7 @@ try {
     "PUBLIC_DOMAIN=api.example.invalid", "PUBLIC_API_URL=https://api.example.invalid",
     "PUBLIC_H5_URL=https://h5.example.invalid/h5/", "PUBLIC_ASSET_ORIGIN=https://assets.example.invalid",
     "CORS_ORIGIN=https://h5.example.invalid", "WS_CORS_ORIGIN=https://h5.example.invalid",
-    "RELEASE_ID=isolated-8c6ff72a",
+    "RELEASE_ID=isolated-70ee2418",
   ].join("\n") + "\n", { mode: 0o600 });
   // 使用固定包中的正式空库初始化入口，不能用 db push 绕过迁移外约束。
   const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv,
@@ -134,7 +134,7 @@ try {
   const routes = ["/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health", "/api/v1/mini/home", "/api/v1/contents?page=1&pageSize=1"];
   const httpScript = `Promise.all(${JSON.stringify(routes)}.map(async path=>{const r=await fetch('http://127.0.0.1:3000'+path); const body=await r.json(); return {path,status:r.status,releaseId:body.data?.releaseId||body.releaseId||null};})).then(rows=>{process.stdout.write(JSON.stringify(rows)); if(rows.some(r=>r.status!==200)) process.exitCode=1;}).catch(()=>{process.exitCode=1;})`;
   const http = JSON.parse(docker(["exec", app, "node", "-e", httpScript]));
-  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-8c6ff72a"));
+  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-70ee2418"));
   save("http-startup.json", http);
   check("production-entrypoint-health-public-http", http);
 
