@@ -1,0 +1,314 @@
+{
+  "verifiedAt": "2026-10-01T01:22:22.653Z",
+  "finalCodeSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+  "adminCodeSha": "08d986d61c7e24398940960b242ceb5c793a48f9",
+  "nativeR8CodeSha": "56d3634a0fe3bb61526621b1a6356766f4cf2c76",
+  "sourceDirty": false,
+  "localCandidateOnly": true,
+  "verification": {
+    "nodeTestsPassed": 52,
+    "adminSfcAxiosCases": 2,
+    "adminControlsNetworkAndRoles": "test adapters; production Axios response interceptor executed",
+    "adminVueTscAndVite": true,
+    "changedAdminEslint": {
+      "errors": 0,
+      "warnings": 212
+    },
+    "nativeCore": {
+      "jcaGroups": 10,
+      "forcedBcGroups": 10,
+      "migrationForcedExits": 5,
+      "pathConfinement": true,
+      "nodeJavaRootSignature": true,
+      "runtime": "JVM"
+    },
+    "r8Android": {
+      "api": 34,
+      "packageName": "cn.rebu.resourceprobe",
+      "minified": true,
+      "debuggable": false,
+      "probeGroups": 8,
+      "fixedNameReflectionVerified": true,
+      "baseUpgradeCheckpoints": [
+        "BASE_JOURNAL_SYNCED",
+        "BASE_OLD_MOVED",
+        "BASE_NEW_MOVED",
+        "BASE_PREVIOUS_MOVED",
+        "BASE_COMMITTED"
+      ],
+      "formalPackageUnchanged": true,
+      "dcloudVerified": false,
+      "criticalBusinessRealVerified": false
+    },
+    "nativeBoundary": {
+      "sameCode": {
+        "compatible": true,
+        "changedNativeInputs": [],
+        "nativeFingerprint": "5ddc4d9eb8cea8e747b7c7a7e87490fec8ddffd0474dce64e5a84f9a1c048fa8"
+      },
+      "previousFullPackageRequired": {
+        "compatible": false,
+        "changedNativeInputs": [
+          "apps/mobile/native/resource-updater/README.md",
+          "apps/mobile/native/resource-updater/consumer-rules.pro",
+          "scripts/release/build-resource-native.mjs"
+        ],
+        "nativeFingerprint": "5ddc4d9eb8cea8e747b7c7a7e87490fec8ddffd0474dce64e5a84f9a1c048fa8"
+      }
+    }
+  },
+  "artifacts": {
+    "aar": {
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceDirty": false,
+      "sha256": "3707c296893e9a773b20aef3f479edb368a98367765e154eb2abc9d15f9db991",
+      "wgtEnabled": false,
+      "bcJarIncluded": false,
+      "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+      "proguardTxtContentMatched": true
+    },
+    "channelResources": {
+      "output": "artifacts/app-channels/rebu/android/google-play/4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+      "platform": "android",
+      "channelId": "google-play",
+      "nativeBuild": 254,
+      "syntheticIdentity": true,
+      "artifactType": "compiled-resources",
+      "nativePackageVerified": false,
+      "wgtEnabled": false,
+      "fileCount": 494,
+      "treeHashAlgorithm": "SHA-256(sorted relativePath NUL byteLength NUL fileSHA256 LF)",
+      "treeSha256": "cb2d40b7118195f1d0b05affc153611998182fbc7678f6170af9151dd7dca11c",
+      "fileManifestPath": "artifacts/phase4-channel-manifests/google-play-files.json",
+      "fileManifestSha256": "e3a10b44446bd448ea46af0bcfa2fed17136b5d204725362ea9ae4a22d51d7d2"
+    },
+    "testApks": [
+      {
+        "versionCode": 24,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "de80fb559a8d04578d3dfda91ffd88c34affd1b99b5ff3a9b05674e9f0435505",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 25,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "15cd1ecfd0604d2fc18d4cfc95b9c8d1ef3ae3a9e66a2981fac4869f09109c57",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 26,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "b5d960fde80cf1d276e75a9926cac7a3d9b4805c7fd72ceff9c3bf1399d8eb26",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 27,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "528e347a0b488d6014c3399cd3425283f30b12d86a47b5eec0d623b3ce7fc383",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 28,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "2f4b368dafb0c98a6a7e54737adf1d30c4d71de4b7c1cb6c66ff3574d5eb304f",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      },
+      {
+        "versionCode": 29,
+        "sourceSha": "4abebb1ae5b87b5696a9c1db6416994703ef0f32",
+        "sourceDirty": false,
+        "packageName": "cn.rebu.resourceprobe",
+        "sha256": "86aa6a3d4518b6e6e5cf66b4122db29a39def8825d38742769c640b9173cd3fb",
+        "mappingSha256": "2b10e05a26df40900a722d71b6f7517edc4f9025dc945e2a3185f788569d2242",
+        "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+        "signingCertificateSha256": "7f20affa8d2f7b10d5b6d7b89514329ad77e35cdab6cc54a06f9908844f684c5",
+        "minified": true,
+        "syntheticOnly": true,
+        "dcloud": false
+      }
+    ],
+    "tools": {
+      "sdkBuildTools": "35.0.0",
+      "r8Version": "8.6.2-dev",
+      "d8JarSha256": "305622ad00535684534eb8f742cbf5e628a9abc09d8ea4d39d1babb95bf0cee5"
+    }
+  },
+  "priorEvidenceReuse": {
+    "codeSha": "b5d7fa5eafe22402fa2a7695be68db3ac14e38b0",
+    "evidence": "channel-updates-evidence/phase3.json",
+    "sourceTrees": {
+      "apps/server": {
+        "previous": "b8b0fb07ed4b369ce574d283cae49e2a49eb0fd8",
+        "current": "b8b0fb07ed4b369ce574d283cae49e2a49eb0fd8",
+        "unchanged": true
+      },
+      "apps/mobile/src": {
+        "previous": "5b057a25c626d5e68a0e843cfb5990ca716a046b",
+        "current": "5b057a25c626d5e68a0e843cfb5990ca716a046b",
+        "unchanged": true
+      },
+      "packages/shared": {
+        "previous": "8a37f32cf06fe74fb50b302be58ee0b37013b6c9",
+        "current": "8a37f32cf06fe74fb50b302be58ee0b37013b6c9",
+        "unchanged": true
+      },
+      "apps/mobile/native/resource-updater/src": {
+        "previous": "aea13576f7a4cde8ef44f480729968e8947048e2",
+        "current": "aea13576f7a4cde8ef44f480729968e8947048e2",
+        "unchanged": true
+      }
+    },
+    "server269AndMobileH5MpNotRerun": true,
+    "preservedNativeArtifact": "artifacts/frozen-native/b5d7fa5eafe22402fa2a7695be68db3ac14e38b0"
+  },
+  "raceFix": {
+    "initialCheckpointFailure": "BASE_NEW_MOVED",
+    "cause": "验收先读到同步用户数据事件，尚未等待异步JS_READY；真实日志已确认归档/基线/会话保留",
+    "nativeRecoveryImplementationChanged": false,
+    "fix": "等待UPGRADE_USER_DATA及后续JS_READY两个信号后核验，所有断言保留",
+    "finalAllFivePassed": true
+  },
+  "logs": {
+    "phase4-node-final.log": {
+      "path": "artifacts/phase4-node-final.log",
+      "sha256": "abeadfff4394371ef66e61df140945b64f7bd01a7a940dfba7bc1f54944783f7",
+      "bytes": 4634
+    },
+    "phase4-admin-form-tests.log": {
+      "path": "artifacts/phase4-admin-form-tests.log",
+      "sha256": "084baaa437ddef6e8ec1e9d00c65b5736076219e61e68110e0f154515afda070",
+      "bytes": 405
+    },
+    "phase4-admin-build-bound.log": {
+      "path": "artifacts/phase4-admin-build-bound.log",
+      "sha256": "2f20d0762d42219a695db1ad053e4601555691549cf2a59e88af0a0de6c422e0",
+      "bytes": 59891
+    },
+    "phase4-admin-lint.log": {
+      "path": "artifacts/phase4-admin-lint.log",
+      "sha256": "d02ad89765ab15a6795195f952a84e374d312a4b332c6a5d1df012c02c0408c3",
+      "bytes": 30072
+    },
+    "phase4-r8-build24.log": {
+      "path": "artifacts/phase4-r8-build24.log",
+      "sha256": "fa18761c28af59522ce831478f93ac0d2e6bb194120817bb3a279dfda077c1d0",
+      "bytes": 386
+    },
+    "phase4-r8-probe24.log": {
+      "path": "artifacts/phase4-r8-probe24.log",
+      "sha256": "2bcf305f27862ab16bbc390a8e6805ad8a491cc900bdee938a65ad5a5507a6d1",
+      "bytes": 748
+    },
+    "phase4-r8-upgrades-final.log": {
+      "path": "artifacts/phase4-r8-upgrades-final.log",
+      "sha256": "cea6d6f292276ef6170123dfbce3cf32fb805d7caa36cd2ac903536728acd6c0",
+      "bytes": 2445
+    },
+    "phase4-aar-final.log": {
+      "path": "artifacts/phase4-aar-final.log",
+      "sha256": "acf9264e145ac61e0429ab3ba37587618f1f01160747feebe762b5f92f25f967",
+      "bytes": 417
+    },
+    "phase4-channel-final.log": {
+      "path": "artifacts/phase4-channel-final.log",
+      "sha256": "f83e0d7bbb0d17b87c9c51f72b93a40a26f529c6cd4305ae9a18ddd95a35a59e",
+      "bytes": 68030
+    },
+    "phase4-native-core.log": {
+      "path": "artifacts/phase4-native-core.log",
+      "sha256": "5e59a4c379ae66822a85a63ce7d2bffc16deb03c9da2b77cf5361c0ad317880e",
+      "bytes": 623
+    },
+    "phase4-r8-race-diagnostic.log": {
+      "path": "artifacts/phase4-r8-race-diagnostic.log",
+      "sha256": "426875dfd0856ad9bd7d4147cafcdaf3a01f2d596060cc8a110dd637daba3fac",
+      "bytes": 1034
+    },
+    "phase4-r8-base-upgrades.log": {
+      "path": "artifacts/phase4-r8-base-upgrades.log",
+      "sha256": "79c25cc15437c5ce929a357e6cd44da6a758734bc9eec7c1b1b596ae6e40a334",
+      "bytes": 2216
+    }
+  },
+  "dcloudLocalReadOnly": {
+    "verifiedAt": "2026-10-01T00:57:53.832Z",
+    "path": "D:/Tools/HBuilderX-5.23.2026080626/HBuilderX",
+    "binaryMetadata": {
+      "HBuilderX.exe": {
+        "sha256": "85452fadc03f88acfe7790e897459f6ca6060d6ad32a098249130643a1d5bcfa",
+        "versionMarkers": []
+      },
+      "HBuilderX.dll": {
+        "sha256": "3da207cb362e8ea31a1635e87c2d4393b4a7f248aa005bc9428cd1f6a7845075",
+        "versionMarkers": []
+      }
+    },
+    "launcherVersion": [
+      "hbuilderx_version=5.23",
+      "android_version=15.23",
+      "inner_android_sdk_version=1.9.9.82669"
+    ],
+    "cliVersionResult": "未检测到已打开的HBuilderX；未启动客户端，未能查询当前运行版本",
+    "matchingOfflineSdkVerified": false,
+    "testAppKeyVerified": false,
+    "limits": [
+      "二进制版本标记与launcher插件元数据需要一起核验，目录名称和单一标记都不证明完整运行时版本",
+      "未读取正式AppKey、生产私钥或网页登录凭据"
+    ]
+  },
+  "isolatedDatabaseStillStopped": true,
+  "externalActions": {
+    "pushed": false,
+    "merged": false,
+    "deployed": false,
+    "productionMigration": false,
+    "dnsChanged": false,
+    "storeSubmission": false,
+    "paidPackaging": false,
+    "formalPackageReplaced": false,
+    "realTransaction": false
+  },
+  "remaining": [
+    "匹配5.23离线SDK及HBuilderX导出、独立DCloud包对应AppKey/签名输入未核验",
+    "正式DCloud Application/SDK目录/工具链/R8及65/60秒健康观察未实测",
+    "API26–32实机、iOS/Harmony未覆盖",
+    "实际商店账户和应用许可未核验",
+    "真实交易及历史权益完整链未实测"
+  ]
+}
