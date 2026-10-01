@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /**
  * 圈子入口：回访、发现、动态三个分区，数据与既有路由复用。
  * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
@@ -328,6 +329,7 @@ onShow(() => {
       </view>
     </view>
     <scroll-view scroll-y class="body" aria-label="圈子广场内容">
+      <OperationsPanel surface="circle" />
       <view class="search-entry" role="link" tabindex="0" aria-label="搜索圈子"
         @tap="go('/pkg-circle/circles/search')" @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/search'))">
         <app-icon name="search" :size="32" color="#6E6E73" /><text>搜索圈子</text>

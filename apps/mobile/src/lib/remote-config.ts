@@ -9,6 +9,8 @@
  */
 import { apiGetOptionalAuth } from '@/utils/request'
 import { shallowRef } from 'vue'
+import { ClientPresentation, EMPTY_PRESENTATION, parseClientPresentation } from '@guoxue/shared'
+import { setOperationRequestSnapshotResolver } from './operation-request-policy'
 import {
   getToken,
   getUserInfo,
@@ -25,6 +27,7 @@ import {
 export type ClientEnvironment = 'development' | 'staging' | 'production'
 
 export interface RemoteUiConfig {
+  presentation?: ClientPresentation
   home: { bigCardInterval: number }
   agentCard: { categoryColors: Record<string, string> }
 }
@@ -76,6 +79,7 @@ const DEFAULT_FEATURES: Record<string, boolean> = {
 }
 
 const DEFAULT_UI: RemoteUiConfig = {
+  presentation: EMPTY_PRESENTATION,
   home: { bigCardInterval: 6 },
   agentCard: {
     categoryColors: {
@@ -135,6 +139,14 @@ function sanitizeCategoryColors(value: unknown): Record<string, string> {
   return result
 }
 
+function sanitizePresentation(raw: unknown): ClientPresentation {
+  try {
+    return parseClientPresentation(raw, false);
+  } catch {
+    return EMPTY_PRESENTATION;
+  }
+}
+
 function sanitizeSnapshot(value: unknown): RemoteConfigSnapshot | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const raw = value as Record<string, any>
@@ -157,6 +169,7 @@ function sanitizeSnapshot(value: unknown): RemoteConfigSnapshot | null {
     environment: raw.environment,
     features: sanitizeFeatures(raw.features),
     ui: {
+      presentation: sanitizePresentation(raw.ui?.presentation),
       home: {
         bigCardInterval: finiteInt(raw.ui?.home?.bigCardInterval, 6, 1, 30),
       },
@@ -315,3 +328,5 @@ export function notifyMaintenanceIfNeeded(snapshot = getRemoteConfig()): void {
     // 提示失败不影响启动。
   }
 }
+
+setOperationRequestSnapshotResolver(getRemoteConfig)

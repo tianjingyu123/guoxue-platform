@@ -6,3 +6,4 @@ export * from "./error-codes";
 export { APP_CHANNELS } from "./app-channels";
 export * from "./resource-update";
 export * from "./wgt-control";
+export * from "./client-presentation";

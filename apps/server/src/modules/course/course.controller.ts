@@ -1,6 +1,15 @@
 import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, Logger,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseGuards,
+  Logger,
 } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
@@ -8,12 +17,18 @@ import { CourseService } from "./course.service";
 import { SystemService } from "../system/system.service";
 import { LiveService } from "../live/live.service";
 import {
-  CreateCourseDto, UpdateCourseDto,
-  CreateChapterDto, UpdateChapterDto,
-  UpdateProgressDto, SubmitWorkDto,
+  CreateCourseDto,
+  UpdateCourseDto,
+  CreateChapterDto,
+  UpdateChapterDto,
+  UpdateProgressDto,
+  SubmitWorkDto,
   CourseListQueryDto,
-  PurchaseCourseDto, CreateReviewDto, ReviewListQueryDto,
-  AskQuestionDto, QaListQueryDto,
+  PurchaseCourseDto,
+  CreateReviewDto,
+  ReviewListQueryDto,
+  AskQuestionDto,
+  QaListQueryDto,
 } from "./course.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
@@ -50,17 +65,19 @@ export class CourseController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未认证" })
   async create(@Req() req: AuthRequest, @Body() dto: CreateCourseDto) {
-    const roles = ((req.user as { roles?: string[] }).roles) || [];
+    const roles = (req.user as { roles?: string[] }).roles || [];
     const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
     const result = await this.course.create(req.user.id, dto, isAdmin);
-    this.systemService.logAudit({
-      userId: req.user?.id,
-      action: "CREATE",
-      targetType: "COURSE",
-      targetId: result.id,
-      detail: `创建课程: ${dto.title}`,
-      ip: req.ip,
-    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    this.systemService
+      .logAudit({
+        userId: req.user?.id,
+        action: "CREATE",
+        targetType: "COURSE",
+        targetId: result.id,
+        detail: `创建课程: ${dto.title}`,
+        ip: req.ip,
+      })
+      .catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;
   }
 
@@ -72,8 +89,10 @@ export class CourseController {
     // 状态筛选（含 status 兼容字段）仅管理角色可用：
     // ① 此前 status 参数被丢弃 → admin 待审列表落到公开默认"已通过"，把已上架课程当待审展示；
     // ② 公开端点若不设门禁，任何人传 auditStatus=PENDING/ALL 可窥未过审内容（越权·2026-07-15 走查修）
-    const roles = ((req.user as { roles?: string[] } | undefined)?.roles) || [];
-    const isAdmin = roles.some((r) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r));
+    const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((r) =>
+      ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r),
+    );
     const requestedStatus = q.auditStatus || q.status;
     return this.course.listCourses({
       page: q.page || 1,
@@ -98,7 +117,12 @@ export class CourseController {
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "成功返回已购课程" })
   @ApiResponse({ status: 401, description: "未认证" })
-  getMyCourses(@Req() req: AuthRequest, @Query("page") page?: number, @Query("pageSize") pageSize?: number, @Query("targetId") targetId?: string) {
+  getMyCourses(
+    @Req() req: AuthRequest,
+    @Query("page") page?: number,
+    @Query("pageSize") pageSize?: number,
+    @Query("targetId") targetId?: string,
+  ) {
     return this.course.getMyCourses(req.user.id, page || 1, pageSize || 20, targetId);
   }
 
@@ -186,7 +210,11 @@ export class CourseController {
   @ApiQuery({ name: "pageSize", required: false })
   @ApiResponse({ status: 200, description: "成功返回我创建的课程列表" })
   @ApiResponse({ status: 401, description: "未认证" })
-  getCreatedCourses(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  getCreatedCourses(
+    @Req() req: AuthRequest,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
     return this.course.getCreatedCourses(req.user.id, +page, +pageSize);
   }
 
@@ -209,14 +237,16 @@ export class CourseController {
   @ApiResponse({ status: 404, description: "课程不存在" })
   async update(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: UpdateCourseDto) {
     const result = await this.course.update(id, req.user.id, dto);
-    this.systemService.logAudit({
-      userId: req.user?.id,
-      action: "UPDATE",
-      targetType: "COURSE",
-      targetId: id,
-      detail: `更新课程: ${dto.title || id}`,
-      ip: req.ip,
-    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    this.systemService
+      .logAudit({
+        userId: req.user?.id,
+        action: "UPDATE",
+        targetType: "COURSE",
+        targetId: id,
+        detail: `更新课程: ${dto.title || id}`,
+        ip: req.ip,
+      })
+      .catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;
   }
 
@@ -227,16 +257,22 @@ export class CourseController {
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "设置成功" })
   @ApiResponse({ status: 403, description: "仅平台运营可操作" })
-  async setMemberFree(@Param("id") id: string, @Req() req: AuthRequest, @Body() body: { memberFree?: boolean }) {
+  async setMemberFree(
+    @Param("id") id: string,
+    @Req() req: AuthRequest,
+    @Body() body: { memberFree?: boolean },
+  ) {
     const result = await this.course.setMemberFree(req.user.id, id, !!body?.memberFree);
-    this.systemService.logAudit({
-      userId: req.user?.id,
-      action: "UPDATE",
-      targetType: "COURSE",
-      targetId: id,
-      detail: `会员精品课标记: ${!!body?.memberFree}`,
-      ip: req.ip,
-    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    this.systemService
+      .logAudit({
+        userId: req.user?.id,
+        action: "UPDATE",
+        targetType: "COURSE",
+        targetId: id,
+        detail: `会员精品课标记: ${!!body?.memberFree}`,
+        ip: req.ip,
+      })
+      .catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;
   }
 
@@ -251,27 +287,34 @@ export class CourseController {
   @ApiResponse({ status: 404, description: "课程不存在" })
   async delete(@Param("id") id: string, @Req() req: AuthRequest) {
     const result = await this.course.delete(id, req.user.id);
-    this.systemService.logAudit({
-      userId: req.user?.id,
-      action: "DELETE",
-      targetType: "COURSE",
-      targetId: id,
-      detail: `删除课程: ${id}`,
-      ip: req.ip,
-    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    this.systemService
+      .logAudit({
+        userId: req.user?.id,
+        action: "DELETE",
+        targetType: "COURSE",
+        targetId: id,
+        detail: `删除课程: ${id}`,
+        ip: req.ip,
+      })
+      .catch((err) => this.logger.warn("审计日志记录失败", err));
     return result;
   }
 
   // ───────── 课程购买 ─────────
 
   @Post(":id/purchase")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_course_purchase", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "购买课程（创建订单）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "订单创建成功" })
   @ApiResponse({ status: 400, description: "已购买或课程不存在" })
   @ApiResponse({ status: 401, description: "未认证" })
-  purchase(@Req() req: AuthRequest, @Param("id") courseId: string, @Body() dto?: PurchaseCourseDto) {
+  purchase(
+    @Req() req: AuthRequest,
+    @Param("id") courseId: string,
+    @Body() dto?: PurchaseCourseDto,
+  ) {
     return this.course.purchase(req.user.id, courseId, dto);
   }
 
@@ -362,7 +405,11 @@ export class CourseController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 404, description: "章节不存在" })
-  updateProgress(@Req() req: AuthRequest, @Param("chapterId") chapterId: string, @Body() dto: UpdateProgressDto) {
+  updateProgress(
+    @Req() req: AuthRequest,
+    @Param("chapterId") chapterId: string,
+    @Body() dto: UpdateProgressDto,
+  ) {
     return this.course.updateProgress(req.user.id, chapterId, dto);
   }
 
@@ -385,7 +432,11 @@ export class CourseController {
   @ApiResponse({ status: 201, description: "提交成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 404, description: "章节不存在" })
-  submitWork(@Req() req: AuthRequest, @Param("chapterId") chapterId: string, @Body() dto: SubmitWorkDto) {
+  submitWork(
+    @Req() req: AuthRequest,
+    @Param("chapterId") chapterId: string,
+    @Body() dto: SubmitWorkDto,
+  ) {
     return this.course.submitWork(req.user.id, chapterId, dto);
   }
 
@@ -427,7 +478,11 @@ export class CourseController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "未购买课程" })
   @ApiResponse({ status: 404, description: "课程不存在" })
-  createReview(@Req() req: AuthRequest, @Param("id") courseId: string, @Body() dto: CreateReviewDto) {
+  createReview(
+    @Req() req: AuthRequest,
+    @Param("id") courseId: string,
+    @Body() dto: CreateReviewDto,
+  ) {
     return this.course.createReview(req.user.id, courseId, dto);
   }
 
@@ -455,7 +510,11 @@ export class CourseController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需讲师资格，且只能回复自己课程的评价）" })
   @ApiResponse({ status: 404, description: "评价不存在" })
-  replyReview(@Req() req: AuthRequest, @Param("reviewId") reviewId: string, @Body() body: { reply: string }) {
+  replyReview(
+    @Req() req: AuthRequest,
+    @Param("reviewId") reviewId: string,
+    @Body() body: { reply: string },
+  ) {
     return this.course.replyReviewByCreator(reviewId, req.user.id, body?.reply);
   }
 
@@ -487,7 +546,11 @@ export class CourseController {
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   @ApiResponse({ status: 200, description: "成功返回直播间列表" })
-  getLiveRooms(@Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  getLiveRooms(
+    @Param("id") courseId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
     return this.liveService.listCourseRooms(courseId, +page, +pageSize);
   }
 
@@ -496,7 +559,11 @@ export class CourseController {
   @Get(":id/related")
   @ApiOperation({ summary: "获取相关课程推荐" })
   @ApiQuery({ name: "useAi", required: false, type: Boolean, description: "是否使用 AI 语义推荐" })
-  getRelatedCourses(@Param("id") courseId: string, @Query("limit") limit = 6, @Query("useAi") useAi?: string) {
+  getRelatedCourses(
+    @Param("id") courseId: string,
+    @Query("limit") limit = 6,
+    @Query("useAi") useAi?: string,
+  ) {
     return this.course.getRelatedCourses(courseId, +limit, useAi === "true" || useAi === "1");
   }
 
@@ -525,7 +592,12 @@ export class CourseController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的提问" })
   @ApiBearerAuth()
-  getMyQuestions(@Req() req: AuthRequest, @Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  getMyQuestions(
+    @Req() req: AuthRequest,
+    @Param("id") courseId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
     return this.course.getMyQuestions(req.user.id, courseId, +page, +pageSize);
   }
 

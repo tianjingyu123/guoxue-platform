@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '@/components/common/app-icon.vue'
-import { coreEntries } from '@/lib/discover-data'
+import { computed } from 'vue'
+import { presentedCoreEntries } from '@/lib/client-presentation'
 import { navigateTo } from '@/utils/router'
 import { stationNavigationTarget } from '@/lib/station-navigation'
 const props = defineProps<{ paipanUrl?: string }>()
@@ -8,6 +9,7 @@ const props = defineProps<{ paipanUrl?: string }>()
 function openEntry(href: string) {
   navigateTo(href === '/pages/paipan/index' ? (props.paipanUrl || stationNavigationTarget('paipan', href)) : href)
 }
+const coreEntries = computed(presentedCoreEntries)
 </script>
 
 <template>

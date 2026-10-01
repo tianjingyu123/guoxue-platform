@@ -5,6 +5,7 @@
  */
 import { getToken, getRefreshToken, setToken, setRefreshToken, clearAuthSession } from './storage'
 import { track } from '@/composables/useTrack'
+import { isOperationRequestAllowed } from '@/lib/operation-request-policy'
 import { distributionHeaders } from '@/lib/app-distribution'
 
 export interface ApiResponse<T> {
@@ -237,6 +238,10 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
 }
 
 function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false, timeoutMs: number = TIMEOUT, unauthorizedMode: UnauthorizedMode = 'redirect'): Promise<T> {
+  if (!isOperationRequestAllowed(path, method, data)) {
+    uni.showToast({ title: "当前暂停新业务，历史服务仍可访问", icon: "none" });
+    return Promise.reject(new Error("当前暂停新业务"));
+  }
   return new Promise((resolve, reject) => {
     // 等待握手就绪门（正常启动立即通过；仅在 URL 握手码换会话期间短暂等待）
     _authReady.then(() => {

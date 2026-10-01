@@ -1,11 +1,26 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, ParseIntPipe,
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+  ParseIntPipe,
   Header,
   Query,
+  Optional,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FeatureFlagService } from "./feature-flag.service";
-import { CreateFeatureFlagDto, UpsertFeatureFlagDto, FeaturePreviewContextDto } from "./feature-flag.dto";
+import {
+  CreateFeatureFlagDto,
+  UpsertFeatureFlagDto,
+  FeaturePreviewContextDto,
+} from "./feature-flag.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +30,7 @@ import { SystemService } from "../system/system.service";
 import { serverConfig } from "../../config/server-config";
 import { createHash } from "crypto";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { ClientPresentationService } from "./client-presentation.service";
 
 // ═══════════════════ 管理后台接口 ═══════════════════
 
@@ -31,12 +47,19 @@ export class FeatureFlagController {
     return this.service.saveDraft(key, dto, this.operator(req));
   }
   @Post(":key/preview")
-  async preview(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request, @Query() context: FeaturePreviewContextDto = {}) {
+  async preview(
+    @Param("key") key: string,
+    @Body() dto: UpsertFeatureFlagDto,
+    @Req() req: Request,
+    @Query() context: FeaturePreviewContextDto = {},
+  ) {
     return this.service.preview(
       key,
       dto,
       context.userId || req.user?.id,
-      await this.service.requestScope(context.clientKey ? { headers: { "x-app-client": context.clientKey } } : req),
+      await this.service.requestScope(
+        context.clientKey ? { headers: { "x-app-client": context.clientKey } } : req,
+      ),
       context.nativeBuild || String(req.headers?.["x-native-build"] || ""),
     );
   }
@@ -78,10 +101,7 @@ export class FeatureFlagController {
   @ApiOperation({ summary: "创建或更新功能开关" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async upsert(
-    @Param("key") key: string,
-    @Body() dto: UpsertFeatureFlagDto,
-    @Req() req: Request) {
+  async upsert(@Param("key") key: string, @Body() dto: UpsertFeatureFlagDto, @Req() req: Request) {
     return this.service.upsert(key, dto, this.operator(req));
   }
 
@@ -130,6 +150,7 @@ export class FeatureFlagPublicController {
   constructor(
     private readonly service: FeatureFlagService,
     private readonly systemService: SystemService,
+    @Optional() private readonly presentation?: ClientPresentationService,
   ) {}
 
   @Get("features")
@@ -140,7 +161,9 @@ export class FeatureFlagPublicController {
   async getEnabledFeatures(@Req() req: Request) {
     const userId = req.user?.id;
     const scope = await this.service.requestScope(req);
-    return { features: await this.service.getClientFeatures(userId,
+    return {
+      features: await this.service.getClientFeatures(
+        userId,
         scope,
         String(req.headers?.["x-native-build"] || ""),
       ),
@@ -162,9 +185,17 @@ export class FeatureFlagPublicController {
       this.systemService.isMaintenanceMode(),
       this.service.getClientOperations(userId, scope, nativeBuild),
     ]);
+    const presentation = await this.presentation?.client(
+      scope,
+      nativeBuild,
+      String(req.headers?.["x-client-capabilities"] || ""),
+      String(req.headers?.["x-resource-version"] || "0"),
+      userId,
+    );
     const payload = {
       features,
-      ui,
+      ui: { ...ui, presentation: presentation?.config ?? null },
+      presentationDecision: presentation ?? null,
       maintenance: { enabled: maintenanceEnabled },
       operations,
       scope,

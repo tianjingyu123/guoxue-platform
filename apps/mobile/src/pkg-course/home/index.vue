@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /**
  * 课程首页：承担“发现值得学的课”，不再同时承担完整分类检索。
  * - 顶部图标进入左侧分类浏览页
@@ -214,6 +215,7 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
     </view>
 
     <view v-else class="body">
+      <OperationsPanel surface="course" />
       <view class="quick-shell">
         <view class="quick-head">
           <view>

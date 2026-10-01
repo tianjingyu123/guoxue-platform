@@ -10,6 +10,8 @@ export default defineConfig(({ command, isPreview }) => ({
   plugins: [
     vue(),
     Components({
+      // 生产构建使用已提交声明，避免构建时改写源码；开发模式仍生成声明。
+      dts: command === "build" ? false : "components.d.ts",
       directives: true,
       resolvers: [ElementPlusResolver({ importStyle: "css", directives: true })],
     }),
