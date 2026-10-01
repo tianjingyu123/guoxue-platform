@@ -100,13 +100,38 @@
           <view class="note"><text class="note-txt">违规一经核实取消资格并公示处理结果；申诉在成绩详情发起，48h 内有效，留痕可追溯。</text></view>
         </block>
 
-        <!-- ===== ② 题目与答案公示（后端无端点·诚实降级占位） ===== -->
+        <!-- ===== ② 题目与答案公示：只读取已结束赛事的真实公示接口 ===== -->
         <block v-else-if="activeTab === 'questions'">
-          <view class="banner"><text class="banner-txt">赛后将公开全部题目、标准答案与解析，供选手对账复盘。这是「高透明」的核心 —— 谁都能验证判分是否公正。</text></view>
-          <view class="empty">
+          <view class="banner"><text class="banner-txt">赛事结束后，可查看已公示题目、标准答案与解析，核对成绩并复盘。进行中的赛事不公开答案。</text></view>
+          <view v-if="!comp || comp.status !== 'FINISHED'" class="empty">
             <app-icon name="file-text" :size="46" color="#d8cfc0" />
-            <text class="empty-t">赛后题目公示即将开放</text>
-            <text class="empty-s">本场题目、标准答案与解析将于赛事结束后统一公开。进行中赛事题目不公开，以防泄题。</text>
+            <text class="empty-t">{{ comp ? '赛事结束后开放题目公示' : '请选择一场赛事查看公示' }}</text>
+            <text class="empty-s">{{ comp ? '当前暂不公开题目与答案，请在赛事结束后回来查看。' : '从赛事详情进入，可查看该场赛事的题目与答案。' }}</text>
+          </view>
+          <view v-else-if="disclosureLoading" class="empty">
+            <view class="spinner" /><text class="empty-t">正在加载题目公示…</text>
+          </view>
+          <view v-else-if="disclosureError" class="empty">
+            <app-icon name="alert-circle" :size="40" color="#d8cfc0" />
+            <text class="empty-t">题目公示加载失败</text>
+            <text class="empty-s">{{ disclosureError }}</text>
+            <view class="retry" @tap="loadDisclosure"><text class="retry-txt">重新加载</text></view>
+          </view>
+          <view v-else-if="disclosureQuestions.length">
+            <text class="disclosure-count">已公示 {{ disclosureQuestions.length }} 道题目</text>
+            <view v-for="(question, index) in disclosureQuestions" :key="question.id" class="rblk">
+              <view class="rblk-h"><view class="gd" /><text class="rblk-t">第 {{ index + 1 }} 题 · {{ questionTypeLabel[question.type] || '题目' }} · {{ question.score }} 分</text></view>
+              <text class="question-stem">{{ question.stem }}</text>
+              <view v-for="option in question.options || []" :key="option.key" class="question-option"><text>{{ option.key }}. {{ option.text }}</text></view>
+              <view class="question-answer"><text class="answer-label">标准答案 / 评分要点</text><text class="answer-text">{{ disclosureAnswer(question.answer) }}</text></view>
+              <view v-if="question.analysis" class="question-analysis"><text class="answer-label">解析</text><text class="answer-text">{{ question.analysis }}</text></view>
+              <text v-if="question.source" class="question-source">出处：{{ question.source }}</text>
+            </view>
+          </view>
+          <view v-else class="empty">
+            <app-icon name="file-text" :size="46" color="#d8cfc0" />
+            <text class="empty-t">暂无已公示题目</text>
+            <text class="empty-s">当前赛事尚未提供题目公示，请留意赛事公告。</text>
           </view>
           <view class="note"><text class="note-txt">题库定期轮换，公示仅针对已结束赛事；进行中赛事题目不公开。</text></view>
         </block>
@@ -147,13 +172,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
 import {
-  competitionApi, roundTypeLabel, promotionLabel, yuan,
-  type Competition, type CompetitionRound, type Ranking, type PromotionStatus,
+  competitionApi, roundTypeLabel, promotionLabel, questionTypeLabel, yuan,
+  type Competition, type CompetitionRound, type Ranking, type PromotionStatus, type DisclosureQuestion,
 } from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
@@ -163,9 +188,48 @@ const loading = ref(true)
 const errMsg = ref('')
 const comp = ref<Competition | null>(null)
 const rankings = ref<Ranking[]>([])
+const disclosureQuestions = ref<DisclosureQuestion[]>([])
+const disclosureLoading = ref(false)
+const disclosureError = ref('')
+let disclosureVersion = 0
+let disclosureLoadedFor = ''
+
+// 不从试卷/管理端读取答案；公开接口仍在服务端校验赛事状态和可见性。
+async function loadDisclosure() {
+  if (!comp.value || comp.value.status !== 'FINISHED' || disclosureLoading.value) return
+  const id = comp.value.id
+  const version = ++disclosureVersion
+  disclosureLoading.value = true
+  disclosureError.value = ''
+  try {
+    const result = await competitionApi.disclosureQuestions(id)
+    if (version !== disclosureVersion) return
+    if (result.competitionId !== id || !Array.isArray(result.questions)) throw new Error('题目公示数据不完整，请重试')
+    disclosureQuestions.value = result.questions
+    disclosureLoadedFor = id
+  } catch (error) {
+    if (version !== disclosureVersion) return
+    disclosureQuestions.value = []
+    disclosureError.value = (error as Error)?.message || '暂时无法获取题目公示，请稍后重试'
+  } finally {
+    if (version === disclosureVersion) disclosureLoading.value = false
+  }
+}
+
+function disclosureAnswer(answer: Record<string, unknown>): string {
+  if (!answer || !Object.keys(answer).length) return '暂无标准答案，请以赛事公告为准'
+  const value = answer.correctKey ?? answer.correctKeys ?? answer.answer ?? answer.text
+  if (Array.isArray(value)) return value.join('、')
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  return JSON.stringify(answer, null, 2)
+}
 
 type TabId = 'rules' | 'questions' | 'rewards'
 const activeTab = ref<TabId>('rules')
+watch([activeTab, comp], () => {
+  if (activeTab.value === 'questions' && comp.value?.status === 'FINISHED' && disclosureLoadedFor !== comp.value.id) void loadDisclosure()
+})
+onUnload(() => { disclosureVersion++ })
 const tabs = [
   { id: 'rules' as const, label: '规则' },
   { id: 'questions' as const, label: '题目公示' },
@@ -219,6 +283,11 @@ function prizeLine(w: Ranking): string {
 }
 
 async function load() {
+  disclosureVersion++
+  disclosureLoadedFor = ''
+  disclosureQuestions.value = []
+  disclosureLoading.value = false
+  disclosureError.value = ''
   loading.value = true
   errMsg.value = ''
   try {
@@ -328,6 +397,14 @@ $line: #EFE4D3;
 /* ─── 题目公示 ─── */
 .banner { background: #FAF3E6; border: 1px solid #ECDCBB; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
 .banner-txt { font-size: 11.5px; color: #8A6D2F; line-height: 1.75; }
+.disclosure-count { display: block; margin: 4px 0 12px; color: $t2; font-size: 12px; }
+.question-stem { display: block; font-size: 14px; color: $t1; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.question-option { padding: 6px 0; color: $t2; font-size: 13px; line-height: 1.6; }
+.question-answer { margin-top: 12px; padding: 12px; border-radius: 10px; background: #FAF6EF; }
+.question-analysis { margin-top: 12px; }
+.answer-label { display: block; font-size: 12px; font-weight: 600; color: $gold-deep; margin-bottom: 5px; }
+.answer-text { display: block; font-size: 13px; line-height: 1.8; color: $t1; white-space: pre-wrap; overflow-wrap: anywhere; }
+.question-source { display: block; margin-top: 12px; font-size: 11px; line-height: 1.7; color: $t2; }
 
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 46px 24px; background: $card; border: 1px solid $line; border-radius: 18px; box-shadow: 0 3px 12px rgba(160,120,60,0.05); }
