@@ -8,7 +8,7 @@
   <view v-else class="page">
     <DegradedBanner dep="im" text="消息服务临时维护中，收发可能延迟，请稍后再试" />
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))`, ...(menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : {}) }">
       <view class="nav-left">
         <view class="back-btn" @tap="goBack">
           <AppIcon name="arrow-left" :size="24" color="#2c2c2c" />
@@ -18,7 +18,7 @@
           <text class="nav-badge-text">{{ totalUnread > 99 ? '99+' : totalUnread }}</text>
         </view>
       </view>
-      <view class="search-btn" @tap="showSearch = true">
+      <view class="search-btn" role="button" aria-label="搜索消息" tabindex="0" @tap="showSearch = true" @keydown.enter="showSearch = true" @keydown.space.prevent="showSearch = true">
         <AppIcon name="search" :size="20" color="#8a8178" />
       </view>
     </view>
@@ -82,7 +82,7 @@
 
     <!-- 搜索弹层 -->
     <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
-      <view class="search-head">
+      <view class="search-head" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="search-input-wrap">
           <AppIcon name="search" :size="16" color="#8a8178" class="search-input-icon" />
           <input
@@ -97,7 +97,7 @@
             <AppIcon name="x" :size="16" color="#8a8178" />
           </view>
         </view>
-        <text class="search-cancel" @tap="closeSearch">取消</text>
+        <view class="search-cancel" role="button" aria-label="关闭消息搜索" tabindex="0" @tap="closeSearch" @keydown.enter="closeSearch" @keydown.space.prevent="closeSearch"><text>取消</text></view>
       </view>
 
       <view class="search-body">
@@ -168,6 +168,7 @@ import { createVisiblePoller } from '@/utils/visible-poller'
 import AppIcon from '@/components/common/app-icon.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   imApi,
   getMessageSummary,
@@ -180,6 +181,7 @@ import {
 import { useTim } from '@/composables/useTim'
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const tim = useTim()
 
@@ -408,6 +410,8 @@ async function handleDelete() {
 .search-btn {
   width: 48rpx;
   height: 48rpx;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -558,6 +562,7 @@ async function handleDelete() {
 }
 .search-input-wrap {
   flex: 1;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -571,6 +576,8 @@ async function handleDelete() {
 }
 .search-input {
   flex: 1;
+  min-width: 0;
+  width: 0;
   height: 72rpx;
   padding-left: 64rpx;
   padding-right: 64rpx;
@@ -586,6 +593,12 @@ async function handleDelete() {
   right: 24rpx;
 }
 .search-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
   font-size: 28rpx;
   color: #2c2c2c;
 }

@@ -2,7 +2,7 @@
   <view class="video-search-page">
     <!-- 顶部搜索栏：白底胶囊 + 描边 + 取消返回上一页 -->
     <view class="vs-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="vs-header-row">
+      <view class="vs-header-row" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="vs-input-wrap" :class="{ filled: query }">
           <AppIcon name="search" :size="30" color="#999999" :stroke-width="2" />
           <input
@@ -20,7 +20,7 @@
             <AppIcon name="x" :size="20" color="#FFFFFF" :stroke-width="2.6" />
           </view>
         </view>
-        <text class="vs-cancel" hover-class="vs-tap" @tap="goBack">取消</text>
+        <view class="vs-cancel" role="button" aria-label="取消搜索，返回短视频" tabindex="0" hover-class="vs-tap" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack"><text>取消</text></view>
       </view>
     </view>
 
@@ -237,9 +237,11 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import { videoApi, videoFallbackKeywords, fetchVideoHotKeywords, formatVideoNumber, type VideoSearchResult, type VideoListItem } from '@/lib/video-data'
 
 const statusBarHeight = ref(0)
+const menuSafeRight = getMiniProgramMenuSafeRight()
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
 const HISTORY_KEY = 'video_search_history'
@@ -352,6 +354,7 @@ function goDetail(id: string) {
 }
 .vs-input-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -361,7 +364,7 @@ function goDetail(id: string) {
   background-color: #FFFFFF;
   border: 1rpx solid #EDE7DD;
 }
-.vs-input { flex: 1; font-size: 26rpx; color: #999999; }
+.vs-input { flex: 1; min-width: 0; width: 0; font-size: 26rpx; color: #999999; }
 .vs-input-wrap.filled .vs-input { color: #2C2C2C; }
 .vs-input-ph { color: #999999; }
 .vs-clear {
@@ -374,7 +377,7 @@ function goDetail(id: string) {
   align-items: center;
   justify-content: center;
 }
-.vs-cancel { font-size: 28rpx; color: #6E6E73; flex-shrink: 0; }
+.vs-cancel { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; font-size: 28rpx; color: #6E6E73; flex-shrink: 0; }
 
 .vs-body { padding-bottom: 60rpx; }
 

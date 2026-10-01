@@ -2,12 +2,12 @@
   <view class="page">
     <!-- 顶部导航(红色渐变) -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-bar">
+      <view class="nav-bar" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="nav-btn" @tap="goBack">
           <AppIcon name="chevron-left" :size="48" color="#fff" />
         </view>
         <text class="nav-title">直播回放</text>
-        <view class="nav-btn" @tap="showSearch = true">
+        <view class="nav-btn" role="button" aria-label="搜索直播回放" tabindex="0" @tap="showSearch = true" @keydown.enter="showSearch = true" @keydown.space.prevent="showSearch = true">
           <AppIcon name="search" :size="40" color="#fff" />
         </view>
       </view>
@@ -131,8 +131,8 @@
     </view>
 
     <!-- 搜索覆盖层 -->
-    <view v-if="showSearch" class="search-overlay">
-      <view class="search-head">
+    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="search-head" :style="menuSafeRight ? { paddingRight: menuSafeRight + 'px' } : undefined">
         <view class="search-input-wrap">
           <AppIcon name="search" :size="32" color="#999" />
           <input
@@ -146,7 +146,7 @@
             <AppIcon name="x" :size="32" color="#999" />
           </view>
         </view>
-        <text class="search-cancel" @tap="closeSearch">取消</text>
+        <view class="search-cancel" role="button" aria-label="关闭回放搜索" tabindex="0" @tap="closeSearch" @keydown.enter="closeSearch" @keydown.space.prevent="closeSearch"><text>取消</text></view>
       </view>
       <view class="search-body">
         <template v-if="!searchQuery.trim()">
@@ -183,6 +183,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 import {
   liveApi,
   type ReplayHomeItem,
@@ -190,6 +191,8 @@ import {
 import { formatLiveDuration, formatLiveViews } from '@/pkg-live/live-format'
 
 const statusBarHeight = ref(20)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch { /* 保留默认安全高度 */ }
+const menuSafeRight = getMiniProgramMenuSafeRight()
 
 // 数据状态
 const loading = ref(true)
@@ -279,6 +282,8 @@ function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/
 .nav-btn {
   width: 56rpx;
   height: 56rpx;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -639,6 +644,7 @@ function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/
 }
 .search-input-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12rpx;
@@ -648,6 +654,8 @@ function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/
 }
 .search-input {
   flex: 1;
+  min-width: 0;
+  width: 0;
   font-size: 28rpx;
   color: #2c2c2c;
 }
@@ -662,6 +670,12 @@ function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/
   justify-content: center;
 }
 .search-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
   font-size: 28rpx;
   color: var(--brand);
 }
