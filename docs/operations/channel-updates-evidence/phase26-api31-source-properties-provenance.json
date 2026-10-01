@@ -1,0 +1,45 @@
+{
+  "url": "https://dl.google.com/android/repository/sys-img/android/x86_64-31_r05.zip",
+  "officialCatalogRevision": 5,
+  "catalogArchiveBytes": 657246510,
+  "catalogExpectedWholeSha1": "58bff3cb182c79bbfe3980fe77b87b51b9f7ad71",
+  "wholeArchiveDownloaded": false,
+  "wholeArchiveDigestIndependentlyVerified": false,
+  "zipMember": "x86_64/source.properties",
+  "zipMemberCrc32": "fcae4301",
+  "memberSha256": "df7aad3e6bba94fc964fb919ed88a082e3f828fc2981fcf33b466dbfa0da5922",
+  "memberIdenticalToJob": true,
+  "sourcePropertiesRevision": 3,
+  "rangeRequests": [
+    {
+      "start": 657246488,
+      "end": 657246509,
+      "bytes": 22
+    },
+    {
+      "start": 657246468,
+      "end": 657246487,
+      "bytes": 20
+    },
+    {
+      "start": 657244969,
+      "end": 657246487,
+      "bytes": 1519
+    },
+    {
+      "start": 24809611,
+      "end": 24809640,
+      "bytes": 30
+    },
+    {
+      "start": 24809641,
+      "end": 24809664,
+      "bytes": 24
+    },
+    {
+      "start": 24809665,
+      "end": 24809838,
+      "bytes": 174
+    }
+  ]
+}

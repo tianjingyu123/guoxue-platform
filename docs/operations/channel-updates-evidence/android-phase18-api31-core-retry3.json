@@ -1,0 +1,772 @@
+{
+  "verifiedAt": "2026-10-01T17:31:35.126Z",
+  "sourceSha": "80216bf8dfcbb262aed66bc039655baf76902d11",
+  "verificationHarnessSha": "01636170bf2338bd8b72ff9e5bd8cfb6b8bf47c6",
+  "sourceDirty": false,
+  "minified": true,
+  "shrinker": "R8 release",
+  "consumerRulesSha256": "b711f512e0eea9cdb3c35693d180760e5a90c6e268b18a6058aa6a9c9b800cf8",
+  "installation": {
+    "method": "官方 adb；必要时按实际 UI 层级完成正常防护扫描",
+    "steps": []
+  },
+  "deviceType": "emulator",
+  "abi": "x86_64",
+  "observationTimeoutMs": 180000,
+  "adbTimeoutMs": 120000,
+  "logScope": {
+    "transport": "continuous-adb-logcat",
+    "buffer": "main",
+    "tag": "REBU_RESOURCE_PROBE",
+    "initialTailLines": 1,
+    "maxBytes": 4194304,
+    "file": "/home/runner/work/guoxue-platform/guoxue-platform/artifacts/phase18-probe-log-stream-android-phase18-api31-core-retry3/emulator-5554-d14f74d3-7023-450d-8214-6911f379f714.log",
+    "bytes": 21635,
+    "eventLines": 227,
+    "sha256": "4de70c065cf944e2109c91c8e9c080bc5b92cd73c647e461941d9078cb1c2791",
+    "stopped": true
+  },
+  "deviceModel": "Android SDK built for x86_64",
+  "api": "31",
+  "packageName": "cn.rebu.resourceprobe",
+  "apkSha256": "96300f12abb3561eb0d00bc00610f0d925785a501cde5ac97cb939e15c2789ea",
+  "passed": [
+    "Android Keystore AES-GCM 写入及解密、原生健康窗口、合成四类忙碌标记保护",
+    "实际 BC 验签、错误 JS 后下一冷启动在 WebView/JS 前恢复摘要核验的基线",
+    "实际 Android 拒绝错误基座、跨渠道、过期清单，保留基线",
+    "合成冷启动停发/离线准入拒绝保持当前基线",
+    "篡改暂存的原始签名归档后冷启动拒绝激活",
+    "四个真实目录事务检查点杀进程，下一启动先恢复旧健康资源再执行 JS",
+    "正确签名资源激活及后续冷启动保持；核心夹具健康确认不冒充正式 App 健康观察",
+    "模拟器未安装正式包；未清数据、未卸载、未清全局日志；真机正式包另有证据"
+  ],
+  "evidence": [
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875853.017,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875853.017  2132  2132 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 36d627ff-6958-464a-b0b2-2a065d8991bb",
+        "         1790875853.205  2140  2140 I REBU_RESOURCE_PROBE: CRYPTO_MODE platform",
+        "         1790875853.286  2140  2140 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=85,nativeBuild=39",
+        "         1790875853.291  2140  2140 I REBU_RESOURCE_PROBE: NEW_SUITE 1"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875853.57,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875853.570  2205  2205 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF f80d1f1d-77f4-4a5c-855a-6e4aee0cc55d",
+        "         1790875853.899  2217  2217 I REBU_RESOURCE_PROBE: CRYPTO_MODE platform",
+        "         1790875853.935  2217  2217 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=38,nativeBuild=39",
+        "         1790875854.527  2217  2293 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "keystore",
+      "cutoff": 1790875854.858,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875854.858  2301  2301 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 89633eca-550d-47ee-8069-3d445e2f5e04",
+        "         1790875855.021  2309  2309 I REBU_RESOURCE_PROBE: CRYPTO_MODE platform",
+        "         1790875855.032  2309  2309 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=12,nativeBuild=39",
+        "         1790875855.036  2309  2309 I REBU_RESOURCE_PROBE: NATIVE_REFLECTION entrypointsRetained=true",
+        "         1790875855.186  2309  2309 I REBU_RESOURCE_PROBE: NATIVE_BIND {\"ok\":true,\"value\":true}",
+        "         1790875855.433  2309  2383 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875855.703  2309  2309 I REBU_RESOURCE_PROBE: ANDROID_KEYSTORE saved=true,encrypted=true,decrypted=true",
+        "         1790875855.712  2309  2309 I REBU_RESOURCE_PROBE: HEALTH_WINDOW earlyRejected=true",
+        "         1790875855.732  2309  2309 I REBU_RESOURCE_PROBE: BUSY_GUARD rejected=true"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "portable",
+      "cutoff": 1790875855.985,
+      "elapsedMs": 302,
+      "logs": [
+        "         1790875855.985  2394  2394 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 268a10a9-bfaa-48c7-a583-bd4ad9f51341",
+        "         1790875856.150  2402  2402 I REBU_RESOURCE_PROBE: CRYPTO_MODE platform",
+        "         1790875856.154  2402  2402 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875856.165  2402  2402 I REBU_RESOURCE_PROBE: PORTABLE_NEXT_BOOT bc"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-bad",
+      "cutoff": 1790875856.67,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875856.670  2485  2485 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 5752b7dd-2bb8-470c-a542-059fefa11b4c",
+        "         1790875856.826  2492  2492 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875856.838  2492  2492 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=16,nativeBuild=39",
+        "         1790875856.918  2492  2492 I REBU_RESOURCE_PROBE: PREPARED bad"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875857.182,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875857.182  2573  2573 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 1dadcd53-ef5b-4d94-b832-2e19f8096849",
+        "         1790875857.345  2583  2583 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875857.400  2583  2583 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=PENDING_HEALTH,version=1,ms=56,nativeBuild=39",
+        "         1790875858.029  2583  2583 I REBU_RESOURCE_PROBE: JS_ERROR bad-js"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875858.313,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875858.313  2664  2664 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 28e48c2b-e989-4a1c-9d23-296bbfc0cebf",
+        "         1790875858.476  2673  2673 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875858.487  2673  2673 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875858.487  2673  2673 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=12,nativeBuild=39",
+        "         1790875858.738  2673  2747 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875858.919,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875858.919  2754  2754 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF ff7af05a-0aba-4845-90b5-f5a504ce8e20",
+        "         1790875859.085  2762  2762 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875859.094  2762  2762 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=10,nativeBuild=39",
+        "         1790875859.101  2762  2762 I REBU_RESOURCE_PROBE: NEW_SUITE 2"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875859.569,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875859.569  2842  2842 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 6921d855-e102-481e-b832-0a26231aec1d",
+        "         1790875859.729  2850  2850 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875859.749  2850  2850 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=22,nativeBuild=39",
+        "         1790875860.485  2850  2924 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-wrong-base",
+      "cutoff": 1790875860.729,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875860.729  2930  2930 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 5a1ff155-3684-41da-b144-96901fee928b",
+        "         1790875860.898  2938  2938 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875860.901  2938  2938 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=4,nativeBuild=39",
+        "         1790875860.932  2938  2938 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-wrong-base SecurityException"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875861.316,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875861.316  2966  2966 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 166cd7da-814c-4505-811f-d0b7bf27056a",
+        "         1790875861.483  2976  2976 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875861.497  2976  2976 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=17,nativeBuild=39",
+        "         1790875862.162  2976  3050 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875862.435,
+      "elapsedMs": 302,
+      "logs": [
+        "         1790875862.435  3058  3058 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 9e634e6f-fcbe-4ffd-b9bd-fded0720c166",
+        "         1790875862.597  3066  3066 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875862.601  3066  3066 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875862.614  3066  3066 I REBU_RESOURCE_PROBE: NEW_SUITE 3"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875863.015,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875863.015  3146  3146 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF efde8f60-9f2b-4d33-8ccf-310a85f236ff",
+        "         1790875863.188  3154  3154 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875863.213  3154  3154 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=26,nativeBuild=39",
+        "         1790875863.793  3154  3229 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-cross-channel",
+      "cutoff": 1790875864.171,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875864.171  3238  3238 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF baeaadf4-4dde-4685-955e-199a57825e3e",
+        "         1790875864.342  3247  3247 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875864.347  3247  3247 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=39",
+        "         1790875864.384  3247  3247 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-cross-channel SecurityException"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875864.682,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875864.682  3277  3277 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 9fe57451-9b7c-4dc1-92be-3f5fa11354e4",
+        "         1790875864.838  3284  3284 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875864.850  3284  3284 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=39",
+        "         1790875865.483  3284  3357 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875865.867,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875865.867  3363  3363 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 92a7e18e-23b3-4e59-af39-2d46dd81c05f",
+        "         1790875866.030  3371  3371 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875866.033  3371  3371 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875866.038  3371  3371 I REBU_RESOURCE_PROBE: NEW_SUITE 4"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875866.468,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875866.468  3450  3450 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 10eef3c7-bddc-44fc-ab23-c5fc0f5f5eaa",
+        "         1790875866.615  3457  3457 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875866.633  3457  3457 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=19,nativeBuild=39",
+        "         1790875866.879  3457  3531 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-expired",
+      "cutoff": 1790875866.998,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875866.998  3537  3537 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 0c880c47-1862-451b-a3bf-e1c342f7ddcc",
+        "         1790875867.196  3547  3547 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875867.201  3547  3547 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875867.237  3547  3547 I REBU_RESOURCE_PROBE: SCENARIO_REFUSED prepare-expired SecurityException"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875867.629,
+      "elapsedMs": 903,
+      "logs": [
+        "         1790875867.629  3576  3576 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF bf46a588-3745-427f-8186-10b8ee9b5f6a",
+        "         1790875867.792  3583  3583 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875867.797  3583  3583 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=6,nativeBuild=39",
+        "         1790875868.465  3583  3660 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875868.759,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875868.759  3669  3669 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 72d16a93-b2c0-42b6-99dd-a483916618c5",
+        "         1790875868.913  3677  3677 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875868.917  3677  3677 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875868.932  3677  3677 I REBU_RESOURCE_PROBE: NEW_SUITE 5"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875869.338,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875869.338  3755  3755 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF ea780282-c398-49c9-88c3-627a49621166",
+        "         1790875869.495  3764  3764 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875869.533  3764  3764 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=40,nativeBuild=39",
+        "         1790875870.068  3764  3839 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875870.485,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875870.485  3845  3845 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 0e213e0b-dd62-4517-8026-4d593de2f944",
+        "         1790875870.647  3853  3853 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875870.651  3853  3853 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875870.699  3853  3853 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875871.001,
+      "elapsedMs": 903,
+      "logs": [
+        "         1790875871.001  3934  3934 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 012d71ab-56b2-4df1-8aba-435b9b8124ef",
+        "         1790875871.194  3942  3942 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875871.220  3942  3942 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=29,nativeBuild=39",
+        "         1790875871.871  3942  4017 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875872.218,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875872.218  4023  4023 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF b276f6f7-f997-4ed6-8fc9-f638a5285f23",
+        "         1790875872.375  4031  4031 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875872.380  4031  4031 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=9,nativeBuild=39",
+        "         1790875872.385  4031  4031 I REBU_RESOURCE_PROBE: NEW_SUITE 6",
+        "         1790875872.631  4031  4105 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875872.82,
+      "elapsedMs": 905,
+      "logs": [
+        "         1790875872.820  4112  4112 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 84c4da53-ce61-4f0e-bcc0-71810c4266bf",
+        "         1790875872.976  4119  4119 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875873.001  4119  4119 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=30,nativeBuild=39",
+        "         1790875873.685  4119  4195 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875874.024,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875874.024  4201  4201 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 53f2988f-e3cb-41ff-a1c7-480b78c8c172",
+        "         1790875874.191  4209  4209 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875874.198  4209  4209 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=10,nativeBuild=39",
+        "         1790875874.253  4209  4209 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "tamper-archive",
+      "cutoff": 1790875874.489,
+      "elapsedMs": 302,
+      "logs": [
+        "         1790875874.489  4282  4282 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF faa76f37-22dc-4f4c-8cbe-524392ed352d",
+        "         1790875874.737  4209  4209 I REBU_RESOURCE_PROBE: TAMPERED staged-archive",
+        "         1790875874.903  4209  4294 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875874.927  4209  4294 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875875.104,
+      "elapsedMs": 601,
+      "logs": [
+        "         1790875875.104  4302  4302 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF dbe1d340-3b67-4fea-a224-d613d11df92b",
+        "         1790875875.258  4310  4310 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875875.297  4310  4310 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=40,nativeBuild=39",
+        "         1790875875.697  4310  4383 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875875.982,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875875.982  4391  4391 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF d464c1d8-2b20-4105-bab0-7a4075ce57ab",
+        "         1790875876.143  4398  4398 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875876.151  4398  4398 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=9,nativeBuild=39",
+        "         1790875876.169  4398  4398 I REBU_RESOURCE_PROBE: NEW_SUITE 7"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875876.569,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875876.569  4476  4476 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 3142a257-2c0d-416f-934e-1e041e055665",
+        "         1790875876.761  4483  4483 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875876.785  4483  4483 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=24,nativeBuild=39",
+        "         1790875877.390  4483  4558 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875877.763,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875877.763  4564  4564 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 036b8460-f4a9-495e-9e0e-1aab6dd67404",
+        "         1790875877.935  4572  4572 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875877.945  4572  4572 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=11,nativeBuild=39",
+        "         1790875878.002  4572  4572 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875878.252,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875878.252  4651  4651 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 77781d48-e989-4b35-bde6-a18aff24507c",
+        "         1790875878.428  4659  4659 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875878.487  4659  4659 I REBU_RESOURCE_PROBE: KILL_AT JOURNAL_SYNCED",
+        "         1790875878.532  4676  4676 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875878.547  4676  4676 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875878.547  4676  4676 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=16,nativeBuild=39"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875878.719,
+      "elapsedMs": 600,
+      "logs": [
+        "         1790875878.719  4745  4745 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 6949d764-09c5-4384-82fc-82b6d8e264b0",
+        "         1790875879.216  4676  4760 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875879.317  4676  4760 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "checkpoint": "JOURNAL_SYNCED",
+      "killedPid": "4659",
+      "restoredPid": "4676",
+      "jsPid": "4676",
+      "recoveryBeforeJs": true,
+      "recoveryLogs": [
+        "         1790875878.252  4651  4651 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 77781d48-e989-4b35-bde6-a18aff24507c",
+        "         1790875878.428  4659  4659 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875878.487  4659  4659 I REBU_RESOURCE_PROBE: KILL_AT JOURNAL_SYNCED",
+        "         1790875878.532  4676  4676 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875878.547  4676  4676 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875878.547  4676  4676 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=16,nativeBuild=39",
+        "         1790875878.719  4745  4745 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 6949d764-09c5-4384-82fc-82b6d8e264b0",
+        "         1790875879.216  4676  4760 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875879.317  4676  4760 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875879.613,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875879.613  4766  4766 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF c84a6052-891b-46c8-9e1e-25f8b9a17434",
+        "         1790875879.766  4774  4774 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875879.770  4774  4774 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875879.788  4774  4774 I REBU_RESOURCE_PROBE: NEW_SUITE 8"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875880.193,
+      "elapsedMs": 601,
+      "logs": [
+        "         1790875880.193  4854  4854 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF b4f4edde-8155-4e56-b3e9-350dedfa5317",
+        "         1790875880.338  4862  4862 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875880.352  4862  4862 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=15,nativeBuild=39",
+        "         1790875880.676  4862  4935 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875881.009,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875881.009  4942  4942 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 267cb633-f0ea-4bf6-a6ab-6ab1a12c275e",
+        "         1790875881.179  4949  4949 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875881.184  4949  4949 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=8,nativeBuild=39",
+        "         1790875881.249  4949  4949 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875881.493,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875881.493  5025  5025 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 136d64c7-3d13-4867-ba00-8b8b4d1093b5",
+        "         1790875881.657  5033  5033 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875881.734  5033  5033 I REBU_RESOURCE_PROBE: KILL_AT OLD_MOVED",
+        "         1790875881.779  5051  5051 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875881.789  5051  5051 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875881.790  5051  5051 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=12,nativeBuild=39"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875881.949,
+      "elapsedMs": 602,
+      "logs": [
+        "         1790875881.949  5109  5109 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 8eebf775-144e-469b-a30f-1a4f2121ed7f",
+        "         1790875882.391  5051  5133 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875882.449  5051  5133 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "checkpoint": "OLD_MOVED",
+      "killedPid": "5033",
+      "restoredPid": "5051",
+      "jsPid": "5051",
+      "recoveryBeforeJs": true,
+      "recoveryLogs": [
+        "         1790875881.493  5025  5025 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 136d64c7-3d13-4867-ba00-8b8b4d1093b5",
+        "         1790875881.657  5033  5033 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875881.734  5033  5033 I REBU_RESOURCE_PROBE: KILL_AT OLD_MOVED",
+        "         1790875881.779  5051  5051 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875881.789  5051  5051 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875881.790  5051  5051 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=12,nativeBuild=39",
+        "         1790875881.949  5109  5109 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 8eebf775-144e-469b-a30f-1a4f2121ed7f",
+        "         1790875882.391  5051  5133 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875882.449  5051  5133 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875882.782,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875882.782  5139  5139 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 29260d7c-e513-4902-841b-64ada294ada9",
+        "         1790875882.947  5147  5147 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875882.951  5147  5147 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875882.962  5147  5147 I REBU_RESOURCE_PROBE: NEW_SUITE 9"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875883.386,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875883.386  5224  5224 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 886921d8-2e60-422c-a5a6-988c1e37507e",
+        "         1790875883.538  5232  5232 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875883.567  5232  5232 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=30,nativeBuild=39",
+        "         1790875884.120  5232  5308 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875884.551,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875884.551  5315  5315 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF bc907941-18ad-466e-a9f8-87ae030dc379",
+        "         1790875884.721  5323  5323 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875884.733  5323  5323 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=14,nativeBuild=39",
+        "         1790875884.802  5323  5323 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875885.063,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875885.063  5402  5402 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 24008157-26c9-4dd1-bc79-70708aefdfad",
+        "         1790875885.218  5410  5410 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875885.284  5410  5410 I REBU_RESOURCE_PROBE: KILL_AT NEW_MOVED",
+        "         1790875885.320  5427  5427 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875885.332  5427  5427 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875885.333  5427  5427 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=14,nativeBuild=39"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875885.527,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875885.527  5485  5485 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 6a81a84d-50d6-4e5a-aaba-b4008c32ab32",
+        "         1790875885.911  5427  5509 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875885.944  5427  5509 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "checkpoint": "NEW_MOVED",
+      "killedPid": "5410",
+      "restoredPid": "5427",
+      "jsPid": "5427",
+      "recoveryBeforeJs": true,
+      "recoveryLogs": [
+        "         1790875885.063  5402  5402 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 24008157-26c9-4dd1-bc79-70708aefdfad",
+        "         1790875885.218  5410  5410 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875885.284  5410  5410 I REBU_RESOURCE_PROBE: KILL_AT NEW_MOVED",
+        "         1790875885.320  5427  5427 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875885.332  5427  5427 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875885.333  5427  5427 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=14,nativeBuild=39",
+        "         1790875885.527  5485  5485 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 6a81a84d-50d6-4e5a-aaba-b4008c32ab32",
+        "         1790875885.911  5427  5509 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875885.944  5427  5509 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875886.13,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875886.130  5518  5518 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF b56ae811-f9e3-4dd7-ac8f-cecf3bd2f6db",
+        "         1790875886.302  5526  5526 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875886.306  5526  5526 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=5,nativeBuild=39",
+        "         1790875886.314  5526  5526 I REBU_RESOURCE_PROBE: NEW_SUITE 10"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875886.681,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875886.681  5604  5604 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 5c685541-7ef5-4f5a-8de1-3338aa999a40",
+        "         1790875886.861  5612  5612 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875886.890  5612  5612 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=31,nativeBuild=39",
+        "         1790875887.548  5612  5685 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875887.872,
+      "elapsedMs": 302,
+      "logs": [
+        "         1790875887.872  5691  5691 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 55519ff6-ca81-4fa5-bc7e-e3a2037f642f",
+        "         1790875888.038  5699  5699 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875888.047  5699  5699 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=10,nativeBuild=39",
+        "         1790875888.105  5699  5699 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875888.486,
+      "elapsedMs": 299,
+      "logs": [
+        "         1790875888.486  5780  5780 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF d06db522-a922-4273-8dda-b2a5eb7f639c",
+        "         1790875888.645  5787  5787 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875888.712  5787  5787 I REBU_RESOURCE_PROBE: KILL_AT PENDING_HEALTH",
+        "         1790875888.754  5804  5804 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875888.766  5804  5804 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875888.767  5804  5804 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=39"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875888.957,
+      "elapsedMs": 301,
+      "logs": [
+        "         1790875888.957  5863  5863 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 37f147fa-06bd-475f-9e6d-7479da0302e2",
+        "         1790875889.351  5804  5887 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875889.381  5804  5887 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "checkpoint": "PENDING_HEALTH",
+      "killedPid": "5787",
+      "restoredPid": "5804",
+      "jsPid": "5804",
+      "recoveryBeforeJs": true,
+      "recoveryLogs": [
+        "         1790875888.486  5780  5780 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF d06db522-a922-4273-8dda-b2a5eb7f639c",
+        "         1790875888.645  5787  5787 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875888.712  5787  5787 I REBU_RESOURCE_PROBE: KILL_AT PENDING_HEALTH",
+        "         1790875888.754  5804  5804 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875888.766  5804  5804 I REBU_RESOURCE_PROBE: RECOVERED_BEFORE_JS verified-backup",
+        "         1790875888.767  5804  5804 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=13,nativeBuild=39",
+        "         1790875888.957  5863  5863 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 37f147fa-06bd-475f-9e6d-7479da0302e2",
+        "         1790875889.351  5804  5887 I REBU_RESOURCE_PROBE: JS_READY baseline-ready",
+        "         1790875889.381  5804  5887 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ]
+    },
+    {
+      "scenario": "new-suite",
+      "cutoff": 1790875889.56,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875889.560  5893  5893 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF d5dfcbbb-81cc-41e2-b354-bb9209a5f5f6",
+        "         1790875889.714  5901  5901 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875889.720  5901  5901 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=7,nativeBuild=39",
+        "         1790875889.731  5901  5901 I REBU_RESOURCE_PROBE: NEW_SUITE 11"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875890.167,
+      "elapsedMs": 903,
+      "logs": [
+        "         1790875890.167  5979  5979 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF a7b84c21-3850-426e-952b-2c6a9c6354a3",
+        "         1790875890.322  5987  5987 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875890.338  5987  5987 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=17,nativeBuild=39",
+        "         1790875890.970  5987  6061 I REBU_RESOURCE_PROBE: JS_READY baseline-ready"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "prepare-good",
+      "cutoff": 1790875891.315,
+      "elapsedMs": 300,
+      "logs": [
+        "         1790875891.315  6068  6068 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 3066a58d-21ea-4a7c-ad53-a24d997d647f",
+        "         1790875891.480  6076  6076 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875891.484  6076  6076 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=0,ms=4,nativeBuild=39",
+        "         1790875891.549  6076  6076 I REBU_RESOURCE_PROBE: PREPARED good"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875891.986,
+      "elapsedMs": 901,
+      "logs": [
+        "         1790875891.986  6154  6154 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 4bf1aa9f-f4ee-4751-8012-9d3149d3bcc4",
+        "         1790875892.146  6162  6162 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875892.203  6162  6162 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=PENDING_HEALTH,version=2,ms=58,nativeBuild=39",
+        "         1790875892.822  6162  6237 I REBU_RESOURCE_PROBE: JS_READY good-ready",
+        "         1790875892.838  6162  6237 I REBU_RESOURCE_PROBE: FIXTURE_HEALTH core-acknowledged"
+      ],
+      "startupContextFromCurrentLaunch": false
+    },
+    {
+      "scenario": "show",
+      "cutoff": 1790875893.133,
+      "elapsedMs": 902,
+      "logs": [
+        "         1790875893.133  6244  6244 I REBU_RESOURCE_PROBE: HARNESS_CUTOFF 93b68d9c-abb2-4dc1-8f84-6288bb297e11",
+        "         1790875893.302  6252  6252 I REBU_RESOURCE_PROBE: CRYPTO_MODE bc",
+        "         1790875893.316  6252  6252 I REBU_RESOURCE_PROBE: BEFORE_WEBVIEW phase=HEALTHY,version=2,ms=15,nativeBuild=39",
+        "         1790875893.993  6252  6326 I REBU_RESOURCE_PROBE: JS_READY good-ready",
+        "         1790875893.998  6252  6326 I REBU_RESOURCE_PROBE: FIXTURE_HEALTH core-acknowledged"
+      ],
+      "startupContextFromCurrentLaunch": false
+    }
+  ],
+  "limits": [
+    "独立 Application/WebView，非 DCloud 完整包",
+    "当前API31 / emulator / x86_64，不能替代其他API、ABI或物理设备覆盖",
+    "OfferCheck、忙碌标记及核心健康确认是明确的合成夹具",
+    "没有真实交易、TRTC、录音或上传业务实测"
+  ]
+}
