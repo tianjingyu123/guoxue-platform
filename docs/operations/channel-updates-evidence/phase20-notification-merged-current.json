@@ -1,0 +1,129 @@
+{
+  "verifiedAt": "2026-10-01T13:54:29.455Z",
+  "sourceSha": "19a61227f1ce7f36e5c5c1b7888c95d4424ea6f1",
+  "sourceDirty": false,
+  "mainlineSnapshot": "80850d34ca3770cf39b57da891b96eee8b12af18",
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "regression": {
+    "clientTests": 309,
+    "failed": 0,
+    "skipped": 0,
+    "typecheckExitCode": 0,
+    "nativeBundleAuditExitCode": 0
+  },
+  "builds": [
+    {
+      "kind": "app-resources",
+      "fileCount": 491
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1180
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2757
+    }
+  ],
+  "previousEvidenceReuse": {
+    "serverSource": "c53d04396c5593a8a3964b955213c03a7c7bd3fb",
+    "serverTests": 45,
+    "serverSuites": 2,
+    "serverBuildPassed": true,
+    "unchangedInputs": {
+      "apps/server": {
+        "previousObject": "3d4a45d03165713b3b3dfcd851276915c00a66ea",
+        "currentObject": "3d4a45d03165713b3b3dfcd851276915c00a66ea",
+        "identical": true
+      },
+      "apps/admin": {
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "packages": {
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      }
+    },
+    "previousFrozenFilesVerified": 7886,
+    "sourceRebound": false
+  },
+  "runnerCorrections": {
+    "firstArgumentInvocationFailureRetained": "artifacts/phase20-notification-merged-current",
+    "auditScriptLookupFailureRetained": true,
+    "actualAuditCommand": "node scripts/release/audit-mobile-native-bundle.mjs",
+    "passedChecksNotRepeated": true
+  },
+  "review": {
+    "patch": "artifacts\\phase20-notification-merged-current-retry2\\review-verified\\merged-from-80850d34.patch",
+    "bundle": "artifacts\\phase20-notification-merged-current-retry2\\review-verified\\merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "154131e8b3a2bcf6dcc185f9d2d5f06ac6d56382",
+    "sourceTree": "154131e8b3a2bcf6dcc185f9d2d5f06ac6d56382",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts\\phase20-notification-merged-current-retry2\\client-gate.log": {
+      "bytes": 33144,
+      "sha256": "eefb6e1c30524add75b20e55b126b7e6b535f6ec62036e478c72f212553a72f4"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\execution.json": {
+      "bytes": 680,
+      "sha256": "e6b4037d07f9801b6f5eefe8ec04fcfb0c7cd1617a740a312581986194dfb376"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\mobile-app-build.log": {
+      "bytes": 68036,
+      "sha256": "5f8d0374c5b340dc5a86cc5a640ffae90540212b2fcf39477d1035cbf865aeaa"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\mobile-h5-build.log": {
+      "bytes": 68258,
+      "sha256": "c396af563a69c787b8a14b90617417d1b0d797acf1023fb1438fbf933beed15a"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\mobile-mp-build.log": {
+      "bytes": 69059,
+      "sha256": "128daf531ba9ac4d83f1b0a0b723da3edcdcafa2e30200bd63c8f864a0987c9a"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\native-bundle-audit-fixed-exit.txt": {
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\native-bundle-audit-fixed.log": {
+      "bytes": 166,
+      "sha256": "d388a90a07a66c21e77a6a0ad92d6d1a160217df35607c2acfe6ccd5ecc8d44c"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\native-bundle-audit.log": {
+      "bytes": 195,
+      "sha256": "8c62c383d6ab5af94674113d4dc0cc74371464dce34784316a004351f104eb20"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\build-manifest.json": {
+      "bytes": 839371,
+      "sha256": "088d1e841a0d50240621ff9deba88b6e61054801f0d4803fba315ed0c8c6c830"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\review-verified\\merged-from-80850d34.patch": {
+      "bytes": 358687,
+      "sha256": "1223f1dcd72a037a37f249fcd290b06d7e047e6034fe4d435d88f1977c5f4202"
+    },
+    "artifacts\\phase20-notification-merged-current-retry2\\review-verified\\merged.bundle": {
+      "bytes": 110636,
+      "sha256": "c4e8fef740a6ca5e759fd2e7bd7fa3e874abc301bdf3fa7c1c2da92d45e45577"
+    }
+  },
+  "limits": [
+    "仅独立候选合并，未实际主线接收、部署或上传小程序",
+    "App为资源构建，不是DCloud完整签名包",
+    "旧课程回归和服务端产物仍绑定c53d0439，不重绑定本轮源码",
+    "合成公开域名，不代表真实第三方登录、支付或其他业务验收"
+  ]
+}
