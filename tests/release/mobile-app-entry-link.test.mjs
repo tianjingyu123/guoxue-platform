@@ -5,6 +5,36 @@ import { parseAppEntryLink } from '../../apps/mobile/src/utils/app-entry-link.ts
 
 const formalApiOrigin = 'https://api.rebugx.cn'
 const parseFormalAppEntryLink = (raw) => parseAppEntryLink(raw, formalApiOrigin)
+const formalH5Url = 'https://gx.yrydai.com/h5/'
+const parseSharedAppEntryLink = (raw) => parseAppEntryLink(raw, formalApiOrigin, formalH5Url)
+
+test('独立正式 H5 分享与既有 API 回跳均到同一站内路由', () => {
+  for (const host of ['gx.yrydai.com', 'api.rebugx.cn']) {
+    assert.equal(parseSharedAppEntryLink(`https://${host}/h5/pkg-circle/detail/index?id=42&source=share`), '/pkg-circle/detail/index?id=42&source=share')
+    assert.equal(parseSharedAppEntryLink(`https://${host}/h5/pkg-common/legacy-paipan-share/index?target=https%3A%2F%2Fwww.yrydai.cn%2Fp1.php%3Fid%3D1`), '/pkg-common/legacy-paipan-share/index?target=https%3A%2F%2Fwww.yrydai.cn%2Fp1.php%3Fid%3D1')
+    assert.equal(parseSharedAppEntryLink(`https://${host}/h5/?handoff=one-time`), '/pages/index/index?handoff=one-time')
+  }
+  assert.equal(parseFormalAppEntryLink('https://gx.yrydai.com/h5/'), null)
+})
+
+test('H5 配置与分享链接不扩大凭据、协议、端口或路径信任范围', () => {
+  for (const invalid of [
+    'http://gx.yrydai.com/h5/', 'https://gx.yrydai.com:8443/h5/',
+    'https://user:pass@gx.yrydai.com/h5/', 'https://gx.yrydai.com/',
+    'https://gx.yrydai.com/other/', 'https://gx.yrydai.com/h5/?token=x',
+    'https://gx.yrydai.com/h5/#x',
+  ]) {
+    assert.equal(parseAppEntryLink('https://gx.yrydai.com/h5/', formalApiOrigin, invalid), null)
+    assert.equal(parseAppEntryLink('https://api.rebugx.cn/h5/', formalApiOrigin, invalid), '/pages/index/index')
+  }
+  for (const invalid of [
+    'https://gx.yrydai.com.evil.test/h5/', 'https://user:pass@gx.yrydai.com/h5/',
+    'http://gx.yrydai.com/h5/', 'https://gx.yrydai.com:8443/h5/',
+    'https://gx.yrydai.com/admin', 'https://gx.yrydai.com/h5/%2e%2e/admin',
+    'https://gx.yrydai.com/h5/%2fadmin', 'https://gx.yrydai.com/h5/?refresh%5Ftoken=x',
+  ]) assert.equal(parseSharedAppEntryLink(invalid), null)
+  assert.equal(parseSharedAppEntryLink('HTTPS://GX.YRYDAI.COM:443/h5/'), '/pages/index/index')
+})
 
 test('生产 App Link 映射为站内路由并保留普通查询参数', () => {
   assert.equal(
@@ -56,6 +86,26 @@ test('Android App Link 通过主 Activity 别名接管冷热启动', async () =>
     assert.match(manifest, /android:targetActivity="io\.dcloud\.PandoraEntryActivity"/u)
     assert.doesNotMatch(manifest, /<activity\s+[\s\S]*?android:name="io\.dcloud\.PandoraEntry"[\s\S]*?android:autoVerify="true"/u)
   }
+})
+
+test('原生入口覆盖正式 H5 分享和 API 回跳，保留既有微信 UniversalLinks', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const rootManifest = await readFile('apps/mobile/AndroidManifest.xml', 'utf8')
+  assert.equal(rootManifest, await readFile('apps/mobile/src/AndroidManifest.xml', 'utf8'))
+  const filters = [...rootManifest.matchAll(/<intent-filter android:autoVerify="true">([\s\S]*?)<\/intent-filter>/gu)]
+  assert.equal(filters.length, 2)
+  for (const host of ['api.rebugx.cn', 'gx.yrydai.com']) {
+    const filter = filters.find((match) => match[1].includes(`android:host="${host}"`))
+    assert.ok(filter, host)
+    assert.equal((filter[1].match(/android:host=/gu) || []).length, 1)
+    assert.match(filter[1], /android:scheme="https"/u)
+    assert.match(filter[1], /android:pathPrefix="\/h5\/"/u)
+  }
+  const manifest = JSON.parse(await readFile('apps/mobile/src/manifest.json', 'utf8'))
+  assert.deepEqual(manifest['app-plus'].distribute.ios.capabilities.entitlements['com.apple.developer.associated-domains'], ['applinks:api.rebugx.cn', 'applinks:gx.yrydai.com'])
+  const sdk = manifest['app-plus'].distribute.sdkConfigs
+  assert.equal(sdk.oauth.weixin.UniversalLinks, 'https://api.rebugx.cn/h5/')
+  assert.equal(sdk.share.weixin.UniversalLinks, 'https://api.rebugx.cn/h5/')
 })
 
 test('App 生命周期按 DCloud 约定在 onShow 和全局 newintent 事件处理深链', async () => {

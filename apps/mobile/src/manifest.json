@@ -94,7 +94,7 @@
                 },
                 "capabilities" : {
                     "entitlements" : {
-                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn" ],
+                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn", "applinks:gx.yrydai.com" ],
                         "com.apple.developer.applesignin" : [ "Default" ]
                     }
                 },

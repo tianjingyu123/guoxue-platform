@@ -120,7 +120,7 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
       "com.apple.developer.associated-domains"
     ];
 
-  assert.deepEqual(associatedDomains, ["applinks:api.rebugx.cn"]);
+  assert.deepEqual(associatedDomains, ["applinks:api.rebugx.cn", "applinks:gx.yrydai.com"]);
   assert.equal(deployedApple.applinks.details[0].appID, `WL5PA97667.${iosBundleId}`);
   assert.deepEqual(deployedApple.applinks.details[0].components, [{ "/": "/h5/*" }]);
   assert.equal(deployedAndroid[0].target.package_name, androidPackageName);

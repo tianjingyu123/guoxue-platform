@@ -24,6 +24,16 @@
           android:host="api.rebugx.cn"
           android:pathPrefix="/h5/" />
       </intent-filter>
+      <!-- 分享使用独立 H5 正式域名，独立过滤器避免与 API 回跳规则组合。 -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+          android:scheme="https"
+          android:host="gx.yrydai.com"
+          android:pathPrefix="/h5/" />
+      </intent-filter>
     </activity-alias>
   </application>
 </manifest>

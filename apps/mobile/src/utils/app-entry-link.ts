@@ -21,17 +21,20 @@ const SENSITIVE_QUERY_KEYS = new Set([
 export function parseAppEntryLink(
   raw: unknown,
   apiOrigin: unknown = (import.meta as any).env?.VITE_API_URL,
+  publicH5Url: unknown = (import.meta as any).env?.VITE_PUBLIC_H5_URL,
 ): string | null {
   if (typeof raw !== 'string') return null
   const value = raw.trim()
   if (!value || value.length > MAX_APP_LINK_LENGTH) return null
 
-  // 可信主机来自构建时已审计的 API Origin，避免在运行时代码中固化环境域名。
-  // 这里只接受 HTTPS、默认端口且不带路径的 Origin。
+  // API 回跳和用户分享使用不同域名，二者均来自构建时已审计的公开配置。
+  // API 只接受根 Origin；H5 必须明确指向 /h5/，不允许任意路径扩大信任范围。
   const configuredOrigin = String(apiOrigin || '').trim()
   const configuredMatch = /^https:\/\/([a-z0-9.-]+)(?::443)?\/?$/iu.exec(configuredOrigin)
   if (!configuredMatch) return null
-  const trustedHostname = configuredMatch[1].toLowerCase()
+  const trustedHostnames = new Set([configuredMatch[1].toLowerCase()])
+  const h5Match = /^https:\/\/([a-z0-9.-]+)(?::443)?\/h5\/?$/iu.exec(String(publicH5Url || '').trim())
+  if (h5Match) trustedHostnames.add(h5Match[1].toLowerCase())
 
   // DCloud Android JS 运行时不保证提供 WHATWG URL。这里按 App Link 所需的
   // HTTPS 子集严格拆分，既避免运行时兼容问题，也不把任意 URL 当站内路由。
@@ -50,7 +53,7 @@ export function parseAppEntryLink(
   const portSeparator = authority.lastIndexOf(':')
   const hostname = (portSeparator >= 0 ? authority.slice(0, portSeparator) : authority).toLowerCase()
   const port = portSeparator >= 0 ? authority.slice(portSeparator + 1) : ''
-  if (hostname !== trustedHostname || (portSeparator >= 0 && port !== '443')) return null
+  if (!trustedHostnames.has(hostname) || (portSeparator >= 0 && port !== '443')) return null
 
   const fragmentIndex = remainder.indexOf('#')
   const withoutFragment = fragmentIndex >= 0 ? remainder.slice(0, fragmentIndex) : remainder
