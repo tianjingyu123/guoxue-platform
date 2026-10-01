@@ -12,6 +12,7 @@ on:
       - "scripts/release/verify-isolated-merchant-shipping-http.cjs"
       - "scripts/release/verify-isolated-im-http.cjs"
       - "scripts/release/verify-isolated-im-socket.cjs"
+      - "scripts/release/verify-isolated-circle-reward-http.cjs"
   workflow_dispatch:
 
 permissions:
@@ -29,9 +30,9 @@ jobs:
     permissions:
       contents: write
     env:
-      SOURCE_COMMIT: "ceca6455dd31af8ceacd9912a4ccd3d0991d8edc"
-      SOURCE_SHA256: "8f7e9e1e179faa2fca40c0122ebe1ba3d856bf3d00dac7a2a319c7ad919f9474"
-      IMAGE_TAG: "rebu-linux-verify:ceca6455"
+      SOURCE_COMMIT: "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b"
+      SOURCE_SHA256: "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047"
+      IMAGE_TAG: "rebu-linux-verify:b6d1f59c"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -41,6 +42,10 @@ jobs:
           # 仅检出核验脚本，避开历史缺少 .gitmodules 声明的技能 gitlink。
           # 实际业务构建仍来自完整固定源码包，而不是这份稀疏检出。
           sparse-checkout: scripts/release
+
+      - name: 清除临时检出鉴权头
+        shell: bash
+        run: git config --local --unset-all http.https://github.com/.extraheader || true
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -53,12 +58,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p results "$RUNNER_TEMP/rebu-image-source"
-          archive="$RUNNER_TEMP/gx-deploy-91-launch-20260930-ceca6455.tar.gz"
+          archive="$RUNNER_TEMP/gx-deploy-91-launch-20260930-b6d1f59c.tar.gz"
           curl --fail --location --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/octet-stream" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/tianjingyu123/guoxue-platform/releases/assets/601671103 \
+            https://api.github.com/repos/tianjingyu123/guoxue-platform/releases/assets/602036145 \
             --output "$archive"
           printf '%s  %s\n' "$SOURCE_SHA256" "$archive" > "$archive.sha256"
           node scripts/release/verify-fixed-package.mjs "$archive" "$archive.sha256" \
@@ -87,7 +92,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: linux-image-verification-ceca6455-${{ github.run_id }}
+          name: linux-image-verification-b6d1f59c-${{ github.run_id }}
           path: results/
           retention-days: 14
           if-no-files-found: error
