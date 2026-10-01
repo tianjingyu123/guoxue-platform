@@ -2,6 +2,8 @@
  * https://paas.huifu.com/help/dev_guide/zf/zfb/app.md
  */
 export function buildAlipayNativeUrl(value: unknown): string {
+  // 支付链接必须拒绝控制字符；这里明确匹配字符范围，保留安全边界。
+  // eslint-disable-next-line no-control-regex
   if (typeof value !== 'string' || value.length > 1024 || /[\s\\\u0000-\u001f\u007f]/.test(value)) {
     throw new Error('支付宝支付链接无效')
   }

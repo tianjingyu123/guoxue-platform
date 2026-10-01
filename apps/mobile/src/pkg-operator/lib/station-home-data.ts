@@ -2,7 +2,6 @@
 // 分站不生产内容，是平台内容的「品牌化入口」：品牌/模板由站长配置，内容来自平台真实推荐流。
 
 import { apiGet } from '@/utils/request'
-import { discoverApi, type FeedItem } from '@/lib/discover-data'
 import { getSmartFeed, type FeedEnvelope, type SmartFeedChannel } from '@/lib/feed-data'
 import { stationPinnedTargetUrl } from '@/lib/station-pinned-public-data'
 
@@ -37,7 +36,7 @@ export interface StationFeature {
   color: string
 }
 
-// 分站精选内容卡片（把平台 discover 的多态 FeedItem 拍平为统一卡片）
+// 分站精选内容卡片（平台智能内容流的统一卡片）
 export interface StationFeedCard {
   platformItem?: FeedEnvelope
   id: string | number
@@ -64,44 +63,6 @@ export interface MicroPageView {
   name: string
   status: string
   components: MicroPageComponentView[]
-}
-
-/** discover 各态卡片数据的并集（字段全 optional，仅声明 adaptFeed 实际访问到的字段） */
-interface RawFeedData {
-  // id 各卡片必有 → 声明为必填，直接赋给输出必填 id 字段，避免 possibly-undefined
-  id: string | number
-  title?: string
-  name?: string
-  cover?: string
-  avatar?: string
-  author?: string
-  teacher?: string
-  host?: string
-  price?: number
-  sales?: number
-  students?: number
-  viewers?: number
-  useCount?: number
-  readers?: number
-  plays?: number
-  likes?: number
-  status?: string
-}
-
-/** discover 多态 FeedItem（{kind,data}）→ 扁平 StationFeedCard */
-function adaptFeed(items: FeedItem[]): StationFeedCard[] {
-  return items.map((it) => {
-    const d = it.data as RawFeedData
-    switch (it.kind) {
-      case 'product': return { id: d.id, type: 'product', title: d.title || '', cover: d.cover || '', author: '', price: d.price, viewers: d.sales }
-      case 'course': return { id: d.id, type: 'course', title: d.title || '', cover: d.cover || '', author: d.teacher || '', price: d.price, viewers: d.students }
-      case 'live': return { id: d.id, type: 'live', title: d.title || '', cover: d.cover || '', author: d.host || '', isLive: d.status === 'live', viewers: d.viewers }
-      case 'agent': return { id: d.id, type: 'agent', title: d.name || '', cover: d.avatar || '', author: '', viewers: d.useCount }
-      case 'classic': return { id: d.id, type: 'classic', title: d.title || '', cover: d.cover || '', author: d.author || '', viewers: d.readers }
-      case 'video': return { id: d.id, type: 'video', title: d.title || '', cover: d.cover || '', author: d.author || '', viewers: d.plays, likes: d.likes }
-      default: return { id: '', type: 'content', title: '', cover: '', author: '' }
-    }
-  })
 }
 
 // 模块 → 平台频道入口映射（path 均为 pages.json 真实路径，确保可跳转）

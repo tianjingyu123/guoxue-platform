@@ -11,7 +11,7 @@ export type ShareQuery = Record<string, string | number | boolean | undefined | 
 /** 按当前 history 路由模式生成可外部打开的 H5 深链；禁止再拼 /#/ 旧 hash 地址。 */
 export function buildH5Url(route: string, params: ShareQuery = {}): string {
   const envH5Url = String((import.meta as any).env?.VITE_PUBLIC_H5_URL || "");
-  let base = (BRAND.h5Url || envH5Url).replace(/\/+$/, "");
+  const base = (BRAND.h5Url || envH5Url).replace(/\/+$/, "");
   if (!base) throw new Error("未配置 H5 公网地址，无法生成分享链接");
   const cleanRoute = String(route || "").replace(/^\/+/, "");
   const query = Object.entries(params)

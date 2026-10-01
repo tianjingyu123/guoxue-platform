@@ -540,9 +540,8 @@ async function refreshRole(circleId: string | null) {
     myRole.value = null
     draftStatus.value = '暂时无法确认创作权限，请保留草稿后重试'
   } finally {
-    if (request !== roleRequest) return
-    roleLoaded.value = true
-    // 已知不是管理员却停在文章模式时，回退到发帖
+    // 旧请求结束时不能修改新请求的加载状态，也不在finally中覆盖返回结果。
+    if (request === roleRequest) roleLoaded.value = true
   }
 }
 
