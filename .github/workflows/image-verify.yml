@@ -35,9 +35,9 @@ jobs:
     permissions:
       contents: write
     env:
-      SOURCE_COMMIT: "7e0ccfe8f5c4857e74154514b25a1171f218368f"
-      SOURCE_SHA256: "265f71684d971bfbe31ccb19fa2dbcd4bfb49297021b319df1ad81bcaff6870a"
-      IMAGE_TAG: "rebu-linux-verify:7e0ccfe8f"
+      SOURCE_COMMIT: "50badb47c9ed409243ac758eba7495570f251e96"
+      SOURCE_SHA256: "cc78829ad6eca5604890d9776a85a4b654321ac7af661a931d7724fcf263f4fe"
+      IMAGE_TAG: "rebu-linux-verify:50badb47c"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -63,12 +63,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p results "$RUNNER_TEMP/rebu-image-source"
-          archive="$RUNNER_TEMP/gx-deploy-91-launch-20261001-7e0ccfe8f.tar.gz"
+          archive="$RUNNER_TEMP/gx-deploy-91-launch-20261001-50badb47c.tar.gz"
           curl --fail --location --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/octet-stream" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/tianjingyu123/guoxue-platform/releases/assets/602742191 \
+            https://api.github.com/repos/tianjingyu123/guoxue-platform/releases/assets/602790095 \
             --output "$archive"
           printf '%s  %s\n' "$SOURCE_SHA256" "$archive" > "$archive.sha256"
           node scripts/release/verify-fixed-package.mjs "$archive" "$archive.sha256" \
@@ -97,7 +97,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: linux-image-verification-7e0ccfe8f-${{ github.run_id }}
+          name: linux-image-verification-50badb47c-${{ github.run_id }}
           path: results/
           retention-days: 14
           if-no-files-found: error
