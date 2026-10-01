@@ -377,17 +377,18 @@ function notifyCategory(t: string): string {
 
 /** targetType/targetId → 站内跳转链接（已知类型才给，未知返回 undefined 诚实降级） */
 function notifyLink(targetType?: string | null, targetId?: string | null): string | undefined {
-  if (!targetType || !targetId) return undefined
+  if (!targetType || !targetId?.trim()) return undefined
   const t = targetType.toUpperCase()
+  const id = encodeURIComponent(targetId)
   if (t === 'FEEDBACK') return '/feedback?tab=history'
-  if (t.includes('COURSE')) return `/pkg-course/detail?id=${targetId}`
+  if (t.includes('COURSE')) return `/pkg-course/detail/index?id=${id}`
   // POST 必须先于 ARTICLE/CIRCLE 判断：帖子(含 CIRCLE_POST)走帖子详情页，被当文章打开必空
-  if (t.includes('POST')) return `/pkg-circle/circles/post?id=${targetId}`
-  if (t.includes('ARTICLE')) return `/pkg-circle/articles/detail?id=${targetId}`
-  if (t.includes('ORDER')) return `/pkg-order/detail?id=${targetId}`
-  if (t.includes('CIRCLE')) return `/pkg-circle/circles/detail?id=${targetId}` // 原 /pkg-circle/detail 是死路由（pages.json 无此页）
-  if (t.includes('USER') || t.includes('FOLLOW')) return `/user/${targetId}` // 关注通知点头像进对方主页（DYNAMIC_ROUTES 现成映射）
-  if (t.includes('LIVE')) return `/pkg-live/watch/index?id=${targetId}` // 原指 vertical 半死页(products恒空)·改指真观看页
+  if (t.includes('POST')) return `/pkg-circle/circles/post?id=${id}`
+  if (t.includes('ARTICLE')) return `/pkg-circle/articles/detail?id=${id}`
+  if (t.includes('ORDER')) return `/pkg-order/detail/index?id=${id}`
+  if (t.includes('CIRCLE')) return `/pkg-circle/circles/detail?id=${id}` // 原 /pkg-circle/detail 是死路由（pages.json 无此页）
+  if (t.includes('USER') || t.includes('FOLLOW')) return `/user/${id}` // 关注通知点头像进对方主页（DYNAMIC_ROUTES 现成映射）
+  if (t.includes('LIVE')) return `/pkg-live/watch/index?id=${id}` // 原指 vertical 半死页(products恒空)·改指真观看页
   return undefined
 }
 
