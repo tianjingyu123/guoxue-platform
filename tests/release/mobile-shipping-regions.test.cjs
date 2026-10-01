@@ -6,7 +6,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const dir=path.join(root,'apps/mobile/src/pkg-account/lib');
 const source=fs.readFileSync(path.join(dir,'shipping-regions.ts'),'utf8');
-const match=source.match(/SHIPPING_REGIONS[^=]*= (\{[\s\S]*\})\n\nexport const SHIPPING_PROVINCES/);
+const match=source.match(/SHIPPING_REGIONS[^=]*= (\{[\s\S]*\})\r?\n\r?\nexport const SHIPPING_PROVINCES/);
 assert.ok(match,'地区数据字面量缺失');
 const regions=JSON.parse(match[1]);
 const receipt=JSON.parse(fs.readFileSync(path.join(dir,'shipping-regions-source.json'),'utf8'));

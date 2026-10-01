@@ -1,3 +1,5 @@
 *.sh text eol=lf
 apps/server/prisma/migrations/**/*.sql text eol=lf
 apps/server/prisma/migrations-deploy/*.sql text eol=lf
+apps/mobile/src/pkg-account/lib/shipping-regions.ts text eol=lf
+apps/mobile/src/pkg-account/lib/shipping-regions.LICENSE text eol=lf
