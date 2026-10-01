@@ -1,0 +1,462 @@
+{
+  "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+  "receivedCommits": [
+    "c4eb890b8f090271c560055cafa81ac54ffd826d"
+  ],
+  "verificationSource": "94f164e85cff58e6a66086a4316179868d41976f",
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "reception": {
+    "checkedAt": "2026-10-01T16:27:43.6518314Z",
+    "beforeHead": "00baf1bc3e0496a7b77db6a9410e40408bee3907",
+    "finalHead": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "receivedCommits": [
+      "c4eb890b8f090271c560055cafa81ac54ffd826d"
+    ],
+    "clean": true,
+    "conflicts": [],
+    "masterMerged": false,
+    "deployed": false,
+    "productionMigration": false
+  },
+  "conflicts": [],
+  "localTests": {
+    "suites": 3,
+    "passed": 183,
+    "baseline": {
+      "newCases": 4,
+      "failed": 4,
+      "skippedExisting": 105
+    },
+    "typecheckExit": 0,
+    "eslintErrors": 0,
+    "existingWarnings": 12
+  },
+  "ci": {
+    "testsSkipped": 133,
+    "suitesSkipped": 26,
+    "runId": 36890104221,
+    "logs": [
+      {
+        "sha256": "ffd818252ccafc46ef6598c1bb1564535f5a0912f53c2dbf636879af12b71be2",
+        "tests": "Tests:       50 skipped, 3035 passed, 3085 total",
+        "jobId": 110463925143,
+        "name": "单元测试 (2/3)",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "sha256": "36436732ec3284396a3237f1cd98dd0c863ff3d0e176f25adad61365526acb5f",
+        "tests": "Tests:       44 skipped, 2843 passed, 2887 total",
+        "jobId": 110463925206,
+        "name": "单元测试 (1/3)",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "sha256": "a19c1690324c700c2d1e1cb1664910967acf5d943fd1b6d75f7f2a237e4eb9f0",
+        "tests": "Tests:       39 skipped, 3047 passed, 3086 total",
+        "jobId": 110463925526,
+        "name": "单元测试 (3/3)",
+        "suites": "Test Suites: 10 skipped, 220 passed, 220 of 230 total"
+      }
+    ],
+    "testsPassed": 8925,
+    "checkedAt": "2026-10-01T16:26:46.8392956Z",
+    "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "suitesPassed": 664,
+    "status": "success",
+    "jobsPassed": 8
+  },
+  "image": {
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry",
+      "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+      "free-course-full-http-postcommit-notification-failure-and-permissions",
+      "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions"
+    ],
+    "checkedAt": "2026-10-01T16:27:10.3348247Z",
+    "verificationSource": "94f164e85cff58e6a66086a4316179868d41976f",
+    "image": "sha256:9283adc3a1dc5d7713b5d17505cb5b6d72e5e5040109e5320a33c2e2c5ec49a7",
+    "sourceArchiveSha256": "a41c57a515fbdff1c9dc221e7e8cc271eef623ed0f55a1ee3a173c8901ff4646",
+    "checksPassed": 26,
+    "runId": 36890855896,
+    "runtimeReportSha256": "ef438c945eea43eddabf482f3a5248a385cb9b2998f674bd2c0717cc5c3577e3",
+    "artifact": {
+      "bytes": 58910,
+      "officialDigestMatches": true,
+      "id": 11175879800,
+      "sha256": "dbd347cee36b94245a740c1723b684a7d8c0848ba7a927bdb4d60770e7154c68"
+    },
+    "cleanupAllConfirmed": true,
+    "passed": true,
+    "businessSource": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "production": false,
+    "realChannels": false
+  },
+  "runtime": {
+    "passed": true,
+    "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions",
+    "cases": [
+      {
+        "name": "anonymous-booking-denied",
+        "passed": true,
+        "status": 401
+      },
+      {
+        "name": "real-http-booking-one",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "real-http-booking-two",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "real-http-booking-cancel-fixture",
+        "passed": true,
+        "status": 201
+      },
+      {
+        "name": "real-http-cancel-own-booking",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "name": "real-reminder-notification-write-failure-continues-next-room-with-failed-marker-null",
+        "passed": true
+      },
+      {
+        "name": "real-redis-two-process-reminder-retry-inserts-only-missing-notice",
+        "passed": true,
+        "processes": 2
+      },
+      {
+        "name": "real-reminder-marker-failure-continues-next-room",
+        "passed": true
+      },
+      {
+        "name": "marker-retry-after-lost-lease-database-unique-prevents-duplicate",
+        "passed": true,
+        "processes": 2,
+        "lostLeaseSimulated": true
+      },
+      {
+        "name": "cancelled-booking-ended-outside-window-and-overdue-not-reminded",
+        "passed": true
+      },
+      {
+        "name": "real-started-notification-write-failure-continues-next-room",
+        "passed": true
+      },
+      {
+        "name": "real-two-process-started-retry-no-duplicate",
+        "passed": true,
+        "processes": 2
+      },
+      {
+        "name": "real-started-marker-failure-continues-next-room",
+        "passed": true
+      },
+      {
+        "name": "started-marker-retry-preserves-event-key-and-cancelled-user-exclusion",
+        "passed": true
+      },
+      {
+        "name": "four-persisted-notices-have-original-user-event-room-unique-keys",
+        "passed": true
+      },
+      {
+        "name": "notification-recipient-detail",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "name": "notification-cross-user-detail-denied",
+        "passed": true,
+        "status": 404
+      },
+      {
+        "name": "notification-anonymous-detail-denied",
+        "passed": true,
+        "status": 401
+      },
+      {
+        "name": "notification-public-live-target-access",
+        "passed": true,
+        "status": 200
+      },
+      {
+        "name": "old-notification-does-not-grant-hidden-live-room-access",
+        "passed": true,
+        "status": 404
+      }
+    ],
+    "realPushes": 0,
+    "realStreams": 0,
+    "noRealMoney": true,
+    "unchangedCronAndEventKeys": true,
+    "schedulerCalledDirectlyNotRealCronTiming": true,
+    "lostLeaseSimulated": true,
+    "cancellationAfterSelectionRaceNotCovered": true,
+    "schedulerConstructedWithRealPrismaRedisNotifications": true,
+    "schedulerFullNestDiNotCovered": true,
+    "mediaAndMatchingNativeBaseNotCovered": true
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T16:11:54.674Z",
+    "releaseId": "launch-20261001-c4eb890b8",
+    "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "auditFile": "artifacts/channel-intake-20260930/package-c4eb890b8/client-artifacts.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5424,
+      "bytes": 54172345,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11139772,
+        "contentSha256": "44c964e947598f7ccb7c95991734295347878a1fc4a184f160eb20c74b28d2f3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2757,
+        "bytes": 11121296,
+        "contentSha256": "84523ac6dcc854e7ff236dbbd14d7ddd90ab49eb05c656d5dd809be5376a7172",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12892094,
+        "contentSha256": "57b67d822e882fbc79ae6a12e7bd02b6f69a61791360fe66980474a8dfa50419",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12531598,
+        "contentSha256": "352bb68dd7afa01497517c34261f26ab51d66adca9d5e2f2831687f55f5ce83f",
+        "matches": true
+      }
+    ],
+    "errors": []
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T16:12:05.081Z",
+    "archive": "gx-deploy-91-launch-20261001-c4eb890b8.tar.gz",
+    "sha256": "a41c57a515fbdff1c9dc221e7e8cc271eef623ed0f55a1ee3a173c8901ff4646",
+    "releaseId": "launch-20261001-c4eb890b8",
+    "commit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "expectedCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "fileCount": 4439,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "draftArchive": {
+    "releaseId": 401140348,
+    "assets": [
+      {
+        "sha256": "a41c57a515fbdff1c9dc221e7e8cc271eef623ed0f55a1ee3a173c8901ff4646",
+        "assetId": 603632453,
+        "officialDigestMatches": true,
+        "name": "gx-deploy-91-launch-20261001-c4eb890b8.tar.gz",
+        "bytes": 15746447
+      },
+      {
+        "sha256": "a07b9f9fdd28651bfd9c5bdfabdeef67d3b4efcbc2fc3a794785c241314c5ac3",
+        "assetId": 603632859,
+        "officialDigestMatches": true,
+        "name": "gx-deploy-91-launch-20261001-c4eb890b8.tar.gz.sha256",
+        "bytes": 112
+      }
+    ],
+    "tag": "launch-20261001-c4eb890b8",
+    "draft": true,
+    "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "published": false,
+    "checkedAt": "2026-10-01T16:13:47.8268487Z"
+  },
+  "clientInputsEquivalentTo": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+  "publicConfiguration": {
+    "API": "https://api.rebugx.cn",
+    "H5": "https://gx.yrydai.com/h5/",
+    "assets": "https://static.rebugx.cn",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b",
+    "target": "北京两节点"
+  },
+  "business": {
+    "unchangedEventKeys": [
+      "LIVE_REMINDER:<roomId>",
+      "LIVE_STARTED:<roomId>"
+    ],
+    "unchangedRecipientScopedDatabaseUniqueness": true,
+    "unchangedMinuteCron": true,
+    "failedRoomMarkerRetainedForNextRun": true,
+    "perRoomFailureDoesNotStarveFollowingRooms": true
+  },
+  "uncovered": [
+    "正式Cron调度及实际多节点配置",
+    "选取预约后与取消预约/房间状态变更并发的精确边界",
+    "真实媒体/真IM/匹配基座与真机叠层",
+    "真实通知渠道与手机点击",
+    "其他独立权益/全客服触发器及通用持久重试",
+    "最终签名包、一键登录接通、完整用户旅程及正式发布门槛"
+  ],
+  "rollback": {
+    "previousHead": "00baf1bc3e0496a7b77db6a9410e40408bee3907",
+    "code": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "order": "先撤c4eb至00baf，再按5b61→b2→9ae→808→a5和统一总账逆序；文档独立"
+  },
+  "production": {
+    "deployed": false,
+    "migration": false,
+    "money": false,
+    "realNotification": false,
+    "realMedia": false,
+    "cloudFunction": false,
+    "paidPackaging": false,
+    "miniUpload": false
+  },
+  "evidence": [
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-before.log",
+      "bytes": 12907,
+      "sha256": "e53ff63834456cd899633ef6d520cffcd9f815d75f49333c264325530e71e283"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-tests.log",
+      "bytes": 581,
+      "sha256": "4f0d34f7f78887eec1ecfd4210f9fc5f7ef091ba352d8d2d53af1d95bf728da6"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-eslint-before.log",
+      "bytes": 1509,
+      "sha256": "2790d7d2a7ff7ac13b9902644cbd9785d0afadf1d54c734f0f7ab864f1b30763"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-eslint.log",
+      "bytes": 1490,
+      "sha256": "723ca2fcd747391db1ed910db0d0e73739166b51f831df13b4522c1ebe00b3a4"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "26bf28d9216ae70b37792923f0e8db9b65a836a4fe039cc2b386355fd4a0a823"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-image-verified.json",
+      "bytes": 2494,
+      "sha256": "3779b5c04e72bb559d6d311219037729e10fd638a2b81d06a7c127cbf4cab98f"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-image-c4eb890b8/runtime-verification.json",
+      "bytes": 68218,
+      "sha256": "ef438c945eea43eddabf482f3a5248a385cb9b2998f674bd2c0717cc5c3577e3"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-image-c4eb890b8/live-booking-notification-runtime.json",
+      "bytes": 2804,
+      "sha256": "b9cd6bf7f8857d9f40e63cfbc629c607ad156a4ab10b20a156876472e9efaa6e"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-image-c4eb890b8/image-identity.json",
+      "bytes": 278,
+      "sha256": "26ee5ccc6b2080f201ece7adc41b3acd6041502fbabe75ee2caff9f4c75667ee"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-c4eb890b8/client-config.json",
+      "bytes": 440,
+      "sha256": "20ae31952605e3d6750d72855e8190f99bd2c82df3be371975c116a0f7eee5db"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-c4eb890b8/client-artifacts-verified.json",
+      "bytes": 1520,
+      "sha256": "59cddd1449ee3dd46138969e3ee48b8e265c814842437755123356254f61a3d2"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/package-c4eb890b8/fixed-package-verified.json",
+      "bytes": 513,
+      "sha256": "d290ac052573df960a5349165654d9c3d8af45793297213cbcc3d05852c9a024"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-draft-archive.json",
+      "bytes": 757,
+      "sha256": "9bdee489198ac8ca646d75e99d80b9896273159bb2c4bc29825f1914a414e791"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-staging-reception.json",
+      "bytes": 371,
+      "sha256": "7be4ac5f5911992369c2fe4756d3f05e65524406b4d5ae0e6891dc33cbf84e14"
+    },
+    {
+      "file": "artifacts/channel-intake-20260930/live-booking-failure-mainline-readonly.json",
+      "bytes": 246,
+      "sha256": "eecfbf9cd458f084d7fd9f42e36a567ff835ea44e81c3f92a216ca9a0c61393d"
+    }
+  ],
+  "evidenceArchive": {
+    "bytes": 17475,
+    "name": "live-booking-failure-evidence-c4eb890b8.tar.gz",
+    "published": false,
+    "sha256": "4cd7ccd03c1f82c63ab5a8d635f5d00402965f42352452fb9370387eef2e1ee0",
+    "assetId": 603659517,
+    "draft": true,
+    "releaseId": 401140348,
+    "files": 18,
+    "reextractAllHashesExact": true,
+    "checkedAt": "2026-10-01T16:28:13.5841523Z",
+    "sourceCommit": "c4eb890b8f090271c560055cafa81ac54ffd826d",
+    "officialDigestMatches": true
+  }
+}
