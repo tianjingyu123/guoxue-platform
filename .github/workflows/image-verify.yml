@@ -21,7 +21,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: image-verification-${{ github.ref }}
+  # 每轮使用独立托管运行器和临时数据库，不共享生产或外部资源。
+  # 独立分组避免已中断任务的状态未收口时阻塞后续验包；仍禁止自动取消其他任务。
+  group: image-verification-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
