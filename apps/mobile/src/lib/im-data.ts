@@ -354,7 +354,7 @@ interface RawNotification {
 function mapNotifyType(t: string): NotifyType {
   const s = (t || '').toUpperCase()
   if (/COMMENT|REPLY|LIKE|COLLECT|FAVORITE|FOLLOW|MENTION/.test(s)) return 'interaction'
-  if (/EARN|INCOME|SETTLE|WITHDRAW|COMMISSION|REVENUE|ORDER|REFUND|LOGISTIC|SHIP|PAY|TRADE|DELIVER|RECHARGE/.test(s)) return 'transaction'
+  if (/EARN|INCOME|SETTLE|WITHDRAW|COMMISSION|REVENUE|ORDER|PURCHASE|REFUND|LOGISTIC|SHIP|PAY|TRADE|DELIVER|RECHARGE/.test(s)) return 'transaction'
   if (/SERVICE|SUPPORT|CUSTOMER|KEFU/.test(s)) return 'service'
   return 'system'
 }
@@ -365,7 +365,7 @@ function notifyCategory(t: string): string {
   const map: Record<string, string> = {
     COMMENT: '评论', REPLY: '评论', LIKE: '点赞', COLLECT: '收藏', FAVORITE: '收藏',
     FOLLOW: '关注', MENTION: '提及',
-    ORDER: '订单', REFUND: '退款', LOGISTIC: '物流', RECHARGE: '充值', PAY: '支付',
+    ORDER: '订单', PURCHASE: '订单', REFUND: '退款', LOGISTIC: '物流', RECHARGE: '充值', PAY: '支付',
     EARN: '收益', INCOME: '收益', WITHDRAW: '提现', COMMISSION: '分成',
     SERVICE: '客服', SYSTEM: '系统',
   }
