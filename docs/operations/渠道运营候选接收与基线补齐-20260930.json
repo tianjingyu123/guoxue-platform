@@ -1748,6 +1748,17 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
+    "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
+    "releaseId": "launch-20261001-80850d34c",
+    "receipt": "docs/operations/课程通知每日防重与目标跳转收口-20261001.json",
+    "ciRun": 36868656874,
+    "imageRun": 36869653860,
+    "releaseDecision": "NO-GO",
+    "note": "课程日防重与通知跳转分别回退；309客户端门禁与15项课程隔离通过；订单SDK超时不算完整点击验收，未部署",
+    "evidenceAssetId": 603379127,
+    "evidenceSha256": "9c49fa6b5191cb3ad74f8354afd6df4e92fbfa3c1c02c0088d8b40d26d03cc94"
+  },
+  "previousCandidate": {
     "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
     "releaseId": "launch-20261001-e200e352e",
     "receipt": "docs/operations/收货地区完整性与重复选择验收-20261001.json",
@@ -1755,15 +1766,6 @@
     "imageRun": 36859429297,
     "releaseDecision": "NO-GO",
     "note": "收货数据完整性候选；客户端304/304；本版四移动构建/preview及本地资源验真，不是真机或签名APK"
-  },
-  "previousCandidate": {
-    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
-    "releaseId": "launch-20261001-090f49928",
-    "receipt": "docs/operations/移动端ESLint收口与创作权限竞态验收-20261001.json",
-    "ciRun": 36851152412,
-    "imageRun": 36851975515,
-    "releaseDecision": "NO-GO",
-    "note": "隔离候选；四目标新构建；全移动ESLint0错误，警告未新计数；未合master或上线"
   },
   "historicalCandidates": [
     {
@@ -1810,6 +1812,15 @@
       "imageRun": 36849208055,
       "releaseDecision": "NO-GO",
       "note": "隔离接收候选；移动四目标新构建；未合入master或上线；移动全量ESLint6项既有错误保留"
+    },
+    {
+      "sourceCommit": "a5f3d5a6395dae86b6d368b1daf21dcae6502792",
+      "releaseId": "launch-20261001-a5f3d5a63",
+      "receipt": "docs/operations/课程通知每日防重与目标跳转收口-20261001.json",
+      "ciRun": 36866614464,
+      "imageRun": 36867167301,
+      "releaseDecision": "NO-GO",
+      "note": "独立课程提醒批，源码/包/运行与808最终候选分开保留"
     }
   ]
 }
