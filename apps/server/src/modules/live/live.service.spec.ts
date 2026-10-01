@@ -956,6 +956,52 @@ describe("LiveService", () => {
   });
 
   describe("直播预约通知补偿", () => {
+    it.each([
+      ["开播前提醒", "remindUpcomingBookings", "remindedAt", "LIVE_REMINDER"],
+      ["开播补偿", "reconcileStartedBookingNotifications", "notifiedAt", "LIVE_STARTED"],
+    ] as const)("%s：单场通知写入失败不饿死后续房间", async (_label, method, marker, event) => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([
+        { id: "r-failed", title: "写入失败场次", circleId: null, startTime: new Date(Date.now() + 5 * 60_000) },
+        { id: "r-next", title: "后续场次", circleId: null, startTime: new Date(Date.now() + 6 * 60_000) },
+      ]);
+      mockPrisma.liveBooking.findMany.mockImplementation(({ where }) =>
+        Promise.resolve([{ id: `booking-${where.roomId}`, userId: `user-${where.roomId}` }]),
+      );
+      mockNotification.batchSend.mockRejectedValueOnce(new Error("隔离通知写入失败"));
+
+      await expect(svc[method]()).resolves.toBeUndefined();
+
+      expect(mockNotification.batchSend).toHaveBeenCalledTimes(2);
+      expect(mockNotification.batchSend).toHaveBeenLastCalledWith(
+        expect.objectContaining({ targetId: "r-next", userIds: ["user-r-next"] }), `${event}:r-next`,
+      );
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ["booking-r-next"] }, [marker]: null }, data: { [marker]: expect.any(Date) },
+      });
+    });
+
+    it.each([
+      ["开播前提醒", "remindUpcomingBookings", "LIVE_REMINDER"],
+      ["开播补偿", "reconcileStartedBookingNotifications", "LIVE_STARTED"],
+    ] as const)("%s：已发送但标记失败时继续后续场次并保留原事件键重试", async (_label, method, event) => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([
+        { id: "r-failed", title: "标记失败场次", circleId: null, startTime: new Date(Date.now() + 5 * 60_000) },
+        { id: "r-next", title: "后续场次", circleId: null, startTime: new Date(Date.now() + 6 * 60_000) },
+      ]);
+      mockPrisma.liveBooking.findMany.mockImplementation(({ where }) =>
+        Promise.resolve([{ id: `booking-${where.roomId}`, userId: `user-${where.roomId}` }]),
+      );
+      mockPrisma.liveBooking.updateMany.mockRejectedValueOnce(new Error("隔离预约标记失败"));
+
+      await expect(svc[method]()).resolves.toBeUndefined();
+      expect(mockNotification.batchSend).toHaveBeenCalledTimes(2);
+      expect(mockNotification.batchSend.mock.calls.map((call) => call[1])).toEqual([
+        `${event}:r-failed`, `${event}:r-next`,
+      ]);
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledTimes(2);
+    });
+
     it("调度延迟后仍会提醒 16 分钟内即将开播的未提醒预约", async () => {
       const startTime = new Date(Date.now() + 5 * 60_000);
       mockPrisma.liveRoom.findMany.mockResolvedValue([{ id: "r-catchup", title: "临近直播", circleId: null, startTime }]);
