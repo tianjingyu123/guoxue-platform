@@ -47,6 +47,11 @@ public final class ProbeActivity extends Activity {
             else if (scenario.equals("new-suite")) { int suite = getSharedPreferences("probe", 0).getInt("suite", 0) + 1; getSharedPreferences("probe", 0).edit().putInt("suite", suite).putBoolean("denyOffer", false).putString("killAt", "").commit(); ProbeApplication.event("NEW_SUITE", Integer.toString(suite)); }
             else if (scenario.equals("portable")) { getSharedPreferences("probe", 0).edit().putBoolean("portable", true).commit(); ProbeApplication.event("PORTABLE_NEXT_BOOT", "bc"); }
             else if (scenario.equals("keystore")) {
+                Class<?> bridgeClass = Class.forName("cn.rebu.resource.ResourceRuntime");
+                Class<?> callbackClass = Class.forName("cn.rebu.resource.ResourceRuntime$Callback");
+                bridgeClass.getMethod("dispatch", String.class, String.class, callbackClass);
+                callbackClass.getMethod("onResult", String.class);
+                ProbeApplication.event("NATIVE_REFLECTION", "entrypointsRetained=true");
                 // 完整包升级保持既有绑定，独立核心夹具换套件不应改变原生绑定路径。
                 Properties nativeJournal = new Properties();
                 File journalFile = new File(getFilesDir(), "rebu-resource-update/journal.properties");

@@ -15,6 +15,8 @@ const record = name => { passed.push(name); console.log('通过：' + name) }
 const baseline = adb('shell', 'dumpsys', 'package', 'com.rebu.apprebu').split('\n').filter(line => /versionCode=|versionName=|lastUpdateTime=/.test(line)).map(line => line.trim())
 const api = adb('shell', 'getprop', 'ro.build.version.sdk').trim()
 if (Number(api) < 26) throw new Error('设备低于实现边界，不安装')
+const evidenceName = process.argv[4] || 'android-probe'
+if (!['android-probe', 'android-r8-probe'].includes(evidenceName)) throw new Error('证据名称必须在测试交接白名单内')
 const build = Number(process.argv[3] || 1)
 if (!Number.isInteger(build) || build < 1 || build > 64) throw new Error('无效独立测试构建')
 const info = JSON.parse(readFileSync(path.join(root, 'artifacts/android-resource-probe-' + build + '/build.json')))
@@ -41,6 +43,7 @@ async function fresh() { await launch('new-suite', /NEW_SUITE/); const text = aw
 try {
  await fresh()
  const keys = await launch('keystore', /BUSY_GUARD rejected=true/)
+ if (!/NATIVE_REFLECTION entrypointsRetained=true/.test(keys)) throw new Error("原生固定名称桥接入口未通过");
  if (!/NATIVE_BIND .*"ok":true/.test(keys)) throw new Error("既有原生资源绑定未通过");
  if (!/ANDROID_KEYSTORE saved=true,encrypted=true,decrypted=true/.test(keys) || !/HEALTH_WINDOW earlyRejected=true/.test(keys)) throw new Error('Keystore或健康窗口失败')
  record('Android Keystore AES-GCM 写入及解密、原生健康窗口、合成四类忙碌标记保护')
@@ -75,5 +78,5 @@ try {
  const after = adb('shell', 'dumpsys', 'package', 'com.rebu.apprebu').split('\n').filter(line => /versionCode=|versionName=|lastUpdateTime=/.test(line)).map(line => line.trim())
  if (JSON.stringify(after) !== JSON.stringify(baseline)) throw new Error('正式包元数据改变')
  record('正式包版本与更新时间未变；未清数据、未卸载、未清全局日志')
- writeFileSync(path.join(root, 'docs/operations/channel-updates-evidence/android-probe.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), sourceSha: info.sourceSha, sourceDirty: info.sourceDirty, installation, deviceModel: adb('shell', 'getprop', 'ro.product.model').trim(), api, packageName: pkg, apkSha256: info.sha256, passed, evidence, limits: ['独立 Application/WebView，非 DCloud 完整包', 'API 34 强制 BC，不能替代 API 26–32 实机覆盖', 'OfferCheck、忙碌标记及核心健康确认是明确的合成夹具', '没有真实交易、TRTC、录音或上传业务实测'] }, null, 2) + '\n')
+ writeFileSync(path.join(root, 'docs/operations/channel-updates-evidence/' + evidenceName + '.json'), JSON.stringify({ verifiedAt: new Date().toISOString(), sourceSha: info.sourceSha, sourceDirty: info.sourceDirty, minified: Boolean(info.minified), shrinker: info.shrinker || 'D8', consumerRulesSha256: info.consumerRulesSha256, installation, deviceModel: adb('shell', 'getprop', 'ro.product.model').trim(), api, packageName: pkg, apkSha256: info.sha256, passed, evidence, limits: ['独立 Application/WebView，非 DCloud 完整包', 'API 34 强制 BC，不能替代 API 26–32 实机覆盖', 'OfferCheck、忙碌标记及核心健康确认是明确的合成夹具', '没有真实交易、TRTC、录音或上传业务实测'] }, null, 2) + '\n')
 } finally { adb('shell', 'am', 'force-stop', pkg) }

@@ -29,7 +29,7 @@ const cryptoOutput = path.join(bundle, 'libs', 'bcprov.jar')
 if (config.enabled) { mkdirSync(path.dirname(cryptoOutput), { recursive: true }); copyFileSync(cryptoJar, cryptoOutput); writeFileSync(path.join(bundle, 'assets/bouncycastle-license.txt'), execFileSync(path.join(jdk, 'bin/java.exe'), ['-cp', cryptoJar, 'org.bouncycastle.LICENSE'], { encoding: 'utf8' })) }
 else if ((await import('node:fs')).existsSync(cryptoOutput)) (await import('node:fs')).unlinkSync(cryptoOutput)
 if (!config.enabled && (await import('node:fs')).existsSync(path.join(bundle, 'assets/bouncycastle-license.txt'))) (await import('node:fs')).unlinkSync(path.join(bundle, 'assets/bouncycastle-license.txt'))
-writeFileSync(path.join(bundle, 'proguard.txt'), '-keep class org.bouncycastle.crypto.** { *; }\n-keep class org.bouncycastle.math.** { *; }\n-keep class org.bouncycastle.util.** { *; }\n')
+copyFileSync(path.join(root, 'apps/mobile/native/resource-updater/consumer-rules.pro'), path.join(bundle, 'proguard.txt'))
 const sources = path.join(root, 'apps/mobile/native/resource-updater/src/cn/rebu/resource')
 const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
 const sourceDirty = Boolean(execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts'], { cwd: root, encoding: 'utf8' }).trim())

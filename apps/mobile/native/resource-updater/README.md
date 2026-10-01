@@ -27,4 +27,6 @@ node scripts/release/verify-resource-native.mjs
 
 依赖固定为 `bcprov-jdk15to18:1.86`，来源及 SHA-256 见 dependencies.json。构建下载/缓存均校验摘要；依赖与打包脚本纳入原生边界。仅启用 C 的 AAR 包含完整原始 jar、对应许可证资产及反射保留规则；普通 B 配置不初始化 provider、不包含该库，也不申请额外权限。LICENSE.bouncycastle.txt 保留 jar 内随附版权/许可文本；官网当前许可年份与随附类的年份不同，不自行改写版权。维护时必须核验官方版本、摘要、许可证并重建完整包，不可经 WGT 更新原生依赖。
 
-后续完整包输入：候选编译器是 5.23，已安装的 HX523 可执行文件实际为 5.22，旧安装为 5.14，不能按目录名字选 SDK。官方 [Android 历史 SDK](https://nativesupport.dcloud.net.cn/AppDocs/download/historyRelease/androidRelease.html)要求对应资源编译器；本轮未取得并验证匹配离线运行时、AppKey/签名打包输入，未生成可宣称正式兼容的完整 APK。建立完整包基线时还须提升实际原生构建号、核验每渠道证书/包名，不能把现有 253 资源构建当成新原生包发布。
+后续完整包输入：候选编译器是 5.23，旧记录将 HX523 宿主判为 5.22，旧安装为 5.14；本轮读取到 launcher/base 的 5.23 元数据，CLI 因客户端未启动未能核对运行版本，不能仅凭目录名字或单一版本记录选择 SDK。官方 [Android 历史 SDK](https://nativesupport.dcloud.net.cn/AppDocs/download/historyRelease/androidRelease.html)要求对应资源编译器；本轮未取得并验证匹配离线运行时、AppKey/签名打包输入，未生成可宣称正式兼容的完整 APK。建立完整包基线时还须提升实际原生构建号、核验每渠道证书/包名，不能把现有 253 资源构建当成新原生包发布。
+
+继续验收补充：consumer-rules.pro 统一保留 Native.js 使用固定名称的 ResourceRuntime / Callback 公共入口及 BC 反射类。独立探针构建器支持 --minify，用 R8 release 优化并关闭 debuggable，实际调用固定名称反射入口；详情见第四阶段渠道表单与R8验证交接。压缩探针仍不是 DCloud 发布包。
