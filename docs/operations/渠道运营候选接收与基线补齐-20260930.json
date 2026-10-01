@@ -1746,5 +1746,14 @@
       "未真实微信/短信/App推送或真实资金，非手机签名包验收"
     ],
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
+  },
+  "currentCandidate": {
+    "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
+    "releaseId": "launch-20261001-a1d6116ec",
+    "receipt": "docs/operations/小程序搜索安全区与交互实载接收-20261001.json",
+    "ciRun": 36827247805,
+    "imageRun": 36827962807,
+    "releaseDecision": "NO-GO",
+    "note": "本对象是最新候选入口；原sourceCommit及其各批记录保留877及历史实际身份，不改写为本版运行"
   }
 }
