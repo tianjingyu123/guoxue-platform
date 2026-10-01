@@ -1,0 +1,411 @@
+{
+  "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+  "previousCandidate": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "sourcePrReadback": {
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "baseRef": "master",
+    "headSha": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "checkedAt": "2026-10-01T10:22:22.4861586Z",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "mergeable": true,
+    "defaultBranch": "master",
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "prNumber": 1,
+    "mergeableState": "unstable",
+    "draft": true,
+    "headRef": "codex/launch-review-20260930",
+    "state": "open"
+  },
+  "receivedCommits": [
+    "6a927f3c4e9437933513ba1984fe2200005fa3a2"
+  ],
+  "reception": {
+    "checkedAt": "2026-10-01T10:30:08.998Z",
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "previousHead": "b64c55cbebd4dafeb06fd1173b2213c6dd64db4a",
+    "finalBusinessHead": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "branch": "release/launch-staging-20260927",
+    "method": "ff-only",
+    "conflicts": [],
+    "clean": true,
+    "formalMasterMerged": false,
+    "deployed": false
+  },
+  "conflicts": [],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（入口触控、H5定向、CI和Linux镜像范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "runtime": {
+    "simulation": true,
+    "realDevice": false,
+    "passed": 10,
+    "failed": 0,
+    "inputsUnchanged": true
+  },
+  "h5": {
+    "widths": [
+      320,
+      390,
+      768
+    ],
+    "passed": 3,
+    "failed": 0,
+    "syntheticApi": true,
+    "externalRequests": 0
+  },
+  "relatedTests": {
+    "passed": 14,
+    "failed": 0
+  },
+  "ci": {
+    "status": "success",
+    "testsPassed": 8908,
+    "logs": [
+      {
+        "jobId": 110323969513,
+        "tests": "Tests:       39 skipped, 3046 passed, 3085 total",
+        "name": "单元测试 (3/3)",
+        "sha256": "9da129cb6107988c52375a156849976bb504b731f8aa8747752fcacb65baedce",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+      },
+      {
+        "jobId": 110323969562,
+        "tests": "Tests:       50 skipped, 3023 passed, 3073 total",
+        "name": "单元测试 (2/3)",
+        "sha256": "15adc620baa3a81451e53ea236667856c232969f909f10d0a7b26d84adf9aa17",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "jobId": 110323969829,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "name": "单元测试 (1/3)",
+        "sha256": "db414b4436075d6e79575f95983f24fbe175621b3f941d958edad9ffe3700955",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      }
+    ],
+    "testsSkipped": 133,
+    "suitesSkipped": 26,
+    "jobsPassed": 8,
+    "checkedAt": "2026-10-01T10:37:02.7596045Z",
+    "suitesPassed": 663,
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "runId": 36848231609
+  },
+  "image": {
+    "image": "sha256:eca1aebc52516f7f3f88daaa56b326f9387535514905aa1f69c462b67fd8218d",
+    "runId": 36849208055,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "businessSource": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "checksPassed": 23,
+    "passed": true,
+    "checkedAt": "2026-10-01T10:35:17.0804211Z",
+    "production": false,
+    "verificationSource": "3e9c6a064e618d86c946e1582822dd743489ccaa",
+    "sourceArchiveSha256": "3abe096d5826d56f3fd7d6e8e31a88ac331a9d4b87b12bca2f40a333ba6a267c",
+    "artifact": {
+      "officialDigestMatches": true,
+      "bytes": 55386,
+      "sha256": "cef0ab29f17dff3fb2a972f230e506841f8c2b9ae7c011d4ad375949279b2e37",
+      "id": 11155130944
+    },
+    "cleanupAllConfirmed": true,
+    "runtimeReportSha256": "600b33cf18b47d612d3b20654fbd88c2bc2aea4502e6f4c13523b4a68311d4e6",
+    "realChannels": false
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T10:20:54.450Z",
+    "archive": "gx-deploy-91-launch-20261001-6a927f3c4.tar.gz",
+    "sha256": "3abe096d5826d56f3fd7d6e8e31a88ac331a9d4b87b12bca2f40a333ba6a267c",
+    "releaseId": "launch-20261001-6a927f3c4",
+    "commit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "expectedCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "fileCount": 4434,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "clients": {
+    "targets": 5,
+    "files": 5423,
+    "bytes": 53963874,
+    "errors": 0
+  },
+  "publicConfig": {
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-10-01T10:20:42.171Z",
+    "releaseId": "launch-20261001-6a927f3c4",
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprintAlgorithm": "sha256",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+  },
+  "preview": {
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "officialCli": "preview",
+    "published": false,
+    "reviewSubmitted": false,
+    "productionUpload": false,
+    "totalBytes": 12744596,
+    "mainBytes": 1965279,
+    "mainRemainingBytes": 131873,
+    "subpackageCount": 33,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1959687
+    },
+    "largestRemainingBytes": 137465,
+    "infoSha256": "3258df6ffedae935967de679ea26841c00ecf41d0d4f8ef0bf28c35ce488cfcc",
+    "postPreviewClientFingerprintsUnchanged": true,
+    "qrIncluded": false,
+    "realDevice": false
+  },
+  "draftArchive": {
+    "published": false,
+    "tag": "launch-20261001-6a927f3c4",
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "assets": [
+      {
+        "name": "gx-deploy-91-launch-20261001-6a927f3c4.tar.gz",
+        "officialDigestMatches": true,
+        "sha256": "3abe096d5826d56f3fd7d6e8e31a88ac331a9d4b87b12bca2f40a333ba6a267c",
+        "assetId": 602990247,
+        "bytes": 15717133
+      },
+      {
+        "name": "gx-deploy-91-launch-20261001-6a927f3c4.tar.gz.sha256",
+        "officialDigestMatches": true,
+        "sha256": "eaa83569891b3c581b5b17f42612d9a689289c84a159baafe61c9b711227bd09",
+        "assetId": 602990586,
+        "bytes": 112
+      }
+    ],
+    "checkedAt": "2026-10-01T10:22:46.6629292Z",
+    "releaseId": 400855712,
+    "draft": true
+  },
+  "evidenceArchive": {
+    "draft": true,
+    "assetId": 603018869,
+    "published": false,
+    "checkedAt": "2026-10-01T10:38:36.0965959Z",
+    "files": 26,
+    "bytes": 64135,
+    "releaseId": 400855712,
+    "sha256": "58cd922829578f3e9e0c8fee90ba4e9da73e9cc81c7aa69bcc2eaa36042d027c",
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "officialDigestMatches": true,
+    "reextractAllHashesExact": true,
+    "name": "guest-entry-evidence-6a927f3c4.tar.gz"
+  },
+  "fullMobileLint": {
+    "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "previousCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+    "fullMobileLintPassed": false,
+    "errors": 6,
+    "warnings": 70300,
+    "changedFilesLintPassed": true,
+    "ciLintScope": "CI仅检查apps/server/src；不能用CI绿色代替全量移动端ESLint通过",
+    "findings": [
+      {
+        "file": "apps/mobile/src/pkg-circle/circles/editor.vue",
+        "line": 543,
+        "column": 34,
+        "message": "Unsafe usage of ReturnStatement",
+        "rule": "no-unsafe-finally",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "61fff9664c53f2d5cebd78e2a2efadb7bb8dbfbac638f99494be520a11144d74"
+      },
+      {
+        "file": "apps/mobile/src/pkg-operator/lib/station-home-data.ts",
+        "line": 5,
+        "column": 10,
+        "message": "'discoverApi' is defined but never used. Allowed unused vars must match /^_/u",
+        "rule": "@typescript-eslint/no-unused-vars",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "2f9b00de4cf513bb639ab70b2a7ce5dbc77f2e399239fb4ee630e85a92d10e03"
+      },
+      {
+        "file": "apps/mobile/src/pkg-operator/lib/station-home-data.ts",
+        "line": 92,
+        "column": 10,
+        "message": "'adaptFeed' is defined but never used. Allowed unused vars must match /^_/u",
+        "rule": "@typescript-eslint/no-unused-vars",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "2f9b00de4cf513bb639ab70b2a7ce5dbc77f2e399239fb4ee630e85a92d10e03"
+      },
+      {
+        "file": "apps/mobile/src/utils/huifu-alipay-h5.ts",
+        "line": 11,
+        "column": 59,
+        "message": "Unexpected control character(s) in regular expression: \\x00, \\x1f",
+        "rule": "no-control-regex",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "c5cb6b64e89f681244221eee298e34a34c62bb5be2cb699507f3a0ca5bb8be16"
+      },
+      {
+        "file": "apps/mobile/src/utils/huifu-alipay-native.ts",
+        "line": 5,
+        "column": 59,
+        "message": "Unexpected control character(s) in regular expression: \\x00, \\x1f",
+        "rule": "no-control-regex",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "c52a24e676e636895ffe7fefa24c92ae0a861a24e689ad4bb4a356ca5256de37"
+      },
+      {
+        "file": "apps/mobile/src/utils/share.ts",
+        "line": 14,
+        "column": 7,
+        "message": "'base' is never reassigned. Use 'const' instead",
+        "rule": "prefer-const",
+        "unchangedFromPrevious": true,
+        "sourceSha256": "3ed79b5bcbefd79ff17ee918ba84ebb393601fd378e7d958f074ed1d4240e7fc"
+      }
+    ]
+  },
+  "rollback": [
+    "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "2548d7d3c（上一独立通知批，按需要单独撤回）",
+    "a21→50（古籍）、7e→732→aa6→a6ab→a842→cc9（搜索）保持各自回退点"
+  ],
+  "notCovered": [
+    "同版手机及Android签名APK、iOS/Harmony签名和插件",
+    "登录态消息搜索、真实付款退款权益、排盘接收分享、语音/IM/受控直播",
+    "一键登录云函数与两节点接线、App Links自然唤醒",
+    "正式小程序上传计数/审核/发布、线上两节点同包",
+    "移动全量ESLint6项既有错误及相关源码审查",
+    "生产迁移与备份、QA清理、内容授权、运营告警与发布决策"
+  ],
+  "mutations": {
+    "formalMainMerge": false,
+    "deploy": false,
+    "productionMigration": false,
+    "realPayment": false,
+    "realNotification": false,
+    "paidPackaging": false,
+    "miniUploadOrReview": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-before-v2/runtime-report.json",
+      "sha256": "982f81f8b897448d542bf8b5f21cec8910f814fe0a1e9025a75ad63510be05c4"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-final-6a927f3c4/runtime-report.json",
+      "sha256": "70a059c3f60ff8e0b0bcb54ed06fe05aea61a38f013b6476efa28a3cd27d8d97"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-final-6a927f3c4-v2/runtime-report.json",
+      "sha256": "cca944143986d54fb20abdf8e52c94555eacc46acdfef59ab0347939c2267bda"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-h5-final-6a927f3c4/runtime-report.json",
+      "sha256": "d378ab4c737cf5bf172703b7e1161f9695c5f0883a90d59f064080ecdd2f9099"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-preview-verified.json",
+      "sha256": "7acc1a465a5602af602d1b0e4bfa14e8f6f40cfe233ba6d1f73d497e9386f2c1"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-related-tests.log",
+      "sha256": "7c62ce367590e51a5af77203e3e1907ea80dc8146315db8b61017c22b4cf162c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-types.log",
+      "sha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-changed-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-code-gate.log",
+      "sha256": "813708e5ca0f19b502489062ee32ce30dba598ff97ca0d5dd19a48c3d444abcc"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-lint-baseline.json",
+      "sha256": "0e2c2f879ca0d4df777a0dc5b7fa891f788f1b3b95a19b68d81d3d2a8459ab43"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-ci-verified.json",
+      "sha256": "8cad60187cf243460221b4d43d3a8a6a3b099877169a7f37b38db041e1cb5370"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-image-verified.json",
+      "sha256": "351144b1cfb7b76e8a7d4df206bc3380315732fc944fb27766623d5c5382d88e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-draft-archive.json",
+      "sha256": "6e8b6e0798059112025bf77a7fec82e33384802d6cde3ba79989519e96b0f055"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-pr-source-6a927f3c4.json",
+      "sha256": "11849641d9bd90618b8532e31e8dbfd36f26e9cac07d48d176b4e97fb97a76d9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-staging-reception.json",
+      "sha256": "56e48d7f34a7beff296376aad1f36e747e58332f2b3372e1d84ef675c5e40332"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-6a927f3c4/fixed-package-verified.json",
+      "sha256": "ff1c0903a550ec7875427e1509a358efe4739ae8591b9e0f442dce391834170d"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-6a927f3c4/client-artifacts-verified.json",
+      "sha256": "da915fe1926abac0b3f2677bc4ab59af0505e63e632cd7fcc04c62148d242f0c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-6a927f3c4/client-config.json",
+      "sha256": "48928f2b0977f41662b350307c2ea6f390da1015d12bda4e003d0202ca04374e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-tool-recovery.json",
+      "sha256": "ebacda578b0179a942ae3e820eeb514cc7e0407e91f37b5c084bb31c4442e9f1"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-evidence-package.json",
+      "sha256": "958af57b1620814e037e8f043fd05c56306096b30a1521ccda5c29041541af46"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/guest-entry-evidence-archive.json",
+      "sha256": "d227a20b7f920ef106f2f0d3b4cbd67dce56e2634f00f644ace2379b29c4457f"
+    }
+  ]
+}
