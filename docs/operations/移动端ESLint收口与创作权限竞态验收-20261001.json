@@ -1,0 +1,446 @@
+{
+  "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+  "previousCandidate": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+  "actualFormalMain": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+  "sourcePrReadback": {
+    "baseRef": "master",
+    "state": "open",
+    "mergeableState": "clean",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/pull/1",
+    "defaultBranch": "master",
+    "draft": true,
+    "mergeable": true,
+    "headSha": "090f499286990505ff0998c11beb335fffc07176",
+    "headRef": "codex/launch-review-20260930",
+    "baseSha": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "checkedAt": "2026-10-01T11:05:29.7313543Z",
+    "actualMainHead": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "prNumber": 1
+  },
+  "receivedCommits": [
+    "090f499286990505ff0998c11beb335fffc07176"
+  ],
+  "reception": {
+    "checkedAt": "2026-10-01T11:09:57.721Z",
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "previousHead": "e5b3ea4ffe60793e6e7b29d141276970bd87e206",
+    "finalBusinessHead": "090f499286990505ff0998c11beb335fffc07176",
+    "branch": "release/launch-staging-20260927",
+    "method": "ff-only",
+    "conflicts": [],
+    "clean": true,
+    "formalMasterMerged": false,
+    "deployed": false
+  },
+  "conflicts": [],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "validationScope": "移动端六项lint收口、权限竞态、隔离H5/模拟器、CI和新固定Linux包",
+  "releaseDecision": "NO-GO",
+  "localVerification": {
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "fullMobileEslint": {
+      "command": "pnpm --filter @guoxue/mobile exec eslint src --ext '.vue,.ts' --quiet",
+      "exitCode": 0,
+      "errors": 0,
+      "warningsCounted": false,
+      "scopedSecurityRuleComments": 2,
+      "globalRulesDisabled": false
+    },
+    "typecheck": {
+      "exitCode": 0
+    },
+    "relatedTests": {
+      "passed": 66,
+      "failed": 0
+    },
+    "roleRaceTests": {
+      "passed": 4,
+      "failed": 0,
+      "actualSourceExtracted": true
+    },
+    "codeGate": {
+      "exitCode": 0,
+      "existingViteException": 1123525
+    },
+    "builds": [
+      {
+        "target": "mp-weixin",
+        "log": "mobile-lint-cleanup-mp-weixin-build.log",
+        "sha256": "d1905a1ff7735e21410b72d319e22327083101ae9f87f2885869684a76aa1fd7",
+        "exitCode": 0
+      },
+      {
+        "target": "h5",
+        "log": "mobile-lint-cleanup-h5-build.log",
+        "sha256": "ac7e9e297b0b8bd591ab5650828c3757f8fe5d44b0f0f6e724becc9162c1cac5",
+        "exitCode": 0
+      },
+      {
+        "target": "app",
+        "log": "mobile-lint-cleanup-app-build.log",
+        "sha256": "ce2fe4f5f5687bda9fe8833e3cf72edffb2d441e156507eea48e33c74064e166",
+        "exitCode": 0
+      },
+      {
+        "target": "app-harmony",
+        "log": "mobile-lint-cleanup-app-harmony-build.log",
+        "sha256": "3ca2dcc7231057f19a475266ed32e5a27c52b55939b8d9819f481f613faf68a7",
+        "exitCode": 0
+      }
+    ],
+    "postAllBuildsFingerprintVerification": "mobile-lint-cleanup-post-build-artifacts.json",
+    "paidOperations": 0,
+    "production": false
+  },
+  "paymentBoundary": {
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "previousCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
+    "checks": [
+      {
+        "file": "huifu-alipay-native.ts",
+        "compiledRuntimeExactlyEqual": true,
+        "validWholeQrEncoding": true,
+        "rejectedUnsafeInputs": 106
+      },
+      {
+        "file": "huifu-alipay-h5.ts",
+        "compiledRuntimeExactlyEqual": true,
+        "validWholeQrEncoding": true,
+        "rejectedUnsafeInputs": 106
+      }
+    ],
+    "paidCalls": 0,
+    "production": false
+  },
+  "runtime": {
+    "simulation": true,
+    "realDevice": false,
+    "passed": 10,
+    "failed": 0,
+    "inputsUnchanged": true,
+    "report": "mobile-lint-cleanup-mini-090f49928-v3/runtime-report.json"
+  },
+  "h5": {
+    "widths": [
+      320,
+      390,
+      768
+    ],
+    "passed": 3,
+    "failed": 0,
+    "syntheticApi": true,
+    "externalRequests": 0
+  },
+  "ci": {
+    "logs": [
+      {
+        "tests": "Tests:       50 skipped, 3023 passed, 3073 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110333306731,
+        "sha256": "d2fb7a28574983ec9ae8da796880d5db74aa402000bdd51705f06b55a9e9a365",
+        "name": "单元测试 (2/3)"
+      },
+      {
+        "tests": "Tests:       39 skipped, 3046 passed, 3085 total",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total",
+        "jobId": 110333306761,
+        "sha256": "fb28ba490a5e69c5778ac1ca2003a9244294777b815791c4dd206110e223e6cc",
+        "name": "单元测试 (3/3)"
+      },
+      {
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110333306842,
+        "sha256": "cd23985d7008563a6186bdbcf59fa6492dbe2af5dc92ea82564b30fbab89f1cd",
+        "name": "单元测试 (1/3)"
+      }
+    ],
+    "jobsPassed": 8,
+    "testsPassed": 8908,
+    "status": "success",
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "testsSkipped": 133,
+    "suitesSkipped": 26,
+    "suitesPassed": 663,
+    "runId": 36851152412,
+    "checkedAt": "2026-10-01T11:04:20.2824685Z"
+  },
+  "image": {
+    "runtimeReportSha256": "f7993f626bd66923e83f9232828f05d5d5b9329359f100f56495661cdfdfd139",
+    "sourceArchiveSha256": "bb337429f43b30afbaf362aba1f4e1f5a6dd82389003f88f7e7464f1d370cd99",
+    "image": "sha256:43ac80e996292a2601681c3e38d4d1e68f57dc1c377c8c9c0496f9ee62fa5b43",
+    "cleanupAllConfirmed": true,
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "artifact": {
+      "sha256": "78baf688039712617817cda5a45b4682c31fa3cb2729fbcc31d32962d394665f",
+      "id": 11156410989,
+      "bytes": 55425,
+      "officialDigestMatches": true
+    },
+    "businessSource": "090f499286990505ff0998c11beb335fffc07176",
+    "runId": 36851975515,
+    "checksPassed": 23,
+    "verificationSource": "9f19514a32e0a96e47c65269abf2bf28c354887d",
+    "production": false,
+    "realChannels": false,
+    "passed": true,
+    "checkedAt": "2026-10-01T11:04:50.8851673Z"
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T10:50:31.289Z",
+    "archive": "gx-deploy-91-launch-20261001-090f49928.tar.gz",
+    "sha256": "bb337429f43b30afbaf362aba1f4e1f5a6dd82389003f88f7e7464f1d370cd99",
+    "releaseId": "launch-20261001-090f49928",
+    "commit": "090f499286990505ff0998c11beb335fffc07176",
+    "expectedCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "fileCount": 4434,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": []
+  },
+  "clients": {
+    "targets": 5,
+    "files": 5423,
+    "bytes": 53963830,
+    "errors": 0
+  },
+  "publicConfig": {
+    "schemaVersion": 1,
+    "kind": "guoxue-client-public-config-binding",
+    "generatedAt": "2026-10-01T10:50:17.303Z",
+    "releaseId": "launch-20261001-090f49928",
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "keys": [
+      "VITE_API_URL",
+      "VITE_PUBLIC_H5_URL",
+      "VITE_PUBLIC_ASSET_ORIGIN"
+    ],
+    "fingerprintAlgorithm": "sha256",
+    "fingerprint": "7211411360504e6b1b2489ce49a76e0d7620a2e327056cd9a949773353be7d3b"
+  },
+  "preview": {
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "officialCli": "preview",
+    "published": false,
+    "reviewSubmitted": false,
+    "productionUpload": false,
+    "totalBytes": 12744545,
+    "mainBytes": 1965279,
+    "mainRemainingBytes": 131873,
+    "subpackageCount": 33,
+    "largestSubpackage": {
+      "name": "/pkg-paipan/",
+      "size": 1959687
+    },
+    "largestRemainingBytes": 137465,
+    "infoSha256": "04dcb2c2b0e009692315149597359979764c91f93eecafe21ba699ae120fe48d",
+    "postPreviewClientFingerprintsUnchanged": true,
+    "qrIncluded": false,
+    "realDevice": false
+  },
+  "draftArchive": {
+    "releaseId": 400876669,
+    "draft": true,
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "published": false,
+    "tag": "launch-20261001-090f49928",
+    "checkedAt": "2026-10-01T10:53:41.9002522Z",
+    "assets": [
+      {
+        "sha256": "bb337429f43b30afbaf362aba1f4e1f5a6dd82389003f88f7e7464f1d370cd99",
+        "bytes": 15717598,
+        "officialDigestMatches": true,
+        "assetId": 603043834,
+        "name": "gx-deploy-91-launch-20261001-090f49928.tar.gz"
+      },
+      {
+        "sha256": "677830686941e3f33efdb0fd0afe0a0d3117df2b8d6878e1ad4b9685bf14ce90",
+        "bytes": 112,
+        "officialDigestMatches": true,
+        "assetId": 603048570,
+        "name": "gx-deploy-91-launch-20261001-090f49928.tar.gz.sha256"
+      }
+    ]
+  },
+  "evidenceArchive": {
+    "checkedAt": "2026-10-01T11:13:14.8850664Z",
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "officialDigestMatches": true,
+    "reextractAllHashesExact": true,
+    "releaseId": 400876669,
+    "published": false,
+    "draft": true,
+    "bytes": 63877,
+    "files": 30,
+    "name": "mobile-lint-cleanup-evidence-090f49928.tar.gz",
+    "assetId": 603082781,
+    "sha256": "a9f079e0c8ffbf187d2bc4f1b45e59d8aef397a55de6ce4284212a4e050d1b27"
+  },
+  "rollback": [
+    "090f499286990505ff0998c11beb335fffc07176",
+    "6a927f3c4（游客入口）、2548d7d3c（通知）、a21→50（古籍）及搜索各批保留独立回退点"
+  ],
+  "notCovered": [
+    "同版Android签名APK、最终原生基座/UTS/R8、新图标及App Links自然唤醒；手机最近只读记录仍为253",
+    "iOS与Harmony最终签名、插件/IAP和对应设备验收",
+    "登录态消息搜索、真实付款退款权益、排盘接收分享、语音额度/真IM/受控直播全旅程",
+    "一键登录云函数与两节点密钥接线；资源包健康不代表服务接通",
+    "全通知触发入口、持久化崩溃重试、业务异常处理与真实渠道；不引入Novu",
+    "原图解码及内容授权、移动既有警告/格式范围、跳过测试的实际业务覆盖",
+    "正式master接收、停写最终备份与25条生产迁移、两节点同包和线上身份绑定",
+    "正式小程序上传计数、审核发布、QA商品/驿站清理和运营告警终验"
+  ],
+  "mutations": {
+    "formalMainMerge": false,
+    "deploy": false,
+    "productionMigration": false,
+    "realPayment": false,
+    "realNotification": false,
+    "paidPackaging": false,
+    "cloudFunctionUpload": false,
+    "miniUploadOrReview": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-local-verification.json",
+      "sha256": "6570c392d77669e6e8600794ab60593a8c4ce9f7bc8184541ac2ba82b78e8b28"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-all-v2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-types.log",
+      "sha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-regression.log",
+      "sha256": "88991482722ef19ff025da7c013fc767c4ba6b4bc2de03765ea4ef52df1fc29b"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-role-race.log",
+      "sha256": "2503dc7636fdef2f12f2cebc7644c8af72fdb26d56dbed3126e635ccbf017205"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-payment-boundary.json",
+      "sha256": "48b13786e722f372a28af2c78e14705ea37dacbb4b9ccbfa7c29844249d91505"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-code-gate.log",
+      "sha256": "567842fe2e1d9287cfc20a399f251a037eb6d293474d292bf79b80770e75f8b8"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-post-build-artifacts.json",
+      "sha256": "f9c25f0db00424fe58be26db5e220b432dcbd5f8e881636ce4472d010dfa0f06"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-post-preview-artifacts.json",
+      "sha256": "32eb19f2bc8c723acf471dc8de319a947227334c2a1b5ecd2f09c0ef9afc5ca2"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-tool-recovery.json",
+      "sha256": "97105995f5443803a883ed66c1255086bbddb4831798074b767acb83ee09bacb"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-mini-090f49928-v2/runtime-report.json",
+      "sha256": "85ad9754408fa95575e2ef9bf441dba9f9db16f5673396c8f9fdfb809f25f9f1"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-mini-090f49928-v3/runtime-report.json",
+      "sha256": "4a56424d903e5ca3f4d33fe2243e687a8d47cfefc5d865e158a324dc41b0de78"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-h5-090f49928/runtime-report.json",
+      "sha256": "c4483d19766e8e847a6ba76bda0595ecfac3175c124967b620db200bfcfebfd7"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-preview-verified.json",
+      "sha256": "f7c7ed9f903f2f05488d9b667dfd4d9262e7e73a93dcd4ae93c46f19f13d42ec"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-preview-info.json",
+      "sha256": "04dcb2c2b0e009692315149597359979764c91f93eecafe21ba699ae120fe48d"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-ci-verified.json",
+      "sha256": "8a2fcf32f6775e093e0f5d3d41a560a62c9a0f7e1e520fd46fc1b441f331e4ea"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-image-verified.json",
+      "sha256": "75b5d7f1ba29f1a83e43c16435ee241baa1873337a97e786e3693bd85ad50621"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-draft-archive.json",
+      "sha256": "99aefb5baaa8024876e2b0c211bbcd868cab1d1879a083ee1dfafe74ecae6c18"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-release-recovery.json",
+      "sha256": "1bed4e701830eddd52cf1b7569a3b27c922254f95f8d2f95ddc324159c677259"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-pr-source-090f49928.json",
+      "sha256": "21cb81d1fa14c3b8712adc68457470555db730a356609c28830db5c210122d55"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-staging-reception.json",
+      "sha256": "8cc8b42a3756dd76d47ba901d43b6778563e2f0df03acdfdebb08ee5066fd58e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-090f49928/client-artifacts-verified.json",
+      "sha256": "738cfffdb6fe5bf49cb8f9b56a5d135e73585e10f7e2c194337efba1d798129e"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-090f49928/client-config.json",
+      "sha256": "2799faf03e888a44760b1c9d2d2f880104f4c2233c81b5ed7b033078450884fd"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-090f49928/source-freeze.json",
+      "sha256": "db12e56d1e4b974d3c1af680734203e32230ac5cdcabc1fe9b1f92c802c64528"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/package-090f49928/fixed-package-verified.json",
+      "sha256": "313cd249b0d64155b3b7ad2617259a1baf02609478c0da4d2f9b6d6453561c38"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-evidence-package.json",
+      "sha256": "b63044a8039734b24d00202014840cf2dfde6f59026051f415facd30266d3390"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/mobile-lint-cleanup-evidence-archive.json",
+      "sha256": "471ea3b724edfce07234d43d36b327c215f6f0a0c16c827ac461f89c56d67b79"
+    }
+  ]
+}

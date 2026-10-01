@@ -1748,6 +1748,15 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
+    "sourceCommit": "090f499286990505ff0998c11beb335fffc07176",
+    "releaseId": "launch-20261001-090f49928",
+    "receipt": "docs/operations/移动端ESLint收口与创作权限竞态验收-20261001.json",
+    "ciRun": 36851152412,
+    "imageRun": 36851975515,
+    "releaseDecision": "NO-GO",
+    "note": "隔离候选；四目标新构建；全移动ESLint0错误，警告未新计数；未合master或上线"
+  },
+  "previousCandidate": {
     "sourceCommit": "6a927f3c4e9437933513ba1984fe2200005fa3a2",
     "releaseId": "launch-20261001-6a927f3c4",
     "receipt": "docs/operations/发现与视频赛事研究院驿站入口验收-20261001.json",
@@ -1755,15 +1764,6 @@
     "imageRun": 36849208055,
     "releaseDecision": "NO-GO",
     "note": "隔离接收候选；移动四目标新构建；未合入master或上线；移动全量ESLint6项既有错误保留"
-  },
-  "previousCandidate": {
-    "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
-    "releaseId": "launch-20261001-2548d7d3c",
-    "receipt": "docs/operations/关键业务通知响应边界修复与隔离验收-20261001.json",
-    "ciRun": 36843270807,
-    "imageRun": 36843180571,
-    "releaseDecision": "NO-GO",
-    "note": "隔离接收候选；客户端输入等效复用a21；未接收master或上线"
   },
   "historicalCandidates": [
     {
@@ -1792,6 +1792,15 @@
       "imageRun": 36837605774,
       "releaseDecision": "NO-GO",
       "note": "最新隔离候选入口，历史批次保留真实来源；尚未接收master或上线"
+    },
+    {
+      "sourceCommit": "2548d7d3c01df10ebdddfccfdb28db300be6e27f",
+      "releaseId": "launch-20261001-2548d7d3c",
+      "receipt": "docs/operations/关键业务通知响应边界修复与隔离验收-20261001.json",
+      "ciRun": 36843270807,
+      "imageRun": 36843180571,
+      "releaseDecision": "NO-GO",
+      "note": "隔离接收候选；客户端输入等效复用a21；未接收master或上线"
     }
   ]
 }
