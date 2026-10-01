@@ -6,7 +6,7 @@
         <view class="back-btn" role="button" aria-label="返回上一页" tabindex="0" hover-class="search-control--pressed" @click="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
           <app-icon name="arrow-left" :size="40" color="var(--text-main)" />
         </view>
-        <platform-support-actions compact tone="plain" />
+        <platform-support-actions compact large-touch-target tone="plain" />
       </view>
       <view class="search-bar-row">
         <view class="search-input-wrap">
@@ -298,11 +298,6 @@ function doSearch(kw: string) {
   align-items: center;
   justify-content: space-between;
   padding: 8rpx 24rpx;
-}
-.search-toolbar :deep(.support-action) {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
 }
 .back-btn {
   width: 44px;

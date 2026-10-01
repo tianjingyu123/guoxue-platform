@@ -14,9 +14,11 @@ import { getMiniProgramMenuSafeRight } from '@/utils/mini-program-menu'
 
 withDefaults(defineProps<{
   compact?: boolean
+  largeTouchTarget?: boolean
   tone?: 'paper' | 'plain'
 }>(), {
   compact: false,
+  largeTouchTarget: false,
   tone: 'paper',
 })
 
@@ -47,7 +49,7 @@ onUnmounted(() => {
 <template>
   <view
     class="support-actions"
-    :class="[`support-actions--${tone}`, { 'support-actions--compact': compact }]"
+    :class="[`support-actions--${tone}`, { 'support-actions--compact': compact, 'support-actions--large-touch': largeTouchTarget }]"
     :style="menuSafeRight ? { marginRight: menuSafeRight + 'px' } : undefined"
   >
     <view
@@ -120,6 +122,13 @@ onUnmounted(() => {
   min-width: 64rpx;
   height: 64rpx;
   border-radius: 20rpx;
+}
+
+/* 独立工具栏可扩大点击区域；默认布局不变，避免挤压首页搜索区。 */
+.support-actions--large-touch .support-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
 }
 
 .support-action--pressed {
