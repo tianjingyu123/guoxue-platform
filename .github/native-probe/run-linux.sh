@@ -41,6 +41,13 @@ ln -s aapt2 "$probe_sdk/build-tools/35.0.0/aapt2.exe"
 grep -Eq "AndroidVersion.ApiLevel[[:space:]]*=[[:space:]]*$PROBE_API" "$probe_sdk/system-images/android-$PROBE_API/google_apis/x86/source.properties"
 grep -Eq 'SystemImage.Abi[[:space:]]*=[[:space:]]*x86$' "$probe_sdk/system-images/android-$PROBE_API/google_apis/x86/source.properties"
 cp "$probe_sdk/system-images/android-$PROBE_API/google_apis/x86/source.properties" artifacts/linux-native-probe/image-source.properties
+# 真实Linux第二轮缺少 libpulse.so.0；仅在临时CI宿主安装官方发行版依赖。
+test -x "$probe_sdk/emulator/emulator"
+ldd "$probe_sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64" > artifacts/linux-native-probe/shared-libraries-before.log 2>&1 || true
+sudo apt-get update > artifacts/linux-native-probe/apt-update.log 2>&1
+sudo apt-get install -y --no-install-recommends libpulse0 > artifacts/linux-native-probe/apt-install.log 2>&1
+apt-cache policy libpulse0 > artifacts/linux-native-probe/libpulse-package-policy.log
+ldd "$probe_sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64" > artifacts/linux-native-probe/shared-libraries-after.log 2>&1
 "$probe_sdk/emulator/emulator" -version > artifacts/linux-native-probe/emulator-version.log 2>&1
 "$probe_sdk/emulator/emulator" -accel-check > artifacts/linux-native-probe/acceleration.log 2>&1
 printf 'no\n' | "$probe_sdk/cmdline-tools/latest/bin/avdmanager" create avd -n "$probe_avd" -k "$probe_package" -p "$ANDROID_AVD_HOME/$probe_avd.avd" > artifacts/linux-native-probe/avd-create.log 2>&1

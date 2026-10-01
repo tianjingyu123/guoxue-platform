@@ -46,8 +46,8 @@
     },
     {
       "path": ".github/native-probe/run-linux.sh",
-      "bytes": 5386,
-      "sha256": "f16166db9c1a899eccbeae7aabe793283bca9da19be987b3fa02aa0c7a950565"
+      "bytes": 6049,
+      "sha256": "4439bd36cf710e9cce15ce906cade835e047b1e7757334439300ede6989d6500"
     }
   ]
 }
