@@ -8,7 +8,9 @@
  * 瀑布流卡片一律用 <feed-card>，数据来自 getSmartFeed，不造假。
  * X5 合规：padding-top 撑比例不用 aspect-ratio；吸顶实色+透明度不用毛玻璃；负反馈浮层纯色。
  */
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { getClientPresentation } from "@/lib/client-presentation";
+import OperationsPanel from "@/components/layout/operations-panel.vue";
 import { onLoad } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import PlatformSupportActions from "@/components/common/platform-support-actions.vue";
@@ -38,13 +40,20 @@ uni.getSystemInfo({
 
 // ── 顶部内容频道：同一套双列瀑布流，只切换数据策略 ──
 type TabId = SmartFeedChannel | "local";
-const tabs: Array<{ id: TabId; label: string; soon?: boolean }> = [
+const builtinTabs: Array<{ id: TabId; label: string; soon?: boolean }> = [
   { id: "recommend", label: "推荐" },
   { id: "following", label: "关注" },
   { id: "hot", label: "热门" },
   { id: "local", label: "同城", soon: true },
 ];
+const tabs = computed(() =>
+  getClientPresentation().homeChannels.flatMap((id) => builtinTabs.filter((tab) => tab.id === id)),
+);
 const activeTab = ref<TabId>("recommend");
+watch(tabs, (value) => {
+  if (!value.some((tab) => tab.id === activeTab.value))
+    activeTab.value = value[0]?.id ?? "recommend";
+}, { immediate: true });
 const activeChannel = computed<SmartFeedChannel>(() =>
   activeTab.value === "local" ? "recommend" : activeTab.value,
 );
@@ -71,7 +80,9 @@ onLoad((query?: Record<string, string>) => {
   const orderId = String(query?.miniPayOrderId || "").trim();
   if (/^[A-Za-z0-9_-]{8,128}$/.test(orderId) && query?.fromApp === "1") {
     setTimeout(() => {
-      uni.redirectTo({ url: `/pkg-shop/paying/index?orderId=${encodeURIComponent(orderId)}&method=wechat&fromApp=1` });
+      uni.redirectTo({
+        url: `/pkg-shop/paying/index?orderId=${encodeURIComponent(orderId)}&method=wechat&fromApp=1`,
+      });
     }, 0);
   }
   // #endif
@@ -442,6 +453,7 @@ function backToTop() {
       <!-- 与发现页共用同一套 2×5 功能分类导航，替代原首页大幅焦点卡。 -->
       <core-entry-grid />
 
+      <OperationsPanel surface="home" />
       <station-pinned-rail board="home" />
 
       <!-- 全类型统一双列瀑布流；横屏直播由卡片媒体层居中裁剪进 3:4 容器。 -->

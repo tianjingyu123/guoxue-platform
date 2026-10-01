@@ -3,6 +3,7 @@ import { CircleController } from "./circle.controller";
 import { CircleService } from "./circle.service";
 import { CircleInsightService } from "./services/circle-insight.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import type { Request } from "express";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
@@ -50,17 +51,26 @@ describe("CircleController", () => {
         // 并行批新增依赖（AI 搜索推荐/年度报告）：controller spec 仅注入占位 mock
         {
           provide: CircleInsightService,
-          useValue: { aiSearchRecommend: jest.fn().mockResolvedValue([]), annualReport: jest.fn().mockResolvedValue({}) },
+          useValue: {
+            aiSearchRecommend: jest.fn().mockResolvedValue([]),
+            annualReport: jest.fn().mockResolvedValue({}),
+          },
         },
       ],
     })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CircleController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it("打赏只采用登录用户身份并传递重试编号", async () => {
     await expect(ctrl.rewardPost("c1", "p1", { user: { id: "u1" } } as any, 8, "谢谢", "request-001")).resolves.toEqual({ success: true, amount: 8 });
@@ -115,7 +125,9 @@ describe("CircleController", () => {
 
   it("GET /circles/:id/announcements/:announcementId/read-status — 身份只取 JWT", async () => {
     const req: any = { user: { id: "u1" } };
-    await expect(ctrl.getAnnouncementReadStatus("c1", "a1", req)).resolves.toEqual({ isRead: true });
+    await expect(ctrl.getAnnouncementReadStatus("c1", "a1", req)).resolves.toEqual({
+      isRead: true,
+    });
     expect(mockCircleSvc.getAnnouncementReadStatus).toHaveBeenCalledWith("c1", "a1", "u1");
   });
 

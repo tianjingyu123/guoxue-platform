@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ClientPresentationPanel from './ClientPresentationPanel.vue'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
@@ -245,6 +246,7 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
 
 <template>
   <div class="page">
+    <ClientPresentationPanel />
     <div class="toolbar">
       <h3>功能开关管理</h3><el-button
         type="primary"

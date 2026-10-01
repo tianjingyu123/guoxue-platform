@@ -1,7 +1,38 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseGuards,
+  UsePipes,
+} from "@nestjs/common";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiBody,
+  ApiQuery,
+  ApiResponse,
+} from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
-import { CreateCircleDto, UpdateCircleDto, AdminSetCircleStatusDto, AdminUpdateCircleDto, AdminAddMemberDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
+import {
+  CreateCircleDto,
+  UpdateCircleDto,
+  AdminSetCircleStatusDto,
+  AdminUpdateCircleDto,
+  AdminAddMemberDto,
+  CreatePostDto,
+  JoinCircleDto,
+  UpdateMemberRoleDto,
+  ExpertConfigDto,
+} from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -36,7 +67,10 @@ export class CircleController {
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "AI 搜索推荐（#37·可匿名·AI 失败/未配置返回 {} fail-open）" })
   @ApiBody({ schema: { properties: { query: { type: "string" } } } })
-  @ApiResponse({ status: 201, description: "{ recommendCircleIds, circles, reason, followUps } 或 {}" })
+  @ApiResponse({
+    status: 201,
+    description: "{ recommendCircleIds, circles, reason, followUps } 或 {}",
+  })
   aiSearch(@Req() req: Request, @Body() body: { query?: string }) {
     return this.insight.aiSearchRecommend(body?.query || "", req.user?.id);
   }
@@ -58,7 +92,12 @@ export class CircleController {
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   @ApiQuery({ name: "keyword", required: false, type: String, description: "搜索关键词" })
-  @ApiQuery({ name: "category", required: false, type: String, description: "分类筛选（与tag等效）" })
+  @ApiQuery({
+    name: "category",
+    required: false,
+    type: String,
+    description: "分类筛选（与tag等效）",
+  })
   @ApiQuery({ name: "tag", required: false, type: String, description: "标签筛选" })
   @ApiQuery({ name: "type", required: false, type: String, description: "类型筛选" })
   @ApiResponse({ status: 200, description: "成功返回圈子列表" })
@@ -71,7 +110,14 @@ export class CircleController {
     @Query("type") type?: string,
     @StationId() stationId?: string,
   ) {
-    return this.circle.listCircles({ page: +page, pageSize: +pageSize, keyword, tag: tag || category, type, stationId });
+    return this.circle.listCircles({
+      page: +page,
+      pageSize: +pageSize,
+      keyword,
+      tag: tag || category,
+      type,
+      stationId,
+    });
   }
 
   @Get("my")
@@ -122,7 +168,12 @@ export class CircleController {
   @ApiOperation({ summary: "圈子活跃度排行" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  @ApiQuery({ name: "sortBy", required: false, type: String, description: "排序字段：memberCount/postCount/activityScore" })
+  @ApiQuery({
+    name: "sortBy",
+    required: false,
+    type: String,
+    description: "排序字段：memberCount/postCount/activityScore",
+  })
   @ApiResponse({ status: 200, description: "成功返回圈子活跃度排行" })
   getCircleRanking(
     @Query("page") page = 1,
@@ -135,7 +186,10 @@ export class CircleController {
   // ───────── 历史兼容接口（圈帖不出圈，返回空；必须在 :id 路由之前）─────────
 
   @Get("hot-posts")
-  @ApiOperation({ summary: "全平台热门帖子（已停用）", description: "圈帖不出圈，兼容旧客户端固定返回空列表" })
+  @ApiOperation({
+    summary: "全平台热门帖子（已停用）",
+    description: "圈帖不出圈，兼容旧客户端固定返回空列表",
+  })
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认10" })
   @ApiResponse({ status: 200, description: "成功返回热门帖子列表" })
   getGlobalHotPosts(@Query("limit") limit = 10) {
@@ -144,7 +198,10 @@ export class CircleController {
 
   @Get("posts/:postId")
   @UseGuards(OptionalAuthGuard)
-  @ApiOperation({ summary: "获取帖子详情（无圈子上下文·按 postId 反查）", description: "供分享/搜索等只有帖子 id 的入口使用，响应含 circle 供前端回填" })
+  @ApiOperation({
+    summary: "获取帖子详情（无圈子上下文·按 postId 反查）",
+    description: "供分享/搜索等只有帖子 id 的入口使用，响应含 circle 供前端回填",
+  })
   @ApiResponse({ status: 200, description: "成功返回帖子详情" })
   @ApiResponse({ status: 404, description: "帖子不存在" })
   getPostDetailById(@Param("postId") postId: string, @Req() req: Request) {
@@ -152,7 +209,10 @@ export class CircleController {
   }
 
   @Get("activities")
-  @ApiOperation({ summary: "今日圈帖活动（已停用）", description: "圈帖不出圈，兼容旧客户端固定返回空列表" })
+  @ApiOperation({
+    summary: "今日圈帖活动（已停用）",
+    description: "圈帖不出圈，兼容旧客户端固定返回空列表",
+  })
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认5" })
   @ApiResponse({ status: 200, description: "成功返回今日活动列表" })
   getTodayActivities(@Query("limit") limit = 5) {
@@ -188,12 +248,19 @@ export class CircleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "管理员启停圈子", targetType: "CIRCLE" })
-  @ApiOperation({ summary: "管理员启停圈子（admin 专用）", description: "reason 必填并记入审计日志；不走圈主所有权校验" })
+  @ApiOperation({
+    summary: "管理员启停圈子（admin 专用）",
+    description: "reason 必填并记入审计日志；不走圈主所有权校验",
+  })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
   @ApiResponse({ status: 404, description: "圈子不存在" })
-  adminSetStatus(@Param("id") id: string, @Req() req: Request, @Body() dto: AdminSetCircleStatusDto) {
+  adminSetStatus(
+    @Param("id") id: string,
+    @Req() req: Request,
+    @Body() dto: AdminSetCircleStatusDto,
+  ) {
     return this.circle.adminSetStatus(id, req.user.id, dto.status, dto.reason, req.ip);
   }
 
@@ -203,7 +270,10 @@ export class CircleController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @UsePipes(new SanitizePipe())
   @Auditable({ action: "管理员更新圈子资料", targetType: "CIRCLE" })
-  @ApiOperation({ summary: "管理员更新圈子资料（admin 专用）", description: "严格白名单：name/intro/cover/categoryLevel1/categoryLevel2；不走圈主所有权校验" })
+  @ApiOperation({
+    summary: "管理员更新圈子资料（admin 专用）",
+    description: "严格白名单：name/intro/cover/categoryLevel1/categoryLevel2；不走圈主所有权校验",
+  })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
@@ -217,7 +287,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "管理员添加圈子成员", targetType: "CIRCLE" })
-  @ApiOperation({ summary: "管理员添加圈子成员（admin 专用）", description: "目标为指定 userId（非管理员本人）；已是成员则幂等返回；role 可选默认 MEMBER，不允许 OWNER" })
+  @ApiOperation({
+    summary: "管理员添加圈子成员（admin 专用）",
+    description:
+      "目标为指定 userId（非管理员本人）；已是成员则幂等返回；role 可选默认 MEMBER，不允许 OWNER",
+  })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "添加成功（或已是成员幂等返回）" })
   @ApiResponse({ status: 403, description: "无权限（需 SUPER_ADMIN/OPERATION_ADMIN）" })
@@ -240,19 +314,31 @@ export class CircleController {
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "设置圈子公告（圈主/管理员）" })
   @ApiBearerAuth()
-  setAnnouncement(@Param("id") circleId: string, @Req() req: Request, @Body("content") content: string, @Body("isTop") isTop?: boolean) {
+  setAnnouncement(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body("content") content: string,
+    @Body("isTop") isTop?: boolean,
+  ) {
     return this.circle.setAnnouncement(circleId, req.user.id, content, isTop);
   }
 
   @Get(":id/announcements")
   @ApiOperation({ summary: "获取公告列表（分页）" })
-  listAnnouncements(@Param("id") circleId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  listAnnouncements(
+    @Param("id") circleId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
     return this.circle.listAnnouncements(circleId, +page, +pageSize);
   }
 
   @Get(":id/announcements/:announcementId")
   @ApiOperation({ summary: "获取指定圈子的单条公告" })
-  getAnnouncementById(@Param("id") circleId: string, @Param("announcementId") announcementId: string) {
+  getAnnouncementById(
+    @Param("id") circleId: string,
+    @Param("announcementId") announcementId: string,
+  ) {
     return this.circle.getAnnouncementById(circleId, announcementId);
   }
 
@@ -260,7 +346,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取本人在该圈公告的已读状态" })
   @ApiBearerAuth()
-  getAnnouncementReadStatus(@Param("id") circleId: string, @Param("announcementId") announcementId: string, @Req() req: Request) {
+  getAnnouncementReadStatus(
+    @Param("id") circleId: string,
+    @Param("announcementId") announcementId: string,
+    @Req() req: Request,
+  ) {
     return this.circle.getAnnouncementReadStatus(circleId, announcementId, req.user.id);
   }
 
@@ -269,7 +359,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除公告（圈主/管理员）" })
   @ApiBearerAuth()
-  deleteAnnouncement(@Param("id") circleId: string, @Param("announcementId") announcementId: string, @Req() req: Request) {
+  deleteAnnouncement(
+    @Param("id") circleId: string,
+    @Param("announcementId") announcementId: string,
+    @Req() req: Request,
+  ) {
     return this.circle.deleteAnnouncement(circleId, req.user.id, announcementId);
   }
 
@@ -279,15 +373,24 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "生成邀请码" })
   @ApiBearerAuth()
-  generateInviteCode(@Param("id") circleId: string, @Req() req: Request, @Body("maxUses") maxUses?: number) {
+  generateInviteCode(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body("maxUses") maxUses?: number,
+  ) {
     return this.circle.generateInviteCode(circleId, req.user.id, maxUses);
   }
 
   @Post("join-by-code")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_circle_join", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "通过邀请码加入圈子" })
   @ApiBearerAuth()
-  joinByInviteCode(@Body("code") code: string, @Req() req: Request, @Body("circleId") circleId?: string) {
+  joinByInviteCode(
+    @Body("code") code: string,
+    @Req() req: Request,
+    @Body("circleId") circleId?: string,
+  ) {
     return this.circle.joinByInviteCode(code, req.user.id, circleId);
   }
 
@@ -324,12 +427,17 @@ export class CircleController {
   @ApiOperation({ summary: "设置圈子推荐的电子书" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "设置成功" })
-  setRecommendedEbooks(@Param("id") circleId: string, @Req() req: Request, @Body("ebookIds") ebookIds: string[]) {
+  setRecommendedEbooks(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body("ebookIds") ebookIds: string[],
+  ) {
     return this.circle.setRecommendedEbooks(circleId, req.user.id, ebookIds);
   }
 
   @Post(":id/join")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_circle_join", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "加入圈子（免费圈直接加入，付费圈请先调用 prepare-join）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "加入成功" })
@@ -341,11 +449,16 @@ export class CircleController {
   }
 
   @Post(":id/join/prepare")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_circle_join", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "准备付费入圈（创建订单/检查余额）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "返回支付信息" })
-  prepareJoin(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string; referrerId?: string }) {
+  prepareJoin(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body() dto?: { payMethod?: string; referrerId?: string },
+  ) {
     return this.circle.prepareJoin(circleId, req.user.id, dto);
   }
 
@@ -354,7 +467,11 @@ export class CircleController {
   @ApiOperation({ summary: "确认付费入圈（支付完成后调用）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "入圈成功" })
-  confirmJoin(@Param("id") circleId: string, @Req() req: Request, @Body() dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string }) {
+  confirmJoin(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body() dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string },
+  ) {
     return this.circle.confirmJoin(circleId, req.user.id, dto);
   }
 
@@ -368,9 +485,14 @@ export class CircleController {
 
   @Get(":id/renew/quote")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "续费报价（#34·纯查询不建单·折扣关闭时 priceYuan===originalPriceYuan）" })
+  @ApiOperation({
+    summary: "续费报价（#34·纯查询不建单·折扣关闭时 priceYuan===originalPriceYuan）",
+  })
   @ApiBearerAuth()
-  @ApiResponse({ status: 200, description: "{ originalPriceYuan, priceYuan, discountEnabled, discountApplied, twoYear }" })
+  @ApiResponse({
+    status: 200,
+    description: "{ originalPriceYuan, priceYuan, discountEnabled, discountApplied, twoYear }",
+  })
   renewQuote(@Param("id") circleId: string, @Req() req: Request) {
     return this.circle.renewQuote(circleId, req.user.id);
   }
@@ -379,17 +501,25 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "成员年度报告（#33·本人过去365天在本圈真实聚合·实时计算）" })
   @ApiBearerAuth()
-  @ApiResponse({ status: 200, description: "{ posts, questions, liveCount, likesReceived, earningsRmb?, joinedDays }" })
+  @ApiResponse({
+    status: 200,
+    description: "{ posts, questions, liveCount, likesReceived, earningsRmb?, joinedDays }",
+  })
   annualReport(@Param("id") circleId: string, @Req() req: Request) {
     return this.insight.annualReport(circleId, req.user.id);
   }
 
   @Post(":id/renew")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_circle_join", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "续费年费圈子（创建现金订单·仅人民币·#34 支持 years=2 两年档）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "返回支付信息" })
-  renewCircle(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string; years?: number }) {
+  renewCircle(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body() dto?: { payMethod?: string; years?: number },
+  ) {
     return this.circle.renewCircle(circleId, req.user.id, dto);
   }
 
@@ -398,7 +528,11 @@ export class CircleController {
   @ApiOperation({ summary: "确认续费（支付完成后调用·顺延到期时间）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "续费成功" })
-  confirmRenew(@Param("id") circleId: string, @Req() req: Request, @Body() dto: { orderId?: string; orderNo?: string }) {
+  confirmRenew(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body() dto: { orderId?: string; orderNo?: string },
+  ) {
     return this.circle.confirmRenew(circleId, req.user.id, dto);
   }
 
@@ -437,7 +571,9 @@ export class CircleController {
     @Body() dto: UpdateMemberRoleDto,
   ) {
     // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）bypass 圈内身份校验；普通用户原逻辑零变化
-    return this.circle.updateMemberRole(circleId, req.user.id, targetUserId, dto, { asAdmin: this.isPlatformAdmin(req) });
+    return this.circle.updateMemberRole(circleId, req.user.id, targetUserId, dto, {
+      asAdmin: this.isPlatformAdmin(req),
+    });
   }
 
   @Delete(":id/members/:userId")
@@ -455,7 +591,9 @@ export class CircleController {
     @Req() req: Request,
   ) {
     // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）bypass 圈内身份校验；「不能移除圈主」硬约束保留
-    return this.circle.removeMember(circleId, req.user.id, targetUserId, { asAdmin: this.isPlatformAdmin(req) });
+    return this.circle.removeMember(circleId, req.user.id, targetUserId, {
+      asAdmin: this.isPlatformAdmin(req),
+    });
   }
 
   // ───────── 帖子 ─────────
@@ -521,11 +659,7 @@ export class CircleController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiResponse({ status: 404, description: "帖子不存在" })
-  deletePost(
-    @Param("id") circleId: string,
-    @Param("postId") postId: string,
-    @Req() req: Request,
-  ) {
+  deletePost(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: Request) {
     return this.circle.deletePost(postId, req.user.id, circleId);
   }
 
@@ -546,7 +680,11 @@ export class CircleController {
   @ApiResponse({ status: 201, description: "切换成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需管理员）" })
-  toggleEssence(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: Request) {
+  toggleEssence(
+    @Param("id") circleId: string,
+    @Param("postId") postId: string,
+    @Req() req: Request,
+  ) {
     return this.circle.toggleEssence(postId, circleId, req.user.id);
   }
 
@@ -572,7 +710,11 @@ export class CircleController {
   @ApiResponse({ status: 201, description: "配置成功" })
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需圈主/管理员/嘉宾）" })
-  setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
+  setExpertConfig(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body() dto: ExpertConfigDto,
+  ) {
     // 管理角色（SUPER_ADMIN/OPERATION_ADMIN）且传 userId 时替该用户配置；其余情况维持原状（配置本人）
     const targetUserId = dto.userId && this.isPlatformAdmin(req) ? dto.userId : req.user.id;
     return this.circle.setExpertConfig(circleId, targetUserId, dto);
@@ -593,7 +735,10 @@ export class CircleController {
    * 此前该入口跳达人列表页时 circleId 为空 → GET /circles//experts → 恒空列表 + 提问按钮点不动。
    */
   @Get("experts/discover")
-  @ApiOperation({ summary: "全平台达人列表", description: "跨圈聚合所有开通了提问/连麦的达人，供发现页全局入口使用" })
+  @ApiOperation({
+    summary: "全平台达人列表",
+    description: "跨圈聚合所有开通了提问/连麦的达人，供发现页全局入口使用",
+  })
   @ApiResponse({ status: 200, description: "成功返回达人列表（含所属圈子）" })
   listAllExperts(@Query("limit") limit?: string, @Query("offset") offset?: string) {
     return this.circle.listAllExperts(Number(limit) || 50, Number(offset) || 0);
@@ -608,7 +753,10 @@ export class CircleController {
 
   @Get("expert-services/by-user/:userId")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "用户的达人咨询服务聚合", description: "聚合该用户在所有圈子开通的提问/连麦服务，供个人主页付费咨询入口使用" })
+  @ApiOperation({
+    summary: "用户的达人咨询服务聚合",
+    description: "聚合该用户在所有圈子开通的提问/连麦服务，供个人主页付费咨询入口使用",
+  })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -620,7 +768,12 @@ export class CircleController {
   @ApiOperation({ summary: "成员贡献榜", description: "按发帖量等指标统计成员贡献排名" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  @ApiQuery({ name: "period", required: false, type: String, description: "统计周期：week/month/all" })
+  @ApiQuery({
+    name: "period",
+    required: false,
+    type: String,
+    description: "统计周期：week/month/all",
+  })
   @ApiResponse({ status: 200, description: "成功返回成员贡献榜" })
   @ApiResponse({ status: 404, description: "圈子不存在" })
   getMemberLeaderboard(
@@ -637,10 +790,7 @@ export class CircleController {
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认10" })
   @ApiResponse({ status: 200, description: "成功返回热门内容列表" })
   @ApiResponse({ status: 404, description: "圈子不存在" })
-  getHotContentRanking(
-    @Param("id") id: string,
-    @Query("limit") limit = 10,
-  ) {
+  getHotContentRanking(@Param("id") id: string, @Query("limit") limit = 10) {
     return this.circle.getHotContentRanking(id, +limit);
   }
 
@@ -650,7 +800,12 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建成员分组" })
   @ApiBearerAuth()
-  createMemberGroup(@Param("id") circleId: string, @Req() req: Request, @Body("name") name: string, @Body("color") color?: string) {
+  createMemberGroup(
+    @Param("id") circleId: string,
+    @Req() req: Request,
+    @Body("name") name: string,
+    @Body("color") color?: string,
+  ) {
     return this.circle.createMemberGroup(circleId, req.user.id, name, color);
   }
 
@@ -664,7 +819,13 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新成员分组" })
   @ApiBearerAuth()
-  updateMemberGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request, @Body("name") name?: string, @Body("color") color?: string) {
+  updateMemberGroup(
+    @Param("id") circleId: string,
+    @Param("groupId") groupId: string,
+    @Req() req: Request,
+    @Body("name") name?: string,
+    @Body("color") color?: string,
+  ) {
     return this.circle.updateMemberGroup(circleId, groupId, req.user.id, name, color);
   }
 
@@ -673,7 +834,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除成员分组" })
   @ApiBearerAuth()
-  deleteMemberGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request) {
+  deleteMemberGroup(
+    @Param("id") circleId: string,
+    @Param("groupId") groupId: string,
+    @Req() req: Request,
+  ) {
     return this.circle.deleteMemberGroup(circleId, groupId, req.user.id);
   }
 
@@ -681,7 +846,12 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加成员到分组" })
   @ApiBearerAuth()
-  addMembersToGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request, @Body("userIds") userIds: string[]) {
+  addMembersToGroup(
+    @Param("id") circleId: string,
+    @Param("groupId") groupId: string,
+    @Req() req: Request,
+    @Body("userIds") userIds: string[],
+  ) {
     return this.circle.addMembersToGroup(circleId, groupId, req.user.id, userIds);
   }
 
@@ -690,13 +860,23 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "从分组移除成员" })
   @ApiBearerAuth()
-  removeMemberFromGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Param("userId") targetUserId: string, @Req() req: Request) {
+  removeMemberFromGroup(
+    @Param("id") circleId: string,
+    @Param("groupId") groupId: string,
+    @Param("userId") targetUserId: string,
+    @Req() req: Request,
+  ) {
     return this.circle.removeMemberFromGroup(circleId, groupId, req.user.id, targetUserId);
   }
 
   @Get(":id/member-groups/:groupId/members")
   @ApiOperation({ summary: "获取分组成员列表" })
-  getGroupMembers(@Param("id") circleId: string, @Param("groupId") groupId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  getGroupMembers(
+    @Param("id") circleId: string,
+    @Param("groupId") groupId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
     return this.circle.getGroupMembers(circleId, groupId, +page, +pageSize);
   }
 
@@ -720,10 +900,7 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取达人可预约时段", description: "返回达人某日可用的时间段" })
   @ApiBearerAuth()
-  getExpertSlots(
-    @Param("expertId") expertId: string,
-    @Query("date") date?: string,
-  ) {
+  getExpertSlots(@Param("expertId") expertId: string, @Query("date") date?: string) {
     return this.circle.getExpertSlots(expertId, date);
   }
 
@@ -734,7 +911,8 @@ export class CircleController {
   createExpertBooking(
     @Param("expertId") expertId: string,
     @Req() req: Request,
-    @Body() body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+    @Body()
+    body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
   ) {
     return this.circle.createExpertBooking(expertId, req.user.id, body);
   }
@@ -746,7 +924,18 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "打赏帖子" })
   @ApiBearerAuth()
-  @ApiBody({ description: "打赏参数", schema: { type: "object", properties: { amount: { type: "number", description: "打赏金额(1-10000)", example: 10 }, message: { type: "string", description: "打赏留言(最长200字)", example: "好帖！" }, requestId: { type: "string", description: "同一笔打赏的重试须复用请求编号；8-128位字母、数字、下划线或短横线", example: "reward-request-001" } }, required: ["amount"] } })
+  @ApiBody({
+    description: "打赏参数",
+    schema: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "打赏金额(1-10000)", example: 10 },
+        message: { type: "string", description: "打赏留言(最长200字)", example: "好帖！" },
+        requestId: { type: "string", description: "同一笔打赏的重试须复用请求编号；8-128位字母、数字、下划线或短横线", example: "reward-request-001" },
+      },
+      required: ["amount"],
+    },
+  })
   @ApiResponse({ status: 201, description: "打赏成功" })
   @ApiResponse({ status: 400, description: "余额不足或参数无效" })
   @ApiResponse({ status: 401, description: "未认证" })
@@ -771,6 +960,4 @@ export class CircleController {
     }
     return this.circle.rewardPost(circleId, postId, req.user.id, amount, message, requestId);
   }
-
-
 }

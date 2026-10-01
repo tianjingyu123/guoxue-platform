@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
+import { onActivated, onDeactivated, onMounted, onUnmounted, ref, computed } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 // #ifdef APP-PLUS
 import AppRootBackGesture from '@/components/common/app-root-back-gesture.vue'
 // #endif
 import { redirectTo } from '@/utils/router'
+import { presentedNavigation } from '@/lib/client-presentation'
 import { stationNavigationTarget } from '@/lib/station-navigation'
 
 /** active: home | circle | paipan | discover | profile */
@@ -38,13 +39,15 @@ onHide(() => { visible.value = false })
 // 合规收敛：中间 tab 统一用中性「工具」表述（避免「排盘/占卜」敏感表达·路由不变·全端一致）
 const paipanLabel = '工具'
 
-const tabs = [
+const builtinTabs = [
   { id: 'home', label: '首页', icon: 'home', url: '/pages/index/index' },
   { id: 'circle', label: '圈子', icon: 'users', url: '/pages/circles/index' },
   { id: 'paipan', label: paipanLabel, icon: '', url: '/pages/paipan/index' },
   { id: 'discover', label: '发现', icon: 'compass', url: '/pages/discover/index' },
   { id: 'profile', label: '我的', icon: 'user', url: '/pages/profile/index' },
 ]
+
+const tabs = computed(() => presentedNavigation(builtinTabs))
 
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {

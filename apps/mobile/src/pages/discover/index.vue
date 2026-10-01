@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /**
  * 发现页 · 双列瀑布流 · 按类别分区（董事长拍板：便于维护，与首页一致但按类别分区）
  *
@@ -240,6 +241,7 @@ function goEntry(href: string) { navigateTo(href) }
 
     <!-- ④ 按类别分区：每区= 标题 + 更多› + 双列瀑布流 + 查看更多 -->
     <template v-else>
+      <OperationsPanel surface="discover" />
     <template v-for="cat in CATEGORIES" :key="cat.type">
       <view v-if="sections[cat.type].loaded && sections[cat.type].items.length" class="cat-section">
         <view class="sec">

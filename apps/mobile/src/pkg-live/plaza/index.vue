@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /** 直播广场页 — H3 视觉稿 A 类逐像素还原（首页直播 Tab 进入）
  * 真连保留：直播中/预告 = liveApi.getPlaza(按 status 分组)；回放 = liveApi.getReplays；预约 = bookRoom/unbookRoom
  */
@@ -297,6 +298,7 @@ async function toggleBook(item: LiveItem) {
       role="region"
       aria-label="直播广场内容"
     >
+      <OperationsPanel surface="live" />
       <!-- 骨架 -->
       <view v-if="loading" class="skeleton" role="status" aria-live="polite" aria-label="直播广场加载中">
         <view class="sk-grid">

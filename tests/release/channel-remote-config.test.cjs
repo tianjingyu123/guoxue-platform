@@ -30,9 +30,11 @@ function fixture() {
     const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
     vm.runInNewContext(compiled, { ...sandbox, exports, require: name => {
       if (name === 'vue') return mobileRequire('vue')
+      if (name === '@guoxue/shared') return mobileRequire('@guoxue/shared')
       if (name === '@/utils/request') return { apiGetOptionalAuth: () => new Promise((resolve, reject) => requests.push({ resolve, reject })) }
       if (name === '@/utils/storage') return load('utils/storage')
       if (name === './app-distribution') return load('lib/app-distribution')
+      if (name === './operation-request-policy') return load('lib/operation-request-policy')
       throw new Error(name)
     } })
     return exports
@@ -98,4 +100,26 @@ test('错误渠道配置不能进入当前构建缓存，响应更新触发 Vue 
   f.requests.at(-1).resolve(f.snapshot(true)); await pending
   assert.equal(visible.value, true)
   assert.ok([...f.values.keys()].some(key => key.includes('test-xiaomi:253:1')))
+})
+
+test('未知包内组件可省略，错误展示配置回默认且不破坏有效业务开关', async () => {
+  const f = fixture(), pending = f.config.hydrateRemoteConfig(true)
+  const raw = f.snapshot(true)
+  raw.ui.presentation = { schemaVersion: 1, entries: [], navigation: [], pages: { home: [{ id: 'future-block', type: 'future-component' }, { id: 'safe-notice', type: 'notice', title: '仍能显示' }] } }
+  f.requests.at(-1).resolve(raw); await pending
+  assert.equal(f.config.getRemoteConfig().ui.presentation.pages.home.length, 1)
+  assert.equal(f.config.isClientFeatureEnabled('shop_checkout'), true)
+  const next = f.config.hydrateRemoteConfig(true)
+  raw.ui.presentation.script = 'alert(1)'
+  f.requests.at(-1).resolve(raw); await next
+  assert.equal(f.config.getRemoteConfig().ui.presentation.entries.length, 0)
+  assert.equal(f.config.isClientFeatureEnabled('shop_checkout'), true)
+})
+
+test('错误图像 URL、重复入口、未知展示协议拒绝；不会执行表达式', () => {
+  const { parseClientPresentation, EMPTY_PRESENTATION } = mobileRequire('@guoxue/shared')
+  for (const imagePath of ['https://evil.invalid/x.png', '/assets/../x.png', '/assets/x.svg', 'javascript:alert(1)'])
+    assert.throws(() => parseClientPresentation({ ...EMPTY_PRESENTATION, pages: { home: [{ id: 'banner-bad', type: 'banner', imagePath }] } }))
+  assert.throws(() => parseClientPresentation({ ...EMPTY_PRESENTATION, schemaVersion: 2 }))
+  assert.throws(() => parseClientPresentation({ ...EMPTY_PRESENTATION, entries: [{ id: 'course', visible: true, order: 0 }, { id: 'course', visible: false, order: 1 }] }))
 })

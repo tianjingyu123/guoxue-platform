@@ -20,6 +20,7 @@ export const FEATURE_FLAG_KEY_PATTERN = /^[a-z][a-z0-9._-]{1,63}$/;
 
 /** 仅用于管理员模拟，不改变登录账号、发布内容或业务接口身份。 */
 export class FeaturePreviewContextDto {
+  @IsOptional() @IsString() @Matches(/^\d{1,15}$/) resourceVersion?: string;
   @IsOptional() @IsString() @MaxLength(80) clientKey?: string;
   @IsOptional() @IsString() @MaxLength(100) userId?: string;
   @IsOptional() @IsString() @Matches(/^\d{1,15}$/) nativeBuild?: string;

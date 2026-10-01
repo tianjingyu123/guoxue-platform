@@ -1,10 +1,34 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+  Logger,
+} from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
 import { CozeService } from "./coze.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
-import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto, RunWorkflowDto } from "./bot.dto";
+import {
+  CreateBotDto,
+  UpdateBotDto,
+  BindBotToCircleDto,
+  AddKnowledgeDto,
+  ChatDto,
+  AddBotKnowledgeItemDto,
+  UpdateBotKnowledgeItemDto,
+  RunWorkflowDto,
+} from "./bot.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -35,7 +59,11 @@ import { RedLineGate, RedLine } from "../../common/red-lines";
 @Controller("bots")
 export class BotController {
   private readonly logger = new Logger(BotController.name);
-  constructor(private svc: BotService, private cozeSvc: CozeService, private sse: StreamUnifierService) {}
+  constructor(
+    private svc: BotService,
+    private cozeSvc: CozeService,
+    private sse: StreamUnifierService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -61,15 +89,29 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async createOnCoze(@Body() body: {
-    name: string; description?: string; prompt?: string; type?: string;
-    isFree?: boolean; dailyLimit?: number;
-    modelConfig?: Record<string, unknown>; pluginIds?: string[]; workflowIds?: string[];
-    onboarding?: Record<string, unknown>; voiceId?: string;
-  }) {
+  async createOnCoze(
+    @Body()
+    body: {
+      name: string;
+      description?: string;
+      prompt?: string;
+      type?: string;
+      isFree?: boolean;
+      dailyLimit?: number;
+      modelConfig?: Record<string, unknown>;
+      pluginIds?: string[];
+      workflowIds?: string[];
+      onboarding?: Record<string, unknown>;
+      voiceId?: string;
+    },
+  ) {
     const apiKey = process.env.COZE_API_KEY || "";
     // 配了 Coze OAuth 时令牌由 CozeService 内部换取，无需全局 PAT
-    if (!apiKey && !this.cozeSvc.isOAuthConfigured()) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置且未配置 Coze OAuth");
+    if (!apiKey && !this.cozeSvc.isOAuthConfigured())
+      throw new BusinessException(
+        ErrorCode.INTERNAL_ERROR,
+        "COZE_API_KEY 未配置且未配置 Coze OAuth",
+      );
 
     // 1. 在 Coze 平台创建智能体
     const botData = await this.cozeSvc.createBot({
@@ -109,7 +151,9 @@ export class BotController {
   @Get("admin/list")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "管理端智能体列表（含占位凭证/全状态·apiKey 只回掩码 sk_***后4位 + isConfigured）" })
+  @ApiOperation({
+    summary: "管理端智能体列表（含占位凭证/全状态·apiKey 只回掩码 sk_***后4位 + isConfigured）",
+  })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
@@ -256,12 +300,17 @@ export class BotController {
   }
 
   @Post(":id/purchase-uses")
-  @UseGuards(JwtAuthGuard)
+  @RequireFeature("client_agent_purchase", { whenConfigured: true, writes: true })
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @ApiOperation({ summary: "购买追问包（10次/包·扣国学币）" })
   @ApiResponse({ status: 201, description: "购买成功" })
   @ApiResponse({ status: 400, description: "余额不足或该智能体免费" })
   @ApiBearerAuth()
-  purchaseUses(@Req() req: Request, @Param("id") id: string, @Body("requestId") requestId?: string) {
+  purchaseUses(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body("requestId") requestId?: string,
+  ) {
     return this.svc.purchaseUses(id, req.user.id, requestId);
   }
 
@@ -283,8 +332,9 @@ export class BotController {
     let finished = false;
     res.once("finish", () => {
       finished = true;
-      void this.svc.markDeliveredQuota(quotaUse).catch((err: Error) =>
-        this.logger.error(`智能体额度确认异常 [${id}]: ${err.message}`));
+      void this.svc
+        .markDeliveredQuota(quotaUse)
+        .catch((err: Error) => this.logger.error(`智能体额度确认异常 [${id}]: ${err.message}`));
     });
     res.once("close", () => {
       if (!finished) void this.svc.releaseFailedQuotaSafely(id, req.user.id, quotaUse);
@@ -363,10 +413,7 @@ export class BotController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  createVoiceRoom(
-    @Req() req: Request,
-    @Param("id") id: string,
-  ) {
+  createVoiceRoom(@Req() req: Request, @Param("id") id: string) {
     return this.svc.createVoiceRoom(id, req.user.id);
   }
 
@@ -451,10 +498,7 @@ export class BotController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
-  getBotApprovalList(
-    @Query("page") page = "1",
-    @Query("pageSize") pageSize = "20",
-  ) {
+  getBotApprovalList(@Query("page") page = "1", @Query("pageSize") pageSize = "20") {
     return this.svc.getBotApprovalList(Number(page), Number(pageSize));
   }
 
@@ -513,10 +557,7 @@ export class BotController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  addBotKnowledge(
-    @Param("circleId") circleId: string,
-    @Body() dto: AddBotKnowledgeItemDto,
-  ) {
+  addBotKnowledge(@Param("circleId") circleId: string, @Body() dto: AddBotKnowledgeItemDto) {
     return this.svc.addBotKnowledge(circleId, dto);
   }
 

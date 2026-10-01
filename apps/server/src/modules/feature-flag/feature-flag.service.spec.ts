@@ -56,8 +56,12 @@ describe("FeatureFlagService", () => {
 
     it("开关关闭返回 false", async () => {
       const flag = {
-        key: "new_feature", enabled: false, percentage: 100,
-        targetUserIds: [], name: "New", description: null,
+        key: "new_feature",
+        enabled: false,
+        percentage: 100,
+        targetUserIds: [],
+        name: "New",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.isEnabled("new_feature");
@@ -66,8 +70,12 @@ describe("FeatureFlagService", () => {
 
     it("用户在 targetUserIds 白名单中直接返回 true", async () => {
       const flag = {
-        key: "beta", enabled: true, percentage: 10,
-        targetUserIds: ["u1", "u2"], name: "Beta", description: null,
+        key: "beta",
+        enabled: true,
+        percentage: 10,
+        targetUserIds: ["u1", "u2"],
+        name: "Beta",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.isEnabled("beta", "u1");
@@ -76,8 +84,12 @@ describe("FeatureFlagService", () => {
 
     it("percentage=100 时所有用户启用", async () => {
       const flag = {
-        key: "launched", enabled: true, percentage: 100,
-        targetUserIds: [], name: "All", description: null,
+        key: "launched",
+        enabled: true,
+        percentage: 100,
+        targetUserIds: [],
+        name: "All",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.isEnabled("launched", "u99");
@@ -86,8 +98,12 @@ describe("FeatureFlagService", () => {
 
     it("percentage=0 时用户不在白名单则返回 false", async () => {
       const flag = {
-        key: "off", enabled: true, percentage: 0,
-        targetUserIds: [], name: "Off", description: null,
+        key: "off",
+        enabled: true,
+        percentage: 0,
+        targetUserIds: [],
+        name: "Off",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.isEnabled("off", "u1");
@@ -96,8 +112,12 @@ describe("FeatureFlagService", () => {
 
     it("关闭能力直接读主库，不接受 Redis 中已过期的启用结果", async () => {
       const cached = {
-        key: "cached_feat", enabled: true, percentage: 100,
-        targetUserIds: [], name: "Cached", description: null,
+        key: "cached_feat",
+        enabled: true,
+        percentage: 100,
+        targetUserIds: [],
+        name: "Cached",
+        description: null,
       };
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.isEnabled("cached_feat", "u1");
@@ -109,8 +129,12 @@ describe("FeatureFlagService", () => {
 
     it("无 userId 且 percentage<100 返回 false", async () => {
       const flag = {
-        key: "partial", enabled: true, percentage: 50,
-        targetUserIds: [], name: "Partial", description: null,
+        key: "partial",
+        enabled: true,
+        percentage: 50,
+        targetUserIds: [],
+        name: "Partial",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
       const result = await svc.isEnabled("partial");
@@ -140,13 +164,19 @@ describe("FeatureFlagService", () => {
         { key: "risk_fraud_scan", enabled: true, percentage: 100, targetUserIds: [] },
       ];
       mockPrisma.featureFlag.findMany.mockResolvedValue(flags);
-      mockPrisma.featureFlag.findUnique.mockImplementation(async ({ where }: any) =>
-        flags.find((flag) => flag.key === where.key) ?? null,
+      mockPrisma.featureFlag.findUnique.mockImplementation(
+        async ({ where }: any) => flags.find((flag) => flag.key === where.key) ?? null,
       );
 
       const result = await svc.getClientFeatures("u1");
 
-      expect(result).toEqual({ client_home_v2: true, live_start: true });
+      expect(result).toEqual({
+        client_home_v2: true,
+        live_start: true,
+        client_course_purchase: true,
+        client_circle_join: true,
+        client_agent_purchase: true,
+      });
       expect(result).not.toHaveProperty("risk_fraud_scan");
     });
   });
@@ -169,7 +199,13 @@ describe("FeatureFlagService", () => {
 
   describe("upsert", () => {
     it("创建新开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "new_key", name: "new_key", description: null, enabled: true, percentage: 100, targetUserIds: [],
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "new_key",
+        name: "new_key",
+        description: null,
+        enabled: true,
+        percentage: 100,
+        targetUserIds: [],
       });
       const result = await svc.upsert("new_key", { enabled: true });
       expect(result.key).toBe("new_key");
@@ -178,14 +214,26 @@ describe("FeatureFlagService", () => {
     });
 
     it("更新现有开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "existing", name: "existing", description: null, enabled: false, percentage: 50, targetUserIds: ["u1"],
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "existing",
+        name: "existing",
+        description: null,
+        enabled: false,
+        percentage: 50,
+        targetUserIds: ["u1"],
       });
       const result = await svc.upsert("existing", { percentage: 50, targetUserIds: ["u1"] });
       expect(result.percentage).toBe(50);
     });
 
     it("upsert 后清除缓存", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1", name: "k1", description: null, enabled: false, percentage: 100, targetUserIds: [],
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "k1",
+        name: "k1",
+        description: null,
+        enabled: false,
+        percentage: 100,
+        targetUserIds: [],
       });
       await svc.upsert("k1", {});
       expect(mockRedis.del).toHaveBeenCalledWith("feature:k1");
@@ -198,26 +246,43 @@ describe("FeatureFlagService", () => {
     });
 
     it("清理并去重指定用户列表", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "client_demo", name: "client_demo", description: null, enabled: false, percentage: 100, targetUserIds: ["u1", "u2"],
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "client_demo",
+        name: "client_demo",
+        description: null,
+        enabled: false,
+        percentage: 100,
+        targetUserIds: ["u1", "u2"],
       });
       await svc.upsert("client_demo", { targetUserIds: [" u1 ", "u1", "", "u2"] });
-      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        create: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
-        update: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
-      }),
+      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
+          update: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
+        }),
       );
     });
 
     it("每次有效变更写入可回滚快照", async () => {
       mockPrisma.featureFlag.upsert.mockResolvedValue({
-        key: "client_demo", name: "演示", description: null,
-        enabled: true, percentage: 25, targetUserIds: ["u1"],
+        key: "client_demo",
+        name: "演示",
+        description: null,
+        enabled: true,
+        percentage: 25,
+        targetUserIds: ["u1"],
       });
       mockPrisma.configVersion.findFirst.mockResolvedValue({ version: 2 });
 
-      await svc.upsert("client_demo", {
-        name: "演示", enabled: true, percentage: 25, targetUserIds: ["u1"],
-      }, "admin",
+      await svc.upsert(
+        "client_demo",
+        {
+          name: "演示",
+          enabled: true,
+          percentage: 25,
+          targetUserIds: ["u1"],
+        },
+        "admin",
       );
 
       expect(mockPrisma.configVersion.create).toHaveBeenCalledWith({
@@ -232,18 +297,32 @@ describe("FeatureFlagService", () => {
 
     it("既有开关首次变更时先保存变更前快照", async () => {
       mockPrisma.featureFlag.findUnique.mockResolvedValue({
-        key: "client_demo", name: "演示", description: "旧说明",
-        enabled: false, percentage: 10, targetUserIds: ["u1"],
+        key: "client_demo",
+        name: "演示",
+        description: "旧说明",
+        enabled: false,
+        percentage: 10,
+        targetUserIds: ["u1"],
       });
       mockPrisma.featureFlag.upsert.mockResolvedValue({
-        key: "client_demo", name: "演示", description: "新说明",
-        enabled: true, percentage: 100, targetUserIds: [],
+        key: "client_demo",
+        name: "演示",
+        description: "新说明",
+        enabled: true,
+        percentage: 100,
+        targetUserIds: [],
       });
       mockPrisma.configVersion.findFirst.mockResolvedValue(null);
 
-      await svc.upsert("client_demo", {
-        description: "新说明", enabled: true, percentage: 100, targetUserIds: [],
-      }, "admin",
+      await svc.upsert(
+        "client_demo",
+        {
+          description: "新说明",
+          enabled: true,
+          percentage: 100,
+          targetUserIds: [],
+        },
+        "admin",
       );
 
       expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(1, {
@@ -279,21 +358,30 @@ describe("FeatureFlagService", () => {
     it("回滚前校验快照并生成新的历史版本", async () => {
       mockPrisma.configVersion.findFirst.mockResolvedValue({
         value: {
-          key: "client_demo", name: "演示", description: "历史值",
-          enabled: false, percentage: 10, targetUserIds: ["u1"],
+          key: "client_demo",
+          name: "演示",
+          description: "历史值",
+          enabled: false,
+          percentage: 10,
+          targetUserIds: ["u1"],
         },
       });
       mockPrisma.featureFlag.upsert.mockResolvedValue({
-        key: "client_demo", name: "演示", description: "历史值",
-        enabled: false, percentage: 10, targetUserIds: ["u1"],
+        key: "client_demo",
+        name: "演示",
+        description: "历史值",
+        enabled: false,
+        percentage: 10,
+        targetUserIds: ["u1"],
       });
 
       const result = await svc.rollback("client_demo", 1, "admin");
 
       expect(result.enabled).toBe(false);
-      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        update: expect.objectContaining({ enabled: false, percentage: 10 }),
-      }),
+      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ enabled: false, percentage: 10 }),
+        }),
       );
     });
   });
@@ -315,8 +403,12 @@ describe("FeatureFlagService", () => {
   describe("hashBucket — 一致性", () => {
     it("同一用户+同一开关多次计算一致", async () => {
       const flag = {
-        key: "consistent", enabled: true, percentage: 30,
-        targetUserIds: [], name: "C", description: null,
+        key: "consistent",
+        enabled: true,
+        percentage: 30,
+        targetUserIds: [],
+        name: "C",
+        description: null,
       };
       mockPrisma.featureFlag.findUnique.mockResolvedValue(flag);
 

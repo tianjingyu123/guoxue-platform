@@ -1,4 +1,5 @@
 import { isClientFeatureEnabled } from "./remote-config";
+export { isOperationRequestAllowed } from "./operation-request-policy";
 /** 只约束新业务入口；历史订单、退款、客服、已购课程与权益阅读不走此表。 */
 export const OPERATION_ROUTE_FEATURES: Record<string, string> = {
   "/pkg-shop/checkout/index": "shop_checkout",

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /** 商城首页 - 从原型 app/mall/page.tsx 1:1 迁移 */
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
@@ -135,6 +136,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
     </view>
 
     <view class="body">
+      <OperationsPanel surface="shop" />
       <!-- 加载中 -->
       <view v-if="loading" class="state-wrap" role="status" aria-live="polite" aria-label="商城加载中">
         <AppLoading />

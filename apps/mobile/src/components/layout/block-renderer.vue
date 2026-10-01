@@ -118,7 +118,7 @@ function onBannerChange(id: string, e: { detail?: { current?: number } }) {
       <view v-else-if="b.type === 'kingkong'" class="blk-kk">
         <view v-if="b.title" class="blk-sec-head"><text class="blk-sec-title serif">{{ b.title }}</text></view>
         <view class="blk-kk-grid">
-          <view v-for="(it, i) in kkItems(b)" :key="i" class="blk-kk-item" hover-class="blk-press" @tap="go(it.link)">
+          <view v-for="(it, i) in kkItems(b)" :key="i" class="blk-kk-item" :style="{ width: `${100 / ([3, 4, 5].includes(Number(b.config.columns)) ? Number(b.config.columns) : 5)}%` }" hover-class="blk-press" @tap="go(it.link)">
             <view class="blk-kk-ico" :style="{ background: it.color + '1a' }">
               <app-icon :name="it.icon" :size="42" :color="it.color" />
             </view>

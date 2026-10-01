@@ -15,6 +15,12 @@ import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("synthetic")
 class SyntheticController {
+  @Post("new-course")
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature("client_course_purchase", { whenConfigured: true, writes: true })
+  course() {
+    return { syntheticOnly: true };
+  }
   @Post("orders")
   @UseGuards(FeatureFlagGuard)
   @RequireFeature("shop_checkout")
@@ -30,10 +36,14 @@ class SyntheticController {
   @Get("new-credentials")
   @UseGuards(FeatureFlagGuard)
   @RequireFeature("shop_checkout", { writes: true })
-  credentials() { return { syntheticOnly: true }; }
+  credentials() {
+    return { syntheticOnly: true };
+  }
   @Get("rooms/:id/credentials")
   @UseGuards(LiveCredentialsGuard)
-  roomCredentials() { return { syntheticOnly: true }; }
+  roomCredentials() {
+    return { syntheticOnly: true };
+  }
   @Get("existing-order")
   existing() {
     return { syntheticOnly: true, owned: true };
@@ -45,6 +55,7 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
     emergency = false;
   const flag = { key: "shop_checkout", enabled: true, percentage: 100, targetUserIds: [] };
   const service = {
+    getConfiguredOperationState: async () => (emergency ? "UNOPENED" : state),
     requestScope: async (req: any) =>
       req.headers["x-app-client"] === "test-huawei"
         ? { applicationId: "rebu", platform: "android", channelId: "huawei" }
@@ -72,7 +83,22 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [SyntheticController],
-      providers: [FeatureFlagGuard, LiveCredentialsGuard, Reflector, { provide: FeatureFlagService, useValue: service }, { provide: PrismaService, useValue: { liveRoom: { findUnique: async ({ where }: any) => ({ status: where.id === "already-live" ? "LIVING" : "SCHEDULED" }) } } }],
+      providers: [
+        FeatureFlagGuard,
+        LiveCredentialsGuard,
+        Reflector,
+        { provide: FeatureFlagService, useValue: service },
+        {
+          provide: PrismaService,
+          useValue: {
+            liveRoom: {
+              findUnique: async ({ where }: any) => ({
+                status: where.id === "already-live" ? "LIVING" : "SCHEDULED",
+              }),
+            },
+          },
+        },
+      ],
     }).compile();
     app = module.createNestApplication();
     await app.init();
@@ -83,6 +109,17 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   beforeEach(() => {
     state = "OPEN";
     emergency = false;
+  });
+  it("可选新购买开关开放时允许，维护/只读/急停时拒绝；历史读不取消", async () => {
+    await request(app.getHttpServer()).post("/synthetic/new-course").expect(201);
+    for (const restricted of ["MAINTENANCE", "READ_ONLY", "UNOPENED"]) {
+      state = restricted;
+      await request(app.getHttpServer()).post("/synthetic/new-course").expect(404);
+      await request(app.getHttpServer()).get("/synthetic/existing-order").expect(200);
+    }
+    state = "OPEN";
+    emergency = true;
+    await request(app.getHttpServer()).post("/synthetic/new-course").expect(404);
   });
   it("关闭渠道 POST 拒绝，其他渠道开放；全局急停不能被渠道头放宽", async () => {
     await request(app.getHttpServer())
@@ -105,7 +142,10 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   });
   it("只读允许读取、拒绝写入；统一建单不得绕过关闭的会员购买", async () => {
     state = "READ_ONLY";
-    await request(app.getHttpServer()).get("/synthetic/new-credentials").set("X-App-Client", "test-huawei").expect(404);
+    await request(app.getHttpServer())
+      .get("/synthetic/new-credentials")
+      .set("X-App-Client", "test-huawei")
+      .expect(404);
     await request(app.getHttpServer())
       .get("/synthetic/read")
       .set("X-App-Client", "test-huawei")
@@ -133,10 +173,16 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
       expect(Reflect.getMetadata(FEATURE_FLAG_KEY, shopPrototype[name])).toBeUndefined();
     }
     expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MemberController)).toBeUndefined();
-    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.createRoom)).toBe("live_start");
-    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.getStreamConfig)).toBe("live_start");
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.createRoom)).toBe(
+      "live_start",
+    );
+    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, LiveController.prototype.getStreamConfig)).toBe(
+      "live_start",
+    );
     expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MerchantController)).toBeUndefined();
-    expect(Reflect.getMetadata(FEATURE_FLAG_KEY, MerchantController.prototype.createApplication)).toBe("merchant_onboarding");
+    expect(
+      Reflect.getMetadata(FEATURE_FLAG_KEY, MerchantController.prototype.createApplication),
+    ).toBe("merchant_onboarding");
     for (const method of ["getApplication", "getDepositInfo", "previewAgreement"]) {
       const handler = (MerchantController.prototype as any)[method];
       expect(handler).toBeDefined();
@@ -146,8 +192,14 @@ describe("运营直接 HTTP 裁决与补救边界（合成）", () => {
   it("只读/关闭时拒绝未开播凭证，既有直播续期凭证仍可读取", async () => {
     for (const value of ["READ_ONLY", "UNOPENED"]) {
       state = value;
-      await request(app.getHttpServer()).get("/synthetic/rooms/not-started/credentials").set("X-App-Client", "test-huawei").expect(404);
-      await request(app.getHttpServer()).get("/synthetic/rooms/already-live/credentials").set("X-App-Client", "test-huawei").expect(200);
+      await request(app.getHttpServer())
+        .get("/synthetic/rooms/not-started/credentials")
+        .set("X-App-Client", "test-huawei")
+        .expect(404);
+      await request(app.getHttpServer())
+        .get("/synthetic/rooms/already-live/credentials")
+        .set("X-App-Client", "test-huawei")
+        .expect(200);
     }
   });
 });

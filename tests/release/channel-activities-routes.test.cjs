@@ -8,7 +8,7 @@ const ts = createRequire(path.resolve(__dirname, '../../apps/server/package.json
 function load(file, context = {}, dependencies = {}) {
   const compiled = ts.transpileModule(readFileSync(path.resolve(__dirname, '../../apps/mobile/src/lib/' + file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const exports = {}
-  vm.runInNewContext(compiled, { exports, require: name => dependencies[name], ...context })
+  vm.runInNewContext(compiled, { exports, require: name => name === './operation-request-policy' ? load('operation-request-policy.ts') : dependencies[name], ...context })
   return exports
 }
 test('实际支付/上传 API 生命周期：并发完成一个操作不能误清空另一个租约，异常回调也释放', () => {

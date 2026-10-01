@@ -130,6 +130,7 @@
         </view>
       </view>
 
+      <OperationsPanel surface="agent" />
       <!-- ① 官方学习向导：承担平台内容导航，不与下方垂直学伴重复 -->
       <view class="section-px zx-wrap">
         <view
@@ -386,6 +387,7 @@
 </template>
 
 <script setup lang="ts">
+import OperationsPanel from '@/components/layout/operations-panel.vue'
 /**
  * 智能体广场 —— 陈列重排（2026-07 智能体体验批）
  * 信息架构：① 平台自有助手区（智玄大卡置顶·与 Coze 广场智能体区分）

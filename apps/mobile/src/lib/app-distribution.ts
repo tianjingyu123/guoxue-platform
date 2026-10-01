@@ -15,6 +15,7 @@ export function distributionHeaders(): Record<string, string> {
   return {
     ...(APP_CLIENT_KEY ? { 'X-App-Client': APP_CLIENT_KEY } : {}),
     'X-Native-Build': nativeBuildNumber(),
+    'X-Client-Capabilities': 'presentation-v1',
     'X-Resource-Version': APP_RESOURCE_VERSION,
   }
 }
