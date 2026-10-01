@@ -1,0 +1,123 @@
+{
+  "verifiedAt": "2026-10-01T11:41:05.291Z",
+  "sourceSha": "cf0251cbbd8454195f7bd7dfa8e4a0f2b3a1d051",
+  "sourceDirty": false,
+  "baseSha": "a99cc377415b05617351fac86e5b88359969f3c5",
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "commonStores": 16,
+  "cDefaultEnabled": false,
+  "regression": {
+    "serverSuites": 14,
+    "serverTests": 187,
+    "nodeTests": 84,
+    "skipped": 0
+  },
+  "builds": {
+    "serverExitCode": 0,
+    "adminExitCode": 0,
+    "mobileTypecheckExitCode": 0,
+    "mobileAppResourcesExitCode": 0,
+    "manifest": "artifacts\\phase17-merged-validation\\build-manifest.json",
+    "manifestSha256": "816fa948f5dc8fcf4fabdb8ba9c2cd8d660d2b96cd85d3a054f16473a3ca518f"
+  },
+  "realPostgresSyntheticJwt": {
+    "groups": 6,
+    "acceptedRecords": 21,
+    "auditRecords": 21,
+    "report": "artifacts/phase11-auth-jwt-verified.json"
+  },
+  "realRedisSyntheticSms": {
+    "groups": 4,
+    "concurrentSuccesses": 1,
+    "concurrentExpired": 9,
+    "report": "artifacts/phase16-sms-final-merged.json"
+  },
+  "jvm": {
+    "recoveryGroupsPlatform": 10,
+    "recoveryGroupsBC": 10,
+    "transferGroups": 6,
+    "androidVerified": false
+  },
+  "evidence": {
+    "artifacts\\phase17-merged-validation\\admin-build.log": {
+      "bytes": 60060,
+      "sha256": "a76121bc973360eb215acccfb6e051e8d4950f8260232552f7b69f84b6a7bdb5"
+    },
+    "artifacts\\phase17-merged-validation\\component-regression-ready.log": {
+      "bytes": 7647,
+      "sha256": "3d29f6628fd61509c788baae192276a44cdf51436012d5ab48dc64bbd325dfd4"
+    },
+    "artifacts\\phase17-merged-validation\\component-regression.log": {
+      "bytes": 18653,
+      "sha256": "8158dcfbabd925749957b74773259a2c5ef0c79cf19205b3fb5ea75eebba31b7"
+    },
+    "artifacts\\phase17-merged-validation\\jwt-postgres.log": {
+      "bytes": 236,
+      "sha256": "91ed3e7fe21d0f825dcfa46cf3935d078bf8b5d2cc3efa0445319cdf075634a2"
+    },
+    "artifacts\\phase17-merged-validation\\mobile-app-build-synthetic.log": {
+      "bytes": 68243,
+      "sha256": "a92fc9997d4996038e5d9abe94f9fe80bebcbccca29c932f171a7506436a8325"
+    },
+    "artifacts\\phase17-merged-validation\\mobile-app-build.log": {
+      "bytes": 960,
+      "sha256": "5e72ea50474ab85290c007af3cec0cc3b0312453a4bc9100e07924a11aba90ea"
+    },
+    "artifacts\\phase17-merged-validation\\mobile-typecheck.log": {
+      "bytes": 158,
+      "sha256": "a6f5d932b8c24d0ef9f6b404a0726261da7c72ef80929f9967bba0049ebb04d4"
+    },
+    "artifacts\\phase17-merged-validation\\native-recovery.log": {
+      "bytes": 623,
+      "sha256": "5e59a4c379ae66822a85a63ce7d2bffc16deb03c9da2b77cf5361c0ad317880e"
+    },
+    "artifacts\\phase17-merged-validation\\native-transfer.log": {
+      "bytes": 133,
+      "sha256": "2d2b428a54bf68bd81847110a6feb1eff8317db94cbcadbc4ae160211256c75f"
+    },
+    "artifacts\\phase17-merged-validation\\postgres-identity.log": {
+      "bytes": 38,
+      "sha256": "8522f1652ad01e1dd2fef59e6f5c6aaadee08d703b28b557cbb7eb245cb41ed9"
+    },
+    "artifacts\\phase17-merged-validation\\postgres.log": {
+      "bytes": 1174,
+      "sha256": "b2071938e75fe6925063c464ef3e9b0a4ce1d069472ddd37d29a6f338f306ece"
+    },
+    "artifacts\\phase17-merged-validation\\prerequisites.log": {
+      "bytes": 1588,
+      "sha256": "4da4d35a4a08261cf1733f7cf869f2a7c0285cf7badc996a07bace2e5b891cd1"
+    },
+    "artifacts\\phase17-merged-validation\\server-build.log": {
+      "bytes": 309,
+      "sha256": "240367ace53447494c5e6fa637cd08bec142412411106eb4773d0a265cb28efa"
+    },
+    "artifacts\\phase17-merged-validation\\server-regression.log": {
+      "bytes": 2519,
+      "sha256": "e22f496c298f90c090d5df30511c35402532e5fe5bd3e12030d7d681dffed2aa"
+    },
+    "artifacts\\phase17-merged-validation\\sms-redis-postgres.log": {
+      "bytes": 437,
+      "sha256": "ba66b87694faaa16b86ec08e82dc35d36e51aabb988b470a1dce7ccb626a884c"
+    },
+    "artifacts/phase11-auth-jwt-verified.json": {
+      "bytes": 3161,
+      "sha256": "12299e092bed6deaddec71eab54d6058777c4f3e93341e4cf7872f561353425a"
+    },
+    "artifacts/phase16-sms-final-merged.json": {
+      "bytes": 1425,
+      "sha256": "b6f7ba16eb371fd45e5a94fdabe36889aa8be1f1551cfd199a3d4ccac1068162"
+    },
+    "artifacts\\phase17-merged-validation\\build-manifest.json": {
+      "bytes": 867261,
+      "sha256": "816fa948f5dc8fcf4fabdb8ba9c2cd8d660d2b96cd85d3a054f16473a3ca518f"
+    }
+  },
+  "limits": [
+    "独立合并验证分支，实际主线和服务器均未写入",
+    "App仅编译JS/nvue资源；使用合成公开域名，非签名APK和DCloud完整包",
+    "合成JWT/验证码/账号，第三方身份、短信送达和真实业务未验收",
+    "旧PG schema复用；Prisma差异仅AppVersion索引和唯一键声明顺序，未迁移、未清库",
+    "已有失败与缺配置构建日志保留；缺配置后显式使用合成域名重新构建"
+  ]
+}
