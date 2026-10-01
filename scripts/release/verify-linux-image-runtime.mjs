@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:4e7c962e");
-const sourceCommit = "4e7c962ee14e8f0087871c15a2c31235f516d23d";
-const sourceSha256 = "177d79608062f74525a296a750ebc2f2921d6030b99bf4f62a53d17fac2e036d";
+assert.equal(image, "rebu-linux-verify:8c6ff72a");
+const sourceCommit = "8c6ff72a7c1e406ea184382f7f04fca783c659b2";
+const sourceSha256 = "b935cbaefd3946c40b34d7b0bab771036f3f6b6683c2b5c3bed0573d168b8b19";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -101,11 +101,19 @@ try {
     "PUBLIC_DOMAIN=api.example.invalid", "PUBLIC_API_URL=https://api.example.invalid",
     "PUBLIC_H5_URL=https://h5.example.invalid/h5/", "PUBLIC_ASSET_ORIGIN=https://assets.example.invalid",
     "CORS_ORIGIN=https://h5.example.invalid", "WS_CORS_ORIGIN=https://h5.example.invalid",
-    "RELEASE_ID=isolated-4e7c962e",
+    "RELEASE_ID=isolated-8c6ff72a",
   ].join("\n") + "\n", { mode: 0o600 });
-  const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv, "--entrypoint", "pnpm", image, "--dir", "/app/apps/server", "exec", "prisma", "db", "push", "--skip-generate"]);
+  // 使用固定包中的正式空库初始化入口，不能用 db push 绕过迁移外约束。
+  const schemaOutput = docker(["run", "--rm", "--network", network, "--env-file", appEnv,
+    "-e", "CONFIRM_EMPTY_DATABASE=YES", "--entrypoint", "sh", image,
+    "-c", "cd /app/apps/server && sh prisma/migrations-deploy/bootstrap-empty-database.sh"]);
   writeFileSync(path.join(results, "temporary-schema.log"), schemaOutput);
-  check("temporary-empty-db-final-schema", "仅创建临时空库结构，不验证生产迁移链");
+  const bootstrapCode = readFileSync(new URL("./verify-isolated-channel-operations-http.cjs", import.meta.url), "utf8");
+  const bootstrapReceipt = parseTestResult(docker(["run", "--rm", "--network", network, "--env-file", appEnv,
+    "-e", "ISOLATED_BOOTSTRAP_CHECK=1", "--entrypoint", "node", image, "-e", bootstrapCode]));
+  assert(bootstrapReceipt.passed);
+  save("empty-bootstrap-receipt.json", bootstrapReceipt);
+  check("formal-empty-bootstrap-ledger-and-channel-constraints", bootstrapReceipt);
   // 临时公私钥在封闭容器内生成并加密入临时库，由正式配置加载器读取；不伪造 DB 来源标记。
   const callbackCode = readFileSync(new URL("./verify-isolated-payment-http.cjs", import.meta.url), "utf8");
   const callbackSeed = parseTestResult(docker(["run", "--rm", "--network", network, "--env-file", appEnv,
@@ -126,7 +134,7 @@ try {
   const routes = ["/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health", "/api/v1/mini/home", "/api/v1/contents?page=1&pageSize=1"];
   const httpScript = `Promise.all(${JSON.stringify(routes)}.map(async path=>{const r=await fetch('http://127.0.0.1:3000'+path); const body=await r.json(); return {path,status:r.status,releaseId:body.data?.releaseId||body.releaseId||null};})).then(rows=>{process.stdout.write(JSON.stringify(rows)); if(rows.some(r=>r.status!==200)) process.exitCode=1;}).catch(()=>{process.exitCode=1;})`;
   const http = JSON.parse(docker(["exec", app, "node", "-e", httpScript]));
-  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-4e7c962e"));
+  assert(http.filter(r => r.path === "/api/v1/health/live" || r.path === "/api/v1/health").every(r => r.releaseId === "isolated-8c6ff72a"));
   save("http-startup.json", http);
   check("production-entrypoint-health-public-http", http);
 
@@ -168,6 +176,10 @@ try {
   save("http-permissions.json", permissionReport);
   assert(permissionReport.every(item => item.passed), "正式 HTTP 权限用例存在失败，见 http-permissions.json");
   check("real-jwt-global-guards-cross-user-and-admin-roles", permissionReport);
+  const channelReport = appNode(bootstrapCode);
+  assert(channelReport.passed);
+  save("channel-operations-real-http.json", channelReport);
+  check("channel-registration-real-jwt-roles-public-minimization-default-wgt-denied", channelReport);
 
   // 合成反馈的敏感查看与审计；原始字段只在封闭容器中断言，不写结果或日志。
   const sensitiveReport = appNode(`

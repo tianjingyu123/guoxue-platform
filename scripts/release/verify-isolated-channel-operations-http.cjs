@@ -1,0 +1,66 @@
+// 仅在封闭镜像实验库验证正式初始化和真实 HTTP 权限，不投递外部渠道。
+const assert = require('node:assert/strict');
+const { createRequire } = require('node:module');
+const req = createRequire('/app/apps/server/package.json');
+const { PrismaClient } = req('@prisma/client');
+const prisma = new PrismaClient();
+async function main() {
+  if (process.env.ISOLATED_BOOTSTRAP_CHECK === '1') {
+    const ledger = await prisma.$queryRawUnsafe(`SELECT count(*)::int AS total,
+      count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS complete,
+      count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)::int AS failed FROM "_prisma_migrations"`);
+    assert.deepEqual(ledger[0], { total: 128, complete: 128, failed: 0 });
+    const checks = await prisma.$queryRawUnsafe(`SELECT conname FROM pg_constraint WHERE conname IN
+      ('AppVersion_rollout_check','FeatureFlag_operationState_check','ResourceRelease_rollout_check','ResourceRelease_version_check') ORDER BY conname`);
+    assert.equal(checks.length, 4);
+    const index = await prisma.$queryRawUnsafe(`SELECT indexdef FROM pg_indexes WHERE indexname='AppVersion_applicationId_platform_channelId_version_buildNu_key'`);
+    assert.match(index[0].indexdef, /NULLS NOT DISTINCT/);
+    const arrays = await prisma.$queryRawUnsafe(`SELECT table_name,is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('AppVersion','ResourceRelease') AND column_name='targetUserIds' ORDER BY table_name`);
+    assert.equal(arrays.length, 2);
+    assert(arrays.every(row => row.is_nullable === 'NO'));
+    const registrations = await prisma.appDistribution.findMany({ orderBy: { platform: 'asc' } });
+    assert.equal(registrations.length, 3);
+    assert.deepEqual(registrations.map(row => row.platform), ['android', 'harmony', 'ios']);
+    assert(registrations.every(row => row.channelId === 'legacy' && row.wgtPolicy === 'DENIED'));
+    return { passed: true, ledger: ledger[0], checkConstraints: checks.map(row => row.conname), nullsNotDistinct: true,
+      targetUserIdsNotNull: true, compatibilitySlots: registrations.map(({ platform, wgtPolicy }) => ({ platform, wgtPolicy })),
+      scope: 'formal-empty-bootstrap-only-not-production-upgrade' };
+  }
+  const jwt = req('jsonwebtoken');
+  const rows = [];
+  const request = async (name, user, route, expected, method = 'GET', body) => {
+    const headers = user ? { Authorization: 'Bearer ' + jwt.sign({ sub: user, sessionIssuedAt: Date.now() }, process.env.JWT_SECRET, { expiresIn: '5m' }) } : {};
+    if (body) headers['Content-Type'] = 'application/json';
+    const response = await fetch('http://127.0.0.1:3000/api/v1' + route, {
+      method, headers, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(10000)
+    });
+    rows.push({ name, expected, status: response.status, passed: response.status === expected });
+    assert.equal(response.status, expected, name);
+    const json = await response.json();
+    return json.data ?? json;
+  };
+  const route = '/system/distributions';
+  const dto = { applicationId: 'rebu-isolated', productId: 'rebu-isolated', platform: 'android', channelId: 'official',
+    clientKey: 'rebu-isolated-http', packageName: 'cn.invalid.isolated', signingCertificateSha256: 'a'.repeat(64), policyEvidence: '仅隔离验证，不构成渠道许可' };
+  await request('anonymous-list-denied', null, route, 401);
+  await request('ordinary-list-denied', 'linux-user-a', route, 403);
+  await request('operation-list-allowed', 'linux-ops', route, 200);
+  await request('operation-register-denied', 'linux-ops', route, 403, 'POST', dto);
+  assert.equal(await prisma.appDistribution.count({ where: { clientKey: dto.clientKey } }), 0);
+  await request('super-invalid-combination-denied', 'linux-super', route, 400, 'POST', { ...dto, platform: 'ios', channelId: 'xiaomi' });
+  assert.equal(await prisma.appDistribution.count({ where: { clientKey: dto.clientKey } }), 0);
+  const created = await request('super-register-allowed', 'linux-super', route, 201, 'POST', dto);
+  assert.equal(created.wgtPolicy, 'DENIED');
+  const stored = await prisma.appDistribution.findUnique({ where: { clientKey: dto.clientKey } });
+  assert.equal(stored.wgtPolicy, 'DENIED');
+  const visible = await request('anonymous-public-registration', null, route + '/public/' + dto.clientKey, 200);
+  assert.deepEqual(Object.keys(visible).sort(), ['applicationId', 'channelId', 'clientKey', 'packageName', 'platform', 'productId']);
+  assert.equal(visible.clientKey, dto.clientKey);
+  await request('ordinary-operation-management-denied', 'linux-user-a', '/admin/feature-flags', 403);
+  await request('operation-management-read-allowed', 'linux-ops', '/admin/feature-flags', 200);
+  return { passed: true, rows, defaultWgtDenied: true, rejectedWritesLeaveNoRecord: true, publicFieldsMinimized: true,
+    realJwtAndGuards: true, noExternalPublish: true };
+}
+main().then(result => console.log('NODE_TEST_RESULT:' + JSON.stringify(result)))
+  .catch(error => { console.error(error.message); process.exitCode = 1; })
+  .finally(() => prisma.$disconnect());
