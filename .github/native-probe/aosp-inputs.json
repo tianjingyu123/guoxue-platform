@@ -1,0 +1,59 @@
+{
+  "harnessSource": "13ac25dfb55e0f0dc636b684455ec852dedd0520",
+  "apkSource": "80216bf8dfcbb262aed66bc039655baf76902d11",
+  "syntheticOnly": true,
+  "dcloud": false,
+  "files": [
+    {
+      "path": ".github/native-probe/verify-native-probe.mjs",
+      "bytes": 12652,
+      "sha256": "0212e53632926c607ba7fef7e4c3df4ce7ce1489f11d82238edf954a50c87278"
+    },
+    {
+      "path": ".github/native-probe/android-probe-install.mjs",
+      "bytes": 4634,
+      "sha256": "693cb3a299c408580160914148d71b41b898aa1732a1bb9e6209fe2e22f85e68"
+    },
+    {
+      "path": ".github/native-probe/android-probe-device-identity.mjs",
+      "bytes": 1597,
+      "sha256": "40e47525c4c1844153f38e710a1ef08585e26ebef600cf84ab86d86fc0d31bed"
+    },
+    {
+      "path": ".github/native-probe/android-probe-log-cutoff.mjs",
+      "bytes": 830,
+      "sha256": "051f733cdc32065061a95acf5855f9132f499334e604eb53f05429f9e7f1e73e"
+    },
+    {
+      "path": ".github/native-probe/android-probe-log-stream.mjs",
+      "bytes": 3870,
+      "sha256": "978a310a7024127a2e3fe9ded47c41927158065b0a77294d957161fa97313237"
+    },
+    {
+      "path": ".github/native-probe/android-probe-recovery-evidence.mjs",
+      "bytes": 2229,
+      "sha256": "076112cc2166728881226b3550e2f468199106176979ebd809b13fdd89109b9c"
+    },
+    {
+      "path": ".github/native-probe/build.json",
+      "bytes": 780,
+      "sha256": "ea9aadff5cf45115c769130e0d5e8893601cb6aa9da7695a85358593fb97b49f"
+    },
+    {
+      "path": ".github/native-probe/rebu-native-probe-39.apk",
+      "bytes": 985049,
+      "sha256": "96300f12abb3561eb0d00bc00610f0d925785a501cde5ac97cb939e15c2789ea"
+    },
+    {
+      "path": ".github/native-probe/run-linux-aosp.sh",
+      "bytes": 6810,
+      "sha256": "e7a42429b4898120f944003f4d2d34c30c13e5c3b75a41a0ce0f62292888328e"
+    },
+    {
+      "path": ".github/native-probe/StandardSdkLicense.java",
+      "bytes": 3116,
+      "sha256": "8facb0d6912d3972109544213358bd0e69bc719b52cc68fc65ca334338b9cdad"
+    }
+  ],
+  "flavor": "aosp-default-x86_64"
+}
