@@ -1,11 +1,16 @@
 import com.android.repository.api.License;
-import com.android.repository.api.RepoManager;
+import com.android.repository.api.Repository;
+import com.android.repository.api.ProgressIndicatorAdapter;
+import com.android.repository.impl.meta.SchemaModuleUtil;
+import com.android.sdklib.repository.AndroidSdkHandler;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Element;
+import javax.xml.bind.JAXBElement;
 
 /** 只读核对官方 AOSP 镜像引用的现有许可，不接受或写入许可。 */
 public final class StandardSdkLicense {
@@ -43,11 +48,18 @@ public final class StandardSdkLicense {
       }
       if(!found) throw new IllegalStateException("官方目录没有所需 AOSP 包");
     }
-    License license = RepoManager.getCommonModule().createLatestFactory().createLicenseType();
-    license.setId(id);
-    license.setValue(text);
+    // 使用 SDK 真正的 JAXB 加载路径及文本适配器，保留原文摘要另作来源核对。
+    Object loaded;
+    try(var stream = Files.newInputStream(Path.of(args[1]))) {
+      loaded = SchemaModuleUtil.unmarshal(stream, AndroidSdkHandler.getAllModules(), false, new ProgressIndicatorAdapter() {}, null);
+    }
+    if(loaded instanceof JAXBElement) loaded = ((JAXBElement<?>)loaded).getValue();
+    Repository repository = (Repository)loaded;
+    License license = repository.getLicense().stream().filter(item -> item.getId().equals(id)).findFirst().orElseThrow();
+    String normalizedDigest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(license.getValue().getBytes(StandardCharsets.UTF_8)));
+    if(!normalizedDigest.equals("aaf80cd0aee7e569ffa8a4be1b61189c0fefccf23068e38dfafe336289b8c723")) throw new IllegalStateException("官方加载器许可文本变化");
     boolean accepted = license.checkAccepted(sdk);
-    System.out.println("{\"licenseId\":\""+id+"\",\"textSha256\":\""+digest+"\",\"officialAcceptanceHash\":\""+license.getLicenseHash()+"\",\"accepted\":"+accepted+",\"mutated\":false,\"packageFlavor\":\"default/x86_64\",\"method\":\"official SDK License.checkAccepted\"}");
+    System.out.println("{\"licenseId\":\""+id+"\",\"rawTextSha256\":\""+digest+"\",\"normalizedTextSha256\":\""+normalizedDigest+"\",\"officialAcceptanceHash\":\""+license.getLicenseHash()+"\",\"accepted\":"+accepted+",\"mutated\":false,\"packageFlavor\":\"default/x86_64\",\"method\":\"official SchemaModuleUtil.unmarshal and License.checkAccepted\"}");
     if(!accepted) throw new IllegalStateException("现有许可未接受，停止安装");
   }
 }

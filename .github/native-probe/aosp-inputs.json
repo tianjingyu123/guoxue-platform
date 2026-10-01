@@ -51,8 +51,8 @@
     },
     {
       "path": ".github/native-probe/StandardSdkLicense.java",
-      "bytes": 3116,
-      "sha256": "8facb0d6912d3972109544213358bd0e69bc719b52cc68fc65ca334338b9cdad"
+      "bytes": 4193,
+      "sha256": "037e3aa30d74904da09f591d9d469effae2c012be1a2af95913a9414292d30a7"
     }
   ],
   "flavor": "aosp-default-x86_64"
