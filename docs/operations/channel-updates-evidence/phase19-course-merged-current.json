@@ -1,0 +1,91 @@
+{
+  "verifiedAt": "2026-10-01T13:24:18.146Z",
+  "sourceSha": "c53d04396c5593a8a3964b955213c03a7c7bd3fb",
+  "sourceDirty": false,
+  "mainlineSnapshot": "a5f3d5a6395dae86b6d368b1daf21dcae6502792",
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "regression": {
+    "serverTests": 45,
+    "serverSuites": 2,
+    "failed": 0,
+    "serverBuildExitCode": 0
+  },
+  "serverBuild": {
+    "fileCount": 3458,
+    "manifest": "artifacts\\phase19-course-merged-current\\build-manifest.json"
+  },
+  "previousEvidenceReuse": {
+    "sourceSha": "fbcd9f5661c9877deb52a60c96688cb8b9230ffe",
+    "unchangedInputs": {
+      "apps/mobile": {
+        "previousObject": "f86eeebf73ce5814e860a90023128bb7d3950ca6",
+        "currentObject": "f86eeebf73ce5814e860a90023128bb7d3950ca6",
+        "identical": true
+      },
+      "apps/admin": {
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "packages": {
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      }
+    },
+    "previousFrozenFilesVerified": 4428,
+    "clientTests": 304,
+    "appH5MpBuildsPassed": true,
+    "sourceRebound": false
+  },
+  "review": {
+    "patch": "artifacts\\phase19-course-merged-current\\review-verified\\merged-from-a5f3d5a6.patch",
+    "bundle": "artifacts\\phase19-course-merged-current\\review-verified\\merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "9186fa4e600fea67a723c9bc5c2c8c44efd0242c",
+    "sourceTree": "9186fa4e600fea67a723c9bc5c2c8c44efd0242c",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts\\phase19-course-merged-current\\server-tests.log": {
+      "bytes": 784,
+      "sha256": "209854721dfefac827ef2c94fbae46ffa4abedac4216f9bbffd1382eb31dc036"
+    },
+    "artifacts\\phase19-course-merged-current\\server-tests-exit.txt": {
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    "artifacts\\phase19-course-merged-current\\server-build.log": {
+      "bytes": 147,
+      "sha256": "c755a2ea4d97a0a00560c339eceed1f451ed33a92d08159f0bd68d09b3328838"
+    },
+    "artifacts\\phase19-course-merged-current\\server-build-exit.txt": {
+      "bytes": 1,
+      "sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+    },
+    "artifacts\\phase19-course-merged-current\\build-manifest.json": {
+      "bytes": 611009,
+      "sha256": "4f9fb3a1ed2dfd75f3bd11bec1266e095177e672369df90202faa98f394a49b3"
+    },
+    "artifacts\\phase19-course-merged-current\\review-verified\\merged-from-a5f3d5a6.patch": {
+      "bytes": 351652,
+      "sha256": "9fff24ec1f12252d5b997b90f75f4ff5efe13c6f48737ce1c75f15a05f33b743"
+    },
+    "artifacts\\phase19-course-merged-current\\review-verified\\merged.bundle": {
+      "bytes": 106470,
+      "sha256": "84e0152691bc737969d68287a7eb45fffb8f36cea7a40742009af4e452393ea2"
+    }
+  },
+  "limits": [
+    "新增回归使用模拟依赖，不代表生产双节点或真实课程提醒验收",
+    "旧187项服务端联调仍绑定cf0251；不将其覆盖或重绑定至本次源码",
+    "客户端证据继续绑定fbcd9f；只核对输入Git对象和冻结产物保持一致",
+    "未实际接收主线、推送、部署、发送通知或提交商店"
+  ]
+}
