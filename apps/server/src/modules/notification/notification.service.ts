@@ -38,6 +38,13 @@ export class NotificationService {
 
   /** 给单个用户发送通知（DB存储 + 推送通道） */
   async send(userId: string, dto: SendNotificationDto) {
+    const notification = await this.persistNotification(userId, dto);
+    await this.pushPersistedNotification(userId, dto);
+    return notification;
+  }
+
+  /** 只有站内通知成功持久化，业务调用方才可确认通知已建立。 */
+  private async persistNotification(userId: string, dto: SendNotificationDto) {
     // 1. 写入DB
     const notification = await this.prisma.notification.create({
       data: {
@@ -61,7 +68,11 @@ export class NotificationService {
         .catch((err) => this.logger.warn(`圈内通知分类落库失败 id=${notification.id}`, err));
     }
 
-    // 落库已成功，后续偏好查询或推送失败不能让调用方误以为通知未写入并释放幂等锁。
+    return notification;
+  }
+
+  /** 可选推送独立于持久化；其失败不能导致已落库通知被再次创建。 */
+  private async pushPersistedNotification(userId: string, dto: SendNotificationDto): Promise<void> {
     try {
       const prefs = await this.getPreferences(userId);
       if (prefs.PUSH_ENABLED === false) {
@@ -72,13 +83,12 @@ export class NotificationService {
     } catch (err) {
       this.logger.warn(`通知已落库，但推送准备失败 user=${userId}`, err);
     }
-
-    return notification;
   }
 
   /**
    * 关键业务事件的幂等发送。幂等键只在成功落库后保留；落库失败会释放，便于任务重试。
-   * 这是候选补齐能力，暂不改变既有 send 调用方。
+   * 成功落库后不等待可选推送准备，避免支付、退款结果被推送偏好或渠道响应拖住。
+   * 普通 send 的等待语义不变；这里不承诺进程退出后的推送补偿。
    */
   async sendOnce(userId: string, idempotencyKey: string, dto: SendNotificationDto) {
     if (!idempotencyKey.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键不能为空");
@@ -87,7 +97,13 @@ export class NotificationService {
     const claimed = await this.redis.setNX(key, "1", PREFS_TTL);
     if (!claimed) return null;
     try {
-      return await this.send(userId, { ...dto, idempotencyKey });
+      const keyedDto = { ...dto, idempotencyKey };
+      const notification = await this.persistNotification(userId, keyedDto);
+      // 错误在 helper 内处理；保留兜底 catch，异步任务不会成为未处理拒绝。
+      void this.pushPersistedNotification(userId, keyedDto).catch((err) =>
+        this.logger.warn(`通知已落库，但可选推送任务失败 user=${userId}`, err),
+      );
+      return notification;
     } catch (err) {
       // Redis 丢失或 30 天后重投时，数据库唯一键仍是最终防重线。
       if (isUniqueConstraintError(err)) return null;
