@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "status": "READ_ONLY_PREFLIGHT_COMPLETE_NO_GO",
+  "businessSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "deliveryHead": "9688448e67aa21890252246c0f0cbcb4f7966f25",
+  "fixedPackageSha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+  "observations": [
+    {
+      "instanceId": "ins-0sen8yvf",
+      "hostname": "VM-0-10-ubuntu",
+      "observedUtc": "2026-10-01T00:52:01Z",
+      "invocation": "inv-a9bmqqgx08",
+      "task": "invt-a9bmqqgx09",
+      "healthInvocation": "inv-a9bmsd0b9r",
+      "healthTask": "invt-a9bmsd0b9s",
+      "releaseId": "preprod-cd055084-20260903-r1",
+      "serverState": "running",
+      "restartCount": 0,
+      "memoryAvailableKiB": 12400644,
+      "diskAvailableKiB": 153115960,
+      "diskUsedPercent": 48,
+      "onlineBackupPresent": true,
+      "onlineBackupSha256Match": true,
+      "finalBackupCount": 0
+    },
+    {
+      "instanceId": "ins-n0sqc627",
+      "hostname": "VM-0-14-ubuntu",
+      "observedUtc": "2026-10-01T00:52:55Z",
+      "invocation": "inv-d9bmrj0hgw",
+      "task": "invt-d9bmrj0hgx",
+      "healthInvocation": "inv-c9bmsw07ci",
+      "healthTask": "invt-c9bmsw07cj",
+      "releaseId": "preprod-cd055084-20260903-r1",
+      "serverState": "running",
+      "restartCount": 0,
+      "memoryAvailableKiB": 13209452,
+      "diskAvailableKiB": 229832564,
+      "diskUsedPercent": 21,
+      "onlineBackupPresent": false,
+      "finalBackupCount": 0
+    }
+  ],
+  "database": {
+    "database": "guoxue",
+    "schema": "public",
+    "version": "18.4",
+    "sizeBytes": 3367982783,
+    "completedMigrations": 103,
+    "failedOrUnfinishedMigrations": 0,
+    "expectedTotalMigrations": 127,
+    "expectedPendingMigrations": 24,
+    "connections": 41,
+    "maxConnections": 2048,
+    "idleInTransaction": 0,
+    "longTransactionsOver5Minutes": 0,
+    "lockWaiters": 0,
+    "blockedSessions": 0,
+    "deadlocks": 0
+  },
+  "configuration": {
+    "publicApiFormalBothNodes": true,
+    "publicH5FormalBothNodes": false,
+    "corsHasGxBothNodes": false,
+    "wsCorsHasGxBothNodes": false,
+    "environmentHashesEqual": false
+  },
+  "productionActionsPerformed": false
+}

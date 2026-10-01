@@ -1,0 +1,189 @@
+{
+  "runtime": {
+    "artifactId": 11135332964,
+    "artifactBytes": 51754,
+    "realNotifications": 0,
+    "productionMigration": false,
+    "runId": 36799476632,
+    "postDetailHttpCases": 89,
+    "notificationTargetScopes": {
+      "post": true,
+      "allTargets": false,
+      "order": true
+    },
+    "realMoneyOperations": 0,
+    "sourceSha256": "9062104e0254d528b8ebd3d48cfa7945b54d184e47e186753bfcac00afe45d9e",
+    "imageId": "sha256:a832564ded500f60814f0f3c48be7c267abe50c926bf9d54c724fe8639420cbc",
+    "checks": 21,
+    "realChannelsVerified": false,
+    "targetNodesVerified": false,
+    "verificationCommit": "72a62753370cb33738b1ddaaf72c3aa50d6ac885",
+    "rewardHttpCases": 19,
+    "paymentRefundHttpCases": 22,
+    "sourceCommit": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
+    "cleanup": {
+      "rebu-app-second-e278cbf380": true,
+      "rebu-app-e278cbf380": true,
+      "rebu-db-e278cbf380": true,
+      "rebu-redis-e278cbf380": true,
+      "networkAbsent": true
+    },
+    "passed": true,
+    "checkedAtUtc": "2026-10-01T01:16:55.8503393Z",
+    "productionDeployment": false,
+    "artifactSha256": "ab91052381509ae34c2dfe4347129877cc4b9e307b015fe728031e83c2e905eb",
+    "releaseDecision": "NO-GO",
+    "allNotificationTriggersCompleted": false
+  },
+  "realNotifications": 0,
+  "allNotificationTriggersCompleted": false,
+  "baseCommit": "9688448e67aa21890252246c0f0cbcb4f7966f25",
+  "fixedPackage": {
+    "releaseId": 400058667,
+    "draft": true,
+    "bytes": 15602485,
+    "assetId": 602126073,
+    "sha256": "9062104e0254d528b8ebd3d48cfa7945b54d184e47e186753bfcac00afe45d9e",
+    "files": 4370,
+    "name": "gx-deploy-91-launch-20260930-5b7bcd2a.tar.gz"
+  },
+  "reception": "fast-forward-no-conflicts",
+  "fullCI": {
+    "run": 36799352558,
+    "status": "completed-success",
+    "checks": 8,
+    "shards": [
+      {
+        "jobId": 110170386191,
+        "name": "单元测试 (2/3)",
+        "conclusion": "success",
+        "logSha256": "80e344ad34383ee3a894b7bf2d4ed99446ad67edc21d925328bd8cd849b1759d",
+        "summaries": [
+          "2026-10-01T01:09:37.8525123Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:09:37.8526051Z Tests:       50 skipped, 3045 passed, 3095 total",
+          "2026-10-01T01:09:37.8526970Z Time:        116.473 s"
+        ]
+      },
+      {
+        "jobId": 110170386241,
+        "name": "单元测试 (3/3)",
+        "conclusion": "success",
+        "logSha256": "b6b63afb830cd95039e98c12660f39d4bf7295bb9c9faaea676cfdbf2b293470",
+        "summaries": [
+          "2026-10-01T01:10:19.4165436Z Test Suites: 10 skipped, 218 passed, 218 of 228 total",
+          "2026-10-01T01:10:19.4166308Z Tests:       39 skipped, 3035 passed, 3074 total",
+          "2026-10-01T01:10:19.4167416Z Time:        138.894 s"
+        ]
+      },
+      {
+        "jobId": 110170386251,
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "logSha256": "d0e0252ad198f57c3040a921be4ac89b966149a61cec95879874a75414988cfe",
+        "summaries": [
+          "2026-10-01T01:20:30.2653855Z Test Suites: 8 skipped, 220 passed, 220 of 228 total",
+          "2026-10-01T01:20:30.2654716Z Tests:       44 skipped, 2800 passed, 2844 total",
+          "2026-10-01T01:20:30.2655716Z Time:        769.539 s"
+        ]
+      }
+    ],
+    "suitesPassed": 658,
+    "testsPassed": 8880,
+    "sourceCommit": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
+    "testsSkipped": 133,
+    "artifact": {
+      "id": 11136290277,
+      "bytes": 7401490,
+      "sha256": "cea3cd7623498eecfa9997c2f4bfef5d42bd10c059113cd8f6c81a2e5fd4650e"
+    }
+  },
+  "reusedInputBindings": [
+    {
+      "equivalent": true,
+      "sourceObject": "c1416066d0fc3ea1eb19ba8c1ba0964ef18e79ee",
+      "baseObject": "c1416066d0fc3ea1eb19ba8c1ba0964ef18e79ee",
+      "path": "apps/mobile"
+    },
+    {
+      "equivalent": true,
+      "sourceObject": "029417a3bdfd881c9e4e4827566487baf9efb20d",
+      "baseObject": "029417a3bdfd881c9e4e4827566487baf9efb20d",
+      "path": "apps/admin"
+    },
+    {
+      "equivalent": true,
+      "sourceObject": "2c90c2c3e9cd045bba81507210ac013e7ec21767",
+      "baseObject": "2c90c2c3e9cd045bba81507210ac013e7ec21767",
+      "path": "apps/server/prisma"
+    },
+    {
+      "equivalent": true,
+      "sourceObject": "343e361fbb5e83befa51fcef48bc30ca301f8f1a",
+      "baseObject": "343e361fbb5e83befa51fcef48bc30ca301f8f1a",
+      "path": "packages"
+    },
+    {
+      "equivalent": true,
+      "sourceObject": "109dfe5ddc92eebc121e64e6bad40c338018dc2b",
+      "baseObject": "109dfe5ddc92eebc121e64e6bad40c338018dc2b",
+      "path": "pnpm-lock.yaml"
+    },
+    {
+      "equivalent": true,
+      "sourceObject": "093ddff1372079e7777f525dfea266526921e82a",
+      "baseObject": "093ddff1372079e7777f525dfea266526921e82a",
+      "path": "docker"
+    }
+  ],
+  "productionDeployment": false,
+  "releaseDecision": "NO-GO",
+  "productionMigration": false,
+  "localRegression": {
+    "typecheck": "passed",
+    "newSpecPrettier": "passed",
+    "tests": 130,
+    "suites": 5,
+    "eslintQuiet": "passed",
+    "failed": 0,
+    "passed": 130
+  },
+  "localEvidenceHashes": [
+    {
+      "name": "before.json",
+      "sha256": "942c0a994f5017e3b0182403b7605d4ea7a6bc3f029209c3d69e7dea26eb7973"
+    },
+    {
+      "name": "after.json",
+      "sha256": "f83b292f7fec95bdbeec044b27c5902ac2372bf4952655053613b076609341f7"
+    },
+    {
+      "name": "typecheck-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "eslint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "realMoneyOperations": 0,
+  "sourceCommit": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
+  "before": {
+    "tests": 14,
+    "failed": 9,
+    "passed": 5
+  },
+  "changedPaths": [
+    "apps/server/src/modules/circle/circle.controller.spec.ts",
+    "apps/server/src/modules/circle/circle.controller.ts",
+    "apps/server/src/modules/circle/circle.service.ts",
+    "apps/server/src/modules/circle/services/circle-post-read-boundary.spec.ts",
+    "apps/server/src/modules/circle/services/circle-post.service.ts"
+  ],
+  "staticAudit": {
+    "P1": 0,
+    "P0": 0,
+    "notFullAcceptance": true,
+    "P2Markers": 11,
+    "scannedFiles": 2400
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "candidateSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "candidateSource": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
   "matrixSource": "08a5c0acea4ddc28db05b4ec6f563573bb4475b9",
   "checkedPaths": [
     "apps/server/src/modules/notification",
@@ -25,6 +25,7 @@
     "apps/server/src/modules/circle/circle.service.ts",
     "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
     "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+    "apps/server/src/modules/circle/services/circle-post-read-boundary.spec.ts",
     "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
     "apps/server/src/modules/circle/services/circle-post.service.ts",
     "apps/server/src/modules/coin/coin-transaction-boundary.spec.ts",
@@ -76,8 +77,8 @@
       "apps/server/src/modules/circle/services/circle-post.service.ts"
     ]
   },
-  "previousCandidateSource": "48ac4cf4489f4a1f5241c421375da2fab3154d39",
-  "checkedAtUtc": "2026-10-01T00:40:12.4020627Z",
+  "previousCandidateSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "checkedAtUtc": "2026-10-01T01:17:28.1701107Z",
   "rewardNotificationEventKey": "POST_REWARD:<debitId>",
   "rewardFundsAtomic": true,
   "rewardNotificationAwaited": false,
@@ -111,7 +112,7 @@
       "path": "apps/server/src/modules/circle",
       "matrixObject": "4de1c9fa3bbf4708ee12071bb68eaa85d957a612",
       "equivalent": false,
-      "candidateObject": "38b8fb477c3f971031f8dba1809083002f34d597"
+      "candidateObject": "a9c918310cdfbc6e36807331b723b8795345db5a"
     },
     {
       "path": "apps/server/src/modules/shop",
@@ -150,12 +151,22 @@
       "candidateObject": "593ef5c060c8acf9553864036734b4fe24fdb0f0"
     }
   ],
-  "finalHttpRuntimeRun": 36797126981,
-  "finalHttpRuntimeChecks": 20,
-  "finalHttpRuntimeSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+  "finalHttpRuntimeRun": 36799476632,
+  "finalHttpRuntimeChecks": 21,
+  "finalHttpRuntimeSource": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
   "notificationTargetScopes": {
-    "post": false,
+    "post": true,
     "order": true,
     "allTargets": false
+  },
+  "historicalB6Runtime": {
+    "source": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "run": 36797126981,
+    "notificationTargetScopes": {
+      "post": true,
+      "order": true,
+      "allTargets": false
+    },
+    "checks": 20
   }
 }

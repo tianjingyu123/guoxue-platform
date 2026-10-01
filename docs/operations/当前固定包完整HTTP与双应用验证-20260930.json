@@ -1,118 +1,36 @@
 {
-  "artifactSha256": "cd1d623cbf40f2e4b3dab93f40342a861baa2567e6ce56a8d8c1a44bcd804f95",
-  "scope": "isolated-empty-db-no-real-channels",
-  "artifactId": 11133914509,
-  "artifactBytes": 50635,
-  "verificationCommit": "e43b1818564b75a248f30528a461066d26ad8a7c",
-  "checks": 20,
-  "checkedAtUtc": "2026-10-01T00:46:12.6371565Z",
-  "rewardHttpCases": 19,
-  "targetNodesVerified": false,
-  "sourceSha256": "c666741a8da449ea610af565954d03979f8829f69986904a4911bf81e55ce047",
+  "artifactId": 11135332964,
+  "artifactBytes": 51754,
+  "realNotifications": 0,
+  "productionMigration": false,
+  "runId": 36799476632,
+  "postDetailHttpCases": 89,
+  "notificationTargetScopes": {
+    "post": true,
+    "allTargets": false,
+    "order": true
+  },
+  "realMoneyOperations": 0,
+  "sourceSha256": "9062104e0254d528b8ebd3d48cfa7945b54d184e47e186753bfcac00afe45d9e",
+  "imageId": "sha256:a832564ded500f60814f0f3c48be7c267abe50c926bf9d54c724fe8639420cbc",
+  "checks": 21,
   "realChannelsVerified": false,
+  "targetNodesVerified": false,
+  "verificationCommit": "72a62753370cb33738b1ddaaf72c3aa50d6ac885",
+  "rewardHttpCases": 19,
   "paymentRefundHttpCases": 22,
-  "checksDetail": [
-    {
-      "name": "image-identity",
-      "passed": true
-    },
-    {
-      "name": "prisma-source-compile-runtime-binding",
-      "passed": true
-    },
-    {
-      "name": "grpc-security-version-in-runtime-image",
-      "passed": true
-    },
-    {
-      "name": "admin-h5-base-and-public-config",
-      "passed": true
-    },
-    {
-      "name": "postgres-major-match",
-      "passed": true
-    },
-    {
-      "name": "temporary-empty-db-final-schema",
-      "passed": true
-    },
-    {
-      "name": "production-entrypoint-health-public-http",
-      "passed": true
-    },
-    {
-      "name": "real-jwt-global-guards-cross-user-and-admin-roles",
-      "passed": true
-    },
-    {
-      "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
-      "passed": true
-    },
-    {
-      "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
-      "passed": true
-    },
-    {
-      "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
-      "passed": true
-    },
-    {
-      "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
-      "passed": true
-    },
-    {
-      "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
-      "passed": true
-    },
-    {
-      "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
-      "passed": true
-    },
-    {
-      "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
-      "passed": true
-    },
-    {
-      "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
-      "passed": true
-    },
-    {
-      "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
-      "passed": true
-    },
-    {
-      "name": "redis7-two-process-notification-idempotency",
-      "passed": true
-    },
-    {
-      "name": "database-unique-after-redis-key-loss",
-      "passed": true
-    },
-    {
-      "name": "notification-failure-release-and-two-process-retry",
-      "passed": true
-    }
-  ],
-  "runId": 36797126981,
-  "sourceCommit": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
-  "passed": true,
-  "imageId": "sha256:368c3893277cdd4bc4a6e778fc3facfdd24db2b1ed69783b3c1d99b4f89ae887",
+  "sourceCommit": "5b7bcd2a8d568bd0a28aff948af788647bb544f6",
   "cleanup": {
-    "rebu-app-second-41eaabf87f": true,
-    "rebu-app-41eaabf87f": true,
-    "rebu-db-41eaabf87f": true,
-    "rebu-redis-41eaabf87f": true,
+    "rebu-app-second-e278cbf380": true,
+    "rebu-app-e278cbf380": true,
+    "rebu-db-e278cbf380": true,
+    "rebu-redis-e278cbf380": true,
     "networkAbsent": true
   },
-  "notificationTargetScopes": {
-    "post": false,
-    "order": true,
-    "allTargets": false
-  },
-  "allNotificationTriggersCompleted": false,
+  "passed": true,
+  "checkedAtUtc": "2026-10-01T01:16:55.8503393Z",
   "productionDeployment": false,
-  "productionMigration": false,
-  "realMoneyOperations": 0,
-  "realNotifications": 0,
-  "releaseDecision": "NO-GO"
+  "artifactSha256": "ab91052381509ae34c2dfe4347129877cc4b9e307b015fe728031e83c2e905eb",
+  "releaseDecision": "NO-GO",
+  "allNotificationTriggersCompleted": false
 }
