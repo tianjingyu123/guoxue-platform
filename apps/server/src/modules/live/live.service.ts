@@ -344,7 +344,7 @@ export class LiveService {
     const updated = await this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
 
     // 开播 → 通知预约用户（圈内通知中心·直播 LIVE·fire-and-forget 不阻断开播）
-    // TODO(#25 通知部分·后续)：开播前 15 分钟提醒需定时任务扫描预约集合，本轮只做开播即时通知。
+    // 开播前提醒和失败补偿由下方分钟级任务扫描持久化预约。
     if (status === "LIVING") {
       this.notifyBookedUsers(updated).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
     }
@@ -452,7 +452,12 @@ export class LiveService {
       take: 100,
     });
     for (const room of rooms) {
-      await this.notifyBookedUsers(room);
+      try {
+        await this.notifyBookedUsers(room);
+      } catch (err) {
+        // 保留未成功标记的预约供下轮重试，单场失败不能阻断后续房间。
+        this.logger.warn(`开播预约通知补偿失败 room=${room.id}`, err);
+      }
     }
   }
 
@@ -474,30 +479,35 @@ export class LiveService {
         take: 100,
       });
       for (const room of rooms) {
-        const minutesUntilStart = Math.max(1, Math.ceil(((room.startTime?.getTime() ?? now) - now) / 60_000));
-        for (let batch = 0; batch < LiveService.BOOKING_NOTIFICATION_MAX_BATCHES_PER_RUN; batch += 1) {
-          const bookings = await this.prisma.liveBooking.findMany({
-            where: { roomId: room.id, status: "BOOKED", remindedAt: null },
-            select: { id: true, userId: true },
-            orderBy: { createdAt: "asc" },
-            take: LiveService.BOOKING_NOTIFICATION_BATCH_SIZE,
-          });
-          if (!bookings.length) break;
-          await notification.batchSend({
-            userIds: bookings.map((item) => item.userId),
-            type: "LIVE_REMINDER",
-            title: "预约直播即将开始",
-            content: `直播「${room.title || "直播间"}」将在约 ${minutesUntilStart} 分钟后开始`,
-            targetType: "LIVE_ROOM",
-            targetId: room.id,
-            category: "LIVE",
-            circleId: room.circleId ?? undefined,
-          }, `LIVE_REMINDER:${room.id}`);
-          await this.prisma.liveBooking.updateMany({
-            where: { id: { in: bookings.map((item) => item.id) }, remindedAt: null },
-            data: { remindedAt: new Date() },
-          });
-          if (bookings.length < LiveService.BOOKING_NOTIFICATION_BATCH_SIZE) break;
+        try {
+          const minutesUntilStart = Math.max(1, Math.ceil(((room.startTime?.getTime() ?? now) - now) / 60_000));
+          for (let batch = 0; batch < LiveService.BOOKING_NOTIFICATION_MAX_BATCHES_PER_RUN; batch += 1) {
+            const bookings = await this.prisma.liveBooking.findMany({
+              where: { roomId: room.id, status: "BOOKED", remindedAt: null },
+              select: { id: true, userId: true },
+              orderBy: { createdAt: "asc" },
+              take: LiveService.BOOKING_NOTIFICATION_BATCH_SIZE,
+            });
+            if (!bookings.length) break;
+            await notification.batchSend({
+              userIds: bookings.map((item) => item.userId),
+              type: "LIVE_REMINDER",
+              title: "预约直播即将开始",
+              content: `直播「${room.title || "直播间"}」将在约 ${minutesUntilStart} 分钟后开始`,
+              targetType: "LIVE_ROOM",
+              targetId: room.id,
+              category: "LIVE",
+              circleId: room.circleId ?? undefined,
+            }, `LIVE_REMINDER:${room.id}`);
+            await this.prisma.liveBooking.updateMany({
+              where: { id: { in: bookings.map((item) => item.id) }, remindedAt: null },
+              data: { remindedAt: new Date() },
+            });
+            if (bookings.length < LiveService.BOOKING_NOTIFICATION_BATCH_SIZE) break;
+          }
+        } catch (err) {
+          // 不标记失败批次，按原事件键重试；继续其他房间，避免持续失败饿死整轮。
+          this.logger.warn(`直播预约提前提醒失败 room=${room.id}`, err);
         }
       }
     });
