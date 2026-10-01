@@ -1,13 +1,14 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma, OrderStatus } from "@prisma/client";
+import { Prisma, Order, OrderStatus } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { PurchaseCourseDto } from "./course.dto";
+import { NotificationService } from "../notification/notification.service";
 
 /**
  * 课程-购买与访问权限域（从 course.service 拆出·纯搬家不改逻辑）。
@@ -23,7 +24,24 @@ export class CoursePurchaseService {
     private redis: RedisService,
     private unifiedPricing: UnifiedPricingService,
     private attribution: ShopAttributionService,
+    @Optional() private notifications?: NotificationService,
   ) {}
+
+  /** 免费订阅订单已经落库后才建通知；不在下单流程中等待可选通知服务。 */
+  private notifyFreeEnrollment(order: Pick<Order, "id" | "userId" | "targetId" | "status" | "payMethod" | "paidAt">) {
+    if (!this.notifications || order.status !== "PAID" || order.payMethod !== "FREE" || !order.paidAt || !order.targetId) return;
+    try {
+      void this.notifications.sendOnce(order.userId, `COURSE_ENROLLED:${order.id}`, {
+        type: "COURSE",
+        title: "课程订阅成功",
+        content: "课程已加入我的课程，可查看并开始学习。",
+        targetType: "COURSE",
+        targetId: order.targetId,
+      }).catch((error) => this.logger.warn(`免费课程订阅已完成但站内通知失败 order=${order.id}`, error));
+    } catch (error) {
+      this.logger.warn(`免费课程订阅已完成但站内通知调用失败 order=${order.id}`, error);
+    }
+  }
 
   /**
    * 课程订单复用商城统一归因口径：
@@ -133,6 +151,7 @@ export class CoursePurchaseService {
         orderData.payAmount = 0;
       }
       const order = await this.prisma.order.create({ data: orderData });
+      this.notifyFreeEnrollment(order);
       return order;
     } finally {
       await this.redis.del(lockKey).catch(() => {});
