@@ -4,11 +4,20 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "@/api";
 import { useAuthStore } from "@/store/auth";
 import {
+  APP_CHANNELS,
   EMPTY_PRESENTATION,
   PRESENTATION_ENTRIES,
   PRESENTATION_SURFACES,
   parseClientPresentation,
 } from "@guoxue/shared";
+interface RegisteredClient {
+  clientKey: string;
+  applicationId: string;
+  platform: string;
+  channelId: string;
+  enabled: boolean;
+}
+const registeredClients = ref<RegisteredClient[]>([]);
 const auth = useAuthStore();
 const superAdmin = computed(() => auth.hasRole("SUPER_ADMIN"));
 const reason = ref(""),
@@ -69,6 +78,53 @@ const entryRows = computed(() =>
       currentConfig.value.entries?.find((item: any) => item.id === entry.id)?.label || entry.label,
   })),
 );
+const ruleClientKey = computed(() => registeredClients.value.find((client) =>
+  client.applicationId === currentRule.value?.applicationId &&
+  client.platform === currentRule.value?.platform &&
+  client.channelId === currentRule.value?.channelId)?.clientKey ?? "");
+function clientLabel(client: RegisteredClient) {
+  const channel = APP_CHANNELS.find((item) => item.id === client.channelId)?.name ?? client.channelId;
+  return client.applicationId + " / " + client.platform + " / " + channel;
+}
+function chooseRuleClient(key: string) {
+  const client = registeredClients.value.find((item) => item.clientKey === key);
+  const payload = editablePayload.value;
+  if (!client || !payload?.rules?.[selectedRule.value]) return;
+  Object.assign(payload.rules[selectedRule.value], {
+    applicationId: client.applicationId, platform: client.platform, channelId: client.channelId,
+  });
+  editor.value = JSON.stringify(payload, null, 2);
+  clientKey.value = key;
+}
+function addRule() {
+  const payload = editablePayload.value;
+  const client = registeredClients.value.find((item) => item.clientKey === clientKey.value) ?? registeredClients.value[0];
+  if (!Array.isArray(payload?.rules) || !client) {
+    ElMessage.warning("请先修复规则 JSON，并登记可用的应用渠道");
+    return;
+  }
+  if (payload.rules.length >= 50) {
+    ElMessage.warning("最多 50 条运营规则");
+    return;
+  }
+  payload.rules.push({
+    id: "rule-" + Date.now().toString(36), priority: 0, percentage: 100,
+    applicationId: client.applicationId, platform: client.platform, channelId: client.channelId,
+    minNativeBuild: nativeBuild.value, maxNativeBuild: nativeBuild.value,
+    minResourceVersion: resourceVersion.value, maxResourceVersion: resourceVersion.value,
+    config: JSON.parse(JSON.stringify(EMPTY_PRESENTATION)),
+  });
+  selectedRule.value = payload.rules.length - 1;
+  editor.value = JSON.stringify(payload, null, 2);
+  clientKey.value = client.clientKey;
+}
+function removeRule() {
+  const payload = editablePayload.value;
+  if (!Array.isArray(payload?.rules) || !currentRule.value) return;
+  payload.rules.splice(selectedRule.value, 1);
+  selectedRule.value = Math.max(0, selectedRule.value - 1);
+  editor.value = JSON.stringify(payload, null, 2);
+}
 function editRule(field: string, value: unknown) {
   const payload = editablePayload.value;
   if (!payload?.rules?.[selectedRule.value]) return;
@@ -148,8 +204,13 @@ watch(
   { flush: "sync" },
 );
 async function refresh() {
-  rows.value = (await api.get(base)).data.data || [];
-  capabilityRows.value = (await api.get(base + "/capabilities")).data.data || [];
+  const [history, capabilities, clients] = await Promise.all([
+    api.get(base), api.get(base + "/capabilities"), api.get("/system/distributions"),
+  ]);
+  rows.value = history.data || [];
+  capabilityRows.value = capabilities.data || [];
+  registeredClients.value = (Array.isArray(clients.data) ? clients.data : []).filter((client: RegisteredClient) => client.enabled);
+
 }
 async function run(action: () => Promise<void>) {
   busy.value = true;
@@ -166,7 +227,7 @@ async function savePreview() {
     const requestedRevision = revision;
     const payload = JSON.parse(editor.value);
     for (const rule of payload.rules) parseClientPresentation(rule.config);
-    const result = (await api.post(base + "/draft", { payload, reason: reason.value })).data.data;
+    const result = (await api.post(base + "/draft", { payload, reason: reason.value })).data;
     if (revision !== requestedRevision) return;
     const rendered = (
       await api.get(base + "/draft/" + result.id + "/preview", {
@@ -177,7 +238,7 @@ async function savePreview() {
           userId: userId.value,
         },
       })
-    ).data.data;
+    ).data;
     if (revision !== requestedRevision) return;
     draftId.value = result.id;
     preview.value = rendered;
@@ -235,7 +296,10 @@ onMounted(() => run(refresh));
       }}。模块：notice、richtext、entry-grid、banner，数组顺序即展示顺序。重叠规则按优先级、较窄原生范围、较窄资源范围、ID
       顺序选择。
     </p>
-    <el-input v-model="clientKey" placeholder="已登记渠道 clientKey（预览用）" />
+    <el-select v-model="clientKey" clearable filterable placeholder="选择已登记的预览应用渠道">
+      <el-option v-for="client in registeredClients" :key="client.clientKey"
+        :label="clientLabel(client)" :value="client.clientKey" />
+    </el-select>
     <el-input v-model="nativeBuild" placeholder="预览原生构建号" />
     <el-input v-model="resourceVersion" placeholder="预览资源版本" />
     <el-input v-model="userId" placeholder="预览灰度用户（可选）" />
@@ -250,8 +314,21 @@ onMounted(() => run(refresh));
         :value="index"
       />
     </el-select>
+    <el-button :disabled="busy || !registeredClients.length" @click="addRule">新增渠道规则</el-button>
+    <el-button :disabled="busy || !currentRule" @click="removeRule">删除当前草稿规则</el-button>
     <template v-if="currentRule">
       <el-form label-width="120px" inline>
+        <el-form-item label="应用渠道">
+          <el-select :model-value="ruleClientKey" filterable placeholder="选择已登记的应用 / 平台 / 商店"
+            @update:model-value="chooseRuleClient">
+            <el-option v-for="client in registeredClients" :key="client.clientKey"
+              :label="clientLabel(client)" :value="client.clientKey" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="规则标识">
+          <el-input :model-value="currentRule.id" :maxlength="48"
+            @update:model-value="(value: string) => editRule('id', value)" />
+        </el-form-item>
         <el-form-item label="优先级"
           ><el-input-number
             :model-value="currentRule.priority"
