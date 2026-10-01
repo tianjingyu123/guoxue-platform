@@ -13,6 +13,9 @@ import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ResponseInterceptor } from "../../common/response.interceptor";
+import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { RedisService } from "../../redis/redis.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 
 jest.setTimeout(30000);
 const raw = process.env.BOT_QUOTA_TEST_DATABASE_URL;
@@ -43,6 +46,8 @@ if (target && (!["127.0.0.1", "localhost"].includes(target.hostname) || !target.
         { provide: BotService, useValue: service },
         { provide: CozeService, useValue: coze },
         { provide: StreamUnifierService, useValue: { encode: (event: unknown) => `data: ${JSON.stringify(event)}\n\n` } },
+        // 真实开关逻辑继续生效，不用绕过守卫掩盖模块依赖缺失。
+        { provide: FeatureFlagService, useValue: new FeatureFlagService(prisma as unknown as PrismaService, new RedisService()) },
       ],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (ctx: any) => {
       ctx.switchToHttp().getRequest().user = { id: currentUserId };

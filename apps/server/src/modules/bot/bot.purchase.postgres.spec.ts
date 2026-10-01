@@ -12,6 +12,9 @@ import { StreamUnifierService } from '../ai-gateway/stream-unifier.service';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { StrictRedisThrottleGuard } from '../../common/redis-throttle.guard';
 import { ResponseInterceptor } from '../../common/response.interceptor';
+import { FeatureFlagService } from '../feature-flag/feature-flag.service';
+import { RedisService } from '../../redis/redis.service';
+import type { PrismaService } from '../../prisma/prisma.service';
 
 jest.setTimeout(60000);
 const testUrl = process.env.BOT_QUOTA_TEST_DATABASE_URL;
@@ -53,6 +56,8 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
         { provide: BotService, useValue: svc },
         { provide: CozeService, useValue: {} },
         { provide: StreamUnifierService, useValue: {} },
+        // 保留真实开关守卫，补齐独立测试模块缺失的依赖。
+        { provide: FeatureFlagService, useValue: new FeatureFlagService(prisma as unknown as PrismaService, new RedisService()) },
       ],
     }).overrideGuard(JwtAuthGuard).useValue({ canActivate: (ctx: any) => {
       ctx.switchToHttp().getRequest().user = { id: currentUserId };
@@ -135,5 +140,21 @@ if (target && (!['127.0.0.1', 'localhost'].includes(target.hostname) || !target.
     expect(await prisma.virtualCoinTransaction.count({ where: { userId, scene: 'BOT_CALL' } })).toBe(0);
     expect((await prisma.virtualCoinAccount.findUniqueOrThrow({ where: { userId } })).balance).toBe(500);
     expect(await service(prisma).purchaseUses(botConfigId, userId, requestId)).toEqual({ purchased: 10, paidRemaining: 10 });
+  });
+
+  it('配置关闭购包后真实守卫拒绝请求，不扣币或创建购买记录', async () => {
+    const userId = await newUser();
+    currentUserId = userId;
+    const key = 'client_agent_purchase';
+    await prisma.featureFlag.create({ data: { key, name: '合成测试购包关闭', enabled: false, operationState: 'UNOPENED' } });
+    try {
+      await request(app.getHttpServer()).post(`/bots/${botConfigId}/purchase-uses`)
+        .send({ requestId: `closed-purchase-${randomUUID()}` }).expect(404);
+      expect(await prisma.botQuotaPurchase.count({ where: { userId, botConfigId } })).toBe(0);
+      expect(await prisma.virtualCoinTransaction.count({ where: { userId, scene: 'BOT_CALL' } })).toBe(0);
+      expect((await prisma.virtualCoinAccount.findUniqueOrThrow({ where: { userId } })).balance).toBe(500);
+    } finally {
+      await prisma.featureFlag.delete({ where: { key } });
+    }
   });
 });
