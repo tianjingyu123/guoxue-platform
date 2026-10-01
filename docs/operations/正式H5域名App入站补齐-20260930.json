@@ -1,0 +1,436 @@
+{
+  "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+  "parentBusinessSource": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+  "checkedAt": "2026-10-01T06:11:13.0865674Z",
+  "fixes": [
+    "Android独立登记正式H5域名且保持API回跳",
+    "按已审计构建H5配置接受分享路由，保留HTTPS/路径/端口/敏感参数限制",
+    "iOS关联域声明补正式H5，既有微信UniversalLinks不变"
+  ],
+  "regression": {
+    "linkAndShare": {
+      "passed": 61,
+      "failed": 0,
+      "logSha256": "e51f8fac43310944ff915325e3b3c588bb6d869a13c0ab4d48f7e03a0f7e4d5f"
+    },
+    "nativeBundle": {
+      "passed": 297,
+      "failed": 0,
+      "logSha256": "9ad7f650e535f24a4b625a78c2314a60a2cd878f71e9f553d87d7ac8105e20cd"
+    },
+    "overlapNotSummed": true,
+    "typecheck": {
+      "passed": true,
+      "logSha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76"
+    },
+    "eslint": {
+      "passed": true
+    },
+    "build": {
+      "mobileTargets": [
+        "H5",
+        "微信小程序",
+        "App",
+        "鸿蒙App"
+      ],
+      "logSha256": "6b7eab2b3489c5e26f15dcd21e35a0e33bfcc127baef35d3178cb00714d23d0d",
+      "adminRebuilt": false,
+      "adminInputsEquivalentTo70ee": true
+    }
+  },
+  "fixedPackage": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T05:54:58.818Z",
+    "archive": "gx-deploy-91-launch-20260930-877306a56.tar.gz",
+    "sha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+    "releaseId": "launch-20260930-877306a56",
+    "commit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "expectedCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "fileCount": 4433,
+    "allowDirty": false,
+    "success": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "errors": [],
+    "warnings": [],
+    "bytes": 15708468,
+    "draftReleaseId": 400686156,
+    "assetId": 602556247,
+    "draft": true
+  },
+  "clients": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-01T05:54:26.109Z",
+    "releaseId": "launch-20260930-877306a56",
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "auditFile": "artifacts/channel-intake-20260930/client-artifacts-877306a56.json",
+    "success": true,
+    "counts": {
+      "targets": 5,
+      "files": 5423,
+      "bytes": 53933258,
+      "errors": 0
+    },
+    "targets": [
+      {
+        "directory": "apps/admin/dist",
+        "files": 505,
+        "bytes": 6487585,
+        "contentSha256": "919b4bfa01ca270accba78fb17514edb0d29fcac56fc143f973707377666b516",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/h5",
+        "files": 1180,
+        "bytes": 11080592,
+        "contentSha256": "783a7f1fd3a1ad6f81460a32c6379faeb6e28f9069ce974e0b5e723c94ee437b",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/mp-weixin",
+        "files": 2756,
+        "bytes": 11061803,
+        "contentSha256": "9f6c55e7895606bc497ad0c610e2da5609be54fde07bd6a81a20798496e94ae3",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app",
+        "files": 492,
+        "bytes": 12831904,
+        "contentSha256": "85c37a08d6aea02fa74a3fc9d1fdcc76b31eb497b0db235d0b0da666239dbb8f",
+        "matches": true
+      },
+      {
+        "directory": "apps/mobile/dist/build/app-harmony",
+        "files": 490,
+        "bytes": 12471374,
+        "contentSha256": "65f4ce53d2a3287be81a582773ceb6858d6cc688e39fec416e2b7bd3cc79485b",
+        "matches": true
+      }
+    ],
+    "errors": [],
+    "afterOfficialToolsAllFilesExact": true
+  },
+  "officialAndroidResource": {
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "checkedAt": "2026-10-01T05:56:28.683Z",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "969db3a71a046e93f70901f98c5ead0f063b8c1e92422384dac9dba31c9a5d56",
+      "officialBundleSha256": "42837d712bb51dc3121551c59f5b9fa1f6e8162102c7e3dea00ccad0fe93ec39",
+      "spaceBound": true
+    },
+    "nativeChecks": [
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+        "bytes": 70,
+        "sha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+        "exact": true
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+        "bytes": 33238,
+        "sha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+        "exact": true
+      },
+      {
+        "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+        "bytes": 1149,
+        "sha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+        "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+        "exact": false,
+        "allowedDifference": "import io.dcloud.unicloud.*"
+      }
+    ],
+    "manifestInputs": [
+      {
+        "path": "apps/mobile/AndroidManifest.xml",
+        "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+      },
+      {
+        "path": "apps/mobile/src/AndroidManifest.xml",
+        "sha256": "2afffbbb463753596dba496b572bb93d7ac689d3bcc8e3732f1f5747cf64f3e0"
+      },
+      {
+        "path": "apps/mobile/src/manifest.json",
+        "sha256": "7e098e4af9c49b98dcc622d07282b6e6543a5e7b40b817300fe6ad0e0c53da5b"
+      }
+    ],
+    "files": 492,
+    "bytes": 12825374,
+    "contentSha256": "e8bd85ef9f9928b57cb4a3aadab180fc7ede7b40b2062ccaa50dc5ce978a6079",
+    "archive": "artifacts/releases/android254-hbuilder-877306a56-resources.tar.gz",
+    "archiveBytes": 2853329,
+    "archiveSha256": "02e728f1e0a8c777adf855fb7bd0f5e17ac42e43cb6cf656331de362ef8b0b46",
+    "archiveExtractedAllFilesExact": true,
+    "signedApk": false,
+    "paidPackaging": false,
+    "oneClickEnabled": false
+  },
+  "mini": {
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "officialPreviewSucceeded": true,
+    "infoSha256": "6d6185f55be14e10e4a6175c362309e1d42aeee4d203f7dbeb3b0c7903a0c3d0",
+    "logSha256": "3f8da15c54db859c13fa48f99fdb3422e7c8ba17fece64c4e032ec1acda2c489",
+    "mainBytes": 1964711,
+    "mainRemainingBytes": 132441,
+    "maxSubpackage": "/pkg-paipan/",
+    "maxSubpackageBytes": 1959687,
+    "maxSubpackageRemainingBytes": 137465,
+    "subpackageCount": 33,
+    "totalBytes": 12736898,
+    "noUpload": true,
+    "noReview": true,
+    "noDeviceAcceptance": true
+  },
+  "phone": {
+    "checkedAt": "2026-10-01T05:47:09.828Z",
+    "model": "LE2100",
+    "android": "14",
+    "installedVersionCode": "253",
+    "domains": [
+      {
+        "host": "api.rebugx.cn",
+        "state": "legacy_failure"
+      }
+    ],
+    "targets": [
+      {
+        "host": "api.rebugx.cn",
+        "status": 200,
+        "redirected": false,
+        "contentType": "application/json",
+        "sha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+        "packageRelationMatch": true,
+        "knownCertificateMatch": true,
+        "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+        "noActivityLaunched": true
+      },
+      {
+        "host": "gx.yrydai.com",
+        "status": 200,
+        "redirected": false,
+        "contentType": "application/json",
+        "sha256": "1fe72fdd1a2f762e206831ce46d16cc4d6f153741f9f4fee53611ee88bda829e",
+        "packageRelationMatch": true,
+        "knownCertificateMatch": true,
+        "resolvedActivity": "com.heytap.browser/com.android.browser.RealBrowserActivity",
+        "noActivityLaunched": true
+      }
+    ],
+    "userDefaultsChanged": false,
+    "verificationForced": false,
+    "noLaunch": true,
+    "noInstall": true,
+    "noPayment": true
+  },
+  "ci": {
+    "status": "success",
+    "checkedAt": "2026-10-01T06:06:08.5117605Z",
+    "sourceCommit": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "logs": [
+      {
+        "name": "单元测试 (3/3)",
+        "sha256": "1d0f9910bb58fe8611bccd8976bab5d0de281846f937560e24dec783896fc30f",
+        "jobId": 110238904675,
+        "tests": "Tests:       39 skipped, 3038 passed, 3077 total",
+        "suites": "Test Suites: 10 skipped, 219 passed, 219 of 229 total"
+      },
+      {
+        "name": "单元测试 (1/3)",
+        "sha256": "c686fc3ed8ecf2326531812c630787687b513037c96b2989871c9be3ff3fb5ff",
+        "jobId": 110238904718,
+        "tests": "Tests:       44 skipped, 2839 passed, 2883 total",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total"
+      },
+      {
+        "name": "单元测试 (2/3)",
+        "sha256": "da7190b061b3dba1e7c376c706d2fe88d182264a409a971c19a44b31d7b007bb",
+        "jobId": 110238904785,
+        "tests": "Tests:       50 skipped, 3022 passed, 3072 total",
+        "suites": "Test Suites: 8 skipped, 221 passed, 221 of 229 total"
+      }
+    ],
+    "suitesSkipped": 26,
+    "suitesPassed": 662,
+    "runId": 36821725413,
+    "testsPassed": 8899,
+    "testsSkipped": 133,
+    "jobsPassed": 8,
+    "jobs": [
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "TypeScript 类型检查",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549248",
+        "id": 110238549248
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "迁移与上线代码门禁",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549549",
+        "id": 110238549549
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "ESLint + Prettier",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238549595",
+        "id": 110238549595
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (3/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904675",
+        "id": 110238904675
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (1/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904718",
+        "id": 110238904718
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "单元测试 (2/3)",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110238904785",
+        "id": 110238904785
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "构建产物",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722896",
+        "id": 110241722896
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "name": "测试结果汇总",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413/job/110241722959",
+        "id": 110241722959
+      }
+    ],
+    "runs": [
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+        "event": "pull_request",
+        "name": "CI — 国学平台",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821730993",
+        "id": 36821730993
+      },
+      {
+        "status": "completed",
+        "conclusion": "success",
+        "headSha": "877306a56339cb0c0b7c3429a86dc8b248775529",
+        "event": "push",
+        "name": "CI — 国学平台",
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36821725413",
+        "id": 36821725413
+      }
+    ]
+  },
+  "backendEvidence": {
+    "source": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "pathsCompared": [
+      "apps/admin",
+      "apps/server",
+      "packages",
+      "scripts",
+      "docker",
+      ".github"
+    ],
+    "allEqual": true,
+    "oldImageIdentityNotReusedForNewPackage": true,
+    "migration25RehearsalReusedByExactInputs": true
+  },
+  "oneClick": {
+    "spaceInfoSucceeded": true,
+    "cloudFunctionListEmpty": true,
+    "infoLogSha256": "600cabc7f68bc78f88d20ec1b4ce0ca7b23b122804de1c762129b33973ed8d46",
+    "listLogSha256": "98c8e7f5794439263edbaea3bdd642e0fd417f21b0a096e60bb043b52e98e17e",
+    "deployed": false,
+    "realPhoneRetrieval": false,
+    "defaultEnabled": false
+  },
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（本轮 CI、镜像及客户端定向范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "rollback": [
+    "纯文档接续提交先撤回",
+    "877306a56恢复到972908de0文档/70ee业务源码"
+  ],
+  "limitations": [
+    "旧253包系统api域名legacy_failure，两个链接均解析浏览器；未强制批准、改默认或覆装",
+    "新Android过滤器须最终签名APK验manifest合并与自然冷热启动",
+    "iOS新增域声明不证明签名TeamID/profile/entitlement、微信注册或真机入站通过",
+    "CI与新版镜像按实际运行状态记录，不将70ee整体成功冒充877本轮结果",
+    "手机号函数、两节点共享签名及最终启用版真实授权仍待接通",
+    "未部署、未迁移、未真实通知、未支付、未新付费打包、未小程序上传/审核"
+  ],
+  "linux": {
+    "checksPassed": 23,
+    "cleanupAllConfirmed": true,
+    "checkedAt": "2026-10-01T06:11:13.0865674Z",
+    "sourceArchiveSha256": "13da6718f9ee830fc7aeeb1c93ca10684ce3afd06544db87d27d2c7cc2741e0a",
+    "production": false,
+    "runtimeReportSha256": "354766f962b9cecaa8ca99d44d7ca403092602af074bd076c266cd87400291ef",
+    "image": "sha256:427805227dc5168b47473eb28c7f6766f93643c47ec25cd49846b5c626471238",
+    "passed": true,
+    "businessSource": "877306a56339cb0c0b7c3429a86dc8b248775529",
+    "artifact": {
+      "id": 11144335384,
+      "sha256": "cee69c7e7eced2f1c979c67fbedbe4dd76a35b994b1169797ceaf442b4766bcf",
+      "officialDigestMatches": true,
+      "bytes": 55313
+    },
+    "checks": [
+      "image-identity",
+      "prisma-source-compile-runtime-binding",
+      "grpc-security-version-in-runtime-image",
+      "admin-h5-base-and-public-config",
+      "postgres-major-match",
+      "formal-empty-bootstrap-ledger-and-channel-constraints",
+      "production-entrypoint-health-public-http",
+      "real-jwt-global-guards-cross-user-and-admin-roles",
+      "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+      "sensitive-feedback-roles-mask-audit-limit-and-validation",
+      "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+      "signed-encrypted-http-payment-refund-rollback-notification-retry",
+      "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+      "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+      "merchant-shipping-ownership-replay-rollback-and-concurrency",
+      "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+      "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+      "circle-post-published-state-context-preview-and-notification-target-permissions",
+      "competition-disclosure-finished-only-and-public-state-boundary",
+      "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+      "redis7-two-process-notification-idempotency",
+      "database-unique-after-redis-key-loss",
+      "notification-failure-release-and-two-process-retry"
+    ],
+    "runId": 36822565877,
+    "verificationSource": "5aa0b22e394746c08103080c2fa241c216c3e3f7",
+    "realChannels": false
+  }
+}
