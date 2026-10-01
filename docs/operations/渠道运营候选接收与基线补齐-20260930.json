@@ -642,7 +642,7 @@
       "manifestSha256": "6c9bf4c9db44e8dda9b079df15c57f285ac14c6357bc8e2098909e4614ba6a3d"
     },
     "limits": [
-      "未取得HBuilderX官方导出和同版签名APK",
+      "普通资源历史输入保留；本轮HBuilderX官方导出已独立核验，仍未取得同版签名APK",
       "AAR模板C关闭、签名/基座指纹空值只用于关闭配置输入，非已验完整包身份",
       "未启用WGT/JS，未消费云打包额度、未安装手机、未证明R8/UTS启动钩子或恢复日记链路"
     ],
@@ -658,5 +658,125 @@
       "VITE_APP_RESOURCE_VERSION": "0",
       "note": "显式固化既有默认值，未注册新选择器；本次App资源身份独立于固定包内历史五端资源，不混用摘要"
     }
+  },
+  "imAndCustomerService": {
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "receivedAncestors": [
+      "879acfb4ba890cfd6e293a100287ab7b131e7d44",
+      "c16388f307b2bead3716f135531d75e9fccf4859",
+      "c1ca9d80f"
+    ],
+    "ancestorCheckPassed": true,
+    "qrSha256": "a88cfa6426f3bdddeca712c2609e38e70b588adca63e1d350d6b9160e25e9629",
+    "qrBytes": 4774,
+    "codeCandidateIncluded": true,
+    "selectedDualProcessFallbackRuntimePassed": true,
+    "imMigrationIn25Rehearsal": true,
+    "productionImMigrationApplied": false,
+    "actualTencentImVerified": false,
+    "finalCustomerServiceJourneyVerified": false,
+    "limits": [
+      "二维码静态文件和数据库URL历史预置，不等于本版后台在线配置或公开接口已验",
+      "最终手机二维码预览/长按/保存、工单提交/回复、两用户消息及两节点代理仍需终验",
+      "群聊/好友/音视频等待腾讯IM/TRTC开通，保留未来恢复能力"
+    ]
+  },
+  "android254OfficialInputs": {
+    "checkedAt": "2026-10-01T05:17:31.306Z",
+    "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+    "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+    "sourceInputsEquivalent": true,
+    "officialLocalExportExitCode": 0,
+    "compiler": "HBuilderX 5.23.2026080626",
+    "archive": "artifacts/releases/android254-hbuilder-6eb82417-resources.tar.gz",
+    "archiveBytes": 2852295,
+    "archiveSha256": "a80cefc3bdae3edd91d79f76f5be84d26612bd87748c960af844dae39bb494e9",
+    "files": 492,
+    "bytes": 12825225,
+    "contentSha256": "18e7f449069082ea370eb1faf9a4083f3bf37a97a46d8dad0410055b655e62f3",
+    "archiveExtractedAllFilesExact": true,
+    "logSha256": "68f7095327c8082af5e4a02f76b314a64edb3e353bce1399a58c4663e336d77c",
+    "webAudit": {
+      "success": true,
+      "errors": [],
+      "files": 489,
+      "changedFiles": [
+        "app-service.js",
+        "manifest.json"
+      ],
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "genericBundleSha256": "fcd6ecf28f41c75e9a34c21502237d7037bbffa2672e80d049e98cfd5a9f4673",
+      "officialBundleSha256": "d40404703341d70a41584712865f4f5c44a1b87272c01c1de66a37e0a052632a",
+      "spaceBound": true
+    },
+    "nativePartition": {
+      "sourceSha": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+      "compiler": "HBuilderX 5.23",
+      "webFiles": 489,
+      "nativeFiles": 3,
+      "native": [
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/config.json",
+          "officialBytes": 70,
+          "genericBytes": 70,
+          "officialSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "genericSha256": "8cab619a58d7f86a7629b1a08c1c2e50a97f6d47bf9763d9337cca8133f34b6c",
+          "exact": true,
+          "allowedCompilerDifference": null
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar",
+          "officialBytes": 33238,
+          "genericBytes": 33238,
+          "officialSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "genericSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+          "exact": true,
+          "allowedCompilerDifference": null
+        },
+        {
+          "path": "uni_modules/rebu-resource-updater/utssdk/app-android/src/index.kt",
+          "officialBytes": 1149,
+          "genericBytes": 1121,
+          "officialSha256": "3738ba28858b91aa73b429c8d0b706bcfb78afe968fd986615b68e73a40685d9",
+          "genericSha256": "1eb3b1bdf674ed3eb982615f065c5b06bdada4504d287aae27f91c1d9b164606",
+          "exact": false,
+          "allowedCompilerDifference": "仅HBuilderX空间绑定生成 import io.dcloud.unicloud.*；其余Kotlin逐字节一致"
+        }
+      ],
+      "originalStrictWwwAuditPassed": false,
+      "originalFailurePreserved": true,
+      "webProjection": "generic-web-only-6eb82417",
+      "projectionPurpose": "仅对独立Web分区作严格对比；三个原生文件均独立核对，未删除原始输入或改变正式导出目录",
+      "h5Origin": "https://gx.yrydai.com/h5/",
+      "oldH5Absent": true,
+      "appId": "__UNI__277B108",
+      "versionCode": "254",
+      "spaceId": "tcb-6epskmrf8nntxiw-d5bz42bf1fd5",
+      "nativePackageVerified": false,
+      "feeCharged": false
+    },
+    "nativeScriptGatePassed": true,
+    "originalUnboundRejected": true,
+    "stalledLocalExport": {
+      "sessionId": 67601,
+      "cliPid": 33120,
+      "endedExitCode": 1,
+      "cancelledBeforeReimport": true,
+      "stdoutBytes": 0,
+      "resourceTimestampUnchanged": true
+    },
+    "cloudPackSubmitted": false,
+    "feeCharged": false,
+    "installed": false,
+    "nativePackageVerified": false,
+    "receiptSha256": "209a68a0e775b6dcefda9242c49f44ad49cdd78209ae11d9417c2c40ed5d166b",
+    "limits": [
+      "本地官方资源导出与原生编译输入，不是签名APK；未验证R8/UTS启动钩子、liberate恢复和手机真实旅程",
+      "手机号云函数和两节点共享签名仍未接通，取号入口保持关闭；已购资源包不是服务验证",
+      "原始完整www清单检查失败保留：官方原生分区与网页分区分别核对；未修改或放宽门禁源码",
+      "无云打包、安装、计费取号、云函数部署、生产迁移或发布"
+    ]
   }
 }
