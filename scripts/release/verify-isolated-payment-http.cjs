@@ -137,10 +137,52 @@ async function verify() {
       assert.equal(await notifications(statusId, "ORDER_REFUNDED"), 0);
     }
     assert.equal(await p.notification.count({ where: { targetId: statusId, title: "退款未完成" } }), 3);
+    // 由独立验证分支挂载的 preload 控制偏好等待；业务产物中没有调试入口。
+    const { RedisService: LatchRedis } = require("/app/apps/server/dist/redis/redis.service");
+    const latch = new LatchRedis();
+    const latencyId = "linux-notification-latency";
+    const latchKey = "isolated:notification-latch:";
+    const waitFlag = async (name) => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        if (await latch.get(latchKey + name) === "1") return;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error("通知等待边界未观测到：" + name);
+    };
+    try {
+      await latch.pingShared();
+      await latch.setJson("notification:prefs:linux-user-latency", { PUSH_ENABLED: false }, 600);
+      await p.user.create({ data: { id: "linux-user-latency", nickname: "合成响应测试" } });
+      await p.course.create({ data: { id: "linux-latency-course", userId: "linux-user-b", title: "隔离通知响应课程" } });
+      await p.order.create({ data: { id: latencyId, userId: "linux-user-latency", type: "COURSE",
+        targetId: "linux-latency-course", amount: 1, status: "PENDING", payTransactionId: "intent-" + latencyId } });
+      for (const [channel, event, status, action] of [
+        ["pay", "ORDER_PAID", "PAID", "GRANT"], ["refund", "ORDER_REFUNDED", "REFUNDED", "REVOKE"],
+      ]) {
+        await latch.del(latchKey + "entered");
+        await latch.del(latchKey + "done");
+        await latch.set(latchKey + "hold", "1", 60);
+        await send(channel + "-returns-before-notification-preferences-release", channel,
+          channel === "pay" ? payment(latencyId) : refund(latencyId), 200);
+        await waitFlag("entered");
+        assert.equal(await latch.get(latchKey + "hold"), "1", "响应时偏好查询仍未释放");
+        assert.equal((await order(latencyId)).status, status);
+        assert.equal(await ledgers(latencyId, action), 1);
+        assert.equal(await p.notification.count({ where: {
+          idempotencyKey: "linux-user-latency:" + event + ":" + latencyId,
+        } }), 1);
+        await latch.del(latchKey + "hold");
+        await waitFlag("done");
+      }
+    } finally {
+      await latch.del(latchKey + "hold");
+      await latch.onModuleDestroy();
+    }
     return { passed: true, cases: rows, rawBodyWhitespaceVerified: true, rsaAndAesRealCrypto: true,
       dbConfigLoaderUsed: true, paymentRollbackNoSuccessNotification: true, refundRollbackNoSuccessNotification: true,
       notificationFailureDoesNotRollbackPaymentOrRefund: true, callbackRetriesRestoreOneNotification: true,
       paymentAndRefundDuplicateLedgerCounts: 1, nonSuccessRefundNeverClaimsSuccess: true,
+      paymentAndRefundRespondBeforePreferencesRelease: true, preferencesLatchOnlyInIsolatedPreload: true,
       realProviderRequests: 0, scope: "synthetic-course-orders-not-real-provider-or-target-database" };
   } finally {
     for (const [name, table] of [["isolated_pay_rollback", "EntitlementLedger"], ["isolated_refund_rollback", "EntitlementLedger"], ["isolated_notification_failure", "Notification"]]) await drop(name, table);
