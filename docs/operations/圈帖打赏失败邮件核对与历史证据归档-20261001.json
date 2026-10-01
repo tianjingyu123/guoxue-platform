@@ -1,0 +1,236 @@
+{
+  "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+  "documentationHead": "65ab8732f6098ad96d10b8efbdb11ac23b61d503",
+  "checkedAt": "2026-10-01T12:27:51.663Z",
+  "status": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseDecision": "NO-GO",
+  "historicalWorkflow": "circle-reward-atomic.yml",
+  "runHistory": [
+    {
+      "event": "push",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36792917678",
+      "branch": "codex/image-verify-20260930",
+      "name": "圈帖打赏候选原子事务隔离验证",
+      "conclusion": "success",
+      "source": "2db81d5a979538a70f277f72e4e321fde7f79d89",
+      "createdAt": "2026-09-30T23:47:44Z",
+      "id": 36792917678,
+      "status": "completed"
+    },
+    {
+      "event": "push",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36792238214",
+      "branch": "codex/image-verify-20260930",
+      "name": "圈帖打赏候选原子事务隔离验证",
+      "conclusion": "failure",
+      "source": "10c6fe5110f5cf5606b3bea3afbfb51cb1d7e1b5",
+      "createdAt": "2026-09-30T23:39:50Z",
+      "id": 36792238214,
+      "status": "completed"
+    },
+    {
+      "event": "push",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36791664332",
+      "branch": "codex/image-verify-20260930",
+      "name": "圈帖打赏候选原子事务隔离验证",
+      "conclusion": "failure",
+      "source": "8645e4697d807bd76b61ce3fef13ab4d81df1c34",
+      "createdAt": "2026-09-30T23:33:06Z",
+      "id": 36791664332,
+      "status": "completed"
+    },
+    {
+      "event": "push",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36791551497",
+      "branch": "codex/image-verify-20260930",
+      "name": "圈帖打赏候选原子事务隔离验证",
+      "conclusion": "cancelled",
+      "source": "436a4a942669a87956fecbeccfe308400d8f710a",
+      "createdAt": "2026-09-30T23:31:46Z",
+      "id": 36791551497,
+      "status": "completed"
+    },
+    {
+      "event": "push",
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36791405817",
+      "branch": "codex/image-verify-20260930",
+      "name": "圈帖打赏候选原子事务隔离验证",
+      "conclusion": "failure",
+      "source": "f9ad584696bfe22f215a223229dd98bd7e349672",
+      "createdAt": "2026-09-30T23:30:08Z",
+      "id": 36791405817,
+      "status": "completed"
+    }
+  ],
+  "sevenSecondFailure": {
+    "failedRun": 36791405817,
+    "rerunTriggered": false,
+    "currentImageRun": 36859429297,
+    "laterArtifacts": [
+      {
+        "digest": "sha256:635a3dea3611d8c1241204e28c1d462aee96c83cfd808c1c1c783403da85b001",
+        "expired": false,
+        "name": "circle-reward-atomic-36792917678",
+        "id": 11133315605,
+        "bytes": 15557
+      }
+    ],
+    "laterSuccessfulRun": 36792917678,
+    "readOnly": true,
+    "failedJob": 110144905829,
+    "workflowDisabled": false,
+    "failedSteps": [
+      "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+      "保存本轮候选验证证据"
+    ],
+    "productionChanged": false,
+    "jobStartedAt": "2026-09-30T23:30:11Z",
+    "checkedAt": "2026-10-01T12:24:22.6123369Z",
+    "jobCompletedAt": "2026-09-30T23:30:18Z",
+    "errors": [
+      "2026-09-30T23:30:15.8954914Z ##[error]fatal: No url found for submodule path '.claude/skills/jeffallan-claude-skills' in .gitmodules",
+      "2026-09-30T23:30:16.2579794Z fatal: No url found for submodule path '.claude/skills/jeffallan-claude-skills' in .gitmodules"
+    ],
+    "currentBusinessSource": "e200e352eddae9337db0715f83d4b77545803393",
+    "rawLogSha256": "27292e4882d3d0de95a9da8783d0f313e0a0e3efcc4107b52367bf56a16e82bf"
+  },
+  "laterSuccessfulRun": {
+    "id": 36792917678,
+    "verificationSource": "2db81d5a979538a70f277f72e4e321fde7f79d89",
+    "businessSource": "b6d1f59cf0dc3c0ee0d8b8609726f5aec4d7297b",
+    "unitPassed": 287,
+    "unitFailed": 0,
+    "unitSuites": 11,
+    "isolatedServiceChecks": 14,
+    "realRedis": true,
+    "independentProcesses": true,
+    "formalDockerfile": false,
+    "httpEntry": false,
+    "artifact": {
+      "executedDownloadedFiles": false,
+      "officialDigestMatches": true,
+      "bytes": 15557,
+      "checkedAt": "2026-10-01T12:25:42.6340061Z",
+      "sha256": "635a3dea3611d8c1241204e28c1d462aee96c83cfd808c1c1c783403da85b001",
+      "files": [
+        {
+          "sha256": "ae84091898139779fe0dd9e9a12fbab877a1410d5ac845574eeceb30e7d897a9",
+          "path": "candidate-unit.json",
+          "bytes": 110894
+        },
+        {
+          "sha256": "8a322c64a10fd0b452a644dfc68fa9eea5420ad71872438312dc301c82872da5",
+          "path": "candidate-unit.log",
+          "bytes": 2033
+        },
+        {
+          "sha256": "0e23fcbdf23360482a36afcfba90e625832515bea5494f1b4fa2bf9c7b721d8a",
+          "path": "circle-reward-atomic-runtime.json",
+          "bytes": 3723
+        },
+        {
+          "sha256": "b47390dd90ae7cd78a5efc7d04628b7f7d68a036d49797f30662311c585c84a4",
+          "path": "circle-reward-atomic-runtime.log",
+          "bytes": 3260
+        },
+        {
+          "sha256": "d39cc62bb9ca9a9f73f29ef6bf02d23668c1f95fbe487ab00301d53311adc4c5",
+          "path": "reward-temporary-schema.log",
+          "bytes": 222
+        }
+      ],
+      "artifactId": 11133315605,
+      "historyOnly": true,
+      "runId": 36792917678
+    }
+  },
+  "currentVersion": {
+    "businessSource": "e200e352eddae9337db0715f83d4b77545803393",
+    "runId": 36859429297,
+    "image": "sha256:160afdda2da469d8ea29d9c2753e1014f250ddea12357e5ae97ade9c7fb82e52",
+    "checks": 23,
+    "circleRewardHttp": {
+      "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only",
+      "cases": 19,
+      "passed": true,
+      "caseNames": [
+        "anonymous-denied",
+        "non-member-denied",
+        "self-reward-denied",
+        "wrong-circle-denied",
+        "invalid-request-id",
+        "invalid-message-type",
+        "non-integer-amount",
+        "author-ledger-failure-rolls-back-http",
+        "retry-after-rollback-commits",
+        "same-request-replay",
+        "same-request-changed-amount",
+        "two-apps-first-response",
+        "two-apps-second-response",
+        "insufficient-balance-no-funds",
+        "notification-failure-does-not-block-money-http",
+        "notification-release-retry-no-second-payment",
+        "notification-anonymous",
+        "notification-owner",
+        "notification-other-user"
+      ]
+    },
+    "realNotifications": false,
+    "productionChanged": false
+  },
+  "interpretation": "7秒邮件对应历史checkout技能gitlink错误，业务验证未开始；后续任务成功。本轮只读核验历史并复核已有e200镜像证据，没有新增测试或重跑。两个中间运行的服务验证失败未逐条归因，不都归为checkout失败。",
+  "workflowDisabled": false,
+  "notificationPreferencesChanged": false,
+  "rerunTriggered": false,
+  "realFundsTouched": false,
+  "notCovered": [
+    "正式运行两节点、同版手机打赏支付与通知旅程",
+    "提交后崩溃的持久通知重试",
+    "中间两次服务验证失败逐条根因未重新分析"
+  ],
+  "evidenceArchive": {
+    "name": "atomic-history-evidence-20261001.tar.gz",
+    "releaseId": 400927027,
+    "draft": true,
+    "files": 8,
+    "bytes": 7187,
+    "published": false,
+    "sourceCommit": "e200e352eddae9337db0715f83d4b77545803393",
+    "reextractAllHashesExact": true,
+    "officialDigestMatches": true,
+    "checkedAt": "2026-10-01T12:28:30.2066681Z",
+    "assetId": 603218295,
+    "sha256": "d14d960bce358b1ea014adcb2c5d6dd7dce9e0eab1eac590b7bef3c3464b26fb"
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-history-summary.json",
+      "sha256": "45a2fcd8382a9284f86e08609c1054ae2d282371597ef5e2839dd06022803ef7"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-workflow-history-readonly.json",
+      "sha256": "e5f12c8bb9913c003b606c0e509cf9585a974781a84e82eb7a07fdcbb661ca43"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-workflow-failure-readonly.json",
+      "sha256": "a8cc49390913270d894aba072a4d3cdbfd41df9e8f60fade88491bb26515bb85"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-history-artifact-verified.json",
+      "sha256": "a5e099c9e1aaf627bc13358101b1d3bfe4b70d96b5c2e0cd01a40445ee8c274c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-history-evidence-package.json",
+      "sha256": "fc892426713ce7f97bbbd57de421d25fe47ad3d3e91f496886ee02c5bfaf0c29"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/atomic-history-evidence-archive.json",
+      "sha256": "649386eaa8932b867f504b71fc8c3bbd50e3ab9ee677812fda9eb97a3315c66c"
+    }
+  ]
+}
