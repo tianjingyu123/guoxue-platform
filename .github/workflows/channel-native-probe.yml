@@ -1,29 +1,18 @@
-name: Android 独立探针 API29与30
-
+name: Android 托管SDK已有许可只读预检
 on:
   push:
     branches: [codex/channel-linux-probe-20261001]
-
 permissions:
   contents: read
-
 concurrency:
   group: channel-native-probe-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
-  native-probe:
+  existing-license:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        api: [29, 30]
-    env:
-      PROBE_API: ${{ matrix.api }}
+    timeout-minutes: 5
     steps:
-      - name: 获取并核验本次公开测试提交
+      - name: 获取本次公开测试提交
         shell: bash
         run: |
           set -euo pipefail
@@ -32,19 +21,20 @@ jobs:
           git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 24.18.0
-      - name: 同一APK与原脚本验收
-        run: bash .github/native-probe/run-linux.sh
-      - name: 保留独立验收证据
+      - name: 官方SDK许可API只读回查
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/linux-native-probe "$RUNNER_TEMP/license-check"
+          curl --fail --proto '=https' --tlsv1.2 --max-time 45 https://dl.google.com/android/repository/sys-img/google_apis/sys-img2-4.xml -o artifacts/linux-native-probe/sdk-sys-img2-4.xml
+          sha256sum artifacts/linux-native-probe/sdk-sys-img2-4.xml > artifacts/linux-native-probe/metadata.sha256
+          javac -encoding UTF-8 -cp "$ANDROID_HOME/cmdline-tools/latest/lib/*" -d "$RUNNER_TEMP/license-check" .github/native-probe/ExistingSdkLicense.java
+          java -cp "$RUNNER_TEMP/license-check:$ANDROID_HOME/cmdline-tools/latest/lib/*" ExistingSdkLicense "$ANDROID_HOME" artifacts/linux-native-probe/sdk-sys-img2-4.xml | tee artifacts/linux-native-probe/preview-license-readonly.json
+      - name: 保存只读预检证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: native-probe-api${{ matrix.api }}-${{ github.sha }}
+          name: sdk-existing-license-${{ github.sha }}
           retention-days: 14
           if-no-files-found: error
-          path: |
-            artifacts/linux-native-probe/
-            artifacts/phase18-probe-log-stream-android-phase18-api${{ matrix.api }}-core-retry3/
-            docs/operations/channel-updates-evidence/android-phase18-api${{ matrix.api }}-core-retry3.json
+          path: artifacts/linux-native-probe/
