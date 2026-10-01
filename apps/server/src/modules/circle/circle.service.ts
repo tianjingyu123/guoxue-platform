@@ -208,8 +208,8 @@ export class CircleService {
     return this.postSvc.getPosts(circleId, query);
   }
 
-  getPostDetail(postId: string) {
-    return this.postSvc.getPostDetail(postId);
+  getPostDetail(postId: string, context: { userId?: string; circleId?: string; platformAdmin?: boolean } = {}) {
+    return this.postSvc.getPostDetail(postId, context);
   }
 
   toggleEssence(postId: string, circleId: string, userId: string) {

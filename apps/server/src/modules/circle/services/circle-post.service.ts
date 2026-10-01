@@ -250,7 +250,7 @@ export class CirclePostService {
     return { posts, total, page, pageSize };
   }
 
-  async getPostDetail(postId: string) {
+  async getPostDetail(postId: string, context: { userId?: string; circleId?: string; platformAdmin?: boolean } = {}) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
@@ -259,6 +259,24 @@ export class CirclePostService {
       },
     });
     if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    // 圈子路由不能用其他圈子的postId绕过上下文，正文和附件都在校验后才返回。
+    if (context.circleId !== undefined && post.circleId !== context.circleId) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    }
+    const publicVisible = post.status === "PUBLISHED" && !publicQuarantinedIds("post").includes(post.id);
+    const ownOrPlatformAdmin = context.userId && (context.userId === post.userId || context.platformAdmin);
+    if (!publicVisible && !ownOrPlatformAdmin) {
+      if (!context.userId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+      try {
+        // 保留作者预览和圈子管理处理内容的能力，不以普通登录或成员身份放行草稿。
+        await this.shared.checkAdmin(post.circleId, context.userId);
+      } catch (error) {
+        if (error instanceof BusinessException) {
+          throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+        }
+        throw error;
+      }
+    }
     // 附件列经原生 SQL 读出合并（列未迁移时静默降级为空数组，不阻断详情）
     let attachments: unknown = [];
     try {

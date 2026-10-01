@@ -4,6 +4,8 @@ import { CircleService } from "./circle.service";
 import { CircleInsightService } from "./services/circle-insight.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import type { Request } from "express";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
 const mockCircleSvc = {
   create: jest.fn().mockResolvedValue({ id: "c1", name: "国学研究圈" }),
@@ -166,8 +168,23 @@ describe("CircleController", () => {
   });
 
   it("GET /circles/:id/posts/:postId — 帖子详情", async () => {
-    const result: any = await ctrl.getPostDetail("p1");
+    const result: any = await ctrl.getPostDetail("p1", "c1", { user: { id: "u1" } } as unknown as Request);
     expect(result.title).toBe("帖子详情");
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { circleId: "c1", userId: "u1", platformAdmin: false });
+  });
+
+  it("无圈子上下文的详情仍传递真实登录身份，匿名不获得管理权限", async () => {
+    await ctrl.getPostDetailById("p1", {} as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: undefined, platformAdmin: false });
+    await ctrl.getPostDetailById("p1", { user: { id: "admin", roles: ["SUPER_ADMIN"] } } as unknown as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: "admin", platformAdmin: true });
+  });
+
+  it("两种详情入口都解析可选JWT，财务角色不是内容管理角色", async () => {
+    expect(Reflect.getMetadata("__guards__", CircleController.prototype.getPostDetail)).toContain(OptionalAuthGuard);
+    expect(Reflect.getMetadata("__guards__", CircleController.prototype.getPostDetailById)).toContain(OptionalAuthGuard);
+    await ctrl.getPostDetailById("p1", { user: { id: "finance", roles: ["FINANCE_ADMIN"] } } as unknown as Request);
+    expect(mockCircleSvc.getPostDetail).toHaveBeenCalledWith("p1", { userId: "finance", platformAdmin: false });
   });
 
   it("PUT /circles/:id/posts/:postId — 更新帖子", async () => {

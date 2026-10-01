@@ -143,11 +143,12 @@ export class CircleController {
   }
 
   @Get("posts/:postId")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取帖子详情（无圈子上下文·按 postId 反查）", description: "供分享/搜索等只有帖子 id 的入口使用，响应含 circle 供前端回填" })
   @ApiResponse({ status: 200, description: "成功返回帖子详情" })
   @ApiResponse({ status: 404, description: "帖子不存在" })
-  getPostDetailById(@Param("postId") postId: string) {
-    return this.circle.getPostDetail(postId);
+  getPostDetailById(@Param("postId") postId: string, @Req() req: Request) {
+    return this.circle.getPostDetail(postId, { userId: req.user?.id, platformAdmin: this.isPlatformAdmin(req) });
   }
 
   @Get("activities")
@@ -490,11 +491,12 @@ export class CircleController {
   }
 
   @Get(":id/posts/:postId")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取帖子详情" })
   @ApiResponse({ status: 200, description: "成功返回帖子详情" })
   @ApiResponse({ status: 404, description: "帖子不存在" })
-  getPostDetail(@Param("postId") postId: string) {
-    return this.circle.getPostDetail(postId);
+  getPostDetail(@Param("postId") postId: string, @Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.getPostDetail(postId, { circleId, userId: req.user?.id, platformAdmin: this.isPlatformAdmin(req) });
   }
 
   @Put(":id/posts/:postId")
