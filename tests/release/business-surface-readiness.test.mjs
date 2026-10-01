@@ -55,8 +55,8 @@ test("会员中心具备真实套餐基础数据且错误态不会伪报网络�
   assert.doesNotMatch(migration, /付费精品电子书|优惠券/u);
   assert.match(bootstrap, /MEMBER_PLANS_DML=.*20260829100000_bootstrap_member_plans/u);
   assert.match(bootstrap, /--file="\$MEMBER_PLANS_DML"/u);
-  assert.match(vipPage, /title="会员中心暂不可用"[\s\S]*:desc="error"/u);
-  assert.match(recordsPage, /title="开通记录加载失败"[\s\S]*:desc="error"/u);
+  assert.match(vipPage, /title="会员服务暂不可用"[\s\S]*:desc="error"/u);
+  assert.match(recordsPage, /title="购买记录暂不可用"[\s\S]*:desc="error"/u);
   assert.doesNotMatch(`${vipPage}\n${recordsPage}`, /<app-error[^>]*:message=/u);
 });
 
