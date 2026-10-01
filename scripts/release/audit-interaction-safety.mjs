@@ -761,7 +761,8 @@ const checks = [
       ]) &&
       hasAll(homePage, ["<platform-support-actions />"]) &&
       hasAll(discoverPage, ["<platform-support-actions />"]) &&
-      hasAll(searchPage, ['<platform-support-actions compact tone="plain" />']),
+      // 检查实际组件和必要属性，允许增加触达区参数，不依赖属性顺序。
+      /<platform-support-actions\b(?=[^>]*\bcompact\b)(?=[^>]*\btone="plain")[^>]*\/>/u.test(searchPage),
   },
   {
     name: "订单、商品、课程、短视频和直播等高争议场景均直达真实投诉或举报表单",
