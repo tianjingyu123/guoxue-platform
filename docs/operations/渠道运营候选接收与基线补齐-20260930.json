@@ -1748,6 +1748,15 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
+    "sourceCommit": "7e0ccfe8f5c4857e74154514b25a1171f218368f",
+    "releaseId": "launch-20261001-7e0ccfe8f",
+    "receipt": "docs/operations/通用搜索完整交互收口-20261001.json",
+    "ciRun": 36832257435,
+    "imageRun": 36833498362,
+    "releaseDecision": "NO-GO",
+    "note": "本对象是最新候选入口；原批次、源码和证据保留实际历史身份。未接收master，未上线。"
+  },
+  "previousCandidate": {
     "sourceCommit": "a1d6116ec4f2aac8d8eb47cec32458612ed5dba3",
     "releaseId": "launch-20261001-a1d6116ec",
     "receipt": "docs/operations/小程序搜索安全区与交互实载接收-20261001.json",
