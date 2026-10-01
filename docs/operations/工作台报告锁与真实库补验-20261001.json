@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-01T18:01:50.509Z",
+  "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+  "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+  "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+  "parent": "062f78238f2bf8bb23e1c2884baf990cb34a8246",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "ci": {
+    "testsSkipped": 133,
+    "logs": [
+      {
+        "tests": "Tests:       50 skipped, 3035 passed, 3085 total",
+        "name": "单元测试 (2/3)",
+        "sha256": "f02f302e992960fbf158458346b106d4927f20e6476c7c3e5479d0c42cace47b",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110497206814
+      },
+      {
+        "tests": "Tests:       39 skipped, 3047 passed, 3086 total",
+        "name": "单元测试 (3/3)",
+        "sha256": "cdb8a80414f0aef80702f8a63e040bc3e6f1e83886e09301c1e7aefca90c4173",
+        "suites": "Test Suites: 10 skipped, 220 passed, 220 of 230 total",
+        "jobId": 110497206936
+      },
+      {
+        "tests": "Tests:       44 skipped, 2849 passed, 2893 total",
+        "name": "单元测试 (1/3)",
+        "sha256": "a0f91124cd52500a16e8879f45c5f0fbce740ebd301738279ff2329a8196e879",
+        "suites": "Test Suites: 8 skipped, 222 passed, 222 of 230 total",
+        "jobId": 110497206977
+      }
+    ],
+    "jobsPassed": 8,
+    "checkedAt": "2026-10-01T17:52:16.0095955Z",
+    "testsPassed": 8931,
+    "suitesSkipped": 26,
+    "suitesPassed": 664,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "status": "success",
+    "runId": 36900015643
+  },
+  "linux": {
+    "compiledReport": {
+      "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+      "version": [
+        {
+          "server_version": "18.4 (Debian 18.4-1.pgdg13+1)"
+        }
+      ],
+      "compiledService": true,
+      "concurrentRequests": 2,
+      "created": 1,
+      "quotaRejected": 1,
+      "stored": 3,
+      "passed": true
+    },
+    "realSupplier": false,
+    "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+    "artifactSha256": "6209b98d0b224953e548f230d939ab4b384416d2cfe1c5f2d2063a03f5b5ee30",
+    "artifactId": 11180429724,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "fullFormalDockerImage": false,
+    "suitesPassed": 17,
+    "realJwt": false,
+    "runId": 36900373723,
+    "passed": true,
+    "checkedAt": "2026-10-01T17:44:23.1588582Z",
+    "verificationHead": "2602c89da298680d9caaa8a3f184bc61d0be28f2",
+    "skipped": 0,
+    "postgresServiceCleanup": "官方作业 Stop containers 成功",
+    "testsPassed": 113,
+    "postgresVersion": "18.4 (Debian 18.4-1.pgdg13+1)"
+  },
+  "audio": {
+    "serviceCleanup": "官方 Stop containers 成功",
+    "realObjectStorage": false,
+    "verificationHead": "f0dfeccf924a6522a16d5002a9af22202c322ec8",
+    "realSupplier": false,
+    "separateProcessesCovered": false,
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "passed": true,
+    "sourceSha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+    "artifactSha256": "6902668e4697ea76096bfc01a23e30152f0b33b9fa19e7ce8112771f737a807d",
+    "resourceReleaseCovered": false,
+    "sourcePackage": {
+      "schemaVersion": 1,
+      "generatedAt": "2026-10-01T17:56:34.897Z",
+      "archive": "audio-source.tar.gz",
+      "sha256": "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277",
+      "releaseId": "launch-20261001-9c8e5e1a2",
+      "commit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "expectedCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+      "fileCount": 4439,
+      "allowDirty": false,
+      "success": true,
+      "errorCount": 0,
+      "warningCount": 0,
+      "errors": [],
+      "warnings": []
+    },
+    "forceExit": true,
+    "postgresVersion": "18.4 (Debian 18.4-1.pgdg13+1)",
+    "runId": 36903044022,
+    "artifactId": 11182467598,
+    "skipped": 0,
+    "testsPassed": 4,
+    "redisVersion": "redis_version:7.4.11",
+    "checkedAt": "2026-10-01T17:59:54.9845020Z"
+  },
+  "skipInventory": {
+    "originalSkipped": 133,
+    "originalSoftwareVerified": 104,
+    "hardwareDeferred": 29,
+    "newRegressionPassed": 1,
+    "items": [
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-terminal.integration.spec.ts",
+        "count": 20,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+        "count": 8,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+        "count": 6,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-firmware.spec.ts",
+        "count": 5,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/after-sale-access.local-db.http.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-multi-instance.integration.spec.ts",
+        "count": 3,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/notification/notification-access.local-db.http.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/course/course-review-status.local-db.http.spec.ts",
+        "count": 1,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaozhi/xiaozhi-alert-delivery.integration.spec.ts",
+        "count": 1,
+        "status": "硬件明确暂缓"
+      },
+      {
+        "file": "apps/server/src/modules/shop/shop-refund-notification.local-db.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+        "count": 5,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+        "count": 17,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts",
+        "count": 2,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+        "count": 7,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+        "count": 3,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+        "count": 4,
+        "status": "本轮软件补验通过"
+      },
+      {
+        "file": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+        "count": 6,
+        "status": "本轮软件补验通过"
+      }
+    ]
+  },
+  "localCommerce": {
+    "passed": 25,
+    "passingSuites": 8,
+    "initialWrongPathSuites": 1,
+    "wrongPath": "circle/circle-membership-expiry.local-db.spec.ts",
+    "correctedPath": "circle/services/circle-membership-expiry.local-db.spec.ts",
+    "correctedPassed": 3
+  },
+  "botFixture": {
+    "beforeHttpFailed": 8,
+    "afterHttpPassed": 9,
+    "typescript": true,
+    "eslintErrors": 0,
+    "warnings": 17,
+    "productionGuardsBypassed": false
+  },
+  "runtimeScope": {
+    "localPostgres": "16.13",
+    "officialPostgres": "18.4",
+    "officialRedis": "7.4.11",
+    "fullFormalImageSource": "9695462de",
+    "fullFormalImageForThisSource": false,
+    "realSupplier": false,
+    "realObjectStorage": false,
+    "finalDevice": false
+  },
+  "cleanup": {
+    "preserved": true,
+    "stopped": true,
+    "sharedServicesTouched": false,
+    "portsUsed": [
+      55461,
+      55439
+    ],
+    "dataDirectory": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-intake-review-20260930\\gx-deploy-91\\artifacts\\channel-intake-20260930\\voice-quota-real-db-9695462de\\data",
+    "checkedAt": "2026-10-01T18:00:18.1421175Z"
+  },
+  "evidence": [
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-ci-verified.json",
+      "bytes": 1221,
+      "sha256": "85925f3b5a671a8b8b55932aa3dd7b568bab9bcd9a2c2d83c7d41a583e40de06"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-linux-verified.json",
+      "bytes": 1129,
+      "sha256": "71d4b6ccea97b2285ba83be82565155406f5cbf6d03d082392789d31ac690d23"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/audio-assets-linux-verified.json",
+      "bytes": 1329,
+      "sha256": "67189f1951f4363987b6805896de79da335b1a7804aff7d7192ea9f7a7e71a12"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/local-real-db-cleanup.json",
+      "bytes": 363,
+      "sha256": "7d882d681df6c5b65f10a28d1951b567f97091652f8bd9ca96cca7d7e326f01a"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/practitioner-lock-draft-archive.json",
+      "bytes": 757,
+      "sha256": "5f9ce7353c57186ccfafb54a7d33e8c900606cbbf115f8a6f05eae22f183e4db"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/skipped-inventory.json",
+      "bytes": 73818,
+      "sha256": "61ee9067b54cb4579467ce75bfcb4460dac74771add0df848309f35e2175087f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-practitioner-after.json",
+      "bytes": 25765,
+      "sha256": "2657c229c5731549eecd632ee41508e5151adf5dff0cc53a525d8034ca96049f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-bot-audiobook-result.json",
+      "bytes": 50917,
+      "sha256": "c873acbf40e4ef295a75807d5003d92f5cbd5777086e21d955febc1881b0109c"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-bot-http-final.json",
+      "bytes": 4877,
+      "sha256": "416434ae3f5b626a63326d4d20b1eeb514f1b817c90172b6e0565e3b6c6a22c9"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-commerce-access-result.json",
+      "bytes": 13746,
+      "sha256": "0d2da653aa455484e712058d7dc62adcc6ebe121fc06feb75e085d6e21656148"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/jest-circle-expiry-result.json",
+      "bytes": 2036,
+      "sha256": "6c1977c3367c0ae942c83be98a843c0aec5dda878185e3aeffa94cc648b5eabd"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/bot-fixture-typecheck-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/bot-fixture-eslint.log",
+      "bytes": 1979,
+      "sha256": "b8b28cf1deb20e0478b0477e6529b96964b93cc90fc68ee07cf66e6a9f015c1f"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/typecheck.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/channel-intake-20260930/voice-quota-real-db-9695462de/eslint.log",
+      "bytes": 1648,
+      "sha256": "a7809a9153a87f7cc67ac665cadd42a8a8850a57ca9540d480948b021c46789a"
+    }
+  ],
+  "noActions": [
+    "生产部署",
+    "生产迁移",
+    "真实资金",
+    "真实通知",
+    "付费打包",
+    "渠道发布",
+    "master合并"
+  ],
+  "rollbackOrder": [
+    "后续交付文档",
+    "e5e379d91测试夹具",
+    "9c8e5e1a2报告修复",
+    "原批次按原记录逆序"
+  ]
+}

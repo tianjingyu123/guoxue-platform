@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-01T18:01:50.509Z",
+  "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+  "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+  "releaseReady": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "gateCount": 7,
+  "gates": [
+    {
+      "id": 1,
+      "title": "最终源码正式接收与镜像绑定",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 2,
+      "title": "生产停写备份与25条迁移",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 3,
+      "title": "两节点同包与入口配置",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 4,
+      "title": "默认手机号登录与最终各渠道签名包",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 5,
+      "title": "最终同版全端用户旅程",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 6,
+      "title": "业务通知闭环与运营终验",
+      "done": false,
+      "externalOnly": false
+    },
+    {
+      "id": 7,
+      "title": "带鉴权容量、安全与放行",
+      "done": false,
+      "externalOnly": false
+    }
+  ],
+  "softwareSkippedCovered": 104,
+  "hardwareSkippedDeferred": 29,
+  "deferred": [
+    "L3",
+    "硬件商业化",
+    "未经审核诗词内容"
+  ],
+  "record": "工作台报告锁与真实库补验-20261001.json"
+}
