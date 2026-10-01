@@ -1,0 +1,117 @@
+{
+  "verifiedAt": "2026-10-01T14:47:29.886Z",
+  "sourceSha": "10863ad1732d3a3d08d8859c5069fe6cbe490e1e",
+  "sourceDirty": false,
+  "mainlineSnapshot": "b2f5ece09fdb04c3bb6f8aa489d3f169037b238b",
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "regression": {
+    "clientTests": 319,
+    "failed": 0,
+    "skipped": 0,
+    "typecheckExitCode": 0,
+    "nativeBundleAuditExitCode": 0
+  },
+  "builds": [
+    {
+      "kind": "app-resources",
+      "fileCount": 491
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1180
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2757
+    }
+  ],
+  "previousEvidenceReuse": {
+    "clientSource": "19a61227f1ce7f36e5c5c1b7888c95d4424ea6f1",
+    "serverSource": "c53d04396c5593a8a3964b955213c03a7c7bd3fb",
+    "serverTests": 45,
+    "serverSuites": 2,
+    "serverBuildPassed": true,
+    "unchangedInputs": {
+      "apps/server": {
+        "previousObject": "3d4a45d03165713b3b3dfcd851276915c00a66ea",
+        "currentObject": "3d4a45d03165713b3b3dfcd851276915c00a66ea",
+        "identical": true
+      },
+      "apps/admin": {
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "packages": {
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      }
+    },
+    "previousFrozenFilesVerified": 7886,
+    "serverSourceRebound": false
+  },
+  "review": {
+    "patch": "artifacts\\phase22-message-merged-current\\review-verified\\merged-from-b2f5ece0.patch",
+    "bundle": "artifacts\\phase22-message-merged-current\\review-verified\\merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "58a6b411fc506caad808bde1cebfe0d3c88d8d58",
+    "sourceTree": "58a6b411fc506caad808bde1cebfe0d3c88d8d58",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts\\phase22-message-merged-current\\client-gate.log": {
+      "bytes": 34757,
+      "sha256": "e59aa91dbcd2eaeddccff3de52d0be684a64cdee3ee5eb0d2589c28d284069fc"
+    },
+    "artifacts\\phase22-message-merged-current\\execution.json": {
+      "bytes": 648,
+      "sha256": "03d709a2024b76b63e377002f74040c8874fcc39d865aed97941088b20b560ed"
+    },
+    "artifacts\\phase22-message-merged-current\\mobile-app-build.log": {
+      "bytes": 68036,
+      "sha256": "5f8d0374c5b340dc5a86cc5a640ffae90540212b2fcf39477d1035cbf865aeaa"
+    },
+    "artifacts\\phase22-message-merged-current\\mobile-h5-build.log": {
+      "bytes": 68258,
+      "sha256": "c396af563a69c787b8a14b90617417d1b0d797acf1023fb1438fbf933beed15a"
+    },
+    "artifacts\\phase22-message-merged-current\\mobile-mp-build.log": {
+      "bytes": 69059,
+      "sha256": "128daf531ba9ac4d83f1b0a0b723da3edcdcafa2e30200bd63c8f864a0987c9a"
+    },
+    "artifacts\\phase22-message-merged-current\\mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts\\phase22-message-merged-current\\native-bundle-audit.log": {
+      "bytes": 166,
+      "sha256": "d388a90a07a66c21e77a6a0ad92d6d1a160217df35607c2acfe6ccd5ecc8d44c"
+    },
+    "artifacts\\phase22-message-merged-current\\build-manifest.json": {
+      "bytes": 839335,
+      "sha256": "be4ee885871dd6291c09ce94e47b102760ddfd6642ceccf556dd5e378e9dfd01"
+    },
+    "artifacts\\phase22-message-merged-current\\review-verified\\merged-from-b2f5ece0.patch": {
+      "bytes": 367546,
+      "sha256": "16cf4a65607bb259ba9298c6cfa462fdcd15f144ab54f4b05d5b6db2a73a6879"
+    },
+    "artifacts\\phase22-message-merged-current\\review-verified\\merged.bundle": {
+      "bytes": 116132,
+      "sha256": "0adcd789710f87353472fa8366b0ef0a49b65fff426b8d4c082c363e3fc3a83f"
+    }
+  },
+  "limits": [
+    "仅独立候选合并，未实际主线接收、部署或上传",
+    "App为资源构建，不是DCloud完整签名包",
+    "页面生命周期与网络使用合成运行时，不替代真实账号及业务验收",
+    "旧服务端回归和产物仍绑定c53d0439",
+    "支付类型来自实际服务端代码；未执行真实支付"
+  ]
+}
