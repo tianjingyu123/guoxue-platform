@@ -182,6 +182,10 @@ function createVodMock() {
 function createFeatureFlagMock() {
   return {
     isEnabled: jest.fn().mockResolvedValue(true),
+    // 业务流程使用开放状态；运营裁决的拒绝路径由 operation-http 单独验证。
+    requestScope: jest.fn().mockResolvedValue(null),
+    getOperationState: jest.fn().mockResolvedValue("OPEN"),
+    getConfiguredOperationState: jest.fn().mockResolvedValue("OPEN"),
     list: jest.fn().mockResolvedValue([]),
     getByKey: jest.fn().mockResolvedValue({ key: "test", enabled: true, percentage: 100, targetUserIds: [] }),
     upsert: jest.fn().mockResolvedValue({ key: "test", enabled: true }),

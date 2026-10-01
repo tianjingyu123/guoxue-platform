@@ -138,8 +138,8 @@ test("正式语音与鸿蒙签名必须同时绑定候选包和真机证据", as
       signatureSha256: "a".repeat(64),
       deviceModel: "HarmonyOS 测试真机",
       osVersion: "HarmonyOS NEXT",
-      oldVersion: "1.0.3",
-      candidateVersion: "1.1.0",
+      oldVersion: baseline.harmony.versionName,
+      candidateVersion: manifest.versionName,
       coverInstallPassed: true,
     },
   };
