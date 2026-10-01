@@ -62,7 +62,7 @@
       <view v-if="historyList.length" class="sec">
         <view class="sec-head">
           <text class="sec-title">搜索历史</text>
-          <view class="sec-clear" @click="clearHistory">
+          <view class="sec-clear" role="button" aria-label="清空搜索历史" tabindex="0" hover-class="search-control--pressed" @click="clearHistory" @keydown.enter="clearHistory" @keydown.space.prevent="clearHistory">
             <app-icon name="trash-2" :size="28" color="var(--text-soft)" />
           </view>
         </view>
@@ -239,6 +239,8 @@ function clearHistory() {
       if (!res.confirm) return
       const list = historyList.value
       historyList.value = [] // 先清 UI，失败再回滚（清历史是高频轻操作，不该等一个 loading）
+      // 游客历史只存在本页内存，清空不能调用登录用户接口或触发登录回跳。
+      if (!getToken()) return
       try {
         await searchApi.clearHistory()
       } catch (e) {
@@ -443,8 +445,8 @@ function doSearch(kw: string) {
   color: var(--text-main);
 }
 .sec-clear {
-  width: 48rpx;
-  height: 48rpx;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;

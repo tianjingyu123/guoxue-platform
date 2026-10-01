@@ -115,6 +115,12 @@ const mime = {
         await page.getByRole("button", { name: "搜索", exact: true }).click();
         await page.getByRole("button", { name: "返回上一页", exact: true }).click();
         await page.waitForURL(/pkg-search\/search\/index/);
+        await page.getByRole("button", { name: "清空搜索历史", exact: true }).click();
+        await page.getByText("取消", { exact: true }).click();
+        assert.equal(await page.locator(".tag--history").count(), 1, "取消清空保留历史");
+        await page.getByRole("button", { name: "清空搜索历史", exact: true }).click();
+        await page.getByText("确定", { exact: true }).click();
+        await page.waitForFunction(() => !document.querySelector(".tag--history"));
         assert.equal(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
           true,
