@@ -3,7 +3,7 @@
     <!-- 自定义导航栏（宣纸白·发现驿站） -->
     <view class="c1-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="c1-nav-row">
-        <view class="c1-nav-btn" @tap="goBack">
+        <view class="c1-nav-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
           <app-icon name="chevron-left" :size="22" color="#2C2C2C" />
         </view>
         <text class="c1-nav-title serif">发现驿站</text>
@@ -296,7 +296,12 @@ function goApplyStation() {
 }
 .c1-nav-btn:first-child {
   left: 6px;
-  width: 40px;
+  width: 44px;
+}
+.c1-nav-btn:focus-visible {
+  outline: 2px solid #C41E3A;
+  outline-offset: -3px;
+  border-radius: 50%;
 }
 .c1-nav-title {
   font-size: 17px;

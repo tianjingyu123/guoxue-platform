@@ -397,11 +397,14 @@ function openVideoOnKeyboard(event: KeyboardEvent, id: string) {
   color: #2C2C2C;
 }
 .vl-title-group { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
-.vl-back-btn { width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; }
+.vl-back-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; }
 .vl-back-btn:active { background-color: #EDE7DD; }
+.vl-back-btn:focus-visible, .vl-search-btn:focus-visible { outline: 2px solid #C41E3A; outline-offset: 2px; }
 .vl-search-btn {
-  width: 68rpx;
-  height: 68rpx;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  flex-shrink: 0;
   border-radius: 50%;
   background-color: #FFFFFF;
   border: 1rpx solid #EDE7DD;
@@ -542,8 +545,8 @@ function openVideoOnKeyboard(event: KeyboardEvent, id: string) {
   letter-spacing: 4rpx;
 }
 .vl-search-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 44px;
+  height: 44px;
   border-color: rgba(23, 25, 35, 0.08);
   box-shadow: 0 12rpx 28rpx rgba(36, 24, 51, 0.06);
 }

@@ -16,13 +16,18 @@ function openEntry(href: string) {
 </script>
 
 <template>
-  <view class="business-entry-grid">
+  <view class="business-entry-grid" role="navigation" aria-label="业务服务">
     <view
       v-for="entry in entries"
       :key="entry.id"
       class="business-entry"
+      role="link"
+      tabindex="0"
+      :aria-label="entry.label"
       hover-class="business-entry-press"
       @tap="openEntry(entry.href)"
+      @keydown.enter="openEntry(entry.href)"
+      @keydown.space.prevent="openEntry(entry.href)"
     >
       <view class="business-entry-icon">
         <view class="business-entry-mark" />
@@ -52,6 +57,7 @@ function openEntry(href: string) {
 .business-entry {
   width: 20%;
   min-width: 0;
+  min-height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,6 +67,12 @@ function openEntry(href: string) {
 .business-entry-press {
   opacity: 0.68;
   transform: translateY(2rpx);
+}
+
+.business-entry:focus-visible {
+  outline: 2px solid #A64A42;
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 
 .business-entry-icon {

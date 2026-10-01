@@ -9,7 +9,7 @@
     <!-- 顶部导航（custom·朱红品牌头下自绘） -->
     <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-bar">
-        <view class="nav-back" @tap="goBack">
+        <view class="nav-back" role="button" aria-label="返回上一页" tabindex="0" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
           <app-icon name="chevron-left" :size="22" color="#fff" />
         </view>
         <text class="nav-title">书院研究院</text>
@@ -334,10 +334,11 @@ $radius: 36rpx;
 
 /* 顶部导航（品牌头上透明·白字） */
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; }
-.nav-bar { height: 88rpx; display: flex; align-items: center; padding: 0 24rpx; }
-.nav-back { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; margin-left: -8rpx; }
+.nav-bar { height: 44px; display: flex; align-items: center; padding: 0 24rpx; }
+.nav-back { width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-left: -8rpx; border-radius: 50%; }
+.nav-back:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 .nav-title { flex: 1; text-align: center; font-size: 34rpx; font-weight: 700; color: #fff; letter-spacing: 2rpx; }
-.nav-placeholder { width: 64rpx; }
+.nav-placeholder { width: 44px; flex-shrink: 0; }
 
 .scroll { height: 100vh; box-sizing: border-box; }
 

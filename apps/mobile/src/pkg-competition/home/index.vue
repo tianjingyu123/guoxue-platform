@@ -4,7 +4,7 @@
       <!-- 朱红渐变品牌头（自定义 navbar） -->
       <view class="a1-brand" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="a1-brand-top">
-          <view class="a1-back-btn" role="button" aria-label="返回" @tap="goBack">
+          <view class="a1-back-btn" role="button" aria-label="返回上一页" tabindex="0" @tap="goBack" @keydown.enter="goBack" @keydown.space.prevent="goBack">
             <app-icon name="arrow-left" :size="28" color="#fff" />
           </view>
           <view class="a1-brand-logo"><app-icon name="award" :size="18" color="#fff" /></view>
@@ -319,6 +319,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .a1-brand-top { display: flex; align-items: center; gap: 10px; padding-top: 8px; }
 .a1-back-btn { width: 44px; height: 44px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.14); flex-shrink: 0; }
 .a1-back-btn:active { background: rgba(255,255,255,0.28); }
+.a1-back-btn:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 .a1-brand-logo { width: 32px; height: 32px; border-radius: 9px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .a1-brand-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .a1-brand-h2 { color: #fff; font-size: 20px; font-weight: 700; letter-spacing: 3px; font-family: 'Songti SC', 'STSong', serif; }
