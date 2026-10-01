@@ -182,7 +182,9 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { accountApi, REGIONS, PROVINCES } from '@/pkg-account/lib/account-data'
+import { accountApi } from '@/pkg-account/lib/account-data'
+// 地区数据仅由地址编辑页引用，避免账户API公共层携带完整地区表。
+import { SHIPPING_REGIONS as REGIONS, SHIPPING_PROVINCES as PROVINCES } from '@/pkg-account/lib/shipping-regions'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)

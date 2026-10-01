@@ -1,0 +1,15 @@
+{
+  "name": "@vant/area-data",
+  "version": "2.1.0",
+  "license": "MIT",
+  "repository": "https://github.com/vant-ui/vant/tree/main/packages/vant-area-data",
+  "registry": "https://registry.npmjs.org/@vant/area-data/2.1.0",
+  "sourceFileSha256": "e80143211b0f67180c3693ae3d7211ce36b303b4ff49b0f5c18495bb025fb90f",
+  "licenseSha256": "d18ad730cd8c4f33a032d9859dd29e5e07b244a41f76af58adb04be7219be383",
+  "normalizedDataSha256": "2fb0a4ad9f5da2e576ae05eeb9d43424c5cfe19a7ddf4071f2d75c4913b72204",
+  "provinces": 34,
+  "cities": 369,
+  "districts": 3479,
+  "duplicateLabelsRemoved": 0,
+  "purpose": "收货地址选择；不代表全部物流范围、官方最新行政区划或排盘地理数据库"
+}
