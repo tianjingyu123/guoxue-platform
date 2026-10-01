@@ -777,6 +777,276 @@
       "手机号云函数和两节点共享签名仍未接通，取号入口保持关闭；已购资源包不是服务验证",
       "原始完整www清单检查失败保留：官方原生分区与网页分区分别核对；未修改或放宽门禁源码",
       "无云打包、安装、计费取号、云函数部署、生产迁移或发布"
-    ]
+    ],
+    "nativeStaticInputChecks": {
+      "sourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+      "exportHead": "6eb824177322357737aa41599424433530e8ade4",
+      "checkedAt": "2026-10-01T05:22:56.095Z",
+      "checks": {
+        "sourceVersion254": true,
+        "sourceAppIdMatchesExport": true,
+        "runmodeLiberate": true,
+        "targetSdk35": true,
+        "noLivePusher": true,
+        "trtcRetained": true,
+        "oauthModule": true,
+        "paymentModule": true,
+        "univerifySdkInput": true,
+        "nativeAarMatches": true,
+        "hookClass": true,
+        "bootCallInGeneratedKotlin": true,
+        "allAndroidIconInputsPresent": true,
+        "logoOriginalMatches": true
+      },
+      "icons": [
+        {
+          "scale": "ldpi",
+          "path": "apps/mobile/unpackage/res/icons/48x48.png",
+          "bytes": 2252,
+          "width": 48,
+          "height": 48,
+          "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+        },
+        {
+          "scale": "mdpi",
+          "path": "apps/mobile/unpackage/res/icons/48x48.png",
+          "bytes": 2252,
+          "width": 48,
+          "height": 48,
+          "sha256": "bec4a696e47b3d90dccbdb1f4bf9ccac2b798f2d945f85762896da7646d7f845"
+        },
+        {
+          "scale": "hdpi",
+          "path": "apps/mobile/unpackage/res/icons/72x72.png",
+          "bytes": 4089,
+          "width": 72,
+          "height": 72,
+          "sha256": "9d7c5e64573cd09c303eee4fbe399788db19d5f57352d542a501f76e96763467"
+        },
+        {
+          "scale": "xhdpi",
+          "path": "apps/mobile/unpackage/res/icons/96x96.png",
+          "bytes": 6515,
+          "width": 96,
+          "height": 96,
+          "sha256": "65a5c6bc8167292cad9eae6905e7305dea3a21f7e856ed0130ac77a8ef4b96fe"
+        },
+        {
+          "scale": "xxhdpi",
+          "path": "apps/mobile/unpackage/res/icons/144x144.png",
+          "bytes": 12867,
+          "width": 144,
+          "height": 144,
+          "sha256": "9b4e11a9449a5815729707770c04e00dc97d673b5ad12c430b3c1809ec03e303"
+        },
+        {
+          "scale": "xxxhdpi",
+          "path": "apps/mobile/unpackage/res/icons/192x192.png",
+          "bytes": 21358,
+          "width": 192,
+          "height": 192,
+          "sha256": "1d8fbe4aa819100ce2e371504147a03b46afc2b2a30b397793ff88874c4775c2"
+        }
+      ],
+      "nativeAarSha256": "b3749f7173bdb9c3d77cab3da97043e841101ea89212d02f4ddc5c2d0d5941b2",
+      "scope": "静态构建输入，仅证明素材及配置存在；不是APK中实际打包、R8保留、UTS注册启动或运行时权限通过",
+      "nativePackageVerified": false
+    },
+    "nativeStaticInputReceiptSha256": "af2e67377cb1dc4a058c9f812114aafb955eb7b4b62c6b898cdb7115c2614dd1"
+  },
+  "currentTargetReadonlyPreflight": {
+    "checkedAt": "2026-10-01T05:26:45.260Z",
+    "verified": true,
+    "resultSha256": "9f9d45b599a8ddcf2acdd73509bb35e7b0a1ca9cf0e9acb575348e5b8792ce8d",
+    "scriptSha256": "08d3be2b0d9d149750dc6dd2450548712bc9b4ab40ce4d51303b606318ad7f46",
+    "identityScriptSha256": "a9e0e09a532addce4f03601725ba465c482a53b7f3f08650f955ccb253797d06",
+    "receipts": [
+      {
+        "role": "A",
+        "kind": "preflight",
+        "instanceId": "ins-0sen8yvf",
+        "invocationId": "inv-d9bvn6gp4g",
+        "taskId": "invt-d9bvn6gp4h",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "6057b127eda2a6a020c3996efbe0b1e43cde4a43d4f970b64684cc1fe9bd32ed",
+        "savedOutputExact": true
+      },
+      {
+        "role": "A",
+        "kind": "identity",
+        "instanceId": "ins-0sen8yvf",
+        "invocationId": "inv-d9bvpp03jv",
+        "taskId": "invt-d9bvpp03jw",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "70ff54321b769e918a94653eacf99def759590dd3b24ddd92afa0aed6bdae741",
+        "savedOutputExact": true
+      },
+      {
+        "role": "B",
+        "kind": "preflight",
+        "instanceId": "ins-n0sqc627",
+        "invocationId": "inv-a9bvnwg7ck",
+        "taskId": "invt-a9bvnwg7cm",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "4f09e1bf896048277743b7322d545550e2166c5be82b927934bcc38467a3bcab",
+        "savedOutputExact": true
+      },
+      {
+        "role": "B",
+        "kind": "identity",
+        "instanceId": "ins-n0sqc627",
+        "invocationId": "inv-c9bvpsg8u6",
+        "taskId": "invt-c9bvpsg8u7",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawReceiptSha256": "fff2b34673ef77df1ea98c3d43d8eb95ef7c9c5b2ed6131b388a1e49bf46188f",
+        "savedOutputExact": true
+      }
+    ],
+    "result": {
+      "schemaVersion": 1,
+      "scope": "北京两节点当前运行环境只读预检",
+      "clientDate": "2026-09-30",
+      "scriptSha256": "08d3be2b0d9d149750dc6dd2450548712bc9b4ab40ce4d51303b606318ad7f46",
+      "identityScriptSha256": "a9e0e09a532addce4f03601725ba465c482a53b7f3f08650f955ccb253797d06",
+      "candidate": {
+        "businessSourceCommit": "70ee2418d091c9bea87878a8ff89b879a12e28b9",
+        "expectedMigrationCount": 128,
+        "note": "候选身份仅用于差距比较，本次没有部署候选或执行迁移。"
+      },
+      "nodes": [
+        {
+          "role": "A",
+          "tatNode": "guoxue2",
+          "instanceId": "ins-0sen8yvf",
+          "hostname": "VM-0-10-ubuntu",
+          "preflightInvocationId": "inv-d9bvn6gp4g",
+          "preflightTaskId": "invt-d9bvn6gp4h",
+          "preflightExitCode": 0,
+          "preflightDroppedBytes": 0,
+          "identityInvocationId": "inv-d9bvpp03jv",
+          "identityTaskId": "invt-d9bvpp03jw",
+          "identityExitCode": 0,
+          "identityDroppedBytes": 0,
+          "containerStatus": "running",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+          "imageRepoTag": "guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.XMHO9VlR",
+          "releaseIdentityPresent": false,
+          "ociRevisionPresent": false,
+          "completedMigrations": 103,
+          "unfinishedMigrations": 0,
+          "rolledBackMigrations": 1,
+          "runtimeMigrationDirs": 103,
+          "runtimePendingMigrations": 0,
+          "candidateMigrationGap": 25,
+          "univerifySecretKeyCount": 0,
+          "univerifySecretReady": false,
+          "runtimeUniverifySecretReady": false,
+          "redisConfigPresent": true,
+          "runtimeRedisConfigured": true,
+          "redisPing": "ok",
+          "rootBytesTotal": 308988768256,
+          "rootBytesAvailable": 138391465984,
+          "rootPercentUsed": 54,
+          "memoryBytesTotal": 16230629376,
+          "memoryBytesAvailable": 12539248640
+        },
+        {
+          "role": "B",
+          "tatNode": "guoxue1",
+          "instanceId": "ins-n0sqc627",
+          "hostname": "VM-0-14-ubuntu",
+          "preflightInvocationId": "inv-a9bvnwg7ck",
+          "preflightTaskId": "invt-a9bvnwg7cm",
+          "preflightExitCode": 0,
+          "preflightDroppedBytes": 0,
+          "identityInvocationId": "inv-c9bvpsg8u6",
+          "identityTaskId": "invt-c9bvpsg8u7",
+          "identityExitCode": 0,
+          "identityDroppedBytes": 0,
+          "containerStatus": "running",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+          "imageRepoTag": "guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.S1Vudo6x",
+          "releaseIdentityPresent": false,
+          "ociRevisionPresent": false,
+          "completedMigrations": 103,
+          "unfinishedMigrations": 0,
+          "rolledBackMigrations": 1,
+          "runtimeMigrationDirs": 103,
+          "runtimePendingMigrations": 0,
+          "candidateMigrationGap": 25,
+          "univerifySecretKeyCount": 0,
+          "univerifySecretReady": false,
+          "runtimeUniverifySecretReady": false,
+          "redisConfigPresent": true,
+          "runtimeRedisConfigured": true,
+          "redisPing": "ok",
+          "rootBytesTotal": 308988768256,
+          "rootBytesAvailable": 235398422528,
+          "rootPercentUsed": 21,
+          "memoryBytesTotal": 16230629376,
+          "memoryBytesAvailable": 13479837696
+        }
+      ],
+      "conclusions": {
+        "bothHealthy": true,
+        "bothRedisConfiguredAndReachable": true,
+        "bothUniverifySecretReady": false,
+        "productionCandidateDeployed": false,
+        "productionMigrationExecuted": false,
+        "exactRunningSourceCommitVerifiable": false
+      },
+      "notCovered": [
+        "没有部署、迁移、重启、改配置或调用取号",
+        "没有证明 Redis ACL、跨节点幂等、防重放和失联恢复",
+        "没有证明云函数已部署、手机号取号可用或签名 APK 同版",
+        "镜像没有 release-id 或 OCI revision/version，不能把当前镜像绑定到源码 commit",
+        "runtimePendingMigrations=0 仅表示旧运行镜像自身的103目录已应用；相对70ee候选仍差25条"
+      ]
+    },
+    "limits": [
+      "仅当前旧版只读状态，不是候选部署或最终维护备份",
+      "Redis只读PING不证明同一Redis身份、ACL、防重放或跨节点幂等",
+      "运行镜像无发布源码身份，不能从标签推断源码commit"
+    ],
+    "localVerifiedReceiptSha256": "b1eaf3b1219e6ae5a8127b4d187f4899c72c70495d4d6087ef096c97b9479843"
+  },
+  "currentPhoneReadonly": {
+    "checkedAt": "2026-10-01T05:20:38.2165750Z",
+    "devices": [
+      {
+        "model": "LE2100",
+        "android": "14",
+        "transport": "其他已授权ADB通道",
+        "installedPackage": "com.rebu.apprebu",
+        "versionCode": "253",
+        "versionName": "1.1.0",
+        "matches254": false,
+        "readOnly": true
+      },
+      {
+        "model": "Android SDK built for x86_64",
+        "android": "8.0.0",
+        "transport": "其他已授权ADB通道",
+        "installedPackage": "com.rebu.apprebu",
+        "versionCode": "",
+        "versionName": "",
+        "matches254": false,
+        "readOnly": true
+      }
+    ],
+    "noInstall": true,
+    "noPayment": true,
+    "noAppLaunch": true,
+    "localReceiptSha256": "6eabce137764c6cc7f19412db2a3d7373d98c69fc203812c3536bad7cbb719cc"
   }
 }
