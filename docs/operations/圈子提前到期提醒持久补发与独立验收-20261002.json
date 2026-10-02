@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-02T07:02:56.739Z",
+  "checkedAt": "2026-10-02T07:16:09.608Z",
   "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
   "parentHead": "4c562d45ea0c4c41014185f795ac0bc412614eb9",
   "receivedCommits": [
@@ -200,46 +200,97 @@
   "ci": {
     "runId": 36975867250,
     "source": "e0e0590b347f054e689958ec2468582d2247654e",
-    "status": "in_progress",
-    "conclusion": null,
+    "status": "completed",
+    "conclusion": "success",
     "jobs": [
       {
         "status": "completed",
-        "id": 110739447542,
+        "name": "迁移与上线代码门禁",
         "conclusion": "success",
-        "name": "迁移与上线代码门禁"
+        "id": 110739447542
       },
       {
         "status": "completed",
-        "id": 110739447608,
+        "name": "ESLint + Prettier",
         "conclusion": "success",
-        "name": "ESLint + Prettier"
+        "id": 110739447608
       },
       {
         "status": "completed",
-        "id": 110739447775,
+        "name": "TypeScript 类型检查",
         "conclusion": "success",
-        "name": "TypeScript 类型检查"
+        "id": 110739447775
       },
       {
         "status": "completed",
-        "id": 110739870150,
+        "name": "单元测试 (2/3)",
         "conclusion": "success",
-        "name": "单元测试 (2/3)"
+        "id": 110739870150
       },
       {
         "status": "completed",
-        "id": 110739870208,
+        "name": "单元测试 (3/3)",
         "conclusion": "success",
-        "name": "单元测试 (3/3)"
+        "id": 110739870208
       },
       {
-        "status": "in_progress",
-        "id": 110739870256,
-        "conclusion": null,
-        "name": "单元测试 (1/3)"
+        "status": "completed",
+        "name": "单元测试 (1/3)",
+        "conclusion": "success",
+        "id": 110739870256
+      },
+      {
+        "status": "completed",
+        "name": "构建产物",
+        "conclusion": "success",
+        "id": 110743549226
+      },
+      {
+        "status": "completed",
+        "name": "测试结果汇总",
+        "conclusion": "success",
+        "id": 110743549242
       }
-    ]
+    ],
+    "counts": {
+      "shards": [
+        {
+          "skipped": 50,
+          "id": 110739870150,
+          "summary": "2026-10-02T06:59:45.0336555Z Tests:       50 skipped, 3069 passed, 3119 total",
+          "passed": 3069,
+          "name": "单元测试 (2/3)"
+        },
+        {
+          "skipped": 72,
+          "id": 110739870208,
+          "summary": "2026-10-02T06:59:03.8915914Z Tests:       72 skipped, 3056 passed, 3128 total",
+          "passed": 3056,
+          "name": "单元测试 (3/3)"
+        },
+        {
+          "skipped": 92,
+          "id": 110739870256,
+          "summary": "2026-10-02T07:10:49.9946906Z Tests:       92 skipped, 2832 passed, 2924 total",
+          "passed": 2832,
+          "name": "单元测试 (1/3)"
+        }
+      ],
+      "production": false,
+      "runId": 36975867250,
+      "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
+      "fullCIComplete": true,
+      "passed": 8957,
+      "checkedAt": "2026-10-02T07:14:48.5967628Z",
+      "skipped": 214,
+      "jobsPassed": 8
+    },
+    "prPreviousRun": {
+      "id": 36975873816,
+      "conclusion": "cancelled",
+      "reason": "草稿PR文档HEAD更新后由既有并发配置自动取消；不是业务回归失败",
+      "currentPRChecksNotAssumedPassed": true
+    }
   },
   "key": "<userId>:CIRCLE_EXPIRING:<membershipId>:<精确UTC到期时刻>:<7|3|1>",
   "calendarZone": "Asia/Shanghai",
