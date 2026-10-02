@@ -18,7 +18,7 @@ async function main() {
       .filter(entry => entry.isDirectory())
       .map(entry => ({ migration_name: entry.name, checksum: crypto.createHash('sha256')
         .update(fs.readFileSync(path.join(migrationRoot, entry.name, 'migration.sql'))).digest('hex') }));
-    assert.equal(migrations.length, 132, '本候选固定包迁移数量不符');
+    assert.equal(migrations.length, 134, '本候选固定包迁移数量不符');
     assert.deepEqual(ledger[0], { total: migrations.length, complete: migrations.length, failed: 0 });
     const persisted = await prisma.$queryRawUnsafe(`SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`);
     const byName = rows => rows.sort((a, b) => a.migration_name.localeCompare(b.migration_name));
