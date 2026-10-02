@@ -1,0 +1,151 @@
+{
+  "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+  "parent": "41b2760c383342325c9302f7164e26f4e5b430e4",
+  "files": [
+    {
+      "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+      "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-payment.service.spec.ts",
+      "sha256": "1392039b5e82884d916c0b74d2a82723f9226fbd8e1bba8489f1acfce6a2fe13"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.spec.ts",
+      "sha256": "f7b95dce46fad0e6fedb1a5bbaf2b55920ba2f043f340b92f190bacdbe15b0c4"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "sha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    }
+  ],
+  "localUniqueTests": 365,
+  "newTests": 95,
+  "compiledTests": 20,
+  "typecheckExit": 0,
+  "buildExit": 0,
+  "lintErrors": 0,
+  "priorAnyWarnings": 13,
+  "baselineSource": "72883b815eee332d9a383c61abf8c6be8020c920",
+  "realPostgres": true,
+  "redis": "stub",
+  "channels": "adapted synthetic callbacks only",
+  "realPayment": false,
+  "transportSignature": false,
+  "production": false,
+  "newMigration": false,
+  "couponPolicyChanged": false,
+  "releaseReady": false,
+  "checkedAt": "2026-10-02T18:35:34.851Z",
+  "record": "支付事务回滚误确认与退款重投通知验收-20261002.json",
+  "linux": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "runId": 37048618735,
+    "verificationHead": "7c04535b53cb0615d72258b2c803cf1ed62b0c4d",
+    "artifactId": 11245308623,
+    "artifactDigest": "sha256:ddbd5de0a58e58dc3fb1df8935d8abc69e38356129fef53f6f2d0c3a3a16fc8c",
+    "digestVerified": true,
+    "verifiedSourceHashLines": 1809,
+    "linux": "ubuntu-24.04",
+    "postgres": "18.4",
+    "passed": 365,
+    "suites": 15,
+    "compiledPassed": 20,
+    "compiledSourceBindings": 6,
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "production": false,
+    "realRedis": false,
+    "realChannels": false,
+    "transportSignature": false,
+    "formalDockerfileImage": false,
+    "newDeviceTest": false,
+    "historicalBackfill": false,
+    "summaries": [
+      {
+        "file": "src/modules/shop/shop-payment.service.spec.ts",
+        "passed": 70
+      },
+      {
+        "file": "src/modules/shop/shop-refund.service.spec.ts",
+        "passed": 44
+      },
+      {
+        "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+        "passed": 33
+      },
+      {
+        "file": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+        "passed": 17
+      },
+      {
+        "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+        "passed": 19
+      },
+      {
+        "file": "src/modules/notification/notification.service.spec.ts",
+        "passed": 29
+      },
+      {
+        "file": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "passed": 14
+      },
+      {
+        "file": "src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+        "passed": 20
+      },
+      {
+        "file": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "passed": 8
+      },
+      {
+        "file": "src/modules/entitlement/entitlement.service.spec.ts",
+        "passed": 6
+      },
+      {
+        "file": "src/modules/shop/payment-ack-boundary.spec.ts",
+        "passed": 75
+      },
+      {
+        "file": "src/modules/member/member.service.spec.ts",
+        "passed": 18
+      },
+      {
+        "file": "src/modules/member/member-grant.service.spec.ts",
+        "passed": 4
+      },
+      {
+        "file": "src/modules/notification/entitlement-notification.task.spec.ts",
+        "passed": 4
+      },
+      {
+        "file": "src/modules/shop/membership-period.spec.ts",
+        "passed": 4
+      }
+    ],
+    "checkedAt": "2026-10-02T18:41:15.448Z"
+  },
+  "ci": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "runId": 37048561929,
+    "fullCIComplete": false,
+    "status": "官方整版CI待最终结果"
+  },
+  "formalImage": {
+    "validated": false,
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "previousPassed": 30,
+    "note": "历史正式镜像不冒充当前候选"
+  },
+  "paymentAckBlockerFixedInIsolation": true,
+  "N4AllClosed": false,
+  "N5CouponPolicyDecided": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ]
+}

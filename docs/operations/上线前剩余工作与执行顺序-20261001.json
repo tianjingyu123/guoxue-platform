@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T18:17:48.264Z",
-  "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+  "checkedAt": "2026-10-02T18:47:00.403Z",
+  "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
   "testFixtureCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
   "releaseReady": false,
   "states": [
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "书院会员并发付款退款与持久到账验收-20261002.json",
+  "record": "支付事务回滚误确认与退款重投通知验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,45 +70,18 @@
     "skipped": 134
   },
   "formalImage": {
-    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
     "validated": false,
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
     "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
     "previousPassed": 30,
-    "note": "前版正式镜像按历史保留，不冒充当前身份；本次Linux编译成品不是正式Dockerfile镜像"
+    "note": "历史正式镜像不冒充当前候选"
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 37043777706,
-    "skipped": 444,
-    "checkedAt": "2026-10-02T18:17:17.3194153Z",
-    "production": false,
-    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
-    "passed": 9016,
-    "shards": [
-      {
-        "passed": 3079,
-        "name": "单元测试 (2/3)",
-        "id": 110960587925,
-        "summary": "2026-10-02T17:58:28.2644251Z Tests:       157 skipped, 3079 passed, 3236 total",
-        "skipped": 157
-      },
-      {
-        "passed": 2852,
-        "name": "单元测试 (1/3)",
-        "id": 110960587986,
-        "summary": "2026-10-02T18:06:22.5579038Z Tests:       157 skipped, 2852 passed, 3009 total",
-        "skipped": 157
-      },
-      {
-        "passed": 3085,
-        "name": "单元测试 (3/3)",
-        "id": 110960588036,
-        "summary": "2026-10-02T17:58:37.8355598Z Tests:       130 skipped, 3085 passed, 3215 total",
-        "skipped": 130
-      }
-    ],
-    "jobsPassed": 8,
-    "fullCIComplete": true
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "runId": 37048561929,
+    "fullCIComplete": false,
+    "status": "官方整版CI待最终结果"
   },
   "historicalSoftwareSkippedCovered": 104,
   "additionalSkippedCovered": 32,
@@ -189,7 +162,7 @@
       "production": false
     }
   },
-  "businessCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+  "businessCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
   "feedbackMonthlyPrivacyScope": {
     "source": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
     "receipt": "工单补发与月度权益原子性及IM隐私收口-20261002.json",
@@ -241,11 +214,11 @@
           "apps/server/src/modules/circle/services/circle-post.service.ts"
         ],
         "fact": "治理有notify->send真实调用，圈子到期删除后send且到期提醒无数据库事件幂等；圈帖sendOnce防重但提交后崩溃尚无持久事件恢复",
-        "next": "书院新付款持久到账已补，先修回调唯一键错误确认，再补月度积分券通知、免费订阅持久补发；真实渠道/Cron/手机另验",
+        "next": "回滚错误确认已隔离修复；下一补月度积分券与免费课程持久补发、课程提醒故障恢复。外部渠道/Cron/手机另验",
         "runtimeFailureInjectionThisBatch": false,
         "resolvedInIsolation": false,
         "practitionerCompleteInIsolation": true,
-        "matrixSource": "72883b815eee332d9a383c61abf8c6be8020c920",
+        "matrixSource": "f8e03c883cd648033fe44b409487a67c0073c746",
         "matrixRecord": "本版通知入口与持久恢复矩阵-20261002.json"
       },
       {
@@ -3794,6 +3767,201 @@
       ],
       "description": "旧未用券唯一键导致主事务回滚，回调却返回true；待独立修复"
     },
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ]
+  },
+  "paymentPreviousBinding": {
+    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "record": "书院会员并发付款退款与持久到账验收-20261002.json",
+    "ci": {
+      "runId": 37043777706,
+      "skipped": 444,
+      "checkedAt": "2026-10-02T18:17:17.3194153Z",
+      "production": false,
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "passed": 9016,
+      "shards": [
+        {
+          "passed": 3079,
+          "name": "单元测试 (2/3)",
+          "id": 110960587925,
+          "summary": "2026-10-02T17:58:28.2644251Z Tests:       157 skipped, 3079 passed, 3236 total",
+          "skipped": 157
+        },
+        {
+          "passed": 2852,
+          "name": "单元测试 (1/3)",
+          "id": 110960587986,
+          "summary": "2026-10-02T18:06:22.5579038Z Tests:       157 skipped, 2852 passed, 3009 total",
+          "skipped": 157
+        },
+        {
+          "passed": 3085,
+          "name": "单元测试 (3/3)",
+          "id": 110960588036,
+          "summary": "2026-10-02T17:58:37.8355598Z Tests:       130 skipped, 3085 passed, 3215 total",
+          "skipped": 130
+        }
+      ],
+      "jobsPassed": 8,
+      "fullCIComplete": true
+    },
+    "formalImage": {
+      "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+      "validated": false,
+      "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "previousPassed": 30,
+      "note": "前版正式镜像按历史保留，不冒充当前身份；本次Linux编译成品不是正式Dockerfile镜像"
+    }
+  },
+  "paymentAckScope": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "parent": "41b2760c383342325c9302f7164e26f4e5b430e4",
+    "files": [
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+        "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
+      },
+      {
+        "path": "apps/server/src/modules/shop/shop-payment.service.spec.ts",
+        "sha256": "1392039b5e82884d916c0b74d2a82723f9226fbd8e1bba8489f1acfce6a2fe13"
+      },
+      {
+        "path": "apps/server/src/modules/shop/payment-ack-boundary.spec.ts",
+        "sha256": "f7b95dce46fad0e6fedb1a5bbaf2b55920ba2f043f340b92f190bacdbe15b0c4"
+      },
+      {
+        "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+        "sha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+      }
+    ],
+    "localUniqueTests": 365,
+    "newTests": 95,
+    "compiledTests": 20,
+    "typecheckExit": 0,
+    "buildExit": 0,
+    "lintErrors": 0,
+    "priorAnyWarnings": 13,
+    "baselineSource": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "realPostgres": true,
+    "redis": "stub",
+    "channels": "adapted synthetic callbacks only",
+    "realPayment": false,
+    "transportSignature": false,
+    "production": false,
+    "newMigration": false,
+    "couponPolicyChanged": false,
+    "releaseReady": false,
+    "checkedAt": "2026-10-02T18:35:34.851Z",
+    "record": "支付事务回滚误确认与退款重投通知验收-20261002.json",
+    "linux": {
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "runId": 37048618735,
+      "verificationHead": "7c04535b53cb0615d72258b2c803cf1ed62b0c4d",
+      "artifactId": 11245308623,
+      "artifactDigest": "sha256:ddbd5de0a58e58dc3fb1df8935d8abc69e38356129fef53f6f2d0c3a3a16fc8c",
+      "digestVerified": true,
+      "verifiedSourceHashLines": 1809,
+      "linux": "ubuntu-24.04",
+      "postgres": "18.4",
+      "passed": 365,
+      "suites": 15,
+      "compiledPassed": 20,
+      "compiledSourceBindings": 6,
+      "typecheck": true,
+      "build": true,
+      "lintErrors": 0,
+      "production": false,
+      "realRedis": false,
+      "realChannels": false,
+      "transportSignature": false,
+      "formalDockerfileImage": false,
+      "newDeviceTest": false,
+      "historicalBackfill": false,
+      "summaries": [
+        {
+          "file": "src/modules/shop/shop-payment.service.spec.ts",
+          "passed": 70
+        },
+        {
+          "file": "src/modules/shop/shop-refund.service.spec.ts",
+          "passed": 44
+        },
+        {
+          "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+          "passed": 33
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+          "passed": 17
+        },
+        {
+          "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+          "passed": 19
+        },
+        {
+          "file": "src/modules/notification/notification.service.spec.ts",
+          "passed": 29
+        },
+        {
+          "file": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+          "passed": 14
+        },
+        {
+          "file": "src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+          "passed": 20
+        },
+        {
+          "file": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+          "passed": 8
+        },
+        {
+          "file": "src/modules/entitlement/entitlement.service.spec.ts",
+          "passed": 6
+        },
+        {
+          "file": "src/modules/shop/payment-ack-boundary.spec.ts",
+          "passed": 75
+        },
+        {
+          "file": "src/modules/member/member.service.spec.ts",
+          "passed": 18
+        },
+        {
+          "file": "src/modules/member/member-grant.service.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/notification/entitlement-notification.task.spec.ts",
+          "passed": 4
+        },
+        {
+          "file": "src/modules/shop/membership-period.spec.ts",
+          "passed": 4
+        }
+      ],
+      "checkedAt": "2026-10-02T18:41:15.448Z"
+    },
+    "ci": {
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "runId": 37048561929,
+      "fullCIComplete": false,
+      "status": "官方整版CI待最终结果"
+    },
+    "formalImage": {
+      "validated": false,
+      "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+      "previousSource": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+      "previousPassed": 30,
+      "note": "历史正式镜像不冒充当前候选"
+    },
+    "paymentAckBlockerFixedInIsolation": true,
+    "N4AllClosed": false,
+    "N5CouponPolicyDecided": false,
     "states": [
       "代码候选完成",
       "隔离验证完成（限定范围）",

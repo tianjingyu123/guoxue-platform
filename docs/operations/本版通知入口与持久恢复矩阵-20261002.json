@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
-  "checkedAt": "2026-10-02T18:17:47.223Z",
+  "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+  "checkedAt": "2026-10-02T18:46:58.829Z",
   "rows": [
     {
       "id": "order-paid",
@@ -11,7 +11,7 @@
       "key": "ORDER_PAID:<orderId>",
       "state": "真实代码入口；课程合成签名HTTP、从业真实PG等限定验证",
       "recovery": "通知写入失败独立捕获；外发箱失败仍要求回调重投",
-      "gap": "无独立站内分钟恢复证明；真实供应商、其他订单类型与手机未全验",
+      "gap": "四入口回滚/CAS冲突不误确认、通知失败与退款重投语义在本版真实PG及成品通过；验签运输、真实供应商、Redis锁、线上两节点及同版手机未覆盖",
       "online": "未知"
     },
     {
@@ -62,7 +62,7 @@
       "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
       "state": "MEMBER_PAID_GRANTED_V1新付款事实、同用户付款退款行锁及购买/订单/当前会员核验已接入",
       "recovery": "已注册分钟任务持久补发；事务失败无事实；退款/失效/旧流水不报告成功",
-      "gap": "限定隔离PG通过；旧券政策及回调唯一键错误确认缺陷、正式Cron/供应商/手机未覆盖",
+      "gap": "书院33项真实PG在本版回归通过；旧券政策、正式Cron/供应商/手机未覆盖；回滚误确认已独立修复",
       "online": "未知"
     },
     {
@@ -226,7 +226,7 @@
   "bindings": [
     {
       "path": "apps/server/src/modules/shop/shop-payment.service.ts",
-      "sha256": "8c3e4f82ccacf209060e0f3dab6ec50e37feebfba2cd9e6c4cc0e6ca7e7cdd23"
+      "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
     },
     {
       "path": "apps/server/src/modules/shop/shop-refund.service.ts",
@@ -329,5 +329,9 @@
   "previousBinding": {
     "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
     "record": "语音重复启动修复与最终软件补验-20261002.json"
+  },
+  "previousPaymentBinding": {
+    "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+    "record": "书院会员并发付款退款与持久到账验收-20261002.json"
   }
 }
