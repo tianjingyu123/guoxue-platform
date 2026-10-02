@@ -9,6 +9,7 @@ import { BusinessException } from "./business.exception";
 import { PinoLoggerService } from "./pino-logger.service";
 import { RequestContext } from "./request-context";
 import { sendAlert } from "./alert";
+import { requestLogPath, isImLogPath } from "./request-log-path";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -34,6 +35,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const request = ctx.getRequest();
+    const logUrl = requestLogPath(request.url);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = "服务器内部错误";
@@ -75,25 +77,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (status >= 500) {
       // 生产环境只记错误类型，不泄露内部堆栈
-      const stack = process.env.NODE_ENV === "production"
+      const stack = isImLogPath(logUrl)
+        ? (exception instanceof BusinessException ? "BusinessException" : exception instanceof HttpException ? "HttpException" : "Error")
+        : process.env.NODE_ENV === "production"
         ? (exception instanceof Error ? exception.name : undefined)
         : (exception instanceof Error ? exception.stack : undefined);
       this.logger.error(
         {
           method: request.method,
-          url: request.url,
+          url: logUrl,
           status,
           errorCode,
           traceId: RequestContext.traceId(),
           stack,
         },
-        `${request.method} ${request.url} → ${status}`,
+        `${request.method} ${logUrl} → ${status}`,
       );
       // B4 可观测：5xx 经统一告警通道触达运维（按状态码节流防风暴，无 webhook 时降级日志）
       sendAlert(
         `5xx:${status}`,
         "服务 5xx 错误告警",
-        `${request.method} ${request.url} → ${status}（traceId=${RequestContext.traceId() || "N/A"}）`,
+        `${request.method} ${logUrl} → ${status}（traceId=${RequestContext.traceId() || "N/A"}）`,
       );
     }
 

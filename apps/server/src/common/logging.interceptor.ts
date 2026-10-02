@@ -5,12 +5,14 @@ import { trace } from "@opentelemetry/api";
 import { RequestContext } from "./request-context";
 import { PinoLoggerService } from "./pino-logger.service";
 import { sendAlert } from "./alert";
+import { requestLogPath, isImLogPath } from "./request-log-path";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest();
-    const { method, url } = req;
+    const { method } = req;
+    const url = requestLogPath(req.url);
     const start = Date.now();
 
     const activeSpan = trace.getActiveSpan();
@@ -59,7 +61,7 @@ export class LoggingInterceptor implements NestInterceptor {
               },
               error: (err) => {
                 const ms = Date.now() - start;
-                pino.warn({ method, url, status: err.status || 500, ms, err: err.message }, `${method} ${url} → ${err.status || 500} ${ms}ms`);
+                pino.warn({ method, url, status: err.status || 500, ms, err: isImLogPath(url) ? "im_request_failed" : err.message }, `${method} ${url} → ${err.status || 500} ${ms}ms`);
               },
             }),
           )
