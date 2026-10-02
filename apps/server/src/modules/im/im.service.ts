@@ -102,10 +102,13 @@ export class ImService {
       const duration = Date.now() - start;
       const data = (await resp.json()) as TimApiResponse;
 
-      if (data.ErrorCode !== 0) {
-        this.metrics?.recordExternalApi("im", path, false, duration, String(data.ErrorCode));
-        this.logger.error(`IM API 调用失败: ${path}`, data);
-        throw new BusinessException(ErrorCode.THIRD_IM_FAILED, `IM 操作失败: ${data.ErrorInfo || "未知错误"}`);
+      if (data?.ErrorCode !== 0) {
+        const code = typeof data?.ErrorCode === "number" && Number.isSafeInteger(data.ErrorCode) && data.ErrorCode >= 0
+          ? String(data.ErrorCode) : "invalid_response";
+        // 第三方错误详情可能回显正文、账号或签名；日志、指标与客户端只保留安全分类。
+        this.metrics?.recordExternalApi("im", path, false, duration, code);
+        this.logger.error(`IM API 调用失败: ${path}; code=${code}`);
+        throw new BusinessException(ErrorCode.THIRD_IM_FAILED, "IM 操作失败，请稍后重试");
       }
 
       this.metrics?.recordExternalApi("im", path, true, duration);
@@ -113,9 +116,11 @@ export class ImService {
     } catch (err) {
       const duration = Date.now() - start;
       if (err instanceof BusinessException) throw err;
-      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      const reason = err instanceof SyntaxError ? "invalid_response"
+        : err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError") ? "timeout" : "network_error";
       this.metrics?.recordExternalApi("im", path, false, duration, reason);
-      throw err;
+      // 上层异常过滤器也可能记录堆栈，不能继续传播带签名 URL 或正文的原异常。
+      throw new BusinessException(ErrorCode.THIRD_IM_FAILED, "IM 服务暂不可用，请稍后重试");
     }
   }
 
@@ -328,8 +333,8 @@ export class ImService {
       if (risk.verdict !== "severe") return; // mild/uncertain 私信不自动撤回，仅 severe 硬撤回（已由审计日志留痕）
       if (!msgKey) return; // 无 MsgKey 无法定位撤回（腾讯 IM 未回传）
       await this.withdrawMsg(fromUserId, toUserId, msgKey);
-    } catch (err) {
-      this.logger.warn(`私信深审/撤回异常（fail-open·不影响已发送）`, err instanceof Error ? err.message : err);
+    } catch {
+      this.logger.warn("私信深审/撤回异常（fail-open·不影响已发送）");
     }
   }
 

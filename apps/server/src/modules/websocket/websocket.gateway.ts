@@ -402,29 +402,29 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** 推送给指定用户（支持多端） */
   sendToUser(userId: string, event: string, data: unknown) {
-    try { this.server.to(`user:${userId}`).emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
+    try { this.server.to(`user:${userId}`).emit(event, data); } catch { this.logger.warn("WS推送失败"); }
   }
 
   /** 推送给多个用户 */
   sendToUsers(userIds: string[], event: string, data: unknown) {
     for (const uid of userIds) {
-      try { this.server.to(`user:${uid}`).emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
+      try { this.server.to(`user:${uid}`).emit(event, data); } catch { this.logger.warn("WS推送失败"); }
     }
   }
 
   /** 推送给管理员 */
   sendToAdmins(event: string, data: unknown) {
-    try { this.server.to("admin").emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
+    try { this.server.to("admin").emit(event, data); } catch { this.logger.warn("WS推送失败"); }
   }
 
   /** 广播给所有在线用户 */
   broadcast(event: string, data: unknown) {
-    try { this.server.emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
+    try { this.server.emit(event, data); } catch { this.logger.warn("WS推送失败"); }
   }
 
   /** 推送到指定房间 */
   sendToRoom(room: string, event: string, data: unknown) {
-    try { this.server.to(room).emit(event, data); } catch (err) { this.logger.warn("WS推送失败", err); }
+    try { this.server.to(room).emit(event, data); } catch { this.logger.warn("WS推送失败"); }
   }
 
   /**

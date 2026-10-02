@@ -4,6 +4,13 @@ import { TencentImCallbackGuard } from "../../common/tencent-im-callback.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { AppGateway } from "../websocket/websocket.gateway";
 
+// 日志事件只能来自固定集合，未知命令不回显外部输入。
+const LOGGABLE_COMMANDS = new Set([
+  "Group.CallbackBeforeSendMsg", "C2C.CallbackAfterSendMsg", "Group.CallbackAfterSendMsg",
+  "State.StateChange", "Bot.OnC2CMessage", "Sns.CallbackFriendAdd", "Sns.CallbackFriendDelete",
+  "Sns.CallbackBlackListAdd", "Sns.CallbackBlackListDelete",
+]);
+
 /**
  * 腾讯云 IM 回调接收控制器
  *
@@ -33,7 +40,8 @@ export class ImCallbackController {
     [key: string]: unknown;
   }) {
     const cmd = body.CallbackCommand;
-    this.logger.debug(`IM回调: ${cmd}`);
+    const logCommand = LOGGABLE_COMMANDS.has(cmd) ? cmd : "UNKNOWN";
+    this.logger.debug(`IM回调: ${logCommand}`);
 
     try {
       switch (cmd) {
@@ -56,11 +64,11 @@ export class ImCallbackController {
         case "Sns.CallbackBlackListDelete":
           return this.handleBlacklistChange(body, "remove");
         default:
-          this.logger.debug(`未处理的IM回调类型: ${cmd}`);
+          this.logger.debug("未处理的IM回调类型: UNKNOWN");
           return { ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "ignored" };
       }
-    } catch (err: unknown) {
-      this.logger.error(`IM回调处理失败 [${cmd}]: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      this.logger.error(`IM回调处理失败 [${logCommand}]`);
       return { ActionStatus: "FAIL", ErrorCode: 1, ErrorInfo: "internal error" };
     }
   }
@@ -79,7 +87,7 @@ export class ImCallbackController {
     if (operator === adminId) {
       return { ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "" };
     }
-    this.logger.warn(`已拦截直播群客户端直发消息: group=${groupId}`);
+    this.logger.warn("已拦截直播群客户端直发消息");
     return { ActionStatus: "OK", ErrorCode: 1, ErrorInfo: "请通过直播互动接口发送消息" };
   }
 
@@ -92,7 +100,7 @@ export class ImCallbackController {
     const msgTime = body.MsgTime as number || Math.floor(Date.now() / 1000);
     const msgKey = body.MsgKey as string;
 
-    this.logger.log(`IM单聊: ${from} → ${to}: ${text.slice(0, 50)}`);
+    this.logger.log("IM单聊回调");
 
     // 推送给接收方（如果在线）
     this.ws.notifyImMessage(to, {
@@ -114,7 +122,7 @@ export class ImCallbackController {
     const text = (msgBody?.MsgContent as Record<string, unknown>)?.Text as string || "";
     const msgTime = body.MsgTime as number || Math.floor(Date.now() / 1000);
 
-    this.logger.log(`IM群聊: ${from} → ${groupId}: ${text.slice(0, 50)}`);
+    this.logger.log("IM群聊回调");
 
     this.ws.notifyImGroupMessage(groupId, {
       fromUserId: from,
@@ -129,21 +137,16 @@ export class ImCallbackController {
   private handleStateChange(body: Record<string, unknown>) {
     const info = body.Info as Record<string, unknown> | undefined;
     const action = info?.Action as string; // "Login" | "Logout" | "Disconnect"
-    const toAccount = info?.To_Account as string;
-
-    this.logger.log(`IM状态变更: ${toAccount} ${action}`);
+    const logAction = ["Login", "Logout", "Disconnect"].includes(action) ? action : "UNKNOWN";
+    this.logger.log(`IM状态变更: ${logAction}`);
 
     // 可在此同步IM侧状态到WebSocket侧
     return { ActionStatus: "OK", ErrorCode: 0 };
   }
 
   /** 机器人消息回调 */
-  private handleBotMessage(body: Record<string, unknown>) {
-    const from = body.From_Account as string;
-    const msgBody = (body.MsgBody as Array<Record<string, unknown>>)?.[0];
-    const text = (msgBody?.MsgContent as Record<string, unknown>)?.Text as string || "";
-
-    this.logger.log(`IM机器人消息: ${from}: ${text.slice(0, 50)}`);
+  private handleBotMessage(_body: Record<string, unknown>) {
+    this.logger.log("IM机器人消息回调");
     return { ActionStatus: "OK", ErrorCode: 0 };
   }
 
@@ -152,7 +155,7 @@ export class ImCallbackController {
     const from = body.From_Account as string;
     const to = body.To_Account as string;
 
-    this.logger.log(`IM好友申请: ${from} → ${to}`);
+    this.logger.log("IM好友申请回调");
 
     this.ws.notifyImMessage(to, {
       fromUserId: from,
@@ -166,20 +169,14 @@ export class ImCallbackController {
   }
 
   /** 好友删除回调 */
-  private handleFriendDelete(body: Record<string, unknown>) {
-    const from = body.From_Account as string;
-    const to = body.To_Account as string;
-
-    this.logger.log(`IM好友删除: ${from} ← ${to}`);
+  private handleFriendDelete(_body: Record<string, unknown>) {
+    this.logger.log("IM好友删除回调");
     return { ActionStatus: "OK", ErrorCode: 0 };
   }
 
   /** 黑名单变更回调 */
-  private handleBlacklistChange(body: Record<string, unknown>, action: string) {
-    const from = body.From_Account as string;
-    const to = (body.To_Account as string[])?.[0];
-
-    this.logger.log(`IM黑名单${action === "add" ? "新增" : "移除"}: ${from} → ${to}`);
+  private handleBlacklistChange(_body: Record<string, unknown>, action: string) {
+    this.logger.log(`IM黑名单${action === "add" ? "新增" : "移除"}回调`);
     return { ActionStatus: "OK", ErrorCode: 0 };
   }
 }
