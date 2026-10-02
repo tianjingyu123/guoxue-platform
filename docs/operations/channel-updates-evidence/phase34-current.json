@@ -1,0 +1,455 @@
+{
+  "verifiedAt": "2026-10-02T05:12:50.476Z",
+  "sourceSha": "ea81451deaa952f168ea1a726712e38b82fab1b0",
+  "sourceDirty": false,
+  "monthlyChangeBase": "99dc5242f642f524621c23719eab51b6c7ad5bfa",
+  "changedFiles": [
+    "apps/server/prisma/migrations-deploy/full-baseline.sql",
+    "apps/server/prisma/migrations/20261002060000_member_monthly_grant/migration.sql",
+    "apps/server/prisma/schema.prisma",
+    "apps/server/src/modules/member/member-benefit.service.ts",
+    "apps/server/src/modules/member/member-monthly.postgres.spec.ts"
+  ],
+  "importedSourceObjectsVerified": [
+    {
+      "commit": "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+      "files": [
+        "apps/server/src/modules/member/member-grant.service.ts",
+        "apps/server/src/modules/member/member-grant.service.spec.ts",
+        "apps/server/src/modules/member/member-renew.postgres.spec.ts"
+      ]
+    },
+    {
+      "commit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+      "files": [
+        "apps/mobile/src/lib/im-data.ts",
+        "apps/mobile/src/lib/mine-data.ts",
+        "tests/release/mobile-notification-targets.test.mjs"
+      ]
+    }
+  ],
+  "mainlineSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+  "historicalReproduction": {
+    "sourceSha": "99dc5242f642f524621c23719eab51b6c7ad5bfa",
+    "dirtyScope": "only modified monthly test",
+    "expectedFailures": 1,
+    "filteredSkipped": 9,
+    "ownedClusterStopped": true,
+    "runnerFailure": null,
+    "observed": "已使用赠券后，同月重放原入口返回true，再次发放"
+  },
+  "regression": {
+    "tests": {
+      "monthly": {
+        "passed": 14,
+        "suites": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "renew": {
+        "passed": 14,
+        "suites": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "unit": {
+        "passed": 10,
+        "suites": 2,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "serverTotal": 38,
+    "serverFailed": 0,
+    "serverSkipped": 0,
+    "newClientTests": false,
+    "reusedClientEvidence": {
+      "sourceSha": "39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88",
+      "reportSha256": "b93293f6595d3d1152078b0257aee1c6a08c30c2cf315f99a54fd28070083c92",
+      "reusedInputs": [
+        {
+          "path": "apps/mobile",
+          "previousObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd",
+          "currentObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd"
+        },
+        {
+          "path": "apps/admin",
+          "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+          "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c"
+        },
+        {
+          "path": "packages",
+          "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+          "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+        },
+        {
+          "path": "package.json",
+          "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+          "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+          "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+          "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+        },
+        {
+          "path": "scripts/release/build-channel-resources.mjs",
+          "previousObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+          "currentObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389"
+        },
+        {
+          "path": "scripts/release/audit-mobile-native-bundle.mjs",
+          "previousObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149",
+          "currentObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149"
+        }
+      ],
+      "previousClientTests": 320,
+      "previousBuilds": [
+        {
+          "kind": "app-resources",
+          "fileCount": 491,
+          "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\app-resources"
+        },
+        {
+          "kind": "h5",
+          "fileCount": 1181,
+          "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\h5"
+        },
+        {
+          "kind": "mp-weixin",
+          "fileCount": 2759,
+          "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\mp-weixin"
+        }
+      ],
+      "notRerun": true,
+      "oldCountsNotAccumulated": true
+    },
+    "serverLint": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "mobileLint": {
+      "errors": 0,
+      "warnings": 77
+    },
+    "serverTypecheckExitCode": 0,
+    "serverBuildExitCode": 0,
+    "newMobileTypecheck": false,
+    "newNativeBundleAudit": false,
+    "previousCountsNotAccumulated": true
+  },
+  "postgres": {
+    "version": "16.13",
+    "host": "127.0.0.1",
+    "port": 55476,
+    "database": "entitlement_notice_qa_phase34",
+    "emptyBeforeBootstrap": true,
+    "bootstrapSingleTransaction": true,
+    "incrementalDatabase": "entitlement_notice_qa_phase34_incremental",
+    "incrementalMigrationAndReplayPassed": true,
+    "incrementalStructureEqualsNewBaseline": true,
+    "prismaBaselineAuditExitCode": 0,
+    "stopped": true,
+    "originalPort55462Untouched": true,
+    "remainingRows": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "rowOrder": [
+      "User",
+      "Notification",
+      "UserPoints",
+      "PointsRecord",
+      "MemberConfig",
+      "CouponTemplate",
+      "CouponRecord",
+      "MemberMonthlyGrant"
+    ],
+    "independentNodeProcesses": true,
+    "databaseTimeZones": [
+      "UTC",
+      "Asia/Shanghai",
+      "America/Los_Angeles"
+    ],
+    "productionAppAndCronNotVerified": true,
+    "realNotificationsOrCharges": false
+  },
+  "builds": [
+    {
+      "kind": "server",
+      "fileCount": 3461,
+      "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase34-monthly-after\\frozen\\ea81451deaa952f168ea1a726712e38b82fab1b0\\server"
+    }
+  ],
+  "buildManifestSha256": "2be44483eede6a76d713199121783ad403bdba85dfe9f64e19bde21e8d083c3b",
+  "review": {
+    "patch": "artifacts/phase34-monthly-after/review-verified/member-monthly-atomic.patch",
+    "bundle": "artifacts/phase34-monthly-after/review-verified/member-monthly-atomic.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "3bc1e5240540f45dbb6aa9c38c6930b117db15b6",
+    "temporaryIndexOnly": true
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T05:12:50.474Z",
+    "receiverSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+    "candidateSource": "ea81451deaa952f168ea1a726712e38b82fab1b0",
+    "productPaths": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml"
+    ],
+    "changedFileCount": 55,
+    "changedFiles": [
+      "apps/admin/src/views/system/ClientPresentationPanel.vue",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+      "apps/mobile/src/lib/resource-update-lifecycle.ts",
+      "apps/mobile/src/lib/resource-updater.ts",
+      "apps/mobile/src/pkg-live/live-trtc-client.ts",
+      "apps/server/prisma/migrations-deploy/full-baseline.sql",
+      "apps/server/prisma/migrations/20261002060000_member_monthly_grant/migration.sql",
+      "apps/server/prisma/schema.prisma",
+      "apps/server/src/modules/auth/auth.service.spec.ts",
+      "apps/server/src/modules/auth/auth.service.ts",
+      "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+      "apps/server/src/modules/member/member-benefit.service.ts",
+      "apps/server/src/modules/member/member-monthly.postgres.spec.ts",
+      "apps/server/src/modules/sms/sms.service.spec.ts",
+      "apps/server/src/modules/sms/sms.service.ts",
+      "scripts/release/android-probe-device-identity.mjs",
+      "scripts/release/android-probe-install.mjs",
+      "scripts/release/android-probe-log-cutoff.mjs",
+      "scripts/release/android-probe-log-stream.mjs",
+      "scripts/release/android-probe-recovery-evidence.mjs",
+      "scripts/release/audit-store-readiness.mjs",
+      "scripts/release/build-channel-resources.mjs",
+      "scripts/release/build-native-probe.mjs",
+      "scripts/release/probe-health-resources.mjs",
+      "scripts/release/probe-tls-server.mjs",
+      "scripts/release/verify-native-api26-baseline.mjs",
+      "scripts/release/verify-native-api26-controls.mjs",
+      "scripts/release/verify-native-base-upgrades.mjs",
+      "scripts/release/verify-native-health-window.mjs",
+      "scripts/release/verify-native-probe.mjs",
+      "scripts/release/verify-native-tls-android.mjs",
+      "scripts/release/verify-native-transfer-android.mjs",
+      "scripts/release/verify-native-transfer.mjs",
+      "scripts/release/verify-resource-native.mjs",
+      "tests/release/admin-client-presentation.test.cjs",
+      "tests/release/android-probe-device-identity.test.mjs",
+      "tests/release/android-probe-recovery-evidence.test.mjs",
+      "tests/release/android-probe/ProbeActivity.java",
+      "tests/release/android-probe/TlsScenarios.java",
+      "tests/release/android-probe/TransferScenarios.java",
+      "tests/release/audit-store-readiness.test.mjs",
+      "tests/release/channel-build-source.test.mjs",
+      "tests/release/channel-capability-jwt-postgres.test.cjs",
+      "tests/release/channel-login-concurrency-postgres.test.cjs",
+      "tests/release/channel-password-login-postgres.test.cjs",
+      "tests/release/channel-resource-updater.test.cjs",
+      "tests/release/channel-session-redis-postgres.test.cjs",
+      "tests/release/channel-sms-once-postgres.test.cjs",
+      "tests/release/channel-trusted-login-postgres.test.cjs",
+      "tests/release/mobile-live-safe-area.test.mjs",
+      "tests/release/mobile-shipping-regions.test.cjs",
+      "tests/release/native/NativeTransferProbe.java",
+      "tests/release/resource-health-lifecycle.test.cjs"
+    ],
+    "patch": "artifacts/phase34-monthly-after/mainline-review/remaining-channel-differences-from-9dda8974.patch",
+    "patchBytes": 337710,
+    "patchSha256": "5badca019045f9c1560cb05536dd273fddd0acd3dd90cdef84ce57c5de3b2d25",
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "11b6be78f5da3c51d5a5a48f9fd185e956d0db4c",
+    "reconstructedProductInputsEqualCandidate": true,
+    "receiverOtherPathsPreserved": true,
+    "actualMainlineReception": false,
+    "masterUpdated": false,
+    "serverDeployed": false,
+    "receiverMustRevalidateCurrentSourceAndConflicts": true,
+    "crossThreadSendAuthorizationPending": true
+  },
+  "previousReportSha256": "b93293f6595d3d1152078b0257aee1c6a08c30c2cf315f99a54fd28070083c92",
+  "productionDeployed": false,
+  "signedPackageBuilt": false,
+  "uploaded": false,
+  "evidence": {
+    "artifacts/phase34-monthly-after/execution.json": {
+      "bytes": 2428,
+      "sha256": "d5d274a261553afedc0a228e53977da1fea0e006427de13617bd1a1ab412c9db"
+    },
+    "artifacts/phase34-monthly-after/monthly-tests.json": {
+      "bytes": 6555,
+      "sha256": "09c0e2df7f6e0cd1a4cceebce50100c6c2abbb1f47e514a049a76e65481073bd"
+    },
+    "artifacts/phase34-monthly-after/renew-tests.json": {
+      "bytes": 6906,
+      "sha256": "3429f404a50d0999ff18abe8eba705b95ba168e16201c2309d9a24f2d01e5fe8"
+    },
+    "artifacts/phase34-monthly-after/unit-tests.json": {
+      "bytes": 5358,
+      "sha256": "eea04a851f1bb8a6c2d153a73a6173b12df097681a24b9fe076ddfd7b12422df"
+    },
+    "artifacts/phase34-monthly-after/monthly-postgres.log": {
+      "bytes": 1854,
+      "sha256": "4532c0f20c6daa6a39bbe46f3fdc0cc04dd5364268d05cab4561090f89e0cc1d"
+    },
+    "artifacts/phase34-monthly-after/renew-postgres.log": {
+      "bytes": 3346,
+      "sha256": "b8d6d5e7e6e7b5ef810d82b298f027a334c05a3c7f28997a174043b1d028d74e"
+    },
+    "artifacts/phase34-monthly-after/member-unit.log": {
+      "bytes": 798,
+      "sha256": "07569fe9b57783cc73f99e9212afdaa76cb3ec0e3a8f131e0f1f42941f445908"
+    },
+    "artifacts/phase34-monthly-after/server-eslint.json": {
+      "bytes": 15668,
+      "sha256": "59329fab92ac6fb3ee34c43ede85fcf7a7bd0ce9b4bc632190eed90930cb4e08"
+    },
+    "artifacts/phase34-monthly-after/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase34-monthly-after/server-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase34-monthly-after/database-identity.log": {
+      "bytes": 116,
+      "sha256": "862f2a1c8256b082711f4e395bc500a7f35b1ae978f3fb59370390636749c7df"
+    },
+    "artifacts/phase34-monthly-after/database-remaining.log": {
+      "bytes": 17,
+      "sha256": "80327c853d68b334f1c972a4d83ce6bb981a15a465149e2609d3195e7700c9bc"
+    },
+    "artifacts/phase34-monthly-after/postgres-stop.log": {
+      "bytes": 50,
+      "sha256": "dd269ccb43c508088b5a167e486992f22ca81c73e544ef93ea8ed842549ac2d8"
+    },
+    "artifacts/phase34-monthly-after/harness-provenance.json": {
+      "bytes": 721,
+      "sha256": "423d4b59724d09dc47471b2f937b6b7e4c0ee69ba0a965787d604f51ddea266b"
+    },
+    "artifacts/phase34-monthly-after/harness/member-renew.postgres.spec.ts": {
+      "bytes": 10363,
+      "sha256": "c389a5efb56f16dee62fbcf7920f9b0776026be5d38dbc7a08ec8bc87c3a34fb"
+    },
+    "artifacts/phase34-monthly-after/harness/jest.config.cjs": {
+      "bytes": 359,
+      "sha256": "24eec38e6e29fe87d00c9bff5281d91bbcdda0c2240726cdc0252fc40afac4e6"
+    },
+    "artifacts/phase34-monthly-after/build-manifest.json": {
+      "bytes": 681219,
+      "sha256": "2be44483eede6a76d713199121783ad403bdba85dfe9f64e19bde21e8d083c3b"
+    },
+    "artifacts/phase34-monthly-after/incremental-migrate.log": {
+      "bytes": 23790,
+      "sha256": "dd9f8e4be03dc4cb1bfae69c080dfe42913e1fc3f0afe6b4aaa6b3ed6248ea8a"
+    },
+    "artifacts/phase34-monthly-after/incremental-replay.log": {
+      "bytes": 804,
+      "sha256": "95ede929a31cf914b575acdc9c35833627e2b628cf69fba3ddf961ac68dfb9b2"
+    },
+    "artifacts/phase34-monthly-after/baseline-catalog.log": {
+      "bytes": 1184,
+      "sha256": "9825620bf221b183248f516954eee8bd544509b78c25bb2ccdf1f2bc63c98b16"
+    },
+    "artifacts/phase34-monthly-after/incremental-catalog.log": {
+      "bytes": 1184,
+      "sha256": "9825620bf221b183248f516954eee8bd544509b78c25bb2ccdf1f2bc63c98b16"
+    },
+    "artifacts/phase34-monthly-after/database-baseline-audit.log": {
+      "bytes": 318,
+      "sha256": "5d850827afa63458bcb36e21092e9a43a892f847de5ca2189cdff50bd04f0a7d"
+    },
+    "artifacts/phase33-client-current/client-execution.json": {
+      "bytes": 1046,
+      "sha256": "13075551935caae6e5467ec2d3103d9f86879655c7b3b49f673a00ecfa646865"
+    },
+    "artifacts/phase33-client-current/notification-adapter.log": {
+      "bytes": 198,
+      "sha256": "20f67d6f30f7c614a47a00d64b87b96d327826cadce1689829ddd144ba902b1b"
+    },
+    "artifacts/phase33-client-current/client-gate.log": {
+      "bytes": 34465,
+      "sha256": "74282f420d06f6cb7c2a8e1775a12645662898ba12fe56ca217d6d402f82a107"
+    },
+    "artifacts/phase33-client-current/mobile-eslint.json": {
+      "bytes": 145547,
+      "sha256": "679ef91c8beb74ead58d59582abb735a4517e59c6647467c145539f9b1f2b8e5"
+    },
+    "artifacts/phase33-client-current/mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase33-client-current/mobile-app-build.log": {
+      "bytes": 66378,
+      "sha256": "d4f943845fff84f797c0f15e1bf849375a9200da2e0f4216d634b7c4f12877b0"
+    },
+    "artifacts/phase33-client-current/mobile-h5-build.log": {
+      "bytes": 66598,
+      "sha256": "6c091ee2a41f794ec066c79db9207970ed17136d1f36a660963368293b0c323a"
+    },
+    "artifacts/phase33-client-current/mobile-mp-weixin-build.log": {
+      "bytes": 67388,
+      "sha256": "591a378c8d85573aa7c3ed199457316f1fdd2b4731c7786962a0ce6c8a5bd65c"
+    },
+    "artifacts/phase33-client-current/native-bundle-audit.log": {
+      "bytes": 165,
+      "sha256": "bd093ec405321d81c47ac5d2ba7527a5ddb8c81a140131d889bbac8636837d13"
+    },
+    "artifacts/phase34-monthly-before/execution.json": {
+      "bytes": 1337,
+      "sha256": "675fde8af7f5cff07aac47f13cdfc5e4f3e55455e65004bbcd8b3993e6fbfb64"
+    },
+    "artifacts/phase34-monthly-before/monthly-tests.json": {
+      "bytes": 6257,
+      "sha256": "9ec81c93251ab9353b600da040087f89f8adf1f5c0ee32f9c5ffa9409c77eec8"
+    },
+    "artifacts/phase34-monthly-before/monthly-postgres.log": {
+      "bytes": 2520,
+      "sha256": "246aebbb312beb485b6eba2b6b31b988065a72fc58285100f4a6d95f80ed5d81"
+    },
+    "artifacts/phase34-monthly-after/review-verified/member-monthly-atomic.patch": {
+      "bytes": 13022,
+      "sha256": "946126995d8fb9de14a4647bf881c3914e429849af0101dda5804382c3910161"
+    },
+    "artifacts/phase34-monthly-after/review-verified/member-monthly-atomic.bundle": {
+      "bytes": 3703,
+      "sha256": "0a898158ff450fc2a5b833589b1e65e2bb0dd1512ead0eabd9682c09d6982491"
+    },
+    "artifacts/phase34-monthly-after/mainline-review/remaining-channel-differences-from-9dda8974.patch": {
+      "bytes": 337710,
+      "sha256": "5badca019045f9c1560cb05536dd273fddd0acd3dd90cdef84ce57c5de3b2d25"
+    },
+    "artifacts/phase34-monthly-after/mainline-review/proposal.json": {
+      "bytes": 4140,
+      "sha256": "f5d116113d624580fd74e24db209f53fa9a36479cde6fe2af33fbadbf27cecb6"
+    }
+  },
+  "limits": [
+    "本轮38项服务端，phase33的33项及客户端320项不累计为本轮；客户端输入一致沿用刚验证的证据",
+    "新增表须先迁移再上线服务；只在本机合成库执行，生产库未迁移",
+    "月度提交凭据仅覆盖新发放，既有积分流水保留原跳过；旧仅赠券记录不自动回填，历史重复/残缺不自动修复",
+    "旧未用同券冲突及跨月重复同券后续消费的唯一约束策略仍未改变，不能宣称完整月度赠券使用旅程已通过",
+    "数据库锁只覆盖本发放入口，不能据此宣称全部领券入口库存并发已验收",
+    "未生成完整签名包、进行真实业务/通知/扣款、重绑主线CI镜像或迁移生产",
+    "从业会员、客服圈务等内部闭环、主线正式接收、SDK真机、生产与16商店实际账号材料提审仍未全部完成",
+    "原历史报告与产物保持不变，未写其他工作树代码、发跨会话消息或执行腾讯云操作"
+  ]
+}
