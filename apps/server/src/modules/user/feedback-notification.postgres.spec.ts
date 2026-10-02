@@ -203,7 +203,46 @@ jest.setTimeout(30000);
     ]);
     expect(results.filter(r => r.status === "fulfilled")).toHaveLength(1);
     expect(results.filter(r => r.status === "rejected")).toHaveLength(1);
+    const saved = await original({ where: { id: f.id } });
+    expect(saved?.status).toBe("resolved");
+    expect(["甲回复", "乙回复"]).toContain(publicFeedbackReply(saved?.result));
+    // 败方 CAS 尚未释放行锁时，即时 SQL 的 SKIP LOCKED 可以留下持久待办。
+    const immediate = await db.notification.count({ where: { userId: f.userId } });
+    expect([0, 1]).toContain(immediate);
+    expect(await task().deliverPendingReplies(f.id)).toBe(1 - immediate);
     expect(await db.notification.count({ where: { userId: f.userId } })).toBe(1);
+    expect(await task().deliverPendingReplies(f.id)).toBe(0);
+  });
+
+  it("结案后的行锁阻挡即时通知，释放后分钟任务补发且不重复", async () => {
+    const f = await ticket();
+    let release!: () => void;
+    let locked!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const ready = new Promise<void>(r => { locked = r; });
+    let lockWork: Promise<void> | undefined;
+    const immediate = jest.fn(async () => {
+      lockWork = db.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "Feedback" WHERE id = ${f.id} FOR UPDATE`;
+        locked();
+        await gate;
+      });
+      await ready;
+      try { return await task().deliverPendingReplies(f.id); }
+      finally { release(); await lockWork; }
+    });
+    try {
+      await new FeedbackService(db as unknown as PrismaService,
+        { deliverPendingReplies: immediate } as unknown as FeedbackNotificationTask)
+        .adminUpdateStatus(f.id, { status: "resolved", result: "合成并发结案结果" });
+      expect(immediate).toHaveBeenCalledTimes(1);
+      expect(await immediate.mock.results[0].value).toBe(0);
+      expect((await db.feedback.findUniqueOrThrow({ where: { id: f.id } })).status).toBe("resolved");
+      expect(await db.notification.count({ where: { userId: f.userId } })).toBe(0);
+      await task().tick();
+      expect(await db.notification.count({ where: { userId: f.userId } })).toBe(1);
+      expect(await task().deliverPendingReplies(f.id)).toBe(0);
+    } finally { release(); await lockWork; }
   });
 
   it("回退正在持锁时不发送过时结案，重新结案建立新事件", async () => {
