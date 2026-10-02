@@ -1,0 +1,221 @@
+{
+  "verifiedAt": "2026-10-02T01:12:39.295Z",
+  "sourceSha": "37770fb4a06fd9f34c460d9f73375208b525de71",
+  "baseSha": "b7a215ff5c6a451aede3a07ffd6b4affb9e5490e",
+  "changedFiles": [
+    "scripts/release/build-channel-resources.mjs",
+    "tests/release/channel-build-source.test.mjs"
+  ],
+  "sourceDirty": false,
+  "issue": "根package.json、pnpm-lock.yaml、pnpm-workspace.yaml未提交时仍能被渠道构建放行",
+  "fix": "实际编译前检查子目录及三份根构建输入，干跑仍仅作身份检查",
+  "local": {
+    "beforeFix": {
+      "passed": 3,
+      "failed": 3,
+      "skipped": 0,
+      "baseSha": "b7a215ff5c6a451aede3a07ffd6b4affb9e5490e"
+    },
+    "afterFix": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "sourceWasUncommitted": true
+    },
+    "committedSource": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "sourceDirty": false
+    },
+    "countsNotAccumulated": true,
+    "compiler": "合成标记编译器；真实Git、锁、身份写入及CLI流程"
+  },
+  "linux": {
+    "run": {
+      "id": 36949625203,
+      "head_sha": "1c70ab3103ec56a1bee0bff71e42e53b2ddf18a2",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36949625203",
+      "created_at": "2026-10-02T01:10:10Z",
+      "updated_at": "2026-10-02T01:10:31Z"
+    },
+    "jobId": 110659440526,
+    "treeSha": "72f5bdd20e23ec0bfceb7638e07b463f778a2150",
+    "passed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "nodeVersion": "v24.18.0",
+    "host": "Linux runnervm8df0l 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+    "artifact": {
+      "id": 11203342549,
+      "name": "phase28-source-gate-1c70ab3103ec56a1bee0bff71e42e53b2ddf18a2",
+      "size_in_bytes": 2066,
+      "url": "https://api.github.com/repos/tianjingyu123/guoxue-platform/actions/artifacts/11203342549",
+      "archive_download_url": "https://api.github.com/repos/tianjingyu123/guoxue-platform/actions/artifacts/11203342549/zip",
+      "expired": false,
+      "created_at": "2026-10-02T01:10:27Z",
+      "expires_at": "2026-10-16T01:10:26Z",
+      "updated_at": "2026-10-02T01:10:27Z",
+      "digest": "sha256:e0d04006a43ebe6af45e277f92173aec2d9800b399fd470fb7b320f526ad137d",
+      "workflow_run": {
+        "id": 36949625203,
+        "repository_id": 1232983990,
+        "head_repository_id": 1232983990,
+        "head_branch": "codex/channel-linux-probe-20261001",
+        "head_sha": "1c70ab3103ec56a1bee0bff71e42e53b2ddf18a2"
+      }
+    },
+    "officialArtifactDigestVerified": true,
+    "inputHashesVerified": true,
+    "files": {
+      "scripts/release/build-channel-resources.mjs": {
+        "gitBlob": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+        "sha256": "0820518aad20c3ace05f13628f20b1bc43c926bd4bb412187d58026df00d850f"
+      },
+      "scripts/release/resolve-pnpm-invocation.mjs": {
+        "gitBlob": "cb8cd60429a2b58d051833f17473cbc2c86c726e",
+        "sha256": "52efd54d4614ea7aeabff1883419579c89ec68118a2cdae81af8c678b050ec2e"
+      },
+      "scripts/release/check-resource-native-boundary.mjs": {
+        "gitBlob": "451c250fdd2044b62b868f2c443697da3bca3f4c",
+        "sha256": "589c0b846676b6bc579f9afd39febed41c7f4ba9eec227e342856f1c458f26cf"
+      },
+      "scripts/release/check-wgt-archive.mjs": {
+        "gitBlob": "6d9673bd792e9c06f2453a11e52c79c4e430ba05",
+        "sha256": "ac933b2b7e58acac15ad4cb683a359989b4224a3fae96f67f233741f201d0d1f"
+      },
+      "tests/release/channel-build-source.test.mjs": {
+        "gitBlob": "1ff01fb55bb9f8aa44437d076024cacf8e3c8852",
+        "sha256": "3ff00031551177d096a02ba9ec1de61d496d8cd7d93e5cc128e6a95999630aca"
+      },
+      "tests/release/channel-package-gates.test.mjs": {
+        "gitBlob": "18b5bf2f3cce0ad6a037ab8879aa3a30433edb10",
+        "sha256": "c4265626d8852fbef5c277dbaa493803a1a5ff862ec43e466cdf2e062968b0a8"
+      },
+      "tests/release/resolve-pnpm-invocation.test.mjs": {
+        "gitBlob": "30517ecfb9363c820f047c1a5e8cda5cfcc53c48",
+        "sha256": "e8045c8c747c700690660a8060a1ea6594526c7a7cf95bcd44ecd85992a525d3"
+      }
+    }
+  },
+  "review": {
+    "patch": "artifacts/phase28-build-source-gate/review-verified/build-source-gate.patch",
+    "bundle": "artifacts/phase28-build-source-gate/review-verified/build-source-gate.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "4d25fd60cfa04ae380d6f1fd34885fa1162be933",
+    "sourceTree": "4d25fd60cfa04ae380d6f1fd34885fa1162be933",
+    "temporaryIndexOnly": true
+  },
+  "unchangedProductInputs": {
+    "apps": {
+      "previous": "3ff8051d0a76eaf93fcf869c5c3d3add1918f8ff",
+      "current": "3ff8051d0a76eaf93fcf869c5c3d3add1918f8ff",
+      "identical": true
+    },
+    "packages": {
+      "previous": "b1249418ea49296ffb90dcd883533060126d5637",
+      "current": "b1249418ea49296ffb90dcd883533060126d5637",
+      "identical": true
+    },
+    "package.json": {
+      "previous": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+      "current": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+      "identical": true
+    },
+    "pnpm-lock.yaml": {
+      "previous": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+      "current": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+      "identical": true
+    },
+    "pnpm-workspace.yaml": {
+      "previous": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+      "current": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+      "identical": true
+    }
+  },
+  "priorEvidence": {
+    "phase27ReportSha256": "27a6715f987adc55b1277e31835cebe0c523b3c58decfe96195337599d90db0e",
+    "serverSource": "63b498e94ac6e4325ad7efab7b8c00a62fec2521",
+    "server71TestsRerun": false,
+    "clientSource": "10863ad1732d3a3d08d8859c5069fe6cbe490e1e",
+    "client319TestsRerun": false,
+    "appH5MpBuildsRerun": false,
+    "sourceNotRebound": true
+  },
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "formalPackageBuilt": false,
+  "storeSubmitted": false,
+  "cDefaultEnabled": false,
+  "externalPrerequisites": {
+    "baiduLogin": false,
+    "sdkVersionRequired": "5.23",
+    "officialLatestVersion": "5.26.2026091802",
+    "officialPage": "https://nativesupport.dcloud.net.cn/AppDocs/download/android.html",
+    "alternative139Page": "页面打开但两次浏览器操作超时，未核验匹配历史归档、未下载",
+    "connectedPhysicalDevice": {
+      "model": "LE2100",
+      "api": 34
+    },
+    "oldAndroidPhysicalVerified": false
+  },
+  "evidence": {
+    "artifacts/phase28-build-source-gate/before-fix.log": {
+      "bytes": 4151,
+      "sha256": "1ef017ec081b0681bccb27de9ac032e91da5e5cbc88710b4938d80d6be0e2ad3"
+    },
+    "artifacts/phase28-build-source-gate/after-fix.log": {
+      "bytes": 2754,
+      "sha256": "61833c45cabc0c27fd003b3dfe9db214fc8038428a96bc1f4a19c9b9e4ff264c"
+    },
+    "artifacts/phase28-build-source-gate/committed-source-tests.log": {
+      "bytes": 1501,
+      "sha256": "b2650b01f86a810b9480f9f496fb0c5af07d05cc3babe9450351bf45ac0f23f4"
+    },
+    "artifacts/phase28-build-source-gate/remote-receipt.json": {
+      "bytes": 1322,
+      "sha256": "ac854491405865d387cc0d9ded99d04c3577284f47f8fa80b1aac581be74b42e"
+    },
+    "artifacts/phase28-build-source-gate/job.log": {
+      "bytes": 16267,
+      "sha256": "06ce7f55e6fc345e9466f96d9b4e4ce23aa35c8690b18fb9c54ff247872eb3dd"
+    },
+    "artifacts/phase28-build-source-gate/linux.zip": {
+      "bytes": 2066,
+      "sha256": "e0d04006a43ebe6af45e277f92173aec2d9800b399fd470fb7b320f526ad137d"
+    },
+    "artifacts/phase28-build-source-gate/linux-extracted/tests.tap": {
+      "bytes": 2688,
+      "sha256": "665d5de68b8565d36d3dceeaa93d5007f40c027798738d0a096dc3701065ce46"
+    },
+    "artifacts/phase28-build-source-gate/linux-extracted/input-sha256.txt": {
+      "bytes": 775,
+      "sha256": "6f0729409928b835ef68bedc19da32436be2f91ab8c3ad81271c9fbe89a24045"
+    },
+    "artifacts/phase28-build-source-gate/linux-extracted/host.txt": {
+      "bytes": 113,
+      "sha256": "6ecb75ce9d770bd2cfb6898b267dd8f29398821b25cb233675e182e0323ba0d2"
+    },
+    "artifacts/phase28-build-source-gate/ci-plan.json": {
+      "bytes": 31183,
+      "sha256": "f20a311a13a2c4785165f7d87f287f4201864a01c61d0ce49945f558b9d4453f"
+    },
+    "artifacts/phase28-build-source-gate/review-verified/build-source-gate.patch": {
+      "bytes": 7034,
+      "sha256": "7fb6cdf5f585be42cf1f76347f56187c7c491d368acb6fab17209e50e9ab967b"
+    },
+    "artifacts/phase28-build-source-gate/review-verified/build-source-gate.bundle": {
+      "bytes": 3025,
+      "sha256": "d594dcca710be16af51977559d9d559209a87f48abdd2a297365979091bf31c8"
+    }
+  },
+  "limits": [
+    "仅构建门禁的真实Git与合成编译器验证，未调用uni编译器或构建APK/AAR",
+    "本轮不同操作系统的相同用例不累加通过数，71项与319项旧证据保留原来源",
+    "最新SDK与现有5.23编译器不匹配，未替换当前工具链",
+    "内部业务闭环、正式包/真机、生产迁移部署、容量安全、16商店实际提审仍未清零"
+  ]
+}
