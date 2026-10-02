@@ -86,8 +86,13 @@ jest.setTimeout(30000);
   };
   beforeAll(async () => {
     db = new PrismaClient({ datasources: { db: { url } } });
-    const [i] = await db.$queryRaw<Array<{ port: number }>>`SELECT inet_server_port() AS port`;
-    expect(i.port).toBe(55462);
+    const [i] = await db.$queryRaw<
+      Array<{ port: number; database: string; owner: string }>
+    >`SELECT inet_server_port() AS port, current_database() AS database, current_user AS owner`;
+    // 宿主专用端口固定55462；Linux隔离容器内部5432，经55462映射访问。
+    expect([55462, 5432]).toContain(i.port);
+    expect(i.database).toBe(new URL(url!).pathname.slice(1));
+    expect(i.owner).toBe("qa_voice");
     expect(await db.course.count()).toBe(0);
   });
   beforeEach(() => {
@@ -95,7 +100,7 @@ jest.setTimeout(30000);
     forbidden.mockClear();
   });
   afterEach(async () => {
-    clock.mockRestore();
+    clock?.mockRestore();
     if (users.length) {
       await db.notification.deleteMany({ where: { userId: { in: users } } });
       await db.order.deleteMany({ where: { userId: { in: users } } });
