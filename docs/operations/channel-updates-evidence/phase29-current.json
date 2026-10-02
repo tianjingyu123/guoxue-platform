@@ -1,0 +1,306 @@
+{
+  "verifiedAt": "2026-10-02T01:20:40.400Z",
+  "sourceSha": "133e14dafd094046083870fb02434d921f982dea",
+  "baseSha": "9c6585afcdcaa69fefa3d9e0a46728837de5a497",
+  "sourceDirty": false,
+  "mainlineSnapshot": "ad85d913ecdf2facf92bd8c33357a04afefbe814",
+  "businessSourceCommits": [
+    "9b8370734f71ec2b8a388fbab7732998ee2ec327",
+    "ad85d913ecdf2facf92bd8c33357a04afefbe814"
+  ],
+  "independentCommits": [
+    "7cbf9eaef4933a9d3ffd862c748f69afef226604",
+    "133e14dafd094046083870fb02434d921f982dea"
+  ],
+  "changedFiles": [
+    "apps/mobile/scripts/check-entitlement-notification.ts",
+    "apps/mobile/src/lib/entitlement-presentation.ts",
+    "apps/mobile/src/lib/im-data.ts",
+    "apps/mobile/src/pkg-mine/memberships/index.vue",
+    "apps/server/src/modules/entitlement/entitlement.controller.ts",
+    "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+    "apps/server/src/modules/notification/entitlement-notification.task.spec.ts",
+    "apps/server/src/modules/notification/entitlement-notification.task.ts",
+    "apps/server/src/modules/notification/notification.module.ts"
+  ],
+  "changedFilesIdenticalToMainlineSnapshot": true,
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "regression": {
+    "serverUnits": 39,
+    "serverUnitSuites": 3,
+    "realPostgresJwtHttpTests": 10,
+    "realPostgresSuites": 1,
+    "serverTotal": 49,
+    "serverFailed": 0,
+    "serverSkipped": 0,
+    "clientTests": 319,
+    "clientFailed": 0,
+    "clientSkipped": 0,
+    "newPresentationAssertions": 9,
+    "lints": {
+      "server": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "mobile": {
+        "errors": 0,
+        "warnings": 90
+      }
+    },
+    "serverTypecheckExitCode": 0,
+    "mobileTypecheckExitCode": 0,
+    "nativeBundleAuditExitCode": 0
+  },
+  "postgres": {
+    "version": "16.13",
+    "host": "127.0.0.1",
+    "port": 55474,
+    "database": "entitlement_notice_qa_phase29",
+    "emptyBeforeBootstrap": true,
+    "bootstrapSingleTransaction": true,
+    "harness": {
+      "sourceSha": "133e14dafd094046083870fb02434d921f982dea",
+      "originalSpecSha256": "595046e957095276844e691c4c1c1699ce40418e520e4f149a6c18e77e99ce97",
+      "adaptedSpecSha256": "cf8253cf438ce952d567f5394f30337574c420004d43d6bc064e5c885a28e436",
+      "adaptations": [
+        "strict port 55462 -> own strict port 55474",
+        "relative import relocation; actual production modules unchanged"
+      ],
+      "existingPort55462Untouched": true,
+      "sql": {
+        "apps\\server\\prisma\\migrations-deploy\\full-baseline.sql": "a302f3dc6f34c9ddbd2d05f40ef1c842d98ab70fac05fb27d13539ee955b7623",
+        "apps\\server\\prisma\\migrations-deploy\\channel-operations.sql": "5962230f58f723a39f7aa096b598bbdb3f01330ef67d84fac60a311989d788cf"
+      }
+    },
+    "stopped": true,
+    "selectedRemainingRows": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "rowOrder": [
+      "User",
+      "EntitlementLedger",
+      "EntitlementBalance",
+      "Notification"
+    ],
+    "existingPort55462Untouched": true,
+    "guard": "真实JWT与角色守卫，合成签名和身份",
+    "redis": "get测试替身",
+    "push": "禁止真实渠道调用的替身",
+    "processConcurrency": "两个独立Node进程",
+    "sessionTimeZones": [
+      "UTC",
+      "Asia/Shanghai",
+      "America/Los_Angeles"
+    ],
+    "productionCronVerified": false
+  },
+  "builds": [
+    {
+      "kind": "server",
+      "fileCount": 3461
+    },
+    {
+      "kind": "app-resources",
+      "fileCount": 491
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1181
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2759
+    }
+  ],
+  "buildManifestSha256": "b010f50b462f18103ef880b270303c76a688e3248b62d0c0a6032fa0e1c2f158",
+  "signedApkBuilt": false,
+  "uploaded": false,
+  "review": {
+    "patch": "artifacts/phase29-entitlement-current/review-verified/entitlement-merge.patch",
+    "bundle": "artifacts/phase29-entitlement-current/review-verified/entitlement-merge.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "8399043a1ae49036c73eed8598c2f5206e26af41",
+    "sourceTree": "8399043a1ae49036c73eed8598c2f5206e26af41",
+    "temporaryIndexOnly": true
+  },
+  "previousEvidence": {
+    "phase27ReportSha256": "27a6715f987adc55b1277e31835cebe0c523b3c58decfe96195337599d90db0e",
+    "old71TestsNotAccumulated": true,
+    "oldClientEvidenceNotRebound": true,
+    "oldFrozenBuildsNotOverwritten": true
+  },
+  "remainingInternal": [
+    "平台会员与术师会员旧真源不由单独流水代表，暂不发送两类会员到账通知",
+    "仅补管理员独立GRANT的持久站内通知，订单及其他权益来源不自动扩展",
+    "全部客服回复、剩余圈务与其他提交后持久补发等仍按主线清单保留"
+  ],
+  "evidence": {
+    "artifacts/phase29-entitlement-current/server-execution.json": {
+      "bytes": 1292,
+      "sha256": "85c0d8edf1313c9ad6d932d44027a429431d54640ad6346753cb475ee9f5e63f"
+    },
+    "artifacts/phase29-entitlement-current/client-execution.json": {
+      "bytes": 831,
+      "sha256": "468e50a8bb1e4e5ac1e7bf0c0d5e7e7729f55b09bd9f5e63e6f227bf9b25ae0d"
+    },
+    "artifacts/phase29-entitlement-current/harness-provenance.json": {
+      "bytes": 729,
+      "sha256": "a36d9dd0f39394e52311bd24bedd6007b62b8faa04531fee0f2fa96bb02a95b2"
+    },
+    "artifacts/phase29-entitlement-current/harness/entitlement-notification.postgres.spec.ts": {
+      "bytes": 14522,
+      "sha256": "cf8253cf438ce952d567f5394f30337574c420004d43d6bc064e5c885a28e436"
+    },
+    "artifacts/phase29-entitlement-current/harness/jest.config.cjs": {
+      "bytes": 359,
+      "sha256": "24eec38e6e29fe87d00c9bff5281d91bbcdda0c2240726cdc0252fc40afac4e6"
+    },
+    "artifacts/phase29-entitlement-current/postgres-tests.json": {
+      "bytes": 5445,
+      "sha256": "ae33d58a7d237bca424329d423315a630532914818b460d3a79f52ff5807ad8c"
+    },
+    "artifacts/phase29-entitlement-current/unit-tests.json": {
+      "bytes": 15479,
+      "sha256": "7964a41c8ce712363a98b256e8a52b355b1d60f4031ceb90637952c746ce0193"
+    },
+    "artifacts/phase29-entitlement-current/entitlement-postgres.log": {
+      "bytes": 1574,
+      "sha256": "32f6b81d6dde1d38fc80b345234547e0b6f0294ba24ef70bdf54877b9fcac9ab"
+    },
+    "artifacts/phase29-entitlement-current/entitlement-unit.log": {
+      "bytes": 728,
+      "sha256": "28854a7fe6573934b4c2b0237b7b86cd1b5e4631b8955ef075d93afa31541e33"
+    },
+    "artifacts/phase29-entitlement-current/client-gate.log": {
+      "bytes": 34366,
+      "sha256": "7abeec679bb6e6b143483fdf8b6e652675c98820d67d4eecef075257656e7994"
+    },
+    "artifacts/phase29-entitlement-current/entitlement-presentation.log": {
+      "bytes": 90,
+      "sha256": "c33e5dbe99e0bc23b2011f158cc0b258a5a2554314e6ad7a44d471d3b69a623e"
+    },
+    "artifacts/phase29-entitlement-current/mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase29-entitlement-current/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase29-entitlement-current/server-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase29-entitlement-current/mobile-app-build.log": {
+      "bytes": 66378,
+      "sha256": "d4f943845fff84f797c0f15e1bf849375a9200da2e0f4216d634b7c4f12877b0"
+    },
+    "artifacts/phase29-entitlement-current/mobile-h5-build.log": {
+      "bytes": 66598,
+      "sha256": "6c091ee2a41f794ec066c79db9207970ed17136d1f36a660963368293b0c323a"
+    },
+    "artifacts/phase29-entitlement-current/mobile-mp-weixin-build.log": {
+      "bytes": 67388,
+      "sha256": "591a378c8d85573aa7c3ed199457316f1fdd2b4731c7786962a0ce6c8a5bd65c"
+    },
+    "artifacts/phase29-entitlement-current/native-bundle-audit.log": {
+      "bytes": 165,
+      "sha256": "bd093ec405321d81c47ac5d2ba7527a5ddb8c81a140131d889bbac8636837d13"
+    },
+    "artifacts/phase29-entitlement-current/server-eslint.json": {
+      "bytes": 2202,
+      "sha256": "e8a6c1abacf14d79cf6772230d5a056f81c542081d3f4056a2d915db2663ed5d"
+    },
+    "artifacts/phase29-entitlement-current/mobile-eslint.json": {
+      "bytes": 47886,
+      "sha256": "6b23ba5aa168dc5b0cd1300fedc242b5ad8774fc66f62efdb281cc5de860e0a0"
+    },
+    "artifacts/phase29-entitlement-current/database-identity.log": {
+      "bytes": 116,
+      "sha256": "6c0d8fabe34dfd6d9324f388a9b0186e54c9bca2c06006b36121ba15e5ec8583"
+    },
+    "artifacts/phase29-entitlement-current/database-remaining.log": {
+      "bytes": 9,
+      "sha256": "e33c78a16a96de4d81e388cd6d2e21f7ef4a5b5cb2678b4e6eba211212c19bc9"
+    },
+    "artifacts/phase29-entitlement-current/postgres-stop.log": {
+      "bytes": 50,
+      "sha256": "dd269ccb43c508088b5a167e486992f22ca81c73e544ef93ea8ed842549ac2d8"
+    },
+    "artifacts/phase29-entitlement-current/build-manifest.json": {
+      "bytes": 1520633,
+      "sha256": "b010f50b462f18103ef880b270303c76a688e3248b62d0c0a6032fa0e1c2f158"
+    },
+    "artifacts/phase29-entitlement-current/review-verified/entitlement-merge.patch": {
+      "bytes": 36884,
+      "sha256": "2b2209a7dc326f1dec9de7c6eb8871d43ef546fa412b9da11b643f532f495459"
+    },
+    "artifacts/phase29-entitlement-current/review-verified/entitlement-merge.bundle": {
+      "bytes": 13194,
+      "sha256": "34e093129f489a8624027935f396e02fbb3fbe0bad95d77937c8e77b3ae1ef78"
+    }
+  },
+  "limits": [
+    "实际库测试端口与导入路径通过独立受限副本适配；生产代码九文件未改，原测试不弱化",
+    "319项为本轮重新运行，新9项为展示辅助函数断言，不冒充完整页面或真机点击",
+    "App为JS/nvue资源，合成公开域名，未生成DCloud完整签名包、上传小程序或提审",
+    "未验收正式鉴权、真实推送渠道、Cron线上调度或两节点部署",
+    "SDK下载登录、匹配完整包、旧物理设备、真实业务、生产与16商店账号签名材料提审仍未完成"
+  ],
+  "outstandingMainlineDifferences": [
+    "apps/admin/src/views/system/ClientPresentationPanel.vue",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+    "apps/mobile/src/lib/resource-update-lifecycle.ts",
+    "apps/mobile/src/lib/resource-updater.ts",
+    "apps/mobile/src/pkg-live/live-trtc-client.ts",
+    "apps/server/src/modules/auth/auth.service.spec.ts",
+    "apps/server/src/modules/auth/auth.service.ts",
+    "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+    "apps/server/src/modules/sms/sms.service.spec.ts",
+    "apps/server/src/modules/sms/sms.service.ts",
+    "scripts/release/android-probe-device-identity.mjs",
+    "scripts/release/android-probe-install.mjs",
+    "scripts/release/android-probe-log-cutoff.mjs",
+    "scripts/release/android-probe-log-stream.mjs",
+    "scripts/release/android-probe-recovery-evidence.mjs",
+    "scripts/release/build-channel-resources.mjs",
+    "scripts/release/build-native-probe.mjs",
+    "scripts/release/probe-health-resources.mjs",
+    "scripts/release/probe-tls-server.mjs",
+    "scripts/release/verify-native-api26-baseline.mjs",
+    "scripts/release/verify-native-api26-controls.mjs",
+    "scripts/release/verify-native-base-upgrades.mjs",
+    "scripts/release/verify-native-health-window.mjs",
+    "scripts/release/verify-native-probe.mjs",
+    "scripts/release/verify-native-tls-android.mjs",
+    "scripts/release/verify-native-transfer-android.mjs",
+    "scripts/release/verify-native-transfer.mjs",
+    "scripts/release/verify-resource-native.mjs",
+    "tests/release/admin-client-presentation.test.cjs",
+    "tests/release/android-probe-device-identity.test.mjs",
+    "tests/release/android-probe-recovery-evidence.test.mjs",
+    "tests/release/android-probe/ProbeActivity.java",
+    "tests/release/android-probe/TlsScenarios.java",
+    "tests/release/android-probe/TransferScenarios.java",
+    "tests/release/channel-build-source.test.mjs",
+    "tests/release/channel-capability-jwt-postgres.test.cjs",
+    "tests/release/channel-login-concurrency-postgres.test.cjs",
+    "tests/release/channel-password-login-postgres.test.cjs",
+    "tests/release/channel-resource-updater.test.cjs",
+    "tests/release/channel-session-redis-postgres.test.cjs",
+    "tests/release/channel-sms-once-postgres.test.cjs",
+    "tests/release/channel-trusted-login-postgres.test.cjs",
+    "tests/release/mobile-live-safe-area.test.mjs",
+    "tests/release/mobile-shipping-regions.test.cjs",
+    "tests/release/native/NativeTransferProbe.java",
+    "tests/release/resource-health-lifecycle.test.cjs"
+  ],
+  "mainlineWholeClientOrImageNotEquivalent": true
+}
