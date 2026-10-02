@@ -1,0 +1,103 @@
+name: 最终候选软件跳过项真实库补验
+on:
+  push:
+    branches: [codex/image-verify-20260930]
+    paths: [.github/workflows/launch-software-skips-verify.yml]
+permissions:
+  contents: read
+jobs:
+  software-real-db:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: qa_voice
+          POSTGRES_PASSWORD: synthetic-test-only
+          POSTGRES_DB: software_qa_e297
+        ports: ["55462:5432", "55439:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qa_voice -d software_qa_e297"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SOURCE_COMMIT: e297434ec0cdd2765bcb42531dc96c999e531e7f
+      DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/software_qa_e297
+      XIAOBU_IT_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/software_qa_e297
+      XIAOBU_IT_REDIS_URL: redis://127.0.0.1:6379
+      BOT_QUOTA_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/bot_quota_qa_e297
+      REBU_LOCAL_ORDER_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_PAYMENT_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_REFUND_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_AFTER_SALE_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_NOTIFICATION_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_COURSE_ACCESS_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      REBU_LOCAL_REVIEW_TEST_URL: postgresql://rebu_test:synthetic-test-only@127.0.0.1:55439/rebu_candidate_test
+      NODE_ENV: test
+      BULLMQ_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: candidate
+          persist-credentials: true
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/.claude/
+      - name: 清除临时鉴权头
+        run: git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: 实测源码身份与独立依赖
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          mkdir -p artifacts/software-skips
+          git rev-parse HEAD > artifacts/software-skips/source-binding.txt
+          git ls-files -z apps/server/src apps/server/prisma packages pnpm-lock.yaml | xargs -0 sha256sum >> artifacts/software-skips/source-binding.txt
+          pnpm install --frozen-lockfile
+          pnpm --filter @guoxue/server exec prisma generate
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+      - name: 核对PG并创建三个隔离合成库
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          version=$(psql "$DATABASE_URL" -XAtc 'SHOW server_version')
+          case "$version" in 18.4*) ;; *) exit 1;; esac
+          printf '%s\n' "$version" > artifacts/software-skips/postgres-version.txt
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -c "CREATE ROLE rebu_test LOGIN SUPERUSER PASSWORD 'synthetic-test-only'"
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -c 'CREATE DATABASE bot_quota_qa_e297 OWNER qa_voice'
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -c 'CREATE DATABASE rebu_candidate_test OWNER rebu_test'
+          for database in software_qa_e297 bot_quota_qa_e297 rebu_candidate_test; do
+            { printf 'BEGIN;\n'; cat apps/server/prisma/migrations-deploy/full-baseline.sql apps/server/prisma/migrations-deploy/channel-operations.sql; printf '\nCOMMIT;\n'; } | psql "postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/$database" -X -v ON_ERROR_STOP=1 > "artifacts/software-skips/schema-$database.log"
+          done
+      - name: 只补本版其余102项软件测试
+        working-directory: candidate/apps/server
+        run: |
+          set -euo pipefail
+          pnpm exec jest --config jest.config.ts --runInBand --no-coverage --runTestsByPath src/modules/tts/audio-asset.service.integration.spec.ts src/modules/bot/bot.quota.postgres.spec.ts src/modules/bot/bot.purchase.postgres.spec.ts src/modules/classic/classic-derived.integration.spec.ts src/modules/shop/shop-order.local-db.http.spec.ts src/modules/voice/xiaobu-commerce.integration.spec.ts src/modules/voice/voice-session.integration.spec.ts src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts src/modules/voice/voice-http.integration.spec.ts src/modules/tts/audiobook.integration.spec.ts src/modules/shop/shop-order.local-db.spec.ts src/modules/voice/circle-voice-revenue.integration.spec.ts src/modules/course/course-access.local-db.http.spec.ts src/modules/bot/bot.quota.http.postgres.spec.ts src/modules/shop/after-sale-access.local-db.http.spec.ts src/modules/shop/shop-payment-notification.local-db.spec.ts src/modules/voice/voice-topup.integration.spec.ts src/modules/notification/notification-access.local-db.http.spec.ts src/modules/voice/voice-quota.service.integration.spec.ts src/modules/course/course-review-status.local-db.http.spec.ts src/modules/shop/shop-refund-notification.local-db.spec.ts src/modules/voice/voice-device-handoff.integration.spec.ts --json --outputFile ../../artifacts/software-skips/jest-results.json 2>&1 | tee ../../artifacts/software-skips/jest.log
+          node -e 'const r=require("../../artifacts/software-skips/jest-results.json");if(r.numFailedTests||r.numPendingTests||r.numPassedTests<102)process.exit(1)'
+      - name: 保存限定范围证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: software-skips-e297434ec-${{ github.run_id }}
+          path: candidate/artifacts/software-skips/
+          retention-days: 14
+          if-no-files-found: error
