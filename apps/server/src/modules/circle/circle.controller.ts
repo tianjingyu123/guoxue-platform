@@ -220,7 +220,7 @@ export class CircleController {
   }
 
   @Get(":id")
-  @UseGuards(StationIsolationGuard)
+  @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取圈子详情" })
   @ApiResponse({ status: 200, description: "成功返回圈子详情" })
   @ApiResponse({ status: 404, description: "圈子不存在" })

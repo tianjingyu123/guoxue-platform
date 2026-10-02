@@ -154,6 +154,9 @@ export class CircleCoreService {
     const cacheKey = `circles:detail:${circleId}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) {
+      // 兼容旧缓存：公共详情不能向游客带出填充者的成员身份。
+      const publicData = { ...cached };
+      delete publicData.membership;
       if (userId) {
         // 成员关系独立缓存，避免缓存命中后重复查 DB
         const memKey = `circles:member:${circleId}:${userId}`;
@@ -164,9 +167,9 @@ export class CircleCoreService {
           });
           await this.redis.setJson(memKey, membership, 300);
         }
-        return { ...cached, membership: membership || null };
+        return { ...publicData, membership: membership || null };
       }
-      return cached;
+      return { ...publicData, membership: null };
     }
 
     const [circle, membership, apprRows] = await Promise.all([
@@ -192,9 +195,10 @@ export class CircleCoreService {
       await this.redis.setJson(memKey, membership, 60);
     }
 
-    const data = { ...circle, needApproval: apprRows?.[0]?.needApproval === true, membership };
+    // 成员行只进入本人响应及个人缓存，不进入圈子共享详情缓存。
+    const data = { ...circle, needApproval: apprRows?.[0]?.needApproval === true };
     await this.redis.setJson(cacheKey, data, 300);
-    return data;
+    return { ...data, membership };
   }
 
   async listCircles(params: {

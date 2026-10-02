@@ -141,7 +141,7 @@ describe("CircleService", () => {
       const cached = { id: "c1", name: "国学圈" };
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.getDetail("c1");
-      expect(result).toEqual(cached);
+      expect(result).toEqual({ ...cached, membership: null });
       expect(mockPrisma.circle.findUnique).not.toHaveBeenCalled();
     });
   });
