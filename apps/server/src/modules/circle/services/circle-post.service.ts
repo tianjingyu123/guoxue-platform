@@ -507,7 +507,7 @@ export class CirclePostService {
     // 保持既有50%分成及向下取整；扣款、开户、作者入账和两条流水全成全败。
     const authorShare = Math.floor(amount / 2);
     const coinService = this.coinService;
-    await this.prisma.$transaction(async (tx) => {
+    const notice = await this.prisma.$transaction(async (tx) => {
       // PostgreSQL事务锁跨进程生效。先锁同一请求再查账，余额不足的并发重试也能返回原结果。
       const lockKey = BigInt.asIntN(64, BigInt(`0x${digest.slice(0, 16)}`));
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey})::text`;
@@ -522,7 +522,12 @@ export class CirclePostService {
             credits[0].type !== "REFUND" || credits[0].scene !== "REFUND" || credits[0].amountCoin !== authorShare) {
           throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏流水不完整，请联系客服核查");
         }
-        return;
+        // 旧流水不自动补建事实；新请求重试使用首次留言，不允许修改成功事件的内容。
+        const saved = await tx.circlePostRewardNotice.findUnique({ where: { debitId } });
+        if (saved && (saved.recipientId !== post.userId || saved.circleId !== circleId)) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏通知事实不匹配，请联系客服核查");
+        }
+        return saved;
       }
       await coinService.spend(userId, {
         amountCoin: amount,
@@ -533,19 +538,22 @@ export class CirclePostService {
       if (authorShare > 0) {
         await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`, tx, debitId);
       }
+      // 保存业务提交事实，不在资金事务中调用通知服务。此写入失败与其它账本错误一样整笔回滚。
+      return tx.circlePostRewardNotice.create({ data: { debitId, recipientId: post.userId, circleId, message } });
     }, { maxWait: 5000, timeout: 10000 });
 
     // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
+    const notificationMessage = notice ? notice.message : message;
     if (this.notificationService) {
       this.notificationService.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
         type: "POST_REWARD",
         title: "收到打赏",
-        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${message ? `：${message}` : ""}`,
+        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${notificationMessage ? `：${notificationMessage}` : ""}`,
         targetType: "POST",
         targetId: postId,
         category: "TRADE",
         circleId,
-      }).catch((err) => this.logger.warn("打赏通知发送失败", err));
+      }).catch(() => this.logger.warn("打赏通知发送失败，新打赏将由持久任务重试"));
     }
 
     return { success: true, amount };

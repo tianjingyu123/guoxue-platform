@@ -4676,10 +4676,24 @@ model VirtualCoinTransaction {
   createdAt    DateTime      @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardNotice CirclePostRewardNotice?
 
   @@index([userId, createdAt])
   @@index([refId])
   @@index([userId, type, createdAt])
+}
+
+/// 仅新圈帖打赏的提交事实；与资金流水同事务保存，不作为历史补款依据。
+model CirclePostRewardNotice {
+  debitId String @id
+  recipientId String
+  circleId String
+  message String? @db.VarChar(200)
+  createdAt DateTime @default(now())
+
+  debit VirtualCoinTransaction @relation(fields: [debitId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, debitId])
 }
 
 // 创作者提现申请（虚拟币结算）— 申请→审核→打款 真审批流。
