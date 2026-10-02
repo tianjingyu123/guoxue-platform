@@ -119,7 +119,8 @@ async function request(name, user, route, expected, method = 'GET') {
   assert.equal(externalCalls, 0);
   record('same-event-replay-after-redis-key-loss-database-deduplicates');
   console.log('NODE_TEST_RESULT:' + JSON.stringify({ passed: true, cases: rows, scope: 'full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions',
-    noRealMoney: true, noExternalDelivery: true, crashDurableRetryNotImplemented: true, paidCourseSeparateEnrollmentNotAdded: true }));
+    // 只描述此HTTP专项的覆盖范围；新恢复任务已由独立专项验证，不再误写为未实现。
+    noRealMoney: true, noExternalDelivery: true, durableRetryNotCoveredByThisHttpHelper: true, paidCourseEnrollmentNotCoveredByThisHttpHelper: true }));
 })().catch(error => { console.error(error.message); process.exitCode = 1; }).finally(async () => {
   for (const [table, name] of [['Order', 'isolated_free_order_reject'], ['Notification', 'isolated_free_notice_reject'], ['Notification', 'isolated_free_notice_hold']]) {
     await p.$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${name} ON "${table}"`).catch(() => {});

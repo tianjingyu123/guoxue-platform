@@ -110,7 +110,9 @@ async function read(name, userId, route, status) {
     assert.equal((await read("target-refunded-owner-no-access", users[0], "/courses/" + prefix + "one/access", 200)).hasAccess, false);
     await read("target-refunded-chapter-denied", users[0], "/courses/chapters/" + prefix + "chapter/content", 403);
     console.log("NODE_TEST_RESULT:" + JSON.stringify({ passed: true, scope: "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions", cases: rows,
-      dayKeyBasis: "UTC-calendar-day", unchangedCronSchedule: true, noRealMoney: true, noExternalDelivery: true, syntheticRefundFixtureOnly: true, crashPushRetryNotCovered: true }));
+      // 原9点任务保持；新增当天重试的Cron注册由独立专项核验，此处不扩大覆盖。
+      dayKeyBasis: "UTC-calendar-day", originalDailyCronUnchanged: true, retryCronMetadataNotCoveredByThisHelper: true,
+      noRealMoney: true, noExternalDelivery: true, syntheticRefundFixtureOnly: true, crashPushRetryNotCovered: true }));
   } finally {
     await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS isolated_course_notification_reject ON "Notification"').catch(() => {});
     await p.$executeRawUnsafe('DROP FUNCTION IF EXISTS isolated_course_notification_reject()').catch(() => {});
