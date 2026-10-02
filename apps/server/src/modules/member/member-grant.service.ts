@@ -57,9 +57,9 @@ export class MemberGrantService {
           } else {
             skipped++;
           }
-        } catch (err) {
+        } catch {
           skipped++;
-          this.logger.warn(`会员月度发放失败 userId=${m.id}`, err as Error);
+          this.logger.warn("会员月度权益发放失败，本月记录未完成");
         }
       }
       if (members.length < batchSize) break;

@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
+import { Prisma } from "@prisma/client";
 
 /**
  * 书院会员权益服务（C1 会员产品化 · 2026-07-03）
@@ -212,15 +213,35 @@ export class MemberBenefitService {
 
   /**
    * 发放某用户当月会员权益（积分+优惠券）。幂等：同 source（member_monthly_YYYYMM）已有积分流水则跳过。
-   * tx 可选：购买开通场景传支付事务原子发首月；月度 cron 场景不传（逐用户独立提交，单个失败不拖全批）。
+   * tx 可选：购买场景沿用支付事务；cron 场景自建逐用户事务，失败不能部分到账。
+   * 零积分方案也写零金额的权益发放记录，不增加余额，只用于当月防重。
    */
-  async grantMonthlyBenefits(userId: string, level: string, tx?: any): Promise<boolean> {
-    const db = tx ?? this.prisma;
+  async grantMonthlyBenefits(userId: string, level: string, tx?: Prisma.TransactionClient): Promise<boolean> {
     const now = new Date();
     const source = `member_monthly_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (tx) return this.grantMonthlyBenefitsWithTx(tx, userId, level, source, now, false);
+    return this.prisma.$transaction(
+      db => this.grantMonthlyBenefitsWithTx(db, userId, level, source, now, true),
+      { maxWait: 5000, timeout: 15000 },
+    );
+  }
 
-    const config = await db.memberConfig.findUnique({ where: { level } });
+  private async grantMonthlyBenefitsWithTx(
+    db: Prisma.TransactionClient, userId: string, level: string, source: string, now: Date, useCurrentLevel: boolean,
+  ): Promise<boolean> {
+    // 所有已知发放入口共用用户行锁。判重、积分、券库存与记录都在同一事务内。
+    const rows = await db.$queryRaw<Array<{ memberLevel: string; memberExpire: Date | null }>>`
+      SELECT "memberLevel"::text, "memberExpire" FROM "User" WHERE id = ${userId} FOR UPDATE
+    `;
+    const member = rows[0];
+    if (!member || member.memberLevel === "NONE" || (member.memberExpire && member.memberExpire <= now)) return false;
+
+    // cron 不能使用撤销或升级前的旧快照；购买场景保留既有明确方案参数语义。
+    const config = await db.memberConfig.findUnique({ where: { level: useCurrentLevel ? member.memberLevel : level } });
     if (!config) return false;
+    if (!Number.isSafeInteger(config.monthlyPoints) || config.monthlyPoints < 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "会员月度权益配置无效");
+    }
 
     const already = await db.pointsRecord.findFirst({
       where: { userId, source, type: "EARN" },
@@ -234,25 +255,30 @@ export class MemberBenefitService {
         update: { balance: { increment: config.monthlyPoints }, totalEarned: { increment: config.monthlyPoints } },
         create: { userId, balance: config.monthlyPoints, totalEarned: config.monthlyPoints },
       });
-      await db.pointsRecord.create({
-        data: { userId, amount: config.monthlyPoints, type: "EARN", source, description: `${config.name}每月赠积分` },
-      });
     }
 
     if (config.monthlyCouponId) {
-      const template = await db.couponTemplate.findUnique({ where: { id: config.monthlyCouponId } });
-      if (template && (template.totalCount <= 0 || template.claimedCount < template.totalCount)) {
-        await db.couponTemplate.update({
-          where: { id: config.monthlyCouponId },
-          data: { claimedCount: { increment: 1 } },
-        });
+      // 条件更新会在竞争后重新核对库存，不能先读取库存再无条件递增。
+      const claimed = await db.couponTemplate.updateMany({
+        where: { id: config.monthlyCouponId, OR: [
+          { totalCount: { lte: 0 } },
+          { claimedCount: { lt: db.couponTemplate.fields.totalCount } },
+        ] },
+        data: { claimedCount: { increment: 1 } },
+      });
+      if (claimed.count === 1) {
         await db.couponRecord.create({
           data: { couponId: config.monthlyCouponId, userId, status: "UNUSED" },
         });
       } else {
-        this.logger.warn(`会员月度赠券跳过：券模板 ${config.monthlyCouponId} 不存在或已发完`);
+        this.logger.warn("会员月度赠券跳过：券模板不存在或已发完");
       }
     }
+
+    await db.pointsRecord.create({
+      data: { userId, amount: config.monthlyPoints, type: "EARN", source,
+        description: config.monthlyPoints > 0 ? `${config.name}每月赠积分` : `${config.name}每月权益发放记录（未赠积分）` },
+    });
 
     return true;
   }
