@@ -1,0 +1,329 @@
+{
+  "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+  "checkedAt": "2026-10-02T17:12:32.689Z",
+  "rows": [
+    {
+      "id": "order-paid",
+      "event": "订单最终付款成功",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts"
+      ],
+      "key": "ORDER_PAID:<orderId>",
+      "state": "真实代码入口；课程合成签名HTTP、从业真实PG等限定验证",
+      "recovery": "通知写入失败独立捕获；外发箱失败仍要求回调重投",
+      "gap": "无独立站内分钟恢复证明；真实供应商、其他订单类型与手机未全验",
+      "online": "未知"
+    },
+    {
+      "id": "order-refunded",
+      "event": "订单最终退款完成",
+      "paths": [
+        "apps/server/src/modules/shop/shop-refund.service.ts"
+      ],
+      "key": "ORDER_REFUNDED:<orderId>",
+      "state": "真实代码入口；CAS/权益事务后才发完成通知",
+      "recovery": "通知失败不改退款结果；重投补发",
+      "gap": "无全订单独立分钟恢复证明；真实供应商与手机未全验",
+      "online": "未知"
+    },
+    {
+      "id": "admin-entitlement",
+      "event": "管理员新发独立权益",
+      "paths": [
+        "apps/server/src/modules/entitlement/entitlement.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "真实代码入口+新事实+实际模块注册",
+      "recovery": "分钟持久补发；事务失败无事实，不历史补发",
+      "gap": "限现有管理员白名单；不能推为所有支付履约",
+      "online": "未知"
+    },
+    {
+      "id": "school-admin",
+      "event": "管理员书院会员新授予",
+      "paths": [
+        "apps/server/src/modules/member/member.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "真实代码入口+MEMBER_GRANTED_V1",
+      "recovery": "分钟恢复并核对当前生效会员状态",
+      "gap": "历史授权、真实Cron和手机未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "school-paid",
+      "event": "付款开通书院会员",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "已有ORDER_PAID；没有独立MEMBER到账键",
+      "state": "付款权益已实现；独立到账恢复入口缺失",
+      "recovery": "当前订单MEMBER_PLAN metadata仅planLevel/memberLevel/autoRenew，未标MEMBER_GRANTED_V1",
+      "gap": "需独立补新订单到账事实与会员权威状态复核，不能用管理员授予代替",
+      "online": "未知"
+    },
+    {
+      "id": "pro-paid",
+      "event": "付款开通/续费从业会员",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/shop/shop-refund.service.ts",
+        "apps/server/src/modules/notification/entitlement-notification.task.ts"
+      ],
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "PRACTITIONER_GRANTED_V1新事实、付款退款User行锁及ORDER权威复核已接入",
+      "recovery": "分钟恢复；仅本人有效已付/完成订单、未冲正的当前有效权益",
+      "gap": "真实Cron、渠道与手机未覆盖；本次语音改动对这批源码无差异",
+      "online": "未知"
+    },
+    {
+      "id": "member-renew",
+      "event": "会员续费提醒",
+      "paths": [
+        "apps/server/src/modules/member/member-grant.service.ts"
+      ],
+      "key": "<userId>:MEMBER_RENEW_REMIND:<expire>:<window>",
+      "state": "真实分钟入口、北京自然日7天/当天窗口",
+      "recovery": "数据库唯一、失败不留提前占位；仅提醒不扣费",
+      "gap": "正式时钟/Cron与手机未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "member-monthly",
+      "event": "会员当月积分/券",
+      "paths": [
+        "apps/server/src/modules/member/member-grant.service.ts",
+        "apps/server/src/modules/member/member-benefit.service.ts"
+      ],
+      "key": "member_monthly_YYYYMM是权益流水键，不能冒充通知键",
+      "state": "真实每月/6小时当月恢复；User锁与积分券同事务",
+      "recovery": "无用户到账通知触发入口证明",
+      "gap": "旧未用同模板券冲突政策仍待决策；不可写全部权益到账通知闭环",
+      "online": "未知"
+    },
+    {
+      "id": "feedback-resolved",
+      "event": "工单结案公开回复",
+      "paths": [
+        "apps/server/src/modules/user/feedback.service.ts",
+        "apps/server/src/modules/user/feedback-notification.task.ts",
+        "apps/server/src/modules/user/user.module.ts"
+      ],
+      "key": "<userId>:FEEDBACK_RESOLVED:<feedbackId>:<UUID>",
+      "state": "真实CAS结案、公开回复事实及模块注册",
+      "recovery": "即时尝试+分钟补发；内部备注不对用户公开",
+      "gap": "不等于全部人工聊天；企业微信回流未接通",
+      "online": "未知"
+    },
+    {
+      "id": "human-service",
+      "event": "人工客服会话",
+      "paths": [
+        "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+        "apps/server/src/modules/im/im-callback.controller.ts"
+      ],
+      "key": "无统一人工回复事实键",
+      "state": "工单/二维码/电话导引和AI即时答复存在",
+      "recovery": "普通IM Socket不是人工客服统一站内通知",
+      "gap": "企业微信会话回流/归属仍缺入口或外部接通；线上未知",
+      "online": "未知"
+    },
+    {
+      "id": "course-free",
+      "event": "免费及零元促销课程订阅",
+      "paths": [
+        "apps/server/src/modules/course/course-purchase.service.ts",
+        "apps/server/src/modules/course/course.module.ts"
+      ],
+      "key": "COURSE_ENROLLED:<orderId>",
+      "state": "真实订单create提交后异步sendOnce",
+      "recovery": "写入失败/阻塞不影响订阅；重复防重",
+      "gap": "尚无独立持久自动补发入口，不把最佳努力当完全闭环",
+      "online": "未知"
+    },
+    {
+      "id": "course-paid",
+      "event": "付费课程开通",
+      "paths": [
+        "apps/server/src/modules/shop/shop-payment.service.ts"
+      ],
+      "key": "已有ORDER_PAID",
+      "state": "真实支付与课程权益入口",
+      "recovery": "未新增第二条独立COURSE_ENROLLED",
+      "gap": "独立权益/履约完成通知仍需明确补齐范围",
+      "online": "未知"
+    },
+    {
+      "id": "course-expiry",
+      "event": "课程即将到期",
+      "paths": [
+        "apps/server/src/modules/course/course-scheduler.service.ts",
+        "apps/server/src/modules/course/course.module.ts"
+      ],
+      "key": "COURSE_EXPIRING:<courseId>:<UTC日期>（收件人限定）",
+      "state": "实际每日Cron注册、最新有效付费订单及3日阈值",
+      "recovery": "数据库日防重、单课失败继续",
+      "gap": "非分钟持久恢复；日内崩溃补偿/正式时区尚未完整覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "live-booking",
+      "event": "直播预约提醒/开播",
+      "paths": [
+        "apps/server/src/modules/live/live.service.ts",
+        "apps/server/src/modules/live/live.module.ts"
+      ],
+      "key": "LIVE_REMINDER:<roomId> / LIVE_STARTED:<roomId>",
+      "state": "真实预约准入、开播与分钟恢复入口",
+      "recovery": "预约持久状态、500分批、单房失败继续、防重",
+      "gap": "选取后取消竞态、正式媒体/真IM/匹配基座/真机仍未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "circle-governance",
+      "event": "圈子9处治理与到期删除",
+      "paths": [
+        "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+        "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+        "apps/server/src/modules/circle/circle.module.ts"
+      ],
+      "key": "治理事实/删除事实的收件人唯一事件键",
+      "state": "状态变化、删除和新事实同事务；实际任务注册",
+      "recovery": "分钟补发+数据库唯一；删除/缓存与各批已分别核验",
+      "gap": "不代表全部圈务或线上Cron已验收",
+      "online": "未知"
+    },
+    {
+      "id": "circle-reward",
+      "event": "圈帖打赏",
+      "paths": [
+        "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts"
+      ],
+      "key": "<recipientId>:POST_REWARD:<debitId>",
+      "state": "真实事务事实、完整分账核对及分钟任务",
+      "recovery": "即时+持久补发；原分成与请求摘要保持",
+      "gap": "帖子删除/异常账本与真实手机、渠道仍未覆盖",
+      "online": "未知"
+    },
+    {
+      "id": "channels",
+      "event": "微信/短信/App推送",
+      "paths": [
+        "apps/server/src/modules/notification/notification.service.ts"
+      ],
+      "key": "不能用站内唯一键推断真实送达",
+      "state": "存在通知服务与可选适配结构",
+      "recovery": "本轮未发送真实通知",
+      "gap": "配置/真实渠道送达及线上两节点未知；Novu不引入",
+      "online": "未知"
+    }
+  ],
+  "bindings": [
+    {
+      "path": "apps/server/src/modules/shop/shop-payment.service.ts",
+      "sha256": "52a33dec5840bc4982a6638c003e0b5d4ad13d06e7836cd95632a9cf6f8fe5a7"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-refund.service.ts",
+      "sha256": "f4f445cac5dd26cfd2668f24cca9ee088e4202e01afde550dad9533401c4f82c"
+    },
+    {
+      "path": "apps/server/src/modules/entitlement/entitlement.service.ts",
+      "sha256": "0ff437bf42f08e5d3ef8cdc2e05efbe7195895b9eb906ed5e3b113b3b667f25e"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+      "sha256": "a469d40d1f36d59d88037264793663f3b0d5100cf87293645605de5c4dfc01ad"
+    },
+    {
+      "path": "apps/server/src/modules/member/member.service.ts",
+      "sha256": "b2b1269bf0112a21cd9c4854498456c2ceecdebef0ffe96f31614d57f2439398"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-grant.service.ts",
+      "sha256": "e205b81713531f5a6b307dc1d4ec111c7148a0ab9a02bcbb51d2c215ccae7df6"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.service.ts",
+      "sha256": "b27070ad6e2d5b49a184cce723bdd65782c7bfbf2aaf8f9d9a30730711808da0"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback.service.ts",
+      "sha256": "117810335a3147a98f9e38eeab00e76a29164c5a7405b9dc21a7da49f9a9b120"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+      "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+    },
+    {
+      "path": "apps/server/src/modules/user/user.module.ts",
+      "sha256": "647c850c51fe712c6500c75e512a26f88ddcdae9f3f722d7993f203cc3407848"
+    },
+    {
+      "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+      "sha256": "3ff84774dbf7e689343fb72831e28c49084290fe4d3c76ab318ccd59725f57a5"
+    },
+    {
+      "path": "apps/server/src/modules/im/im-callback.controller.ts",
+      "sha256": "dc41a7ed12ae1356986a954c2c7a08c7f14694dcdc0548c83c54a880639c9a1a"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-purchase.service.ts",
+      "sha256": "97b152af6cbf30e370fd5315982d5ae88539338c4d8a4c6a9c4da387c372f3d7"
+    },
+    {
+      "path": "apps/server/src/modules/course/course.module.ts",
+      "sha256": "31e4ad72fa6d31b84004b5e998f176435079f1ff2c395c4b04a4f9d282dd2b39"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-scheduler.service.ts",
+      "sha256": "d0e9e81d47fafff7426be0869359698fb38300067a64175b4402e8c1f4b0587d"
+    },
+    {
+      "path": "apps/server/src/modules/live/live.service.ts",
+      "sha256": "9fb616d9455286c110ba15921e7783c5c8c16f4eb086d4bacd84ba2c40b652df"
+    },
+    {
+      "path": "apps/server/src/modules/live/live.module.ts",
+      "sha256": "f14796a252cb644b5d34ecbb5198be210f7cf98e81a4c32b9d66263de64aa49d"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+      "sha256": "9ab89ae6c20bdd89bf85ffe486a91a33c56647b149b6ba58ba56210e6f2a9f86"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+      "sha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+      "sha256": "2c8423d1d52e6490a1db4a7c23d4ea835112a6b5456ffc82bf7c7be19874ad77"
+    },
+    {
+      "path": "apps/server/src/modules/circle/circle.module.ts",
+      "sha256": "9b91f4dbcef271deaf6e4fec942cace5ce51e30ac90cdd414005af9801e24fb9"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+      "sha256": "eb7344681a40ca69215f6c2ceba17b90233b540af6f9a15a58c7838fb4e54e64"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+      "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification.service.ts",
+      "sha256": "4edb5ef0c59cae7eade543bb39336b37aabc50f59dbf21971c88e69f93cadcaa"
+    }
+  ],
+  "scope": "本次源码入口和已存在验收记录核对，不新增真实通知或声称全链路运行",
+  "N4AllClosed": false,
+  "allNotificationsLive": false,
+  "realChannels": false,
+  "production": false
+}
