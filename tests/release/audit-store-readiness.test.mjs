@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -16,6 +16,77 @@ function runAudit(...args) {
     encoding: "utf8",
   });
 }
+
+const buildCheckNames = [
+  "Android 构建号高于线上旧版",
+  "iOS 构建号高于线上旧版",
+  "鸿蒙构建号高于线上旧版",
+];
+
+async function withBuildFixture(t, callback) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "guoxue-store-build-"));
+  t.after(async () => {
+    // 只清理本测试创建且位于系统临时目录内的目录。
+    assert.equal(path.dirname(tempDir), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(tempDir).startsWith("guoxue-store-build-"));
+    await rm(tempDir, { recursive: true, force: true });
+  });
+  const baseline = JSON.parse(await readFile(path.join(repoRoot, "config/release/store-baseline.json"), "utf8"));
+  const manifest = JSON.parse(await readFile(path.join(repoRoot, "apps/mobile/src/manifest.json"), "utf8"));
+  const baselinePath = path.join(tempDir, "baseline.json");
+  const manifestPath = path.join(tempDir, "manifest.json");
+  const reportPath = path.join(tempDir, "report.json");
+  await callback({ baseline, manifest, baselinePath, manifestPath, reportPath });
+}
+
+for (const [label, value] of [
+  ["null", null], ["空字符串", ""], ["空白字符串", "  "],
+  ["false", false], ["true", true], ["空数组", []], ["单元素数组", [1]],
+  ["零占位", 0], ["负整数", -1], ["指数形式字符串", "1e2"],
+  ["十六进制字符串", "0x7f"], ["小数形式字符串", "127.0"],
+]) {
+  test(`覆盖升级门禁拒绝旧构建号${label}，不将缺失值或非十进制输入当作已核验基线`, async (t) => {
+    await withBuildFixture(t, async ({ baseline, baselinePath, reportPath }) => {
+      baseline.android.versionCode = value;
+      baseline.ios.buildNumber = value;
+      baseline.harmony.versionCode = value;
+      await writeFile(baselinePath, JSON.stringify(baseline));
+      const result = runAudit("--strict", "--baseline", baselinePath, "--release-id", "store-build-invalid-001", "--report", reportPath);
+      assert.equal(result.status, 1, result.stderr || result.stdout);
+      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      for (const name of buildCheckNames) assert.equal(report.checks.find(item => item.name === name)?.pass, false, name);
+    });
+  });
+}
+
+test("已核验的正整数数字和十进制字符串保持覆盖升级比较，等号不能作为升级", async (t) => {
+  await withBuildFixture(t, async ({ baseline, manifest, baselinePath, reportPath }) => {
+    for (const value of [127, "127", manifest.versionCode, String(manifest.versionCode)]) {
+      baseline.android.versionCode = value;
+      baseline.ios.buildNumber = value;
+      baseline.harmony.versionCode = value;
+      await writeFile(baselinePath, JSON.stringify(baseline));
+      const result = runAudit("--baseline", baselinePath, "--release-id", "store-build-valid-001", "--report", reportPath);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      for (const name of buildCheckNames) assert.equal(report.checks.find(item => item.name === name)?.pass, Number(value) < Number(manifest.versionCode), name);
+    }
+  });
+});
+
+test("不能以超出安全整数范围的候选构建号通过正式版本检查", async (t) => {
+  await withBuildFixture(t, async ({ manifest, manifestPath, reportPath }) => {
+    for (const value of [Number.MAX_SAFE_INTEGER + 1, "9007199254740993"]) {
+      manifest.versionCode = value;
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      const result = runAudit("--strict", "--manifest", manifestPath, "--release-id", "store-build-overflow-001", "--report", reportPath);
+      assert.equal(result.status, 1, result.stderr || result.stdout);
+      const report = JSON.parse(await readFile(reportPath, "utf8"));
+      assert.equal(report.checks.find(item => item.name === "构建号格式有效")?.pass, false);
+      for (const name of buildCheckNames) assert.equal(report.checks.find(item => item.name === name)?.pass, false, name);
+    }
+  });
+});
 
 test("非严格商店审计会写入可归档的结构化阻断报告", async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "guoxue-store-audit-"));

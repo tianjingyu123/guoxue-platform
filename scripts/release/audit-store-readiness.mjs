@@ -55,6 +55,14 @@ function isVerifiedAt(value) {
   return Number.isFinite(timestamp) && timestamp <= Date.now() + 5 * 60 * 1000;
 }
 
+function parseBuildNumber(value) {
+  // 空值、布尔值和数组不得经 Number 隐式转换冒充已核验的商店构建号。
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && !/^\d+$/u.test(value)) return null;
+  const numeric = Number(value);
+  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
 function compareNumericVersions(left, right) {
   const parse = (value) => {
     const normalized = String(value || "")
@@ -174,7 +182,7 @@ add(
 );
 add(
   "构建号格式有效",
-  /^\d+$/.test(String(manifest.versionCode || "")) && Number(manifest.versionCode) > 0,
+  parseBuildNumber(manifest.versionCode) !== null,
   `当前值 ${manifest.versionCode || "未配置"}`,
   "代码",
 );
@@ -260,11 +268,15 @@ if (!baselinePath) {
       Boolean(harmonyBaseline.bundleName) && harmonyBundleName === harmonyBaseline.bundleName,
       "Bundle Name 不一致会被 AppGallery 识别为新应用，旧版无法覆盖升级",
     );
-    const currentBuild = Number(manifest.versionCode);
+    const currentBuild = parseBuildNumber(manifest.versionCode);
+    const androidBuild = parseBuildNumber(androidBaseline.versionCode);
+    const iosBuild = parseBuildNumber(iosBaseline.buildNumber);
+    const harmonyBuild = parseBuildNumber(harmonyBaseline.versionCode);
     add(
       "Android 构建号高于线上旧版",
-      Number.isInteger(Number(androidBaseline.versionCode)) &&
-        currentBuild > Number(androidBaseline.versionCode) &&
+      currentBuild !== null &&
+        androidBuild !== null &&
+        currentBuild > androidBuild &&
         androidBaseline.versionCodeEvidenceVersion === androidBaseline.versionName,
       androidBaseline.versionCodeEvidenceVersion === androidBaseline.versionName
         ? `当前 ${manifest.versionCode || "未配置"}；必须高于线上 versionCode`
@@ -272,10 +284,9 @@ if (!baselinePath) {
     );
     add(
       "iOS 构建号高于线上旧版",
-      iosBaseline.buildNumber !== null &&
-        iosBaseline.buildNumber !== "" &&
-        Number.isInteger(Number(iosBaseline.buildNumber)) &&
-        currentBuild > Number(iosBaseline.buildNumber),
+      currentBuild !== null &&
+        iosBuild !== null &&
+        currentBuild > iosBuild,
       `当前 ${manifest.versionCode || "未配置"}；必须高于线上 CFBundleVersion`,
     );
     add(
@@ -290,8 +301,9 @@ if (!baselinePath) {
     );
     add(
       "鸿蒙构建号高于线上旧版",
-      Number.isInteger(Number(harmonyBaseline.versionCode)) &&
-        currentBuild > Number(harmonyBaseline.versionCode),
+      currentBuild !== null &&
+        harmonyBuild !== null &&
+        currentBuild > harmonyBuild,
       `当前 ${manifest.versionCode || "未配置"}；必须高于 AppGallery 线上 versionCode`,
     );
     add(
