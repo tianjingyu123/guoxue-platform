@@ -445,8 +445,17 @@ export class CircleGovernanceService {
           strikeCount: await this.countActiveWarnings(circleId, dto.userId),
         },
       });
-      await tx.circleMember.delete({ where: { circleId_userId: { circleId, userId: dto.userId } } });
-      await tx.circle.update({ where: { id: circleId }, data: { memberCount: { decrement: 1 } } });
+      const removed = await tx.circleMember.deleteMany({ where: {
+        // 原成员行被替换、升为圈主或执行人失去圈主身份时，旧请求不得继续移出。
+        id: target.id, circleId, userId: dto.userId, role: { not: "OWNER" },
+        circle: { ownerId: operatorId },
+      } });
+      if (removed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "成员或圈主状态已变化，请刷新后重试");
+      const counted = await tx.circle.updateMany({
+        where: { id: circleId, memberCount: { gt: 0 } },
+        data: { memberCount: { decrement: 1 } },
+      });
+      if (counted.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
       return v;
     });
     await Promise.all([

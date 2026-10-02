@@ -11,8 +11,8 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
 const mockPrisma: any = {
-  circle: { findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn() },
-  circleMember: { findUnique: jest.fn(), delete: jest.fn() },
+  circle: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+  circleMember: { findUnique: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
   circleGovernanceConfig: { findUnique: jest.fn(), upsert: jest.fn(), create: jest.fn() },
   circleRule: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), aggregate: jest.fn(), count: jest.fn() },
   circleRuleAck: { upsert: jest.fn(), findUnique: jest.fn() },
@@ -42,7 +42,9 @@ function resetMocks() {
   jest.clearAllMocks();
   mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValue(null); // 回落默认配置
   mockPrisma.circle.findUnique.mockResolvedValue({ name: "测试圈" });
-  mockPrisma.circleMember.findUnique.mockResolvedValue({ circleId: "c1", userId: "u1", role: "MEMBER" });
+  mockPrisma.circleMember.findUnique.mockResolvedValue({ id: "m1", circleId: "c1", userId: "u1", role: "MEMBER" });
+  mockPrisma.circleMember.deleteMany.mockResolvedValue({ count: 1 });
+  mockPrisma.circle.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.circleViolation.count.mockResolvedValue(0);
   mockPrisma.circleViolation.findFirst.mockResolvedValue(null);
   mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 1 });
@@ -152,8 +154,8 @@ describe("CircleGovernanceService", () => {
       const created = mockPrisma.circleViolation.create.mock.calls[0][0].data;
       expect(created.type).toBe("REMOVE");
       expect(created.status).toBe("ACTIVE"); // 默认 removeBanRejoin=true → 禁入
-      expect(mockPrisma.circleMember.delete).toHaveBeenCalledWith({ where: { circleId_userId: { circleId: "c1", userId: "u1" } } });
-      expect(mockPrisma.circle.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { memberCount: { decrement: 1 } } });
+      expect(mockPrisma.circleMember.deleteMany).toHaveBeenCalledWith({ where: { id: "m1", circleId: "c1", userId: "u1", role: { not: "OWNER" }, circle: { ownerId: "owner" } } });
+      expect(mockPrisma.circle.updateMany).toHaveBeenCalledWith({ where: { id: "c1", memberCount: { gt: 0 } }, data: { memberCount: { decrement: 1 } } });
       expect(mockNotification.send.mock.calls[0][1].content).toContain("退款规则");
     });
 

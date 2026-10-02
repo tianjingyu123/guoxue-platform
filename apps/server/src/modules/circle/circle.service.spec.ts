@@ -19,6 +19,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     count: jest.fn(),
   },
   circleMember: {
@@ -27,6 +28,7 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     count: jest.fn(),
   },
   post: {
@@ -370,11 +372,13 @@ describe("CircleService", () => {
     it("管理员移除成员成功", async () => {
       mockPrisma.circleMember.findUnique
         .mockResolvedValueOnce({ userId: "u1", role: "OWNER" }) // checkAdmin
-        .mockResolvedValueOnce({ userId: "u3", role: "MEMBER" }); // target
+        .mockResolvedValueOnce({ id: "m3", userId: "u3", role: "MEMBER" }); // target
       mockPrisma.circleMember.delete.mockResolvedValue({});
       mockPrisma.circle.update.mockResolvedValue({});
       const result = await svc.removeMember("c1", "u1", "u3");
       expect(result.success).toBe(true);
+      expect(mockPrisma.circleMember.deleteMany).toHaveBeenCalledWith({ where: { id: "m3", circleId: "c1", userId: "u3", role: { not: "OWNER" }, circle: { ownerId: "u1" } } });
+      expect(mockPrisma.circle.updateMany).toHaveBeenCalledWith({ where: { id: "c1", memberCount: { gt: 0 } }, data: { memberCount: { decrement: 1 } } });
     });
 
     it("非管理员无法移除", async () => {

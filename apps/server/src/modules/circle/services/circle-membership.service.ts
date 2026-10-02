@@ -943,14 +943,20 @@ export class CircleMembershipService {
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
     if (member.role === "OWNER") throw new BusinessException(ErrorCode.FORBIDDEN, "不能移除圈主");
 
-    await this.prisma.circleMember.delete({
-      where: { circleId_userId: { circleId, userId: targetUserId } },
+    await this.prisma.$transaction(async (tx) => {
+      const removed = await tx.circleMember.deleteMany({ where: {
+        // 管理端授权旁路保持；两端都不能误删新成员行或实际圈主。
+        id: member.id, circleId, userId: targetUserId, role: { not: "OWNER" },
+        circle: { ownerId: opts?.asAdmin ? { not: targetUserId } : operatorId },
+      } });
+      if (removed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "成员或圈主状态已变化，请刷新后重试");
+      const counted = await tx.circle.updateMany({
+        where: { id: circleId, memberCount: { gt: 0 } },
+        data: { memberCount: { decrement: 1 } },
+      });
+      if (counted.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
     });
     await Promise.all([
-      this.prisma.circle.update({
-        where: { id: circleId },
-        data: { memberCount: { decrement: 1 } },
-      }),
       this.redis.del(`circles:member:${circleId}:${targetUserId}`),
       this.redis.del(`circles:detail:${circleId}`),
     ]);
