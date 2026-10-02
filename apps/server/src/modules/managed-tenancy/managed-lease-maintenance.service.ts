@@ -18,8 +18,8 @@ export class ManagedLeaseMaintenanceService {
     try {
       await verifyManagedDatabase(this.control as unknown as PrismaClient, business, customerId, credential);
       await this.control.$transaction(async tx => {
-        const current = await tx.managedCustomer.findUnique({ where: { id: customerId } });
-        if (current?.revision !== payload.expectedRevision) throw new ConflictException("核验期间合同已变化");
+        const current = await tx.managedCustomer.findUnique({ where: { id: customerId }, include: { deployment: true } });
+        if (current?.revision !== payload.expectedRevision || JSON.stringify(current.deployment) !== JSON.stringify(customer.deployment)) throw new ConflictException("核验期间合同或部署身份已变化");
         await tx.managedDeployment.update({ where: { customerId }, data: { state: "READY", verifiedAt: new Date() } });
         await tx.managedAudit.create({ data: { customerId, actorId, action: "VERIFY_DATABASE_IDENTITY", reason: payload.reason, revision: current.revision } });
       });

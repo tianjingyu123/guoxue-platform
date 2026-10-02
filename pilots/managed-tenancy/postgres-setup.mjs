@@ -36,6 +36,10 @@ for(const [name,password] of Object.entries(credentials)) {
   if(existsSync(leaseMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseExport';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(leaseMigration,'utf8')+'\nCOMMIT;');
   const brandMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql');
   if(existsSync(brandMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedBrandOrder';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(brandMigration,'utf8')+'\nCOMMIT;');
+  const identityMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_10_managed_lease_identity/migration.sql');
+  if(existsSync(identityMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseIdentity';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(identityMigration,'utf8')+'\nCOMMIT;');
+  const recoveryMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_11_managed_recovery_export/migration.sql');
+  if(existsSync(recoveryMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedBrandRequest';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(recoveryMigration,'utf8')+'\nCOMMIT;');
   sql(name,`REVOKE ALL ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ${name}; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO ${name}; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ${name};`);
 }
 const readerPath=resolve(runtime,'synthetic-reader.json');
@@ -44,7 +48,7 @@ if(!/^[a-f0-9]{64}$/.test(reader.password))throw new Error('合成只读配置�
 writeFileSync(readerPath,JSON.stringify(reader),{mode:0o600});
 if(sql('postgres',"SELECT count(*) FROM pg_roles WHERE rolname='mt_control_reader';").trim()==='0')sql('postgres',`CREATE ROLE mt_control_reader LOGIN PASSWORD '${reader.password}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;`);
 sql('postgres','GRANT CONNECT ON DATABASE mt_control TO mt_control_reader;');
-sql('mt_control','GRANT USAGE ON SCHEMA public TO mt_control_reader; GRANT SELECT ON "ManagedCustomer","ManagedDeployment","ManagedGrant","ManagedMembership","ManagedApplication","AppDistribution","FeatureFlag","ConfigVersion" TO mt_control_reader; GRANT SELECT(id,status) ON "User" TO mt_control_reader;');
+sql('mt_control','GRANT USAGE ON SCHEMA public TO mt_control_reader; GRANT SELECT ON "ManagedCustomer","ManagedDeployment","ManagedGrant","ManagedMembership","ManagedApplication","AppDistribution","FeatureFlag","ConfigVersion" TO mt_control_reader; GRANT SELECT(id,status,"deletedAt") ON "User" TO mt_control_reader;');
 const require=createRequire(resolve(repo,'apps/server/package.json'));
 require('ts-node').register({transpileOnly:true,compilerOptions:{module:'commonjs'}});
 const {managedLeasePermissions}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts'));

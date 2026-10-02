@@ -60,6 +60,11 @@
           <el-table-column label="状态 / 操作" width="130"><template #default="{ row }"><el-button v-if="row.enabled" link type="warning" @click="disable(row.id)">已启用 · 暂停</el-button><el-button v-else link type="primary" @click="enable(row.id)">核验后启用</el-button></template></el-table-column>
         </el-table>
         <el-collapse class="maintenance-panel">
+          <el-collapse-item v-if="selected.mode === 'BRAND'" title="待核对的品牌订单来源" name="brand-orders">
+            <el-alert type="info" :closable="false" title="仅核对并补登记已经存在的订单；未提交的订单保持等待，不新建订单或付款。" />
+            <el-button :loading="maintaining" @click="loadPendingBrandOrders">刷新待核对请求</el-button>
+            <el-table :data="pendingBrandOrders" empty-text="没有待核对请求"><el-table-column prop="applicationId" label="应用" /><el-table-column prop="createdAt" label="请求时间" /><el-table-column label="操作"><template #default="{ row }"><el-button link type="primary" :disabled="maintaining" @click="reconcileBrandOrder(row.id)">核对并补登记</el-button></template></el-table-column></el-table>
+          </el-collapse-item>
           <el-collapse-item title="更新合同期限" name="term">
             <el-alert type="info" :closable="false" title="仅更新期限；不会扣费，也不会恢复或重跑旧扣款任务。" />
             <el-form label-position="top">
@@ -79,10 +84,11 @@
             </el-form>
           </el-collapse-item>
           <el-collapse-item v-if="selected.mode === 'LEASE'" title="客户成员授权" name="member">
-            <el-alert type="info" :closable="false" title="独立客户管理员与平台管理员分别授权；用户须已存在于客户本地数据库才能登录。" />
-            <el-table :data="selected.memberships"><el-table-column prop="userId" label="用户 ID" /><el-table-column label="身份"><template #default="{ row }">{{ memberLabels[row.role] || row.role }}</template></el-table-column><el-table-column label="状态"><template #default="{ row }">{{ row.enabled ? '有效' : '已撤销' }}</template></el-table-column></el-table>
+            <el-alert type="info" :closable="false" title="客户可独立注册普通账号，无需手机号；管理员与客服须在此明确授权，身份来源不能改换。" />
+            <el-table :data="selected.memberships"><el-table-column prop="userId" label="用户 ID" /><el-table-column label="身份来源"><template #default="{ row }">{{ row.identityProvider === "LOCAL" ? "客户独立账号" : "平台登录身份" }}</template></el-table-column><el-table-column label="身份"><template #default="{ row }">{{ memberLabels[row.role] || row.role }}</template></el-table-column><el-table-column label="状态"><template #default="{ row }">{{ row.enabled ? '有效' : '已撤销' }}</template></el-table-column></el-table>
             <el-form label-position="top">
-              <el-form-item label="平台登录用户 ID"><el-input v-model="member.userId" /></el-form-item>
+              <el-form-item label="身份来源"><el-select v-model="member.identityProvider"><el-option label="客户独立账号" value="LOCAL" /><el-option label="已有平台登录身份" value="PLATFORM" /></el-select></el-form-item>
+              <el-form-item :label="member.identityProvider === 'LOCAL' ? '客户账号用户 ID' : '平台登录用户 ID'"><el-input v-model="member.userId" /></el-form-item>
               <el-form-item label="客户身份"><el-select v-model="member.role"><el-option v-for="(label, role) in memberLabels" :key="role" :label="label" :value="role" /></el-select></el-form-item>
               <el-form-item label="授权有效"><el-switch v-model="member.enabled" /></el-form-item>
               <el-form-item label="授权或撤销依据"><el-input v-model="member.reason" maxlength="500" /></el-form-item>
@@ -106,11 +112,12 @@ const selected = ref<ManagedCustomerSummary>();
 const loading = ref(false), saving = ref(false), creating = ref(false), detailVisible = ref(false);
 const error = ref(""), formError = ref("");
 const maintaining = ref(false);
+const pendingBrandOrders = ref<Array<{ id: string; applicationId: string; state: string; createdAt: string }>>([]);
 const renewal = reactive({ remindAt: "", endAt: "", exportUntil: "", downloadTtlSeconds: 1, reason: "" });
-const member = reactive({ userId: "", role: "USER", enabled: true, reason: "" });
+const member = reactive({ userId: "", identityProvider: "LOCAL", role: "USER", enabled: true, reason: "" });
 const grantForm = reactive({ modules: [] as string[], resources: { product: "", course: "", circle: "", agent: "" }, circleLimit: 0, reason: "" });
 const memberLabels: Record<string, string> = { CUSTOMER_ADMIN: "客户管理员", CUSTOMER_SUPPORT: "客户客服", USER: "普通用户" };
-const auditLabels: Record<string, string> = { CONFIGURE: "保存客户配置", RENEW_WITHOUT_JOB_REPLAY: "更新合同期限", MEMBERSHIP_CHANGE: "更新成员授权", CHANGE_GRANT: "更新合同授权", VERIFY_DATABASE_IDENTITY: "核验数据库身份", ENABLE_APPLICATION: "启用应用", DISABLE_APPLICATION: "暂停应用" };
+const auditLabels: Record<string, string> = { RECONCILE_BRAND_ORDER: "核对并登记订单来源", CONFIGURE: "保存客户配置", RENEW_WITHOUT_JOB_REPLAY: "更新合同期限", MEMBERSHIP_CHANGE: "更新成员授权", CHANGE_GRANT: "更新合同授权", VERIFY_DATABASE_IDENTITY: "核验数据库身份", ENABLE_APPLICATION: "启用应用", DISABLE_APPLICATION: "暂停应用" };
 const resourceKinds = [{ id: "product", label: "商品" }, { id: "course", label: "课程" }, { id: "circle", label: "圈子" }, { id: "agent", label: "智能体" }] as const;
 const termFields = [{ key: "remindAt", label: "开始提醒时间" }, { key: "endAt", label: "合同到期时间" }, { key: "exportUntil", label: "导出保留截止" }] as const;
 const statusLabel: Record<string, string> = { ACTIVE: "正常", REMINDER: "到期提醒", EXPIRED_RESTRICTED: "到期受限 / 可导出", ARCHIVED_RETAINED: "归档保留" };
@@ -133,10 +140,11 @@ async function save() {
 }
 async function inspect(id: string) { try {
   selected.value = (await managedTenancyApi.detail(id)).data; detailVisible.value = true;
+  pendingBrandOrders.value = [];
   const row = selected.value; Object.assign(renewal, { remindAt: row.remindAt, endAt: row.endAt, exportUntil: row.exportUntil, downloadTtlSeconds: row.downloadTtlSeconds, reason: "" });
   grantForm.modules = [...row.grant.modules]; grantForm.circleLimit = row.grant.circleLimit; grantForm.reason = "";
   for (const kind of resourceKinds) grantForm.resources[kind.id] = (row.grant.resources[kind.id] || []).join(", ");
-  Object.assign(member, { userId: "", role: "USER", enabled: true, reason: "" });
+  Object.assign(member, { userId: "", identityProvider: "LOCAL", role: "USER", enabled: true, reason: "" });
 } catch (e) { ElMessage.error(message(e)); } }
 async function maintain(action: (row: ManagedCustomerSummary) => Promise<unknown>) {
   if (!selected.value || maintaining.value) return;
@@ -149,6 +157,20 @@ async function renewContract() { await maintain(row => {
   return managedTenancyApi.renew(row.id, { term: { ...term, downloadTtlSeconds: renewal.downloadTtlSeconds }, expectedRevision: row.revision, reason: renewal.reason });
 }); }
 async function saveMember() { await maintain(row => managedTenancyApi.membership(row.id, { ...member })); }
+async function loadPendingBrandOrders() {
+  if (!selected.value || selected.value.mode !== "BRAND") return;
+  try { pendingBrandOrders.value = (await managedTenancyApi.pendingBrandOrders(selected.value.id)).data; } catch (e) { ElMessage.error(message(e)); }
+}
+async function reconcileBrandOrder(requestId: string) {
+  if (!selected.value || maintaining.value) return;
+  try {
+    const result = await ElMessageBox.prompt("填写核对依据；本操作只补登记已存在订单的品牌来源", "核对订单来源", { inputValidator: value => value.trim().length >= 2 || "请填写核对依据" });
+    maintaining.value = true;
+    const response = await managedTenancyApi.reconcileBrandOrder(selected.value.id, requestId, result.value);
+    ElMessage.success(response.data.state === "LINKED" ? "已核对并登记订单来源" : "原订单尚未提交，保持等待");
+    await loadPendingBrandOrders();
+  } catch (e) { if (e !== "cancel" && e !== "close") ElMessage.error(message(e)); } finally { maintaining.value = false; }
+}
 async function saveGrant() { await maintain(row => managedTenancyApi.grant(row.id, { modules: grantForm.modules, resources: Object.fromEntries(resourceKinds.map(kind => [kind.id, grantForm.resources[kind.id].split(/[,，]/).map(id => id.trim()).filter(Boolean)])), circleLimit: grantForm.circleLimit, expectedRevision: row.revision, reason: grantForm.reason })); }
 async function verifyDeployment() {
   try { const result = await ElMessageBox.prompt("填写本次实例身份核验依据；服务器只读取预先配置的受限凭据引用", "核验实例", { inputValidator: value => value.trim().length >= 2 || "请填写核验依据" }); await maintain(row => managedTenancyApi.verify(row.id, row.revision, result.value)); }

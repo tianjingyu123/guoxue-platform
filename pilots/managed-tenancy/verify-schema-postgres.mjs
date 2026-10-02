@@ -32,12 +32,12 @@ try {
     writeFileSync(resolve(runtime, `${database}-schema-diff.sql`), diff.stdout);
     // 仅检查，不运行返回的SQL；既有基线差异不能混入本专项迁移。
     const statements = diff.stdout.replace(/^--.*$/gm, '').trim();
-    assert.ok(!/"Managed(?:Customer|Deployment|Application|Grant|Membership|Audit|LeaseAftercare|LeaseExport|LeaseAudit|BrandOrder)"/.test(statements), '本专项新增结构与实际数据库不一致');
+    assert.ok(!/"Managed(?:Customer|Deployment|Application|Grant|Membership|Audit|LeaseAftercare|LeaseExport|LeaseExportPage|LeaseAudit|LeaseIdentity|LeaseRefresh|LeaseLoginThrottle|BrandOrder|BrandRequest)"/.test(statements), '本专项新增结构与实际数据库不一致');
     results[database] = { managedTablesMatch: true, fullSchemaMatches: statements.length === 0, diffSha256: createHash('sha256').update(diff.stdout).digest('hex') };
-    checks.push({ name: `${database}身份、schema语法与本专项十张表结构一致性`, status: 'PASS' });
+    checks.push({ name: `${database}身份、schema语法与本专项十五张表结构一致性`, status: 'PASS' });
   }
 } catch (error) { failure = true; writeFileSync(resolve(runtime, 'schema-diagnostic.txt'), error.stack || String(error), { mode: 0o600 }); }
-const files = ['apps/server/prisma/schema.prisma', ...['07_managed_customer_control', '08_managed_lease_exit', '09_managed_brand_order'].map(name => `apps/server/prisma/migrations/manual_z_20261002_${name}/migration.sql`)];
+const files = ['apps/server/prisma/schema.prisma', ...['07_managed_customer_control', '08_managed_lease_exit', '09_managed_brand_order', '10_managed_lease_identity', '11_managed_recovery_export'].map(name => `apps/server/prisma/migrations/manual_z_20261002_${name}/migration.sql`)];
 const report = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), sources: Object.fromEntries(files.map(path => [path, createHash('sha256').update(readFileSync(resolve(repo, path))).digest('hex')])), node: process.version, checks, results, passed: checks.length, failed: failure ? 1 : 0, production: false, limits: ['只读比较本任务三个合成库；未执行修正SQL或生产迁移', '完整基线如有既有差异，单独记录，不混入本专项迁移'] };
 const output = resolve(process.argv[2] || resolve(runtime, 'schema-postgres.json'));
 mkdirSync(resolve(output, '..'), { recursive: true });

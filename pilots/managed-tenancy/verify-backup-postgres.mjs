@@ -20,9 +20,9 @@ try{
   execFileSync(tools+'pg_restore.exe',['-h','127.0.0.1','-p','55467','-U','mt_admin','-d',name,'--no-owner','--no-acl','--exit-on-error',backup],{env:{...process.env,PGPASSWORD:rootPassword},stdio:['ignore','pipe','pipe']});
   sql(name,'mt_admin',rootPassword,`REVOKE ALL ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ${name}; GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${name};`);writeFileSync(resolve(out,'restore-connection.json'),JSON.stringify({name,password}),{mode:0o600});
   assert.equal(sql(name,name,password,"SELECT current_database()||':'||current_user||':'||inet_server_port();"),`${name}:${name}:55467`);record('同版本新库恢复，恢复访问账号仅SELECT，原客户库继续保留');
-  const tables=['User','Product','Course','Circle','CircleKnowledge','Order','ManagedLeaseAftercare','ManagedLeaseExport','ManagedLeaseAudit'];comparison={};
-  for(const table of tables){const statement=`SELECT count(*)||':'||coalesce(md5(string_agg(row_to_json(t)::text,'|' ORDER BY t.id)),'empty') FROM "${table}" t;`;const source=sql('mt_customer_a','mt_customer_a',credentials.mt_customer_a,statement),restored=sql(name,name,password,statement);assert.equal(restored,source,table);comparison[table]=source;}
-  record('九类真实客户数据、订单、售后、导出和审计行数及内容摘要完全一致');
+  const tables=['User','Product','CourseChapter','CourseProgress','Course','Circle','CircleKnowledge','Order','ManagedLeaseAftercare','ManagedLeaseExport','ManagedLeaseAudit','ManagedLeaseIdentity','ManagedLeaseRefresh','ManagedLeaseLoginThrottle','ManagedLeaseExportPage'];comparison={};
+  for(const table of tables){const statement=`SELECT count(*)||':'||coalesce(md5(string_agg(row_to_json(t)::text,'|' ORDER BY row_to_json(t)::text)),'empty') FROM "${table}" t;`;const source=sql('mt_customer_a','mt_customer_a',credentials.mt_customer_a,statement),restored=sql(name,name,password,statement);assert.equal(restored,source,table);comparison[table]=source;}
+  record('十五类真实客户、课程学习、独立认证与分页数据、订单、售后、导出和审计行数及内容摘要完全一致');
   assert.throws(()=>sql(name,name,password,'UPDATE "Product" SET title=title;'));assert.throws(()=>sql('mt_customer_b',name,password,'SELECT 1;'));assert.throws(()=>sql(name,name,password,'CREATE TABLE forbidden_restore_ddl(id int);'));
   record('恢复账户写入、结构修改与连接另一客户数据库均拒绝');
   writeFileSync(resolve(out,'comparison.json'),JSON.stringify({comparison,backupSha256,production:false},null,2));

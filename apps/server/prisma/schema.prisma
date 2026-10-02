@@ -72,11 +72,49 @@ model ManagedMembership {
   id         String @id @default(uuid())
   customerId String
   userId     String
+  identityProvider String @default("PLATFORM")
   role       String
   enabled    Boolean @default(true)
   revision   Int @default(1)
   customer   ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   @@unique([customerId, userId])
+}
+
+/// 凭据与用户仅属于当前客户数据库，不关联平台账号或平台角色。
+model ManagedLeaseIdentity {
+  id           String @id @default(uuid())
+  userId       String @unique
+  username     String @unique
+  passwordHash String
+  enabled      Boolean @default(true)
+  revision     Int @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sessions     ManagedLeaseRefresh[]
+}
+
+/// 不透明刷新凭据仅存摘要，按当前客户、应用和账号修订校验及原子轮换。
+model ManagedLeaseRefresh {
+  id               String @id @default(uuid())
+  identityId       String
+  applicationId    String
+  clientKey        String
+  tokenHash        String @unique
+  identityRevision Int
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  identity         ManagedLeaseIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  @@index([identityId, expiresAt])
+}
+
+/// 限流摘要绑定固定应用及真实连接来源，数据库更新覆盖多个服务进程。
+model ManagedLeaseLoginThrottle {
+  key         String @id
+  windowStart DateTime
+  attempts    Int @default(0)
+  updatedAt   DateTime @updatedAt
 }
 
 /// 独立客户库的售后受理记录；受理不直接触发退款或改变支付状态。
@@ -103,7 +141,19 @@ model ManagedLeaseExport {
   manifest     Json
   createdAt    DateTime @default(now())
   downloadedAt DateTime?
+  pages        ManagedLeaseExportPage[]
   @@index([customerId, userId, expiresAt])
+}
+
+/// 单次一致性快照的不可变分页；下载必须校验原导出的申请人与短期凭据。
+model ManagedLeaseExportPage {
+  exportId   String
+  collection String
+  page       Int
+  payload    Json
+  sha256     String
+  export     ManagedLeaseExport @relation(fields: [exportId], references: [id], onDelete: Restrict)
+  @@id([exportId, collection, page])
 }
 
 model ManagedLeaseAudit {
@@ -126,6 +176,30 @@ model ManagedBrandOrder {
   createdAt     DateTime @default(now())
   order         Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
   @@index([customerId, applicationId, buyerId])
+}
+
+/// 品牌建单前持久化请求意图；补登记只查已存在的平台订单，不能触发新订单或支付。
+model ManagedBrandRequest {
+  id              String @id @default(uuid())
+  customerId      String
+  applicationId   String
+  stationId       String
+  buyerId         String
+  requestKey      String
+  requestDigest   String
+  clientRequestId String
+  productId       String
+  quantity        Int
+  addressId       String
+  skuId           String?
+  couponId        String?
+  state           String @default("WAITING_ORDER")
+  orderId         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([applicationId, buyerId, requestKey])
+  @@unique([buyerId, clientRequestId])
+  @@index([customerId, state, createdAt])
 }
 
 model ManagedAudit {
@@ -230,6 +304,7 @@ model User {
   updatedAt            DateTime      @updatedAt
 
   auths                 Auth[]
+  managedLeaseIdentity  ManagedLeaseIdentity?
   entitlementLedgers    EntitlementLedger[]
   entitlementBalances   EntitlementBalance[]
   roles                 UserRole[]

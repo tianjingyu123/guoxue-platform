@@ -1,7 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { check, digest, operatingStatus, parseManagedInput, parseManagedGrant, parseTerm } from "./managed-policy";
+import { managedCredential } from "./managed-credentials";
+import { verifyManagedDatabase } from "./managed-lease.runtime";
 
 const include = { applications: true, deployment: true, grant: true } as const;
 @Injectable()
@@ -70,16 +72,41 @@ export class ManagedTenancyService {
     // 只更新期限和认证修订；不调用支付或恢复旧扣款任务。
     return this.detail(id);
   }
-  async membership(id: string, payload: { userId: string; role: string; enabled: boolean; reason: string }, actorId: string) {
-    check(payload && Object.keys(payload).every(key => ["userId", "role", "enabled", "reason"].includes(key)), "成员配置包含未知字段");
+  async membership(id: string, payload: { userId: string; role: string; enabled: boolean; reason: string; identityProvider?: string }, actorId: string) {
+    check(payload && Object.keys(payload).every(key => ["userId", "role", "enabled", "reason", "identityProvider"].includes(key)), "成员配置包含未知字段");
     check(typeof payload.userId === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(payload.userId), "成员用户标识无效");
     check(["CUSTOMER_ADMIN", "CUSTOMER_SUPPORT", "USER"].includes(payload.role) && typeof payload.enabled === "boolean" && typeof payload.reason === "string" && payload.reason.trim().length >= 2 && payload.reason.length <= 500, "客户身份不能授平台角色");
+    const identityProvider = payload.identityProvider ?? "PLATFORM";
+    check(["LOCAL", "PLATFORM"].includes(identityProvider), "身份来源无效");
+    const snapshot = await this.prisma.managedCustomer.findUnique({ where: { id }, include: { deployment: true } });
+    if (!snapshot || snapshot.mode !== "LEASE") throw new ForbiddenException("品牌站使用既有站长/运营商身份");
+    if (identityProvider === "LOCAL") {
+      if (snapshot.deployment?.state !== "READY") throw new ForbiddenException("客户实例须先完成维护核验");
+      const credential = managedCredential(snapshot.deployment.credentialRef);
+      const business = new PrismaClient({ datasources: { db: { url: credential.databaseUrl } } });
+      try {
+        await verifyManagedDatabase(this.prisma as unknown as PrismaClient, business, id, credential);
+        const local = await business.managedLeaseIdentity.findUnique({ where: { userId: payload.userId }, select: { enabled: true, user: { select: { status: true, deletedAt: true } } } });
+        check(local?.enabled && local.user.status === "ACTIVE" && !local.user.deletedAt, "必须绑定当前客户实例的有效本地账号");
+      } catch (error) {
+        if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
+        throw new ServiceUnavailableException("客户本地账号核验失败，请检查维护配置");
+      } finally { await business.$disconnect(); }
+    }
     return this.prisma.$transaction(async tx => {
-      const customer = await tx.managedCustomer.findUnique({ where: { id } });
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-membership:${id}:${payload.userId}`},0))`;
+      const customer = await tx.managedCustomer.findUnique({ where: { id }, include: { deployment: true } });
       if (!customer || customer.mode !== "LEASE") throw new ForbiddenException("品牌站使用既有站长/运营商身份");
-      const user = await tx.user.findUnique({ where: { id: payload.userId }, select: { id: true, status: true } });
-      check(user?.status === "ACTIVE", "必须绑定本数据库有效用户");
-      const member = await tx.managedMembership.upsert({ where: { customerId_userId: { customerId: id, userId: user.id } }, create: { customerId: id, userId: user.id, role: payload.role, enabled: payload.enabled }, update: { role: payload.role, enabled: payload.enabled, revision: { increment: 1 } } });
+      if (customer.revision !== snapshot.revision || JSON.stringify(customer.deployment) !== JSON.stringify(snapshot.deployment)) throw new ConflictException("核验期间客户部署已变化");
+      if (identityProvider === "PLATFORM") {
+        const user = await tx.user.findUnique({ where: { id: payload.userId }, select: { id: true, status: true, deletedAt: true } });
+        check(user?.status === "ACTIVE" && !user.deletedAt, "必须绑定有效平台用户");
+      }
+      // 同一标识不能通过授权接口改换身份来源，避免碰巧同名的账号互相接管。
+      const where = { customerId_userId: { customerId: id, userId: payload.userId } };
+      const previous = await tx.managedMembership.findUnique({ where });
+      if (previous && previous.identityProvider !== identityProvider) throw new ConflictException("已有成员的身份来源不能改换");
+      const member = await tx.managedMembership.upsert({ where, create: { customerId: id, userId: payload.userId, identityProvider, role: payload.role, enabled: payload.enabled }, update: { role: payload.role, enabled: payload.enabled, revision: { increment: 1 } } });
       await tx.managedAudit.create({ data: { customerId: id, actorId, action: "MEMBERSHIP_CHANGE", reason: payload.reason, revision: member.revision } });
       return member;
     });

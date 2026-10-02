@@ -65,6 +65,7 @@ try{
     let customer=await control.managedCustomer.findFirst({where:{deployment:{databaseName:'mt_customer_'+suffix}},include:{applications:true,deployment:true,grant:true}});
     if(!customer){customer=await service.create({requestKey:'synthetic-real-lease-'+suffix,name:'合成独立客户'+suffix,mode:'LEASE',tradingSubject:'synthetic-company-'+suffix,maintenancePrice:null,term,applications:[{applicationId:'synthetic-real-lease-app-'+suffix,applicationSubject:'synthetic-application-owner-'+suffix,allowedPlatforms:['h5'],brand:{name:'合成客户'+suffix,themeColor:'#8B4513'},templateId:'community'}],modules:['shop','course','circle','agent'],resources:{product:[],course:[],circle:[],agent:[]},circleLimit:10000,deployment:{spaceKey:'synthetic-real-space-'+suffix,databaseName:'mt_customer_'+suffix,databaseRole:'mt_customer_'+suffix,credentialRef:'secret-ref:synthetic/real-lease-'+suffix,authKeyFingerprint:createHash('sha256').update(keys[suffix]).digest('hex')},reason:'本任务真实PostgreSQL隔离合成验收'},'synthetic-maintainer');}
     await control.managedDeployment.update({where:{customerId:customer.id},data:{databaseRole:'mt_customer_'+suffix+'_runtime',state:'PLANNED',verifiedAt:null}});
+    const fixtureApp=customer.applications.find(app=>app.applicationId==='synthetic-real-lease-app-'+suffix);assert.ok(fixtureApp,'租赁验收必须选本测试登记的固定应用，不按数组首项猜测');
     customer=await service.renew(customer.id,{term,expectedRevision:customer.revision,reason:'合成验证恢复显式期限'},'synthetic-maintainer');
     await service.membership(customer.id,{userId,role:'CUSTOMER_ADMIN',enabled:true,reason:'合成本地身份对应授权'},'synthetic-maintainer');
     await service.membership(customer.id,{userId:otherId,role:'CUSTOMER_ADMIN',enabled:true,reason:'合成原申请人边界验证'},'synthetic-maintainer');
@@ -77,12 +78,20 @@ try{
     const count=await db.circle.count({where:{deletedAt:null}});
     customer=await service.updateGrant(customer.id,{modules:['shop','course','circle','agent'],resources:{product:[product.id],course:[],circle:[circle.id],agent:[agent.id]},circleLimit:count+2,expectedRevision:customer.revision,reason:'真实授权更新与修订验收'},'synthetic-maintainer');
     const selector='synthetic-real-lease-client-'+suffix;selectors[suffix]=selector;
-    await control.appDistribution.upsert({where:{clientKey:selector},create:{clientKey:selector,productId:'synthetic',applicationId:customer.applications[0].applicationId,platform:'h5',channelId:'synthetic-web',packageName:'synthetic.no-real-registration'},update:{enabled:true}});
+    await control.appDistribution.upsert({where:{clientKey:selector},create:{clientKey:selector,productId:'synthetic',applicationId:fixtureApp.applicationId,platform:'h5',channelId:'synthetic-web',packageName:'synthetic.no-real-registration'},update:{enabled:true}});
     await maintenance.verify(customer.id,{expectedRevision:customer.revision,reason:'真实本地数据库/角色/认证摘要最小只读核验'},'synthetic-maintainer');
-    await service.enableApplication(customer.applications[0].id,'synthetic-maintainer','本地合成渠道与数据库验证完成');
-    customers[suffix]=customer;resourceIds[suffix]={product:product.id,hidden:hidden.id,circle:circle.id,agent:agent.id};
+    await service.enableApplication(fixtureApp.id,'synthetic-maintainer','本地合成渠道与数据库验证完成');
+    customers[suffix]={...customer,applications:[fixtureApp]};resourceIds[suffix]={product:product.id,hidden:hidden.id,circle:circle.id,agent:agent.id};
   }
   record('两真实独立客户库，维护侧验证才进入READY，公共应用登记复用');
+  const deploymentBefore=await control.managedDeployment.findUnique({where:{customerId:customers.a.id}});
+  const verificationControl=new Proxy(control,{get(target,key){if(key==='$transaction')return async callback=>{await control.managedDeployment.update({where:{customerId:customers.a.id},data:{credentialRef:'secret-ref:synthetic/changed-during-verification'}});return target.$transaction(callback);};return target[key];}});
+  await control.managedDeployment.update({where:{customerId:customers.a.id},data:{state:'PLANNED',verifiedAt:null}});
+  try{
+    await assert.rejects(()=>new ManagedLeaseMaintenanceService(verificationControl).verify(customers.a.id,{expectedRevision:customers.a.revision,reason:'部署核验与提交之间的身份变化拒绝'},'synthetic-maintainer'));
+    assert.equal((await control.managedDeployment.findUnique({where:{customerId:customers.a.id}})).state,'PLANNED');
+  }finally{await control.managedDeployment.update({where:{customerId:customers.a.id},data:{credentialRef:deploymentBefore.credentialRef,state:deploymentBefore.state,verifiedAt:deploymentBefore.verifiedAt}});}
+  record('实际数据库核验与READY提交之间部署身份变化时拒绝，不把新身份误标为已验证');
   const wrong=new ManagedLeaseRuntime(readControl,bDb,customers.a.id,refs['secret-ref:synthetic/real-lease-b']);await assert.rejects(()=>wrong.initialize());
   await assert.rejects(()=>verifyManagedDatabase(readControl,aRuntimeDb,customers.a.id,{...refs['secret-ref:synthetic/real-lease-a'],authKey:keys.b}));
   record('误接另一客户数据库或认证密钥时拒绝启动');
@@ -104,6 +113,11 @@ try{
   assert.equal((await call(a1,'/shop/orders',tokens.a,selectors.a)).status,404);
   const context=await call(a1,'/lease/context?tenantId=forged',tokens.a,selectors.a,'GET',undefined,{'x-tenant-id':customers.b.id,'x-station-id':'forged'});assert.equal(context.status,200);assert.equal(context.body.customerId,customers.a.id);assert.equal(context.cache,'private, no-store');
   record('三个真实Nest子进程：跨客户/应用/平台令牌、伪造上下文和非租赁路由拒绝，前端字段不能切库');
+  await aDb.user.update({where:{id:userId},data:{deletedAt:new Date()}});
+  try{assert.equal((await call(a1,'/lease/context',tokens.a,selectors.a)).status,401);assert.equal((await call(b,'/lease/context',tokens.b,selectors.b)).status,200);}finally{await aDb.user.update({where:{id:userId},data:{deletedAt:null}});}
+  await control.user.update({where:{id:userId},data:{deletedAt:new Date()}});
+  try{assert.equal((await call(a1,'/lease/context',tokens.a,selectors.a)).status,401);assert.equal((await call(b,'/lease/context',tokens.b,selectors.b)).status,401);await assert.rejects(()=>maintenance.session(selectors.a,userId));}finally{await control.user.update({where:{id:userId},data:{deletedAt:null}});}
+  record('平台来源会话同时复查软删除：客户库停本客户，平台账号停两个平台关联实例，状态恢复不重建身份');
   const claims=jwt.decode(tokens.a);delete claims.exp;delete claims.iat;
   const shortToken=jwt.sign(claims,keys.a,{algorithm:'HS256',expiresIn:1});
   const heldContext=await runtime.authenticate(shortToken,selectors.a);
@@ -148,10 +162,11 @@ try{
   assert.equal((await call(a1,'/lease/orders/'+order.id,tokens.a,selectors.a)).status,200);assert.equal((await call(a1,'/lease/orders/'+foreign.id,tokens.a,selectors.a)).status,404);
   const aftercareBody={orderId:order.id,requestKey:tag+'-aftercare',reason:'已到期合同下的既有订单售后'};const aftercare=await Promise.all(Array.from({length:4},()=>call(a1,'/lease/aftercare',tokens.a,selectors.a,'POST',aftercareBody)));assert.ok(aftercare.every(result=>result.status===201));assert.equal(new Set(aftercare.map(result=>result.body.id)).size,1);assert.equal((await aDb.order.findUnique({where:{id:order.id}})).status,'PAID');
   record('到期旧令牌失效，新经营受限；本人订单及幂等售后受理保留，不自动退款');
-  const exported=await call(a1,'/lease/exports',tokens.a,selectors.a,'POST',{});assert.equal(exported.status,201);
+  const exported=await call(a1,'/lease/exports/paged',tokens.a,selectors.a,'POST',{});assert.equal(exported.status,201);
   assert.equal((await call(a1,'/lease/exports/'+exported.body.id,tokens.a,selectors.a)).status,400);
   const download=await call(a1,'/lease/exports/'+exported.body.id,tokens.a,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken});assert.equal(download.status,200);
-  const text=JSON.stringify(download.body);for(const forbidden of[credentials.mt_control,keys.a,keys.b,'credentialRef','authKey','phoneHash','roles','prompt','synthetic-company-b'])assert.ok(!text.includes(forbidden));assert.ok(download.body.users.find(row=>row.id===userId).phone.startsWith('***'));
+  const users=[];for(const page of download.body.collections.users.pages){const chunk=await call(a1,'/lease/exports/'+exported.body.id+'/pages/users/'+page.page,tokens.a,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken});assert.equal(chunk.status,200);users.push(...chunk.body.payload);}
+  const text=JSON.stringify({manifest:download.body,users});for(const forbidden of[credentials.mt_control,keys.a,keys.b,'credentialRef','authKey','phoneHash','roles','prompt','synthetic-company-b'])assert.ok(!text.includes(forbidden));assert.ok(users.find(row=>row.id===userId).phone.startsWith('***'));
   const otherToken=(await maintenance.session(selectors.a,otherId)).accessToken;assert.equal((await call(a1,'/lease/exports/'+exported.body.id,otherToken,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken})).status,404);
   await aDb.managedLeaseExport.update({where:{id:exported.body.id},data:{expiresAt:new Date(0)}});assert.equal((await call(a1,'/lease/exports/'+exported.body.id,tokens.a,selectors.a,'GET',undefined,{'x-export-token':exported.body.downloadToken})).status,404);
   assert.equal(await aDb.managedLeaseAudit.count({where:{entityId:exported.body.id,action:'DOWNLOAD_EXPORT'}}),1);

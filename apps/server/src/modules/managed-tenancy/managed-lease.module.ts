@@ -1,4 +1,4 @@
-import { Body, CanActivate, Controller, ExecutionContext, Get, Inject, Injectable, Module, Param, Post, Put, Query, Req, UseGuards, UnauthorizedException } from "@nestjs/common";
+import { Body, CanActivate, Controller, ExecutionContext, Get, HttpCode, Inject, Injectable, Module, Param, Post, Put, Query, Req, UseGuards, UnauthorizedException } from "@nestjs/common";
 import { Request } from "express";
 import { ManagedLeaseRuntime, ManagedResourceKind, ManagedLeaseContext } from "./managed-lease.runtime";
 
@@ -29,6 +29,10 @@ export class ManagedLeaseController {
   @Get("context") context(@Req() req: ManagedRequest) { return this.runtime.context(req.managedContext); }
   @Get("presentation") presentation(@Req() req: ManagedRequest) { return this.runtime.presentation(req.managedContext, header(req, "x-native-build"), header(req, "x-client-capabilities"), header(req, "x-resource-version", "0")); }
   @Get("resources") resources(@Req() req: ManagedRequest, @Query("kind") kind: ManagedResourceKind, @Query("q") q?: string) { return this.runtime.resources(req.managedContext, kind, q); }
+  @Get("courses/:id/chapters") chapters(@Req() req: ManagedRequest, @Param("id") id: string) { return this.runtime.courseChapters(req.managedContext, id); }
+  @Get("courses/:id/chapters/:chapterId") chapter(@Req() req: ManagedRequest, @Param("id") id: string, @Param("chapterId") chapterId: string) { return this.runtime.courseChapter(req.managedContext, id, chapterId); }
+  @Get("courses/:id/progress") progress(@Req() req: ManagedRequest, @Param("id") id: string) { return this.runtime.courseProgress(req.managedContext, id); }
+  @Put("courses/:id/chapters/:chapterId/progress") saveProgress(@Req() req: ManagedRequest, @Param("id") id: string, @Param("chapterId") chapterId: string, @Body() body: unknown) { return this.runtime.updateCourseProgress(req.managedContext, id, chapterId, body); }
   @Put("products") products(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.updateProducts(req.managedContext, body); }
   @Post("circles") circles(@Req() req: ManagedRequest, @Body() body: { name: string; intro: string }) { return this.runtime.createCircle(req.managedContext, body); }
   @Get("orders/:id") order(@Req() req: ManagedRequest, @Param("id") id: string) { return this.runtime.order(req.managedContext, id); }
@@ -39,10 +43,24 @@ export class ManagedLeaseController {
     return this.runtime.exportData(req.managedContext);
   }
   @Get("exports/:id") download(@Req() req: ManagedRequest, @Param("id") id: string) { return this.runtime.downloadExport(req.managedContext, id, header(req, "x-export-token")); }
+  @Post("exports/paged") pagedExport(@Req() req: ManagedRequest, @Body() body: unknown) {
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length) throw new UnauthorizedException("导出范围由服务端合同固定");
+    return this.runtime.exportPaged(req.managedContext);
+  }
+  @Get("exports/:id/pages/:collection/:page") page(@Req() req: ManagedRequest, @Param("id") id: string, @Param("collection") collection: string, @Param("page") page: string) { return this.runtime.downloadExportPage(req.managedContext, id, collection, page, header(req, "x-export-token")); }
+  @Put("auth/password") password(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.changeLocalPassword(req.managedContext, body, req.socket.remoteAddress || "unknown"); }
+  @Post("auth/logout") @HttpCode(200) logout(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.logoutLocal(req.managedContext, body); }
+}
+@Controller("lease/auth")
+export class ManagedLeaseLoginController {
+  constructor(@Inject(MANAGED_LEASE_RUNTIME) private readonly runtime: ManagedLeaseRuntime) {}
+  @Post("register") register(@Req() req: Request, @Body() body: unknown) { return this.runtime.registerLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
+  @Post("login") @HttpCode(200) login(@Req() req: Request, @Body() body: unknown) { return this.runtime.loginLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
+  @Post("refresh") @HttpCode(200) refresh(@Req() req: Request, @Body() body: unknown) { return this.runtime.refreshLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
 }
 @Module({})
 export class ManagedLeaseModule {
   static register(runtime: ManagedLeaseRuntime) {
-    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard] };
+    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController, ManagedLeaseLoginController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard] };
   }
 }

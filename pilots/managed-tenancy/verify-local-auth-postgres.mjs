@@ -1,0 +1,169 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { randomBytes, createHash } from 'node:crypto';
+import { fork, execFileSync } from 'node:child_process';
+import { loadCandidatePrisma } from '../../scripts/ops/prisma-candidate/client.mjs';
+
+const repo=fileURLToPath(new URL('../../',import.meta.url)),runtime=resolve(repo,'pilots/managed-tenancy/.runtime');
+const require=createRequire(resolve(repo,'apps/server/package.json')), {PrismaClient}=loadCandidatePrisma();
+require('ts-node').register({transpileOnly:true,compilerOptions:{module:'commonjs',experimentalDecorators:true,emitDecoratorMetadata:true}});require('reflect-metadata');
+const {ManagedTenancyService}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts'));
+const {ManagedLeaseMaintenanceService}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease-maintenance.service.ts'));
+const fixture=JSON.parse(readFileSync(resolve(runtime,'postgres/synthetic-connections.json'),'utf8'));
+const reader=JSON.parse(readFileSync(resolve(runtime,'postgres/synthetic-reader.json'),'utf8'));
+const refs=JSON.parse(readFileSync(resolve(runtime,'lease-postgres/credentials.json'),'utf8'));
+process.env.MANAGED_LEASE_CREDENTIALS_FILE=resolve(runtime,'lease-postgres/credentials.json');
+const db=name=>new PrismaClient({datasources:{db:{url:`postgresql://${name}:${fixture[name]}@127.0.0.1:55467/${name}`}}});
+const control=db('mt_control'),a=db('mt_customer_a'),b=db('mt_customer_b');
+const service=new ManagedTenancyService(control),maintenance=new ManagedLeaseMaintenanceService(control);
+const runtimeDb=new PrismaClient({datasources:{db:{url:refs['secret-ref:synthetic/real-lease-a'].databaseUrl}}});
+const children=[],ports=[],checks=[],record=name=>checks.push({name,status:'PASS'}),customers={},keys={},tag='local-'+Date.now();let failure;
+const password='Synthetic-'+randomBytes(12).toString('hex'),newPassword='Changed-'+randomBytes(12).toString('hex'),otherPassword='Other-'+randomBytes(12).toString('hex'),username='account-'+Date.now();
+const term={remindAt:'2035-01-01T00:00:00Z',endAt:'2036-01-01T00:00:00Z',exportUntil:'2037-01-01T00:00:00Z',downloadTtlSeconds:60};
+async function start(suffix,serial){
+  const path=resolve(runtime,tag+'-'+serial+'.json');writeFileSync(path,JSON.stringify({customerId:customers[suffix].id,credential:refs['secret-ref:synthetic/real-lease-'+suffix],controlUrl:`postgresql://mt_control_reader:${reader.password}@127.0.0.1:55467/mt_control`}),{mode:0o600});
+  const child=fork(resolve(repo,'pilots/managed-tenancy/lease-process.mjs'),[path],{cwd:repo,stdio:['ignore','ignore','pipe','ipc'],windowsHide:true});children.push(child);
+  child.stderr.on('data',data=>writeFileSync(resolve(runtime,tag+'-'+serial+'-stderr.txt'),data,{mode:0o600,flag:'a'}));
+  const result=await new Promise((done,reject)=>{const timer=setTimeout(()=>reject(new Error('客户认证服务启动超时')),30000);child.once('message',m=>{clearTimeout(timer);done(m);});child.once('exit',()=>{clearTimeout(timer);reject(new Error('客户认证服务退出'));});});
+  assert.equal(result.ready,true);ports.push(result.port);return result.port;
+}
+const call=async(port,key,path,body,token,method='POST',extra={})=>{
+  const r=await fetch(`http://127.0.0.1:${port}/api/v1/lease${path}`,{method,headers:{'Content-Type':'application/json','x-app-client':key,...(token?{Authorization:'Bearer '+token}:{}),...extra},...(body!==undefined?{body:JSON.stringify(body)}:{})});
+  return{status:r.status,body:await r.json(),cache:r.headers.get('cache-control')};
+};
+try{
+  for(const suffix of['a','b']){
+    let customer=await control.managedCustomer.findFirst({where:{deployment:{databaseName:'mt_customer_'+suffix}},include:{deployment:true}});assert.ok(customer,'先运行租赁真实集成建立本任务隔离实例');
+    customer=await service.renew(customer.id,{term,expectedRevision:customer.revision,reason:'客户独立认证合成验收恢复期限'},'synthetic-maintainer');
+    await maintenance.verify(customer.id,{expectedRevision:customer.revision,reason:'本地认证最低权限重新验证'},'synthetic-maintainer');
+    const applicationId=tag+'-app-'+suffix;
+    const app=await control.managedApplication.create({data:{customerId:customer.id,applicationId,applicationSubject:'synthetic-local-subject',allowedPlatforms:['h5'],brand:{name:'本地认证合成客户'},templateId:'community'}});
+    const key=tag+'-client-'+suffix;keys[suffix]=key;
+    await control.appDistribution.create({data:{clientKey:key,productId:'synthetic',applicationId,platform:'h5',channelId:'synthetic-auth',packageName:'synthetic.not-a-real-app'}});
+    await service.enableApplication(app.id,'synthetic-maintainer','本地合成认证应用');customers[suffix]=customer;
+  }
+  const a1=await start('a','a1'),a2=await start('a','a2'),bp=await start('b','b');
+  const signup={username,password,nickname:'独立客户普通用户'};
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,role:'SUPER_ADMIN'})).status,400);
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,tenantId:customers.b.id})).status,400);
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,password:'😀'.repeat(6)})).status,400);
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,password:'界'.repeat(25)})).status,400);
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,password:password+'\n'})).status,400);
+  assert.equal((await call(a1,keys.b,'/auth/register',signup)).status,401);
+  const ra=await call(a1,keys.a,'/auth/register',signup),rb=await call(bp,keys.b,'/auth/register',{...signup,password:otherPassword});
+  assert.equal(ra.status,201);assert.equal(rb.status,201);assert.equal(ra.body.role,'USER');assert.notEqual(ra.body.userId,rb.body.userId);assert.equal(ra.cache,'private, no-store');
+  assert.equal(await control.user.count({where:{id:ra.body.userId}}),0);assert.equal(await a.userRole.count({where:{userId:ra.body.userId}}),0);assert.equal((await a.user.findUnique({where:{id:ra.body.userId}})).phone,null);
+  record('两个真实客户库独立注册同名账号，无手机号、平台账户或平台角色，未知字段与跨实例选择器拒绝');
+  const identity=await a.managedLeaseIdentity.findUnique({where:{userId:ra.body.userId}});assert.ok(await require('bcryptjs').compare(password,identity.passwordHash));assert.ok(identity.passwordHash.startsWith('$2'));
+  const stored=await a.managedLeaseRefresh.findMany({where:{identityId:identity.id}});assert.equal(stored[0].tokenHash,createHash('sha256').update(ra.body.refreshToken).digest('hex'));
+  assert.ok(!JSON.stringify(ra.body).includes('passwordHash'));record('bcrypt凭据与仅SHA256刷新摘要入库，HTTP不返回凭据或摘要');
+  assert.equal((await call(a1,keys.a,'/context',undefined,ra.body.accessToken,'GET')).status,200);
+  assert.equal((await call(bp,keys.b,'/context',undefined,ra.body.accessToken,'GET')).status,401);
+  assert.equal((await call(a1,keys.a,'/products',[{id:'forged',title:'禁止提权'}],ra.body.accessToken,'PUT')).status,403);
+  await assert.rejects(()=>service.membership(customers.a.id,{userId:rb.body.userId,identityProvider:'LOCAL',role:'CUSTOMER_ADMIN',enabled:true,reason:'不能授权另一客户身份'},'synthetic-maintainer'));
+  await assert.rejects(()=>service.membership(customers.a.id,{userId:ra.body.userId,identityProvider:'LOCAL',role:'SUPER_ADMIN',enabled:true,reason:'不能授平台管理员'},'synthetic-maintainer'));
+  const member=await service.membership(customers.a.id,{userId:ra.body.userId,identityProvider:'LOCAL',role:'CUSTOMER_ADMIN',enabled:true,reason:'维护侧明确授权客户本地管理员'},'synthetic-maintainer');assert.equal(member.identityProvider,'LOCAL');
+  assert.equal((await call(a1,keys.a,'/context',undefined,ra.body.accessToken,'GET')).status,401);
+  let login=await call(a1,keys.a,'/auth/login',{username:username.toUpperCase(),password});assert.equal(login.status,200);assert.equal(login.body.role,'CUSTOMER_ADMIN');
+  record('维护侧真实只读核验后授权客户管理员，普通账号不能提权，授权修订立即撤销旧会话');
+  await control.user.create({data:{id:ra.body.userId,nickname:'合成碰巧同标识的平台身份'}});
+  await assert.rejects(()=>service.membership(customers.a.id,{userId:ra.body.userId,identityProvider:'PLATFORM',role:'USER',enabled:true,reason:'身份来源改换禁止'},'synthetic-maintainer'));
+  await assert.rejects(()=>maintenance.session(keys.a,ra.body.userId));
+  const {AuthService}=require(resolve(repo,'apps/server/src/modules/auth/auth.service.ts'));
+  const platformAuth=new AuthService(control,undefined,{smembers:async()=>[],del:async()=>{},set:async()=>{}},undefined,undefined,undefined,undefined,undefined,undefined,undefined);
+  await platformAuth.revokeAllRefreshTokens(ra.body.userId);
+  assert.equal((await call(a1,keys.a,'/context',undefined,login.body.accessToken,'GET')).status,200);
+  record('同标识的平台身份不能接管本地账号，平台撤销不影响客户独立会话');
+  assert.equal((await call(bp,keys.b,'/auth/refresh',{refreshToken:login.body.refreshToken})).status,401);
+  const refreshed=await Promise.all([a1,a2,a1,a2].map(port=>call(port,keys.a,'/auth/refresh',{refreshToken:login.body.refreshToken})));
+  assert.equal(refreshed.filter(r=>r.status===200).length,1);assert.equal(refreshed.filter(r=>r.status===401).length,3);
+  const rotated=refreshed.find(r=>r.status===200).body;
+  assert.equal((await call(a1,keys.a,'/auth/refresh',{refreshToken:login.body.refreshToken})).status,401);
+  record('两个客户进程并发刷新只有一次成功，消费过的凭据及跨客户刷新被拒绝');
+  const before=await a.user.count(),duplicate='duplicate-'+Date.now();
+  const races=await Promise.all([a1,a2].map(port=>call(port,keys.a,'/auth/register',{...signup,username:duplicate})));
+  assert.deepEqual(races.map(r=>r.status).sort(),[201,409]);assert.equal(await a.user.count(),before+1);
+  record('并发同名注册仅一个账号成功，失败事务没有遗留用户');
+  assert.equal((await call(a1,keys.a,'/auth/password',{currentPassword:password,newPassword},rotated.accessToken,'PUT')).status,200);
+  assert.equal((await call(a2,keys.a,'/context',undefined,rotated.accessToken,'GET')).status,401);
+  assert.equal((await call(a1,keys.a,'/auth/refresh',{refreshToken:rotated.refreshToken})).status,401);
+  assert.equal((await call(a1,keys.a,'/auth/login',{username,password})).status,401);
+  login=await call(a1,keys.a,'/auth/login',{username,password:newPassword});assert.equal(login.status,200);
+  assert.equal((await call(bp,keys.b,'/auth/login',{username,password:otherPassword})).status,200);
+  record('改密事务撤销原访问与刷新凭据，另一客户同名账号仍可登录');
+  const volume=Array.from({length:5010},(_,index)=>({id:'synthetic-export-volume-'+String(index).padStart(5,'0'),nickname:'合成分页用户'+index,phone:'synthetic-volume-'+String(index).padStart(4,'0')}));
+  await a.user.createMany({data:volume,skipDuplicates:true});
+  const exportsBefore=await a.managedLeaseExport.count();assert.equal((await call(a1,keys.a,'/exports',{},login.body.accessToken)).status,400);assert.equal(await a.managedLeaseExport.count(),exportsBefore);
+  const exportResult=await call(a1,keys.a,'/exports/paged',{},login.body.accessToken);assert.equal(exportResult.status,201);
+  const downloaded=await call(a1,keys.a,'/exports/'+exportResult.body.id,undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken});assert.equal(downloaded.status,200);
+  const exported=JSON.stringify(downloaded.body);for(const forbidden of[password,newPassword,identity.passwordHash,'passwordHash','tokenHash','ManagedLeaseIdentity','refreshToken'])assert.ok(!exported.includes(forbidden));
+  record('客户数据导出排除独立认证密码、刷新摘要和内部认证表');
+  assert.equal(downloaded.body.version,2);assert.equal(downloaded.body.collections.users.rows,await a.user.count());assert.ok(downloaded.body.collections.users.rows>5000);
+  const addedAfter='synthetic-after-export-'+Date.now();await a.user.create({data:{id:addedAfter,nickname:'快照建立后新增的用户'}});
+  await a.user.update({where:{id:volume[0].id},data:{nickname:'快照建立后修改'}});
+  const userRows=[];
+  for(const meta of downloaded.body.collections.users.pages){
+    const chunk=await call(a2,keys.a,'/exports/'+exportResult.body.id+'/pages/users/'+meta.page,undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken});assert.equal(chunk.status,200);assert.equal(chunk.body.payload.length,meta.rows);
+    const canonical=JSON.stringify(chunk.body.payload.map(row=>Object.fromEntries(Object.keys(row).sort().map(key=>[key,row[key]]))));
+    assert.equal(createHash('sha256').update(canonical).digest('hex'),meta.sha256);assert.equal(chunk.body.sha256,meta.sha256);userRows.push(...chunk.body.payload);
+  }
+  assert.equal(userRows.length,downloaded.body.collections.users.rows);assert.equal(new Set(userRows.map(row=>row.id)).size,userRows.length);assert.ok(!userRows.some(row=>row.id===addedAfter));assert.equal(userRows.find(row=>row.id===volume[0].id).nickname,'合成分页用户0');assert.ok(userRows.every(row=>!row.phone||row.phone.startsWith('***')));
+  await a.user.update({where:{id:volume[0].id},data:{nickname:'合成分页用户0'}});
+  record('超过5000条的真实导出完整分页、无重漏、摘要一致；建立后的写入和修改不影响固定快照');
+  const rootPath='/exports/'+exportResult.body.id+'/pages/';
+  assert.equal((await call(a1,keys.a,rootPath+'Auth/0',undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,400);
+  assert.equal((await call(a1,keys.a,rootPath+'users/-1',undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,400);
+  assert.equal((await call(a1,keys.a,rootPath+'users/9999',undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,404);
+  assert.equal((await call(a1,keys.a,rootPath+'users/0',undefined,login.body.accessToken,'GET',{'x-export-token':randomBytes(32).toString('base64url')})).status,404);
+  const duplicateUser=races.find(row=>row.status===201).body.userId;
+  await service.membership(customers.a.id,{userId:duplicateUser,identityProvider:'LOCAL',role:'CUSTOMER_ADMIN',enabled:true,reason:'导出原申请人与另一管理员隔离验证'},'synthetic-maintainer');
+  const otherAdmin=await call(a2,keys.a,'/auth/login',{username:duplicate,password});assert.equal(otherAdmin.status,200);
+  assert.equal((await call(a2,keys.a,rootPath+'users/0',undefined,otherAdmin.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,404);
+  assert.equal((await call(bp,keys.b,rootPath+'users/0',undefined,rb.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,403);
+  record('分页拒绝内部表、非法页码、错误凭据、另一管理员和另一客户，数据行不能改下载范围');
+  const oversizedCircle=await a.circle.findFirst(),largeId='synthetic-export-too-large';
+  await a.circleKnowledge.create({data:{id:largeId+'-'+tag,circleId:oversizedCircle.id,scope:'circle',sourceType:'free_text',content:'x'.repeat(2*1024*1024+1),contentHash:tag+'-large'}});
+  try{
+    const oldExports=await a.managedLeaseExport.count(),oldPages=await a.managedLeaseExportPage.count();
+    assert.equal((await call(a1,keys.a,'/exports/paged',{},login.body.accessToken)).status,400);
+    assert.equal(await a.managedLeaseExport.count(),oldExports);assert.equal(await a.managedLeaseExportPage.count(),oldPages);
+  }finally{await a.circleKnowledge.delete({where:{id:largeId+'-'+tag}});}
+  await a.managedLeaseExport.update({where:{id:exportResult.body.id},data:{expiresAt:new Date(0)}});
+  assert.equal((await call(a1,keys.a,rootPath+'users/0',undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken})).status,404);
+  record('分页体积超限整组回滚，不遗留半份导出；过期快照拒绝下载');
+  assert.equal((await call(a1,keys.a,'/auth/logout',{userId:rb.body.userId},login.body.accessToken)).status,400);
+  assert.equal((await call(a1,keys.a,'/auth/logout',{},login.body.accessToken)).status,200);
+  assert.equal((await call(a2,keys.a,'/context',undefined,login.body.accessToken,'GET')).status,401);
+  assert.equal((await call(a1,keys.a,'/auth/refresh',{refreshToken:login.body.refreshToken})).status,401);
+  record('退出只处理本人，并立即撤销所有旧访问及刷新会话');
+  const brute='unknown-'+Date.now();
+  for(let i=0;i<12;i++)assert.equal((await call(i%2?a1:a2,keys.a,'/auth/login',{username:brute,password},{},'POST',{'x-forwarded-for':'synthetic-'+i})).status,i<10?401:429);
+  record('PostgreSQL限流跨进程生效，伪造转发IP不能绕过账号次数限制');
+  await assert.rejects(()=>runtimeDb.$executeRawUnsafe(`INSERT INTO "User"(id,nickname,status,"updatedAt") VALUES ('forbidden','禁止','BANNED',now())`));
+  await assert.rejects(()=>runtimeDb.$executeRawUnsafe('UPDATE "ManagedLeaseIdentity" SET enabled=false'));
+  await assert.rejects(()=>runtimeDb.$queryRawUnsafe('SELECT * FROM "Auth"'));
+  await assert.rejects(()=>runtimeDb.$executeRawUnsafe('INSERT INTO "UserRole"(id,"userId","roleType") VALUES (\'forbidden\',\'forbidden\',\'SUPER_ADMIN\')'));
+  record('客户运行角色不能插入用户状态、改账号开关、读取平台认证或授平台角色');
+  let current=await control.managedCustomer.findUnique({where:{id:customers.a.id}});
+  await service.renew(current.id,{term:{remindAt:'2020-01-01T00:00:00Z',endAt:'2021-01-01T00:00:00Z',exportUntil:'2037-01-01T00:00:00Z',downloadTtlSeconds:60},expectedRevision:current.revision,reason:'合成合同到期独立登录验证'},'synthetic-maintainer');
+  assert.equal((await call(a1,keys.a,'/auth/register',{...signup,username:'expired-'+Date.now()})).status,403);
+  login=await call(a1,keys.a,'/auth/login',{username,password:newPassword});assert.equal(login.status,200);
+  assert.equal((await call(a1,keys.a,'/context',undefined,login.body.accessToken,'GET')).status,200);
+  assert.equal((await call(a1,keys.a,'/resources?kind=product',undefined,login.body.accessToken,'GET')).status,403);
+  await service.membership(current.id,{userId:ra.body.userId,identityProvider:'LOCAL',role:'CUSTOMER_ADMIN',enabled:false,reason:'合成撤销本地管理员'},'synthetic-maintainer');
+  assert.equal((await call(a1,keys.a,'/context',undefined,login.body.accessToken,'GET')).status,401);
+  assert.equal((await call(a1,keys.a,'/auth/login',{username,password:newPassword})).status,401);
+  record('到期保留本地历史登录并停新注册与业务；维护撤销立即拒绝已有与新会话');
+}catch(error){failure=error;writeFileSync(resolve(runtime,'local-auth-diagnostic.txt'),error.stack||String(error),{mode:0o600});}
+finally{
+  for(const child of children)if(child.exitCode===null){child.send('stop');await new Promise(done=>{const timer=setTimeout(()=>{child.kill();done();},10000);child.once('exit',()=>{clearTimeout(timer);done();});});}
+  for(const customer of Object.values(customers)){const row=await control.managedCustomer.findUnique({where:{id:customer.id}});await service.renew(row.id,{term,expectedRevision:row.revision,reason:'合成认证验收结束恢复合同'},'synthetic-maintainer');}
+  for(const client of[control,a,b,runtimeDb])await client.$disconnect();
+}
+for(const port of ports)await assert.rejects(()=>fetch(`http://127.0.0.1:${port}/api/v1/lease/context`));if(ports.length)record('三个认证子进程与全部随机监听端口已退出');
+const files=['apps/server/prisma/schema.prisma','apps/server/src/modules/managed-tenancy/managed-lease-identity.ts','apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts','apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts','apps/server/src/modules/auth/auth.service.ts','pilots/managed-tenancy/verify-local-auth-postgres.mjs'];
+const report={head:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim(),sources:Object.fromEntries(files.map(path=>[path,createHash('sha256').update(readFileSync(resolve(repo,path))).digest('hex')])),node:process.version,checks,passed:checks.length,failed:failure?1:0,production:false,limits:['本任务三库、三个Nest进程与合成账号；不代表真机渠道或线上认证验收','限流按真实socket连接与账号执行；生产可信代理配置及独立IP容量仍需环境验收','账号恢复、可信邮件/短信验证及真实运营支持流程尚未验收']};
+const output=resolve(process.argv[2]??resolve(runtime,'local-auth-postgres.json'));mkdirSync(dirname(output),{recursive:true});writeFileSync(output,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({passed:report.passed,failed:report.failed,report:output}));if(failure)process.exitCode=1;

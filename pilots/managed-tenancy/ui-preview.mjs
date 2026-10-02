@@ -11,9 +11,13 @@ const db=new PrismaClient({datasources:{db:{url:`postgresql://mt_control:${passw
 const identity=await db.$queryRawUnsafe('SELECT current_database() db,current_user actor,inet_server_port() port');if(identity[0].db!=='mt_control'||identity[0].actor!=='mt_control'||identity[0].port!==55467)throw new Error('只允许本任务合成库');
 const {Global,Module}=require('@nestjs/common');const {Test}=require('@nestjs/testing');const {PassportModule}=require('@nestjs/passport');
 const {PrismaService}=require(resolve(repo,'apps/server/src/prisma/prisma.service.ts'));const {RedisService}=require(resolve(repo,'apps/server/src/redis/redis.service.ts'));const {JwtStrategy}=require(resolve(repo,'apps/server/src/common/jwt.strategy.ts'));const {ManagedTenancyModule}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-tenancy.module.ts'));
-const secret=randomBytes(32).toString('hex');process.env.JWT_SECRET=secret;const user=await db.user.create({data:{nickname:'本任务页面合成维护员',roles:{create:{roleType:'SUPER_ADMIN'}}}});const jwt=require('jsonwebtoken');
+const secret=randomBytes(32).toString('hex');process.env.JWT_SECRET=secret;
+const {ManagedBrandMaintenanceController}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-brand.module.ts'));const {ManagedBrandService}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-brand.service.ts'));
+process.env.MANAGED_LEASE_CREDENTIALS_FILE=resolve(repo,'pilots/managed-tenancy/.runtime/lease-postgres/credentials.json');
+const user=await db.user.create({data:{nickname:'本任务页面合成维护员',roles:{create:{roleType:'SUPER_ADMIN'}}}});const jwt=require('jsonwebtoken');
 class FixtureDatabase{}Global()(FixtureDatabase);Module({providers:[{provide:PrismaService,useValue:db},{provide:RedisService,useValue:{get:async()=>null}}],exports:[PrismaService,RedisService]})(FixtureDatabase);
-const testing=await Test.createTestingModule({imports:[FixtureDatabase,PassportModule.register({defaultStrategy:'jwt'}),ManagedTenancyModule],providers:[JwtStrategy]}).compile();const app=testing.createNestApplication();app.setGlobalPrefix('api/v1');
+class FixtureBrandMaintenance{}Module({controllers:[ManagedBrandMaintenanceController],providers:[{provide:ManagedBrandService,useValue:new ManagedBrandService(db,undefined)}]})(FixtureBrandMaintenance);
+const testing=await Test.createTestingModule({imports:[FixtureDatabase,PassportModule.register({defaultStrategy:'jwt'}),ManagedTenancyModule,FixtureBrandMaintenance],providers:[JwtStrategy]}).compile();const app=testing.createNestApplication();app.setGlobalPrefix('api/v1');
 app.getHttpAdapter().getInstance().get('/__fixture/auth',(_req,res)=>res.set('Cache-Control','no-store').json({token:jwt.sign({sub:user.id,sessionIssuedAt:Date.now()},secret,{expiresIn:'30m'})}));
 await app.listen(0,'127.0.0.1');const apiPort=app.getHttpServer().address().port;
 const {createServer,loadConfigFromFile}=await import(pathToFileURL(adminRequire.resolve('vite')).href);

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShopOrderService } from "../shop/shop-order.service";
@@ -50,12 +50,39 @@ export class ManagedBrandService {
     const { application, station } = await this.shop(clientKey, userId);
     const allowed = await this.products(clientKey, userId);
     if (!allowed.some(product => product.id === body.productId)) throw new ForbiddenException("该商品不在品牌授权范围");
+    const clientRequestId = "brand-" + createHash("sha256").update(application.applicationId + ":" + body.requestKey).digest("hex");
+    const requestDigest = createHash("sha256").update(JSON.stringify({ productId: body.productId, quantity: body.quantity, addressId: body.addressId, skuId: body.skuId ?? null, couponId: body.couponId ?? null })).digest("hex");
+    await this.prisma.managedBrandRequest.createMany({ data: [{ customerId: application.customerId, applicationId: application.applicationId, stationId: station.id, buyerId: userId, requestKey: body.requestKey, requestDigest, clientRequestId, productId: body.productId, quantity: body.quantity, addressId: body.addressId, skuId: body.skuId, couponId: body.couponId }], skipDuplicates: true });
+    const intent = await this.prisma.managedBrandRequest.findUnique({ where: { applicationId_buyerId_requestKey: { applicationId: application.applicationId, buyerId: userId, requestKey: body.requestKey } } });
+    if (!intent || intent.customerId !== application.customerId || intent.stationId !== station.id || intent.requestDigest !== requestDigest) throw new ConflictException("建单请求已存在且来源或内容不同");
     // 复用既有定价、库存、优惠券、自购立减与归因；品牌入口不设佣金率，不调用支付。
-    const order = await this.orders.createOrder(userId, { type: "PRODUCT", targetId: body.productId, amount: body.quantity, addressId: body.addressId, skuId: body.skuId, couponId: body.couponId, tempReferrerId: station.userId, clientRequestId: "brand-" + createHash("sha256").update(application.applicationId + ":" + body.requestKey).digest("hex") });
-    await this.prisma.managedBrandOrder.createMany({ data: [{ orderId: order.id, customerId: application.customerId, applicationId: application.applicationId, stationId: station.id, buyerId: userId }], skipDuplicates: true });
-    const origin = await this.prisma.managedBrandOrder.findUnique({ where: { orderId: order.id } });
-    if (!origin || origin.customerId !== application.customerId || origin.applicationId !== application.applicationId || origin.buyerId !== userId) throw new ForbiddenException("订单来源已存在且不属于此应用");
+    const order = await this.orders.createOrder(userId, { type: "PRODUCT", targetId: body.productId, amount: body.quantity, addressId: body.addressId, skuId: body.skuId, couponId: body.couponId, tempReferrerId: station.userId, clientRequestId });
+    await this.reconcileRequest(application.customerId, intent.id, { reason: "品牌下单完成后核对已存在订单并登记来源" }, userId);
     return { id: order.id, amount: order.amount, status: order.status, quantity: order.quantity, applicationSubject: application.applicationSubject, tradingSubject: application.customer.tradingSubject };
+  }
+  async pendingRequests(customerId: string) {
+    return this.prisma.managedBrandRequest.findMany({ where: { customerId, state: "WAITING_ORDER" }, select: { id: true, applicationId: true, state: true, createdAt: true }, orderBy: { createdAt: "asc" }, take: 200 });
+  }
+  async reconcileRequest(customerId: string, id: string, payload: { reason: string }, actorId: string) {
+    check(payload && Object.keys(payload).every(key => key === "reason") && typeof payload.reason === "string" && payload.reason.trim().length >= 2 && payload.reason.length <= 500, "补登记须提供维护依据，不接受订单金额、支付或用户参数");
+    return this.prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`brand-request:${id}`},0))`;
+      const intent = await tx.managedBrandRequest.findFirst({ where: { id, customerId } });
+      if (!intent) throw new NotFoundException("本客户建单请求不存在");
+      const order = await tx.order.findFirst({ where: { userId: intent.buyerId, clientRequestId: intent.clientRequestId } });
+      // 请求已经持久化但公共建单未提交时，只报告等待，不重报价、建单、扣库存或付款。
+      if (!order) return { id, state: "WAITING_ORDER", orderId: null };
+      if (order.type !== "PRODUCT" || order.targetId !== intent.productId || order.quantity !== intent.quantity || order.addressId !== intent.addressId || order.skuId !== intent.skuId || order.couponId !== intent.couponId || (intent.orderId && intent.orderId !== order.id)) throw new ConflictException("已存在订单与品牌请求意图不一致，须人工核查");
+      await tx.managedBrandOrder.createMany({ data: [{ orderId: order.id, customerId: intent.customerId, applicationId: intent.applicationId, stationId: intent.stationId, buyerId: intent.buyerId }], skipDuplicates: true });
+      const origin = await tx.managedBrandOrder.findUnique({ where: { orderId: order.id } });
+      if (!origin || origin.customerId !== customerId || origin.applicationId !== intent.applicationId || origin.stationId !== intent.stationId || origin.buyerId !== intent.buyerId) throw new ConflictException("已存在订单来源冲突，须人工核查");
+      if (intent.state !== "LINKED") {
+        await tx.managedBrandRequest.update({ where: { id }, data: { state: "LINKED", orderId: order.id } });
+        const customer = await tx.managedCustomer.findUniqueOrThrow({ where: { id: customerId } });
+        await tx.managedAudit.create({ data: { customerId, actorId, action: "RECONCILE_BRAND_ORDER", reason: payload.reason, revision: customer.revision } });
+      }
+      return { id, state: "LINKED", orderId: order.id };
+    });
   }
   async order(clientKey: string, userId: string, id: string) {
     const { application } = await this.scope(clientKey, userId, false);

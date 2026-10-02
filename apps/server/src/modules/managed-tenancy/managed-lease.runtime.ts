@@ -11,8 +11,11 @@ import { RedisService } from "../../redis/redis.service";
 import { versionScope } from "../system/distribution.util";
 import { managedPresentation } from "./managed-presentation";
 import { managedLeasePermissions } from "./managed-lease-permissions";
+import { ManagedLeaseIdentityService, LocalPrincipal } from "./managed-lease-identity";
+import { createPagedLeaseExport } from "./managed-lease-export";
+import { ManagedLeaseLearningService } from "./managed-lease-learning";
 
-export type ManagedLeaseContext = Readonly<{ userId: string; role: string; applicationId: string; clientKey: string; revision: number; memberRevision: number }>;
+export type ManagedLeaseContext = Readonly<{ userId: string; role: string; applicationId: string; clientKey: string; revision: number; memberRevision: number; identityProvider: "PLATFORM" | "LOCAL"; credentialRevision?: number }>;
 type Context = ManagedLeaseContext;
 const moduleFor = { product: "shop", course: "course", circle: "circle", agent: "agent" } as const;
 export type ManagedResourceKind = keyof typeof moduleFor;
@@ -46,7 +49,8 @@ export class ManagedLeaseRuntime {
   private ready = false;
   private identity: { databaseName: string; databaseRole: string; spaceKey: string; credentialRef: string };
   private readonly contexts = new WeakMap<object, string>();
-  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential) {}
+  private readonly identities: ManagedLeaseIdentityService;
+  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
   async initialize() {
     const customer = await verifyManagedDatabase(this.control, this.business, this.customerId, this.credentials);
     if (customer.deployment?.state !== "READY" || !customer.deployment.verifiedAt) throw new ForbiddenException("部署尚未通过维护核验");
@@ -72,10 +76,49 @@ export class ManagedLeaseRuntime {
     const customer = await this.current();
     const { application } = await this.application(clientKey);
     const member = await this.control.managedMembership.findUnique({ where: { customerId_userId: { customerId: this.customerId, userId } } });
-    const user = await this.business.user.findUnique({ where: { id: userId }, select: { status: true } });
-    const platformUser = await this.control.user.findUnique({ where: { id: userId }, select: { status: true } });
-    if (!member?.enabled || user?.status !== "ACTIVE" || platformUser?.status !== "ACTIVE") throw new UnauthorizedException("当前用户未获得此客户授权");
-    return { accessToken: jwt.sign({ customerId: this.customerId, clientKey, revision: customer.revision, memberRevision: member.revision }, this.credentials.authKey, { algorithm: "HS256", subject: userId, issuer: `managed:${this.customerId}:${customer.deployment!.spaceKey}`, audience: application.applicationId, expiresIn: "15m", jwtid: randomUUID() }), expiresIn: 900 };
+    const user = await this.business.user.findUnique({ where: { id: userId }, select: { status: true, deletedAt: true } });
+    const platformUser = await this.control.user.findUnique({ where: { id: userId }, select: { status: true, deletedAt: true } });
+    if (!member?.enabled || member.identityProvider !== "PLATFORM" || user?.status !== "ACTIVE" || user.deletedAt || platformUser?.status !== "ACTIVE" || platformUser.deletedAt) throw new UnauthorizedException("当前用户未获得此客户授权");
+    return { accessToken: jwt.sign({ customerId: this.customerId, clientKey, revision: customer.revision, memberRevision: member.revision, identityProvider: "PLATFORM" }, this.credentials.authKey, { algorithm: "HS256", subject: userId, issuer: `managed:${this.customerId}:${customer.deployment!.spaceKey}`, audience: application.applicationId, expiresIn: "15m", jwtid: randomUUID() }), expiresIn: 900 };
+  }
+  private async localSession(principal: LocalPrincipal, clientKey: string) {
+    const customer = await this.current();
+    const { application } = await this.application(clientKey);
+    await this.identities.principal(principal.userId, principal.revision);
+    const member = await this.control.managedMembership.findUnique({ where: { customerId_userId: { customerId: this.customerId, userId: principal.userId } } });
+    if (member && (!member.enabled || member.identityProvider !== "LOCAL")) throw new UnauthorizedException("客户授权已撤销或身份来源不一致");
+    return { accessToken: jwt.sign({ customerId: this.customerId, clientKey, revision: customer.revision, memberRevision: member?.revision || 0, identityProvider: "LOCAL", credentialRevision: principal.revision }, this.credentials.authKey, { algorithm: "HS256", subject: principal.userId, issuer: `managed:${this.customerId}:${customer.deployment!.spaceKey}`, audience: application.applicationId, expiresIn: "15m", jwtid: randomUUID() }), expiresIn: 900, userId: principal.userId, role: member?.role || "USER" };
+  }
+  async registerLocal(clientKey: string, value: unknown, source: string) {
+    const customer = await this.current();
+    const { application } = await this.application(clientKey);
+    if (Date.now() >= customer.endAt.getTime()) throw new ForbiddenException("合同已到期，暂停新增注册");
+    const principal = await this.identities.register(value, clientKey, source);
+    const session = await this.localSession(principal, clientKey);
+    return { ...session, ...await this.identities.createRefresh(principal, application.applicationId, clientKey) };
+  }
+  async loginLocal(clientKey: string, value: unknown, source: string) {
+    await this.current(); const { application } = await this.application(clientKey);
+    const principal = await this.identities.login(value, clientKey, source);
+    const session = await this.localSession(principal, clientKey);
+    return { ...session, ...await this.identities.createRefresh(principal, application.applicationId, clientKey) };
+  }
+  async refreshLocal(clientKey: string, value: unknown, source: string) {
+    await this.current(); const { application } = await this.application(clientKey);
+    const next = await this.identities.refresh(value, application.applicationId, clientKey, source);
+    return { ...await this.localSession(next.principal, clientKey), refreshToken: next.refreshToken, refreshExpiresAt: next.refreshExpiresAt };
+  }
+  async changeLocalPassword(context: Context, value: unknown, source: string) {
+    await this.authorize(context, undefined, false);
+    if (context.identityProvider !== "LOCAL" || !context.credentialRevision) throw new ForbiddenException("当前会话不是客户本地账号");
+    await this.identities.throttle(context.clientKey, source, "password", context.userId);
+    return this.identities.invalidate(context.userId, context.credentialRevision, value);
+  }
+  async logoutLocal(context: Context, value: unknown) {
+    check(value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0, "退出不接受指定用户或数据空间");
+    await this.authorize(context, undefined, false);
+    if (context.identityProvider !== "LOCAL" || !context.credentialRevision) throw new ForbiddenException("当前会话不是客户本地账号");
+    return this.identities.invalidate(context.userId, context.credentialRevision);
   }
   async authenticate(token: string, clientKey: string): Promise<Context> {
     const customer = await this.current();
@@ -86,12 +129,23 @@ export class ManagedLeaseRuntime {
       if (typeof result === "string") throw new Error();
       claims = result;
     } catch { throw new UnauthorizedException("客户会话无效或已过期"); }
-    if (!claims.sub || claims.customerId !== this.customerId || claims.clientKey !== clientKey || claims.revision !== customer.revision) throw new UnauthorizedException("客户身份或合同修订已变化");
+    if (typeof claims.sub !== "string" || !claims.sub || claims.customerId !== this.customerId || claims.clientKey !== clientKey || claims.revision !== customer.revision) throw new UnauthorizedException("客户身份或合同修订已变化");
     const member = await this.control.managedMembership.findUnique({ where: { customerId_userId: { customerId: this.customerId, userId: claims.sub } } });
-    const user = await this.business.user.findUnique({ where: { id: claims.sub }, select: { status: true } });
-    const platformUser = await this.control.user.findUnique({ where: { id: claims.sub }, select: { status: true } });
-    if (!member?.enabled || member.revision !== claims.memberRevision || user?.status !== "ACTIVE" || platformUser?.status !== "ACTIVE") throw new UnauthorizedException("成员身份已撤销");
-    const context = Object.freeze({ userId: claims.sub, role: member.role, applicationId: application.applicationId, clientKey, revision: customer.revision, memberRevision: member.revision });
+    const user = await this.business.user.findUnique({ where: { id: claims.sub }, select: { status: true, deletedAt: true } });
+    const provider = claims.identityProvider || "PLATFORM";
+    let role: string, memberRevision: number;
+    if (provider === "LOCAL") {
+      if (!Number.isInteger(claims.credentialRevision) || claims.credentialRevision < 1) throw new UnauthorizedException("客户凭据修订无效");
+      await this.identities.principal(claims.sub, claims.credentialRevision);
+      if (member && (!member.enabled || member.identityProvider !== "LOCAL")) throw new UnauthorizedException("客户成员授权已撤销");
+      role = member?.role || "USER"; memberRevision = member?.revision || 0;
+      if (memberRevision !== claims.memberRevision) throw new UnauthorizedException("客户成员修订已变化");
+    } else if (provider === "PLATFORM") {
+      const platformUser = await this.control.user.findUnique({ where: { id: claims.sub }, select: { status: true, deletedAt: true } });
+      if (!member?.enabled || member.identityProvider !== "PLATFORM" || member.revision !== claims.memberRevision || user?.status !== "ACTIVE" || user.deletedAt || platformUser?.status !== "ACTIVE" || platformUser.deletedAt) throw new UnauthorizedException("成员身份已撤销");
+      role = member.role; memberRevision = member.revision;
+    } else throw new UnauthorizedException("身份来源无效");
+    const context = Object.freeze({ userId: claims.sub, role, applicationId: application.applicationId, clientKey, revision: customer.revision, memberRevision, identityProvider: provider as "LOCAL" | "PLATFORM", ...(provider === "LOCAL" ? { credentialRevision: claims.credentialRevision as number } : {}) });
     this.contexts.set(context, token); return context;
   }
   private async authorize(context: Context, module?: string, operating = true) {
@@ -112,7 +166,7 @@ export class ManagedLeaseRuntime {
   async context(context: Context) {
     const customer = await this.authorize(context, undefined, false);
     const { application } = await this.application(context.clientKey);
-    return { customerId: this.customerId, applicationId: context.applicationId, role: context.role, applicationSubject: application.applicationSubject, tradingSubject: customer.tradingSubject, brand: application.brand, templateId: application.templateId, operatingStatus: operatingStatus(customer), modules: customer.grant!.modules };
+    return { customerId: this.customerId, applicationId: context.applicationId, userId: context.userId, identityProvider: context.identityProvider, role: context.role, applicationSubject: application.applicationSubject, tradingSubject: customer.tradingSubject, brand: application.brand, templateId: application.templateId, operatingStatus: operatingStatus(customer), modules: customer.grant!.modules };
   }
   async presentation(context: Context, build: string, capabilities: string, resource: string) {
     const customer = await this.authorize(context, undefined, false);
@@ -128,6 +182,23 @@ export class ManagedLeaseRuntime {
     if (kind === "course") return this.business.course.findMany({ where: { id: { in: ids }, deletedAt: null, auditStatus: "APPROVED", title }, select: { id: true, title: true, intro: true, price: true }, take: 200 });
     if (kind === "agent") return this.business.voiceAgentProfile.findMany({ where: { id: { in: ids }, status: "APPROVED", activeVersion: { not: null }, name: title }, select: { id: true, name: true, ownerType: true, ownerId: true, activeVersion: true }, take: 200 });
     return this.business.circle.findMany({ where: { id: { in: ids }, deletedAt: null, name: title }, select: { id: true, name: true, intro: true, status: true }, take: 200 });
+  }
+  private async learningScope(context: Context) {
+    const customer = await this.authorize(context, "course");
+    return (customer.grant!.resources as Record<string, string[]>).course || [];
+  }
+  async courseChapters(context: Context, courseId: string) {
+    return new ManagedLeaseLearningService(this.business).chapters(context.userId, courseId, await this.learningScope(context));
+  }
+  async courseChapter(context: Context, courseId: string, chapterId: string) {
+    return new ManagedLeaseLearningService(this.business).chapter(context.userId, courseId, chapterId, await this.learningScope(context));
+  }
+  async courseProgress(context: Context, courseId: string) {
+    return new ManagedLeaseLearningService(this.business).progress(context.userId, courseId, await this.learningScope(context));
+  }
+  async updateCourseProgress(context: Context, courseId: string, chapterId: string, body: unknown) {
+    const allowed = await this.learningScope(context);
+    return new ManagedLeaseLearningService(this.business).updateProgress(context.userId, courseId, chapterId, allowed, body, () => this.learningScope(context));
   }
   async updateProducts(context: Context, body: unknown) {
     check(Array.isArray(body) && body.length > 0 && body.length <= 100, "商品更新需为1至100条");
@@ -216,6 +287,33 @@ export class ManagedLeaseRuntime {
       await this.authorize(context, undefined, false);
       return { id: row.id, expiresAt: row.expiresAt, downloadToken };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 15000 });
+  }
+  async exportPaged(context: Context) {
+    const customer = await this.authorize(context, undefined, false);
+    if (context.role !== "CUSTOMER_ADMIN" || Date.now() >= customer.exportUntil.getTime()) throw new ForbiddenException("导出未获授权或合同导出期限已结束");
+    const downloadToken = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Math.min(Date.now() + customer.downloadTtlSeconds * 1000, customer.exportUntil.getTime()));
+    const exported = await createPagedLeaseExport(this.business, { customerId: this.customerId, applicationId: context.applicationId, userId: context.userId, revision: customer.revision, tokenHash: createHash("sha256").update(downloadToken).digest("hex"), expiresAt }, async () => {
+      const latest = await this.authorize(context, undefined, false);
+      if (Date.now() >= latest.exportUntil.getTime() || Date.now() >= expiresAt.getTime()) throw new ForbiddenException("快照建立期间导出授权已结束");
+    });
+    return { ...exported, downloadToken };
+  }
+  async downloadExportPage(context: Context, id: string, collection: string, pageValue: string, downloadToken: string) {
+    const customer = await this.authorize(context, undefined, false);
+    if (context.role !== "CUSTOMER_ADMIN" || Date.now() >= customer.exportUntil.getTime()) throw new ForbiddenException("导出授权已结束");
+    check(typeof pageValue === "string" && /^(0|[1-9][0-9]{0,3})$/.test(pageValue) && ["users", "products", "courses", "chapters", "progress", "circles", "orders", "knowledge", "aftercare"].includes(collection) && typeof downloadToken === "string" && /^[a-zA-Z0-9_-]{43}$/.test(downloadToken), "导出分页或下载授权无效");
+    return this.business.$transaction(async tx => {
+      const row = await tx.managedLeaseExport.findFirst({ where: { id, customerId: this.customerId, userId: context.userId, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
+      const hash = createHash("sha256").update(downloadToken).digest("hex");
+      if (!row || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
+      const chunk = await tx.managedLeaseExportPage.findUnique({ where: { exportId_collection_page: { exportId: id, collection, page: Number(pageValue) } }, select: { payload: true, sha256: true } });
+      if (!chunk) throw new NotFoundException("导出分页不存在");
+      await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
+      await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT_PAGE", entityId: `${id}:${collection}:${pageValue}` } });
+      await this.authorize(context, undefined, false);
+      return { collection, page: Number(pageValue), ...chunk };
+    });
   }
   async downloadExport(context: Context, id: string, downloadToken: string) {
     const customer = await this.authorize(context, undefined, false);
