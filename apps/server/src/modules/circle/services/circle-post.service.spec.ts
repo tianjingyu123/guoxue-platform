@@ -65,7 +65,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     savedNotices.clear();
     tx.circlePostRewardNotice.create.mockImplementation(({ data }) => { savedNotices.set(data.debitId, data); return Promise.resolve(data); });
     tx.circlePostRewardNotice.findUnique.mockImplementation(({ where }) => Promise.resolve(savedNotices.get(where.debitId) ?? null));
-    prisma.post.findUnique.mockResolvedValue({ id: "post", userId: "author", circleId: "circle", title: "帖子" });
+    prisma.post.findUnique.mockResolvedValue({ id: "post", userId: "author", circleId: "circle", title: "帖子", status: "PUBLISHED" });
     tx.$queryRaw.mockImplementation((parts: TemplateStringsArray) => {
       const sql = parts.join("?");
       if (sql.includes('FROM "Circle"')) return Promise.resolve([{ status: "ACTIVE" }]);

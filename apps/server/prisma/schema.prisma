@@ -4728,6 +4728,11 @@ model VirtualCoinTransaction {
 
 /// 仅新圈帖打赏的提交事实；与资金流水同事务保存，不作为历史补款依据。
 model CirclePostRewardNotice {
+  // 仅新事务核验后的成交快照；旧事实保持全空，不历史回填。
+  sourceVersion String? @db.VarChar(32)
+  sourcePostId String?
+  sourceCircleId String?
+  sourceRecipientId String?
   debitId String @id
   recipientId String
   circleId String
