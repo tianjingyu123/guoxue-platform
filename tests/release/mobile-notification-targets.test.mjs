@@ -21,6 +21,20 @@ test('课程到期通知直达已登记课程详情，并保留购买目标', ()
   assert(REGISTERED_PAGE_PATHS.has(link.split('?')[0]))
 })
 
+test('会员续费提醒在两处真实消息入口直达本人续费页，不带他人标识', () => {
+  const mine = fs.readFileSync(new URL('../../apps/mobile/src/lib/mine-data.ts', import.meta.url), 'utf8')
+  const mineFn = mine.match(/function notifyLink\([\s\S]*?\n\}/)?.[0]
+  assert(mineFn)
+  const mineLink = vm.runInNewContext(`${stripTypeScriptTypes(mineFn)}; notifyLink`)
+  for (const id of ['recipient', 'other-user?userId=other', 'id/path']) {
+    assert.equal(notifyLink('MEMBER', id), '/vip')
+    assert.equal(mineLink('member', id), '/vip')
+  }
+  const routes = fs.readFileSync(new URL('../../apps/mobile/src/utils/router.ts', import.meta.url), 'utf8')
+  assert.match(routes, /['"]\/vip['"]:\s*['"]\/pkg-profile\/vip\/index['"]/, '续费别名应映射到登记页面')
+  assert(REGISTERED_PAGE_PATHS.has('/pkg-profile/vip/index'))
+})
+
 test('支付退款通知直达已登记订单详情', () => {
   for (const type of ['ORDER', 'order']) {
     const link = notifyLink(type, 'order-id')
