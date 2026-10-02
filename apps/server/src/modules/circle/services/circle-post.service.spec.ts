@@ -58,11 +58,31 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   const shared = { ensureMember: jest.fn() };
   const coin = { spend: jest.fn(), refund: jest.fn() };
   const notifications = { sendOnce: jest.fn() };
+  const noticeWaiters = new Set<() => void>();
+  // 等待真实通知调用事件，不假定资金返回时异步通知已经完成。
+  const waitForNotices = (count: number) => new Promise<void>(resolve => {
+    const check = () => {
+      if (notifications.sendOnce.mock.calls.length >= count) {
+        noticeWaiters.delete(check);
+        resolve();
+      }
+    };
+    noticeWaiters.add(check);
+    check();
+  });
+  const observedNotifications = {
+    sendOnce: (...args: unknown[]) => {
+      const result = notifications.sendOnce(...args);
+      for (const check of noticeWaiters) check();
+      return result;
+    },
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
     ledgers.length = 0;
     savedNotices.clear();
+    noticeWaiters.clear();
     tx.circlePostRewardNotice.create.mockImplementation(({ data }) => { savedNotices.set(data.debitId, data); return Promise.resolve(data); });
     tx.circlePostRewardNotice.findUnique.mockImplementation(({ where }) => Promise.resolve(savedNotices.get(where.debitId) ?? null));
     prisma.post.findUnique.mockResolvedValue({ id: "post", userId: "author", circleId: "circle", title: "帖子", status: "PUBLISHED" });
@@ -86,7 +106,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
       return {};
     });
     notifications.sendOnce.mockResolvedValue({});
-    service = new CirclePostService(prisma as any, {} as any, shared as any, undefined, coin as any, notifications as any);
+    service = new CirclePostService(prisma as any, {} as any, shared as any, undefined, coin as any, observedNotifications as any);
     jest.spyOn((service as any).logger, "warn").mockImplementation(() => undefined);
   });
 
@@ -94,6 +114,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
 
   it("作者入账成功后才通知实际分成金额，保持既有50%分账和返回值", async () => {
     await expect(service.rewardPost("circle", "post", "payer", 9, "谢谢")).resolves.toEqual({ success: true, amount: 9 });
+    await waitForNotices(1);
     expect(coin.spend).toHaveBeenCalledTimes(1);
     const debitId = coin.spend.mock.calls[0][3];
     expect(coin.spend.mock.calls[0][2]).toBe(tx);
@@ -123,6 +144,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("通知失败不阻断已完成打赏及作者入账", async () => {
     notifications.sendOnce.mockRejectedValue(new Error("合成通知故障"));
     await expect(service.rewardPost("circle", "post", "payer", 8)).resolves.toEqual({ success: true, amount: 8 });
+    await waitForNotices(1);
     expect(coin.spend).toHaveBeenCalledTimes(1);
     expect(coin.refund).toHaveBeenCalledTimes(1);
   });
@@ -130,11 +152,13 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("通知通道迟迟不返回仍立即返回已提交的资金结果", async () => {
     notifications.sendOnce.mockReturnValue(new Promise(() => undefined));
     await expect(service.rewardPost("circle", "post", "payer", 8)).resolves.toEqual({ success: true, amount: 8 });
+    await waitForNotices(1);
     expect(coin.refund).toHaveBeenCalledTimes(1);
   });
 
   it("小额打赏的零分成不调用入账接口，保持既有取整口径", async () => {
     await service.rewardPost("circle", "post", "payer", 1);
+    await waitForNotices(1);
     expect(coin.refund).not.toHaveBeenCalled();
     expect(notifications.sendOnce).toHaveBeenCalledWith("author", expect.any(String), expect.objectContaining({
       content: "有人打赏了你的帖子，入账 0 币（已扣除平台服务费）",
@@ -151,6 +175,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     while (!commit) await new Promise(resolve => setImmediate(resolve));
     expect(notifications.sendOnce).not.toHaveBeenCalled();
     commit(); await operation;
+    await waitForNotices(1);
     expect(notifications.sendOnce).toHaveBeenCalledTimes(1);
   });
 
@@ -163,6 +188,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("同请求编号重试复用账本和通知键，不重复扣款或入账", async () => {
     await service.rewardPost("circle", "post", "payer", 8, "谢谢", "request-001");
     await service.rewardPost("circle", "post", "payer", 8, "谢谢", "request-001");
+    await waitForNotices(2);
     expect(coin.spend).toHaveBeenCalledTimes(1);
     expect(coin.refund).toHaveBeenCalledTimes(1);
     expect(notifications.sendOnce.mock.calls[0][1]).toBe(notifications.sendOnce.mock.calls[1][1]);
@@ -173,12 +199,14 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     for (const requestId of ["request-001", "request-002", undefined, undefined]) {
       await service.rewardPost("circle", "post", "payer", 8, undefined, requestId);
     }
+    await waitForNotices(4);
     expect(coin.spend).toHaveBeenCalledTimes(4);
     expect(new Set(coin.spend.mock.calls.map(call => call[3])).size).toBe(4);
   });
 
   it.each(["amount", "post"])("同编号修改%s拒绝再次执行资金", async change => {
     await service.rewardPost("circle", "post", "payer", 8, "谢谢", "request-001");
+    await waitForNotices(1);
     if (change === "post") prisma.post.findUnique.mockResolvedValue({ id: "another-post", userId: "author", circleId: "circle", title: "另一帖" });
     await expect(service.rewardPost("circle", change === "post" ? "another-post" : "post", "payer", change === "amount" ? 9 : 8, "谢谢", "request-001")).rejects.toThrow("请求编号已用于其他内容");
     expect(coin.spend).toHaveBeenCalledTimes(1);
@@ -188,12 +216,14 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("不同付款用户的同编号互不占用", async () => {
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
     await service.rewardPost("circle", "post", "another-payer", 8, undefined, "request-001");
+    await waitForNotices(2);
     expect(coin.spend).toHaveBeenCalledTimes(2);
     expect(coin.spend.mock.calls[0][3]).not.toBe(coin.spend.mock.calls[1][3]);
   });
 
   it.each(["missing", "duplicate", "user", "amount", "type"])("重试遇到%s作者流水拒绝自动补钱或成功通知", async change => {
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
+    await waitForNotices(1);
     const credit = ledgers[1];
     if (change === "missing") ledgers.splice(1);
     if (change === "duplicate") ledgers.push({ ...credit, id: "duplicate" });
@@ -209,6 +239,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("零分成重试不新增流水", async () => {
     await service.rewardPost("circle", "post", "payer", 1, undefined, "request-001");
     await service.rewardPost("circle", "post", "payer", 1, undefined, "request-001");
+    await waitForNotices(2);
     expect(coin.spend).toHaveBeenCalledTimes(1);
     expect(coin.refund).not.toHaveBeenCalled();
   });
@@ -217,6 +248,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     notifications.sendOnce.mockRejectedValueOnce(new Error("合成通知失败"));
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
+    await waitForNotices(2);
     expect(coin.spend).toHaveBeenCalledTimes(1);
     expect(notifications.sendOnce.mock.calls[0][1]).toBe(notifications.sendOnce.mock.calls[1][1]);
   });
@@ -224,6 +256,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
   it("同编号重试不得改变首次打赏留言，且事实只随首次资金事务写入", async () => {
     await service.rewardPost("circle", "post", "payer", 8, "首次留言", "request-001");
     await service.rewardPost("circle", "post", "payer", 8, "另一个留言", "request-001");
+    await waitForNotices(2);
     expect(tx.circlePostRewardNotice.create).toHaveBeenCalledTimes(1);
     expect(notifications.sendOnce.mock.calls[1][2].content).toContain("首次留言");
     expect(notifications.sendOnce.mock.calls[1][2].content).not.toContain("另一个留言");
@@ -237,6 +270,7 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
 
   it("旧请求重试不补建历史事实，也不重复资金", async () => {
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
+    await waitForNotices(1);
     savedNotices.clear(); tx.circlePostRewardNotice.create.mockClear();
     await service.rewardPost("circle", "post", "payer", 8, undefined, "request-001");
     expect(tx.circlePostRewardNotice.create).not.toHaveBeenCalled();
