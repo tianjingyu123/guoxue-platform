@@ -38,7 +38,8 @@ export class EntitlementController {
       validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
       sourceType: "ADMIN",
       sourceId: req.user.id,
-      metadata: { operatorId: req.user.id },
+      // 标记与权益流水同事务保存；只覆盖新发放，不补发历史记录。
+      metadata: { operatorId: req.user.id, notificationEvent: "ENTITLEMENT_GRANTED_V1" },
     });
   }
 
