@@ -858,32 +858,46 @@ export class CircleMembershipService {
 
   /**
    * 管理员代加成员（admin 专用·controller 层已做 RolesGuard）。
-   * 复用内部 createMembership（含封禁校验/计数/缓存清理/唯一约束防重）；已是成员则幂等返回现有成员。
+   * 同事务写入初始角色、人数和缓存待办，保留封禁校验与唯一约束防重；已是成员则幂等返回现有成员。
    * role 可选（默认 MEMBER）；不允许 OWNER（转让圈主须走 updateMemberRole 流程）。
    */
   async adminAddMember(circleId: string, targetUserId: string, role?: string) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
-    const user = await this.prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
-
     const desiredRole = (role || "MEMBER") as CircleMemberRole;
-    if (desiredRole === "OWNER") throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许直接指定圈主，转让圈主请使用成员角色接口");
-    if (!Object.values(CircleMemberRole).includes(desiredRole)) {
+    if (desiredRole === "OWNER")
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "不允许直接指定圈主，转让圈主请使用成员角色接口",
+      );
+    if (!Object.values(CircleMemberRole).includes(desiredRole))
       throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
-    }
-
     const existing = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId: targetUserId } },
     });
     if (existing) return { ...existing, alreadyMember: true };
-
     let member;
     try {
-      member = await this.createMembership(circleId, targetUserId, null);
+      // 初始角色、人数和缓存事实一起提交，不能先加MEMBER再独立升角色。
+      member = await this.prisma.$transaction(async (tx) => {
+        await this.assertNotBanned(circleId, targetUserId, tx);
+        const created = await tx.circleMember.create({
+          data: { circleId, userId: targetUserId, role: desiredRole, expireAt: null },
+        });
+        await tx.circle.update({
+          where: { id: circleId },
+          data: { memberCount: { increment: 1 } },
+        });
+        await enqueueCircleMembershipCache(tx, circleId, targetUserId);
+        return created;
+      });
     } catch (e: unknown) {
-      // 并发下唯一约束命中 → 幂等返回现有成员
-      if (e instanceof BusinessException && e.errorCode === ErrorCode.CIRCLE_MEMBER_EXISTS) {
+      if (isUniqueConstraintError(e)) {
         const raced = await this.prisma.circleMember.findUnique({
           where: { circleId_userId: { circleId, userId: targetUserId } },
         });
@@ -891,77 +905,126 @@ export class CircleMembershipService {
       }
       throw e;
     }
-    if (desiredRole !== "MEMBER") {
-      member = await this.prisma.circleMember.update({
-        where: { circleId_userId: { circleId, userId: targetUserId } },
-        data: { role: desiredRole },
+    try {
+      await clearCircleMembershipCaches(this.prisma, this.redis, {
+        circleId,
+        userId: targetUserId,
       });
-      await this.redis.del(`circles:member:${circleId}:${targetUserId}`);
+    } catch {
+      this.logger.warn("管理代加成员缓存暂未恢复，已保留待办");
     }
     return member;
   }
 
-  async updateMemberRole(circleId: string, operatorId: string, targetUserId: string, dto: UpdateMemberRoleDto, opts?: { asAdmin?: boolean }) {
-    // 管理角色 bypass：SUPER_ADMIN/OPERATION_ADMIN（controller 判定）不要求为圈主/成员；C 端原逻辑零变化
-    if (!opts?.asAdmin) {
-      await this.shared.checkOwnership(circleId, operatorId);
-    }
-
-    if (dto.role === "OWNER") {
-      // 转让圈主。C 端：checkOwnership 已保证 operator 即现圈主；管理端：现圈主从 circle.ownerId 取
-      let fromOwnerId = operatorId;
-      if (opts?.asAdmin) {
-        const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
-        if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
-        fromOwnerId = circle.ownerId;
-        const target = await this.prisma.circleMember.findUnique({
-          where: { circleId_userId: { circleId, userId: targetUserId } },
-        });
-        if (!target) throw new BusinessException(ErrorCode.NOT_FOUND, "该用户不是圈子成员");
-        if (fromOwnerId === targetUserId) return { success: true };
-      }
-      const ops: Prisma.PrismaPromise<unknown>[] = [];
-      if (opts?.asAdmin) {
-        // 管理端：现圈主成员行存在才降级（容忍脏数据缺行）
-        const fromMember = await this.prisma.circleMember.findUnique({
-          where: { circleId_userId: { circleId, userId: fromOwnerId } },
-        });
-        if (fromMember) {
-          ops.push(this.prisma.circleMember.update({
+  async updateMemberRole(
+    circleId: string,
+    operatorId: string,
+    targetUserId: string,
+    dto: UpdateMemberRoleDto,
+    opts?: { asAdmin?: boolean },
+  ) {
+    const desiredRole = dto.role as CircleMemberRole;
+    if (!Object.values(CircleMemberRole).includes(desiredRole))
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
+    if (!opts?.asAdmin) await this.shared.checkOwnership(circleId, operatorId);
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+    if (!opts?.asAdmin && circle.ownerId !== operatorId)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主可执行此操作");
+    const target = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId: targetUserId } },
+    });
+    if (!target) throw new BusinessException(ErrorCode.NOT_FOUND, "该用户不是圈子成员");
+    const fromOwnerId = circle.ownerId;
+    const fromMember =
+      desiredRole === "OWNER" && fromOwnerId !== targetUserId
+        ? await this.prisma.circleMember.findUnique({
             where: { circleId_userId: { circleId, userId: fromOwnerId } },
-            data: { role: "MEMBER" },
-          }));
-        }
-      } else {
-        ops.push(this.prisma.circleMember.update({
-          where: { circleId_userId: { circleId, userId: operatorId } },
-          data: { role: "MEMBER" },
-        }));
+          })
+        : null;
+    const affected = await this.prisma.$transaction(async (tx) => {
+      // 统一Member→Circle顺序；多成员按id加锁，避免两个转让反向持锁。
+      const keys = desiredRole === "OWNER" ? [targetUserId, fromOwnerId] : [targetUserId];
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; userId: string; role: CircleMemberRole }>
+      >(Prisma.sql`
+        SELECT id, "userId", role::text AS role FROM "CircleMember"
+        WHERE "circleId"=${circleId} AND "userId" IN (${Prisma.join(keys)}) ORDER BY id FOR UPDATE
+      `);
+      const currentTarget = locked.find((m) => m.userId === targetUserId);
+      if (!currentTarget || currentTarget.id !== target.id || currentTarget.role !== target.role)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "成员状态已变化，请刷新后重试");
+      const owners = await tx.$queryRaw<
+        Array<{ ownerId: string }>
+      >`SELECT "ownerId" FROM "Circle" WHERE id=${circleId} FOR UPDATE`;
+      if (
+        !owners[0] ||
+        owners[0].ownerId !== fromOwnerId ||
+        (!opts?.asAdmin && owners[0].ownerId !== operatorId)
+      )
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈主状态已变化，请刷新后重试");
+      if (desiredRole !== "OWNER") {
+        // 不允许只降成员role却遗留ownerId；圈主必须经过完整转让。
+        if (targetUserId === fromOwnerId || currentTarget.role === "OWNER")
+          throw new BusinessException(ErrorCode.FORBIDDEN, "圈主不能直接降级，请先转让圈子");
+        if (currentTarget.role === desiredRole) return [] as string[];
+        const changed = await tx.circleMember.updateMany({
+          where: { id: target.id, circleId, userId: targetUserId, role: target.role },
+          data: { role: desiredRole },
+        });
+        if (changed.count !== 1)
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "成员状态已变化，请刷新后重试");
+        await enqueueCircleMembershipCache(tx, circleId, targetUserId);
+        return [targetUserId];
       }
-      ops.push(
-        this.prisma.circleMember.update({
-          where: { circleId_userId: { circleId, userId: targetUserId } },
-          data: { role: "OWNER" },
-        }),
-        this.prisma.circle.update({
-          where: { id: circleId },
-          data: { ownerId: targetUserId },
-        }),
-      );
-      await this.prisma.$transaction(ops);
-      await this.redis.del(`circles:member:${circleId}:${fromOwnerId}`);
-    } else {
-      const existing = await this.prisma.circleMember.findUnique({
-        where: { circleId_userId: { circleId, userId: targetUserId } },
+      if (fromOwnerId === targetUserId) {
+        if (currentTarget.role !== "OWNER")
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "圈主成员信息正在核对，请联系管理员");
+        return [] as string[];
+      }
+      if (currentTarget.role === "OWNER")
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈主成员信息正在核对，请联系管理员");
+      const currentFrom = locked.find((m) => m.userId === fromOwnerId);
+      if (
+        (fromMember &&
+          (!currentFrom ||
+            currentFrom.id !== fromMember.id ||
+            currentFrom.role !== fromMember.role)) ||
+        (!fromMember && currentFrom)
+      )
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "原圈主成员状态已变化，请刷新后重试");
+      if (!opts?.asAdmin && (!currentFrom || currentFrom.role !== "OWNER"))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "原圈主成员信息正在核对，请联系管理员");
+      // 保留管理端原有“旧圈主成员行缺失”的容错，不创建缺失成员或修改人数。
+      if (currentFrom) {
+        const demoted = await tx.circleMember.updateMany({
+          where: { id: currentFrom.id, circleId, userId: fromOwnerId, role: currentFrom.role },
+          data: { role: "MEMBER" },
+        });
+        if (demoted.count !== 1)
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "原圈主成员状态已变化，请刷新后重试");
+      }
+      const promoted = await tx.circleMember.updateMany({
+        where: { id: target.id, circleId, userId: targetUserId, role: target.role },
+        data: { role: "OWNER" },
       });
-      if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "该用户不是圈子成员");
-      await this.prisma.circleMember.update({
-        where: { circleId_userId: { circleId, userId: targetUserId } },
-        data: { role: dto.role as CircleMemberRole },
+      const transferred = await tx.circle.updateMany({
+        where: { id: circleId, ownerId: fromOwnerId },
+        data: { ownerId: targetUserId },
       });
+      if (promoted.count !== 1 || transferred.count !== 1)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈主状态已变化，请刷新后重试");
+      await enqueueCircleMembershipCache(tx, circleId, fromOwnerId);
+      await enqueueCircleMembershipCache(tx, circleId, targetUserId);
+      return [fromOwnerId, targetUserId];
+    });
+    for (const userId of affected) {
+      try {
+        await clearCircleMembershipCaches(this.prisma, this.redis, { circleId, userId });
+      } catch {
+        this.logger.warn("圈子角色缓存暂未恢复，已保留待办");
+      }
     }
-
-    await this.redis.del(`circles:member:${circleId}:${targetUserId}`);
     return { success: true };
   }
 
