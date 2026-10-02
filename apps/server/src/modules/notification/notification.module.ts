@@ -11,11 +11,12 @@ import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 // PushAudienceService 无状态且只依赖全局 PrismaService，直接在本模块再 provide 一份，圈人口径由代码唯一保证。
 import { PushAudienceService } from "../user/push-audience.service";
 import { EntitlementNotificationTask } from "./entitlement-notification.task";
+import { MemberMonthlyNotificationTask } from "./member-monthly-notification.task";
 
 @Module({
   imports: [AuthModule, RedisModule, AiGatewayModule],
   controllers: [NotificationController],
-  providers: [NotificationService, PushService, WeworkService, SmartPushService, PushAudienceService, EntitlementNotificationTask],
+  providers: [NotificationService, PushService, WeworkService, SmartPushService, PushAudienceService, EntitlementNotificationTask, MemberMonthlyNotificationTask],
   exports: [NotificationService, PushService, WeworkService, SmartPushService],
 })
 export class NotificationModule {}

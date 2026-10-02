@@ -120,6 +120,7 @@ model User {
   comments              Comment[]
   collects              Collect[]
   notifications         Notification[]
+  monthlyBenefitNotices MemberMonthlyBenefitNotice[]
   circleExpiryNotices   CircleMembershipExpiryNotice[]
   circleGovernanceNotices CircleGovernanceNotice[]
   searchHistories       SearchHistory[]
@@ -6918,8 +6919,26 @@ model PointsRecord {
   source      String // 来源场景
   description String?
   createdAt   DateTime @default(now())
+  monthlyBenefitNotice MemberMonthlyBenefitNotice?
 
   @@index([userId, createdAt])
+}
+
+/// 仅本版实际月度发放事实，与积分/赠券同事务；不回填历史。
+model MemberMonthlyBenefitNotice {
+  id String @id
+  userId String
+  source String
+  points Int
+  couponRecordId String? @unique
+  couponId String?
+  createdAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pointsRecord PointsRecord @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source])
+  @@index([createdAt, id])
 }
 
 // 积分商城商品（可兑换项）

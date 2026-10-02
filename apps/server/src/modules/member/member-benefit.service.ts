@@ -40,11 +40,18 @@ export class MemberBenefitService {
     if (!raw) return this.dailyFreeLimit;
     try {
       const value = JSON.parse(raw);
-      if (Number.isInteger(value.dailyLimit) && value.dailyLimit > 0 && value.dailyLimit <= 1000 &&
-          Number.isFinite(value.expiresAt) && value.expiresAt > Date.now()) {
+      if (
+        Number.isInteger(value.dailyLimit) &&
+        value.dailyLimit > 0 &&
+        value.dailyLimit <= 1000 &&
+        Number.isFinite(value.expiresAt) &&
+        value.expiresAt > Date.now()
+      ) {
         return Math.max(this.dailyFreeLimit, value.dailyLimit);
       }
-    } catch { /* 非法配置不能绕过普通额度限制。 */ }
+    } catch {
+      /* 非法配置不能绕过普通额度限制。 */
+    }
     return this.dailyFreeLimit;
   }
 
@@ -105,7 +112,11 @@ export class MemberBenefitService {
    * 失败包括：抛异常；或 failed(result) 为真（服务内部吞掉错误、返回了兜底文案的情况）。
    * 兜底结果照常返回给用户，只是不计次。
    */
-  async runWithAiQuota<T>(userId: string, fn: () => Promise<T>, failed?: (result: T) => boolean): Promise<T> {
+  async runWithAiQuota<T>(
+    userId: string,
+    fn: () => Promise<T>,
+    failed?: (result: T) => boolean,
+  ): Promise<T> {
     const ticket = await this.consumeAiQuota(userId);
     let result: T;
     try {
@@ -122,7 +133,11 @@ export class MemberBenefitService {
    * 流式生成的计次守卫：流中途出错、或整段没有产出任何文字 → 退回。
    * 用户主动断开（消费方提前结束迭代）且已有产出的，按已生成计次。
    */
-  async *guardAiStream<T>(ticket: AiQuotaTicket, source: AsyncIterable<T>, disconnected: () => boolean = () => false): AsyncIterable<T> {
+  async *guardAiStream<T>(
+    ticket: AiQuotaTicket,
+    source: AsyncIterable<T>,
+    disconnected: () => boolean = () => false,
+  ): AsyncIterable<T> {
     let produced = false;
     let generationFailed = false;
     const disconnectError = new Error("解读连接已断开");
@@ -165,7 +180,11 @@ export class MemberBenefitService {
     }
   }
 
-  async *withAiStreamQuota(userId: string, source: AsyncIterable<string>, disconnected: () => boolean = () => false): AsyncIterable<string> {
+  async *withAiStreamQuota(
+    userId: string,
+    source: AsyncIterable<string>,
+    disconnected: () => boolean = () => false,
+  ): AsyncIterable<string> {
     const member = await this.isActiveMember(userId);
     const key = this.quotaKey(userId);
     if (!member) {
@@ -285,6 +304,7 @@ export class MemberBenefitService {
       });
     }
 
+    let couponRecordId: string | null = null;
     if (config.monthlyCouponId) {
       // 条件更新会在竞争后重新核对库存，不能先读取库存再无条件递增。
       const claimed = await db.couponTemplate.updateMany({
@@ -298,15 +318,16 @@ export class MemberBenefitService {
         data: { claimedCount: { increment: 1 } },
       });
       if (claimed.count === 1) {
-        await db.couponRecord.create({
+        const couponRecord = await db.couponRecord.create({
           data: { couponId: config.monthlyCouponId, userId, status: "UNUSED" },
         });
+        couponRecordId = couponRecord.id;
       } else {
         this.logger.warn("会员月度赠券跳过：券模板不存在或已发完");
       }
     }
 
-    await db.pointsRecord.create({
+    const pointsRecord = await db.pointsRecord.create({
       data: {
         userId,
         amount: config.monthlyPoints,
@@ -316,6 +337,19 @@ export class MemberBenefitService {
           config.monthlyPoints > 0
             ? `${config.name}每月赠积分`
             : `${config.name}每月权益发放记录（未赠积分）`,
+      },
+    });
+
+    // 仅新实际发放；缺券/零积分不伪造到账内容，通知失败由独立任务重试。
+    await db.memberMonthlyBenefitNotice.create({
+      data: {
+        id: pointsRecord.id,
+        userId,
+        source,
+        points: config.monthlyPoints,
+        couponRecordId,
+        couponId: couponRecordId ? config.monthlyCouponId : null,
+        createdAt: pointsRecord.createdAt,
       },
     });
 

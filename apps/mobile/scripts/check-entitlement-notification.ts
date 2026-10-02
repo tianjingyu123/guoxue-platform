@@ -24,7 +24,11 @@ console.log('权益展示：9 项断言通过，数量、时效和通知目标�
 
 async function checkMainNotificationAdapter() {
   const notice = { type: 'ENTITLEMENT', title: '权益已到账', content: '有一笔权益已发放', targetType: 'ENTITLEMENT', targetId: '不能用于查询他人权益', createdAt: new Date().toISOString(), isRead: false }
-  const rows = [{ ...notice, id: 'grant-a' }, { ...notice, id: 'grant-b' }, { ...notice, id: 'grant-a' }]
+  const rows = [
+    { ...notice, id: 'grant-a' }, { ...notice, id: 'grant-b' }, { ...notice, id: 'grant-a' },
+    { ...notice, id: 'monthly-points', targetType: 'POINTS', targetId: '不能用于查询他人积分' },
+    { ...notice, id: 'monthly-coupon', targetType: 'COUPON', targetId: '不能用于查询他人优惠券' },
+  ]
   const source = process.argv.includes('--historical-adapter')
     ? execFileSync('git', ['show', 'ad85d913ecdf2facf92bd8c33357a04afefbe814:apps/mobile/src/lib/mine-data.ts'], { encoding: 'utf8' })
     : readFileSync(fileURLToPath(new URL('../src/lib/mine-data.ts', import.meta.url)), 'utf8')
@@ -45,9 +49,9 @@ async function checkMainNotificationAdapter() {
   new Function('exports', 'require', 'module', 'fixtureImportMeta', compiled.outputText.replaceAll('import.meta', 'fixtureImportMeta'))(module.exports, requireFixture, module, { env: {} })
   const notifications = await module.exports.mineApi.getNotifications()
   if (process.argv.includes('--historical-adapter')) console.log(JSON.stringify({ historicalSource: 'ad85d913e', notifications }))
-  assert.deepEqual(notifications.map(row => row.id), ['grant-a', 'grant-b'])
+  assert.deepEqual(notifications.map(row => row.id), ['grant-a', 'grant-b', 'monthly-points', 'monthly-coupon'])
   assert(notifications.every(row => row.kind === 'transaction' && row.category === '权益'))
-  assert(notifications.every(row => row.link === ENTITLEMENT_NOTIFICATION_ROUTE))
+  assert.deepEqual(notifications.map(row => row.link), [ENTITLEMENT_NOTIFICATION_ROUTE, ENTITLEMENT_NOTIFICATION_ROUTE, '/mine/points', '/shop/coupons'])
   console.log('主通知适配器：同文案两笔权益保留，重复ID去重，交易分类与本人权益跳转通过')
 }
 checkMainNotificationAdapter().catch(error => { console.error(error); process.exitCode = 1 })
