@@ -1748,21 +1748,16 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
-    "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "sourceCommit": "e0e0590b347f054e689958ec2468582d2247654e",
     "receivedCommits": [
-      "d6015091c726d2f0f30eec2c882eac7b456c0dea",
-      "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
-      "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
-      "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
-      "3015217ef16c35ed986442e98c7ef29dd27c4ef1"
+      "e0e0590b347f054e689958ec2468582d2247654e"
     ],
-    "receipt": "docs/operations/工单补发与月度权益原子性及IM隐私收口-20261002.json",
-    "ciRun": 36972302443,
-    "linuxRun": 36972374324,
+    "receipt": "docs/operations/圈子提前到期提醒持久补发与独立验收-20261002.json",
+    "ciRun": 36975867250,
+    "linuxRun": 36975879701,
     "releaseDecision": "NO-GO",
-    "fixedPackage": "本版待最终重建；不复用旧源码包身份",
-    "note": "工单/日志隔离收口，月度安全部分完成；未部署"
+    "fixedPackage": "待业务收口后最终重建",
+    "note": "仅圈子提前提醒隔离收口，未部署"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1927,5 +1922,22 @@
     "imageRun": 36966143664,
     "releaseDecision": "NO-GO",
     "note": "续费提醒持久防重/失败补发与本人续费直达；四目标重建，未部署"
+  },
+  "circleReminderHistoricalParentCandidate": {
+    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+    "receivedCommits": [
+      "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+      "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+      "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+      "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+      "3015217ef16c35ed986442e98c7ef29dd27c4ef1"
+    ],
+    "receipt": "docs/operations/工单补发与月度权益原子性及IM隐私收口-20261002.json",
+    "ciRun": 36972302443,
+    "linuxRun": 36972374324,
+    "releaseDecision": "NO-GO",
+    "fixedPackage": "本版待最终重建；不复用旧源码包身份",
+    "note": "工单/日志隔离收口，月度安全部分完成；未部署"
   }
 }
