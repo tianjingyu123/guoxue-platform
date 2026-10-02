@@ -7,10 +7,10 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:9061f11fa");
-const sourceCommit = "9061f11fa68a0c7b7fa78084ee1dbd5100df3793";
-const sourceSha256 = "8b95deb5f0c05727fba08e9e1fd05b392312b700ec883d84d5910121e58a2e6e";
-const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
+assert.equal(image, "rebu-linux-verify:910806b8e");
+const sourceCommit = "910806b8e72b7259b6b8011604d3e23413ae93fd";
+const sourceSha256 = "3e78509d9c28bce9a5b14490685f667ea19ccc4e4e5d4315c95f770df342e304";
+const postgresImage = "rebu-isolated-pg18.4-vector:frozen";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
 const network = `rebu-verify-${suffix}`;
@@ -76,7 +76,8 @@ try {
   const staticReport = JSON.parse(docker(["run", "--rm", "--network", "none", "--entrypoint", "node", image, "-e", staticCheck]));
   save("static-mounts.json", staticReport);
   check("admin-h5-base-and-public-config", staticReport);
-  docker(["pull", postgresImage]);
+  // 基座由独立验证分支的固定Dockerfile构建，不能拉取同名可变公网镜像。
+  docker(["image", "inspect", postgresImage]);
   docker(["pull", redisImage]);
   docker(["network", "create", "--internal", network]);
   const dbEnv = path.join(temp, "database.env");
@@ -91,8 +92,8 @@ try {
   }
   assert(dbReady, "临时数据库启动超时");
   const pgVersion = docker(["exec", database, "psql", "-U", "guoxue", "-d", "guoxue", "-Atc", "SHOW server_version"]).trim();
-  assert(pgVersion.startsWith("18."));
-  check("postgres-major-match", { actual: pgVersion, targetObserved: "18.4", patchMatchRequiredForFinalAcceptance: true });
+  assert.match(pgVersion, /^18\.4(?:\s|$)/);
+  check("postgres-runtime-version-match", { actual: pgVersion, targetObserved: "18.4", patchMatched: true, productionVersionRecheckStillRequired: true });
   const appEnv = path.join(temp, "application.env");
   writeFileSync(appEnv, [
     "NODE_ENV=production", "PORT=3000", `DATABASE_URL=${databaseUrl}`, `REDIS_URL=redis://${redis}:6379`,
@@ -114,6 +115,12 @@ try {
   assert(bootstrapReceipt.passed);
   save("empty-bootstrap-receipt.json", bootstrapReceipt);
   check("formal-empty-bootstrap-ledger-and-channel-constraints", bootstrapReceipt);
+  const vectorVersion = docker(["exec", database, "psql", "-U", "guoxue", "-d", "guoxue", "-Atc", "SELECT extversion FROM pg_extension WHERE extname='vector'"]).trim();
+  assert.equal(vectorVersion, "0.8.6");
+  const vectorDistance = docker(["exec", database, "psql", "-U", "guoxue", "-d", "guoxue", "-Atc", "SELECT '[1,2,3]'::vector <-> '[2,2,3]'::vector"]).trim();
+  assert.equal(vectorDistance, "1");
+  save("postgres-vector-runtime.json", { postgres: pgVersion, extension: vectorVersion, distance: vectorDistance, syntheticOnly: true });
+  check("postgres-vector-extension-runtime", { version: vectorVersion, distance: vectorDistance });
   // 临时公私钥在封闭容器内生成并加密入临时库，由正式配置加载器读取；不伪造 DB 来源标记。
   const callbackCode = readFileSync(new URL("./verify-isolated-payment-http.cjs", import.meta.url), "utf8");
   const callbackSeed = parseTestResult(docker(["run", "--rm", "--network", network, "--env-file", appEnv,
