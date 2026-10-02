@@ -529,14 +529,39 @@ export class CirclePostService {
         }
         return saved;
       }
+      // 预检只用于快速提示；真正扣款前锁定业务对象，避免读名单后撤权或归属变化。
+      // 固定圈子→帖子→成员顺序，锁保持到资金与通知事实一并提交。
+      const circles = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM "Circle" WHERE id = ${circleId} FOR SHARE
+      `;
+      if (circles[0]?.status !== "ACTIVE") {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "圈子当前不可打赏");
+      }
+      const posts = await tx.$queryRaw<Array<{ userId: string; circleId: string; title: string | null; status: string }>>`
+        SELECT "userId", "circleId", title, status FROM "Post" WHERE id = ${postId} FOR SHARE
+      `;
+      const currentPost = posts[0];
+      if (!currentPost || currentPost.circleId !== circleId || currentPost.userId !== post.userId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "帖子已变更，请刷新后重试");
+      }
+      if (currentPost.status !== "PUBLISHED" || publicQuarantinedIds("post").includes(postId)) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "帖子当前不可打赏");
+      }
+      const members = await tx.$queryRaw<Array<{ valid: boolean }>>`
+        SELECT ("expireAt" IS NULL OR "expireAt" > (clock_timestamp() AT TIME ZONE 'UTC')) AS valid
+        FROM "CircleMember" WHERE "circleId" = ${circleId} AND "userId" = ${userId} FOR SHARE
+      `;
+      if (!members[0]?.valid) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "圈子成员权益已失效，请刷新后重试");
+      }
       await coinService.spend(userId, {
         amountCoin: amount,
         scene: "POST_REWARD",
         refId: postId,
-        description: `打赏帖子: ${post.title || "无标题"}`,
+        description: `打赏帖子: ${currentPost.title || "无标题"}`,
       }, tx, debitId);
       if (authorShare > 0) {
-        await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`, tx, debitId);
+        await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${currentPost.title || "无标题"}`, tx, debitId);
       }
       // 保存业务提交事实，不在资金事务中调用通知服务。此写入失败与其它账本错误一样整笔回滚。
       return tx.circlePostRewardNotice.create({ data: { debitId, recipientId: post.userId, circleId, message } });

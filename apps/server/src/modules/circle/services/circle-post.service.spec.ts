@@ -66,7 +66,13 @@ describe("CirclePostService 打赏原子事务与请求重试", () => {
     tx.circlePostRewardNotice.create.mockImplementation(({ data }) => { savedNotices.set(data.debitId, data); return Promise.resolve(data); });
     tx.circlePostRewardNotice.findUnique.mockImplementation(({ where }) => Promise.resolve(savedNotices.get(where.debitId) ?? null));
     prisma.post.findUnique.mockResolvedValue({ id: "post", userId: "author", circleId: "circle", title: "帖子" });
-    tx.$queryRaw.mockResolvedValue([]);
+    tx.$queryRaw.mockImplementation((parts: TemplateStringsArray) => {
+      const sql = parts.join("?");
+      if (sql.includes('FROM "Circle"')) return Promise.resolve([{ status: "ACTIVE" }]);
+      if (sql.includes('FROM "Post"')) return Promise.resolve([{ userId: "author", circleId: "circle", title: "帖子", status: "PUBLISHED" }]);
+      if (sql.includes('FROM "CircleMember"')) return Promise.resolve([{ valid: true }]);
+      return Promise.resolve([]);
+    });
     tx.virtualCoinTransaction.findUnique.mockImplementation(({ where }) => Promise.resolve(ledgers.find(row => row.id === where.id) ?? null));
     tx.virtualCoinTransaction.findMany.mockImplementation(({ where }) => Promise.resolve(ledgers.filter(row => row.refId === where.refId)));
     prisma.$transaction.mockImplementation(action => action(tx));
