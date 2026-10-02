@@ -16,8 +16,14 @@ http {
   default_type application/octet-stream;
 
   # 日志格式
-  log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                  '$status $body_bytes_sent "$http_referer" '
+  # 只记录原始编码路径；不改变转发 URI、请求头或回调验签。
+  map $request_uri $privacy_log_path {
+    ~^(?<privacy_original_path>[^?]*) $privacy_original_path;
+    default /;
+  }
+
+  log_format main '$remote_addr - $remote_user [$time_local] "$request_method $privacy_log_path $server_protocol" '
+                  '$status $body_bytes_sent "-" '
                   '"$http_user_agent" "$http_x_forwarded_for" '
                   'rt=$request_time uct="$upstream_connect_time" '
                   'uht="$upstream_header_time" urt="$upstream_response_time"';

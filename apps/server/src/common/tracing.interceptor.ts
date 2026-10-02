@@ -2,6 +2,7 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nes
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { traceLogUrl } from "./privacy-span-exporter";
 
 @Injectable()
 export class TracingInterceptor implements NestInterceptor {
@@ -11,20 +12,17 @@ export class TracingInterceptor implements NestInterceptor {
 
     if (activeSpan) {
       const { method, url, route } = req;
-      const userId = req.user?.id;
-
       activeSpan.setAttribute("http.method", method);
-      activeSpan.setAttribute("http.url", url);
+      activeSpan.setAttribute("http.url", traceLogUrl(typeof url === "string" ? url : "/"));
       if (route?.path) activeSpan.setAttribute("http.route", route.path);
-      if (userId) activeSpan.setAttribute("user.id", userId);
     }
 
     return next.handle().pipe(
       tap({
-        error: (err) => {
+        error: () => {
           if (activeSpan) {
-            activeSpan.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
-            activeSpan.setAttribute("error.type", err.constructor?.name || "Error");
+            activeSpan.setStatus({ code: SpanStatusCode.ERROR });
+            activeSpan.setAttribute("error.type", "request_failed");
           }
         },
       }),

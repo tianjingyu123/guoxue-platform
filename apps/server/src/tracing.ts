@@ -13,6 +13,7 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { PrivacySpanExporter } from "./common/privacy-span-exporter";
 
 const tracingLog = (msg: string) => process.stderr.write(`[OpenTelemetry] ${msg}\n`);
 
@@ -26,7 +27,7 @@ const sdk = new NodeSDK({
     [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || "guoxue-platform",
     [ATTR_SERVICE_VERSION]: "0.0.1",
   }),
-  spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: otlpEndpoint }))],
+  spanProcessors: [new BatchSpanProcessor(new PrivacySpanExporter(new OTLPTraceExporter({ url: otlpEndpoint })))],
   textMapPropagator: new CompositePropagator({
     propagators: [
       new W3CTraceContextPropagator(),
@@ -46,8 +47,8 @@ export async function startTracing() {
   try {
     await sdk.start();
     tracingLog("链路追踪已启动");
-  } catch (err) {
-    tracingLog(`链路追踪启动失败（无 Collector 可用，继续运行）: ${(err as Error).message}`);
+  } catch {
+    tracingLog("链路追踪启动失败，继续运行");
   }
 }
 
@@ -55,7 +56,7 @@ export async function stopTracing() {
   try {
     await sdk.shutdown();
     tracingLog("链路追踪已关闭");
-  } catch (err) {
-    tracingLog(`链路追踪关闭失败: ${(err as Error).message}`);
+  } catch {
+    tracingLog("链路追踪关闭失败");
   }
 }
