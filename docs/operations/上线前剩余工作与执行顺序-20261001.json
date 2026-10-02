@@ -77,10 +77,37 @@
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "jobsPassed": 8,
     "runId": 37053684220,
-    "fullCIComplete": false,
-    "status": "整版CI运行中，未计通过"
+    "passed": 9094,
+    "checkedAt": "2026-10-02T19:43:10.5384585Z",
+    "shards": [
+      {
+        "passed": 3088,
+        "summary": "2026-10-02T19:28:24.9938700Z Tests:       130 skipped, 3088 passed, 3218 total",
+        "id": 110993890424,
+        "skipped": 130,
+        "name": "单元测试 (3/3)"
+      },
+      {
+        "passed": 3074,
+        "summary": "2026-10-02T19:27:22.4879820Z Tests:       196 skipped, 3074 passed, 3270 total",
+        "id": 110993890487,
+        "skipped": 196,
+        "name": "单元测试 (2/3)"
+      },
+      {
+        "passed": 2932,
+        "summary": "2026-10-02T19:39:12.6625751Z Tests:       157 skipped, 2932 passed, 3089 total",
+        "id": 110993890498,
+        "skipped": 157,
+        "name": "单元测试 (1/3)"
+      }
+    ],
+    "skipped": 483,
+    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "production": false,
+    "fullCIComplete": true
   },
   "historicalSoftwareSkippedCovered": 104,
   "additionalSkippedCovered": 32,
@@ -4775,10 +4802,37 @@
       "checkedAt": "2026-10-02T19:18:07.465Z"
     },
     "ci": {
-      "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+      "jobsPassed": 8,
       "runId": 37053684220,
-      "fullCIComplete": false,
-      "status": "整版CI运行中，未计通过"
+      "passed": 9094,
+      "checkedAt": "2026-10-02T19:43:10.5384585Z",
+      "shards": [
+        {
+          "passed": 3088,
+          "summary": "2026-10-02T19:28:24.9938700Z Tests:       130 skipped, 3088 passed, 3218 total",
+          "id": 110993890424,
+          "skipped": 130,
+          "name": "单元测试 (3/3)"
+        },
+        {
+          "passed": 3074,
+          "summary": "2026-10-02T19:27:22.4879820Z Tests:       196 skipped, 3074 passed, 3270 total",
+          "id": 110993890487,
+          "skipped": 196,
+          "name": "单元测试 (2/3)"
+        },
+        {
+          "passed": 2932,
+          "summary": "2026-10-02T19:39:12.6625751Z Tests:       157 skipped, 2932 passed, 3089 total",
+          "id": 110993890498,
+          "skipped": 157,
+          "name": "单元测试 (1/3)"
+        }
+      ],
+      "skipped": 483,
+      "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+      "production": false,
+      "fullCIComplete": true
     },
     "client": {
       "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
