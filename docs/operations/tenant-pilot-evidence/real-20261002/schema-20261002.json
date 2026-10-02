@@ -1,0 +1,48 @@
+{
+  "head": "4df811a851fd6c03e765bdd3152612cd3590f365",
+  "sources": {
+    "apps/server/prisma/schema.prisma": "dfc492f1926f7cb8b56273f88920faefe15f169f0b29ad14dd680e0c8d2445f2",
+    "apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql": "e0e69fef85a9da6fd05b5dc17d4fd09ee6abe57d54b30fd0ab9479bbc6cb468a",
+    "apps/server/prisma/migrations/manual_z_20261002_08_managed_lease_exit/migration.sql": "8393287291492b679e4135a6db2280b757f42b3c6efd5ce639e7d82fe59c8427",
+    "apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql": "7b869e07ee7c5981cdec39d9f88ca5caef3520603e4f8fcfc67a582178ec3f8f"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "mt_control身份、schema语法与本专项十张表结构一致性",
+      "status": "PASS"
+    },
+    {
+      "name": "mt_customer_a身份、schema语法与本专项十张表结构一致性",
+      "status": "PASS"
+    },
+    {
+      "name": "mt_customer_b身份、schema语法与本专项十张表结构一致性",
+      "status": "PASS"
+    }
+  ],
+  "results": {
+    "mt_control": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    },
+    "mt_customer_a": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    },
+    "mt_customer_b": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    }
+  },
+  "passed": 3,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "只读比较本任务三个合成库；未执行修正SQL或生产迁移",
+    "完整基线如有既有差异，单独记录，不混入本专项迁移"
+  ]
+}

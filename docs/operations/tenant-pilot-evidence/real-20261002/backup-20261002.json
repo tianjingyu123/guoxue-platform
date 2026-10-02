@@ -1,0 +1,46 @@
+{
+  "head": "4df811a851fd6c03e765bdd3152612cd3590f365",
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "源库与本任务新集群维护身份先只读核对",
+      "status": "PASS"
+    },
+    {
+      "name": "真实pg_dump一致性备份与本地文件SHA256，不含账号/密码授权",
+      "status": "PASS"
+    },
+    {
+      "name": "同版本新库恢复，恢复访问账号仅SELECT，原客户库继续保留",
+      "status": "PASS"
+    },
+    {
+      "name": "九类真实客户数据、订单、售后、导出和审计行数及内容摘要完全一致",
+      "status": "PASS"
+    },
+    {
+      "name": "恢复账户写入、结构修改与连接另一客户数据库均拒绝",
+      "status": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "仅本任务合成PostgreSQL库；恢复为只读访问，未切换业务写入者",
+    "未包含COS媒体、Redis/BullMQ、向量扩展、读副本或供应商会话",
+    "未承诺线上RPO/RTO，不删除源库、恢复库或备份"
+  ],
+  "backupSha256": "a9b0f3bf2486498d29d542489ba0d570ecde55d117e65d3ea5137578f7738e27",
+  "comparison": {
+    "User": "14:a34ab4c32de9eac802f1e16dda6c8cae",
+    "Product": "14:1b7c19067cb2c390e39a67262a3eeef7",
+    "Course": "0:empty",
+    "Circle": "21:b2dd25a37edc52ba1d8882eb35d6eebc",
+    "CircleKnowledge": "14:9b9b588c5ae053249922fa5ee51d389f",
+    "Order": "12:1f5ccc197020f1cceaba5da478939618",
+    "ManagedLeaseAftercare": "6:f6ae0d07dc2720437b5191742dd8f13c",
+    "ManagedLeaseExport": "6:07aa780e240b36e9ffb4452c3428e5e2",
+    "ManagedLeaseAudit": "17:df35e08973c8d66e99cec2b0f8ac75f2"
+  }
+}
