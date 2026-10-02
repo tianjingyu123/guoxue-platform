@@ -97,12 +97,18 @@ export class CourseSchedulerService {
     );
   }
 
+  /** 保留9点首轮；当天有限重试复用原事件键，不补历史日期。 */
+  @Cron("0 10,12,15,18,21 * * *")
+  async retryExpiringCourses() {
+    await this.checkExpiringCourses();
+  }
+
   private async _checkExpiringCourses() {
     if (!this.notification) return;
     try {
       // 获取所有有效期课程
       const courses = await this.prisma.course.findMany({
-        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED" },
+        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED", deletedAt: null },
         select: { id: true, title: true, validityDays: true },
       });
 
