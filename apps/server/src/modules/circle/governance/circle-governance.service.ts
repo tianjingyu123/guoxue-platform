@@ -696,8 +696,9 @@ export class CircleGovernanceService {
     if (appeal.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决");
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.circleAppeal.update({
-        where: { id: appealId },
+      const changed = await tx.circleAppeal.updateMany({
+        // 人工裁决与其他裁决共用状态闸门，只有仍待处理的原申诉可以变更。
+        where: { id: appealId, status: "PENDING", circleId: appeal.circleId, userId: appeal.userId, violationId: appeal.violationId },
         data: {
           status: dto.uphold ? "UPHELD" : "REJECTED",
           resolution: dto.resolution.trim(),
@@ -705,6 +706,7 @@ export class CircleGovernanceService {
           resolvedAt: new Date(),
         },
       });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决或状态已变化");
       if (dto.uphold) {
         // 撤销处理并清记录：REVOKED 不再计入累计、不再禁言/禁入、治理记录不展示
         await tx.circleViolation.update({ where: { id: appeal.violationId }, data: { status: "REVOKED" } });
@@ -817,11 +819,18 @@ export class CircleGovernanceService {
     if (post.status !== "AUDITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子不在待审状态");
 
     const circleName = await this.getCircleName(circleId);
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.post.updateMany({
+        // 通过和驳回必须竞争同一个待审状态，避免重复计数或覆盖已完成的审核。
+        where: { id: postId, circleId, userId: post.userId, status: "AUDITING" },
+        data: { status: dto.approve ? "PUBLISHED" : "HIDDEN" },
+      });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子已被审核或状态已变化");
+      if (dto.approve) {
+        await tx.circle.update({ where: { id: circleId }, data: { postCount: { increment: 1 } } });
+      }
+    });
     if (dto.approve) {
-      await this.prisma.$transaction([
-        this.prisma.post.update({ where: { id: postId }, data: { status: "PUBLISHED" } }),
-        this.prisma.circle.update({ where: { id: circleId }, data: { postCount: { increment: 1 } } }),
-      ]);
       this.notify(post.userId, {
         type: "CIRCLE_GOVERNANCE",
         title: "帖子已通过审核",
@@ -832,7 +841,6 @@ export class CircleGovernanceService {
       return { success: true, status: "PUBLISHED" };
     }
 
-    await this.prisma.post.update({ where: { id: postId }, data: { status: "HIDDEN" } });
     this.notify(post.userId, {
       type: "CIRCLE_GOVERNANCE",
       title: "帖子未通过审核",
@@ -864,12 +872,15 @@ export class CircleGovernanceService {
         select: { id: true, userId: true, circleId: true },
         take: 200,
       });
-      if (mutes.length) {
-        await this.prisma.circleViolation.updateMany({
-          where: { id: { in: mutes.map((m) => m.id) } },
+      let expiredMuteCount = 0;
+      for (const m of mutes) {
+        const changed = await this.prisma.circleViolation.updateMany({
+          // 扫描后可能已撤销、提前解除或延长期限，落库时再次核对。
+          where: { id: m.id, userId: m.userId, circleId: m.circleId, type: "MUTE", status: "ACTIVE", expiresAt: { lt: now } },
           data: { status: "EXPIRED" },
         });
-        for (const m of mutes) {
+        if (changed.count > 0) {
+          expiredMuteCount += changed.count;
           const circleName = await this.getCircleName(m.circleId);
           this.notify(m.userId, {
             type: "CIRCLE_GOVERNANCE",
@@ -881,8 +892,8 @@ export class CircleGovernanceService {
           });
         }
       }
-      if (warnings.count || mutes.length) {
-        this.logger.log(`治理状态机：警告清零 ${warnings.count} 条 · 禁言解除 ${mutes.length} 条`);
+      if (warnings.count || expiredMuteCount) {
+        this.logger.log(`治理状态机：警告清零 ${warnings.count} 条 · 禁言解除 ${expiredMuteCount} 条`);
       }
     });
   }

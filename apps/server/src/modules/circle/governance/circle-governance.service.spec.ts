@@ -19,7 +19,7 @@ const mockPrisma: any = {
   circleViolation: { create: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   circleAppeal: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   user: { findMany: jest.fn() },
-  post: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn() },
+  post: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -45,6 +45,8 @@ function resetMocks() {
   mockPrisma.circleMember.findUnique.mockResolvedValue({ circleId: "c1", userId: "u1", role: "MEMBER" });
   mockPrisma.circleViolation.count.mockResolvedValue(0);
   mockPrisma.circleViolation.findFirst.mockResolvedValue(null);
+  mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 1 });
+  mockPrisma.post.updateMany.mockResolvedValue({ count: 1 });
   mockPrisma.circleViolation.create.mockImplementation(async ({ data }: any) => ({ id: "v-new", createdAt: new Date(), ...data }));
   mockPrisma.$transaction.mockImplementation(async (arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(mockPrisma)));
   mockRedis.runExclusive.mockImplementation(async (_n: string, _ttl: number, fn: () => Promise<unknown>) => fn());
@@ -200,7 +202,10 @@ describe("CircleGovernanceService", () => {
       mockPrisma.circleAppeal.findUnique.mockResolvedValue({ id: "a1", violationId: "v1", circleId: "c1", userId: "u1", status: "PENDING" });
       const res = await svc.resolveAppeal("a1", "reviewer", { uphold: true, resolution: "证据不足，撤销处理" });
       expect(res.status).toBe("UPHELD");
-      expect(mockPrisma.circleAppeal.update.mock.calls[0][0].data.status).toBe("UPHELD");
+      expect(mockPrisma.circleAppeal.updateMany.mock.calls[0][0]).toEqual({
+        where: { id: "a1", status: "PENDING", circleId: "c1", userId: "u1", violationId: "v1" },
+        data: { status: "UPHELD", resolution: "证据不足，撤销处理", reviewerId: "reviewer", resolvedAt: expect.any(Date) },
+      });
       expect(mockPrisma.circleViolation.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { status: "REVOKED" } });
       expect(mockNotification.send.mock.calls[0][1].title).toContain("成立");
     });
@@ -217,6 +222,14 @@ describe("CircleGovernanceService", () => {
       mockPrisma.circleAppeal.findUnique.mockResolvedValue({ id: "a1", status: "UPHELD" });
       await expect(svc.resolveAppeal("a1", "reviewer", { uphold: false, resolution: "重复裁决" })).rejects.toThrow("已裁决");
     });
+
+    it("读取后申诉状态已变化：不覆盖裁决、不撤销处理、不发送成功通知", async () => {
+      mockPrisma.circleAppeal.findUnique.mockResolvedValue({ id: "a1", violationId: "v1", circleId: "c1", userId: "u1", status: "PENDING" });
+      mockPrisma.circleAppeal.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.resolveAppeal("a1", "reviewer", { uphold: true, resolution: "迟到裁决" })).rejects.toThrow("状态已变化");
+      expect(mockPrisma.circleViolation.update).not.toHaveBeenCalled();
+      expect(mockNotification.send).not.toHaveBeenCalled();
+    });
   });
 
   // ═════════ Cron 状态机 ═════════
@@ -232,14 +245,21 @@ describe("CircleGovernanceService", () => {
     });
 
     it("禁言到期自动解除并通知恢复发言", async () => {
-      mockPrisma.circleViolation.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.circleViolation.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
       mockPrisma.circleViolation.findMany.mockResolvedValue([{ id: "m1", userId: "u1", circleId: "c1" }]);
       await svc.processExpiredViolations();
       // 第二次 updateMany 是禁言解除
       const muteCall = mockPrisma.circleViolation.updateMany.mock.calls[1][0];
-      expect(muteCall.where.id.in).toEqual(["m1"]);
+      expect(muteCall.where).toEqual({ id: "m1", userId: "u1", circleId: "c1", type: "MUTE", status: "ACTIVE", expiresAt: { lt: expect.any(Date) } });
       expect(muteCall.data.status).toBe("EXPIRED");
       expect(mockNotification.send.mock.calls[0][1].title).toContain("解除");
+    });
+
+    it("禁言旧扫描名单已失效：不谎报到期解除", async () => {
+      mockPrisma.circleViolation.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.circleViolation.findMany.mockResolvedValue([{ id: "m1", userId: "u1", circleId: "c1" }]);
+      await svc.processExpiredViolations();
+      expect(mockNotification.send).not.toHaveBeenCalled();
     });
 
     it("申诉 48h 超时未裁：按承诺自动成立并撤销处理", async () => {
@@ -402,7 +422,7 @@ describe("CircleGovernanceService", () => {
       const res = await svc.reviewPost("c1", "admin1", "p1", { approve: true });
       expect(mockShared.checkPermission).toHaveBeenCalledWith("c1", "admin1", "content.review");
       expect(res.status).toBe("PUBLISHED");
-      expect(mockPrisma.post.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { status: "PUBLISHED" } });
+      expect(mockPrisma.post.updateMany).toHaveBeenCalledWith({ where: { id: "p1", circleId: "c1", userId: "u1", status: "AUDITING" }, data: { status: "PUBLISHED" } });
       expect(mockPrisma.circle.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { postCount: { increment: 1 } } });
       expect(mockNotification.send).toHaveBeenCalledTimes(1);
       expect(mockNotification.send.mock.calls[0][0]).toBe("u1");
@@ -413,7 +433,7 @@ describe("CircleGovernanceService", () => {
       mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "AUDITING", userId: "u1", title: "待审帖" });
       const res = await svc.reviewPost("c1", "admin1", "p1", { approve: false, reason: "疑似广告" });
       expect(res.status).toBe("HIDDEN");
-      expect(mockPrisma.post.update).toHaveBeenCalledWith({ where: { id: "p1" }, data: { status: "HIDDEN" } });
+      expect(mockPrisma.post.updateMany).toHaveBeenCalledWith({ where: { id: "p1", circleId: "c1", userId: "u1", status: "AUDITING" }, data: { status: "HIDDEN" } });
       expect(mockPrisma.circle.update).not.toHaveBeenCalled(); // 驳回不计数
       expect(mockNotification.send.mock.calls[0][1].content).toContain("疑似广告");
     });
@@ -423,6 +443,14 @@ describe("CircleGovernanceService", () => {
       await expect(svc.reviewPost("c1", "admin1", "p1", { approve: true })).rejects.toThrow("待审");
       mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c2", status: "AUDITING", userId: "u1" });
       await expect(svc.reviewPost("c1", "admin1", "p1", { approve: true })).rejects.toThrow("不存在");
+    });
+
+    it("读取后帖子已被其他人审核：不重复计数、不发送成功通知", async () => {
+      mockPrisma.post.findUnique.mockResolvedValue({ id: "p1", circleId: "c1", status: "AUDITING", userId: "u1", title: "待审帖" });
+      mockPrisma.post.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.reviewPost("c1", "admin1", "p1", { approve: true })).rejects.toThrow("状态已变化");
+      expect(mockPrisma.circle.update).not.toHaveBeenCalled();
+      expect(mockNotification.send).not.toHaveBeenCalled();
     });
   });
 
