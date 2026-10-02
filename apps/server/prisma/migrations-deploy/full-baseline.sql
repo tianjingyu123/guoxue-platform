@@ -4665,6 +4665,19 @@ CREATE TABLE "ConfigVersion" (
 );
 
 -- CreateTable
+CREATE TABLE "MemberMonthlyGrant" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+    "points" INTEGER NOT NULL DEFAULT 0,
+    "couponId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MemberMonthlyGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "MemberConfig" (
     "id" TEXT NOT NULL,
     "level" TEXT NOT NULL,
@@ -8921,6 +8934,12 @@ CREATE INDEX "SiteNotice_isActive_idx" ON "SiteNotice"("isActive");
 
 -- CreateIndex
 CREATE INDEX "ConfigVersion_configKey_version_idx" ON "ConfigVersion"("configKey", "version");
+
+-- CreateIndex
+CREATE INDEX "MemberMonthlyGrant_userId_createdAt_idx" ON "MemberMonthlyGrant"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemberMonthlyGrant_userId_source_key" ON "MemberMonthlyGrant"("userId", "source");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "MemberConfig_level_key" ON "MemberConfig"("level");

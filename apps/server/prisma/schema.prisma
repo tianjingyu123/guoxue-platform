@@ -6066,6 +6066,20 @@ model ConfigVersion {
   @@index([configKey, version])
 }
 
+/// 月度权益实际提交的凭据；仅赠券也有独立防重记录，不伪造零积分流水。
+model MemberMonthlyGrant {
+  id        String   @id @default(uuid())
+  userId    String
+  source    String
+  level     String
+  points    Int      @default(0)
+  couponId  String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, source])
+  @@index([userId, createdAt])
+}
+
 model MemberConfig {
   id              String   @id @default(uuid())
   level           String   @unique // MONTHLY/QUARTERLY/YEARLY/YEARLY_AUTO/LIFETIME(停售)

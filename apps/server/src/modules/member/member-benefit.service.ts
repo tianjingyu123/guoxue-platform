@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
@@ -211,11 +213,11 @@ export class MemberBenefitService {
   }
 
   /**
-   * 发放某用户当月会员权益（积分+优惠券）。幂等：同 source（member_monthly_YYYYMM）已有积分流水则跳过。
+   * 发放某用户当月会员权益（积分+优惠券）。同 source 已有月度凭据或旧积分流水则跳过。
    * tx 可选：购买开通场景复用支付事务；月度 cron 场景为每个用户建立独立事务。
-   * 积分、流水、赠券和库存一起提交；数据库锁防止多进程同月重复发放及赠券超库存。
+   * 积分、流水、赠券、库存和月度凭据一起提交；数据库锁串行化发放及库存检查。
    */
-  async grantMonthlyBenefits(userId: string, level: string, tx?: any): Promise<boolean> {
+  async grantMonthlyBenefits(userId: string, level: string, tx?: Prisma.TransactionClient): Promise<boolean> {
     if (!tx) {
       return this.prisma.$transaction(client => this.grantMonthlyBenefits(userId, level, client), { timeout: 15000 });
     }
@@ -228,6 +230,10 @@ export class MemberBenefitService {
 
     const config = await db.memberConfig.findUnique({ where: { level } });
     if (!config) return false;
+
+    const committed = await db.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "MemberMonthlyGrant" WHERE "userId" = ${userId} AND source = ${source} LIMIT 1`;
+    if (committed.length) return false;
 
     const already = await db.pointsRecord.findFirst({
       where: { userId, source, type: "EARN" },
@@ -246,6 +252,7 @@ export class MemberBenefitService {
       });
     }
 
+    let couponGranted = false;
     if (config.monthlyCouponId) {
       // 不同用户共用库存，读取最新余量前先锁住券模板行。
       await db.$queryRaw`SELECT 1 AS locked FROM "CouponTemplate" WHERE id = ${config.monthlyCouponId} FOR UPDATE`;
@@ -258,9 +265,17 @@ export class MemberBenefitService {
         await db.couponRecord.create({
           data: { couponId: config.monthlyCouponId, userId, status: "UNUSED" },
         });
+        couponGranted = true;
       } else {
         this.logger.warn(`会员月度赠券跳过：券模板 ${config.monthlyCouponId} 不存在或已发完`);
       }
+    }
+
+    // 只有实际发放才落凭据；零积分且无券库存时仍允许后续补库存后重试。
+    if (config.monthlyPoints > 0 || couponGranted) {
+      await db.$executeRaw`
+        INSERT INTO "MemberMonthlyGrant" (id, "userId", source, level, points, "couponId")
+        VALUES (${randomUUID()}, ${userId}, ${source}, ${level}, ${config.monthlyPoints > 0 ? config.monthlyPoints : 0}, ${couponGranted ? config.monthlyCouponId : null})`;
     }
 
     return true;

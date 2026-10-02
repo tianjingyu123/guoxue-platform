@@ -49,7 +49,7 @@ jest.setTimeout(30000);
   });
   const empty = { balance: 0, earned: 0, ledger: 0, claimed: 0, coupons: 0 };
   const once = { balance: 10, earned: 10, ledger: 1, claimed: 1, coupons: 1 };
-  const failInsert = async (table: "PointsRecord" | "CouponRecord", action: () => Promise<void>) => {
+  const failInsert = async (table: "PointsRecord" | "CouponRecord" | "MemberMonthlyGrant", action: () => Promise<void>) => {
     await db.$executeRawUnsafe(`CREATE FUNCTION synthetic_monthly_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic monthly insert failure'; END $$`);
     await db.$executeRawUnsafe(`CREATE TRIGGER synthetic_monthly_fail BEFORE INSERT ON "${table}" FOR EACH ROW EXECUTE FUNCTION synthetic_monthly_fail()`);
     try { await action(); } finally {
@@ -64,6 +64,7 @@ jest.setTimeout(30000);
     if (!identity[0]?.name.startsWith("entitlement_notice_qa_")) throw new Error("合成库身份不符");
   });
   afterEach(async () => {
+    for (const userId of users) await db.$executeRaw`DELETE FROM "MemberMonthlyGrant" WHERE "userId" = ${userId}`;
     // 积分与券记录没有用户外键，必须显式清理本用例生成的记录。
     await db.pointsRecord.deleteMany({ where: { userId: { in: users } } });
     await db.userPoints.deleteMany({ where: { userId: { in: users } } });
@@ -106,8 +107,8 @@ jest.setTimeout(30000);
     expect(await state(f)).toEqual(once);
   });
 
-  it("两个独立 Node 进程同月并发只发一份", async () => {
-    const f = await fixture();
+  it.each([0, 10])("两个独立 Node 进程同月并发只发一份，积分 %i", async points => {
+    const f = await fixture(points);
     const code = `require('reflect-metadata');
       const { PrismaClient } = require('@prisma/client');
       const { MemberBenefitService } = require(${JSON.stringify(resolve("src/modules/member/member-benefit.service.ts"))});
@@ -119,7 +120,7 @@ jest.setTimeout(30000);
     });
     const results = await Promise.all([run(), run()]);
     expect(results.map(r => JSON.parse(r.stdout.trim().split("\n").at(-1)!).granted).sort()).toEqual([false, true]);
-    expect(await state(f)).toEqual(once);
+    expect(await state(f)).toEqual(points > 0 ? once : { ...empty, claimed: 1, coupons: 1 });
   });
 
   it("不同用户并发争领最后一张券不超库存，积分各自发放", async () => {
@@ -140,6 +141,51 @@ jest.setTimeout(30000);
     });
     expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
     expect(await state(f)).toEqual({ ...empty, claimed: 1, coupons: 1 });
+  });
+
+  it("仅赠券消费后重放仍跳过，同月不能再次领取", async () => {
+    const f = await fixture(0);
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
+    await db.couponRecord.updateMany({ where: { userId: f.userId }, data: { status: "USED", usedAt: new Date() } });
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(false);
+    expect(await state(f)).toEqual({ ...empty, claimed: 1, coupons: 1 });
+    const records = await db.$queryRaw<Array<{ points: number; couponId: string }>>`SELECT points, "couponId" FROM "MemberMonthlyGrant" WHERE "userId" = ${f.userId}`;
+    expect(records).toEqual([{ points: 0, couponId: f.couponId }]);
+  });
+
+  it("月度凭据 INSERT 失败回滚全部权益，修复后仅发一次", async () => {
+    const f = await fixture();
+    await failInsert("MemberMonthlyGrant", async () => {
+      await expect(service().grantMonthlyBenefits(f.userId, f.level)).rejects.toThrow();
+      expect(await state(f)).toEqual(empty);
+    });
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(false);
+    expect(await state(f)).toEqual(once);
+  });
+
+  it("上月已消费赠券与旧凭据不阻挡本月发放", async () => {
+    const f = await fixture(0);
+    const previous = new Date();
+    previous.setDate(1); previous.setMonth(previous.getMonth() - 1);
+    const oldSource = `member_monthly_${previous.getFullYear()}${String(previous.getMonth() + 1).padStart(2, "0")}`;
+    await db.couponRecord.create({ data: { couponId: f.couponId, userId: f.userId, status: "USED", claimedAt: previous, usedAt: previous } });
+    await db.couponTemplate.update({ where: { id: f.couponId }, data: { claimedCount: 1 } });
+    await db.$executeRaw`INSERT INTO "MemberMonthlyGrant" (id, "userId", source, level, points, "couponId", "createdAt") VALUES (${randomUUID()}, ${f.userId}, ${oldSource}, ${f.level}, 0, ${f.couponId}, ${previous})`;
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(false);
+    expect(await state(f)).toEqual({ ...empty, claimed: 2, coupons: 2 });
+  });
+
+  it("仅赠券库存耗尽不写成功凭据，补库存后可发放", async () => {
+    const f = await fixture(0, 1);
+    await db.couponTemplate.update({ where: { id: f.couponId }, data: { claimedCount: 1 } });
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
+    expect(await db.$queryRaw`SELECT id FROM "MemberMonthlyGrant" WHERE "userId" = ${f.userId}`).toEqual([]);
+    await db.couponTemplate.update({ where: { id: f.couponId }, data: { totalCount: 2 } });
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(true);
+    expect(await service().grantMonthlyBenefits(f.userId, f.level)).toBe(false);
+    expect(await state(f)).toEqual({ ...empty, claimed: 2, coupons: 1 });
   });
 
   it("没有会员配置不写入权益", async () => {
