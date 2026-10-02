@@ -55,7 +55,8 @@ jest.setTimeout(30000);
   beforeAll(async () => {
     db = new PrismaClient({ datasources: { db: { url: testUrl! } } });
     const identity = await db.$queryRaw<Array<{ name: string; port: number }>>`SELECT current_database() AS name, inet_server_port() AS port`;
-    if (!identity[0]?.name.startsWith("entitlement_notice_qa_") || identity[0].port !== 55462) throw new Error("合成库身份不符");
+    // 本机服务监听 55462；官方隔离容器内部 5432 映射到客户端 55462。
+    if (!identity[0]?.name.startsWith("entitlement_notice_qa_") || ![55462, 5432].includes(identity[0].port)) throw new Error("合成库身份不符");
     process.env.JWT_SECRET = secret;
     const mod = await Test.createTestingModule({
       imports: [PassportModule.register({ defaultStrategy: "jwt" })],
