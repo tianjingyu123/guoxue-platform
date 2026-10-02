@@ -1748,32 +1748,35 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
-    "record": "圈子普通入退圈事务与人数保护验收-20261002.json",
-    "localRegressionIncludingNewCases": 117,
-    "newPostgres": 12,
-    "compiledPostgres": 12,
+    "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+    "record": "圈子到期删除事实与持久通知恢复验收-20261002.json",
+    "initialBusinessCommit": "86ae95f4eb16bc56833f225066b07ae728fea927",
+    "guardCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+    "localFinalTargeted": 64,
+    "newPostgres": 17,
+    "compiledPostgres": 17,
+    "compiledScheduler": 2,
     "ci": {
-      "runId": 36997770385,
-      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+      "runId": 37003069637,
+      "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
       "conclusion": "success",
       "counts": {
-        "passed": 8979,
-        "skipped": 277,
+        "passed": 8981,
+        "skipped": 291,
         "jobsPassed": 8
       }
     },
     "linux": {
-      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
-      "verificationCommit": "e11acc267ea7ba6b4167116fbe64296240a3d89f",
-      "runId": 36997845278,
-      "passed": 525,
-      "suites": 31,
+      "sourceCommit": "564b02656421c3e8f808125e0bf8269fedb7652b",
+      "verificationCommit": "1898f01a8a1d9392ddf415bec3007c408f996c13",
+      "runId": 37003121760,
+      "passed": 589,
+      "suites": 34,
       "skipped": 0,
-      "artifactId": 11221748539,
-      "artifactDigest": "sha256:e77f77361b4bc71282f4b5de2bc91993978857f7b1a42d6cd40a1fb262a6956a"
+      "artifactId": 11224900577,
+      "artifactDigest": "sha256:efa35848ab3eb14aeae37b288843bd81502d2c290834e4b184ef641c1ff7e0dc"
     },
-    "clientSourceEquivalent": true,
+    "migrationCount": 130,
     "newClientBuild": false,
     "newPhoneTest": false,
     "formalDockerfileImage": false,
@@ -2638,5 +2641,37 @@
   "membershipCountHistoricalParentCandidate": {
     "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
     "record": "圈子详情缓存隔离与真实鉴权入口验收-20261002.json"
+  },
+  "expiryHistoricalParentCandidate": {
+    "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+    "record": "圈子普通入退圈事务与人数保护验收-20261002.json",
+    "localRegressionIncludingNewCases": 117,
+    "newPostgres": 12,
+    "compiledPostgres": 12,
+    "ci": {
+      "runId": 36997770385,
+      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8979,
+        "skipped": 277,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f",
+      "verificationCommit": "e11acc267ea7ba6b4167116fbe64296240a3d89f",
+      "runId": 36997845278,
+      "passed": 525,
+      "suites": 31,
+      "skipped": 0,
+      "artifactId": 11221748539,
+      "artifactDigest": "sha256:e77f77361b4bc71282f4b5de2bc91993978857f7b1a42d6cd40a1fb262a6956a"
+    },
+    "clientSourceEquivalent": true,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "formalDockerfileImage": false,
+    "releaseReady": false
   }
 }
