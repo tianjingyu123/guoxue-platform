@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:9c8e5e1a2");
-const sourceCommit = "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94";
-const sourceSha256 = "6f2bb4aff93cd16c4f94ccfa4667d8a9ba811b3df5db8d82226c35902b58e277";
+assert.equal(image, "rebu-linux-verify:51b9883dd");
+const sourceCommit = "51b9883dd5670c549ff02f9c40a73d1e06f2006a";
+const sourceSha256 = "f507594430b349069dc724388d0b968505423d8ba9725aac46b784def7d5a337";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -432,6 +432,31 @@ try {
   assert(liveBookingReport.passed);
   save("live-booking-notification-runtime.json", liveBookingReport);
   check("live-booking-real-db-failures-retry-concurrency-and-http-target-permissions", liveBookingReport);
+  // 在正式成品中执行新任务，不以源码单测代替生产编译产物加载。
+  const entitlementNoticeReport = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const {EntitlementService}=require('/app/apps/server/dist/modules/entitlement/entitlement.service');
+    const {EntitlementNotificationTask}=require('/app/apps/server/dist/modules/notification/entitlement-notification.task');
+    (async()=>{const user=await p.user.create({data:{nickname:'合成成品权益用户'}});try{
+      const input={userId:user.id,entitlementKey:'quota.report',kind:'QUOTA',quantity:2,sourceType:'ADMIN',sourceId:'synthetic-operator',idempotencyKey:'image-entitlement-'+user.id,metadata:{operatorId:'synthetic-operator',notificationEvent:'ENTITLEMENT_GRANTED_V1'}};
+      const svc=new EntitlementService(p);await svc.grant(input);await svc.grant(input);
+      const ledger=await p.entitlementLedger.findFirstOrThrow({where:{userId:user.id,action:'GRANT'}});
+      await new EntitlementNotificationTask(p).deliverPendingGrants();
+      await new EntitlementNotificationTask(p).deliverPendingGrants();
+      const eventKey=user.id+':ENTITLEMENT_GRANTED:'+ledger.id;
+      const notices=await p.notification.findMany({where:{userId:user.id,idempotencyKey:eventKey}});
+      const balances=await p.entitlementBalance.findMany({where:{userId:user.id,entitlementKey:'quota.report'}});
+      const detail={count:notices.length,keyMatches:notices[0]?.idempotencyKey===eventKey,targetIsOwner:notices[0]?.targetId===user.id,type:notices[0]?.type,quantity:balances[0]?.quantity,grants:await p.entitlementLedger.count({where:{userId:user.id,action:'GRANT'}})};
+      console.log('NODE_TEST_RESULT:'+JSON.stringify(detail));
+    }finally{await p.user.delete({where:{id:user.id}});await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`);
+  assert.equal(entitlementNoticeReport.count, 1);
+  assert.equal(entitlementNoticeReport.grants, 1);
+  assert.equal(entitlementNoticeReport.quantity, 2);
+  assert.equal(entitlementNoticeReport.type, 'ENTITLEMENT');
+  assert(entitlementNoticeReport.keyMatches && entitlementNoticeReport.targetIsOwner);
+  save('entitlement-notice-runtime.json', entitlementNoticeReport);
+  check('compiled-entitlement-service-and-durable-notification-idempotency', entitlementNoticeReport);
   report.passed = true;
 } catch (error) {
   report.error = sanitize(error.message);
