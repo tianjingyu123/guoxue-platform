@@ -15,6 +15,7 @@ import { MemberBenefitService } from "./member-benefit.service";
 export class MemberGrantService {
   private readonly logger = new Logger(MemberGrantService.name);
   private reminding = false;
+  private monthlyGranting = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -24,18 +25,62 @@ export class MemberGrantService {
 
   @Cron("0 0 9 1 * *")
   async monthlyGrantCron() {
-    await this.redis.runExclusive("member-monthly-grant", 600, () => this.runMonthlyGrant(), { critical: true });
+    await this.runScheduledMonthlyGrant();
+  }
+
+  /** 错过月初调度时只补当前月份，不历史补发。 */
+  @Cron("0 0 */6 * * *", { name: "member_monthly_restore" })
+  async monthlyGrantRecoveryCron() {
+    await this.runScheduledMonthlyGrant();
+  }
+
+  private async runScheduledMonthlyGrant() {
+    const now = new Date();
+    // 保留服务器自然月和原月初09点起发门槛，不提前发下一月份。
+    if ((now.getDate() === 1 && now.getHours() < 9) || this.monthlyGranting) return;
+    const scheduledMonth = `member_monthly_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    this.monthlyGranting = true;
+    try {
+      await this.redis.runExclusive(
+        "member-monthly-grant",
+        600,
+        () => this.runMonthlyGrant(scheduledMonth),
+        {
+          critical: true,
+        },
+      );
+    } catch {
+      this.logger.warn("会员当月权益恢复未完成，将在后续调度重试");
+    } finally {
+      this.monthlyGranting = false;
+    }
   }
 
   /** 月度权益发放主体（独立出来便于测试/手动补发） */
-  async runMonthlyGrant(): Promise<{ granted: number; skipped: number }> {
+  async runMonthlyGrant(scheduledMonth?: string): Promise<{ granted: number; skipped: number }> {
     const now = new Date();
+    const expectedSource = `member_monthly_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // 取得共享锁前后也可能跨月，旧调度不能提前发下一月。
+    if (
+      scheduledMonth &&
+      (scheduledMonth !== expectedSource || (now.getDate() === 1 && now.getHours() < 9))
+    ) {
+      return { granted: 0, skipped: 0 };
+    }
+    const sameMonth = () => {
+      const current = new Date();
+      return (
+        expectedSource ===
+        `member_monthly_${current.getFullYear()}${String(current.getMonth() + 1).padStart(2, "0")}`
+      );
+    };
     let granted = 0;
     let skipped = 0;
     const batchSize = 200;
     let cursor: string | undefined;
 
     for (;;) {
+      if (!sameMonth()) break;
       const members = await this.prisma.user.findMany({
         where: {
           memberLevel: { not: "NONE" },
@@ -50,8 +95,14 @@ export class MemberGrantService {
       cursor = members[members.length - 1].id;
 
       for (const m of members) {
+        if (!sameMonth()) break;
         try {
-          const ok = await this.benefit.grantMonthlyBenefits(m.id, m.memberLevel);
+          const ok = await this.benefit.grantMonthlyBenefits(
+            m.id,
+            m.memberLevel,
+            undefined,
+            expectedSource,
+          );
           if (ok) {
             granted++;
           } else {
