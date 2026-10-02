@@ -1,0 +1,78 @@
+name: 独立权益到账通知真实库隔离验证
+
+on:
+  push:
+    branches: [codex/image-verify-20260930]
+    paths: [.github/workflows/entitlement-notice-verify.yml]
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: 已接收候选的完整提交 SHA
+        required: true
+        default: ad85d913ecdf2facf92bd8c33357a04afefbe814
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: qa_voice
+          POSTGRES_PASSWORD: synthetic-test-only
+          POSTGRES_DB: entitlement_notice_qa_linux
+        ports: ["55462:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qa_voice -d entitlement_notice_qa_linux"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
+      ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
+      SOURCE_COMMIT: ${{ inputs.source_commit || 'ad85d913ecdf2facf92bd8c33357a04afefbe814' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: candidate
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: 核对固定源码并恢复独立依赖与 schema
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          mkdir -p artifacts/entitlement-notice
+          git rev-parse HEAD > artifacts/entitlement-notice/source-binding.txt
+          sha256sum apps/server/src/modules/notification/entitlement-notification.task.ts apps/server/src/modules/entitlement/entitlement.controller.ts apps/mobile/src/pkg-mine/memberships/index.vue >> artifacts/entitlement-notice/source-binding.txt
+          pnpm install --frozen-lockfile
+          pnpm --filter @guoxue/server exec prisma generate
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+          pnpm --filter @guoxue/server exec prisma db push --skip-generate
+      - name: 真事务、真实 JWT、跨进程与时区回归
+        working-directory: candidate/apps/server
+        run: |
+          set -euo pipefail
+          pnpm exec jest --runInBand --no-coverage --runTestsByPath src/modules/notification/entitlement-notification.task.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/entitlement/entitlement.service.spec.ts src/modules/notification/notification.service.spec.ts --json --outputFile ../../artifacts/entitlement-notice/jest-results.json 2>&1 | tee ../../artifacts/entitlement-notice/jest.log
+          pnpm exec tsc --noEmit --incremental false 2>&1 | tee ../../artifacts/entitlement-notice/typecheck.log
+          pnpm exec eslint src/modules/notification/entitlement-notification.task.ts src/modules/notification/entitlement-notification.task.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/entitlement/entitlement.controller.ts src/modules/notification/notification.module.ts 2>&1 | tee ../../artifacts/entitlement-notice/eslint.log
+      - name: 归档隔离验证证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: entitlement-notice-${{ env.SOURCE_COMMIT }}
+          path: candidate/artifacts/entitlement-notice/
+          retention-days: 30
