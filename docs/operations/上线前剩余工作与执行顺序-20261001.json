@@ -2187,7 +2187,8 @@
       "隔离验证完成（限定范围）",
       "线上状态未知",
       "待发布决策"
-    ]
+    ],
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3"
   },
   "currentNotificationMatrix": "本版通知入口与持久恢复矩阵-20261002.json"
 }
