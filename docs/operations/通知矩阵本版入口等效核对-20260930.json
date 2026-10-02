@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "expiryDurableCurrentBinding",
+  "currentBindingKey": "governanceDurableCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1616,5 +1616,47 @@
     "governanceDurableComplete": false,
     "wholeN4Complete": false,
     "realChannels": false
+  },
+  "governanceDurableCurrentBinding": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+    "record": "圈子治理九入口持久通知与真实鉴权验收-20261002.json",
+    "localPassed": 108,
+    "newPostgres": 30,
+    "compiledPostgres": 30,
+    "compiledScheduler": 4,
+    "compiledHttpChecks": 11,
+    "crossProcessOnlyOneNotice": true,
+    "governanceDurableEntrypoints": 9,
+    "governanceDurableLimitedScopeComplete": true,
+    "N4OverallComplete": false,
+    "migrationCount": 131,
+    "ci": {
+      "runId": 37007128841,
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8985,
+        "skipped": 321,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "verificationCommit": "e84d7aa19288e677fd742099d02a1931690665b1",
+      "runId": 37007148546,
+      "passed": 623,
+      "suites": 36,
+      "skipped": 0,
+      "artifactId": 11226336299,
+      "artifactDigest": "sha256:f612f8f9de59c5967a32baaa5c0daf64cc67fc6d0ec9180fb1da7cffe65a0e9d"
+    },
+    "formalDockerfileImage": false,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "realChannels": false,
+    "releaseReady": false,
+    "realGlobalProductionEntry": false,
+    "cacheRecoveryComplete": false
   }
 }

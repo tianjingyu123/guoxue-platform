@@ -1,0 +1,810 @@
+{
+  "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+  "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+  "record": "圈子治理九入口持久通知与真实鉴权验收-20261002.json",
+  "localPassed": 108,
+  "newPostgres": 30,
+  "compiledPostgres": 30,
+  "compiledScheduler": 4,
+  "compiledHttpChecks": 11,
+  "crossProcessOnlyOneNotice": true,
+  "governanceDurableEntrypoints": 9,
+  "governanceDurableLimitedScopeComplete": true,
+  "N4OverallComplete": false,
+  "migrationCount": 131,
+  "ci": {
+    "runId": 37007128841,
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "conclusion": "success",
+    "counts": {
+      "passed": 8985,
+      "skipped": 321,
+      "jobsPassed": 8
+    }
+  },
+  "linux": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "verificationCommit": "e84d7aa19288e677fd742099d02a1931690665b1",
+    "runId": 37007148546,
+    "artifactId": 11226336299,
+    "artifactDigest": "sha256:f612f8f9de59c5967a32baaa5c0daf64cc67fc6d0ec9180fb1da7cffe65a0e9d",
+    "digestVerified": true,
+    "sourceBindings": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "08c94b5b1609820b4292e95d351edafbe3f08beb185c34922e724df18c9141b4"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "sha256": "34fea90f31dc80e60bedcc601adb5e8f6544afc0672dbc75c4028b062077d7f2"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+        "sha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts",
+        "sha256": "a771684a1e797cd2542f4d36c862cecaf96ed0208d056a106b76239cd66e59bb"
+      },
+      {
+        "path": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+        "sha256": "909d007761066529846f36491099da0e84fcb4a3537fbd690af611a786e92ceb"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
+        "sha256": "fa9af2c9585696874fd31ac4c7fd45210cc45a809fa9393f17970716435ea5aa"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.module.ts",
+        "sha256": "4beda3ab8abc9ab70ac63c50417211ca5b03607a66d19cd85b41045c66b5a6fd"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
+        "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+        "sha256": "4fa588a45e1913450be3434cc971ff6dc59c9fd3db15a66c8d11caa0ca0f7774"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+        "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts",
+        "sha256": "563ea21be3190867969a457dc97b42e4ea8be62b51f81a98dab4851365c6b84e"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+        "sha256": "f6408ed1547ecd2a0067eb425aa56aa3e5b6b2ae112b9b076b14b27044ed164c"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.ts",
+        "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification.service.spec.ts",
+        "sha256": "601a0ffad240ca8911bf3a7d0daaa3528f5cda146070724323e1112dbc55aa8b"
+      },
+      {
+        "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+        "sha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "sha256": "da901a0c41eedc4520d7210732e2a466bcb5d71007b0dd3521e7ed4631d650e0"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "sha256": "a730297a3cf8f0bde2d1a823ae35e62593a034bafe94aaef2069196d325a5caa"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+        "sha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+        "sha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.service.spec.ts",
+        "sha256": "03baec19bef9d519d60ce6a7e2f916d20e13faaf32c28cfdf76dfbde804208b0"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-core.service.ts",
+        "sha256": "ee34c28a0b5cf182b5135786d8b209e06092c10ff9fa67ddc3ad1926d074e63d"
+      },
+      {
+        "path": "apps/server/src/modules/circle/circle.controller.ts",
+        "sha256": "4103041e15110a592341927140ff72f53b347fc66d7a8a7947ff2edb7ddfce1f"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-detail-privacy.spec.ts",
+        "sha256": "99b1c7797a4d5fe7c7f24be525b4984df0144ca014d85585fd7f15bfcf040362"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+        "sha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_02_circle_membership_expiry_notice/migration.sql",
+        "sha256": "6ab6dad9bb56dfa4a5e36c5a4c410a0eea5506e4adcf5c5795decdb12623f32e"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.ts",
+        "sha256": "2c8423d1d52e6490a1db4a7c23d4ea835112a6b5456ffc82bf7c7be19874ad77"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry-notification.task.spec.ts",
+        "sha256": "ccff2c2c0ea1473908ab349480b791540a759615bb1a4fc25e7c83e34d4e5f29"
+      },
+      {
+        "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+        "sha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+      },
+      {
+        "path": "apps/server/src/redis/redis.service.ts",
+        "sha256": "e72beffb18c0df0201e62ea44a97034aad65af025a982f9a574228a43590e0f0"
+      },
+      {
+        "path": "apps/server/src/redis/redis.service.spec.ts",
+        "sha256": "cf2f2c2a0beb3a09816e26bceaba58e4612a8ca894a500f8a00afb732f7c6e1f"
+      },
+      {
+        "path": "apps/server/prisma/migrations/manual_z_20261002_03_circle_governance_notice/migration.sql",
+        "sha256": "313f51de5b45e6ed1c2b6faa2f35bbe5622a6f2171fb2e4d004cb22570afc2b0"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+        "sha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notification.task.spec.ts",
+        "sha256": "01461ab137141701800ccd891000170e84ecc15a883fa94ed88e35880c08c0b6"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+        "sha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+      }
+    ],
+    "passed": 623,
+    "suites": 36,
+    "failed": 0,
+    "skipped": 0,
+    "newGovernancePostgres": 30,
+    "newScheduler": 4,
+    "baselineWarnings": [
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 13,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 56,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 57,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 83,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 99,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 115,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 122,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 126,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 132,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 141,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 146,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 152,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 156,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 173,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 184,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 312,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 492,
+        "parentEquivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 534,
+        "parentEquivalent": true
+      }
+    ],
+    "postgres": "18.4",
+    "formalDockerfileImage": false,
+    "production": false,
+    "realChannels": false,
+    "checkedAt": "2026-10-02T12:39:11.068Z"
+  },
+  "formalDockerfileImage": false,
+  "newClientBuild": false,
+  "newPhoneTest": false,
+  "realChannels": false,
+  "releaseReady": false,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（九入口站内通知限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "scope": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+    "files": [
+      "apps/server/prisma/migrations-deploy/full-baseline.sql",
+      "apps/server/prisma/migrations/manual_z_20261002_03_circle_governance_notice/migration.sql",
+      "apps/server/prisma/schema.prisma",
+      "apps/server/src/modules/circle/circle.module.ts",
+      "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "apps/server/src/modules/circle/governance/circle-governance-notification.task.spec.ts",
+      "apps/server/src/modules/circle/governance/circle-governance-notification.task.ts",
+      "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+      "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+      "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts"
+    ],
+    "changedMethods": [
+      "createMuteViolation",
+      "liftViolation",
+      "notify",
+      "processExpiredViolations",
+      "processOverdueAppeals",
+      "resolveAppeal",
+      "reviewPost",
+      "sanction"
+    ],
+    "governanceEntrypoints": 9,
+    "migrationCount": 131,
+    "localPassed": 108,
+    "localSkipped": 0,
+    "compiledPassed": 30,
+    "compiledSchedulerPassed": 4,
+    "baselineWarnings": [
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 13,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 56,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 57,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 83,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 99,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 115,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 122,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 126,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 132,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 141,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 146,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 152,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 156,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 173,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 184,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 312,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 492,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      },
+      {
+        "path": "apps/server/src/modules/circle/governance/circle-governance.service.spec.ts",
+        "line": 534,
+        "message": "Unexpected any. Specify a different type.",
+        "rule": "@typescript-eslint/no-explicit-any"
+      }
+    ],
+    "production": false,
+    "checkedAt": "2026-10-02T12:30:07.393Z"
+  },
+  "compiled": {
+    "passed": 30,
+    "skipped": 0,
+    "failed": 0,
+    "compiledRuntime": true,
+    "formalDockerfileImage": false,
+    "production": false,
+    "bindings": [
+      {
+        "path": "modules/circle/governance/circle-governance.service",
+        "sourceSha256": "da901a0c41eedc4520d7210732e2a466bcb5d71007b0dd3521e7ed4631d650e0",
+        "compiledSha256": "55170850ef9bbfb87fab0e0aa68f4b1d1a429c3d6d79dd7e93ffa2d9244023eb"
+      },
+      {
+        "path": "modules/circle/governance/circle-governance-notification.task",
+        "sourceSha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee",
+        "compiledSha256": "7ae7467b0187575493c6c38efd663905b278604556813d7de4843a8ccbfba56c"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "4edb5ef0c59cae7eade543bb39336b37aabc50f59dbf21971c88e69f93cadcaa",
+        "compiledSha256": "44489ab46057edbdcc6cbbae7ac3b9c4d1774b67e4920149ff4ee413e5aaeb2b"
+      }
+    ]
+  },
+  "scheduler": {
+    "passed": 4,
+    "skipped": 0,
+    "failed": 0,
+    "compiledRuntime": true,
+    "formalDockerfileImage": false,
+    "production": false,
+    "bindings": [
+      {
+        "path": "modules/circle/circle.module",
+        "sourceSha256": "d5c28375b0ef80eaa03a5ab28a33a4982382415826a8336e979ac0cda64380b2",
+        "compiledSha256": "fed31973689c1fb4a801410b07e6da5647ede55ddcac330977a024cb5ae2c8d3"
+      },
+      {
+        "path": "modules/circle/governance/circle-governance-notification.task",
+        "sourceSha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee",
+        "compiledSha256": "7ae7467b0187575493c6c38efd663905b278604556813d7de4843a8ccbfba56c"
+      }
+    ]
+  },
+  "processes": {
+    "actualCompiledReview": true,
+    "actualNewEvent": true,
+    "actualNotificationTriggerFailure": true,
+    "twoIndependentOSProcesses": true,
+    "workers": [
+      0,
+      1
+    ],
+    "onlyOneNotice": true,
+    "bindings": [
+      {
+        "path": "modules/circle/governance/circle-governance.service",
+        "sourceSha256": "da901a0c41eedc4520d7210732e2a466bcb5d71007b0dd3521e7ed4631d650e0",
+        "compiledSha256": "55170850ef9bbfb87fab0e0aa68f4b1d1a429c3d6d79dd7e93ffa2d9244023eb"
+      },
+      {
+        "path": "modules/circle/governance/circle-governance-notification.task",
+        "sourceSha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee",
+        "compiledSha256": "7ae7467b0187575493c6c38efd663905b278604556813d7de4843a8ccbfba56c"
+      },
+      {
+        "path": "modules/circle/circle.module",
+        "sourceSha256": "d5c28375b0ef80eaa03a5ab28a33a4982382415826a8336e979ac0cda64380b2",
+        "compiledSha256": "fed31973689c1fb4a801410b07e6da5647ede55ddcac330977a024cb5ae2c8d3"
+      }
+    ],
+    "realRedis": false,
+    "formalDockerfileImage": false,
+    "production": false,
+    "realMoney": false,
+    "realChannels": false,
+    "checkedAt": "2026-10-02T12:28:47.562Z"
+  },
+  "http": {
+    "actualCompiledControllers": true,
+    "actualJwtAndRolesGuard": true,
+    "actualPostgres": true,
+    "checks": [
+      "无JWT审核拒绝",
+      "伪造JWT拒绝",
+      "普通成员真实权限拒绝且不建事件",
+      "真实HTTP审核事务提交事件",
+      "重复HTTP审核不再建事件",
+      "仲裁真实RolesGuard拒绝无平台角色",
+      "真实平台角色仲裁与处理同事务",
+      "跨用户通知详情拒绝且不能伪造query",
+      "收件人HTTP读取并标记已读",
+      "通知目标本人处理记录权限链不跨用户",
+      "撤销JWT拒绝"
+    ],
+    "passed": 11,
+    "redisSynthetic": true,
+    "globalProductionApplicationGuardsNotCovered": true,
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "bindings": [
+      {
+        "path": "modules/circle/governance/circle-governance.controller",
+        "sourceSha256": "2627cc2a04da1b523ec6dc50413ccce3c639f206f421e8b2e255ccba62b7669d",
+        "compiledSha256": "d48670dd9f69b4700e62dcd2bc4fe77408ad266196184264e9b8e70bf305c96f"
+      },
+      {
+        "path": "modules/circle/governance/circle-governance.service",
+        "sourceSha256": "da901a0c41eedc4520d7210732e2a466bcb5d71007b0dd3521e7ed4631d650e0",
+        "compiledSha256": "55170850ef9bbfb87fab0e0aa68f4b1d1a429c3d6d79dd7e93ffa2d9244023eb"
+      },
+      {
+        "path": "modules/circle/governance/circle-governance-notification.task",
+        "sourceSha256": "1acf38e7a8de1095c80b4306455a0eda6b15bc45d38e1c2e76be6a57dccbb0ee",
+        "compiledSha256": "7ae7467b0187575493c6c38efd663905b278604556813d7de4843a8ccbfba56c"
+      },
+      {
+        "path": "modules/notification/notification.controller",
+        "sourceSha256": "e451582eb1edaa0a8f637f155cc24f90d95cd15c5a19fab2b4f6ac46147761ac",
+        "compiledSha256": "4e64e849f688d35aa0b70d640f71733d87ed4441a4228e4b94388d0d4e1896c8"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "4edb5ef0c59cae7eade543bb39336b37aabc50f59dbf21971c88e69f93cadcaa",
+        "compiledSha256": "44489ab46057edbdcc6cbbae7ac3b9c4d1774b67e4920149ff4ee413e5aaeb2b"
+      },
+      {
+        "path": "common/jwt.strategy",
+        "sourceSha256": "55b1aef1790d362522c3b24f361760005d054fe5b2750a4d3b16ef7e7cea4f36",
+        "compiledSha256": "779d85f5ec9ee23181db84a25c30742cb0a0e17b9f9b176a34936588584b1801"
+      },
+      {
+        "path": "common/jwt-auth.guard",
+        "sourceSha256": "f4f990b7bd1f19ef7e834a08db83362c49301a912681af1261d47998f75d0a4f",
+        "compiledSha256": "73f7ea4f29451482636eaa2c740d16ff3e5bfee76945fe6bd5e9c60a6ba681c6"
+      },
+      {
+        "path": "common/roles.guard",
+        "sourceSha256": "d2a7699ee9ad24c095f9f6ee30723ac8d61a853f33cb7c14d8208b56bc030cff",
+        "compiledSha256": "fcbdd8e83aa193ac55c8104191418f52ee5e841cd6c72efab6d7af3248f912b0"
+      }
+    ],
+    "externalNotificationCalls": 0,
+    "production": false,
+    "formalDockerfileImage": false,
+    "checkedAt": "2026-10-02T12:35:49.140Z"
+  },
+  "upgrade": {
+    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+    "sourceDatabase": "entitlement_notice_qa_20261002_expiry_candidate",
+    "database": "entitlement_notice_qa_20261002_governance_candidate",
+    "nonEmptyUpgrade": true,
+    "oldMembersAndExpiryFactsPreserved": true,
+    "uniqueEventKeyVerified": true,
+    "circleCascadeVerified": true,
+    "utcSnapshotVerified": true,
+    "migration": "apps/server/prisma/migrations/manual_z_20261002_03_circle_governance_notice/migration.sql",
+    "migrationSha256": "313f51de5b45e6ed1c2b6faa2f35bbe5622a6f2171fb2e4d004cb22570afc2b0",
+    "historicalMigrationsReplayed": false,
+    "production": false,
+    "checkedAt": "2026-10-02T12:21:46.206Z"
+  },
+  "cleanup": {
+    "port": 55462,
+    "stopped": true,
+    "checkedAt": "2026-10-02T12:36:50.1283683Z",
+    "database": "entitlement_notice_qa_20261002_governance_candidate",
+    "production": false,
+    "dataPreserved": true,
+    "shared5433Untouched": true,
+    "shared6379Untouched": true
+  },
+  "cacheAudit": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "newAuditOnly": true,
+    "newRuntimeTest": false,
+    "cacheCalls": [
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "confirmJoin",
+        "line": 292,
+        "source": "this.redis.del(`circles:member:${circleId}:${userId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "confirmJoin",
+        "line": 293,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "confirmRenew",
+        "line": 542,
+        "source": "this.redis.del(`circles:member:${circleId}:${userId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "confirmRenew",
+        "line": 543,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "createMembership",
+        "line": 739,
+        "source": "this.redis.del(`circles:member:${circleId}:${userId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "createMembership",
+        "line": 740,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "leave",
+        "line": 805,
+        "source": "this.redis.del(`circles:member:${circleId}:${userId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "leave",
+        "line": 806,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "adminAddMember",
+        "line": 852,
+        "source": "this.redis.del(`circles:member:${circleId}:${targetUserId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "updateMemberRole",
+        "line": 905,
+        "source": "this.redis.del(`circles:member:${circleId}:${fromOwnerId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "updateMemberRole",
+        "line": 917,
+        "source": "this.redis.del(`circles:member:${circleId}:${targetUserId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "removeMember",
+        "line": 948,
+        "source": "this.redis.del(`circles:member:${circleId}:${targetUserId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/services/circle-membership.service.ts",
+        "method": "removeMember",
+        "line": 949,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "method": "sanction",
+        "line": 523,
+        "source": "this.redis.del(`circles:member:${circleId}:${dto.userId}`)"
+      },
+      {
+        "file": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+        "method": "sanction",
+        "line": 524,
+        "source": "this.redis.del(`circles:detail:${circleId}`)"
+      }
+    ],
+    "methods": [
+      "circle-membership.service.ts:confirmJoin",
+      "circle-membership.service.ts:confirmRenew",
+      "circle-membership.service.ts:createMembership",
+      "circle-membership.service.ts:leave",
+      "circle-membership.service.ts:adminAddMember",
+      "circle-membership.service.ts:updateMemberRole",
+      "circle-membership.service.ts:removeMember",
+      "circle-governance.service.ts:sanction"
+    ],
+    "paidAndRolePathsRequireSeparateReview": true,
+    "normalJoinLeaveDurableCacheComplete": false,
+    "governanceRemoveCacheDurableComplete": false,
+    "sharedRedisVerified": false,
+    "moneyPolicyChanged": false,
+    "production": false,
+    "checkedAt": "2026-10-02T12:37:48.838Z"
+  },
+  "failedInitial": {
+    "passed": 102,
+    "failed": 4,
+    "reason": "非空旧库残留已注销收件人的治理记录，事实外键阻断清理；修复并新增真实PG回归。"
+  },
+  "oldMigrationsRewritten": false,
+  "historicalBackfill": false,
+  "realMoney": false,
+  "withdraw": "文档→5cb治理批→cfe父版；停任务保留事实表、已有通知，不删表、不自动补发或改权益。",
+  "checkedAt": "2026-10-02T12:53:18.173Z"
+}
