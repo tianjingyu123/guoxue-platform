@@ -212,12 +212,19 @@ export class MemberBenefitService {
 
   /**
    * 发放某用户当月会员权益（积分+优惠券）。幂等：同 source（member_monthly_YYYYMM）已有积分流水则跳过。
-   * tx 可选：购买开通场景传支付事务原子发首月；月度 cron 场景不传（逐用户独立提交，单个失败不拖全批）。
+   * tx 可选：购买开通场景复用支付事务；月度 cron 场景为每个用户建立独立事务。
+   * 积分、流水、赠券和库存一起提交；数据库锁防止多进程同月重复发放及赠券超库存。
    */
   async grantMonthlyBenefits(userId: string, level: string, tx?: any): Promise<boolean> {
-    const db = tx ?? this.prisma;
+    if (!tx) {
+      return this.prisma.$transaction(client => this.grantMonthlyBenefits(userId, level, client), { timeout: 15000 });
+    }
+    const db = tx;
     const now = new Date();
     const source = `member_monthly_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    // 锁随调用者事务释放，不能用先占 Redis 键代替实际发放成功。
+    await db.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`member-monthly:${userId}:${source}`}))`;
 
     const config = await db.memberConfig.findUnique({ where: { level } });
     if (!config) return false;
@@ -240,6 +247,8 @@ export class MemberBenefitService {
     }
 
     if (config.monthlyCouponId) {
+      // 不同用户共用库存，读取最新余量前先锁住券模板行。
+      await db.$queryRaw`SELECT 1 AS locked FROM "CouponTemplate" WHERE id = ${config.monthlyCouponId} FOR UPDATE`;
       const template = await db.couponTemplate.findUnique({ where: { id: config.monthlyCouponId } });
       if (template && (template.totalCount <= 0 || template.claimedCount < template.totalCount)) {
         await db.couponTemplate.update({
