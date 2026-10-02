@@ -3,7 +3,6 @@ import { CircleGovernanceService } from "./circle-governance.service";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 import { CircleSharedService } from "../services/circle-shared.service";
-import { NotificationService } from "../../notification/notification.service";
 
 const testUrl = process.env.ENTITLEMENT_NOTICE_TEST_DATABASE_URL;
 if (testUrl) {
@@ -16,10 +15,9 @@ jest.setTimeout(30000);
 (testUrl ? describe : describe.skip)("圈子人工裁决、审核与禁言到期真实PG竞态", () => {
   let db: PrismaClient;
   const users: string[] = [], circles: string[] = [];
-  const send = jest.fn(async () => undefined);
   const redis = { runExclusive: async (_key: string, _ttl: number, work: () => Promise<void>) => work() } as unknown as RedisService;
   const shared = { checkPermission: async () => undefined } as unknown as CircleSharedService;
-  const service = (client: unknown = db) => new CircleGovernanceService(client as PrismaService, redis, shared, { send } as unknown as NotificationService);
+  const service = (client: unknown = db) => new CircleGovernanceService(client as PrismaService, redis, shared);
   const barrier = () => {
     let count = 0;
     let release!: () => void;
@@ -46,7 +44,7 @@ jest.setTimeout(30000);
     await db.circleAppeal.deleteMany({ where: { userId: { in: users } } });
     await db.circleViolation.deleteMany({ where: { userId: { in: users } } });
     await db.circle.deleteMany({ where: { id: { in: circles.splice(0) } } });
-    await db.user.deleteMany({ where: { id: { in: users.splice(0) } } }); send.mockClear();
+    await db.user.deleteMany({ where: { id: { in: users.splice(0) } } });
   });
   afterAll(async () => { await db.$disconnect(); });
   const racedAppeal = () => {
@@ -64,7 +62,7 @@ jest.setTimeout(30000);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     const appeal = await db.circleAppeal.findUniqueOrThrow({ where: { id: f.appeal } });
     const violation = await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } });
-    expect(violation.status).toBe(appeal.status === "UPHELD" ? "REVOKED" : "ACTIVE"); expect(send).toHaveBeenCalledTimes(1);
+    expect(violation.status).toBe(appeal.status === "UPHELD" ? "REVOKED" : "ACTIVE"); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(1);
   });
 
   it("人工裁决与自动超时裁决竞争不能覆盖已完成的裁决", async () => {
@@ -75,14 +73,14 @@ jest.setTimeout(30000);
       await service().processOverdueAppeals(); return row;
     } }, $transaction: transaction });
     await expect(svc.resolveAppeal(f.appeal, "synthetic-a", { uphold: false, resolution: "迟到人工裁决" })).rejects.toThrow();
-    expect((await db.circleAppeal.findUniqueOrThrow({ where: { id: f.appeal } })).status).toBe("UPHELD"); expect(send).toHaveBeenCalledTimes(1);
+    expect((await db.circleAppeal.findUniqueOrThrow({ where: { id: f.appeal } })).status).toBe("UPHELD"); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(1);
   });
 
   it("同一待审帖两次并发通过只计一次且通知一次", async () => {
     const f = await fixture(), svc = racedReview();
     const results = await Promise.allSettled([svc.reviewPost(f.circle, "synthetic-a", f.post, { approve: true }), svc.reviewPost(f.circle, "synthetic-b", f.post, { approve: true })]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
-    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(1); expect(send).toHaveBeenCalledTimes(1);
+    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(1); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(1);
   });
 
   it("通过和驳回竞争只有一个结果，计数与实际帖子状态一致", async () => {
@@ -90,25 +88,25 @@ jest.setTimeout(30000);
     const results = await Promise.allSettled([svc.reviewPost(f.circle, "synthetic-a", f.post, { approve: true }), svc.reviewPost(f.circle, "synthetic-b", f.post, { approve: false, reason: "合成驳回" })]);
     expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
     const post = await db.post.findUniqueOrThrow({ where: { id: f.post } });
-    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(post.status === "PUBLISHED" ? 1 : 0); expect(send).toHaveBeenCalledTimes(1);
+    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(post.status === "PUBLISHED" ? 1 : 0); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(1);
   });
 
   it.each(["REVOKED", "LIFTED"])("扫描禁言后状态已改为%s时不覆盖、不发到期解除通知", async status => {
     const f = await fixture();
-    const facade = { circle: db.circle, circleViolation: { ...db.circleViolation, findMany: async (args: Prisma.CircleViolationFindManyArgs) => {
+    const facade = { $transaction: transaction, circle: db.circle, circleViolation: { ...db.circleViolation, findMany: async (args: Prisma.CircleViolationFindManyArgs) => {
       const rows = await db.circleViolation.findMany(args); await db.circleViolation.update({ where: { id: f.violation }, data: { status } }); return rows;
     } } };
     await service(facade).processExpiredViolations();
-    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe(status); expect(send).not.toHaveBeenCalled();
+    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe(status); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(0);
   });
 
   it("扫描禁言后期限延长时不提前解除", async () => {
     const f = await fixture();
-    const facade = { circle: db.circle, circleViolation: { ...db.circleViolation, findMany: async (args: Prisma.CircleViolationFindManyArgs) => {
+    const facade = { $transaction: transaction, circle: db.circle, circleViolation: { ...db.circleViolation, findMany: async (args: Prisma.CircleViolationFindManyArgs) => {
       const rows = await db.circleViolation.findMany(args); await db.circleViolation.update({ where: { id: f.violation }, data: { expiresAt: new Date(Date.now() + 86400000) } }); return rows;
     } } };
     await service(facade).processExpiredViolations();
-    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe("ACTIVE"); expect(send).not.toHaveBeenCalled();
+    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe("ACTIVE"); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(0);
   });
 
   const failUpdate = async (table: "Circle" | "CircleViolation", work: () => Promise<void>) => {
@@ -122,13 +120,13 @@ jest.setTimeout(30000);
     const f = await fixture();
     await failUpdate("Circle", async () => { await expect(service().reviewPost(f.circle, "synthetic-a", f.post, { approve: true })).rejects.toThrow(); });
     expect((await db.post.findUniqueOrThrow({ where: { id: f.post } })).status).toBe("AUDITING");
-    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(0); expect(send).not.toHaveBeenCalled();
+    expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).postCount).toBe(0); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(0);
   });
 
   it("人工申诉处理撤销失败时申诉和处理均回滚且不通知", async () => {
     const f = await fixture();
     await failUpdate("CircleViolation", async () => { await expect(service().resolveAppeal(f.appeal, "synthetic-a", { uphold: true, resolution: "合成撤销" })).rejects.toThrow(); });
     expect((await db.circleAppeal.findUniqueOrThrow({ where: { id: f.appeal } })).status).toBe("PENDING");
-    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe("ACTIVE"); expect(send).not.toHaveBeenCalled();
+    expect((await db.circleViolation.findUniqueOrThrow({ where: { id: f.violation } })).status).toBe("ACTIVE"); expect(await db.circleGovernanceNotice.count({where:{circleId:{in:circles}}})).toBe(0);
   });
 });

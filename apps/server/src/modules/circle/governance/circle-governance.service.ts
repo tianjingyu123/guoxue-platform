@@ -1,9 +1,9 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
-import { NotificationService } from "../../notification/notification.service";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
 import { safePagination } from "../../../common/pagination";
@@ -52,7 +52,6 @@ export class CircleGovernanceService {
     private prisma: PrismaService,
     private redis: RedisService,
     private shared: CircleSharedService,
-    @Optional() private notification?: NotificationService,
   ) {}
 
   // ═════════ 通用 ═════════
@@ -78,11 +77,39 @@ export class CircleGovernanceService {
     };
   }
 
-  private notify(userId: string, payload: { type: string; title: string; content: string; targetType?: string; targetId?: string; circleId?: string }) {
-    // 治理通知统一归入圈内通知中心「圈务 GOVERN」分类（V0 待办 #36）
-    this.notification
-      ?.send(userId, { category: "GOVERN", ...payload })
-      .catch((err) => this.logger.warn(`治理通知发送失败 user=${userId}`, err));
+  private async enqueueNotice(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    payload: {
+      title: string;
+      content: string;
+      type: string;
+      targetType?: string;
+      targetId?: string;
+      circleId?: string;
+    },
+    eventKey: string,
+  ) {
+    if (!payload.circleId) throw new Error("治理通知缺少圈子归属");
+    // 注销后的旧治理记录可能仍存在；不为已不存在的账户造通知，也不阻断历史状态清理。
+    // 锁住收件人行，避免查到用户后被并发删除而导致有效处理的事实写入失败。
+    const recipients = await tx.$queryRaw<
+      Array<{ id: string }>
+    >`SELECT id FROM "User" WHERE id=${userId} FOR KEY SHARE`;
+    if (!recipients.length) return;
+    // 只与本次实际状态变更同事务存事实。通知失败的恢复在独立任务执行，不回填历史。
+    await tx.circleGovernanceNotice.create({
+      data: {
+        recipientId: userId,
+        circleId: payload.circleId,
+        eventKey,
+        title: payload.title,
+        content: payload.content,
+        targetType: payload.targetType ?? "CIRCLE",
+        targetId: payload.targetId ?? payload.circleId,
+        occurredAt: new Date(),
+      },
+    });
   }
 
   private async getCircleName(circleId: string): Promise<string> {
@@ -340,7 +367,8 @@ export class CircleGovernanceService {
     let ruleText: string | undefined;
     if (dto.ruleId) {
       const rule = await this.prisma.circleRule.findUnique({ where: { id: dto.ruleId } });
-      if (!rule || rule.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "圈规条文不存在");
+      if (!rule || rule.circleId !== circleId)
+        throw new BusinessException(ErrorCode.NOT_FOUND, "圈规条文不存在");
       ruleText = rule.text;
     }
 
@@ -350,33 +378,41 @@ export class CircleGovernanceService {
 
     if (dto.type === "WARNING") {
       const strikeCount = (await this.countActiveWarnings(circleId, dto.userId)) + 1;
-      const violation = await this.prisma.circleViolation.create({
-        data: {
-          circleId,
-          userId: dto.userId,
-          type: "WARNING",
-          status: "ACTIVE",
-          ruleId: dto.ruleId,
-          ruleText,
-          reason: dto.reason,
-          evidence: dto.evidence,
-          contentType: dto.contentType,
-          contentId: dto.contentId,
-          operatorId,
-          strikeCount,
-          expiresAt: new Date(now.getTime() + cfg.warningResetDays * DAY),
-        },
-      });
-      this.notify(dto.userId, {
-        type: "CIRCLE_GOVERNANCE",
-        title: "你收到一次警告",
-        content:
-          `圈子「${circleName}」：${ruleText ? `违反圈规「${ruleText}」。` : ""}${dto.reason ? `处理说明：${dto.reason}。` : ""}` +
-          `累计警告 ${strikeCount}/${cfg.warningThreshold} 次，满 ${cfg.warningThreshold} 次将自动禁言 ${cfg.muteDays} 天；` +
-          `警告记录 ${cfg.warningResetDays} 天后自动清零。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
-        targetType: "CIRCLE_VIOLATION",
-        targetId: violation.id,
-        circleId,
+      const violation = await this.prisma.$transaction(async (tx) => {
+        const violation = await tx.circleViolation.create({
+          data: {
+            circleId,
+            userId: dto.userId,
+            type: "WARNING",
+            status: "ACTIVE",
+            ruleId: dto.ruleId,
+            ruleText,
+            reason: dto.reason,
+            evidence: dto.evidence,
+            contentType: dto.contentType,
+            contentId: dto.contentId,
+            operatorId,
+            strikeCount,
+            expiresAt: new Date(now.getTime() + cfg.warningResetDays * DAY),
+          },
+        });
+        await this.enqueueNotice(
+          tx,
+          dto.userId,
+          {
+            type: "CIRCLE_GOVERNANCE",
+            title: "圈规警告记录",
+            content:
+              `圈子「${circleName}」：${ruleText ? `违反圈规「${ruleText}」。` : ""}${dto.reason ? `处理说明：${dto.reason}。` : ""}` +
+              `累计警告 ${strikeCount}/${cfg.warningThreshold} 次，满 ${cfg.warningThreshold} 次将自动禁言 ${cfg.muteDays} 天；` +
+              `警告记录 ${cfg.warningResetDays} 天后自动清零。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
+            targetType: "CIRCLE_VIOLATION",
+            targetId: violation.id,
+            circleId,
+          },
+          `VIOLATION:${violation.id}:WARNING`,
+        );
+        return violation;
       });
 
       // 满阈值自动升级禁言（阶梯第二级·已在禁言中不重复叠加）
@@ -425,8 +461,10 @@ export class CircleGovernanceService {
     }
 
     // ── REMOVE：移出圈子（仅圈主·须填写理由·#10 第三级） ──
-    if (!dto.reason?.trim()) throw new BusinessException(ErrorCode.BAD_REQUEST, "移出圈子须填写理由");
+    if (!dto.reason?.trim())
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "移出圈子须填写理由");
 
+    const removalReason = dto.reason.trim();
     const violation = await this.prisma.$transaction(async (tx) => {
       const v = await tx.circleViolation.create({
         data: {
@@ -445,17 +483,40 @@ export class CircleGovernanceService {
           strikeCount: await this.countActiveWarnings(circleId, dto.userId),
         },
       });
-      const removed = await tx.circleMember.deleteMany({ where: {
-        // 原成员行被替换、升为圈主或执行人失去圈主身份时，旧请求不得继续移出。
-        id: target.id, circleId, userId: dto.userId, role: { not: "OWNER" },
-        circle: { ownerId: operatorId },
-      } });
-      if (removed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "成员或圈主状态已变化，请刷新后重试");
+      const removed = await tx.circleMember.deleteMany({
+        where: {
+          // 原成员行被替换、升为圈主或执行人失去圈主身份时，旧请求不得继续移出。
+          id: target.id,
+          circleId,
+          userId: dto.userId,
+          role: { not: "OWNER" },
+          circle: { ownerId: operatorId },
+        },
+      });
+      if (removed.count === 0)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "成员或圈主状态已变化，请刷新后重试");
       const counted = await tx.circle.updateMany({
         where: { id: circleId, memberCount: { gt: 0 } },
         data: { memberCount: { decrement: 1 } },
       });
-      if (counted.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
+      if (counted.count === 0)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
+      await this.enqueueNotice(
+        tx,
+        dto.userId,
+        {
+          type: "CIRCLE_GOVERNANCE",
+          title: "移出圈子记录",
+          content:
+            `圈子「${circleName}」：${ruleText ? `违反圈规「${ruleText}」。` : ""}移出理由：${removalReason}。` +
+            (cfg.removeBanRejoin ? "移出后不可重新加入（圈主可单独解除）。" : "") +
+            `付费成员剩余费用按圈子退款规则结算（不没收），可在退款入口申请。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
+          targetType: "CIRCLE_VIOLATION",
+          targetId: v.id,
+          circleId,
+        },
+        `VIOLATION:${v.id}:REMOVE`,
+      );
       return v;
     });
     await Promise.all([
@@ -465,17 +526,7 @@ export class CircleGovernanceService {
 
     // TODO(资金硬红线·本批不碰钱)：付费成员按圈子退款规则结算剩余费用——
     // 复用现有圈子退款流（CircleRefund 双审核·退款到钱包余额），由圈主/成员在退款入口发起，此处仅通知告知。
-    this.notify(dto.userId, {
-      type: "CIRCLE_GOVERNANCE",
-      title: "你已被移出圈子",
-      content:
-        `圈子「${circleName}」：${ruleText ? `违反圈规「${ruleText}」。` : ""}移出理由：${dto.reason.trim()}。` +
-        (cfg.removeBanRejoin ? "移出后不可重新加入（圈主可单独解除）。" : "") +
-        `付费成员剩余费用按圈子退款规则结算（不没收），可在退款入口申请。对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核。`,
-      targetType: "CIRCLE_VIOLATION",
-      targetId: violation.id,
-      circleId,
-    });
+
     return { violation, autoMuted: false };
   }
 
@@ -498,35 +549,43 @@ export class CircleGovernanceService {
     },
   ) {
     const expiresAt = new Date(Date.now() + opts.days * DAY);
-    const violation = await this.prisma.circleViolation.create({
-      data: {
-        circleId,
+    const violation = await this.prisma.$transaction(async (tx) => {
+      const violation = await tx.circleViolation.create({
+        data: {
+          circleId,
+          userId,
+          type: "MUTE",
+          status: "ACTIVE",
+          ruleId: opts.ruleId,
+          ruleText: opts.ruleText,
+          reason: opts.reason,
+          evidence: opts.evidence,
+          contentType: opts.contentType,
+          contentId: opts.contentId,
+          operatorId: opts.operatorId,
+          auto: opts.auto,
+          strikeCount: opts.strikeCount,
+          expiresAt,
+        },
+      });
+      const until = expiresAt.toISOString().slice(0, 16).replace("T", " ");
+      await this.enqueueNotice(
+        tx,
         userId,
-        type: "MUTE",
-        status: "ACTIVE",
-        ruleId: opts.ruleId,
-        ruleText: opts.ruleText,
-        reason: opts.reason,
-        evidence: opts.evidence,
-        contentType: opts.contentType,
-        contentId: opts.contentId,
-        operatorId: opts.operatorId,
-        auto: opts.auto,
-        strikeCount: opts.strikeCount,
-        expiresAt,
-      },
-    });
-    const until = expiresAt.toISOString().slice(0, 16).replace("T", " ");
-    this.notify(userId, {
-      type: "CIRCLE_GOVERNANCE",
-      title: `你已被禁言 ${opts.days} 天`,
-      content:
-        `圈子「${opts.circleName}」：${opts.reason ? `${opts.reason}。` : ""}${until}（UTC）自动解除。` +
-        "禁言期间仍可浏览圈内内容、观看直播回放、学习已购课程，仅暂停发帖、评论与提问。" +
-        `对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核（申诉期间处理照常生效）。`,
-      targetType: "CIRCLE_VIOLATION",
-      targetId: violation.id,
-      circleId,
+        {
+          type: "CIRCLE_GOVERNANCE",
+          title: `禁言 ${opts.days} 天处理记录`,
+          content:
+            `圈子「${opts.circleName}」：${opts.reason ? `${opts.reason}。` : ""}${until}（UTC）自动解除。` +
+            "禁言期间仍可浏览圈内内容、观看直播回放、学习已购课程，仅暂停发帖、评论与提问。" +
+            `对处理有异议可在 ${APPEAL_WINDOW_HOURS} 小时内申诉，由平台仲裁复核（申诉期间处理照常生效）。`,
+          targetType: "CIRCLE_VIOLATION",
+          targetId: violation.id,
+          circleId,
+        },
+        `VIOLATION:${violation.id}:MUTE`,
+      );
+      return violation;
     });
     return violation;
   }
@@ -535,17 +594,49 @@ export class CircleGovernanceService {
   async liftViolation(circleId: string, operatorId: string, violationId: string) {
     await this.shared.checkPermission(circleId, operatorId, "member.remove");
     const violation = await this.prisma.circleViolation.findUnique({ where: { id: violationId } });
-    if (!violation || violation.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "处理记录不存在");
-    if (violation.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已非生效状态");
-    await this.prisma.circleViolation.update({ where: { id: violationId }, data: { status: "LIFTED" } });
+    if (!violation || violation.circleId !== circleId)
+      throw new BusinessException(ErrorCode.NOT_FOUND, "处理记录不存在");
+    if (violation.status !== "ACTIVE")
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已非生效状态");
+
     const circleName = await this.getCircleName(circleId);
-    this.notify(violation.userId, {
-      type: "CIRCLE_GOVERNANCE",
-      title: violation.type === "MUTE" ? "禁言已提前解除" : violation.type === "REMOVE" ? "重新加入限制已解除" : "处理已解除",
-      content: `圈子「${circleName}」的圈主已解除对你的${violation.type === "MUTE" ? "禁言" : violation.type === "REMOVE" ? "重新加入限制" : "处理"}。`,
-      targetType: "CIRCLE_VIOLATION",
-      targetId: violationId,
-      circleId,
+    await this.prisma.$transaction(async (tx) => {
+      // 锁住圈主归属，避免权限检查后转让圈子仍由旧圈主执行解除。
+      const circles = await tx.$queryRaw<
+        Array<{ ownerId: string }>
+      >`SELECT "ownerId" FROM "Circle" WHERE id=${circleId} FOR NO KEY UPDATE`;
+      if (circles[0]?.ownerId !== operatorId)
+        throw new BusinessException(ErrorCode.FORBIDDEN, "圈主身份已变化");
+      const changed = await tx.circleViolation.updateMany({
+        where: {
+          id: violationId,
+          circleId,
+          userId: violation.userId,
+          type: violation.type,
+          status: "ACTIVE",
+        },
+        data: { status: "LIFTED" },
+      });
+      if (changed.count !== 1)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该处理状态已变化，请刷新后重试");
+      await this.enqueueNotice(
+        tx,
+        violation.userId,
+        {
+          type: "CIRCLE_GOVERNANCE",
+          title:
+            violation.type === "MUTE"
+              ? "禁言提前解除记录"
+              : violation.type === "REMOVE"
+                ? "重新加入限制解除记录"
+                : "处理解除记录",
+          content: `圈子「${circleName}」的圈主已解除对你的${violation.type === "MUTE" ? "禁言" : violation.type === "REMOVE" ? "重新加入限制" : "处理"}。`,
+          targetType: "CIRCLE_VIOLATION",
+          targetId: violationId,
+          circleId,
+        },
+        `VIOLATION:${violationId}:LIFTED`,
+      );
     });
     return { success: true };
   }
@@ -702,12 +793,20 @@ export class CircleGovernanceService {
   async resolveAppeal(appealId: string, reviewerId: string, dto: ResolveAppealDto) {
     const appeal = await this.prisma.circleAppeal.findUnique({ where: { id: appealId } });
     if (!appeal) throw new BusinessException(ErrorCode.NOT_FOUND, "申诉不存在");
-    if (appeal.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决");
+    if (appeal.status !== "PENDING")
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决");
 
+    const circleName = await this.getCircleName(appeal.circleId);
     await this.prisma.$transaction(async (tx) => {
       const changed = await tx.circleAppeal.updateMany({
         // 人工裁决与其他裁决共用状态闸门，只有仍待处理的原申诉可以变更。
-        where: { id: appealId, status: "PENDING", circleId: appeal.circleId, userId: appeal.userId, violationId: appeal.violationId },
+        where: {
+          id: appealId,
+          status: "PENDING",
+          circleId: appeal.circleId,
+          userId: appeal.userId,
+          violationId: appeal.violationId,
+        },
         data: {
           status: dto.uphold ? "UPHELD" : "REJECTED",
           resolution: dto.resolution.trim(),
@@ -715,22 +814,30 @@ export class CircleGovernanceService {
           resolvedAt: new Date(),
         },
       });
-      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决或状态已变化");
+      if (changed.count === 0)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉已裁决或状态已变化");
       if (dto.uphold) {
         // 撤销处理并清记录：REVOKED 不再计入累计、不再禁言/禁入、治理记录不展示
-        await tx.circleViolation.update({ where: { id: appeal.violationId }, data: { status: "REVOKED" } });
+        await tx.circleViolation.update({
+          where: { id: appeal.violationId },
+          data: { status: "REVOKED" },
+        });
       }
+      await this.enqueueNotice(
+        tx,
+        appeal.userId,
+        {
+          type: "CIRCLE_GOVERNANCE",
+          title: dto.uphold ? "申诉成立裁决记录" : "申诉未通过裁决记录",
+          content: `圈子「${circleName}」的处理申诉仲裁结果：${dto.uphold ? "成立，相关处理已撤销并清除记录" : "不成立，处理维持"}。仲裁说明：${dto.resolution.trim()}`,
+          targetType: "CIRCLE_VIOLATION",
+          targetId: appeal.violationId,
+          circleId: appeal.circleId,
+        },
+        `APPEAL:${appeal.id}:RESOLVED`,
+      );
     });
 
-    const circleName = await this.getCircleName(appeal.circleId);
-    this.notify(appeal.userId, {
-      type: "CIRCLE_GOVERNANCE",
-      title: dto.uphold ? "申诉成立，处理已撤销" : "申诉未通过，处理维持",
-      content: `圈子「${circleName}」的处理申诉仲裁结果：${dto.uphold ? "成立，相关处理已撤销并清除记录" : "不成立，处理维持"}。仲裁说明：${dto.resolution.trim()}`,
-      targetType: "CIRCLE_VIOLATION",
-      targetId: appeal.violationId,
-      circleId: appeal.circleId,
-    });
     // 被移出成员申诉成立仅解除禁入·不自动恢复成员关系（需自行重新加入）
     return { success: true, status: dto.uphold ? "UPHELD" : "REJECTED" };
   }
@@ -818,48 +925,84 @@ export class CircleGovernanceService {
    * 通过 → PUBLISHED + 圈子 postCount+1（创建时 AUDITING 未计数）+ 通知作者；
    * 驳回 → HIDDEN（Post 无 REJECTED 态·留档不删）+ 通知作者（附理由）。
    */
-  async reviewPost(circleId: string, operatorId: string, postId: string, dto: { approve: boolean; reason?: string }) {
+  async reviewPost(
+    circleId: string,
+    operatorId: string,
+    postId: string,
+    dto: { approve: boolean; reason?: string },
+  ) {
     await this.shared.checkPermission(circleId, operatorId, "content.review");
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      select: { id: true, circleId: true, status: true, userId: true, title: true },
+      select: {
+        id: true,
+        circleId: true,
+        status: true,
+        userId: true,
+        title: true,
+        updatedAt: true,
+      },
     });
-    if (!post || post.circleId !== circleId) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
-    if (post.status !== "AUDITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子不在待审状态");
+    if (!post || post.circleId !== circleId)
+      throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (post.status !== "AUDITING")
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子不在待审状态");
 
     const circleName = await this.getCircleName(circleId);
     await this.prisma.$transaction(async (tx) => {
       const changed = await tx.post.updateMany({
         // 通过和驳回必须竞争同一个待审状态，避免重复计数或覆盖已完成的审核。
-        where: { id: postId, circleId, userId: post.userId, status: "AUDITING" },
+        where: {
+          id: postId,
+          circleId,
+          userId: post.userId,
+          status: "AUDITING",
+          updatedAt: post.updatedAt,
+        },
         data: { status: dto.approve ? "PUBLISHED" : "HIDDEN" },
       });
-      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子已被审核或状态已变化");
+      if (changed.count === 0)
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子已被审核或状态已变化");
       if (dto.approve) {
         await tx.circle.update({ where: { id: circleId }, data: { postCount: { increment: 1 } } });
       }
+      if (dto.approve) {
+        await this.enqueueNotice(
+          tx,
+          post.userId,
+          {
+            type: "CIRCLE_GOVERNANCE",
+            title: "帖子审核通过记录",
+            content: `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」已通过审核并发布。`,
+            targetType: "POST",
+            targetId: postId,
+            circleId,
+          },
+          `POST_REVIEW:${postId}:${randomUUID()}`,
+        );
+      } else {
+        await this.enqueueNotice(
+          tx,
+          post.userId,
+          {
+            type: "CIRCLE_GOVERNANCE",
+            title: "帖子审核未通过记录",
+            content:
+              `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」未通过审核。` +
+              (dto.reason?.trim() ? `理由：${dto.reason.trim()}。` : "") +
+              "可修改后重新发布，如有疑问可联系圈主。",
+            targetType: "POST",
+            targetId: postId,
+            circleId,
+          },
+          `POST_REVIEW:${postId}:${randomUUID()}`,
+        );
+      }
     });
     if (dto.approve) {
-      this.notify(post.userId, {
-        type: "CIRCLE_GOVERNANCE",
-        title: "帖子已通过审核",
-        content: `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」已通过审核并发布。`,
-        targetType: "POST",
-        targetId: postId,
-      });
       return { success: true, status: "PUBLISHED" };
     }
 
-    this.notify(post.userId, {
-      type: "CIRCLE_GOVERNANCE",
-      title: "帖子未通过审核",
-      content:
-        `你在圈子「${circleName}」的帖子「${post.title || "无标题"}」未通过审核。` +
-        (dto.reason?.trim() ? `理由：${dto.reason.trim()}。` : "") +
-        "可修改后重新发布，如有疑问可联系圈主。",
-      targetType: "POST",
-      targetId: postId,
-    });
     return { success: true, status: "HIDDEN" };
   }
 
@@ -883,26 +1026,47 @@ export class CircleGovernanceService {
       });
       let expiredMuteCount = 0;
       for (const m of mutes) {
-        const changed = await this.prisma.circleViolation.updateMany({
-          // 扫描后可能已撤销、提前解除或延长期限，落库时再次核对。
-          where: { id: m.id, userId: m.userId, circleId: m.circleId, type: "MUTE", status: "ACTIVE", expiresAt: { lt: now } },
-          data: { status: "EXPIRED" },
+        const changed = await this.prisma.$transaction(async (tx) => {
+          const changed = await tx.circleViolation.updateMany({
+            // 扫描后可能已撤销、提前解除或延长期限，落库时再次核对。
+            where: {
+              id: m.id,
+              userId: m.userId,
+              circleId: m.circleId,
+              type: "MUTE",
+              status: "ACTIVE",
+              expiresAt: { lt: now },
+            },
+            data: { status: "EXPIRED" },
+          });
+          if (changed.count > 0) {
+            const circleName =
+              (await tx.circle.findUnique({ where: { id: m.circleId }, select: { name: true } }))
+                ?.name ?? "圈子";
+            await this.enqueueNotice(
+              tx,
+              m.userId,
+              {
+                type: "CIRCLE_GOVERNANCE",
+                title: "禁言到期解除记录",
+                content: `你在圈子「${circleName}」的禁言期已满，该次禁言已按到期规则解除。`,
+                targetType: "CIRCLE_VIOLATION",
+                targetId: m.id,
+                circleId: m.circleId,
+              },
+              `VIOLATION:${m.id}:EXPIRED`,
+            );
+          }
+          return changed;
         });
         if (changed.count > 0) {
           expiredMuteCount += changed.count;
-          const circleName = await this.getCircleName(m.circleId);
-          this.notify(m.userId, {
-            type: "CIRCLE_GOVERNANCE",
-            title: "禁言已解除",
-            content: `你在圈子「${circleName}」的禁言期已满，已恢复发言，欢迎回来。`,
-            targetType: "CIRCLE_VIOLATION",
-            targetId: m.id,
-            circleId: m.circleId,
-          });
         }
       }
       if (warnings.count || expiredMuteCount) {
-        this.logger.log(`治理状态机：警告清零 ${warnings.count} 条 · 禁言解除 ${expiredMuteCount} 条`);
+        this.logger.log(
+          `治理状态机：警告清零 ${warnings.count} 条 · 禁言解除 ${expiredMuteCount} 条`,
+        );
       }
     });
   }
@@ -931,21 +1095,35 @@ export class CircleGovernanceService {
               },
             });
             if (updated.count === 0) return false;
-            await tx.circleViolation.update({ where: { id: appeal.violationId }, data: { status: "REVOKED" } });
+            await tx.circleViolation.update({
+              where: { id: appeal.violationId },
+              data: { status: "REVOKED" },
+            });
+            const circleName =
+              (
+                await tx.circle.findUnique({
+                  where: { id: appeal.circleId },
+                  select: { name: true },
+                })
+              )?.name ?? "圈子";
+            await this.enqueueNotice(
+              tx,
+              appeal.userId,
+              {
+                type: "CIRCLE_GOVERNANCE",
+                title: "申诉成立裁决记录",
+                content: `你对圈子「${circleName}」处理的申诉超过 ${APPEAL_REPLY_HOURS} 小时未获平台答复，按承诺自动裁定成立，相关处理已撤销并清除记录。`,
+                targetType: "CIRCLE_VIOLATION",
+                targetId: appeal.violationId,
+                circleId: appeal.circleId,
+              },
+              `APPEAL:${appeal.id}:RESOLVED`,
+            );
             return true;
           });
           // 只有本事务实际提交了裁决，才能发送“申诉成立”。
           if (!changed) continue;
           resolvedCount += 1;
-          const circleName = await this.getCircleName(appeal.circleId);
-          this.notify(appeal.userId, {
-            type: "CIRCLE_GOVERNANCE",
-            title: "申诉成立，处理已撤销",
-            content: `你对圈子「${circleName}」处理的申诉超过 ${APPEAL_REPLY_HOURS} 小时未获平台答复，按承诺自动裁定成立，相关处理已撤销并清除记录。`,
-            targetType: "CIRCLE_VIOLATION",
-            targetId: appeal.violationId,
-            circleId: appeal.circleId,
-          });
         } catch (err) {
           this.logger.error(`申诉超时自动裁决失败 appeal=${appeal.id}`, err);
         }

@@ -121,6 +121,7 @@ model User {
   collects              Collect[]
   notifications         Notification[]
   circleExpiryNotices   CircleMembershipExpiryNotice[]
+  circleGovernanceNotices CircleGovernanceNotice[]
   searchHistories       SearchHistory[]
   readingProgresses     ReadingProgress[]
   bookmarks             Bookmark[]
@@ -558,6 +559,7 @@ model Circle {
   events              CircleEvent[]
   publishGrants       CirclePublishGrant[]
   expiryNotices       CircleMembershipExpiryNotice[]
+  governanceNotices   CircleGovernanceNotice[]
 
   @@index([ownerId])
   @@index([status])
@@ -8858,4 +8860,20 @@ model BaziCaseAttempt {
 
   @@unique([caseId, userId])
   @@index([userId])
+}
+
+/// 本版治理状态变更的持久通知快照，迟到恢复不得改写当时记录或当前权益。
+model CircleGovernanceNotice {
+  id String @id @default(uuid())
+  recipientId String
+  circleId String
+  eventKey String @unique
+  title String
+  content String
+  targetType String
+  targetId String
+  occurredAt DateTime
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  @@index([occurredAt, id])
 }

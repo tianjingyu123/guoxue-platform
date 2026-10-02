@@ -6806,6 +6806,21 @@ CREATE TABLE "BaziCaseAttempt" (
     CONSTRAINT "BaziCaseAttempt_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "CircleGovernanceNotice" (
+    "id" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "eventKey" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "occurredAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CircleGovernanceNotice_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE INDEX "ImFallbackMessage_fromUserId_toUserId_createdAt_idx" ON "ImFallbackMessage"("fromUserId", "toUserId", "createdAt");
 
@@ -9773,6 +9788,12 @@ CREATE INDEX "BaziCaseAttempt_userId_idx" ON "BaziCaseAttempt"("userId");
 -- CreateIndex
 CREATE UNIQUE INDEX "BaziCaseAttempt_caseId_userId_key" ON "BaziCaseAttempt"("caseId", "userId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "CircleGovernanceNotice_eventKey_key" ON "CircleGovernanceNotice"("eventKey");
+
+-- CreateIndex
+CREATE INDEX "CircleGovernanceNotice_occurredAt_id_idx" ON "CircleGovernanceNotice"("occurredAt", "id");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_competitionInviteCodeId_fkey" FOREIGN KEY ("competitionInviteCodeId") REFERENCES "CompetitionInviteCode"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -10606,3 +10627,9 @@ ALTER TABLE "PayeeAccount" ADD CONSTRAINT "PayeeAccount_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "BaziCaseAttempt" ADD CONSTRAINT "BaziCaseAttempt_caseId_fkey" FOREIGN KEY ("caseId") REFERENCES "BaziCase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleGovernanceNotice" ADD CONSTRAINT "CircleGovernanceNotice_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleGovernanceNotice" ADD CONSTRAINT "CircleGovernanceNotice_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
