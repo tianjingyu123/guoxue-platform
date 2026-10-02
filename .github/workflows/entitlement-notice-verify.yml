@@ -9,7 +9,7 @@ on:
       source_commit:
         description: 已接收候选的完整提交 SHA
         required: true
-        default: ad85d913ecdf2facf92bd8c33357a04afefbe814
+        default: 51b9883dd5670c549ff02f9c40a73d1e06f2006a
 
 permissions:
   contents: read
@@ -32,18 +32,20 @@ jobs:
     env:
       DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
       ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
-      SOURCE_COMMIT: ${{ inputs.source_commit || 'ad85d913ecdf2facf92bd8c33357a04afefbe814' }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || '51b9883dd5670c549ff02f9c40a73d1e06f2006a' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ env.SOURCE_COMMIT }}
           path: candidate
-          persist-credentials: false
-          # 历史技能 gitlink 缺 .gitmodules，不属于产品源码；避免 checkout 鉴权清理遍历该目录。
+          persist-credentials: true
+          # 历史技能 gitlink 缺 .gitmodules，不属于产品源码，隔离检出排除该目录。
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /*
             !/.claude/
+      - name: 清除根仓库临时只读鉴权配置
+        run: git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 10.33.3
