@@ -122,12 +122,19 @@ export class MemberService {
   }
 
   /** 管理员手动授予会员 */
-  async grantMember(userId: string, level: string, durationDays = 30) {
+  async grantMember(userId: string, level: string, durationDays = 30, operatorId?: string) {
+    if (!(["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME"] as string[]).includes(level)
+      || !Number.isSafeInteger(durationDays) || durationDays <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择有效会员等级和正整数有效天数");
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
 
     const now = new Date();
     const expireAt = level === "LIFETIME" ? null : new Date(now.getTime() + durationDays * 86400000);
+    if (expireAt && !Number.isFinite(expireAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "会员有效天数超出支持范围");
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const purchase = await tx.memberPurchase.create({
@@ -153,7 +160,8 @@ export class MemberService {
         sourceType: "ADMIN",
         sourceId: purchase.id,
         idempotencyKey: `admin-member-grant:${purchase.id}`,
-        metadata: { level, durationDays },
+        // 标记随会员购买记录、实际会员状态和权益流水同事务提交，不在主事务发送通知。
+        metadata: { level, durationDays, notificationEvent: "MEMBER_GRANTED_V1", ...(operatorId ? { operatorId } : {}) },
       });
     });
 

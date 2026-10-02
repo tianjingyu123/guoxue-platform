@@ -144,7 +144,7 @@ export class MemberController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   async grantMember(@Body() dto: GrantMemberDto, @Req() req: Request) {
-    const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30);
+    const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30, req.user.id);
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "GRANT_MEMBER",

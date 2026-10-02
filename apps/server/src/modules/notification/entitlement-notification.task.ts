@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 
-/** 独立管理员发放的站内通知：已提交的不可变流水本身就是持久待办。 */
+/** 独立管理员发放的站内通知：已提交的不可变流水本身就是持久待办。会员还须核对实际生效状态。 */
 @Injectable()
 export class EntitlementNotificationTask {
   private readonly logger = new Logger(EntitlementNotificationTask.name);
@@ -37,9 +37,24 @@ export class EntitlementNotificationTask {
         'ENTITLEMENT', l."userId", false, (NOW() AT TIME ZONE 'UTC')
       FROM "EntitlementLedger" l
       WHERE l."sourceType" = 'ADMIN' AND l.action = 'GRANT'
-        -- 两种会员的当前真源仍是 User / PractitionerProfile，单写流水不代表会员已生效。
-        AND l."entitlementKey" NOT IN ('membership.school', 'membership.practitioner')
-        AND l.metadata ->> 'notificationEvent' = 'ENTITLEMENT_GRANTED_V1'
+        AND (
+          (l."entitlementKey" NOT IN ('membership.school', 'membership.practitioner')
+            AND l.metadata ->> 'notificationEvent' = 'ENTITLEMENT_GRANTED_V1')
+          OR (l."entitlementKey" = 'membership.school' AND l.kind = 'MEMBERSHIP' AND l.unlimited
+            AND l."resourceType" = 'MEMBER_PLAN' AND l."resourceId" = '' AND l.scope = 'GLOBAL'
+            AND l.metadata ->> 'notificationEvent' = 'MEMBER_GRANTED_V1'
+            -- 只接受真实会员授予入口的购买记录，当前等级和到期日须与本次授予匹配。
+            -- 已被新授予覆盖、已撤销、伪造来源或仅写独立权益流水的记录不报成功。
+            AND EXISTS (
+              SELECT 1 FROM "User" u JOIN "MemberPurchase" p ON p."userId" = u.id
+              WHERE u.id = l."userId" AND p.id = l."sourceId" AND p.amount = 0
+                AND u."memberLevel"::text <> 'NONE'
+                AND u."memberLevel"::text = l.metadata ->> 'level'
+                AND p."memberType"::text = l.metadata ->> 'level'
+                AND u."memberExpire" IS NOT DISTINCT FROM l."validUntil"
+                AND p."expireAt" IS NOT DISTINCT FROM l."validUntil"
+            ))
+        )
         AND (l.quantity > 0 OR l.unlimited)
         -- Prisma 的 timestamp 无时区列按 UTC 保存，不能隐式使用数据库会话时区。
         AND l."validFrom" <= (NOW() AT TIME ZONE 'UTC')
