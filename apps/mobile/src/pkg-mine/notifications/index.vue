@@ -122,6 +122,7 @@ import { mineApi, type NotifyItem, type NotifyKind } from '@/lib/mine-data'
 import { imApi } from '@/lib/im-data'
 
 const ICON_MAP: Record<string, string> = {
+  权益: 'gift',
   评论: 'message-circle',
   点赞: 'heart',
   关注: 'user-plus',

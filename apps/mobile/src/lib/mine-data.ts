@@ -5,6 +5,7 @@
  */
 import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiDelete } from '@/utils/request'
 import type { AccountInterestState } from '@/utils/interests'
+import { ENTITLEMENT_NOTIFICATION_ROUTE } from '@/lib/entitlement-presentation'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
@@ -1310,6 +1311,7 @@ function relativeTime(v: string | number | Date): string {
   return formatDate(v)
 }
 const _notifyMeta: Record<string, { kind: NotifyKind; category: string }> = {
+  ENTITLEMENT: { kind: 'transaction', category: '权益' },
   COMMENT: { kind: 'interaction', category: '评论' },
   LIKE: { kind: 'interaction', category: '点赞' },
   FOLLOW: { kind: 'interaction', category: '关注' },
@@ -1321,6 +1323,7 @@ const _notifyMeta: Record<string, { kind: NotifyKind; category: string }> = {
 function notifyLink(targetType?: string | null, targetId?: string | null): string {
   if (!targetType || !targetId) return ''
   const t = String(targetType).toLowerCase()
+  if (t === 'entitlement') return ENTITLEMENT_NOTIFICATION_ROUTE
   const map: Record<string, string> = {
     article: `/article/${targetId}`, course: `/course/${targetId}`,
     video: `/video/${targetId}`, product: `/shop/product/${targetId}`,
@@ -2013,7 +2016,8 @@ export const mineApi = {
       .map(adaptNotification)
       .filter((n) => !OPS_PATTERN.test(`${n.title} ${n.content}`)) // 剔除内部运维/技术黑话通知
       .filter((n) => {
-        const key = `${n.title}|${n.content}` // 同标题+正文视为重复，仅保留首条
+        // 不同权益流水可能采用相同文案，仍须保留每一笔到账记录。
+        const key = n.category === '权益' ? `${n.id}|${n.title}|${n.content}` : `${n.title}|${n.content}`
         if (seen.has(key)) return false
         seen.add(key)
         return true
