@@ -1,0 +1,559 @@
+{
+  "verifiedAt": "2026-10-02T06:16:30.882Z",
+  "sourceSha": "def86fb0e986ec945d9f9d8204cdc0ecd46d01a2",
+  "sourceDirty": false,
+  "baseSha": "ef68bfc8c516b06a63415a77f48302877583ce4c",
+  "changedFiles": [
+    "apps/server/src/common/privacy-span-exporter.spec.ts",
+    "apps/server/src/common/privacy-span-exporter.ts",
+    "apps/server/src/common/tracing.interceptor.privacy.spec.ts",
+    "apps/server/src/common/tracing.interceptor.ts",
+    "apps/server/src/tracing.ts",
+    "apps/server/test/tracing-otlp-privacy.cjs",
+    "docker/nginx/nginx.clb.conf.template",
+    "docker/nginx/nginx.conf.template",
+    "tests/release/nginx-log-privacy.test.mjs"
+  ],
+  "receivedMainline": [
+    {
+      "source": "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+      "received": "32b22cc0552b667d7c8876b4c5707fc08ed40dd4"
+    },
+    {
+      "source": "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+      "received": "32145f997e1c0639becec4b674a2f04646c2dabf"
+    },
+    {
+      "source": "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+      "received": "ef68bfc8c516b06a63415a77f48302877583ce4c",
+      "scope": "只恢复该提交IM回调及新增隐私用例"
+    }
+  ],
+  "regression": {
+    "tests": 195,
+    "suites": 18,
+    "failed": 0,
+    "skipped": 0,
+    "nginxPrivacyTests": 2,
+    "nginxStaticReadinessChecks": 20,
+    "lint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "typecheckExitCode": 0,
+    "buildExitCode": 0,
+    "suitesResults": [
+      {
+        "suite": "feedback.service.spec.ts",
+        "tests": 6
+      },
+      {
+        "suite": "im-callback.privacy.spec.ts",
+        "tests": 6
+      },
+      {
+        "suite": "nginx-log.service.spec.ts",
+        "tests": 3
+      },
+      {
+        "suite": "feedback-notification.task.spec.ts",
+        "tests": 4
+      },
+      {
+        "suite": "privacy-span-exporter.spec.ts",
+        "tests": 8
+      },
+      {
+        "suite": "im-http-privacy.spec.ts",
+        "tests": 8
+      },
+      {
+        "suite": "im.controller.spec.ts",
+        "tests": 23
+      },
+      {
+        "suite": "tracing.interceptor.privacy.spec.ts",
+        "tests": 2
+      },
+      {
+        "suite": "im-privacy.spec.ts",
+        "tests": 28
+      },
+      {
+        "suite": "im-callback.controller.spec.ts",
+        "tests": 14
+      },
+      {
+        "suite": "websocket.gateway.spec.ts",
+        "tests": 36
+      },
+      {
+        "suite": "im.service.spec.ts",
+        "tests": 18
+      },
+      {
+        "suite": "im-fallback.service.spec.ts",
+        "tests": 5
+      },
+      {
+        "suite": "im-policy.service.spec.ts",
+        "tests": 13
+      },
+      {
+        "suite": "tlssig.service.spec.ts",
+        "tests": 4
+      },
+      {
+        "suite": "ws-auth.service.spec.ts",
+        "tests": 8
+      },
+      {
+        "suite": "tencent-im-callback.guard.spec.ts",
+        "tests": 8
+      },
+      {
+        "suite": "pino-logger.service.spec.ts",
+        "tests": 1
+      }
+    ]
+  },
+  "before": {
+    "source": "ef68bfc8c516b06a63415a77f48302877583ce4c",
+    "failed": 2,
+    "passed": 0,
+    "skipped": 0,
+    "scope": "新增拦截器测试；生产源码未修改"
+  },
+  "nginx": {
+    "runtime": "official portable nginx/Windows 1.28.3",
+    "scope": "extracted original map and log_format; synthetic return locations; not full Linux proxy or epoll/TLS",
+    "rows": [
+      {
+        "mode": "before",
+        "template": "nginx.conf.template",
+        "syntaxExitCode": 0,
+        "requests": [
+          {
+            "requestPath": "/api/v1/im/a%2Fb",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/api/v1/health",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/failure",
+            "status": 503,
+            "originalEncodedUriAndQueryPreserved": false
+          }
+        ],
+        "syntheticSecretPresent": true,
+        "pidVerified": true,
+        "ownedProcessStopped": true,
+        "portClosed": true,
+        "logSha256": "fc41935eafb116a756cf9ea3d666c12245ebc7a349b6f3d44f4499c497e565c1"
+      },
+      {
+        "mode": "before",
+        "template": "nginx.clb.conf.template",
+        "syntaxExitCode": 0,
+        "requests": [
+          {
+            "requestPath": "/api/v1/im/a%2Fb",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/api/v1/health",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/failure",
+            "status": 503,
+            "originalEncodedUriAndQueryPreserved": false
+          }
+        ],
+        "syntheticSecretPresent": true,
+        "pidVerified": true,
+        "ownedProcessStopped": true,
+        "portClosed": true,
+        "logSha256": "1bf9d06aa74a64bbc7a1f1fc32748be25504569d137527bb2154c64d0b25185c"
+      },
+      {
+        "mode": "after",
+        "template": "nginx.conf.template",
+        "syntaxExitCode": 0,
+        "requests": [
+          {
+            "requestPath": "/api/v1/im/a%2Fb",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/api/v1/health",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/failure",
+            "status": 503,
+            "originalEncodedUriAndQueryPreserved": false
+          }
+        ],
+        "syntheticSecretPresent": false,
+        "pidVerified": true,
+        "ownedProcessStopped": true,
+        "portClosed": true,
+        "logSha256": "ccc9438f7c874cf6143ac230a6bf018984ef7acb9c10325698f080666f476e04"
+      },
+      {
+        "mode": "after",
+        "template": "nginx.clb.conf.template",
+        "syntaxExitCode": 0,
+        "requests": [
+          {
+            "requestPath": "/api/v1/im/a%2Fb",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/api/v1/health",
+            "status": 200,
+            "originalEncodedUriAndQueryPreserved": true
+          },
+          {
+            "requestPath": "/failure",
+            "status": 503,
+            "originalEncodedUriAndQueryPreserved": false
+          }
+        ],
+        "syntheticSecretPresent": false,
+        "pidVerified": true,
+        "ownedProcessStopped": true,
+        "portClosed": true,
+        "logSha256": "76baa38f07755d0d6dffaddd095f540e3293b61214c36749693909cdd69a909c"
+      }
+    ],
+    "fullLinuxTemplatesNotRun": true,
+    "wsTlsProxyAndProductionNotVerified": true,
+    "originalRequestAndHeadersUnchanged": true
+  },
+  "compiledHttpTracing": {
+    "compiledTracingEntrypoint": true,
+    "actualHttpAutoinstrumentation": true,
+    "actualOtlpCollector": true,
+    "spanCount": 2,
+    "secretAbsent": true,
+    "requestAndResponsePreserved": true,
+    "localServersClosed": true,
+    "probeOnlyMetricsAndLogsDisabled": true,
+    "fullProductionAppNotVerified": true,
+    "realTcp": true,
+    "ports": "OS allocated; loopback only"
+  },
+  "privacy": {
+    "requestQueriesStripped": true,
+    "refererNotAccessLogged": true,
+    "traceUrlsStripQueryFragmentAndUserInfo": true,
+    "traceExceptionMessageStackAndStatusMessageRemoved": true,
+    "knownSensitiveAttributesBodyAndUserIdsRemoved": true,
+    "originalSpansNotMutated": true,
+    "traceIdsStatusRouteDurationKept": true
+  },
+  "serverBuild": {
+    "fileCount": 3473,
+    "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase36-after\\frozen\\def86fb0e986ec945d9f9d8204cdc0ecd46d01a2\\server",
+    "manifestSha256": "53738f324405df757ec95b7d5994f6b893a87055ce84a7a9fb5f596117329e6a"
+  },
+  "reusedClientEvidence": {
+    "sourceSha": "39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88",
+    "reportSha256": "b93293f6595d3d1152078b0257aee1c6a08c30c2cf315f99a54fd28070083c92",
+    "inputs": [
+      {
+        "path": "apps/mobile",
+        "previousObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd",
+        "currentObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd"
+      },
+      {
+        "path": "apps/admin",
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c"
+      },
+      {
+        "path": "packages",
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      },
+      {
+        "path": "scripts/release/build-channel-resources.mjs",
+        "previousObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+        "currentObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389"
+      },
+      {
+        "path": "scripts/release/audit-mobile-native-bundle.mjs",
+        "previousObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149",
+        "currentObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149"
+      }
+    ],
+    "priorTests": 320,
+    "builds": [
+      {
+        "kind": "app-resources",
+        "fileCount": 491,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\app-resources"
+      },
+      {
+        "kind": "h5",
+        "fileCount": 1181,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\h5"
+      },
+      {
+        "kind": "mp-weixin",
+        "fileCount": 2759,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\mp-weixin"
+      }
+    ],
+    "notRerun": true,
+    "notCountedInCurrentRun": true
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T06:16:30.349Z",
+    "scope": "仅 IM、请求日志、Nginx访问日志和追踪隐私专项，含阶段35依赖；不是全渠道产品接收",
+    "receiverSnapshot": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "candidateSource": "def86fb0e986ec945d9f9d8204cdc0ecd46d01a2",
+    "paths": [
+      "apps/server/src/common/privacy-span-exporter.spec.ts",
+      "apps/server/src/common/privacy-span-exporter.ts",
+      "apps/server/src/common/tracing.interceptor.privacy.spec.ts",
+      "apps/server/src/common/tracing.interceptor.ts",
+      "apps/server/src/tracing.ts",
+      "apps/server/test/tracing-otlp-privacy.cjs",
+      "docker/nginx/nginx.clb.conf.template",
+      "docker/nginx/nginx.conf.template",
+      "tests/release/nginx-log-privacy.test.mjs",
+      "apps/server/src/common/request-log-path.ts",
+      "apps/server/src/common/logging.interceptor.ts",
+      "apps/server/src/common/http-exception.filter.ts",
+      "apps/server/src/modules/im/im.service.ts",
+      "apps/server/src/modules/websocket/websocket.gateway.ts",
+      "apps/server/src/modules/im/im-privacy.spec.ts",
+      "apps/server/src/modules/im/im-http-privacy.spec.ts"
+    ],
+    "changedFiles": [
+      "apps/server/src/common/http-exception.filter.ts",
+      "apps/server/src/common/logging.interceptor.ts",
+      "apps/server/src/common/privacy-span-exporter.spec.ts",
+      "apps/server/src/common/privacy-span-exporter.ts",
+      "apps/server/src/common/request-log-path.ts",
+      "apps/server/src/common/tracing.interceptor.privacy.spec.ts",
+      "apps/server/src/common/tracing.interceptor.ts",
+      "apps/server/src/modules/im/im-http-privacy.spec.ts",
+      "apps/server/src/modules/im/im-privacy.spec.ts",
+      "apps/server/src/modules/im/im.service.ts",
+      "apps/server/src/modules/websocket/websocket.gateway.ts",
+      "apps/server/src/tracing.ts",
+      "apps/server/test/tracing-otlp-privacy.cjs",
+      "docker/nginx/nginx.clb.conf.template",
+      "docker/nginx/nginx.conf.template",
+      "tests/release/nginx-log-privacy.test.mjs"
+    ],
+    "changedFileCount": 16,
+    "patch": "artifacts/phase36-after/mainline-review/privacy-only-from-3015217.patch",
+    "patchSha256": "a107fbd20ebe391b6b6c5c604e1be5ddb95e3dec6effbc386b590a6c8c3cd3e0",
+    "patchBytes": 46682,
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "92e8ce58b4ad72ef303cb580b21ae6296444ca4e",
+    "selectedInputsEqualCandidate": true,
+    "allOtherReceiverPathsPreserved": true,
+    "memberAndFeedbackPathsPreserved": true,
+    "mergedTreeBuildOrFullCiNotRun": true,
+    "actualReception": false,
+    "masterUpdated": false,
+    "productionDeployed": false,
+    "crossThreadSendAuthorizationPending": true,
+    "recheckLatestSourceRequired": true
+  },
+  "evidence": {
+    "artifacts/phase36-after/execution.json": {
+      "bytes": 714,
+      "sha256": "014d9ac4bd503e10d096a69e0b94ed99340fa2ece20ccc11d0cedc3009c46549"
+    },
+    "artifacts/phase36-after/tests.json": {
+      "bytes": 72433,
+      "sha256": "8138c86a4fde7822aa84963dd77670522ab6c1e19c1e25e25312cddcbc468096"
+    },
+    "artifacts/phase36-after/regression.log": {
+      "bytes": 2703,
+      "sha256": "1ffea0c0c39fb3a07848813ec9424875af686a939a7cd585d1395d31d603aacd"
+    },
+    "artifacts/phase36-after/nginx-privacy.log": {
+      "bytes": 314,
+      "sha256": "6c9f0fb4908877cbb2296eb2166187f192ea3db2df64bc1916ba1913c838932b"
+    },
+    "artifacts/phase36-after/nginx-readiness.log": {
+      "bytes": 2535,
+      "sha256": "3d19bd2a6a0875b27cd9585b51ba977dc9241856748f60d56a43b743f5a3a01a"
+    },
+    "artifacts/phase36-after/eslint.json": {
+      "bytes": 5915,
+      "sha256": "1af4811d74e90bb3f3f6e14b35a0c233cf04f011bb2b22be397e059e7069e192"
+    },
+    "artifacts/phase36-after/eslint.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase36-after/typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase36-after/build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase36-after/compiled-auto.log": {
+      "bytes": 107,
+      "sha256": "32f31c33f8c93540fab958b1cb7844a64814c7d4ee642e8405a3e4de2e62d720"
+    },
+    "artifacts/phase36-after/compiled-auto-execution.json": {
+      "bytes": 108,
+      "sha256": "42843a89ed63876e3d201228a26a0fe0c0853315d352fa4340f823e2c81b8369"
+    },
+    "artifacts/phase36-after/compiled-auto-v2.log": {
+      "bytes": 1562,
+      "sha256": "b24979886a3e519efe4c49d8f61e82688d158e12f3e759d71f9dbb5f3033b763"
+    },
+    "artifacts/phase36-after/compiled-auto-v2-execution.json": {
+      "bytes": 108,
+      "sha256": "42843a89ed63876e3d201228a26a0fe0c0853315d352fa4340f823e2c81b8369"
+    },
+    "artifacts/phase36-after/compiled-auto-v3.log": {
+      "bytes": 270,
+      "sha256": "090a054f1791bce02ac258c6a27b6bc5fc4d6647a3a9f62e27a435050833ef72"
+    },
+    "artifacts/phase36-after/compiled-auto-v3-execution.json": {
+      "bytes": 149,
+      "sha256": "46dc9938e02cdec090fd9f3170a5bd3d03eb5a56b94baa13108e32ea5ebb3020"
+    },
+    "artifacts/phase36-after/build-manifest.json": {
+      "bytes": 613594,
+      "sha256": "53738f324405df757ec95b7d5994f6b893a87055ce84a7a9fb5f596117329e6a"
+    },
+    "artifacts/phase36-before/tests.json": {
+      "bytes": 5091,
+      "sha256": "6ea1e37acb0869cd2bc4956eaa6d67e522de46e6319167f54201b068251ddf66"
+    },
+    "artifacts/phase36-before/tests.log": {
+      "bytes": 2678,
+      "sha256": "368e34c391cba0f7db0deaa62a72b09a75a4d3471d60fe9bb5905f2abb6c9a74"
+    },
+    "artifacts/phase36-nginx-runtime/download.json": {
+      "bytes": 164,
+      "sha256": "c2589f375185cf906860ff78275f946dee5f2213d478dd63ebd04cfaa19079e1"
+    },
+    "artifacts/phase36-nginx-runtime/before-nginx.conf.template/syntax.log": {
+      "bytes": 655,
+      "sha256": "c80bcbc1d60e7641711f82ea507f1d0c451ec48d713315dd4745ad3fd4af7ffa"
+    },
+    "artifacts/phase36-nginx-verified/before-nginx.conf.template/logs/access.log": {
+      "bytes": 1018,
+      "sha256": "fa147f51a6f6f769791b46afabc9167e5a2f5d2d8e995366160641256f061312"
+    },
+    "artifacts/phase36-nginx-verified-cleanup/result.json": {
+      "bytes": 3933,
+      "sha256": "5814cfd570bc4ed2587dacfd40fff506eafae3eb637d6d97d0a29a6c798cd21d"
+    },
+    "artifacts/phase36-after/review-verified/nginx-tracing-privacy.patch": {
+      "bytes": 20691,
+      "sha256": "725431deef9c9b1c245f02dbb31f9b4310a2e1973bd102b9273955e27351dff1"
+    },
+    "artifacts/phase36-after/review-verified/nginx-tracing-privacy.bundle": {
+      "bytes": 8280,
+      "sha256": "769a1ea0c4e7705efe63eb2497754ed40eba99fb53c4dbb43af74b32169a1f11"
+    },
+    "artifacts/phase36-after/mainline-review/privacy-only-from-3015217.patch": {
+      "bytes": 46682,
+      "sha256": "a107fbd20ebe391b6b6c5c604e1be5ddb95e3dec6effbc386b590a6c8c3cd3e0"
+    },
+    "artifacts/phase36-after/mainline-review/proposal.json": {
+      "bytes": 2659,
+      "sha256": "80f965137bf57024b8cea2b82b0d4a2b87eb5472e98ca4a98334fab9a5fcdf9d"
+    },
+    "artifacts/phase36-nginx-verified-cleanup/before-nginx.conf.template/logs/access.log": {
+      "bytes": 1018,
+      "sha256": "480a71c9444d2588c712751ac3d1a5304e38b8342703d0e9599fc583ea9144c0"
+    },
+    "artifacts/phase36-nginx-verified-cleanup/before-nginx.clb.conf.template/logs/access.log": {
+      "bytes": 1018,
+      "sha256": "1f06f86042801b9847bf4ad2c267631c3c4e786640c50d5d93399493fa3cd464"
+    },
+    "artifacts/phase36-nginx-verified-cleanup/after-nginx.conf.template/logs/access.log": {
+      "bytes": 530,
+      "sha256": "da882793834767b5a86713a81334bde1c383f258eea45cb31146cbb867dddc1c"
+    },
+    "artifacts/phase36-nginx-verified-cleanup/after-nginx.clb.conf.template/logs/access.log": {
+      "bytes": 530,
+      "sha256": "71f66283f1f274e5437854222f66d9364224f331bf5b577182fc32f04ae409bb"
+    }
+  },
+  "supersededProbes": [
+    "Nginx第一次缺temp父目录，未启动；第二次优雅退出超时，已核对专属PID和可执行文件后停止，不作为最终通过",
+    "自动追踪第一版提前加载HTTP导致没有自动span；第二版Collector把自动指标protobuf当JSON解析失败；第三版才是最终验证，前三版日志保留"
+  ],
+  "remaining": [
+    "主线专项接收、整合月度权益两种实现并重绑最终CI/镜像",
+    "Nginx错误日志原始请求上下文及历史日志采集/保留策略",
+    "OTel资源、日志、指标、自定义属性/事件名称及非HTTP埋点未完成隐私审计",
+    "主线新工单PostgreSQL真实库用例尚未在本候选重跑",
+    "历史券异常、跨月同券消费策略、从业会员、企微回流及圈务持久恢复",
+    "完整SDK签名包、旧Android真机、iOS/Harmony以及同版真实支付业务",
+    "生产两节点部署、联调、负载、安全、运维及16商店实际提审"
+  ],
+  "limits": [
+    "195项只计本次18套服务端；2项配置测试和20项静态检查分别列示，历史结果不累加",
+    "真实OTLP进程与编译入口自动HTTP均为本机合成Collector；不代表生产Collector或完整业务App",
+    "Windows官方便携Nginx只验证抽取的日志/map指令，未执行Linux epoll、生产SSL或完整反代模板",
+    "移除的错误原文不再用于追踪诊断；保留状态码、路由、时间和trace ID",
+    "仅已列HTTP字段/异常/已知凭据键保护，不是任意自定义数据的全平台脱敏保证",
+    "工单仅收到已提交代码并跑单元回归，没有跳过PG测试后声称通过",
+    "专项提案保留301最新会员与工单路径；没有将旧全量提案用于覆盖最新主线",
+    "没有外部消息、正式部署、真实通知、资金、真实IM发送或商店提交"
+  ]
+}
