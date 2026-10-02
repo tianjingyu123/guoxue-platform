@@ -9,7 +9,7 @@ on:
       source_commit:
         description: 已接收候选的完整提交 SHA
         required: true
-        default: dc46ce10403fb42fa910174442ea95f61f5c9512
+        default: 4d5dc15ef4d316101fe7dc6fc312729c20152dcd
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
       ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
-      SOURCE_COMMIT: ${{ inputs.source_commit || 'dc46ce10403fb42fa910174442ea95f61f5c9512' }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || '4d5dc15ef4d316101fe7dc6fc312729c20152dcd' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
