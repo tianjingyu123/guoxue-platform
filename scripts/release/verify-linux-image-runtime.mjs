@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:b7c51f4c4");
-const sourceCommit = "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6";
-const sourceSha256 = "8ca27a9af81cc4ea9e77923895c2053d0d5ca6ccd19baa7766b2a3a0f008ce91";
+assert.equal(image, "rebu-linux-verify:e297434ec");
+const sourceCommit = "e297434ec0cdd2765bcb42531dc96c999e531e7f";
+const sourceSha256 = "7feecabf5560df3f14e76f3036bf2209c1a7fa309078728f4ade5c6988bb9419";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -490,6 +490,9 @@ try {
   assert(renewReport.passed && renewReport.noExternalDelivery);
   save('member-renew-runtime.json', renewReport);
   check('compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock', renewReport);
+  const proReport=appNode(readFileSync(new URL('./verify-isolated-practitioner-pro.cjs', import.meta.url),'utf8'));
+  assert(proReport?.passed);save('practitioner-pro-runtime.json',proReport);
+  check('compiled-practitioner-concurrent-payment-refund-durable-notice',proReport);
   report.passed = true;
 } catch (error) {
   report.error = sanitize(error.message);
