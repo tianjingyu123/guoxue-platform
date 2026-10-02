@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "monthlyRecoveryCurrentBinding",
+  "currentBindingKey": "practitionerCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1811,6 +1811,45 @@
     "migrationCount": 132,
     "newMigration": false,
     "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "practitionerCurrentBinding": {
+    "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "businessCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+    "compatibilityCommit": "acbc550b603508192c0498b2226b9c0bc7e02c65",
+    "parent": "1f00d9ace3456c717204f1f2bb2b9cf0a8f1ea3c",
+    "record": "从业会员并发付款退款与持久到账通知验收-20261002.json",
+    "localPassed": 393,
+    "localSuites": 19,
+    "compiledPassed": 19,
+    "newRealPgCases": 19,
+    "linux": {
+      "runId": 37031665703,
+      "passed": 777,
+      "suites": 45,
+      "skipped": 0,
+      "artifactId": 11236999611,
+      "artifactDigest": "sha256:845895361556a3953fb701f559987db59077745a1dd8ea083c252fe3044e2178",
+      "sourceBindingEntryCount": 74,
+      "uniqueSourceFileCount": 73
+    },
+    "ci": {
+      "runId": 37031486812,
+      "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
+      "passed": 9009,
+      "skipped": 411,
+      "jobsPassed": 8
+    },
+    "practitionerCompleteInIsolation": true,
+    "N4OverallComplete": false,
+    "N5OverallComplete": false,
+    "newMigration": false,
+    "migrationCount": 132,
+    "production": false,
+    "historicalBackfill": false,
+    "realChannels": false,
     "formalDockerfileImage": false,
     "newPhoneTest": false,
     "releaseReady": false

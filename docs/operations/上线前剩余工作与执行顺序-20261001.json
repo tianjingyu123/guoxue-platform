@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T15:44:56.907Z",
-  "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+  "checkedAt": "2026-10-02T16:31:32.688Z",
+  "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
   "testFixtureCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
   "releaseReady": false,
   "states": [
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "会员当月恢复跨月保护与工单行锁验证-20261002.json",
+  "record": "从业会员并发付款退款与持久到账通知验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -71,17 +71,20 @@
   },
   "formalImage": {
     "status": "待业务收口后的最终固定包重建",
-    "currentSource": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "currentSource": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
     "historicalSource": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
     "historicalChecks": 29,
-    "isCurrentSourceEvidence": false
+    "isCurrentSourceEvidence": false,
+    "currentValidationSubmitted": true,
+    "currentValidationComplete": false,
+    "currentValidationCommit": "a7aaf125974ea8fc78372f7933038ddaa3a9488a"
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 37026952796,
-    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "runId": 37031486812,
+    "sourceCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
     "passed": 9009,
-    "skipped": 392,
+    "skipped": 411,
     "jobsPassed": 8
   },
   "historicalSoftwareSkippedCovered": 104,
@@ -163,7 +166,7 @@
       "production": false
     }
   },
-  "businessCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+  "businessCommit": "e297434ec0cdd2765bcb42531dc96c999e531e7f",
   "feedbackMonthlyPrivacyScope": {
     "source": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
     "receipt": "工单补发与月度权益原子性及IM隐私收口-20261002.json",
@@ -215,9 +218,10 @@
           "apps/server/src/modules/circle/services/circle-post.service.ts"
         ],
         "fact": "治理有notify->send真实调用，圈子到期删除后send且到期提醒无数据库事件幂等；圈帖sendOnce防重但提交后崩溃尚无持久事件恢复",
-        "next": "按治理、到期和打赏三个独立单元补事实源与持久恢复，保留资金主事务和各自撤回点",
+        "next": "按当前源码重新核对圈务/从业/打赏/删除及权限跳转完整矩阵；正式镜像、共享Redis及两节点、同版真机和真实渠道仍未验收",
         "runtimeFailureInjectionThisBatch": false,
-        "resolvedInIsolation": false
+        "resolvedInIsolation": false,
+        "practitionerCompleteInIsolation": true
       },
       {
         "id": "N5",
@@ -539,14 +543,14 @@
     }
   },
   "linux": {
-    "runId": 37027014500,
-    "passed": 758,
-    "suites": 44,
+    "runId": 37031665703,
+    "passed": 777,
+    "suites": 45,
     "skipped": 0,
-    "artifactId": 11234979902,
-    "artifactDigest": "sha256:bf1af3e32965eafdc0efc6c6f63ec29d74ca3256a6b4341e94e9666eb6958ec3",
-    "sourceBindingEntryCount": 69,
-    "uniqueSourceFileCount": 68
+    "artifactId": 11236999611,
+    "artifactDigest": "sha256:845895361556a3953fb701f559987db59077745a1dd8ea083c252fe3044e2178",
+    "sourceBindingEntryCount": 74,
+    "uniqueSourceFileCount": 73
   },
   "circleRewardScope": {
     "receipt": "圈帖打赏提交后通知恢复与升级验收-20261002.json",
@@ -1823,8 +1827,41 @@
     "N5OverallComplete": false
   },
   "practitionerScope": {
-    "baselineRealPgCounterexamples": true,
-    "implemented": false,
+    "completeInIsolation": true,
+    "implemented": true,
+    "currentOrderFactOnly": true,
+    "monthlyPrice": 98,
+    "calendarMonthPolicyUnchanged": true,
+    "N4OverallComplete": false,
+    "realChannels": false,
     "production": false
+  },
+  "practitionerHistoricalParentBinding": {
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "record": "会员当月恢复跨月保护与工单行锁验证-20261002.json",
+    "ci": {
+      "runId": 37026952796,
+      "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+      "passed": 9009,
+      "skipped": 392,
+      "jobsPassed": 8
+    },
+    "linux": {
+      "runId": 37027014500,
+      "passed": 758,
+      "suites": 44,
+      "skipped": 0,
+      "artifactId": 11234979902,
+      "artifactDigest": "sha256:bf1af3e32965eafdc0efc6c6f63ec29d74ca3256a6b4341e94e9666eb6958ec3",
+      "sourceBindingEntryCount": 69,
+      "uniqueSourceFileCount": 68
+    }
+  },
+  "clientEquivalence": {
+    "baseline": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "files": 5427,
+    "publicFingerprintSame": true,
+    "newBuild": false,
+    "newPhoneTest": false
   }
 }
