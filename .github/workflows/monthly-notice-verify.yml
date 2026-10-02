@@ -1,0 +1,110 @@
+name: 月度实际到账与通知恢复隔离验证
+
+on:
+  push:
+    branches: [codex/image-verify-20260930]
+    paths: [.github/workflows/monthly-notice-verify.yml, scripts/release/verify-isolated-monthly-notice.cjs]
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: 已评审的完整候选提交
+        required: true
+        default: f8ea057b5b3046f76624f98c5d20e3850a450a7a
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: qa_voice
+          POSTGRES_PASSWORD: synthetic-test-only
+          POSTGRES_DB: entitlement_notice_qa_monthly_notice_linux
+        ports: ["55462:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qa_voice -d entitlement_notice_qa_monthly_notice_linux"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_monthly_notice_linux
+      ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_monthly_notice_linux
+      SOURCE_COMMIT: ${{ inputs.source_commit || 'f8ea057b5b3046f76624f98c5d20e3850a450a7a' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: true
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/workflows/monthly-notice-verify.yml
+            /scripts/release/verify-isolated-monthly-notice.cjs
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: true
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/.claude/
+      - name: 清除临时只读检出鉴权
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: 固定身份、独立依赖与空合成库
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          mkdir -p artifacts/monthly-notice
+          git rev-parse HEAD > artifacts/monthly-notice/source-binding.txt
+          git ls-files apps/server/src apps/server/prisma/schema.prisma apps/server/prisma/migrations pnpm-lock.yaml | xargs sha256sum >> artifacts/monthly-notice/source-binding.txt
+          pnpm install --frozen-lockfile
+          pnpm --filter @guoxue/server exec prisma generate
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+          git show f8e03c883cd648033fe44b409487a67c0073c746:apps/server/prisma/schema.prisma > apps/server/prisma/.qa-monthly-parent.prisma
+          pnpm --filter @guoxue/server exec prisma db push --skip-generate --schema prisma/.qa-monthly-parent.prisma
+          pnpm --filter @guoxue/server exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/.qa-monthly-parent.prisma --exit-code > artifacts/monthly-notice/schema-before.log
+          psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -1 -f apps/server/prisma/migrations/manual_z_20261002_05_member_monthly_benefit_notice/migration.sql > artifacts/monthly-notice/migration-apply.log
+          pnpm --filter @guoxue/server exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code > artifacts/monthly-notice/schema-after.log
+          rm apps/server/prisma/.qa-monthly-parent.prisma
+      - name: 指定付款退款与权益回归，不运行全仓
+        working-directory: candidate/apps/server
+        run: |
+          set -euo pipefail
+          pnpm exec jest --runInBand --no-coverage --runTestsByPath src/modules/member/member-monthly-notification.postgres.spec.ts src/modules/notification/member-monthly-notification.task.spec.ts src/modules/shop/payment-ack-boundary.postgres.spec.ts src/modules/shop/payment-ack-boundary.spec.ts src/modules/shop/school-member-entitlement.postgres.spec.ts src/modules/shop/practitioner-entitlement.postgres.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/member/member-benefit.monthly.postgres.spec.ts src/modules/member/member-monthly-recovery.postgres.spec.ts src/modules/shop/shop-payment.service.spec.ts src/modules/shop/shop-refund.service.spec.ts src/modules/notification/notification.service.spec.ts src/modules/notification/entitlement-notification.task.spec.ts src/modules/entitlement/entitlement.service.spec.ts src/modules/member/member-grant.service.spec.ts src/modules/member/member.service.spec.ts src/modules/shop/membership-period.spec.ts --json --outputFile ../../artifacts/monthly-notice/jest-results.json 2>&1 | tee ../../artifacts/monthly-notice/jest.log
+          node -e 'const x=require("../../artifacts/monthly-notice/jest-results.json");if(x.numPassedTests!==387||x.numFailedTests||x.numPendingTests||x.numPassedTestSuites!==17)throw Error("指定验证数量或状态不符")'
+          node -e 'require("fs").writeFileSync(".qa-school-types.json",JSON.stringify({extends:"./tsconfig.jest.json",compilerOptions:{incremental:false},include:["src/types/**/*.d.ts","src/modules/member/member-monthly-notification.postgres.spec.ts","src/modules/notification/member-monthly-notification.task.spec.ts","src/modules/notification/member-monthly-notification.task.ts","src/modules/shop/payment-ack-boundary.postgres.spec.ts","src/modules/shop/payment-ack-boundary.spec.ts","src/modules/shop/school-member-entitlement.postgres.spec.ts","src/modules/shop/shop-payment.service.ts","src/modules/shop/shop-refund.service.ts","src/modules/notification/entitlement-notification.task.ts"],exclude:["node_modules","dist"]}))'
+          cp .qa-school-types.json ../../artifacts/monthly-notice/spec-types.json
+          pnpm exec tsc --noEmit -p .qa-school-types.json 2>&1 | tee ../../artifacts/monthly-notice/typecheck.log
+          rm .qa-school-types.json
+          pnpm exec eslint src/modules/shop/school-member-entitlement.postgres.spec.ts src/modules/shop/shop-payment.service.ts src/modules/shop/shop-refund.service.ts src/modules/notification/entitlement-notification.task.ts --format json --output-file ../../artifacts/monthly-notice/lint.json
+          pnpm build 2>&1 | tee ../../artifacts/monthly-notice/build.log
+      - name: 编译产物真实事务验证
+        working-directory: candidate
+        run: node ../scripts/release/verify-isolated-monthly-notice.cjs
+      - name: 归档证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: monthly-notice-${{ env.SOURCE_COMMIT }}
+          path: candidate/artifacts/monthly-notice/
+          retention-days: 30
+
+
+
