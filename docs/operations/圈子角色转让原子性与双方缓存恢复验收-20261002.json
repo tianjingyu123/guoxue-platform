@@ -313,7 +313,9 @@
     "realRedis": false,
     "production": false,
     "formalDockerfileImage": false,
-    "checkedAt": "2026-10-02T14:43:57.122Z"
+    "checkedAt": "2026-10-02T14:43:57.122Z",
+    "sourceBindingEntryCount": 66,
+    "uniqueSourceFileCount": 65
   },
   "ci": {
     "runId": 37021148926,

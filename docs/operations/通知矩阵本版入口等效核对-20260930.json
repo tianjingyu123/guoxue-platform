@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "roleMembershipCacheCurrentBinding",
+  "currentBindingKey": "monthlyRecoveryCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1765,6 +1765,48 @@
       "jobsPassed": 8
     },
     "paidAndRoleMembershipCacheCompleteInIsolation": true,
+    "N4OverallComplete": false,
+    "migrationCount": 132,
+    "newMigration": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
+  },
+  "monthlyRecoveryCurrentBinding": {
+    "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+    "parent": "13686abd92a027914b74ac0992d6dd861a7dc939",
+    "businessCommit": "dc46ce10403fb42fa910174442ea95f61f5c9512",
+    "testFixtureCommits": [
+      "eb882aeb9cf161124d3c396f833195d781b4c9f6",
+      "4d5dc15ef4d316101fe7dc6fc312729c20152dcd"
+    ],
+    "record": "会员当月恢复跨月保护与工单行锁验证-20261002.json",
+    "localPassed": 390,
+    "localSuites": 21,
+    "directionalFixturePassed": 41,
+    "compiledPassed": 20,
+    "compiledPostgresPassed": 8,
+    "linux": {
+      "runId": 37027014500,
+      "passed": 758,
+      "suites": 44,
+      "skipped": 0,
+      "artifactId": 11234979902,
+      "artifactDigest": "sha256:bf1af3e32965eafdc0efc6c6f63ec29d74ca3256a6b4341e94e9666eb6958ec3",
+      "sourceBindingEntryCount": 69,
+      "uniqueSourceFileCount": 68
+    },
+    "ci": {
+      "runId": 37026952796,
+      "sourceCommit": "4d5dc15ef4d316101fe7dc6fc312729c20152dcd",
+      "passed": 9009,
+      "skipped": 392,
+      "jobsPassed": 8
+    },
+    "currentMonthRecoveryCompleteInIsolation": true,
+    "couponCollisionPolicyUnchanged": true,
+    "N5OverallComplete": false,
     "N4OverallComplete": false,
     "migrationCount": 132,
     "newMigration": false,
