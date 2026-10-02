@@ -6,6 +6,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
 import { maskPhone, maskEmail, maskIdCard } from "../../common/crypto.util";
 import { NotificationService } from "../notification/notification.service";
+import { publicFeedbackReply } from "./feedback-reply";
 import {
   FeedbackListQueryDto,
   UpdateFeedbackStatusDto,
@@ -44,9 +45,7 @@ export class FeedbackService {
     });
     return rows.map(({ result, ...row }) => ({
       ...row,
-      reply: row.status === "resolved" && result?.startsWith(PUBLIC_REPLY_PREFIX)
-        ? result.slice(PUBLIC_REPLY_PREFIX.length)
-        : null,
+      reply: row.status === "resolved" ? publicFeedbackReply(result) : null,
     }));
   }
 
@@ -111,9 +110,7 @@ export class FeedbackService {
       contactMasked: this.maskContact(f.contact),
       hasContact: Boolean(f.contact),
       imageCount: f.images?.length ?? 0,
-      result: this.maskContent(f.result?.startsWith(PUBLIC_REPLY_PREFIX)
-        ? f.result.slice(PUBLIC_REPLY_PREFIX.length)
-        : f.result),
+      result: this.maskContent(publicFeedbackReply(f.result) ?? f.result),
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
       // 场景 C 的诊断编号写在正文头部固定格式，这里提取出来单列
