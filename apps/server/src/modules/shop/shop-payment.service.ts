@@ -1642,6 +1642,8 @@ export class ShopPaymentService {
    * 续期不吞剩余天数：未到期则从「当前到期日」起算叠加，已过期则从当下起算。
    */
   private async processPractitionerProPaid(order: Order, tx: any) {
+    // 不同订单也必须按用户串行；与退款统一 Order → User → 权益锁序。
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
     const now = new Date();
     const existing = await tx.practitionerProfile.findUnique({
       where: { userId: order.userId },
@@ -1670,6 +1672,7 @@ export class ShopPaymentService {
       sourceType: "ORDER",
       sourceId: order.id,
       idempotencyKey: `order:${order.id}:membership.practitioner`,
+      metadata: { notificationEvent: "PRACTITIONER_GRANTED_V1" },
     });
     this.logger.log(`从业者会员开通/续期 user=${order.userId} 到期=${expire.toISOString()}`);
   }

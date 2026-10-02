@@ -215,6 +215,10 @@ export class ShopRefundService {
           } });
         }
       }
+      // 从业付款先锁用户再锁权益；退款必须在撤销权益前采用相同顺序。
+      if (order.type === "PRACTITIONER_PRO") {
+        await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
+      }
       // 数字权益与退款状态在同一事务内冲正，任何一个失败都不允许订单先显示已退款。
       await this.entitlement.revokeSourceWithTx(tx, order.userId, "ORDER", order.id, reason || "订单退款");
       if (order.type === "MEMBER") await this.rebuildSchoolMembershipAfterRefund(tx, order.userId, order.id);
