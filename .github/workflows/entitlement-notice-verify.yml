@@ -9,7 +9,7 @@ on:
       source_commit:
         description: 已接收候选的完整提交 SHA
         required: true
-        default: 0d9dc3262e6b6d731fe350a966ef7e053f66e25e
+        default: 91d6d82e054d1cab76c78383a42dd9d66eeb5326
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
       ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
-      SOURCE_COMMIT: ${{ inputs.source_commit || '0d9dc3262e6b6d731fe350a966ef7e053f66e25e' }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || '91d6d82e054d1cab76c78383a42dd9d66eeb5326' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -66,7 +66,7 @@ jobs:
           sha256sum apps/server/src/modules/member/member.service.ts apps/server/src/modules/member/member.controller.ts apps/server/src/modules/member/member.dto.ts apps/server/prisma/schema.prisma apps/server/src/modules/member/member-grant.service.ts apps/server/src/modules/member/member-renew.postgres.spec.ts apps/mobile/src/lib/im-data.ts apps/mobile/src/lib/mine-data.ts >> artifacts/entitlement-notice/source-binding.txt
           sha256sum apps/server/src/modules/user/feedback.service.ts apps/server/src/modules/user/feedback-reply.ts apps/server/src/modules/user/feedback-notification.task.ts apps/server/src/modules/user/feedback-notification.postgres.spec.ts apps/server/src/modules/user/feedback-notification.task.spec.ts apps/server/src/modules/user/feedback.service.spec.ts apps/server/src/modules/user/user.module.ts apps/server/src/modules/im/im-callback.controller.ts apps/server/src/modules/im/im-callback.privacy.spec.ts apps/server/src/modules/member/member-benefit.service.ts apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts >> artifacts/entitlement-notice/source-binding.txt
           sha256sum apps/server/src/modules/circle/services/circle-membership.service.ts apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts apps/server/src/modules/circle/services/circle-expiration-reminder.spec.ts >> artifacts/entitlement-notice/source-binding.txt
-          sha256sum apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql apps/server/src/modules/circle/circle.module.ts apps/server/src/modules/circle/services/circle-post.service.ts apps/server/src/modules/circle/services/circle-post.service.spec.ts apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts >> artifacts/entitlement-notice/source-binding.txt
+          sha256sum apps/server/prisma/migrations-deploy/full-baseline.sql apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql apps/server/src/modules/circle/circle.module.ts apps/server/src/modules/circle/services/circle-post.service.ts apps/server/src/modules/circle/services/circle-post.service.spec.ts apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts apps/server/src/modules/circle/services/circle-post-reward-notification.task.spec.ts apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts >> artifacts/entitlement-notice/source-binding.txt
           pnpm install --frozen-lockfile
           pnpm --filter @guoxue/server exec prisma generate
           pnpm --filter @guoxue/shared build
