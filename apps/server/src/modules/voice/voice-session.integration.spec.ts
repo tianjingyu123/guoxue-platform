@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { DEFAULT_VOICE_BILLING, VoiceQuotaService } from "./voice-quota.service";
 import { VoiceContextBuilder } from "./voice-context.builder";
 import { VoiceSessionService } from "./voice-session.service";
@@ -24,8 +24,8 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
   let cfg = billing();
   const system: any = { getConfig: jest.fn(async () => cfg) };
 
-  function build(provider: any) {
-    const quota = new VoiceQuotaService(prisma as any, system);
+  function build(provider: any, quotaPrisma: PrismaClient = prisma) {
+    const quota = new VoiceQuotaService(quotaPrisma as any, system);
     const devices = new VoiceDeviceService(prisma as any);
     const svc = new VoiceSessionService(prisma as any, quota, new VoiceContextBuilder(prisma as any, { assertReportAccess: jest.fn() } as any), provider, devices);
     return { quota, devices, svc };
@@ -68,13 +68,42 @@ run("小卜语音会话编排 · 真实库 + 模拟供应商", () => {
 
   it("同一 clientRequestId 并发开始 5 次：只建 1 个会话、只调 1 次供应商、只预留 1 次", async () => {
     const mock = new MockXiaozhiProvider();
-    const { svc, quota } = build(mock);
+    let snapshots = 0;
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    // 五个真实事务均读到相同余额后才允许 CAS，确定性覆盖唯一键写入前的额度冲突。
+    const quotaPrisma = new Proxy(prisma, {
+      get(target, property) {
+        if (property === "$transaction") return (work: (tx: Prisma.TransactionClient) => Promise<unknown>) => target.$transaction((tx) => work(new Proxy(tx, {
+          get(transaction, key) {
+            if (key === "voiceQuotaAccount") return new Proxy(transaction.voiceQuotaAccount, {
+              get(account, method) {
+                if (method === "findUniqueOrThrow") return async (args: Prisma.VoiceQuotaAccountFindUniqueOrThrowArgs) => {
+                  const snapshot = await account.findUniqueOrThrow(args);
+                  snapshots += 1;
+                  if (snapshots === 5) release();
+                  await ready;
+                  return snapshot;
+                };
+                const value = Reflect.get(account, method);
+                return typeof value === "function" ? value.bind(account) : value;
+              },
+            });
+            return Reflect.get(transaction, key);
+          },
+        })));
+        const value = Reflect.get(target, property);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const { svc, quota } = build(mock, quotaPrisma);
     const user = `${prefix}-idem`;
     await quota.grant({ ownerType: "user", ownerId: user, seconds: 600, idempotencyKey: `${user}-g` });
     const rid = reqId("idem");
     const results = await Promise.all(Array.from({ length: 5 }, () => svc.start(user, { scene: "plaza", contextId: "xiaobu", clientRequestId: rid })));
     const ids = new Set(results.map((r: any) => r.session?.id));
     expect(ids.size).toBe(1);
+    expect(snapshots).toBe(5);
     expect(await prisma.voiceSession.count({ where: { userId: user } })).toBe(1);
     expect(mock.calls.issue).toBe(1);
     expect((await quota.getAvailable("user", user)).reservedSeconds).toBe(300);

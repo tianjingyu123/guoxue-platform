@@ -269,7 +269,11 @@ export class VoiceSessionService {
         },
       });
     } catch (error: any) {
-      if (error?.code === "P2002") {
+      // 同一请求的赢家可能先完成额度预留，输家在唯一键写入前就因 CAS 冲突或额度不足退出。
+      // 只复用本人同一幂等键的已落库会话；不同请求仍保留原额度错误，不再次签发供应商会话。
+      const quotaConflict = error instanceof BusinessException
+        && [ErrorCode.CONFLICT, ErrorCode.BAD_REQUEST].includes(error.errorCode);
+      if (error?.code === "P2002" || quotaConflict) {
         const dup = await this.prisma.voiceSession.findUnique({ where: { startIdempotencyKey } });
         if (dup && dup.userId === userId) return { available: true as const, duplicated: true, session: this.toView(dup) };
       }
