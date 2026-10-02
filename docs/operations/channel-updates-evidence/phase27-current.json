@@ -1,0 +1,249 @@
+{
+  "verifiedAt": "2026-10-02T00:44:57.351Z",
+  "sourceSha": "63b498e94ac6e4325ad7efab7b8c00a62fec2521",
+  "baseSha": "6ce8136136f3aa4c60e5ccefe4b849dc0205fbc8",
+  "sourceDirty": false,
+  "mainlineSnapshot": "70906c05e05b7b389c17ed6bc5bde2bc8d9c50aa",
+  "businessSourceCommits": [
+    "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "e5e379d91f154e84484bb612dcde386197623504"
+  ],
+  "independentCommits": [
+    "9231fe0d9",
+    "63b498e94"
+  ],
+  "changedFiles": [
+    "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+    "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+    "apps/server/src/modules/practitioner/practitioner.service.ts"
+  ],
+  "changedFilesIdenticalToMainlineSnapshot": true,
+  "independentValidationOnly": true,
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "regression": {
+    "practitioner": {
+      "passed": 62,
+      "suites": 9,
+      "failed": 0,
+      "skipped": 0,
+      "realPostgresTests": 2,
+      "unitTests": 60
+    },
+    "botHttpPostgres": {
+      "passed": 9,
+      "suites": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "totalPassed": 71,
+    "totalSuites": 11,
+    "eslintErrors": 0,
+    "eslintWarnings": 32,
+    "eslintByFile": [
+      {
+        "file": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+        "errors": 0,
+        "warnings": 10
+      },
+      {
+        "file": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+        "errors": 0,
+        "warnings": 7
+      },
+      {
+        "file": "apps/server/src/modules/practitioner/practitioner.service.ts",
+        "errors": 0,
+        "warnings": 15
+      }
+    ],
+    "serverTypecheckExitCode": 0,
+    "serverProductionBuildExitCode": 0
+  },
+  "postgres": {
+    "version": "16.13",
+    "host": "127.0.0.1",
+    "port": 55473,
+    "databases": [
+      "practitioner_qa_phase27",
+      "bot_quota_qa_phase27"
+    ],
+    "emptyBeforeBootstrap": true,
+    "bootstrapSingleTransaction": true,
+    "sql": {
+      "apps\\server\\prisma\\migrations-deploy\\full-baseline.sql": "a302f3dc6f34c9ddbd2d05f40ef1c842d98ab70fac05fb27d13539ee955b7623",
+      "apps\\server\\prisma\\migrations-deploy\\channel-operations.sql": "5962230f58f723a39f7aa096b598bbdb3f01330ef67d84fac60a311989d788cf"
+    },
+    "syntheticLocalOnly": true,
+    "remainingRowsAfterTests": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "countsOrder": [
+      "User",
+      "PractitionerReport",
+      "BotQuotaPurchase",
+      "BotQuotaReservation",
+      "UserBotQuota"
+    ],
+    "stopped": true,
+    "postmasterPidAbsent": true,
+    "portClosed": true,
+    "existingClustersTouched": false,
+    "redisNetwork": false,
+    "jwtGuard": "测试替身",
+    "throttleGuard": "测试替身",
+    "supplier": "测试替身",
+    "reportAccess": "测试替身",
+    "coinAndFeatureFlag": "真实服务及隔离库"
+  },
+  "serverBuild": {
+    "manifest": "artifacts/phase27-report-bot-current/build-manifest.json",
+    "fileCount": 3458,
+    "manifestSha256": "3897f4130d84bf3166cdc01c779bc6a624a179cd232918e4d1cd6a612cce293e"
+  },
+  "previousEvidenceReuse": {
+    "clientSource": "10863ad1732d3a3d08d8859c5069fe6cbe490e1e",
+    "clientTests": 319,
+    "clientTestsRerun": false,
+    "clientBuildsRerun": false,
+    "appH5MpBuildsPassed": true,
+    "inputs": {
+      "apps/mobile": {
+        "previous": "dc64a197de7d4892ea927a03e08fc9ea5be11128",
+        "current": "dc64a197de7d4892ea927a03e08fc9ea5be11128",
+        "identical": true
+      },
+      "tests": {
+        "previous": "3637ccc064bd76207aca2c9b9e2aa346e3d2ced7",
+        "current": "3637ccc064bd76207aca2c9b9e2aa346e3d2ced7",
+        "identical": true
+      },
+      "scripts": {
+        "previous": "fc9344d087fe6dd3aba495bd6e8c08418ea11afc",
+        "current": "fc9344d087fe6dd3aba495bd6e8c08418ea11afc",
+        "identical": true
+      },
+      "apps/admin": {
+        "previous": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "current": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "identical": true
+      },
+      "package.json": {
+        "previous": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "current": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "identical": true
+      },
+      "pnpm-lock.yaml": {
+        "previous": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "current": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "identical": true
+      },
+      "packages": {
+        "previous": "b1249418ea49296ffb90dcd883533060126d5637",
+        "current": "b1249418ea49296ffb90dcd883533060126d5637",
+        "identical": true
+      }
+    },
+    "historicalPublicReportHashes": {
+      "docs/operations/channel-updates-evidence/phase25-notification-merged-current.json": "45cd61553abe9ec302aa8e3b1758aa98d1b4352e146720b9970bcf9dc53d5ccd",
+      "docs/operations/channel-updates-evidence/phase26-current.json": "348575a37f7bbfe1a0ad932cfead373f0a399040f1145b0c708336019bc17146",
+      "docs/operations/channel-updates-evidence/phase22-message-merged-current.json": "f48720184f0e8a388c2dc48ee8ab057d4d9b5392c04e0434fb5db5d385172780"
+    },
+    "prior350TestsRerunOrAccumulated": false,
+    "ownerLinuxCiOrImageRebound": false
+  },
+  "review": {
+    "patch": "artifacts/phase27-report-bot-current/review-verified/merged-from-6ce813613.patch",
+    "bundle": "artifacts/phase27-report-bot-current/review-verified/merged.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "c8c19aec49ae81f9419a5e5f0c86d229ef901fcb",
+    "sourceTree": "c8c19aec49ae81f9419a5e5f0c86d229ef901fcb",
+    "temporaryIndexOnly": true
+  },
+  "evidence": {
+    "artifacts/phase27-report-bot-current/preflight.json": {
+      "bytes": 2519,
+      "sha256": "1add2e6d213953504c6d1b98d31088b5d3aed9dab5d1064d80d949ffa9591b89"
+    },
+    "artifacts/phase27-report-bot-current/execution.json": {
+      "bytes": 1781,
+      "sha256": "70007245d59431b4212f7abc01e2e9a62d47a7620b7543b42d68e4e98f864953"
+    },
+    "artifacts/phase27-report-bot-current/practitioner-tests.json": {
+      "bytes": 25792,
+      "sha256": "5d31cf3f27b69d0c4eb57dde0446579fec132c692de127cdf82fedfc137c2e1b"
+    },
+    "artifacts/phase27-report-bot-current/bot-tests.json": {
+      "bytes": 4884,
+      "sha256": "3efe47591e5d1add2c3bd7e61fd3d973a5cc8f07cc262db7e9dfd425623258c5"
+    },
+    "artifacts/phase27-report-bot-current/practitioner-regression.log": {
+      "bytes": 1603,
+      "sha256": "4a905ad8f13055b1a45e3aae98f6c77737364527e95454b281ec0aea75a87cb9"
+    },
+    "artifacts/phase27-report-bot-current/bot-http-postgres.log": {
+      "bytes": 425,
+      "sha256": "4e8e21336e37bfaab255c46ab0fce8fd4cdb3d5f4bf5f8c14664a60bb4c7a364"
+    },
+    "artifacts/phase27-report-bot-current/eslint.json": {
+      "bytes": 77446,
+      "sha256": "1c52746981aab9d884a14cbd6ba38e2ad0a556fc7f4464d715c3b3d393420273"
+    },
+    "artifacts/phase27-report-bot-current/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase27-report-bot-current/server-production-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase27-report-bot-current/build-manifest.json": {
+      "bytes": 610975,
+      "sha256": "3897f4130d84bf3166cdc01c779bc6a624a179cd232918e4d1cd6a612cce293e"
+    },
+    "artifacts/phase27-report-bot-current/postgres-version.log": {
+      "bytes": 29,
+      "sha256": "8b260b7582a472d30c2e05ed1216aab2cea1a24052393520c6205beef4b53815"
+    },
+    "artifacts/phase27-report-bot-current/postgres-stop.log": {
+      "bytes": 50,
+      "sha256": "dd269ccb43c508088b5a167e486992f22ca81c73e544ef93ea8ed842549ac2d8"
+    },
+    "artifacts/phase27-report-bot-current/practitioner_qa_phase27-identity.log": {
+      "bytes": 109,
+      "sha256": "7c8f12597168b3fabe3e44efd462b47a49101bafef0d5dd0922593b4ebdb4fcd"
+    },
+    "artifacts/phase27-report-bot-current/bot_quota_qa_phase27-identity.log": {
+      "bytes": 106,
+      "sha256": "da8c2f1dac09d31849bbf70ab5f064502a775e4cb3084db1983c552eb8b8bacd"
+    },
+    "artifacts/phase27-report-bot-current/practitioner_qa_phase27-remaining-test-rows.log": {
+      "bytes": 11,
+      "sha256": "510594f451300522063b9d5c459ba0ab164230bf53b73f269f22e01ad3bc3999"
+    },
+    "artifacts/phase27-report-bot-current/bot_quota_qa_phase27-remaining-test-rows.log": {
+      "bytes": 11,
+      "sha256": "510594f451300522063b9d5c459ba0ab164230bf53b73f269f22e01ad3bc3999"
+    },
+    "artifacts/phase27-report-bot-current/review-verified/merged-from-6ce813613.patch": {
+      "bytes": 5585,
+      "sha256": "7e9f92643576a19552cb7b2d935d4197aaa66e97cd14af6b30d975ae3b87194a"
+    },
+    "artifacts/phase27-report-bot-current/review-verified/merged.bundle": {
+      "bytes": 4999,
+      "sha256": "175e053ddd8c9d7aead8748d6e6640f8c2d4f6b53d66ddbfc57955a619d22a19"
+    }
+  },
+  "limits": [
+    "本轮为 Windows/PostgreSQL16.13 隔离库定向验证，不是正式镜像、主线全量CI或生产验收",
+    "未运行共享Redis、正式鉴权、真实供应商或真实扣款通知",
+    "复用319项客户端和三端构建证据的输入树完全相同，没有重跑或累计",
+    "主线Linux/PostgreSQL18.4专项及18.6镜像证据保留其原源码身份，未绑定本候选",
+    "匹配5.23SDK下载页仍需用户登录；DCloud完整包和旧安卓实体机待验收",
+    "内部业务闭环缺口及七类上线门槛仍保留；16商店账号签名材料和正式提审未完成"
+  ]
+}
