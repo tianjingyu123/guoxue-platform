@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
-  "checkedAt": "2026-10-02T17:12:32.689Z",
+  "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
+  "checkedAt": "2026-10-02T18:17:47.223Z",
   "rows": [
     {
       "id": "order-paid",
@@ -59,10 +59,10 @@
         "apps/server/src/modules/shop/shop-payment.service.ts",
         "apps/server/src/modules/notification/entitlement-notification.task.ts"
       ],
-      "key": "已有ORDER_PAID；没有独立MEMBER到账键",
-      "state": "付款权益已实现；独立到账恢复入口缺失",
-      "recovery": "当前订单MEMBER_PLAN metadata仅planLevel/memberLevel/autoRenew，未标MEMBER_GRANTED_V1",
-      "gap": "需独立补新订单到账事实与会员权威状态复核，不能用管理员授予代替",
+      "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "state": "MEMBER_PAID_GRANTED_V1新付款事实、同用户付款退款行锁及购买/订单/当前会员核验已接入",
+      "recovery": "已注册分钟任务持久补发；事务失败无事实；退款/失效/旧流水不报告成功",
+      "gap": "限定隔离PG通过；旧券政策及回调唯一键错误确认缺陷、正式Cron/供应商/手机未覆盖",
       "online": "未知"
     },
     {
@@ -76,7 +76,7 @@
       "key": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
       "state": "PRACTITIONER_GRANTED_V1新事实、付款退款User行锁及ORDER权威复核已接入",
       "recovery": "分钟恢复；仅本人有效已付/完成订单、未冲正的当前有效权益",
-      "gap": "真实Cron、渠道与手机未覆盖；本次语音改动对这批源码无差异",
+      "gap": "19项从业真实PG在本版重跑；真实Cron、供应商和手机未覆盖",
       "online": "未知"
     },
     {
@@ -226,23 +226,23 @@
   "bindings": [
     {
       "path": "apps/server/src/modules/shop/shop-payment.service.ts",
-      "sha256": "52a33dec5840bc4982a6638c003e0b5d4ad13d06e7836cd95632a9cf6f8fe5a7"
+      "sha256": "8c3e4f82ccacf209060e0f3dab6ec50e37feebfba2cd9e6c4cc0e6ca7e7cdd23"
     },
     {
       "path": "apps/server/src/modules/shop/shop-refund.service.ts",
-      "sha256": "f4f445cac5dd26cfd2668f24cca9ee088e4202e01afde550dad9533401c4f82c"
+      "sha256": "fb25d177caf9629b86957399de3adfb1e7657cf57f16fcd8815bae54d226d758"
     },
     {
       "path": "apps/server/src/modules/entitlement/entitlement.service.ts",
-      "sha256": "0ff437bf42f08e5d3ef8cdc2e05efbe7195895b9eb906ed5e3b113b3b667f25e"
+      "sha256": "ed9f1df2340940b4e800d7119549efc29d80576a51a1e9167ada264d193bbb7e"
     },
     {
       "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
-      "sha256": "a469d40d1f36d59d88037264793663f3b0d5100cf87293645605de5c4dfc01ad"
+      "sha256": "c3b0e34d71219fd50291b5b83c74a20d50b166d7c37b8a71391dfd5cae152fe4"
     },
     {
       "path": "apps/server/src/modules/member/member.service.ts",
-      "sha256": "b2b1269bf0112a21cd9c4854498456c2ceecdebef0ffe96f31614d57f2439398"
+      "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
     },
     {
       "path": "apps/server/src/modules/member/member-grant.service.ts",
@@ -254,7 +254,7 @@
     },
     {
       "path": "apps/server/src/modules/user/feedback.service.ts",
-      "sha256": "117810335a3147a98f9e38eeab00e76a29164c5a7405b9dc21a7da49f9a9b120"
+      "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
     },
     {
       "path": "apps/server/src/modules/user/feedback-notification.task.ts",
@@ -262,27 +262,27 @@
     },
     {
       "path": "apps/server/src/modules/user/user.module.ts",
-      "sha256": "647c850c51fe712c6500c75e512a26f88ddcdae9f3f722d7993f203cc3407848"
+      "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
     },
     {
       "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
-      "sha256": "3ff84774dbf7e689343fb72831e28c49084290fe4d3c76ab318ccd59725f57a5"
+      "sha256": "e38334b2c80ae8df64bc8c448b692fcc54832ddd0213ea1675efdf2cab0ce1ad"
     },
     {
       "path": "apps/server/src/modules/im/im-callback.controller.ts",
-      "sha256": "dc41a7ed12ae1356986a954c2c7a08c7f14694dcdc0548c83c54a880639c9a1a"
+      "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
     },
     {
       "path": "apps/server/src/modules/course/course-purchase.service.ts",
-      "sha256": "97b152af6cbf30e370fd5315982d5ae88539338c4d8a4c6a9c4da387c372f3d7"
+      "sha256": "f54ddc7b2605bb86ce23ea9eb0430973c697a8dafbde4c012efb5ee4b31ee3ed"
     },
     {
       "path": "apps/server/src/modules/course/course.module.ts",
-      "sha256": "31e4ad72fa6d31b84004b5e998f176435079f1ff2c395c4b04a4f9d282dd2b39"
+      "sha256": "1c831aaf004166214af2c97aeb00fe73911c39bdce980044cb1d3beb66687ba4"
     },
     {
       "path": "apps/server/src/modules/course/course-scheduler.service.ts",
-      "sha256": "d0e9e81d47fafff7426be0869359698fb38300067a64175b4402e8c1f4b0587d"
+      "sha256": "7f5de622749cceb6cb6fde6b1f2bc5085175555456ddfc4cbe341c7735e86ed6"
     },
     {
       "path": "apps/server/src/modules/live/live.service.ts",
@@ -290,7 +290,7 @@
     },
     {
       "path": "apps/server/src/modules/live/live.module.ts",
-      "sha256": "f14796a252cb644b5d34ecbb5198be210f7cf98e81a4c32b9d66263de64aa49d"
+      "sha256": "8d060580034ef5b80bdabac28e2e0e9cfaa5007778b1241297f75ea270dc29c6"
     },
     {
       "path": "apps/server/src/modules/circle/governance/circle-governance.service.ts",
@@ -310,7 +310,7 @@
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
-      "sha256": "eb7344681a40ca69215f6c2ceba17b90233b540af6f9a15a58c7838fb4e54e64"
+      "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
@@ -318,12 +318,16 @@
     },
     {
       "path": "apps/server/src/modules/notification/notification.service.ts",
-      "sha256": "4edb5ef0c59cae7eade543bb39336b37aabc50f59dbf21971c88e69f93cadcaa"
+      "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
     }
   ],
   "scope": "本次源码入口和已存在验收记录核对，不新增真实通知或声称全链路运行",
   "N4AllClosed": false,
   "allNotificationsLive": false,
   "realChannels": false,
-  "production": false
+  "production": false,
+  "previousBinding": {
+    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
+    "record": "语音重复启动修复与最终软件补验-20261002.json"
+  }
 }
