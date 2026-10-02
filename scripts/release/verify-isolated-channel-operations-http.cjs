@@ -9,7 +9,20 @@ async function main() {
     const ledger = await prisma.$queryRawUnsafe(`SELECT count(*)::int AS total,
       count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)::int AS complete,
       count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)::int AS failed FROM "_prisma_migrations"`);
-    assert.deepEqual(ledger[0], { total: 128, complete: 128, failed: 0 });
+    // 与本次固定包逐条核对，避免旧版迁移数量导致误判，也不能仅凭总数判断完整。
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const crypto = require('node:crypto');
+    const migrationRoot = '/app/apps/server/prisma/migrations';
+    const migrations = fs.readdirSync(migrationRoot, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => ({ migration_name: entry.name, checksum: crypto.createHash('sha256')
+        .update(fs.readFileSync(path.join(migrationRoot, entry.name, 'migration.sql'))).digest('hex') }));
+    assert.equal(migrations.length, 132, '本候选固定包迁移数量不符');
+    assert.deepEqual(ledger[0], { total: migrations.length, complete: migrations.length, failed: 0 });
+    const persisted = await prisma.$queryRawUnsafe(`SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`);
+    const byName = rows => rows.sort((a, b) => a.migration_name.localeCompare(b.migration_name));
+    assert.deepEqual(byName(persisted), byName(migrations), '迁移名称或 SQL 校验值不符');
     const checks = await prisma.$queryRawUnsafe(`SELECT conname FROM pg_constraint WHERE conname IN
       ('AppVersion_rollout_check','FeatureFlag_operationState_check','ResourceRelease_rollout_check','ResourceRelease_version_check') ORDER BY conname`);
     assert.equal(checks.length, 4);
