@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-01T18:01:50.509Z",
-  "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+  "checkedAt": "2026-10-02T02:00:32.671Z",
+  "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
   "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
   "releaseReady": false,
   "states": [
@@ -55,14 +55,14 @@
       "externalOnly": false
     }
   ],
-  "softwareSkippedCovered": 104,
+  "softwareSkippedCovered": 115,
   "hardwareSkippedDeferred": 29,
   "deferred": [
     "L3",
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "工作台报告锁与真实库补验-20261001.json",
+  "record": "独立权益到账与本人权益页隔离验收-20261001.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,9 +70,35 @@
     "skipped": 134
   },
   "formalImage": {
-    "source": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
-    "runId": 36905399615,
-    "checksPassed": 26,
+    "source": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "runId": 36952768170,
+    "checksPassed": 27,
     "production": false
+  },
+  "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+  "ci": {
+    "runId": 36951628317,
+    "passed": 8935,
+    "skipped": 144,
+    "jobsPassed": 8
+  },
+  "historicalSoftwareSkippedCovered": 104,
+  "additionalSkippedCovered": 11,
+  "independentEntitlementScope": {
+    "event": "ENTITLEMENT_GRANTED:<ledgerId>",
+    "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+    "factMarker": "ENTITLEMENT_GRANTED_V1",
+    "sameTransactionAsGrant": true,
+    "delivery": "站内通知，每分钟扫描，数据库唯一键，失败保留待办",
+    "newGrantsOnly": true,
+    "excludedMembershipKeys": [
+      "membership.school",
+      "membership.practitioner"
+    ],
+    "historicalBackfill": false,
+    "realPush": false,
+    "paymentRefundCodeUnchanged": true,
+    "allBusinessTriggersCompleted": false,
+    "persistentRecoveryForAllBusinessEvents": false
   }
 }

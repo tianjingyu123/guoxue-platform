@@ -1748,17 +1748,13 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
-    "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
-    "releaseId": "launch-20261001-9c8e5e1a2",
-    "receipt": "docs/operations/工作台报告锁与真实库补验-20261001.json",
-    "ciRun": 36900015643,
-    "handoffCiRun": 36903974810,
-    "imageRun": 36905399615,
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "releaseId": "launch-20261001-51b9883dd",
+    "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
+    "ciRun": 36951628317,
+    "imageRun": 36952768170,
     "releaseDecision": "NO-GO",
-    "note": "报告保存事务锁修复与智能体真实库测试依赖分开；104项软件跳过补验，29项硬件明确暂缓；未部署",
-    "evidenceAsset": 603860871,
-    "evidenceSha256": "7f55f11b94369438647a61ef76d0ca040d8256b28f122e2369c93b31934895d8"
+    "note": "非会员独立权益站内闭环与本人权益页；未部署"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1879,5 +1875,18 @@
     "note": "直播预约权限独立回退，保留c4eb失败隔离；客户端等效b2；未部署",
     "evidenceAsset": 603707900,
     "evidenceSha256": "cbd50273d743028f929614382e793129c7029a7f14ed7d16218c5e3bf6d99850"
+  },
+  "entitlementNoticeHistoricalParentCandidate": {
+    "sourceCommit": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
+    "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
+    "releaseId": "launch-20261001-9c8e5e1a2",
+    "receipt": "docs/operations/工作台报告锁与真实库补验-20261001.json",
+    "ciRun": 36900015643,
+    "handoffCiRun": 36903974810,
+    "imageRun": 36905399615,
+    "releaseDecision": "NO-GO",
+    "note": "报告保存事务锁修复与智能体真实库测试依赖分开；104项软件跳过补验，29项硬件明确暂缓；未部署",
+    "evidenceAsset": 603860871,
+    "evidenceSha256": "7f55f11b94369438647a61ef76d0ca040d8256b28f122e2369c93b31934895d8"
   }
 }

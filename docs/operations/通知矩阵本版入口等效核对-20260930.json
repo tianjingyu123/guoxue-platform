@@ -320,5 +320,91 @@
     "allRelatedInputsEquivalent": true,
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
+  },
+  "currentBindingKey": "independentEntitlementCurrentBinding",
+  "independentEntitlementCurrentBinding": {
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
+    "pathObjectBindings": [
+      {
+        "path": "apps/server/src/modules/notification",
+        "before": "051db995057c3b2cc6ad4e30424be7458ea996b6",
+        "after": "3ce1ad30c87997c53f348aab265bb22f93c1ea71"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement",
+        "before": "4692dbf0bad118f51b9845af63c24f441531dc97",
+        "after": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33"
+      },
+      {
+        "path": "apps/server/src/modules/course",
+        "before": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+        "after": "926fc7798e2463ec2a8d66396abab85a43d0e4ad"
+      },
+      {
+        "path": "apps/server/src/modules/live",
+        "before": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+        "after": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43"
+      },
+      {
+        "path": "apps/server/src/modules/circle",
+        "before": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+        "after": "aa9685c57c3f22503b10a17bd2011f41a1cba637"
+      },
+      {
+        "path": "apps/server/src/modules/shop",
+        "before": "14d387db935db80077e13736df39d35e9a109bb2",
+        "after": "14d387db935db80077e13736df39d35e9a109bb2"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "before": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+        "after": "37150cf599075785236b2b0490d3a7e5a69e2cfd"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "before": "c7d7457f9782b284c32d23141f24c8216153c567",
+        "after": "c7d7457f9782b284c32d23141f24c8216153c567"
+      },
+      {
+        "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+        "before": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+        "after": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57"
+      },
+      {
+        "path": "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+        "before": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+        "after": "30c45f619481ebfb4f2c50ea9282c8058aabbf97"
+      },
+      {
+        "path": "apps/server/src/modules/coin",
+        "before": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+        "after": "593ef5c060c8acf9553864036734b4fe24fdb0f0"
+      }
+    ],
+    "changedPaths": [
+      "apps/server/src/modules/notification",
+      "apps/server/src/modules/entitlement"
+    ],
+    "treeEquivalent": false,
+    "allNotificationTriggersCompleted": false,
+    "realChannelsVerified": false,
+    "scope": {
+      "event": "ENTITLEMENT_GRANTED:<ledgerId>",
+      "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
+      "factMarker": "ENTITLEMENT_GRANTED_V1",
+      "sameTransactionAsGrant": true,
+      "delivery": "站内通知，每分钟扫描，数据库唯一键，失败保留待办",
+      "newGrantsOnly": true,
+      "excludedMembershipKeys": [
+        "membership.school",
+        "membership.practitioner"
+      ],
+      "historicalBackfill": false,
+      "realPush": false,
+      "paymentRefundCodeUnchanged": true,
+      "allBusinessTriggersCompleted": false,
+      "persistentRecoveryForAllBusinessEvents": false
+    }
   }
 }
