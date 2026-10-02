@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "circleRewardCurrentBinding",
+  "currentBindingKey": "notificationClassificationCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1529,5 +1529,22 @@
       "implementedThisBatch": false,
       "production": false
     }
+  },
+  "notificationClassificationCurrentBinding": {
+    "sourceCommit": "e1ce40bd049df57e664db8a92e2e15b178f9e8a6",
+    "record": "圈内通知分类原子落库与支付退款边界验收-20261002.json",
+    "newClassificationAtomic": true,
+    "historicalNotificationsChanged": false,
+    "ci": {
+      "run": 36986818774,
+      "passed": 8962,
+      "skipped": 244
+    },
+    "linux": {
+      "run": 36986833395,
+      "passed": 394
+    },
+    "wholeN4Complete": false,
+    "realChannels": false
   }
 }
