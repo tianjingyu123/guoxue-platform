@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
-  "checkedAt": "2026-10-02T22:42:40.870Z",
+  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+  "checkedAt": "2026-10-02T23:16:58.258Z",
   "rows": [
     {
       "id": "order-paid",
@@ -213,9 +213,9 @@
         "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts"
       ],
       "key": "<recipientId>:POST_REWARD:<debitId>",
-      "state": "真实扣款/分成/事实同事务；新扣款在事务内锁定并核圈子/帖子/作者归属和有效成员",
-      "recovery": "即时+持久补发；原分成与请求摘要保持",
-      "gap": "182及编译34通过，完整分账与JWT跨用户原回归重跑；付款后帖子硬删除/归属变更恢复缺失已反证待独立补；真实手机/渠道/最终镜像未覆盖",
+      "state": "真实资金事务内准入、锁定及新成交快照，完整扣款/原作者收入核验保留",
+      "recovery": "新快照分钟恢复不依赖帖子存续；旧全空事实仍核当前归属；失效正文只通知收入、不生成帖子跳转",
+      "gap": "同源本机/Linux194、实际编译46；新快照不得代替完整账本核验，旧事实不回填；真实渠道、最终镜像/手机/生产升级未覆盖",
       "online": "未知"
     },
     {
@@ -342,11 +342,11 @@
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
-      "sha256": "0652f79af55db00a5e8eb10b8a8b6efdf07ace06084c219e0ee040a73833c64e"
+      "sha256": "aae5297444b5396ba9d3de1f81e5ec822654aeacb2e4595fbb28ff23dc4f89bb"
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
-      "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      "sha256": "f63a0164bfe69ad700bd2520654d08ff704467e375a9e663f248355cf2b8b099"
     },
     {
       "path": "apps/server/src/modules/notification/notification.service.ts",
@@ -370,5 +370,6 @@
     "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
     "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
   },
-  "previousSourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b"
+  "previousSourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+  "migrationCount": 135
 }

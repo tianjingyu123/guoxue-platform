@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T22:42:41.864Z",
-  "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+  "checkedAt": "2026-10-02T23:16:59.307Z",
+  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
   "testFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "releaseReady": false,
   "states": [
@@ -20,7 +20,7 @@
     },
     {
       "id": 2,
-      "title": "生产停写备份与迁移预检（候选134条，按实测正式账本定差额）",
+      "title": "生产停写备份与迁移预检（候选135条，按实测正式账本定差额）",
       "done": false,
       "externalOnly": false
     },
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "圈帖打赏有效对象与资金事务验收-20261002.json",
+  "record": "圈帖打赏成交快照与删帖通知验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -324,7 +324,7 @@
     ],
     "checkedAt": "2026-10-02T21:35:52.993Z",
     "coversCurrentSource": false,
-    "scope": "0078旧正式镜像，不能证明927直播与通知新源码"
+    "scope": "0078旧正式镜像，不能证明927/f1/2b新源码"
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
@@ -5325,7 +5325,7 @@
     "releaseReady": false,
     "production": false
   },
-  "migrationCount": 134,
+  "migrationCount": 135,
   "previousSourceRecord": {
     "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
     "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
@@ -5361,19 +5361,19 @@
     "completed": false,
     "note": "纯交付文档提交后的最终HEAD另查官方CI，旧业务CI不冒充最终HEAD"
   },
-  "previousSourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+  "previousSourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
   "latestSpecializedValidation": {
-    "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
-    "runId": 37073307404,
-    "verificationHead": "e827c63ffa22d607bbdf97a6183a64a06a839db9",
-    "artifactId": 11255251936,
-    "artifactDigest": "sha256:92dd00f61edd99571162c3b21ee14b4ea88444f40fa93d352d2f691350554503",
+    "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+    "runId": 37076242310,
+    "verificationHead": "1e31b805b96779fc0f58136746e94d68cb088626",
+    "artifactId": 11257505036,
+    "artifactDigest": "sha256:1e545c6aa802e3660f3137f4f6cfc5980b2177db9155f4bb6a2b554ede79794f",
     "digestVerified": true,
-    "sourceHashesVerified": 1971,
+    "sourceHashesVerified": 1972,
     "compiledBindingsVerified": 5,
-    "passed": 182,
+    "passed": 194,
     "suites": 8,
-    "compiledPassed": 34,
+    "compiledPassed": 46,
     "typecheck": true,
     "build": true,
     "lintErrors": 0,
@@ -5384,20 +5384,60 @@
     "realFunds": false,
     "realChannels": false,
     "formalDockerfileImage": false,
-    "checkedAt": "2026-10-02T22:41:03.393Z"
+    "upgrade": {
+      "sourceSchemaParent": "e8319535f16429b70108f3ec46670f11016bb28e",
+      "path": "A的134迁移对应schema副本→执行新07增量SQL；不是134条迁移账本或生产升级",
+      "newMigration": "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql",
+      "sha256": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+      "oldFactFourColumnsRemainNull": true,
+      "oldDebitUnchanged": true,
+      "realPostgres": true,
+      "production": false,
+      "oldMigrationsUnchanged": true,
+      "checkedAt": "2026-10-02T23:11:09.672Z"
+    },
+    "checkedAt": "2026-10-02T23:15:14.807Z"
   },
   "previousFinalDeliveryCi": {
-    "sourceCommit": "c988591dc3d5665d2beee260142de0167304972f",
-    "runId": 37068369246,
-    "passed": 9102,
-    "skipped": 545,
-    "conclusion": "success",
-    "artifactId": 11253962307,
-    "artifactDigest": "sha256:78ee2e30c4bcfeba027b6c8282e05ad4f9c10a12ea0e2d6297a67dcfe38b74e5"
+    "passed": 9104,
+    "sourceCommit": "e8319535f16429b70108f3ec46670f11016bb28e",
+    "skipped": 581,
+    "fullCIComplete": true,
+    "checkedAt": "2026-10-02T23:00:51.7124712Z",
+    "jobsPassed": 8,
+    "runId": 37074043732,
+    "shards": [
+      {
+        "summary": "2026-10-02T22:48:14.1650024Z Tests:       156 skipped, 3097 passed, 3253 total",
+        "skipped": 156,
+        "id": 111060152826,
+        "name": "单元测试 (3/3)",
+        "passed": 3097
+      },
+      {
+        "summary": "2026-10-02T22:48:28.7153667Z Tests:       196 skipped, 3078 passed, 3274 total",
+        "skipped": 196,
+        "id": 111060152914,
+        "name": "单元测试 (2/3)",
+        "passed": 3078
+      },
+      {
+        "summary": "2026-10-02T22:55:32.9215377Z Tests:       229 skipped, 2929 passed, 3158 total",
+        "skipped": 229,
+        "id": 111060152918,
+        "name": "单元测试 (1/3)",
+        "passed": 2929
+      }
+    ],
+    "production": false,
+    "artifactId": 11256575476,
+    "artifactDigest": "sha256:a45d76e91aaf71584b142e1eaa7b1812cea29b037aad23ca2d0337029d8dc522",
+    "artifactDigestVerified": true
   },
   "currentFinalCi": {
-    "state": "接收后待本轮整版运行；不套用c988旧结果"
+    "state": "本批整版运行待查询，不套用e831旧结果"
   },
   "softwareSkippedCoverageHistoricalOnly": true,
-  "remainingPostRewardLifecycle": true
+  "remainingPostRewardLifecycle": false,
+  "postRewardLifecycleCoveredScope": "仅新成交快照及删帖后收入通知恢复；旧事实不回填、真实渠道未验"
 }
