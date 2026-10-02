@@ -1748,34 +1748,30 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
-    "record": "圈子移出身份保护与删除计数事务验收-20261002.json",
-    "localRegression": 151,
-    "newPostgres": 12,
-    "compiledPostgres": 12,
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "record": "圈子详情缓存隔离与真实鉴权入口验收-20261002.json",
+    "localRegression": 93,
+    "newPrivacyChecks": 14,
+    "compiled": 14,
     "ci": {
-      "runId": 36993001859,
-      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36993001859",
+      "runId": 36995700546,
+      "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
       "conclusion": "success",
-      "status": "completed",
-      "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
       "counts": {
-        "passed": 8965,
+        "passed": 8979,
         "skipped": 265,
         "jobsPassed": 8
-      },
-      "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+      }
     },
     "linux": {
-      "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
-      "verificationCommit": "f08ab448e497aa21e40a0ffbaa7d32ed168c865b",
-      "runId": 36993104394,
-      "passed": 499,
-      "suites": 29,
+      "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+      "verificationCommit": "1db6cfcaece26ac5b2278463393fa75a397da216",
+      "runId": 36995759583,
+      "passed": 513,
+      "suites": 30,
       "skipped": 0,
-      "artifactId": 11220636448,
-      "artifactDigest": "sha256:47cd494513686e8c119d5685ecb972221233253e09728f464b4884de4bed2ad6",
-      "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+      "artifactId": 11222055258,
+      "artifactDigest": "sha256:0c1f33af99d04103ea8dfa7b65e358001e920f8107858f163cb92bd795ba4bbc"
     },
     "clientSourceEquivalent": true,
     "newClientBuild": false,
@@ -2634,5 +2630,9 @@
   "memberRemovalHistoricalParentCandidate": {
     "sourceCommit": "ed96b24f740995ffe86996d3e63279abbbec17ab",
     "record": "圈子治理并发状态闸门与真实事务验收-20261002.json"
+  },
+  "privacyHistoricalParentCandidate": {
+    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
+    "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
   }
 }

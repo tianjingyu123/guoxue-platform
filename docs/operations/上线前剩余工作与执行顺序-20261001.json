@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T10:20:02.195Z",
-  "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
-  "testFixtureCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
+  "checkedAt": "2026-10-02T10:45:04.459Z",
+  "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+  "testFixtureCommit": "584705933d9a26e2321fb83f195d064f0029f840",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "圈子移出身份保护与删除计数事务验收-20261002.json",
+  "record": "圈子详情缓存隔离与真实鉴权入口验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -71,24 +71,21 @@
   },
   "formalImage": {
     "status": "待业务收口后的最终固定包重建",
-    "currentSource": "ec0074a72875a407a9c5108221c859668b4e28fd",
+    "currentSource": "584705933d9a26e2321fb83f195d064f0029f840",
     "historicalSource": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
     "historicalChecks": 29,
     "isCurrentSourceEvidence": false
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 36993001859,
-    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/36993001859",
+    "runId": 36995700546,
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
     "conclusion": "success",
-    "status": "completed",
-    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
     "counts": {
-      "passed": 8965,
+      "passed": 8979,
       "skipped": 265,
       "jobsPassed": 8
-    },
-    "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+    }
   },
   "historicalSoftwareSkippedCovered": 104,
   "additionalSkippedCovered": 32,
@@ -169,7 +166,7 @@
       "production": false
     }
   },
-  "businessCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
+  "businessCommit": "584705933d9a26e2321fb83f195d064f0029f840",
   "feedbackMonthlyPrivacyScope": {
     "source": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
     "receipt": "工单补发与月度权益原子性及IM隐私收口-20261002.json",
@@ -540,15 +537,14 @@
     }
   },
   "linux": {
-    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
-    "verificationCommit": "f08ab448e497aa21e40a0ffbaa7d32ed168c865b",
-    "runId": 36993104394,
-    "passed": 499,
-    "suites": 29,
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "verificationCommit": "1db6cfcaece26ac5b2278463393fa75a397da216",
+    "runId": 36995759583,
+    "passed": 513,
+    "suites": 30,
     "skipped": 0,
-    "artifactId": 11220636448,
-    "artifactDigest": "sha256:47cd494513686e8c119d5685ecb972221233253e09728f464b4884de4bed2ad6",
-    "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+    "artifactId": 11222055258,
+    "artifactDigest": "sha256:0c1f33af99d04103ea8dfa7b65e358001e920f8107858f163cb92bd795ba4bbc"
   },
   "circleRewardScope": {
     "receipt": "圈帖打赏提交后通知恢复与升级验收-20261002.json",
@@ -711,7 +707,7 @@
       "production": false
     }
   },
-  "currentGapScope": "memberRemovalScope",
+  "currentGapScope": "detailPrivacyScope",
   "migration": {
     "path": "apps/server/prisma/migrations/manual_z_20261002_01_circle_post_reward_notice/migration.sql",
     "candidateCount": 129,
@@ -1679,6 +1675,21 @@
     },
     "durableGovernanceNoticeComplete": false,
     "deletedMemberRecoveryComplete": false,
+    "N4OverallComplete": false
+  },
+  "privacyHistoricalParentBinding": {
+    "sourceCommit": "ec0074a72875a407a9c5108221c859668b4e28fd",
+    "record": "圈子移出身份保护与删除计数事务验收-20261002.json"
+  },
+  "detailPrivacyScope": {
+    "sharedMembershipLeakFixed": true,
+    "optionalJWTEntryFixed": true,
+    "realHttp": true,
+    "realDatabase": false,
+    "realRedis": false,
+    "joinLeaveCountAtomicityComplete": false,
+    "deletedMemberRecoveryComplete": false,
+    "durableGovernanceNoticeComplete": false,
     "N4OverallComplete": false
   }
 }

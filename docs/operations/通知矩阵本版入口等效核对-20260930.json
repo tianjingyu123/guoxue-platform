@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "memberRemovalCurrentBinding",
+  "currentBindingKey": "detailPrivacyCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1562,5 +1562,12 @@
     "durableGovernanceNoticeComplete": false,
     "wholeN4Complete": false,
     "realChannels": false
+  },
+  "detailPrivacyCurrentBinding": {
+    "sourceCommit": "584705933d9a26e2321fb83f195d064f0029f840",
+    "record": "圈子详情缓存隔离与真实鉴权入口验收-20261002.json",
+    "notificationBusinessSourceUnchanged": true,
+    "durableGovernanceNoticeComplete": false,
+    "wholeN4Complete": false
   }
 }
