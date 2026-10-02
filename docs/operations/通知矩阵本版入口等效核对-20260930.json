@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "membershipCacheCurrentBinding",
+  "currentBindingKey": "paidMembershipCacheCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1710,5 +1710,36 @@
     "realPaymentWebhook": false,
     "realChannels": false,
     "production": false
+  },
+  "paidMembershipCacheCurrentBinding": {
+    "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+    "parent": "ec74e4239d3f009fbd187e82ce9075489dcdcea4",
+    "record": "付费入圈续费缓存持久恢复与实际事务验收-20261002.json",
+    "localPassed": 226,
+    "compiledPostgresPassed": 23,
+    "linux": {
+      "runId": 37017426563,
+      "passed": 673,
+      "suites": 40,
+      "skipped": 0,
+      "artifactId": 11230920943,
+      "artifactDigest": "sha256:842423f7e2b20e08435e5b0d5c898ca1e9afa2ba3df3ae640cdc1c5a41200151"
+    },
+    "ci": {
+      "runId": 37017296743,
+      "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+      "passed": 8997,
+      "skipped": 359,
+      "jobsPassed": 8
+    },
+    "paidMembershipCacheCompleteInIsolation": true,
+    "roleCacheRecoveryComplete": false,
+    "N4OverallComplete": false,
+    "migrationCount": 132,
+    "newMigration": false,
+    "production": false,
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "releaseReady": false
   }
 }
