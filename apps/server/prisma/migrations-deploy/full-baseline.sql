@@ -5327,6 +5327,19 @@ CREATE TABLE "PointsRecord" (
 );
 
 -- CreateTable
+CREATE TABLE "MemberMonthlyBenefitNotice" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "points" INTEGER NOT NULL,
+    "couponRecordId" TEXT,
+    "couponId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MemberMonthlyBenefitNotice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PointsProduct" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -9212,6 +9225,15 @@ CREATE UNIQUE INDEX "UserPoints_userId_key" ON "UserPoints"("userId");
 CREATE INDEX "PointsRecord_userId_createdAt_idx" ON "PointsRecord"("userId", "createdAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MemberMonthlyBenefitNotice_couponRecordId_key" ON "MemberMonthlyBenefitNotice"("couponRecordId");
+
+-- CreateIndex
+CREATE INDEX "MemberMonthlyBenefitNotice_createdAt_id_idx" ON "MemberMonthlyBenefitNotice"("createdAt", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemberMonthlyBenefitNotice_userId_source_key" ON "MemberMonthlyBenefitNotice"("userId", "source");
+
+-- CreateIndex
 CREATE INDEX "PointsProduct_status_sortOrder_idx" ON "PointsProduct"("status", "sortOrder");
 
 -- CreateIndex
@@ -10533,6 +10555,12 @@ ALTER TABLE "Category" ADD CONSTRAINT "Category_parentId_fkey" FOREIGN KEY ("par
 
 -- AddForeignKey
 ALTER TABLE "InstituteContentPurchase" ADD CONSTRAINT "InstituteContentPurchase_contentId_fkey" FOREIGN KEY ("contentId") REFERENCES "InstituteContent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemberMonthlyBenefitNotice" ADD CONSTRAINT "MemberMonthlyBenefitNotice_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemberMonthlyBenefitNotice" ADD CONSTRAINT "MemberMonthlyBenefitNotice_id_fkey" FOREIGN KEY ("id") REFERENCES "PointsRecord"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PointsExchangeRecord" ADD CONSTRAINT "PointsExchangeRecord_productId_fkey" FOREIGN KEY ("productId") REFERENCES "PointsProduct"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
