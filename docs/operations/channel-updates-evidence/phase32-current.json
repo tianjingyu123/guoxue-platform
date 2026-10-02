@@ -1,0 +1,329 @@
+{
+  "verifiedAt": "2026-10-02T04:23:42.003Z",
+  "sourceSha": "74f52a9c32db66dc9ac0849979e619bdc2e73b3f",
+  "baseSha": "591af3596c4b263658ecf881ac2a9d2285ae341e",
+  "sourceDirty": false,
+  "businessSourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+  "mainlineSnapshot": "1184831d37534810578c1b98258bee426b7c3908",
+  "changedFiles": [
+    "apps/server/src/modules/member/member.controller.spec.ts",
+    "apps/server/src/modules/member/member.controller.ts",
+    "apps/server/src/modules/member/member.dto.ts",
+    "apps/server/src/modules/member/member.service.spec.ts",
+    "apps/server/src/modules/member/member.service.ts",
+    "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+    "apps/server/src/modules/notification/entitlement-notification.task.ts"
+  ],
+  "changedFilesIdenticalToBusinessSource": true,
+  "regression": {
+    "unitTests": 69,
+    "unitSuites": 5,
+    "realPostgresJwtHttpTests": 17,
+    "realPostgresSuites": 1,
+    "total": 86,
+    "failed": 0,
+    "skipped": 0,
+    "lint": {
+      "errors": 0,
+      "warnings": 15
+    },
+    "typecheckExitCode": 0,
+    "buildExitCode": 0
+  },
+  "postgres": {
+    "version": "16.13",
+    "host": "127.0.0.1",
+    "port": 55475,
+    "database": "entitlement_notice_qa_phase32",
+    "emptyBeforeBootstrap": true,
+    "bootstrapSingleTransaction": true,
+    "stopped": true,
+    "originalPort55462Untouched": true,
+    "remainingRows": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "rowOrder": [
+      "User",
+      "EntitlementLedger",
+      "EntitlementBalance",
+      "Notification",
+      "MemberPurchase"
+    ],
+    "harness": {
+      "sourceSha": "74f52a9c32db66dc9ac0849979e619bdc2e73b3f",
+      "originalSpecSha256": "c7ab51aa38793ee42f9d12a6ab95501c6447e9996c57005ac6d2f92e68101f07",
+      "adaptedSpecSha256": "3fd438e2c6dcc628bc77ad36a13da327bec44c92cb3fe9898d2d405ff3cad9b5",
+      "adaptations": [
+        "strict port 55462 -> own strict port 55475",
+        "relative import relocation; actual production modules unchanged"
+      ],
+      "existingPort55462Untouched": true,
+      "sql": {
+        "apps\\server\\prisma\\migrations-deploy\\full-baseline.sql": "a302f3dc6f34c9ddbd2d05f40ef1c842d98ab70fac05fb27d13539ee955b7623",
+        "apps\\server\\prisma\\migrations-deploy\\channel-operations.sql": "5962230f58f723a39f7aa096b598bbdb3f01330ef67d84fac60a311989d788cf"
+      }
+    },
+    "auth": "真实JWT/角色与ValidationPipe，合成身份签名",
+    "boundaries": [
+      "Redis get替身",
+      "SystemService审计日志替身",
+      "FeatureFlagService/MemberBenefitService/PushAudienceService最小模块替身",
+      "真实推送禁止调用"
+    ],
+    "productionAppGlobalMiddlewareNotVerified": true,
+    "cronNotVerified": true,
+    "independentNodeProcessChecks": true,
+    "databaseTimeZones": [
+      "UTC",
+      "Asia/Shanghai",
+      "America/Los_Angeles"
+    ]
+  },
+  "serverBuild": {
+    "fileCount": 3461,
+    "manifestSha256": "2381e118fcda6ac13dbcf4f7bb6c0cd22a78f23a02fe8253450761005f1d7873",
+    "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase32-member-current\\frozen\\74f52a9c32db66dc9ac0849979e619bdc2e73b3f\\server"
+  },
+  "reusedClientEvidence": {
+    "source": "fc539552a4eec793d4fe5db7011c14f2e3cf5f9b",
+    "reportSha256": "ad3581d37e12dada253b0de4d404e0f10135a4af0275dcbe49b4d36912ed9909",
+    "reusedInputs": [
+      {
+        "path": "apps/mobile",
+        "priorObject": "1f997cfaceb104743757f00f37c0b04dc81452df",
+        "currentObject": "1f997cfaceb104743757f00f37c0b04dc81452df"
+      },
+      {
+        "path": "apps/admin",
+        "priorObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c"
+      },
+      {
+        "path": "packages",
+        "priorObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "priorObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "priorObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "priorObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      },
+      {
+        "path": "scripts/release/build-channel-resources.mjs",
+        "priorObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+        "currentObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389"
+      },
+      {
+        "path": "scripts/release/audit-mobile-native-bundle.mjs",
+        "priorObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149",
+        "currentObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149"
+      }
+    ],
+    "newClientTests": false,
+    "newMobileBuilds": false,
+    "oldCountsNotAccumulated": true
+  },
+  "review": {
+    "patch": "artifacts/phase32-member-current/review-verified/member-grant-notice.patch",
+    "bundle": "artifacts/phase32-member-current/review-verified/member-grant-notice.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "41aa3993afc90700adbb9d3b1ce914d84e1d25a7",
+    "sourceTree": "41aa3993afc90700adbb9d3b1ce914d84e1d25a7",
+    "temporaryIndexOnly": true
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T04:23:42.001Z",
+    "receiverSnapshot": "1184831d37534810578c1b98258bee426b7c3908",
+    "candidateSource": "74f52a9c32db66dc9ac0849979e619bdc2e73b3f",
+    "productPaths": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml"
+    ],
+    "changedFileCount": 50,
+    "changedFiles": [
+      "apps/admin/src/views/system/ClientPresentationPanel.vue",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+      "apps/mobile/src/lib/resource-update-lifecycle.ts",
+      "apps/mobile/src/lib/resource-updater.ts",
+      "apps/mobile/src/pkg-live/live-trtc-client.ts",
+      "apps/server/src/modules/auth/auth.service.spec.ts",
+      "apps/server/src/modules/auth/auth.service.ts",
+      "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+      "apps/server/src/modules/sms/sms.service.spec.ts",
+      "apps/server/src/modules/sms/sms.service.ts",
+      "scripts/release/android-probe-device-identity.mjs",
+      "scripts/release/android-probe-install.mjs",
+      "scripts/release/android-probe-log-cutoff.mjs",
+      "scripts/release/android-probe-log-stream.mjs",
+      "scripts/release/android-probe-recovery-evidence.mjs",
+      "scripts/release/audit-store-readiness.mjs",
+      "scripts/release/build-channel-resources.mjs",
+      "scripts/release/build-native-probe.mjs",
+      "scripts/release/probe-health-resources.mjs",
+      "scripts/release/probe-tls-server.mjs",
+      "scripts/release/verify-native-api26-baseline.mjs",
+      "scripts/release/verify-native-api26-controls.mjs",
+      "scripts/release/verify-native-base-upgrades.mjs",
+      "scripts/release/verify-native-health-window.mjs",
+      "scripts/release/verify-native-probe.mjs",
+      "scripts/release/verify-native-tls-android.mjs",
+      "scripts/release/verify-native-transfer-android.mjs",
+      "scripts/release/verify-native-transfer.mjs",
+      "scripts/release/verify-resource-native.mjs",
+      "tests/release/admin-client-presentation.test.cjs",
+      "tests/release/android-probe-device-identity.test.mjs",
+      "tests/release/android-probe-recovery-evidence.test.mjs",
+      "tests/release/android-probe/ProbeActivity.java",
+      "tests/release/android-probe/TlsScenarios.java",
+      "tests/release/android-probe/TransferScenarios.java",
+      "tests/release/audit-store-readiness.test.mjs",
+      "tests/release/channel-build-source.test.mjs",
+      "tests/release/channel-capability-jwt-postgres.test.cjs",
+      "tests/release/channel-login-concurrency-postgres.test.cjs",
+      "tests/release/channel-password-login-postgres.test.cjs",
+      "tests/release/channel-resource-updater.test.cjs",
+      "tests/release/channel-session-redis-postgres.test.cjs",
+      "tests/release/channel-sms-once-postgres.test.cjs",
+      "tests/release/channel-trusted-login-postgres.test.cjs",
+      "tests/release/mobile-live-safe-area.test.mjs",
+      "tests/release/mobile-shipping-regions.test.cjs",
+      "tests/release/native/NativeTransferProbe.java",
+      "tests/release/resource-health-lifecycle.test.cjs"
+    ],
+    "patch": "artifacts/phase32-member-current/mainline-review/remaining-channel-differences-from-1184831d.patch",
+    "patchBytes": 316989,
+    "patchSha256": "4a19e2b0bc004e8f462f58c24df9af73b7015c9e20cf5b59ac8d922bc69ae6a4",
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "b0c93ca26a504fa9d7028b215d795a85282652f2",
+    "reconstructedProductInputsEqualCandidate": true,
+    "receiverOtherPathsPreserved": true,
+    "actualMainlineReception": false,
+    "masterUpdated": false,
+    "serverDeployed": false,
+    "receiverMustRevalidateCurrentSourceAndConflicts": true,
+    "crossThreadSendAuthorizationPending": true
+  },
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "newSignedApk": false,
+  "uploaded": false,
+  "remainingInternal": [
+    "会员续费提醒的通知失败占位与恢复",
+    "会员月度积分/券原子性",
+    "从业会员完整事实与通知",
+    "工单持久补发与企业微信回流",
+    "部分圈务与其他事件持久恢复",
+    "IM敏感日志清理"
+  ],
+  "evidence": {
+    "artifacts/phase32-member-current/server-execution.json": {
+      "bytes": 1293,
+      "sha256": "74181c66ffa374c35f72e99e3377f00b7a790c68d55b765c50cb5a7ee6fc28cf"
+    },
+    "artifacts/phase32-member-current/harness-provenance.json": {
+      "bytes": 729,
+      "sha256": "75abca0c36c7f704da29b6486d3e4524cc9e57374eed302925e56a96e0f2bb99"
+    },
+    "artifacts/phase32-member-current/harness/entitlement-notification.postgres.spec.ts": {
+      "bytes": 24653,
+      "sha256": "3fd438e2c6dcc628bc77ad36a13da327bec44c92cb3fe9898d2d405ff3cad9b5"
+    },
+    "artifacts/phase32-member-current/harness/jest.config.cjs": {
+      "bytes": 359,
+      "sha256": "24eec38e6e29fe87d00c9bff5281d91bbcdda0c2240726cdc0252fc40afac4e6"
+    },
+    "artifacts/phase32-member-current/postgres-tests.json": {
+      "bytes": 8768,
+      "sha256": "3cfed7903fbf0cc2b802cd2a6cd99cb9149c7e501afa2ed631e9b42d664dfcaa"
+    },
+    "artifacts/phase32-member-current/unit-tests.json": {
+      "bytes": 26275,
+      "sha256": "a3ee7289b07cd6d5041599f1d97af1515f92d6858dc4bb6b3944c59b985e0193"
+    },
+    "artifacts/phase32-member-current/entitlement-postgres.log": {
+      "bytes": 2460,
+      "sha256": "a64da471dfbd0b3b0609d487af86e13c40ddef86806c94f75aa77d74af507693"
+    },
+    "artifacts/phase32-member-current/entitlement-unit.log": {
+      "bytes": 928,
+      "sha256": "4be3d11c3ad3e5738721975105b82ee30d0e34e9c1dabe2f1deb944e2fb81fc4"
+    },
+    "artifacts/phase32-member-current/server-eslint.json": {
+      "bytes": 37326,
+      "sha256": "0151c9a9529885f3314412efa263854329e4c939f256070b98159c36d1ae9027"
+    },
+    "artifacts/phase32-member-current/server-eslint.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase32-member-current/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase32-member-current/server-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase32-member-current/database-identity.log": {
+      "bytes": 116,
+      "sha256": "6b1fee85715882c867418a78602adfc3cc9c04912a3c3c1327aeef664f9bd483"
+    },
+    "artifacts/phase32-member-current/database-remaining.log": {
+      "bytes": 11,
+      "sha256": "510594f451300522063b9d5c459ba0ab164230bf53b73f269f22e01ad3bc3999"
+    },
+    "artifacts/phase32-member-current/postgres-stop.log": {
+      "bytes": 50,
+      "sha256": "dd269ccb43c508088b5a167e486992f22ca81c73e544ef93ea8ed842549ac2d8"
+    },
+    "artifacts/phase32-member-current/build-manifest.json": {
+      "bytes": 646323,
+      "sha256": "2381e118fcda6ac13dbcf4f7bb6c0cd22a78f23a02fe8253450761005f1d7873"
+    },
+    "artifacts/phase32-member-current/review-verified/member-grant-notice.patch": {
+      "bytes": 21374,
+      "sha256": "0f656ff7ffc84bfdea0b7fb7014abcd9d22a4a8af0dffaa95b5b0b61c1317dc9"
+    },
+    "artifacts/phase32-member-current/review-verified/member-grant-notice.bundle": {
+      "bytes": 5156,
+      "sha256": "0239dc34e5e77b43f0d8fc85611270163aca1f48b523c244fbb89d3e0395793e"
+    },
+    "artifacts/phase32-member-current/mainline-review/remaining-channel-differences-from-1184831d.patch": {
+      "bytes": 316989,
+      "sha256": "4a19e2b0bc004e8f462f58c24df9af73b7015c9e20cf5b59ac8d922bc69ae6a4"
+    },
+    "artifacts/phase32-member-current/mainline-review/proposal.json": {
+      "bytes": 3818,
+      "sha256": "a9d015e2be0f7c8c05a7b8df9d045d5646f2c706de03d3ef052f3a365d8fe09c"
+    }
+  },
+  "limits": [
+    "只补新版本管理员书院会员真实授予，历史/订单/续费/撤销/从业会员不扩展为通过",
+    "每次合法管理员授予仍创建独立购买记录；通知防重不代表POST授予请求级幂等",
+    "原测试只在ignored受限副本适配专用55475端口与相对导入，七份生产/测试源码与来源相同",
+    "本轮86项与历史49/28/319及主线完整CI不累计；主线Linux/镜像保留其自己的来源",
+    "匹配SDK完整包、旧实体机、全端同版业务、主线实际接收、生产与16商店实际提审仍未完成",
+    "没有跨会话消息、真实通知、资金、云函数、打包购买、生产或其他任务工作树写入"
+  ]
+}
