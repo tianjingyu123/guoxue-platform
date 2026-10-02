@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "paymentAckCurrentBinding",
+  "currentBindingKey": "monthlyBenefitCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1871,6 +1871,13 @@
   },
   "paymentAckCurrentBinding": {
     "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "record": "本版通知入口与持久恢复矩阵-20261002.json",
+    "rows": 17,
+    "allClosed": false,
+    "onlineUnknown": true
+  },
+  "monthlyBenefitCurrentBinding": {
+    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
     "record": "本版通知入口与持久恢复矩阵-20261002.json",
     "rows": 17,
     "allClosed": false,

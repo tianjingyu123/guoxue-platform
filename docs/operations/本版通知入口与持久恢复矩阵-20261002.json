@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
-  "checkedAt": "2026-10-02T18:46:58.829Z",
+  "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+  "checkedAt": "2026-10-02T19:31:15.847Z",
   "rows": [
     {
       "id": "order-paid",
@@ -96,12 +96,16 @@
       "event": "会员当月积分/券",
       "paths": [
         "apps/server/src/modules/member/member-grant.service.ts",
-        "apps/server/src/modules/member/member-benefit.service.ts"
+        "apps/server/src/modules/member/member-benefit.service.ts",
+        "apps/server/src/modules/notification/member-monthly-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts",
+        "apps/mobile/src/lib/mine-data.ts",
+        "apps/mobile/src/lib/im-data.ts"
       ],
-      "key": "member_monthly_YYYYMM是权益流水键，不能冒充通知键",
-      "state": "真实每月/6小时当月恢复；User锁与积分券同事务",
-      "recovery": "无用户到账通知触发入口证明",
-      "gap": "旧未用同模板券冲突政策仍待决策；不可写全部权益到账通知闭环",
+      "key": "<userId>:MEMBER_MONTHLY_POINTS|MEMBER_MONTHLY_COUPON:member_monthly_YYYYMM",
+      "state": "新发放实际积分/券和通知事实同事务；两处本人跳转接入",
+      "recovery": "已注册分钟持久SQL补发；数据库唯一键防重，双进程实测；不历史补发",
+      "gap": "旧UNUSED同模板券政策待决策；最终镜像、真实Cron/共享Redis发放锁、手机/HTTP端到端未覆盖",
       "online": "未知"
     },
     {
@@ -141,7 +145,7 @@
       "key": "COURSE_ENROLLED:<orderId>",
       "state": "真实订单create提交后异步sendOnce",
       "recovery": "写入失败/阻塞不影响订阅；重复防重",
-      "gap": "尚无独立持久自动补发入口，不把最佳努力当完全闭环",
+      "gap": "当前编译真实入口/PG已反证：通知失败后普通重试拒绝已订阅，尚无新事务事实恢复；待独立修复，不历史补发",
       "online": "未知"
     },
     {
@@ -250,7 +254,23 @@
     },
     {
       "path": "apps/server/src/modules/member/member-benefit.service.ts",
-      "sha256": "b27070ad6e2d5b49a184cce723bdd65782c7bfbf2aaf8f9d9a30730711808da0"
+      "sha256": "a6000032c3acf012c325e6e7700d8938b872c6de1166eec478b6ad7e23f0d91d"
+    },
+    {
+      "path": "apps/server/src/modules/notification/member-monthly-notification.task.ts",
+      "sha256": "08d989b7b20b043b8bd6b875398054d64c12dbd3a2d881569d362bb89e40e487"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification.module.ts",
+      "sha256": "ed70d4757bed6951c4ff8333fbf42ad0581fced9c8ec83814c747eaab10965ae"
+    },
+    {
+      "path": "apps/mobile/src/lib/mine-data.ts",
+      "sha256": "4aefb144e0a56344523292ae8263fc5584dca42618ad8c8865f8d14a45981ba4"
+    },
+    {
+      "path": "apps/mobile/src/lib/im-data.ts",
+      "sha256": "c6b5dd06ba4a77831ea4bac5c01ce9f1780c1e9cffb939dc3ad6b0cd7d677c8a"
     },
     {
       "path": "apps/server/src/modules/user/feedback.service.ts",
@@ -333,5 +353,9 @@
   "previousPaymentBinding": {
     "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
     "record": "书院会员并发付款退款与持久到账验收-20261002.json"
+  },
+  "previousMonthlyBinding": {
+    "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
+    "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
   }
 }
