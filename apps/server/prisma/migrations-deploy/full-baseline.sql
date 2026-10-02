@@ -3521,6 +3521,17 @@ CREATE TABLE "VirtualCoinTransaction" (
 );
 
 -- CreateTable
+CREATE TABLE "CirclePostRewardNotice" (
+    "debitId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "message" VARCHAR(200),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CirclePostRewardNotice_pkey" PRIMARY KEY ("debitId")
+);
+
+-- CreateTable
 CREATE TABLE "VideoCreatorWithdrawal" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -8452,6 +8463,9 @@ CREATE INDEX "VirtualCoinTransaction_refId_idx" ON "VirtualCoinTransaction"("ref
 CREATE INDEX "VirtualCoinTransaction_userId_type_createdAt_idx" ON "VirtualCoinTransaction"("userId", "type", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "CirclePostRewardNotice_createdAt_debitId_idx" ON "CirclePostRewardNotice"("createdAt", "debitId");
+
+-- CreateIndex
 CREATE INDEX "VideoCreatorWithdrawal_userId_createdAt_idx" ON "VideoCreatorWithdrawal"("userId", "createdAt");
 
 -- CreateIndex
@@ -10280,6 +10294,9 @@ ALTER TABLE "VirtualCoinAccount" ADD CONSTRAINT "VirtualCoinAccount_userId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "VirtualCoinTransaction" ADD CONSTRAINT "VirtualCoinTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePostRewardNotice" ADD CONSTRAINT "CirclePostRewardNotice_debitId_fkey" FOREIGN KEY ("debitId") REFERENCES "VirtualCoinTransaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VirtualCoinRecharge" ADD CONSTRAINT "VirtualCoinRecharge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
