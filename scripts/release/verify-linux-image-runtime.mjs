@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:51b9883dd");
-const sourceCommit = "51b9883dd5670c549ff02f9c40a73d1e06f2006a";
-const sourceSha256 = "f507594430b349069dc724388d0b968505423d8ba9725aac46b784def7d5a337";
+assert.equal(image, "rebu-linux-verify:a02449f7d");
+const sourceCommit = "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b";
+const sourceSha256 = "c3d19d008949d40f0ce6bea96d9dcd2580912337f92851ba729562ddac7d327d";
 const postgresImage = "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -457,6 +457,35 @@ try {
   assert(entitlementNoticeReport.keyMatches && entitlementNoticeReport.targetIsOwner);
   save('entitlement-notice-runtime.json', entitlementNoticeReport);
   check('compiled-entitlement-service-and-durable-notification-idempotency', entitlementNoticeReport);
+  const memberNoticeReport = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    const {EntitlementService}=require('/app/apps/server/dist/modules/entitlement/entitlement.service');
+    const {MemberService}=require('/app/apps/server/dist/modules/member/member.service');
+    const {EntitlementNotificationTask}=require('/app/apps/server/dist/modules/notification/entitlement-notification.task');
+    (async()=>{const owner=await p.user.create({data:{nickname:'合成成品会员用户'}});
+      const revoked=await p.user.create({data:{nickname:'合成撤销会员用户'}});
+      try{const members=new MemberService(p,new EntitlementService(p));
+        await members.grantMember(owner.id,'LIFETIME',30,'synthetic-admin');
+        await members.grantMember(revoked.id,'MONTHLY',30,'synthetic-admin');await members.revokeMember(revoked.id);
+        const ledger=await p.entitlementLedger.findFirstOrThrow({where:{userId:owner.id,action:'GRANT'}});
+        const purchase=await p.memberPurchase.findUniqueOrThrow({where:{id:ledger.sourceId}});
+        await p.$executeRawUnsafe("CREATE FUNCTION synthetic_image_member_notice_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic member notice failure'; END $$");
+        await p.$executeRawUnsafe('CREATE TRIGGER synthetic_image_member_notice_fail BEFORE INSERT ON "Notification" FOR EACH ROW EXECUTE FUNCTION synthetic_image_member_notice_fail()');
+        let failed=false;try{await new EntitlementNotificationTask(p).deliverPendingGrants();}catch{failed=true;}finally{
+          await p.$executeRawUnsafe('DROP TRIGGER synthetic_image_member_notice_fail ON "Notification"');
+          await p.$executeRawUnsafe('DROP FUNCTION synthetic_image_member_notice_fail()');}
+        const state=await members.getStatus(owner.id);
+        const counts=await Promise.all([new EntitlementNotificationTask(p).deliverPendingGrants(),new EntitlementNotificationTask(p).deliverPendingGrants()]);
+        const key=owner.id+':ENTITLEMENT_GRANTED:'+ledger.id;
+        const notices=await p.notification.findMany({where:{userId:owner.id}});
+        console.log('NODE_TEST_RESULT:'+JSON.stringify({notificationInsertFailed:failed,memberStillActive:state.isActive,lifetimeNullExpire:state.memberExpire===null,purchaseBelongsToOwner:purchase.userId===owner.id,markerMatches:ledger.metadata.notificationEvent==='MEMBER_GRANTED_V1',inserted:counts.reduce((a,b)=>a+b,0),count:notices.length,keyMatches:notices[0]?.idempotencyKey===key,targetIsOwner:notices[0]?.targetId===owner.id,revokedNotices:await p.notification.count({where:{userId:revoked.id}}),replayInserted:await new EntitlementNotificationTask(p).deliverPendingGrants()}));
+      }finally{await p.user.deleteMany({where:{id:{in:[owner.id,revoked.id]}}});await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1});`);
+  for(const key of ['notificationInsertFailed','memberStillActive','lifetimeNullExpire','purchaseBelongsToOwner','markerMatches','keyMatches','targetIsOwner']) assert.equal(memberNoticeReport[key],true,key);
+  assert.equal(memberNoticeReport.inserted,1);assert.equal(memberNoticeReport.count,1);
+  assert.equal(memberNoticeReport.revokedNotices,0);assert.equal(memberNoticeReport.replayInserted,0);
+  save('member-notice-runtime.json',memberNoticeReport);
+  check('compiled-member-grant-state-durable-notification-failure-retry-and-revoke',memberNoticeReport);
   report.passed = true;
 } catch (error) {
   report.error = sanitize(error.message);
