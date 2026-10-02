@@ -31,6 +31,7 @@ import { fulfillCircleOrderTx, type FulfillResult } from "../../shop/circle-fulf
 @Injectable()
 export class CircleMembershipService {
   private readonly logger = new Logger(CircleMembershipService.name);
+  private expirationReminding = false;
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
@@ -668,48 +669,64 @@ export class CircleMembershipService {
     this.logger.log(`已清理 ${removedCount} 个过期圈子成员`);
   }
 
-  /** 到期前提醒（提前7天/3天/1天·分布式锁防多实例重复） */
-  @Cron(CronExpression.EVERY_DAY_AT_10AM)
+  /** 北京10点起按当前成员到期事实补发7/3/1天站内提醒，不调用外部推送。 */
+  @Cron(CronExpression.EVERY_MINUTE)
   async sendExpirationReminders() {
-    await this.redis.runExclusive("circle_send_expiration_reminders", 600, () =>
-      this._sendExpirationReminders(),
-    );
+    if (this.expirationReminding) return;
+    this.expirationReminding = true;
+    try {
+      await this.runExpirationReminders();
+    } catch {
+      this.logger.warn("圈子到期站内提醒写入失败，将在下次调度重试");
+    } finally {
+      this.expirationReminding = false;
+    }
   }
 
-  private async _sendExpirationReminders() {
-    const remindDays = [7, 3, 1];
-    for (const days of remindDays) {
-      const targetDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
-
-      const expiringSoon = await this.prisma.circleMember.findMany({
-        where: {
-          expireAt: { gte: startOfDay, lt: endOfDay },
-          role: { not: "OWNER" },
-        },
-        select: { userId: true, circleId: true },
-        take: 500,
-      });
-
-      for (const m of expiringSoon) {
-        if (this.notificationService) {
-          this.notificationService.send(m.userId, {
-            type: "CIRCLE_EXPIRING",
-            title: "圈子即将到期",
-            content: `您的圈子会员将于 ${days} 天后到期，请及时续费`,
-            targetType: "CIRCLE",
-            targetId: m.circleId,
-            category: "GOVERN",
-            circleId: m.circleId,
-          }).catch((err) => this.logger.warn("圈子通知发送失败", err));
-        }
-      }
-
-      if (expiringSoon.length > 0) {
-        this.logger.log(`发送了 ${expiringSoon.length} 条 ${days} 天到期提醒`);
-      }
-    }
+  async runExpirationReminders(now = new Date()): Promise<number> {
+    // 成员当前状态是持久待办，写入失败不认领。续费、退圈和下架持锁时跳过，
+    // 数据库唯一键收敛双节点；已发送记录在LIMIT前排除，避免大量成员被首批饿死。
+    const inserted = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      WITH clock AS (
+        SELECT (${now}::timestamptz AT TIME ZONE 'UTC') AS utc_now,
+          (${now}::timestamptz AT TIME ZONE 'Asia/Shanghai') AS local_now
+      ), due AS (
+        SELECT m.id, m."userId", m."circleId", c.utc_now,
+          (m."expireAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date AS days_left,
+          m."userId" || ':CIRCLE_EXPIRING:' || m.id || ':' ||
+            to_char(m."expireAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || ':' ||
+            ((m."expireAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date)::text AS event_key
+        FROM "CircleMember" m JOIN "Circle" circle ON circle.id = m."circleId" CROSS JOIN clock c
+        WHERE m.role <> 'OWNER' AND m."userId" <> circle."ownerId" AND circle.status = 'ACTIVE'
+          AND circle."deletedAt" IS NULL AND m."expireAt" IS NOT NULL
+          AND c.local_now::time >= time '10:00'
+          AND (m."expireAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date IN (7, 3, 1)
+          AND NOT EXISTS (
+            SELECT 1 FROM "Notification" n WHERE n."idempotencyKey" =
+              m."userId" || ':CIRCLE_EXPIRING:' || m.id || ':' ||
+              to_char(m."expireAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || ':' ||
+              ((m."expireAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date)::text
+          )
+          -- 升级当日同圈同天数的旧无键提醒不重复打扰，不补发跨日旧文案。
+          AND NOT EXISTS (
+            SELECT 1 FROM "Notification" n WHERE n."userId" = m."userId" AND n."idempotencyKey" IS NULL
+              AND n.type = 'CIRCLE_EXPIRING' AND n."targetType" = 'CIRCLE' AND n."targetId" = m."circleId"
+              AND (n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date = c.local_now::date
+              AND n.content = '您的圈子会员将于 ' ||
+                ((m."expireAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date)::text || ' 天后到期，请及时续费'
+          )
+        ORDER BY m.id LIMIT 200
+        FOR SHARE OF m, circle SKIP LOCKED
+      )
+      INSERT INTO "Notification"
+        (id, "userId", "idempotencyKey", type, title, content, "targetType", "targetId", category, "circleId", "isRead", "createdAt")
+      SELECT gen_random_uuid()::text, "userId", event_key, 'CIRCLE_EXPIRING', '圈子即将到期',
+        '您的圈子会员将于 ' || days_left::text || ' 天后到期，请及时续费',
+        'CIRCLE', "circleId", 'GOVERN', "circleId", false, utc_now FROM due
+      ON CONFLICT ("idempotencyKey") DO NOTHING RETURNING id
+    `;
+    if (inserted.length > 0) this.logger.log(`圈子到期站内提醒已发送 ${inserted.length} 条`);
+    return inserted.length;
   }
 
   /** 治理 #10：被移出且禁止重新加入的用户拦截（REMOVE ACTIVE=禁入·圈主解除/申诉成立后放行） */
