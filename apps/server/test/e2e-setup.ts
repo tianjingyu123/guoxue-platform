@@ -61,6 +61,8 @@ function createPrismaMock() {
     $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
     // needApproval 等绕过 generate 锁的列由 service 用原生 SQL 读写（默认非审批制）
     $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),
+    // 参数化写入仅为此HTTP测试容器的替身；事务真实性另由隔离PG验证。
+    $executeRaw: jest.fn().mockResolvedValue(1),
     $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
     $connect: jest.fn().mockResolvedValue(undefined),
     $disconnect: jest.fn().mockResolvedValue(undefined),
