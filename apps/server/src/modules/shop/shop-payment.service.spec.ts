@@ -873,6 +873,7 @@ describe("ShopPaymentService", () => {
 
     it("会员付款同时关联原订单并发放统一会员权益", async () => {
       const tx = {
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "u1" }]),
         memberConfig: { findUnique: jest.fn().mockResolvedValue({ level: "MONTHLY" }) },
         user: {
           findUnique: jest.fn().mockResolvedValue({ memberLevel: "NONE", memberExpire: null }),
@@ -882,6 +883,7 @@ describe("ShopPaymentService", () => {
       };
       await (svc as any).processMemberPaid({ id: "o-member", userId: "u1", type: "MEMBER", targetId: "plan-1", amount: 19.9, referrerId: null }, tx);
 
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.user.findUnique.mock.invocationCallOrder[0]);
       expect(tx.memberPurchase.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ orderId: "o-member", userId: "u1" }),
       }));
@@ -889,6 +891,7 @@ describe("ShopPaymentService", () => {
         entitlementKey: "membership.school",
         sourceId: "o-member",
         idempotencyKey: "order:o-member:membership.school",
+        metadata: expect.objectContaining({ notificationEvent: "MEMBER_PAID_GRANTED_V1" }),
       }));
     });
   });

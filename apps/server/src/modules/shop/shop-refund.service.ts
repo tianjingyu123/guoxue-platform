@@ -215,8 +215,8 @@ export class ShopRefundService {
           } });
         }
       }
-      // 从业付款先锁用户再锁权益；退款必须在撤销权益前采用相同顺序。
-      if (order.type === "PRACTITIONER_PRO") {
+      // 两类会员付款均先锁用户再锁权益，退款须使用相同顺序，避免续费丢失或互相复活。
+      if (order.type === "PRACTITIONER_PRO" || order.type === "MEMBER") {
         await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
       }
       // 数字权益与退款状态在同一事务内冲正，任何一个失败都不允许订单先显示已退款。

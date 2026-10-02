@@ -1371,6 +1371,8 @@ export class ShopPaymentService {
     const isAutoRenew = planLevel === "YEARLY_AUTO";
     const memberLevel = isAutoRenew ? "YEARLY" : planLevel;
 
+    // 不同付款及退款统一 Order → User → 权益锁序，先锁再读，避免并发续费吞掉一期。
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${order.userId} FOR UPDATE`;
     // 有效期内复购不吞剩余天数：从「当前未到期到期日」起算叠加（已过期/终身除外）；
     // 等级只升不降：已是终身则保持终身，避免高档买低档被覆盖降档。
     const current = await tx.user.findUnique({
@@ -1416,7 +1418,10 @@ export class ShopPaymentService {
       sourceType: "ORDER",
       sourceId: order.id,
       idempotencyKey: `order:${order.id}:membership.school`,
-      metadata: { planLevel, memberLevel: finalLevel, autoRenew: isAutoRenew },
+      metadata: {
+        planLevel, memberLevel: finalLevel, autoRenew: isAutoRenew,
+        notificationEvent: "MEMBER_PAID_GRANTED_V1",
+      },
     });
   }
 

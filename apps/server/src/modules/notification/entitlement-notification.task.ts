@@ -66,6 +66,29 @@ export class EntitlementNotificationTask {
             WHERE o.id = l."sourceId" AND o."userId" = l."userId" AND o.type = 'PRACTITIONER_PRO'
               AND o.status IN ('PAID', 'COMPLETED') AND o."paidAt" IS NOT NULL
               AND p."proExpireAt" > (NOW() AT TIME ZONE 'UTC')
+          )) OR (l."sourceType" = 'ORDER'
+          AND l."entitlementKey" = 'membership.school' AND l.kind = 'MEMBERSHIP' AND l.unlimited
+          AND l."resourceType" = 'MEMBER_PLAN' AND l."resourceId" = '' AND l.scope = 'GLOBAL'
+          AND l.metadata ->> 'notificationEvent' = 'MEMBER_PAID_GRANTED_V1'
+          AND l."idempotencyKey" = 'order:' || l."sourceId" || ':membership.school'
+          -- 仅新付款事实：购买记录与订单、用户、套餐和流水到期日全部对应，已退款不补到账。
+          -- 后续续费/其他订单退款可改变当前到期日，不能要求它仍等于本笔的旧快照。
+          AND EXISTS (
+            SELECT 1 FROM "Order" o
+              JOIN "MemberPurchase" p ON p."orderId" = o.id AND p."userId" = o."userId"
+              JOIN "User" u ON u.id = o."userId"
+            WHERE o.id = l."sourceId" AND o."userId" = l."userId" AND o.type = 'MEMBER'
+              AND o.status IN ('PAID', 'COMPLETED') AND o."paidAt" IS NOT NULL
+              AND p."refundedAt" IS NULL AND p.amount = o.amount
+              AND p."expireAt" IS NOT DISTINCT FROM l."validUntil"
+              AND p."memberType"::text = CASE WHEN l.metadata ->> 'planLevel' = 'YEARLY_AUTO'
+                THEN 'YEARLY' ELSE l.metadata ->> 'planLevel' END
+              AND ((l."validUntil" IS NULL AND l.metadata ->> 'memberLevel' = 'LIFETIME')
+                OR (l."validUntil" IS NOT NULL AND l.metadata ->> 'memberLevel'
+                  IN ('MONTHLY', 'QUARTERLY', 'YEARLY')))
+              AND ((u."memberLevel" = 'LIFETIME' AND u."memberExpire" IS NULL)
+                OR (u."memberLevel" IN ('MONTHLY', 'QUARTERLY', 'YEARLY')
+                  AND u."memberExpire" > (NOW() AT TIME ZONE 'UTC')))
           )))
         AND (l.quantity > 0 OR l.unlimited)
         -- Prisma 的 timestamp 无时区列按 UTC 保存，不能隐式使用数据库会话时区。
