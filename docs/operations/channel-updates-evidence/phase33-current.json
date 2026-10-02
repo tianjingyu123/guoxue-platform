@@ -1,0 +1,386 @@
+{
+  "verifiedAt": "2026-10-02T05:05:30.017Z",
+  "sourceSha": "39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88",
+  "sourceDirty": false,
+  "monthlyChangeBase": "a00cbd53bb67bf93a1d239499c7f6ecff9e4f5a9",
+  "changedFiles": [
+    "apps/server/src/modules/member/member-benefit.service.ts",
+    "apps/server/src/modules/member/member-monthly.postgres.spec.ts"
+  ],
+  "importedSourceObjectsVerified": [
+    {
+      "commit": "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+      "files": [
+        "apps/server/src/modules/member/member-grant.service.ts",
+        "apps/server/src/modules/member/member-grant.service.spec.ts",
+        "apps/server/src/modules/member/member-renew.postgres.spec.ts"
+      ]
+    },
+    {
+      "commit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+      "files": [
+        "apps/mobile/src/lib/im-data.ts",
+        "apps/mobile/src/lib/mine-data.ts",
+        "tests/release/mobile-notification-targets.test.mjs"
+      ]
+    }
+  ],
+  "mainlineSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+  "historicalReproduction": {
+    "sourceSha": "a00cbd53bb67bf93a1d239499c7f6ecff9e4f5a9",
+    "productionSourceClean": true,
+    "untrackedScope": "new monthly test only",
+    "expectedFailures": 2,
+    "filteredSkipped": 7,
+    "testsSha256": "723231ecbd984844e6cc5be63c40e9a0c952f48bfe5da407c75381af48bc5be4",
+    "runnerPostTestFailure": "'gbk' codec can't decode byte 0xaf in position 2005: illegal multibyte sequence",
+    "utf8SummaryVerified": true,
+    "ownedClusterStopped": true,
+    "assertionFailures": [
+      "积分流水 INSERT 失败回滚余额，重试仅发一份",
+      "赠券 INSERT 失败回滚积分流水、余额和库存，重试仅发一份"
+    ]
+  },
+  "regression": {
+    "tests": {
+      "monthly": {
+        "passed": 9,
+        "suites": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "renew": {
+        "passed": 14,
+        "suites": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "unit": {
+        "passed": 10,
+        "suites": 2,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "serverTotal": 33,
+    "serverFailed": 0,
+    "serverSkipped": 0,
+    "clientTests": 320,
+    "clientFailed": 0,
+    "clientSkipped": 0,
+    "presentationAssertions": 9,
+    "serverLint": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "mobileLint": {
+      "errors": 0,
+      "warnings": 77
+    },
+    "serverTypecheckExitCode": 0,
+    "mobileTypecheckExitCode": 0,
+    "serverBuildExitCode": 0,
+    "nativeBundleAuditExitCode": 0,
+    "previousCountsNotAccumulated": true
+  },
+  "postgres": {
+    "version": "16.13",
+    "host": "127.0.0.1",
+    "port": 55476,
+    "database": "entitlement_notice_qa_phase33",
+    "emptyBeforeBootstrap": true,
+    "bootstrapSingleTransaction": true,
+    "stopped": true,
+    "originalPort55462Untouched": true,
+    "remainingRows": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "rowOrder": [
+      "User",
+      "Notification",
+      "UserPoints",
+      "PointsRecord",
+      "MemberConfig",
+      "CouponTemplate",
+      "CouponRecord"
+    ],
+    "independentNodeProcesses": true,
+    "databaseTimeZones": [
+      "UTC",
+      "Asia/Shanghai",
+      "America/Los_Angeles"
+    ],
+    "productionAppAndCronNotVerified": true,
+    "realNotificationsOrCharges": false
+  },
+  "builds": [
+    {
+      "kind": "server",
+      "fileCount": 3461,
+      "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\server"
+    },
+    {
+      "kind": "app-resources",
+      "fileCount": 491,
+      "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\app-resources"
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1181,
+      "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\h5"
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2759,
+      "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\mp-weixin"
+    }
+  ],
+  "buildManifestSha256": "08e8a6869c7450451e9bd607a7ae94261a4941cf0886fe16caed3abf2613b7f5",
+  "review": {
+    "patch": "artifacts/phase33-monthly-after/review-verified/member-monthly-atomic.patch",
+    "bundle": "artifacts/phase33-monthly-after/review-verified/member-monthly-atomic.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "8bf9db77a9abb6d981f64b03f97f32fa8d6f37c1",
+    "temporaryIndexOnly": true
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T05:05:30.015Z",
+    "receiverSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+    "candidateSource": "39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88",
+    "productPaths": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml"
+    ],
+    "changedFileCount": 52,
+    "changedFiles": [
+      "apps/admin/src/views/system/ClientPresentationPanel.vue",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+      "apps/mobile/src/lib/resource-update-lifecycle.ts",
+      "apps/mobile/src/lib/resource-updater.ts",
+      "apps/mobile/src/pkg-live/live-trtc-client.ts",
+      "apps/server/src/modules/auth/auth.service.spec.ts",
+      "apps/server/src/modules/auth/auth.service.ts",
+      "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+      "apps/server/src/modules/member/member-benefit.service.ts",
+      "apps/server/src/modules/member/member-monthly.postgres.spec.ts",
+      "apps/server/src/modules/sms/sms.service.spec.ts",
+      "apps/server/src/modules/sms/sms.service.ts",
+      "scripts/release/android-probe-device-identity.mjs",
+      "scripts/release/android-probe-install.mjs",
+      "scripts/release/android-probe-log-cutoff.mjs",
+      "scripts/release/android-probe-log-stream.mjs",
+      "scripts/release/android-probe-recovery-evidence.mjs",
+      "scripts/release/audit-store-readiness.mjs",
+      "scripts/release/build-channel-resources.mjs",
+      "scripts/release/build-native-probe.mjs",
+      "scripts/release/probe-health-resources.mjs",
+      "scripts/release/probe-tls-server.mjs",
+      "scripts/release/verify-native-api26-baseline.mjs",
+      "scripts/release/verify-native-api26-controls.mjs",
+      "scripts/release/verify-native-base-upgrades.mjs",
+      "scripts/release/verify-native-health-window.mjs",
+      "scripts/release/verify-native-probe.mjs",
+      "scripts/release/verify-native-tls-android.mjs",
+      "scripts/release/verify-native-transfer-android.mjs",
+      "scripts/release/verify-native-transfer.mjs",
+      "scripts/release/verify-resource-native.mjs",
+      "tests/release/admin-client-presentation.test.cjs",
+      "tests/release/android-probe-device-identity.test.mjs",
+      "tests/release/android-probe-recovery-evidence.test.mjs",
+      "tests/release/android-probe/ProbeActivity.java",
+      "tests/release/android-probe/TlsScenarios.java",
+      "tests/release/android-probe/TransferScenarios.java",
+      "tests/release/audit-store-readiness.test.mjs",
+      "tests/release/channel-build-source.test.mjs",
+      "tests/release/channel-capability-jwt-postgres.test.cjs",
+      "tests/release/channel-login-concurrency-postgres.test.cjs",
+      "tests/release/channel-password-login-postgres.test.cjs",
+      "tests/release/channel-resource-updater.test.cjs",
+      "tests/release/channel-session-redis-postgres.test.cjs",
+      "tests/release/channel-sms-once-postgres.test.cjs",
+      "tests/release/channel-trusted-login-postgres.test.cjs",
+      "tests/release/mobile-live-safe-area.test.mjs",
+      "tests/release/mobile-shipping-regions.test.cjs",
+      "tests/release/native/NativeTransferProbe.java",
+      "tests/release/resource-health-lifecycle.test.cjs"
+    ],
+    "patch": "artifacts/phase33-monthly-after/mainline-review/remaining-channel-differences-from-9dda8974.patch",
+    "patchBytes": 329175,
+    "patchSha256": "0b5393b199b72644514de003138a1512ddf5b1fd6f8a6f8a2ac1498947b0d87b",
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "e0942098f3aeadcb35ab51e47c6783b2261f004c",
+    "reconstructedProductInputsEqualCandidate": true,
+    "receiverOtherPathsPreserved": true,
+    "actualMainlineReception": false,
+    "masterUpdated": false,
+    "serverDeployed": false,
+    "receiverMustRevalidateCurrentSourceAndConflicts": true,
+    "crossThreadSendAuthorizationPending": true
+  },
+  "previousReportSha256": "e865fd7965195b501b4201350717a56a257b997abf13be4fc5f0ec44afd8a0ba",
+  "productionDeployed": false,
+  "signedPackageBuilt": false,
+  "uploaded": false,
+  "evidence": {
+    "artifacts/phase33-monthly-after/execution.json": {
+      "bytes": 1805,
+      "sha256": "37443e34a566d2c8f4ba58190aa630e836e4df6abbc997008ace59f288107693"
+    },
+    "artifacts/phase33-monthly-after/monthly-tests.json": {
+      "bytes": 4525,
+      "sha256": "c90bb8f935be4d1e87149ee3185f9d4fc8e9d3d06f33668b5cb0bc4205ba320d"
+    },
+    "artifacts/phase33-monthly-after/renew-tests.json": {
+      "bytes": 6907,
+      "sha256": "ba06f7b4415557ff58c0f53f0ffef7203633d63cda5212be2b7d5735343270f5"
+    },
+    "artifacts/phase33-monthly-after/unit-tests.json": {
+      "bytes": 5358,
+      "sha256": "545eaad97750b55785dfcd1b07d9e30fcad0cdb22865d8d9da96fb970dedbdcc"
+    },
+    "artifacts/phase33-monthly-after/monthly-postgres.log": {
+      "bytes": 1283,
+      "sha256": "0f8cdea0beb5b855eacd87d0bba33df2f6d6cba141b0093930cc7b2f424917c0"
+    },
+    "artifacts/phase33-monthly-after/renew-postgres.log": {
+      "bytes": 3347,
+      "sha256": "6cee864be2a06a875944ed2c3692180480289d43b89170373c449b30b6e51465"
+    },
+    "artifacts/phase33-monthly-after/member-unit.log": {
+      "bytes": 784,
+      "sha256": "d10985403d7d9f64a4dc8dd8462fba6d26e3472a4c9a0538cadf5a61bd229448"
+    },
+    "artifacts/phase33-monthly-after/server-eslint.json": {
+      "bytes": 15473,
+      "sha256": "2895115d80192b2747317625eb3eedae5163c23d657bd37d8e90b1a1f26b4dd5"
+    },
+    "artifacts/phase33-monthly-after/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase33-monthly-after/server-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase33-monthly-after/database-identity.log": {
+      "bytes": 116,
+      "sha256": "d89460f1f17da2d253e1638355dee22da7cc1d5a01cdc851bb234f644b69a25e"
+    },
+    "artifacts/phase33-monthly-after/database-remaining.log": {
+      "bytes": 15,
+      "sha256": "eb0769869a8f52148ca9fbcd05f3800a964e8ccd6958c5c5642b84a92a8877eb"
+    },
+    "artifacts/phase33-monthly-after/postgres-stop.log": {
+      "bytes": 50,
+      "sha256": "dd269ccb43c508088b5a167e486992f22ca81c73e544ef93ea8ed842549ac2d8"
+    },
+    "artifacts/phase33-monthly-after/harness-provenance.json": {
+      "bytes": 721,
+      "sha256": "743a257339c501e9c403d60fab2ff7f6bb40f2e7b6e83575dcd6359ec262060c"
+    },
+    "artifacts/phase33-monthly-after/harness/member-renew.postgres.spec.ts": {
+      "bytes": 10363,
+      "sha256": "c389a5efb56f16dee62fbcf7920f9b0776026be5d38dbc7a08ec8bc87c3a34fb"
+    },
+    "artifacts/phase33-monthly-after/harness/jest.config.cjs": {
+      "bytes": 359,
+      "sha256": "24eec38e6e29fe87d00c9bff5281d91bbcdda0c2240726cdc0252fc40afac4e6"
+    },
+    "artifacts/phase33-monthly-after/build-manifest.json": {
+      "bytes": 1520627,
+      "sha256": "08e8a6869c7450451e9bd607a7ae94261a4941cf0886fe16caed3abf2613b7f5"
+    },
+    "artifacts/phase33-client-current/client-execution.json": {
+      "bytes": 1046,
+      "sha256": "13075551935caae6e5467ec2d3103d9f86879655c7b3b49f673a00ecfa646865"
+    },
+    "artifacts/phase33-client-current/notification-adapter.log": {
+      "bytes": 198,
+      "sha256": "20f67d6f30f7c614a47a00d64b87b96d327826cadce1689829ddd144ba902b1b"
+    },
+    "artifacts/phase33-client-current/client-gate.log": {
+      "bytes": 34465,
+      "sha256": "74282f420d06f6cb7c2a8e1775a12645662898ba12fe56ca217d6d402f82a107"
+    },
+    "artifacts/phase33-client-current/mobile-eslint.json": {
+      "bytes": 145547,
+      "sha256": "679ef91c8beb74ead58d59582abb735a4517e59c6647467c145539f9b1f2b8e5"
+    },
+    "artifacts/phase33-client-current/mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase33-client-current/mobile-app-build.log": {
+      "bytes": 66378,
+      "sha256": "d4f943845fff84f797c0f15e1bf849375a9200da2e0f4216d634b7c4f12877b0"
+    },
+    "artifacts/phase33-client-current/mobile-h5-build.log": {
+      "bytes": 66598,
+      "sha256": "6c091ee2a41f794ec066c79db9207970ed17136d1f36a660963368293b0c323a"
+    },
+    "artifacts/phase33-client-current/mobile-mp-weixin-build.log": {
+      "bytes": 67388,
+      "sha256": "591a378c8d85573aa7c3ed199457316f1fdd2b4731c7786962a0ce6c8a5bd65c"
+    },
+    "artifacts/phase33-client-current/native-bundle-audit.log": {
+      "bytes": 165,
+      "sha256": "bd093ec405321d81c47ac5d2ba7527a5ddb8c81a140131d889bbac8636837d13"
+    },
+    "artifacts/phase33-monthly-before/execution.json": {
+      "bytes": 1306,
+      "sha256": "b94182daee611d230b88073636bc0c5a3c5153868d5d9f9cda20d63122001f00"
+    },
+    "artifacts/phase33-monthly-before/monthly-tests.json": {
+      "bytes": 9429,
+      "sha256": "723231ecbd984844e6cc5be63c40e9a0c952f48bfe5da407c75381af48bc5be4"
+    },
+    "artifacts/phase33-monthly-before/monthly-postgres.log": {
+      "bytes": 3751,
+      "sha256": "bcc64166dd28bd2098de84cd0a7a25450cddfb140538b5ca12391dd6f28378b7"
+    },
+    "artifacts/phase33-monthly-before/reproduction-summary.json": {
+      "bytes": 640,
+      "sha256": "449805b116245c10221454cf77ebd9ada161176187bbf7d647a7cad44e5ee541"
+    },
+    "artifacts/phase33-monthly-after/review-verified/member-monthly-atomic.patch": {
+      "bytes": 12186,
+      "sha256": "0781b38b9802722d14603d24536eb1e2b457d426cd507187d5b0aafd831a02a8"
+    },
+    "artifacts/phase33-monthly-after/review-verified/member-monthly-atomic.bundle": {
+      "bytes": 4504,
+      "sha256": "7988bff70071eecec0a8d65cc3a0d87d16df2698225ddebb777643effbfa217c"
+    },
+    "artifacts/phase33-monthly-after/mainline-review/remaining-channel-differences-from-9dda8974.patch": {
+      "bytes": 329175,
+      "sha256": "0b5393b199b72644514de003138a1512ddf5b1fd6f8a6f8a2ac1498947b0d87b"
+    },
+    "artifacts/phase33-monthly-after/mainline-review/proposal.json": {
+      "bytes": 3951,
+      "sha256": "b0c5592fc5dc963ba102efb8931d365f64e3bae3f015394fa2401434a26ddffc"
+    }
+  },
+  "limits": [
+    "历史复现2个预期断言失败、7项过滤跳过；读取UTF-8结果时出现GBK汇总错误，原记录保留并另行核验，不能声称原runner全成功",
+    "本月正积分流水仍是防重依据；仅赠券配置的跨月防重与旧未用同券冲突未改变既有策略",
+    "没有修复历史部分发放数据，已有积分流水仍按原规则跳过",
+    "使用现有自然月口径，没有另改业务时区或会员/券配置政策",
+    "数据库锁覆盖本发放入口，不能据此宣称全部领券入口库存并发已验收",
+    "App构建是资源，不是完整DCloud签名APK；合成公开域名不能代表真实支付/第三方业务",
+    "原86/319等历史计数不叠加本轮，未重绑主线完整CI或Docker镜像",
+    "完整包、旧实体机、其他内部闭环、主线正式接收、生产与16商店实际账号材料提审仍未完成",
+    "未写其他任务工作树、跨会话发消息、执行真实通知资金云函数或腾讯云操作"
+  ]
+}
