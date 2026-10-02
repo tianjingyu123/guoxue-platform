@@ -5,6 +5,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember, type TimFriendApplication } from '@/composables/useTim'
 import { getUserInfo } from '@/utils/storage'
+import { ENTITLEMENT_NOTIFICATION_ROUTE } from '@/lib/entitlement-presentation'
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'system' | 'product'
@@ -381,6 +382,8 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   const t = targetType.toUpperCase()
   const id = encodeURIComponent(targetId)
   if (t === 'FEEDBACK') return '/feedback?tab=history'
+  // 权益页只请求当前登录用户的数据，不接受通知里的 userId 作为查询条件。
+  if (t === 'ENTITLEMENT') return ENTITLEMENT_NOTIFICATION_ROUTE
   if (t.includes('COURSE')) return `/pkg-course/detail/index?id=${id}`
   // POST 必须先于 ARTICLE/CIRCLE 判断：帖子(含 CIRCLE_POST)走帖子详情页，被当文章打开必空
   if (t.includes('POST')) return `/pkg-circle/circles/post?id=${id}`

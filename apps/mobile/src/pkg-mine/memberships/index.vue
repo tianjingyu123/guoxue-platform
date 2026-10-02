@@ -11,11 +11,70 @@
     </app-nav-bar>
 
     <scroll-view scroll-y class="scroll-area">
+      <view
+        v-if="!loading"
+        class="services"
+      >
+        <view class="services-heading">
+          <text class="services-title">
+            服务与额度
+          </text>
+          <text
+            v-if="!rightsError"
+            class="services-count"
+          >
+            {{ rightsRows.length }} 项
+          </text>
+        </view>
+        <view
+          v-if="rightsError"
+          class="services-state"
+        >
+          <text>权益暂时未能加载，请重试</text>
+          <button
+            class="services-retry"
+            @tap="fetchData"
+          >
+            重新加载
+          </button>
+        </view>
+        <text
+          v-else-if="!rightsRows.length"
+          class="services-empty"
+        >
+          购买的服务与获赠额度会显示在这里
+        </text>
+        <view
+          v-else
+          class="services-list"
+        >
+          <view
+            v-for="row in rightsRows"
+            :key="row.key"
+            class="entitlement-row"
+          >
+            <view class="entitlement-info">
+              <text class="entitlement-name">
+                {{ row.label }}
+              </text>
+              <text class="entitlement-validity">
+                {{ row.validity }}
+              </text>
+            </view>
+            <text
+              class="entitlement-quantity"
+              :class="{ 'entitlement-unavailable': !row.available }"
+            >
+              {{ row.quantity }}
+            </text>
+          </view>
+        </view>
+      </view>
       <!-- 统计卡片 -->
       <view class="stat-wrap">
         <view class="stat-card">
           <view class="stat-head">
-            <text class="stat-title">权益概览</text>
+            <text class="stat-title">平台会员</text>
             <view class="stat-link" @tap="goOrders">
               <text class="stat-link-txt">订单记录</text>
               <app-icon name="chevron-right" :size="12" color="#c41e3a" />
@@ -24,7 +83,7 @@
           <view class="stat-grid">
             <view class="stat-item" :class="{ 'stat-item-all': filter === 'all' }" @tap="filter = 'all'">
               <text class="stat-num">{{ stats.total }}</text>
-              <text class="stat-label">全部权益</text>
+              <text class="stat-label">全部会员</text>
             </view>
             <view class="stat-item" :class="{ 'stat-item-green': filter === 'active' }" @tap="filter = 'active'">
               <text class="stat-num c-green">{{ stats.active }}</text>
@@ -59,7 +118,7 @@
         <!-- 空态 -->
         <view v-else-if="filteredMemberships.length === 0" class="empty">
           <app-icon name="gift" :size="48" color="rgba(0,0,0,0.2)" />
-          <text class="empty-txt">暂无权益</text>
+          <text class="empty-txt">暂未开通平台会员</text>
           <view class="empty-btn" @tap="goVip">
             <text class="empty-btn-txt">开通会员</text>
           </view>
@@ -135,19 +194,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type MembershipItem } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
+import { entitlementApi, type EntitlementItem } from '@/lib/entitlement-data'
+import { presentEntitlement } from '@/lib/entitlement-presentation'
 
 type MembershipStatus = 'active' | 'expiring' | 'expired'
 
 const memberships = ref<MembershipItem[]>([])
 const loading = ref(true)
 const error = ref('')
+const rights = ref<EntitlementItem[]>([])
+const rightsError = ref(false)
+// 平台会员保留现有续费卡片；统一权益接口中的兼容投影不重复展示。
+const rightsRows = computed(() => rights.value
+  .filter(item => item.entitlementKey !== 'membership.school')
+  .map(item => ({ key: item.id || `${item.entitlementKey}:${item.resourceType}:${item.resourceId}:${item.scope}`, ...presentEntitlement(item) }))
+  .sort((a, b) => Number(b.available) - Number(a.available)))
 
 const statusConfig: Record<MembershipStatus, { label: string; cls: string }> = {
   active: { label: '正常', cls: 'st-active' },
@@ -156,20 +225,24 @@ const statusConfig: Record<MembershipStatus, { label: string; cls: string }> = {
 }
 
 const filter = ref<'all' | MembershipStatus>('all')
+let loadRevision = 0
 
 async function fetchData() {
+  const revision = ++loadRevision
   loading.value = true
   error.value = ''
-  try {
-    memberships.value = await mineApi.getMemberships()
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+  rightsError.value = false
+  const [memberResult, rightsResult] = await Promise.allSettled([mineApi.getMemberships(), entitlementApi.getMine()])
+  if (revision !== loadRevision) return
+  if (memberResult.status === 'fulfilled') memberships.value = memberResult.value
+  else error.value = (memberResult.reason as Error)?.message || '会员加载失败'
+  if (rightsResult.status === 'fulfilled') rights.value = rightsResult.value.items
+  else rightsError.value = true
+  loading.value = false
 }
 
-onMounted(fetchData)
+// 从通知、付款或续费返回时重新读取当前状态，不停留在首次进入的旧额度。
+onShow(fetchData)
 
 const stats = computed(() => ({
   total: memberships.value.length,
@@ -232,6 +305,23 @@ function goRenew(_m: MembershipItem) {
 .scroll-area {
   height: calc(100vh - 88rpx);
 }
+.services { padding: 28rpx 24rpx 0; }
+.services-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16rpx; }
+.services-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; }
+.services-count, .services-empty { font-size: 24rpx; color: #65605c; }
+.services-empty { display: block; padding: 24rpx 0; line-height: 1.6; }
+.services-list { background: #fff; border: 1rpx solid #e9e5df; border-radius: 20rpx; overflow: hidden; }
+.entitlement-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 28rpx 24rpx; }
+.entitlement-row + .entitlement-row { border-top: 1rpx solid #eeeae4; }
+.entitlement-info { flex: 1; min-width: 0; }
+.entitlement-name { display: block; color: #1a1a1a; font-size: 28rpx; line-height: 1.5; overflow-wrap: anywhere; }
+.entitlement-validity { display: block; margin-top: 6rpx; color: #65605c; font-size: 24rpx; line-height: 1.5; }
+.entitlement-quantity { flex-shrink: 0; color: #166534; font-size: 30rpx; font-weight: 600; }
+.entitlement-unavailable { color: #65605c; font-size: 24rpx; font-weight: 400; }
+.services-state { font-size: 26rpx; line-height: 1.6; color: #65605c; padding: 24rpx 0; }
+.services-retry { display: block; width: fit-content; min-width: 180rpx; margin: 20rpx 0 0; padding: 0 28rpx; background: #c41e3a; color: #fff; font-size: 26rpx; line-height: 88rpx; border-radius: 16rpx; }
+.services-retry::after { border: 0; }
+.services-retry:focus-visible { outline: 2rpx solid #c41e3a; outline-offset: 6rpx; }
 
 /* 统计卡 */
 .stat-wrap {
