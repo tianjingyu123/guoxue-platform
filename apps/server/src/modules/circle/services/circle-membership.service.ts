@@ -742,22 +742,12 @@ export class CircleMembershipService {
 
   /** 内部方法：创建成员关系 */
   private async createMembership(circleId: string, userId: string, expireAt: Date | null, referrerId?: string) {
-    await this.assertNotBanned(circleId, userId);
-    let member: Awaited<ReturnType<typeof this.prisma.circleMember.create>> | undefined;
-    try {
-      member = await this.prisma.circleMember.create({
-        data: { circleId, userId, role: "MEMBER", expireAt },
-      });
-    } catch (e: unknown) {
-      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
-      throw e;
-    }
+    // 免费入圈和管理端代加也复用既有事务入口，人数写入失败必须回滚成员创建。
+    const member = await this.prisma.$transaction((tx) =>
+      this.createMembershipTx(circleId, userId, expireAt, referrerId, tx),
+    );
 
     await Promise.all([
-      this.prisma.circle.update({
-        where: { id: circleId },
-        data: { memberCount: { increment: 1 } },
-      }),
       this.redis.del(`circles:member:${circleId}:${userId}`),
       this.redis.del(`circles:detail:${circleId}`),
     ]);
@@ -806,14 +796,24 @@ export class CircleMembershipService {
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
     if (member.role === "OWNER") throw new BusinessException(ErrorCode.FORBIDDEN, "圈主不能退出，请先转让圈子");
 
-    await this.prisma.circleMember.delete({
-      where: { circleId_userId: { circleId, userId } },
+    await this.prisma.$transaction(async (tx) => {
+      // 旧请求不能删除读取后升为圈主或退圈重入的新成员行。
+      const removed = await tx.circleMember.deleteMany({ where: {
+        id: member.id, circleId, userId, role: { not: "OWNER" },
+        circle: { ownerId: { not: userId } },
+      } });
+      if (removed.count === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "成员或圈主状态已变化，请刷新后重试");
+      }
+      const counted = await tx.circle.updateMany({
+        where: { id: circleId, memberCount: { gt: 0 } },
+        data: { memberCount: { decrement: 1 } },
+      });
+      if (counted.count === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
+      }
     });
     await Promise.all([
-      this.prisma.circle.update({
-        where: { id: circleId },
-        data: { memberCount: { decrement: 1 } },
-      }),
       this.redis.del(`circles:member:${circleId}:${userId}`),
       this.redis.del(`circles:detail:${circleId}`),
     ]);

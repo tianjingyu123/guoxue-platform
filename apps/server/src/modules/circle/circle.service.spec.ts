@@ -320,7 +320,7 @@ describe("CircleService", () => {
 
   describe("leave", () => {
     it("成功退出圈子", async () => {
-      mockPrisma.circleMember.findUnique.mockResolvedValue({ userId: "u2", role: "MEMBER" });
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ id: "m2", userId: "u2", role: "MEMBER" });
       mockPrisma.circleMember.delete.mockResolvedValue({});
       mockPrisma.circle.update.mockResolvedValue({});
       const result = await svc.leave("c1", "u2");
