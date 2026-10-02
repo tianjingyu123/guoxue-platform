@@ -697,7 +697,9 @@ export class ShopPaymentService {
       if (order.status !== "PENDING") {
         // processPaidOrder 会把 payTransactionId 原子替换为微信 transaction_id。
         // 只有同一渠道流水的重投才是幂等；不同流水意味着同一本地订单被重复扣款，必须让渠道重试并进入对账。
-        if (order.payMethod === "WECHAT" && order.payTransactionId === transactionId) {
+        if (order.paidAt && ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(order.status) &&
+            order.payMethod === "WECHAT" && order.payTransactionId === transactionId) {
+          if (order.status === "REFUNDED") return true;
           // 订单已入账但首次外发箱落库失败时，渠道重投必须补建事件；唯一键会拦截正常重复通知。
           await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
           await this.reportWechatVirtualDelivery(order, body, transactionId);
@@ -738,9 +740,14 @@ export class ShopPaymentService {
       try {
         await this.processPaidOrder(order, "WECHAT", transactionId);
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, transactionId: ${transactionId}`);
+        if ((e instanceof BusinessException && e.message === "订单状态已变更") || isUniqueConstraintError(e)) {
+          const committed = await this.findCommittedPayment(order, "WECHAT", transactionId);
+          if (!committed) return false;
+          // 并发赢家可能已提交但尚未写外发箱；核实实际入账后补发，不能把退款单再次报支付成功。
+          if (committed.status !== "REFUNDED") {
+            await this.emitOrderPaidEvent(committed, outTradeNo, "WECHAT", transactionId);
+            await this.reportWechatVirtualDelivery(committed, body, transactionId);
+          }
           return true;
         }
         throw e;
@@ -864,7 +871,9 @@ export class ShopPaymentService {
       }
       if (order.status !== "PENDING") {
         // 只有同一渠道、同一渠道流水的终态重投才可幂等确认；已取消订单或第二笔扣款必须进入对账。
-        if (order.payMethod === payMethod && order.payTransactionId === tradeNo) {
+        if (order.paidAt && ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(order.status) &&
+            order.payMethod === payMethod && order.payTransactionId === tradeNo) {
+          if (order.status === "REFUNDED") return true;
           await this.emitOrderPaidEvent(order, outTradeNo, payMethod, tradeNo);
           return true;
         }
@@ -898,9 +907,10 @@ export class ShopPaymentService {
       try {
         await this.processPaidOrder(order, payMethod, tradeNo, Number(callbackAmount));
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, payMethod: ${payMethod}`);
+        if ((e instanceof BusinessException && e.message === "订单状态已变更") || isUniqueConstraintError(e)) {
+          const committed = await this.findCommittedPayment(order, payMethod, tradeNo);
+          if (!committed) return false;
+          if (committed.status !== "REFUNDED") await this.emitOrderPaidEvent(committed, outTradeNo, payMethod, tradeNo);
           return true;
         }
         throw e;
@@ -916,6 +926,17 @@ export class ShopPaymentService {
     } finally {
       await this.redis.del(payLockKey);
     }
+  }
+
+  /** 唯一键或订单CAS冲突本身不证明已付款；事务结束后重新核对同一订单、主体、金额和渠道流水。 */
+  private async findCommittedPayment(order: Order, payMethod: string, tradeNo: string): Promise<Order | null> {
+    const current = await this.prisma.order.findUnique({ where: { id: order.id } });
+    if (current && current.userId === order.userId && current.type === order.type && current.targetId === order.targetId &&
+        Number(current.amount) === Number(order.amount) && current.paidAt &&
+        ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"].includes(current.status) &&
+        current.payMethod === payMethod && current.payTransactionId === tradeNo) return current;
+    this.logger.error(`【资金对账·未确认入账】支付事务冲突后仍无法核实同笔入账: order=${order.id}, channel=${payMethod}, status=${current?.status || "MISSING"}`);
+    return null;
   }
 
   /**

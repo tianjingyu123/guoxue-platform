@@ -116,7 +116,7 @@ describe("ShopPaymentService", () => {
     it("订单已按渠道流水落库后，重投回调仍可定位并幂等成功", async () => {
       const paidOrder = {
         id: "o-ali-done", userId: "u1", type: "PRODUCT", amount: "88", status: "PAID",
-        payMethod: "ALIPAY", payTransactionId: "ALI-CHANNEL-1",
+        payMethod: "ALIPAY", payTransactionId: "ALI-CHANNEL-1", paidAt: new Date(),
       };
       mockPrisma.order.findFirst.mockResolvedValue(paidOrder);
 
@@ -341,7 +341,7 @@ describe("ShopPaymentService", () => {
     it("终态订单只接受同一微信渠道流水的幂等重投，第二笔流水必须进入对账", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({
         id: "o-wx-paid", userId: "u1", type: "PRODUCT", amount: "88", status: "PAID",
-        payMethod: "WECHAT", payTransactionId: "WX-CHANNEL-ORIGINAL",
+        payMethod: "WECHAT", payTransactionId: "WX-CHANNEL-ORIGINAL", paidAt: new Date(),
       })
 
       const replay = await svc.handlePaymentNotify({
