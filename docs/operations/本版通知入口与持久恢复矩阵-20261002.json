@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
-  "checkedAt": "2026-10-02T21:39:01.472Z",
+  "sourceCommit": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+  "checkedAt": "2026-10-02T22:22:24.588Z",
   "rows": [
     {
       "id": "order-paid",
@@ -185,9 +185,9 @@
         "apps/server/src/modules/live/live.module.ts"
       ],
       "key": "LIVE_REMINDER:<roomId> / LIVE_STARTED:<roomId>",
-      "state": "真实预约准入、开播与分钟恢复入口",
-      "recovery": "预约持久状态、500分批、单房失败继续、防重",
-      "gap": "选取后取消竞态、正式媒体/真IM/匹配基座/真机仍未覆盖",
+      "state": "真实预约/开播及分钟恢复入口；名单选取后取消/结束/拒审/改期与收件人变化已真实PG验证",
+      "recovery": "房间→预约锁定、当前BOOKED重核，站内通知+标记同事务；失败回滚重试、500分批、DB唯一键",
+      "gap": "624及编译22限定隔离通过；真实Redis、媒体/真IM/匹配基座/同版真机、其它可见性及圈成员撤销竞态、正式Cron和两节点未覆盖",
       "online": "未知"
     },
     {
@@ -318,7 +318,7 @@
     },
     {
       "path": "apps/server/src/modules/live/live.service.ts",
-      "sha256": "9fb616d9455286c110ba15921e7783c5c8c16f4eb086d4bacd84ba2c40b652df"
+      "sha256": "87fcc339b4db24e1f86f8524d4beab5dae3e82bc23507712dff9a6f0a268fbe3"
     },
     {
       "path": "apps/server/src/modules/live/live.module.ts",
@@ -350,7 +350,7 @@
     },
     {
       "path": "apps/server/src/modules/notification/notification.service.ts",
-      "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+      "sha256": "effa5e18a38ccdfcf0aab3e9f61d1ea9ef266a8d11d7839726bff6229a38187f"
     }
   ],
   "scope": "本次源码入口和已存在验收记录核对，不新增真实通知或声称全链路运行",
@@ -369,5 +369,6 @@
   "previousMonthlyBinding": {
     "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
     "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
-  }
+  },
+  "previousSourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d"
 }
