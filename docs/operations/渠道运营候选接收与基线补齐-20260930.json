@@ -1748,41 +1748,43 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
-    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
-    "record": "圈子治理九入口持久通知与真实鉴权验收-20261002.json",
-    "localPassed": 108,
-    "newPostgres": 30,
-    "compiledPostgres": 30,
-    "compiledScheduler": 4,
-    "compiledHttpChecks": 11,
-    "crossProcessOnlyOneNotice": true,
-    "governanceDurableEntrypoints": 9,
-    "governanceDurableLimitedScopeComplete": true,
+    "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "businessCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+    "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "record": "圈子成员缓存持久恢复与真实Redis并发验收-20261002.json",
+    "localPassed": 165,
+    "compiledPostgres": 15,
+    "compiledScheduler": 7,
+    "httpContainerRegression": 24,
+    "limitedMembershipCacheComplete": true,
+    "paidAndRoleCacheRecoveryComplete": false,
     "N4OverallComplete": false,
-    "migrationCount": 131,
+    "realRedisLimitedCacheAndSendOnceConcurrency": true,
+    "realRedisVersion": "3.0.504",
+    "realProductionRedis": false,
+    "migrationCount": 132,
     "ci": {
-      "runId": 37007128841,
-      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "runId": 37012406521,
+      "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
       "conclusion": "success",
       "counts": {
-        "passed": 8985,
-        "skipped": 321,
+        "passed": 8997,
+        "skipped": 336,
         "jobsPassed": 8
       }
     },
     "linux": {
-      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
-      "verificationCommit": "e84d7aa19288e677fd742099d02a1931690665b1",
-      "runId": 37007148546,
-      "passed": 623,
-      "suites": 36,
+      "sourceCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+      "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+      "runId": 37011510442,
+      "verificationCommit": "efb6e39f402dfa3fe4b95e22f09348b77a801d83",
+      "passed": 650,
+      "suites": 39,
       "skipped": 0,
-      "artifactId": 11226336299,
-      "artifactDigest": "sha256:f612f8f9de59c5967a32baaa5c0daf64cc67fc6d0ec9180fb1da7cffe65a0e9d"
+      "artifactId": 11228670770,
+      "artifactDigest": "sha256:2e2539231dfe60ae1ad64f719e70a8946b1178a6ee947ad38d8b3a298662b4e1"
     },
     "formalDockerfileImage": false,
-    "newClientBuild": false,
     "newPhoneTest": false,
     "realChannels": false,
     "releaseReady": false
@@ -2712,6 +2714,46 @@
     "newClientBuild": false,
     "newPhoneTest": false,
     "formalDockerfileImage": false,
+    "releaseReady": false
+  },
+  "cacheHistoricalParentCandidate": {
+    "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+    "parent": "cfe765992a20fcf581331e4de79a9efab3126ead",
+    "record": "圈子治理九入口持久通知与真实鉴权验收-20261002.json",
+    "localPassed": 108,
+    "newPostgres": 30,
+    "compiledPostgres": 30,
+    "compiledScheduler": 4,
+    "compiledHttpChecks": 11,
+    "crossProcessOnlyOneNotice": true,
+    "governanceDurableEntrypoints": 9,
+    "governanceDurableLimitedScopeComplete": true,
+    "N4OverallComplete": false,
+    "migrationCount": 131,
+    "ci": {
+      "runId": 37007128841,
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8985,
+        "skipped": 321,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "5cb8022e52f6af31f8e2d5b16ab19015474d4782",
+      "verificationCommit": "e84d7aa19288e677fd742099d02a1931690665b1",
+      "runId": 37007148546,
+      "passed": 623,
+      "suites": 36,
+      "skipped": 0,
+      "artifactId": 11226336299,
+      "artifactDigest": "sha256:f612f8f9de59c5967a32baaa5c0daf64cc67fc6d0ec9180fb1da7cffe65a0e9d"
+    },
+    "formalDockerfileImage": false,
+    "newClientBuild": false,
+    "newPhoneTest": false,
+    "realChannels": false,
     "releaseReady": false
   }
 }

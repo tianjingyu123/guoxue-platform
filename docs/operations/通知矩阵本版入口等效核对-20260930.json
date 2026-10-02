@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "governanceDurableCurrentBinding",
+  "currentBindingKey": "membershipCacheCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1658,5 +1658,57 @@
     "releaseReady": false,
     "realGlobalProductionEntry": false,
     "cacheRecoveryComplete": false
+  },
+  "membershipCacheCurrentBinding": {
+    "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "businessCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+    "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+    "record": "圈子成员缓存持久恢复与真实Redis并发验收-20261002.json",
+    "localPassed": 165,
+    "compiledPostgres": 15,
+    "compiledScheduler": 7,
+    "httpContainerRegression": 24,
+    "limitedMembershipCacheComplete": true,
+    "paidAndRoleCacheRecoveryComplete": false,
+    "N4OverallComplete": false,
+    "realRedisLimitedCacheAndSendOnceConcurrency": true,
+    "realRedisVersion": "3.0.504",
+    "realProductionRedis": false,
+    "migrationCount": 132,
+    "ci": {
+      "runId": 37012406521,
+      "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+      "conclusion": "success",
+      "counts": {
+        "passed": 8997,
+        "skipped": 336,
+        "jobsPassed": 8
+      }
+    },
+    "linux": {
+      "sourceCommit": "5dc723c068ab94806f2406780334bdb622c04de3",
+      "testFixtureCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
+      "runId": 37011510442,
+      "verificationCommit": "efb6e39f402dfa3fe4b95e22f09348b77a801d83",
+      "passed": 650,
+      "suites": 39,
+      "skipped": 0,
+      "artifactId": 11228670770,
+      "artifactDigest": "sha256:2e2539231dfe60ae1ad64f719e70a8946b1178a6ee947ad38d8b3a298662b4e1"
+    },
+    "formalDockerfileImage": false,
+    "newPhoneTest": false,
+    "realChannels": false,
+    "releaseReady": false
+  },
+  "realRedisLimitedSendOnceBinding": {
+    "record": "圈子成员缓存持久恢复与真实Redis并发验收-20261002.json",
+    "realRedisVersion": "3.0.504",
+    "twoIndependentOSProcesses": true,
+    "duplicateDatabaseCount": 1,
+    "failureReleaseAndRetry": true,
+    "realPaymentWebhook": false,
+    "realChannels": false,
+    "production": false
   }
 }
