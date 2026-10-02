@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
-  "checkedAt": "2026-10-02T19:31:15.847Z",
+  "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+  "checkedAt": "2026-10-02T20:14:33.571Z",
   "rows": [
     {
       "id": "order-paid",
@@ -140,12 +140,14 @@
       "event": "免费及零元促销课程订阅",
       "paths": [
         "apps/server/src/modules/course/course-purchase.service.ts",
-        "apps/server/src/modules/course/course.module.ts"
+        "apps/server/src/modules/course/course.module.ts",
+        "apps/server/src/modules/notification/free-course-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
       ],
-      "key": "COURSE_ENROLLED:<orderId>",
-      "state": "真实订单create提交后异步sendOnce",
-      "recovery": "写入失败/阻塞不影响订阅；重复防重",
-      "gap": "当前编译真实入口/PG已反证：通知失败后普通重试拒绝已订阅，尚无新事务事实恢复；待独立修复，不历史补发",
+      "key": "<userId>:COURSE_ENROLLED:<orderId>",
+      "state": "真实FREE订阅订单与新事实同事务，提交后即时站内通知",
+      "recovery": "实际分钟持久SQL补发；即时/调度共用数据库唯一键，双进程实测；不补历史",
+      "gap": "新事实/失败释放/并发/跨用户服务访问已真实PG验证；最终镜像、HTTP/JWT、真实Redis/供应商、手机和线上Cron未全覆盖",
       "online": "未知"
     },
     {
@@ -262,7 +264,7 @@
     },
     {
       "path": "apps/server/src/modules/notification/notification.module.ts",
-      "sha256": "ed70d4757bed6951c4ff8333fbf42ad0581fced9c8ec83814c747eaab10965ae"
+      "sha256": "0d6dc0404811dc8bf4764e1236526caea1d50bb6198bc3d6e8ec1fb68bc2ca39"
     },
     {
       "path": "apps/mobile/src/lib/mine-data.ts",
@@ -294,11 +296,15 @@
     },
     {
       "path": "apps/server/src/modules/course/course-purchase.service.ts",
-      "sha256": "f54ddc7b2605bb86ce23ea9eb0430973c697a8dafbde4c012efb5ee4b31ee3ed"
+      "sha256": "d3c580fa4ebb666e7974f95a1541a587c514b51ed88dc9b6352ff6f4b7d0d9a8"
     },
     {
       "path": "apps/server/src/modules/course/course.module.ts",
       "sha256": "1c831aaf004166214af2c97aeb00fe73911c39bdce980044cb1d3beb66687ba4"
+    },
+    {
+      "path": "apps/server/src/modules/notification/free-course-notification.task.ts",
+      "sha256": "776a844e49e2190c6ebdda243bd954c3a0d58301cc86c492bfcecde3173af368"
     },
     {
       "path": "apps/server/src/modules/course/course-scheduler.service.ts",
@@ -347,8 +353,8 @@
   "realChannels": false,
   "production": false,
   "previousBinding": {
-    "sourceCommit": "e556e7d66b59f5fc87799c3390460f684f3f11c3",
-    "record": "语音重复启动修复与最终软件补验-20261002.json"
+    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "record": "月度积分赠券持久通知与双入口验收-20261002.json"
   },
   "previousPaymentBinding": {
     "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
