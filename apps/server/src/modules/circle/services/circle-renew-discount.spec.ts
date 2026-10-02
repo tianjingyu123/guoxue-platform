@@ -8,6 +8,7 @@ import { BusinessException } from "../../../common/business.exception";
 
 function buildMocks() {
   const prisma = {
+    $queryRaw: jest.fn().mockResolvedValue([]),
     circle: { findUnique: jest.fn() },
     circleMember: { findUnique: jest.fn(), update: jest.fn() },
     configSystem: { findUnique: jest.fn() },
@@ -141,6 +142,7 @@ describe("CircleMembershipService · #34 续费折扣", () => {
     prisma.circleMember.findUnique.mockResolvedValue({ ...MEMBER, expireAt });
     prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", quantity: 2, payAmount: 547.5, amount: 547.5 });
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $queryRaw: jest.fn()
         // ① 订单行 FOR UPDATE
         .mockResolvedValueOnce([{

@@ -1,4 +1,5 @@
 import { Prisma, OrderStatus, OrderType } from "@prisma/client";
+import { enqueueCircleMembershipCache } from "../circle/services/circle-membership-cache.task";
 
 /**
  * 圈子付费履约（服务端内部实现·修复候选 v2）
@@ -30,7 +31,7 @@ import { Prisma, OrderStatus, OrderType } from "@prisma/client";
  *   - `cleanupExpiredMembers` 只操作 `CircleMember`，单一资源，无环。
  *
  * ── 刻意不做的事 ───────────────────────────────────────────────────────────
- *   - 不发 Redis 缓存失效（调用方在事务提交后处理，见 ShopPaymentService）；
+ *   - 不在事务内访问 Redis；成员变更与订单认领同事务保存缓存待办，调用方提交后尝试清理，分钟任务恢复故障；
  *   - 不记圈子收益（`recordCircleRevenue` 依赖 commission 模块的费率解析，无法在本事务内
  *     调用；由调用方在提交后按「每单恰好一次」的语义记账，见 ShopPaymentService）；
  *   - 不做圈规确认（`assertRuleAck`）—— 事务内拿不到治理服务。这不再是缺口：
@@ -200,6 +201,7 @@ export async function fulfillCircleOrderTx(
       data: { memberCount: { increment: 1 } },
     });
     await claimOrder(tx, order.id);
+    await enqueueCircleMembershipCache(tx, order.targetId, order.userId);
     return { outcome: "fulfilled", expireAt, memberId: created.id, shouldRecordRevenue: true };
   }
 
@@ -224,6 +226,7 @@ export async function fulfillCircleOrderTx(
       data: { expireAt },
     });
     await claimOrder(tx, order.id);
+    await enqueueCircleMembershipCache(tx, order.targetId, order.userId);
     return { outcome: "fulfilled", expireAt, memberId: existing.id, shouldRecordRevenue: true };
   }
 
@@ -237,6 +240,7 @@ export async function fulfillCircleOrderTx(
     data: { expireAt },
   });
   await claimOrder(tx, order.id);
+  await enqueueCircleMembershipCache(tx, order.targetId, order.userId);
   return { outcome: "extended", expireAt, memberId: existing.id, shouldRecordRevenue: true };
 }
 

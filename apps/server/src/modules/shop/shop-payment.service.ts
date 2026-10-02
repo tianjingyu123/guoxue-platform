@@ -32,6 +32,7 @@ import { serverConfig } from "../../config/server-config";
 import { StationPaipanSyncService } from "../station/station-paipan-sync.service";
 import { WechatService } from "../auth/wechat.service";
 import { NotificationService } from "../notification/notification.service";
+import { clearCircleMembershipCaches } from "../circle/services/circle-membership-cache.task";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -1006,12 +1007,16 @@ export class ShopPaymentService {
     order: { id: string; userId: string; targetId: string; payAmount?: unknown; amount?: unknown },
     fulfillment?: FulfillResult,
   ): Promise<void> {
-    // 缓存失效：无论履约与否都清，成本极低，且避免 needs_manual 分支残留脏缓存。
-    // 键名与 circle-membership.service.ts / circle-core.service.ts 保持一致。
-    await Promise.all([
-      this.redis.del(`circles:member:${order.targetId}:${order.userId}`),
-      this.redis.del(`circles:detail:${order.targetId}`),
-    ]).catch((e) => this.logger.warn(`圈子缓存清除失败 order=${order.id}`, e));
+    // 唯一履约事务已保存实际成员变更；清理失败不能阻断已提交的付款或后续收益处理。
+    // already / needs_manual 不伪造新待办，也可恢复此前提交后中断的待办。
+    try {
+      await clearCircleMembershipCaches(this.prisma, this.redis, {
+        circleId: order.targetId,
+        userId: order.userId,
+      });
+    } catch {
+      this.logger.warn("付费圈子缓存暂未恢复，已保留待办");
+    }
 
     if (!fulfillment?.shouldRecordRevenue || !fulfillment.memberId) return;
     const priceYuan = Number(order.payAmount ?? order.amount ?? 0);

@@ -214,9 +214,14 @@ export class CircleMembershipService {
   }
 
   /** 支付完成后确认入圈（由支付回调或前端调用） */
-  async confirmJoin(circleId: string, userId: string, dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string }) {
+  async confirmJoin(
+    circleId: string,
+    userId: string,
+    dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string },
+  ) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
-    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    if (!circle || circle.status !== "ACTIVE")
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
 
     // 再次校验是否已加入
     const existing = await this.prisma.circleMember.findUnique({
@@ -228,6 +233,7 @@ export class CircleMembershipService {
       // 归属严格校验：订单必须同时属于该用户、该圈子、且类型为圈子订单，才认定为本单已履约。
       const fulfilledOrder = await this.findOwnedCircleOrder(circleId, userId, dto, ["COMPLETED"]);
       if (fulfilledOrder) {
+        await this.restorePaidMembershipCache(circleId, userId);
         return { ...existing, alreadyFulfilled: true, orderId: fulfilledOrder.id };
       }
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
@@ -251,10 +257,7 @@ export class CircleMembershipService {
       // 外部支付：校验订单状态
       const order = await this.prisma.order.findFirst({
         where: {
-          OR: [
-            { id: dto.orderId || "" },
-            { payTransactionId: dto.orderNo || "" },
-          ],
+          OR: [{ id: dto.orderId || "" }, { payTransactionId: dto.orderNo || "" }],
           type: "CIRCLE_JOIN",
           targetId: circleId,
           userId,
@@ -273,13 +276,20 @@ export class CircleMembershipService {
       // 「成员已建、订单仍 PAID」，补偿扫描再读到时会按「已是有效成员的 JOIN 单」判成
       // 待人工（D4），把一笔本已履约的订单送进人工队列。
       // 真实实现在同一事务内完成订单行 FOR UPDATE → 成员行 FOR UPDATE → 写权益 → 认领订单。
-      const fulfillment = await this.prisma.$transaction((tx) => fulfillCircleOrderTx(tx, order.id));
+      const fulfillment = await this.prisma.$transaction((tx) =>
+        fulfillCircleOrderTx(tx, order.id),
+      );
       member = await this.applyLegacyConfirmOutcome(circleId, userId, order.id, fulfillment);
       // 推荐人奖励：原先在 createMembership 内部，随履约迁出后在这里按同一条件触发。
-      if (dto.referrerId && this.commissionService && fulfillment.outcome === "fulfilled" && fulfillment.memberId) {
-        this.commissionService.recordCircleRevenue(circleId, "circle_join_referral", fulfillment.memberId, 0).catch(
-          (err) => this.logger.warn("记录推荐收益失败", err),
-        );
+      if (
+        dto.referrerId &&
+        this.commissionService &&
+        fulfillment.outcome === "fulfilled" &&
+        fulfillment.memberId
+      ) {
+        this.commissionService
+          .recordCircleRevenue(circleId, "circle_join_referral", fulfillment.memberId, 0)
+          .catch((err) => this.logger.warn("记录推荐收益失败", err));
       }
       // 本单此前已履约（服务端回调/管理员确认/补偿任一）时不重复记收益。
       if (!fulfillment.shouldRecordRevenue) paidOrderId = null;
@@ -288,11 +298,8 @@ export class CircleMembershipService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供支付方式或订单号");
     }
 
-    // 缓存清理（事务外操作）
-    await Promise.all([
-      this.redis.del(`circles:member:${circleId}:${userId}`),
-      this.redis.del(`circles:detail:${circleId}`),
-    ]);
+    // 与服务端付款入口共用持久待办，缓存故障不把已履约结果变成失败。
+    await this.restorePaidMembershipCache(circleId, userId);
 
     // 记录圈子收益（fire-and-forget，不影响主流程）。
     // 带上 order.id：支付后处理器也会为同一笔订单记一次收益，两条路径靠
@@ -475,9 +482,14 @@ export class CircleMembershipService {
   }
 
   /** 支付完成后确认续费（由前端支付成功后调用）：校验 CIRCLE_RENEW 订单已支付 → 从原到期时间顺延 365 天 */
-  async confirmRenew(circleId: string, userId: string, dto: { orderId?: string; orderNo?: string }) {
+  async confirmRenew(
+    circleId: string,
+    userId: string,
+    dto: { orderId?: string; orderNo?: string },
+  ) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
-    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    if (!circle || circle.status !== "ACTIVE")
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
 
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
@@ -486,10 +498,7 @@ export class CircleMembershipService {
 
     const order = await this.prisma.order.findFirst({
       where: {
-        OR: [
-          { id: dto.orderId || "" },
-          { payTransactionId: dto.orderNo || "" },
-        ],
+        OR: [{ id: dto.orderId || "" }, { payTransactionId: dto.orderNo || "" }],
         type: "CIRCLE_RENEW",
         targetId: circleId,
         userId,
@@ -500,7 +509,12 @@ export class CircleMembershipService {
     }
     if (order.status === "COMPLETED") {
       // 服务端支付后处理器已完成本单续期，客户端补调到这里。幂等返回当前状态，不重复顺延。
-      return { ...member, alreadyFulfilled: true, newExpireAt: member.expireAt?.toISOString() ?? null };
+      await this.restorePaidMembershipCache(circleId, userId);
+      return {
+        ...member,
+        alreadyFulfilled: true,
+        newExpireAt: member.expireAt?.toISOString() ?? null,
+      };
     }
 
     // **顺延本身交给服务端唯一实现**：订单行 FOR UPDATE → 成员行 FOR UPDATE → 顺延 → 认领订单。
@@ -522,27 +536,43 @@ export class CircleMembershipService {
       );
     }
     if (fulfillment.outcome === "skipped") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `订单无法履约：${fulfillment.reason ?? "状态不可履约"}`);
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `订单无法履约：${fulfillment.reason ?? "状态不可履约"}`,
+      );
     }
 
     const updated = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!updated) throw new BusinessException(ErrorCode.NOT_FOUND, "续费结果异常，请刷新后重试或联系客服");
+    if (!updated)
+      throw new BusinessException(ErrorCode.NOT_FOUND, "续费结果异常，请刷新后重试或联系客服");
     const newExpireAt = fulfillment.expireAt ?? updated.expireAt;
 
     // 记录续费收益（带 order.id 与支付后处理器互斥）。
     // `shouldRecordRevenue` 为假说明本单此前已履约过，此处不重复记账。
     const priceYuan = Number(order.payAmount ?? order.amount);
-    if (priceYuan > 0 && fulfillment.shouldRecordRevenue && fulfillment.memberId && this.commissionService) {
+    if (
+      priceYuan > 0 &&
+      fulfillment.shouldRecordRevenue &&
+      fulfillment.memberId &&
+      this.commissionService
+    ) {
       this.commissionService
         .recordCircleRevenue(circleId, "circle_join", fulfillment.memberId, priceYuan, order.id)
         .catch((err) => this.logger.warn("记录续费收益失败（含已由支付后处理器记过的情形）", err));
     }
 
-    await this.redis.del(`circles:member:${circleId}:${userId}`);
-    await this.redis.del(`circles:detail:${circleId}`);
+    await this.restorePaidMembershipCache(circleId, userId);
     return { ...updated, newExpireAt: newExpireAt ? newExpireAt.toISOString() : null };
+  }
+
+  private async restorePaidMembershipCache(circleId: string, userId: string): Promise<void> {
+    try {
+      await clearCircleMembershipCaches(this.prisma, this.redis, { circleId, userId });
+    } catch {
+      this.logger.warn("付费圈子缓存暂未恢复，已保留待办");
+    }
   }
 
   /**

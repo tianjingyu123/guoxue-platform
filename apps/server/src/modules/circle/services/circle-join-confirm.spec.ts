@@ -5,6 +5,7 @@ describe('入圈订单确认事务', () => {
   function setup() {
     const member = { id: 'member', circleId: 'circle', userId: 'buyer', expireAt: null };
     const tx: any = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
       $queryRaw: jest.fn()
         .mockResolvedValueOnce([{ id: 'order', userId: 'buyer', type: 'CIRCLE_JOIN', targetId: 'circle', quantity: 1, status: 'PAID', paidAt: new Date(), refundedAt: null }])
         .mockResolvedValueOnce([]),
@@ -13,6 +14,7 @@ describe('入圈订单确认事务', () => {
       circleMember: { create: jest.fn().mockResolvedValue(member), findUnique: jest.fn().mockResolvedValue(null) },
     };
     const prisma: any = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       circle: { findUnique: jest.fn().mockResolvedValue({ id: 'circle', status: 'ACTIVE', type: 'PAID', price: 88 }) },
       circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
       circleMember: { findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(member) },
