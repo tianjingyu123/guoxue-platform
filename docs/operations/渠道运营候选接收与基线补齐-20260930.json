@@ -1748,17 +1748,21 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
-    "releaseId": "launch-20261002-b7c51f4c4",
+    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "businessCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
     "receivedCommits": [
-      "1c2d4158eb374d95d91e7de70dda6cb675c28452",
-      "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6"
+      "d6015091c726d2f0f30eec2c882eac7b456c0dea",
+      "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+      "51077ffe38e84db4e5c9c75985880e4a7dd18c35",
+      "b45b46a187f10f21d1f3ed5df3f33d5c89548122",
+      "3015217ef16c35ed986442e98c7ef29dd27c4ef1"
     ],
-    "receipt": "docs/operations/会员续费提醒持久补发与本人续费直达-20261002.json",
-    "ciRun": 36965417490,
-    "imageRun": 36966143664,
+    "receipt": "docs/operations/工单补发与月度权益原子性及IM隐私收口-20261002.json",
+    "ciRun": 36972302443,
+    "linuxRun": 36972374324,
     "releaseDecision": "NO-GO",
-    "note": "续费提醒持久防重/失败补发与本人续费直达；四目标重建，未部署"
+    "fixedPackage": "本版待最终重建；不复用旧源码包身份",
+    "note": "工单/日志隔离收口，月度安全部分完成；未部署"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1910,5 +1914,18 @@
     "imageRun": 36955729995,
     "releaseDecision": "NO-GO",
     "note": "真实管理员书院会员授予站内持久通知；五端等效51b，未部署"
+  },
+  "feedbackMonthlyPrivacyHistoricalParentCandidate": {
+    "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "releaseId": "launch-20261002-b7c51f4c4",
+    "receivedCommits": [
+      "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+      "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6"
+    ],
+    "receipt": "docs/operations/会员续费提醒持久补发与本人续费直达-20261002.json",
+    "ciRun": 36965417490,
+    "imageRun": 36966143664,
+    "releaseDecision": "NO-GO",
+    "note": "续费提醒持久防重/失败补发与本人续费直达；四目标重建，未部署"
   }
 }

@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "memberRenewCurrentBinding",
+  "currentBindingKey": "feedbackMonthlyPrivacyCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -576,6 +576,271 @@
         "before": "27e83e3feb9ba4128e5517ab7e07e7494256d0de",
         "after": "3304a099c405fddf62207614c48b5a001f64ed26",
         "equivalent": false
+      }
+    ],
+    "allNotificationTriggersCompleted": false,
+    "realChannelsVerified": false
+  },
+  "feedbackMonthlyPrivacyCurrentBinding": {
+    "sourceCommit": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
+    "parentBinding": {
+      "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+      "comparedTo": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+      "record": "会员续费提醒持久补发与本人续费直达-20261002.json",
+      "paths": [
+        {
+          "path": "apps/server/src/modules/notification",
+          "before": "236c736c8e488487c939369350c62e2306e6b6aa",
+          "after": "236c736c8e488487c939369350c62e2306e6b6aa",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/entitlement",
+          "before": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33",
+          "after": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/course",
+          "before": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+          "after": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/live",
+          "before": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+          "after": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/circle",
+          "before": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+          "after": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/shop",
+          "before": "14d387db935db80077e13736df39d35e9a109bb2",
+          "after": "14d387db935db80077e13736df39d35e9a109bb2",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/user/feedback.service.ts",
+          "before": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+          "after": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/user/user.module.ts",
+          "before": "c7d7457f9782b284c32d23141f24c8216153c567",
+          "after": "c7d7457f9782b284c32d23141f24c8216153c567",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+          "before": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+          "after": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+          "before": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+          "after": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/coin",
+          "before": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+          "after": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+          "equivalent": true
+        },
+        {
+          "path": "apps/server/src/modules/member",
+          "before": "d666aefa74bf0c277ce24aeef89fcb9d6ed8e2be",
+          "after": "5e71818416d9c78ed122a4c2e14eb1303652670e",
+          "equivalent": false
+        },
+        {
+          "path": "apps/mobile/src/lib/im-data.ts",
+          "before": "fa799d17c2b8e5ad7d5228f1117c0c074893ccab",
+          "after": "5e1542c7366fb1d7cec55b972a1738489a3b1325",
+          "equivalent": false
+        },
+        {
+          "path": "apps/mobile/src/lib/mine-data.ts",
+          "before": "27e83e3feb9ba4128e5517ab7e07e7494256d0de",
+          "after": "3304a099c405fddf62207614c48b5a001f64ed26",
+          "equivalent": false
+        }
+      ],
+      "allNotificationTriggersCompleted": false,
+      "realChannelsVerified": false
+    },
+    "receipt": "工单补发与月度权益原子性及IM隐私收口-20261002.json",
+    "gaps": [
+      {
+        "id": "N1",
+        "priority": "先处理通知丢失",
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "method": "runAutoRenewRemind",
+        "fact": "setNX先保留8天占位，notification.create失败被catch吞掉，仍增加sent；没有失败释放或数据库通知幂等键",
+        "next": "定向故障反证后修复失败释放、数据库防重和真实成功统计；到期日与提醒窗口一起验证",
+        "runtimeFailureInjectionThisBatch": true,
+        "status": "代码候选完成、隔离验证完成（本轮范围）、线上状态未知、待发布决策",
+        "resolvedInIsolation": true,
+        "backendCommit": "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+        "clientCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+        "remaining": "真实Cron、正式两节点调度/时钟、手机点击与全日故障跨日策略未覆盖"
+      },
+      {
+        "id": "N2",
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "method": "adminUpdateStatus",
+        "fact": "新版公开回复随结案写入UUID事件；立即尝试和分钟扫描共用原子SQL、用户限定与数据库唯一键。旧V1/内部备注不历史补发。",
+        "next": "正式Cron、同版镜像与真机目标页验证；回退保留新版回复读取兼容层",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "status": "代码候选完成、隔离验证完成（真实库/JWT/本机成品范围）、线上状态未知、待发布决策",
+        "backendCommit": "9d0a15f241c469af09a44fd4bc0f6bd11b1e28f2",
+        "compatibilityCommit": "d6015091c726d2f0f30eec2c882eac7b456c0dea"
+      },
+      {
+        "id": "N3",
+        "paths": [
+          "apps/mobile/src/pkg-agent/agent/customer-service.vue",
+          "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+          "apps/server/src/modules/im/im-callback.controller.ts"
+        ],
+        "fact": "转人工实际提供工单、企业微信二维码和电话；AI服务是即时回答。一般IM回调仅推Socket消息，不能据此宣称人工客服会话统一通知已接入",
+        "next": "工单补发已收口；企业微信会话回流、归属和渠道接通仍独立核验，AI回答/普通私信不自动当人工客服通知",
+        "externalEnterpriseWechatStatus": "未知",
+        "resolvedInIsolation": false,
+        "workOrderRecoveryCompletedInIsolation": true
+      },
+      {
+        "id": "N4",
+        "paths": [
+          "apps/server/src/modules/circle/governance/circle-governance.service.ts",
+          "apps/server/src/modules/circle/services/circle-membership.service.ts",
+          "apps/server/src/modules/circle/services/circle-post.service.ts"
+        ],
+        "fact": "治理有notify->send真实调用，圈子到期删除后send且到期提醒无数据库事件幂等；圈帖sendOnce防重但提交后崩溃尚无持久事件恢复",
+        "next": "按治理、到期和打赏三个独立单元补事实源与持久恢复，保留资金主事务和各自撤回点",
+        "runtimeFailureInjectionThisBatch": false,
+        "resolvedInIsolation": false
+      },
+      {
+        "id": "N5",
+        "priority": "权益原子性单独核验",
+        "paths": [
+          "apps/server/src/modules/member/member-benefit.service.ts",
+          "apps/server/src/modules/member/member-grant.service.ts"
+        ],
+        "fact": "逐用户事务与User行锁覆盖判重、积分、券库存和记录；零积分写0额当月防重记录；购买沿用父事务，cron使用锁内最新等级。缺券跳过原政策保留。",
+        "next": "每月一次cron失败后的当月自动补偿时限、已有同模板UNUSED券时的产品处理口径、正式支付入口与最终镜像仍需收口；不自动补历史部分发放",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": false,
+        "atomicityFixedInIsolation": true,
+        "backendCommit": "b45b46a187f10f21d1f3ed5df3f33d5c89548122"
+      },
+      {
+        "id": "N6",
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "fact": "IM回调日志改为固定事件语义，不记录正文、原账户/群号、未知命令或错误原文；消息正文正常转发不截断。",
+        "next": "正式运行环境日志与全链路隐私审计；本批仅收口指定控制器，不宣称全仓敏感日志清零",
+        "runtimeFailureInjectionThisBatch": true,
+        "resolvedInIsolation": true,
+        "backendCommit": "51077ffe38e84db4e5c9c75985880e4a7dd18c35"
+      }
+    ],
+    "sourceObjectBindings": [
+      {
+        "path": "apps/server/src/modules/notification/entitlement-notification.task.ts",
+        "sha256": "e0e8933425f69dc71ead6eab089a5bdf62bc8919db1f8e6deb45e6a3716ae1b3"
+      },
+      {
+        "path": "apps/server/src/modules/entitlement/entitlement.controller.ts",
+        "sha256": "1008f232f1bd0592c57f7db1b1a1b55528f64a6ea84e4fd913ad5111ef10d54a"
+      },
+      {
+        "path": "apps/mobile/src/pkg-mine/memberships/index.vue",
+        "sha256": "4699b9b4587b28ba2b239498be304c214f46eb4ca7b9a89c9073f062611a2343"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.service.ts",
+        "sha256": "b86371048153c7f6f6146e50b7ce3a23f4c8b3bc4b6f00206baf83801acd867b"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.controller.ts",
+        "sha256": "b071e9b9b56f9c2119956815c8487ef0f411ad07d07d4a1f3ad7239295f8b2e8"
+      },
+      {
+        "path": "apps/server/src/modules/member/member.dto.ts",
+        "sha256": "832467dd50bf8f8b4e557aca088a9a754c57927205eda68237431b4ff869bc61"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "sha256": "c4d0ccc52e68c234e3e61e6e82369bbdc8e9fbb8bc54eb9d24e66ca69ba4c040"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "sha256": "2048876e2551047b8281146b62f7809759d58a5a2f0ab1a92f4c348aab637c7f"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "sha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "sha256": "8af6322ddb816573a9735c7e0567e427b6f893e0d4056cdaff67c8a4537221e3"
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "sha256": "86b63067fe9eb2f59e668230fd84612798ad481af08e861b6004ed038df3bfba"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "sha256": "e6cdae211eca1f515b53dbee281fd6c1dd11a054c00547b24b132fb0fb9ed7ac"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-reply.ts",
+        "sha256": "61597af6b20f93452ec7664e88e6d730d2ccd391c363a98cc09085fef64002b5"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.ts",
+        "sha256": "a7213e5514ab0bb7708f6dcf1d073841ec0477ed2f390e4e15ded456937c7add"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+        "sha256": "81dfadcfc6569ba836816ed2c46ada7aa1c78680bf3089ee887926db1ac85218"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback-notification.task.spec.ts",
+        "sha256": "26035bf36ca8c1a2bb44fa423702350232584037c9a3a06bd6ca44f975d15208"
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.spec.ts",
+        "sha256": "b09c8cd7f2b1b6339717c2e9cd7593330081ee8e5d3ed4be74e7b4119bba3431"
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "sha256": "df286cabda81c758a3dcc9b3e8839336a31fadf426fc3a3550179b1c8809c258"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.controller.ts",
+        "sha256": "72d9413d0245b098cfbf58bb64173eadcb2be6c9cd13c13d677f56b68628c187"
+      },
+      {
+        "path": "apps/server/src/modules/im/im-callback.privacy.spec.ts",
+        "sha256": "c3f5041b28c6d9d055ae46f4b2aa683910cddfcb90ccad541ce793fa54b55cb7"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "sha256": "df8492d322ced1e97ebed34ca9b196454892cf951bd969871246e5844f24ca31"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "sha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
       }
     ],
     "allNotificationTriggersCompleted": false,
