@@ -115,6 +115,8 @@ export class AuthService {
 
   /** 撤销指定用户所有 refreshToken 并使已签发 accessToken 失效（修改密码/封号等场景） */
   async revokeAllRefreshTokens(userId: string) {
+    // 客户实例使用独立短期令牌；同步推进成员修订，改密/封号同样立即撤销客户会话。
+    await this.prisma.managedMembership.updateMany({ where: { userId, enabled: true }, data: { revision: { increment: 1 } } });
     // 精确删除该用户全部 refreshToken（旧 refresh 立即失效，不影响撤销后的新登录）
     const tokens = await this.redis.smembers(`refresh:user:${userId}`);
     for (const t of tokens) {

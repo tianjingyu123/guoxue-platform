@@ -406,6 +406,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/system/search-weights"),
       M("/users/whitelist"),
       M("/tenants"),
+      M("/managed-customers"),
     ],
   },
 ];

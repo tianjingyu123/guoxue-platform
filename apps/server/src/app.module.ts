@@ -74,6 +74,8 @@ import { PayeeAccountModule } from "./modules/payee-account/payee-account.module
 import { PayoutModule } from "./modules/payout/payout.module";
 import { FundApprovalModule } from "./modules/fund-approval/fund-approval.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
+import { ManagedTenancyModule } from "./modules/managed-tenancy/managed-tenancy.module";
+import { ManagedBrandModule } from "./modules/managed-tenancy/managed-brand.module";
 import { ChurnModule } from "./modules/churn/churn.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { BountyModule } from "./modules/bounty/bounty.module";
@@ -101,7 +103,7 @@ import { ObservabilityModule } from "./modules/observability/observability.modul
 import { EntitlementModule } from "./modules/entitlement/entitlement.module";
 import { AppleIapModule } from "./modules/apple-iap/apple-iap.module";
 
-const conditionalModules: any[] = [];
+const conditionalModules: any[] = [ManagedTenancyModule, ManagedBrandModule];
 if (process.env.BULLMQ_DISABLED !== "true") {
   conditionalModules.push(QueueModule);
 }

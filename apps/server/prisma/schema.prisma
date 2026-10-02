@@ -3,6 +3,143 @@ generator client {
   previewFeatures = []
 }
 
+/// 托管客户合同与归属；独立于外部 API 配额 Tenant。
+model ManagedCustomer {
+  id                 String @id @default(uuid())
+  requestKey         String @unique
+  requestDigest      String
+  name               String
+  mode               String
+  tradingSubject     String
+  status             String @default("CONFIGURED")
+  maintenanceCycle   String @default("ANNUAL")
+  maintenancePrice   String?
+  remindAt           DateTime
+  endAt              DateTime
+  exportUntil        DateTime
+  downloadTtlSeconds Int
+  revision           Int @default(1)
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  deployment         ManagedDeployment?
+  applications       ManagedApplication[]
+  grant              ManagedGrant?
+  memberships        ManagedMembership[]
+  audit              ManagedAudit[]
+}
+
+/// 只存公开部署身份与凭据引用；连接密码和 JWT 密钥不得写入此表。
+model ManagedDeployment {
+  id                 String @id @default(uuid())
+  customerId         String @unique
+  spaceKey           String @unique
+  databaseName       String @unique
+  databaseRole       String @unique
+  credentialRef      String
+  authKeyFingerprint String @unique
+  state              String @default("PLANNED")
+  verifiedAt         DateTime?
+  customer           ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+/// 只扩展应用归属；渠道和版本继续使用公共 AppDistribution。
+model ManagedApplication {
+  id                 String @id @default(uuid())
+  applicationId      String @unique
+  customerId         String
+  applicationSubject String
+  stationId          String?
+  allowedPlatforms   String[]
+  brand              Json
+  templateId         String
+  enabled            Boolean @default(false)
+  customer           ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@index([customerId])
+}
+
+model ManagedGrant {
+  customerId  String @id
+  modules     String[]
+  resources   Json
+  circleLimit Int
+  revision    Int @default(1)
+  customer    ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+/// 客户身份不映射为平台 SUPER_ADMIN 或 OPERATION_ADMIN。
+model ManagedMembership {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  role       String
+  enabled    Boolean @default(true)
+  revision   Int @default(1)
+  customer   ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@unique([customerId, userId])
+}
+
+/// 独立客户库的售后受理记录；受理不直接触发退款或改变支付状态。
+model ManagedLeaseAftercare {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  orderId    String
+  requestKey String
+  reason     String
+  status     String @default("PENDING_REVIEW")
+  createdAt  DateTime @default(now())
+  @@unique([userId, requestKey])
+  @@index([customerId, orderId])
+}
+
+/// 显式字段导出，额外下载凭据只存摘要，禁止包含连接信息、账号角色和供应商密钥。
+model ManagedLeaseExport {
+  id           String @id @default(uuid())
+  customerId   String
+  userId       String
+  tokenHash    String
+  expiresAt    DateTime
+  manifest     Json
+  createdAt    DateTime @default(now())
+  downloadedAt DateTime?
+  @@index([customerId, userId, expiresAt])
+}
+
+model ManagedLeaseAudit {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  action     String
+  entityId   String
+  createdAt  DateTime @default(now())
+  @@index([customerId, createdAt])
+}
+
+/// 品牌入口只记录来源与平台订单关联；金额、佣金和履约继续使用既有 Order。
+model ManagedBrandOrder {
+  orderId       String @id
+  customerId    String
+  applicationId String
+  stationId     String
+  buyerId       String
+  createdAt     DateTime @default(now())
+  order         Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  @@index([customerId, applicationId, buyerId])
+}
+
+model ManagedAudit {
+  id         String @id @default(uuid())
+  customerId String
+  actorId    String
+  action     String
+  reason     String
+  revision   Int
+  createdAt  DateTime @default(now())
+  customer   ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@index([customerId, createdAt])
+}
+
 /// 腾讯 IM 未开通期间的站内私信持久化；启用腾讯 IM 后仍保留用于平滑迁移与审计。
 model ImFallbackMessage {
   id         String   @id @default(cuid())
@@ -1591,6 +1728,7 @@ model Order {
   updatedAt          DateTime    @updatedAt
 
   user           User            @relation(fields: [userId], references: [id])
+  managedBrandOrder ManagedBrandOrder?
   memberPurchase MemberPurchase?
   freeCourseEnrollmentNotice FreeCourseEnrollmentNotice?
   ToolPayRecord  ToolPayRecord[]

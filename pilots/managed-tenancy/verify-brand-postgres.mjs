@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { readFileSync,writeFileSync,mkdirSync } from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createHash,randomBytes} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {loadCandidatePrisma} from '../../scripts/ops/prisma-candidate/client.mjs';
+const repo=fileURLToPath(new URL('../../',import.meta.url));const require=createRequire(resolve(repo,'apps/server/package.json'));
+const {PrismaClient}=loadCandidatePrisma();require('ts-node').register({transpileOnly:true,compilerOptions:{module:'commonjs',experimentalDecorators:true,emitDecoratorMetadata:true}});require('reflect-metadata');
+process.env.JWT_SECRET=randomBytes(32).toString('hex');
+const source=path=>require(resolve(repo,'apps/server/src/'+path));
+const {ManagedTenancyService}=source('modules/managed-tenancy/managed-tenancy.service.ts');const {ManagedBrandService}=source('modules/managed-tenancy/managed-brand.service.ts');const {ManagedBrandController}=source('modules/managed-tenancy/managed-brand.module.ts');
+const {ShopOrderService}=source('modules/shop/shop-order.service.ts');const {UnifiedPricingService}=source('modules/pricing/unified-pricing.service.ts');const {ShopAttributionService}=source('modules/shop/shop-attribution.service.ts');const {CommissionService}=source('modules/commission/commission.service.ts');
+const {JwtStrategy}=source('common/jwt.strategy.ts');const {PrismaService}=source('prisma/prisma.service.ts');const {RedisService}=source('redis/redis.service.ts');
+const password=JSON.parse(readFileSync(resolve(repo,'pilots/managed-tenancy/.runtime/postgres/synthetic-connections.json'),'utf8')).mt_control;
+const db=new PrismaClient({datasources:{db:{url:`postgresql://mt_control:${password}@127.0.0.1:55467/mt_control`}}});
+const cache=new Map();const redis={get:async()=>null,getJson:async key=>cache.get(key),setJson:async(key,value)=>{cache.set(key,value);},del:async key=>{cache.delete(key);},delByPattern:async()=>{},setNX:async()=>true};
+const commission=new CommissionService(db,{emit:async()=>{}},redis);const attribution=new ShopAttributionService(db,redis,commission);const pricing=new UnifiedPricingService(db,redis);const orders=new ShopOrderService(db,redis,pricing,attribution,commission);
+const control=new ManagedTenancyService(db),brand=new ManagedBrandService(db,orders);const tag='brand-'+Date.now();const checks=[];const record=name=>checks.push({name,status:'PASS'});let failure,app;
+try{
+  const identity=await db.$queryRawUnsafe('SELECT current_database() db,current_user actor,inet_server_port() port');assert.deepEqual(identity[0],{db:'mt_control',actor:'mt_control',port:55467});
+  await db.brandConfig.upsert({where:{id:'default'},create:{companyName:'synthetic-rebu-company'},update:{companyName:'synthetic-rebu-company'}});
+  await db.commissionConfig.upsert({where:{configKey:'product_platform'},create:{configKey:'product_platform',configName:'合成既有商品规则',rateA:0.2,rateB:0.8},update:{rateA:0.2,rateB:0.8}});
+  const buyer=await db.user.create({data:{id:tag+'-buyer',nickname:'合成买家'}}),other=await db.user.create({data:{id:tag+'-other',nickname:'另一买家'}});
+  const operatorUser=await db.user.create({data:{id:tag+'-operator',nickname:'既有运营商',roles:{create:{roleType:'OPERATOR'}}}});const operator=await db.operator.create({data:{userId:operatorUser.id,level:'SILVER'}});
+  const address=await db.shippingAddress.create({data:{userId:buyer.id,name:'合成收件人',phone:'synthetic-not-real-phone',province:'北京市',city:'北京市',district:'synthetic',detail:'仅本机合成地址'}});
+  const product=await db.product.create({data:{id:tag+'-product',title:'平台授权商品',detail:'<p>合成</p>',price:15,stock:30,status:'ON_SALE'}});const hidden=await db.product.create({data:{id:tag+'-hidden',title:'未授权商品',detail:'<p>合成</p>',price:100,stock:5,status:'ON_SALE'}});
+  const term={remindAt:'2035-01-01T00:00:00Z',endAt:'2036-01-01T00:00:00Z',exportUntil:'2037-01-01T00:00:00Z',downloadTtlSeconds:60};const brands=[];
+  for(const suffix of['a','b']){
+    const owner=await db.user.create({data:{id:tag+'-owner-'+suffix,nickname:'合成站长'+suffix,roles:{create:{roleType:'STATION_MASTER'}}}});
+    const station=await db.station.create({data:{userId:owner.id,name:'既有分站'+suffix,code:tag+'-station-'+suffix,...(suffix==='a'?{operatorId:operator.id}:{})}});
+    const customer=await control.create({requestKey:tag+'-'+suffix,name:'合成品牌'+suffix,mode:'BRAND',tradingSubject:'synthetic-rebu-company',maintenancePrice:null,term,applications:[{applicationId:tag+'-app-'+suffix,applicationSubject:'synthetic-brand-owner-'+suffix,stationId:station.id,allowedPlatforms:['h5'],brand:{name:'合成品牌'+suffix,themeColor:'#8B4513'},templateId:'community'}],modules:['shop'],resources:{product:[product.id],course:[],circle:[],agent:[]},circleLimit:0,reason:'真实既有站长/商城服务适配验收'},'synthetic-maintainer');
+    const clientKey=tag+'-client-'+suffix;await db.appDistribution.create({data:{productId:'synthetic',applicationId:customer.applications[0].applicationId,platform:'h5',channelId:'synthetic-web',clientKey,packageName:'synthetic.no-real-registration'}});await control.enableApplication(customer.applications[0].id,'synthetic-maintainer','合成品牌应用验证');brands.push({customer,station,owner,clientKey});
+  }
+  record('真实既有Station/Operator/品牌主体与公共应用登记，未建立独立收款');
+  assert.deepEqual((await brand.products(brands[0].clientKey,buyer.id)).map(row=>row.id),[product.id]);
+  const dto={productId:product.id,quantity:2,requestKey:tag+'-same-key',addressId:address.id};
+  await assert.rejects(()=>brand.createOrder(brands[0].clientKey,buyer.id,{...dto,amount:0.01}));await assert.rejects(()=>brand.createOrder(brands[0].clientKey,buyer.id,{...dto,tradingSubject:'forged'}));await assert.rejects(()=>brand.createOrder(brands[0].clientKey,buyer.id,{...dto,productId:hidden.id}));
+  const created=await Promise.all(Array.from({length:4},()=>brand.createOrder(brands[0].clientKey,buyer.id,dto)));assert.equal(new Set(created.map(row=>row.id)).size,1);assert.equal(Number(created[0].amount),30);assert.equal((await db.product.findUnique({where:{id:product.id}})).stock,28);assert.equal(await db.managedBrandOrder.count({where:{orderId:created[0].id}}),1);
+  const persisted=await db.order.findUnique({where:{id:created[0].id}});assert.equal(persisted.tempReferrerId,brands[0].owner.id);assert.equal(persisted.merchantId,null);assert.equal(persisted.status,'PENDING');
+  record('真实ShopOrder/UnifiedPricing/Attribution并发建单：服务端金额、一次库存扣减、一次来源关联，品牌不能改商户或报价');
+  await assert.rejects(()=>brand.order(brands[1].clientKey,buyer.id,created[0].id));await assert.rejects(()=>brand.order(brands[0].clientKey,other.id,created[0].id));
+  const second=await brand.createOrder(brands[1].clientKey,buyer.id,dto);assert.notEqual(second.id,created[0].id);assert.equal((await brand.order(brands[0].clientKey,buyer.id,created[0].id)).tradingSubject,'synthetic-rebu-company');
+  record('同一登录用户跨品牌私有订单拒绝；同一前端重试键按应用分域');
+  const ownerAddress=await db.shippingAddress.create({data:{userId:brands[0].owner.id,name:'合成站长',phone:'synthetic',province:'北京市',city:'北京市',district:'synthetic',detail:'合成自购'}});
+  const self=await brand.createOrder(brands[0].clientKey,brands[0].owner.id,{...dto,quantity:1,requestKey:tag+'-self',addressId:ownerAddress.id});assert.equal(Number(self.amount),12);const selfRow=await db.order.findUnique({where:{id:self.id}});assert.equal(Number(selfRow.selfDiscount),3);assert.equal(selfRow.tempReferrerId,null);
+  assert.equal(Number((await db.commissionConfig.findUnique({where:{configKey:'product_platform'}})).rateA),0.2);
+  record('真实CommissionService原自购规则仍生效，既有20%样本立减且无自购推荐归因');
+  const summary=await brand.operatorSummary(brands[0].clientKey,brands[0].owner.id);assert.equal(summary.orderCount,2);assert.deepEqual(Object.keys(summary).sort(),['applicationId','orderCount','stationId']);assert.equal((await brand.operatorSummary(brands[0].clientKey,operatorUser.id)).orderCount,2);
+  await assert.rejects(()=>brand.operatorSummary(brands[1].clientKey,brands[0].owner.id));await assert.rejects(()=>brand.operatorSummary(brands[1].clientKey,operatorUser.id));await assert.rejects(()=>brand.operatorSummary(brands[0].clientKey,buyer.id));
+  record('当前站长与所属运营商可读聚合，其他站长/运营商/买家拒绝，不下发私有客户地址手机号');
+  const expired=await control.renew(brands[0].customer.id,{term:{...term,remindAt:'2020-01-01T00:00:00Z',endAt:'2021-01-01T00:00:00Z'},expectedRevision:brands[0].customer.revision,reason:'合成品牌合同到期'},'synthetic-maintainer');
+  await assert.rejects(()=>brand.createOrder(brands[0].clientKey,buyer.id,{...dto,requestKey:tag+'-expired'}));assert.equal((await brand.order(brands[0].clientKey,buyer.id,created[0].id)).id,created[0].id);await control.renew(expired.id,{term,expectedRevision:expired.revision,reason:'恢复本任务合成合同'},'synthetic-maintainer');
+  await db.station.update({where:{id:brands[0].station.id},data:{status:'EXPIRED'}});await assert.rejects(()=>brand.products(brands[0].clientKey,buyer.id));await db.station.update({where:{id:brands[0].station.id},data:{status:'ACTIVE'}});
+  record('品牌合同/既有分站到期分别检查；合同到期保留原应用本人历史订单');
+  const {Test}=require('@nestjs/testing');const {PassportModule}=require('@nestjs/passport');const secret=randomBytes(32).toString('hex');process.env.JWT_SECRET=secret;
+  const testing=await Test.createTestingModule({imports:[PassportModule.register({defaultStrategy:'jwt'})],controllers:[ManagedBrandController],providers:[JwtStrategy,{provide:PrismaService,useValue:db},{provide:RedisService,useValue:redis},{provide:ManagedBrandService,useValue:brand}]}).compile();app=testing.createNestApplication();await app.listen(0,'127.0.0.1');const port=app.getHttpServer().address().port;const jwt=require('jsonwebtoken');
+  const token=jwt.sign({sub:buyer.id,sessionIssuedAt:Date.now()},secret,{expiresIn:'5m'});const call=async(path,auth,key,method='GET',body)=>{const r=await fetch(`http://127.0.0.1:${port}/managed/brand${path}`,{method,headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+auth}:{}),...(key?{'x-app-client':key}:{})},...(body?{body:JSON.stringify(body)}:{})});return{status:r.status,body:await r.json()};};
+  assert.equal((await call('/context')).status,401);assert.equal((await call('/context',token)).status,400);assert.equal((await call('/products',token,brands[0].clientKey)).status,200);assert.equal((await call('/orders/'+created[0].id,token,brands[1].clientKey)).status,404);assert.equal((await call('/orders',token,brands[0].clientKey,'POST',{...dto,tenantId:'forged'})).status,400);
+  record('真实品牌控制器与原JWT HTTP鉴权：无身份/未知应用/跨应用订单/伪造字段拒绝');
+}catch(error){failure=error;}finally{if(app)await app.close();await db.$disconnect();}
+const files=['apps/server/src/modules/managed-tenancy/managed-brand.service.ts','apps/server/src/modules/managed-tenancy/managed-brand.module.ts','apps/server/src/modules/shop/shop-order.service.ts','apps/server/src/modules/shop/shop-attribution.service.ts','apps/server/src/modules/pricing/unified-pricing.service.ts','apps/server/src/modules/commission/commission.service.ts','apps/server/prisma/schema.prisma','apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql'];
+const sources=Object.fromEntries(files.map(path=>[path,createHash('sha256').update(readFileSync(resolve(repo,path))).digest('hex')]));const report={head:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim(),sources,node:process.version,checks,passed:checks.length,failed:failure?1:0,error:failure?.message,production:false,limits:['真实PostgreSQL与既有源码，只使用合成平台商品/主体/20%测试佣金配置','Redis缓存及撤销为空或内存适配器；没有真实支付/佣金入账/退款/对账实测','当前品牌入口最小商品购买与订单归属；未扩大站长上传或客户私有字段权限']};
+const output=resolve(process.argv[2]??resolve(repo,'pilots/managed-tenancy/.runtime/brand-postgres.json'));mkdirSync(dirname(output),{recursive:true});writeFileSync(output,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({passed:report.passed,failed:report.failed,report:output}));if(failure){console.error(failure.stack);process.exitCode=1;}

@@ -1,5 +1,32 @@
 # 多租户一期本地隔离试点
 
+## 当前真实集成验证入口
+
+本目录现同时保存第一阶段 SQLite 试点和第二阶段真实 Nest/Prisma/PostgreSQL 验收器。正式候选源码位于 `apps/server/src/modules/managed-tenancy`、`apps/server/src/lease-main.ts` 和 `apps/admin/src/views/tenant/ManagedCustomerList.vue`，已在候选 `AppModule` 登记控制面与品牌模块；独立客户入口只加载专用最小模块。
+
+当前状态和未完成项见[持续推进记录](../../docs/progress/多租户一期真实集成与持续推进-20261002.md)，同源证据见[候选验证记录](../../docs/operations/多租户真实数据库候选验证-20261002.md)。下文“无依赖、不改 AppModule”等仅适用于原 SQLite 试点。
+
+复验前提：本任务自己的 PostgreSQL 16 集群已监听 `127.0.0.1:55467`；合成维护凭据、连接登记与只读账号保存在忽略的 `.runtime/postgres`，不能改成生产连接。`postgres-setup.mjs` 会只读核对 `postgres:mt_admin:55467`，只初始化 `mt_control/mt_customer_a/mt_customer_b` 及专用角色；其余数据库不在范围内。该脚本要求已有本任务集群和合成密码文件，不是生产部署安装器。
+
+所有依赖必须属于本工作树。先按现有候选流程生成 `.prisma-candidate`，绝不覆盖其他任务客户端。编译产物和凭据都不进 Git。
+
+```powershell
+node scripts/ops/prisma-candidate/generate.mjs
+node scripts/ops/prisma-candidate/assert-isolation.mjs
+node pilots/managed-tenancy/postgres-setup.mjs
+pnpm --filter @guoxue/server exec tsc -p ../../scripts/ops/prisma-candidate/tsconfig.candidate.json --noEmit false --outDir .prisma-candidate/server-build --tsBuildInfoFile .prisma-candidate/server-build.tsbuildinfo
+pnpm --filter @guoxue/admin build
+node pilots/managed-tenancy/verify-real-candidate.mjs
+```
+
+总验收器按顺序执行控制面、租赁、品牌、公共页面投影、备份恢复、schema 只读比较、编译入口、认证、SQLite、客户端隔离，共十套。它核对前后源码摘要一致；失败诊断仅留在忽略目录。默认报告位于 `.runtime/final-evidence`；归档时可显式指定另一目录，不能覆盖第一阶段历史报告。
+
+运行账号 `mt_customer_a_runtime/mt_customer_b_runtime` 按表和字段授权，商品只允许改标题，订单只读，售后及审计只允许追加，导出仅可更新下载时间。合成样本的准备账号拥有较宽的测试写权限，与应用运行账号分开。独立入口启动时检查实际账号、数据库、端口、密钥摘要和额外表/字段权限，过宽授权拒绝启动。
+
+`ui-preview.mjs` 是仅监听本机、使用合成超管和真实管理页的视觉验收器，不能放入部署启动命令。输入 `stop` 关闭本任务 UI/API。其虚拟入口不在生产前端构建里。
+
+## 第一阶段 SQLite 试点（历史范围）
+
 本目录是可执行的合成试点，独立于热卜正式 NestJS 服务。没有接入 `AppModule`，不读取生产环境变量、真实用户、商户、微信 AppID 或供应商凭据。它验证固定实例的数据归属、后台开通、数量授权、到期退出与品牌交易契约，为后续 NestJS/Prisma 适配提供可复验的边界。不能作为正式多租户已上线的证明。
 
 本机已验证 Node `v24.17.0`，使用内置 `node:sqlite`、HTTP 和加密库；无安装步骤、`node_modules` 或生成 Prisma Client。`stripTypeScriptTypes` 会输出 experimental 提示；只用于加载同一候选内既有公共协议，正式构建应使用项目原有 TypeScript 流水线。
