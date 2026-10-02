@@ -57,7 +57,7 @@ jest.setTimeout(30000);
     const circle = await db.circle.create({ data: { name: "合成打赏圈", intro: "仅本机隔离测试", tags: [], ownerId: author, status: "ACTIVE" } });
     circles.push(circle.id);
     await db.circleMember.createMany({ data: [{ circleId: circle.id, userId: author, role: "OWNER" }, { circleId: circle.id, userId: payer }] });
-    const post = await db.post.create({ data: { circleId: circle.id, userId: author, content: "合成私密正文", status: "HIDDEN" } });
+    const post = await db.post.create({ data: { circleId: circle.id, userId: author, content: "合成私密正文", status: "PUBLISHED" } });
     await db.virtualCoinAccount.create({ data: { userId: payer, balance: 2000 } });
     return { circle: circle.id, post: post.id, author, payer };
   };
@@ -254,6 +254,7 @@ jest.setTimeout(30000);
     const own = await request(app.getHttpServer()).get(`/notifications/${n.id}`).set("Authorization", auth(f.author)).expect(200);
     expect(own.body.content).toContain("HTTP首次留言");
     expect(own.body).not.toHaveProperty("payerId");
+    await db.post.update({ where: { id: f.post }, data: { status: "HIDDEN" } });
     await request(app.getHttpServer()).get(`/circles/posts/${n.targetId}`).set("Authorization", auth(stranger)).expect(404);
     await request(app.getHttpServer()).get(`/circles/posts/${n.targetId}`).set("Authorization", auth(f.author)).expect(200);
   });
@@ -268,4 +269,148 @@ jest.setTimeout(30000);
     expect(await db.circlePostRewardNotice.count()).toBe(0);
     expect(await task().deliverPending()).toBe(0);
   });
+  it.each(["HIDDEN", "DRAFT", "AUDITING"])("%s帖子不得产生新的扣款、分成或通知事实", async status => {
+    const f = await fixture(); await db.post.update({ where: { id: f.post }, data: { status } });
+    await expect(reward(f)).rejects.toThrow("帖子当前不可打赏");
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(2000);
+    expect(await db.circlePostRewardNotice.count()).toBe(0); expect(await task().deliverPending()).toBe(0);
+  });
+
+  it.each(["hidden", "deleted", "author", "member", "expired", "circle"])("预检后%s变更已提交，真实资金事务重新核验并拒绝", async kind => {
+    const f = await fixture(), changedAuthor = await user();
+    const other = new PrismaClient({ datasources: { db: { url: testUrl! } } });
+    const shared = new CircleSharedService(prisma()); const ensure = shared.ensureMember.bind(shared);
+    shared.ensureMember = async (circleId, userId) => {
+      await ensure(circleId, userId);
+      if (kind === "hidden") await other.post.update({ where: { id: f.post }, data: { status: "HIDDEN" } });
+      if (kind === "deleted") await other.post.delete({ where: { id: f.post } });
+      if (kind === "author") await other.post.update({ where: { id: f.post }, data: { userId: changedAuthor } });
+      if (kind === "member") await other.circleMember.delete({ where: { circleId_userId: { circleId: f.circle, userId: f.payer } } });
+      if (kind === "expired") await other.circleMember.update({ where: { circleId_userId: { circleId: f.circle, userId: f.payer } }, data: { expireAt: new Date(Date.now() - 1000) } });
+      if (kind === "circle") await other.circle.update({ where: { id: f.circle }, data: { status: "DISABLED" } });
+    };
+    try {
+      const svc = new CirclePostService(prisma(), {} as AuditService, shared, undefined, new CoinService(prisma(), {} as RedisService));
+      await expect(svc.rewardPost(f.circle, f.post, f.payer, 9, "变更请求", "synthetic-changed-001")).rejects.toThrow();
+      expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(2000);
+      expect(await db.virtualCoinTransaction.count({ where: { userId: { in: [f.payer, f.author] } } })).toBe(0);
+      expect(await db.circlePostRewardNotice.count()).toBe(0); expect(await task().deliverPending()).toBe(0);
+    } finally { await other.$disconnect(); }
+  });
+
+  it("已过期但清理任务尚未移出的成员不能打赏", async () => {
+    const f = await fixture(); await db.circleMember.update({ where: { circleId_userId: { circleId: f.circle, userId: f.payer } }, data: { expireAt: new Date(Date.now() - 1000) } });
+    await expect(reward(f)).rejects.toThrow("成员权益已失效");
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(2000);
+    expect(await db.circlePostRewardNotice.count()).toBe(0);
+  });
+
+  it("标题改变采用事务内最新标题，不把旧内容写入实际账本", async () => {
+    const f = await fixture(); const shared = new CircleSharedService(prisma()), ensure = shared.ensureMember.bind(shared);
+    shared.ensureMember = async (...args) => { await ensure(...args); await db.post.update({ where: { id: f.post }, data: { title: "已核验的新标题" } }); };
+    const svc = new CirclePostService(prisma(), {} as AuditService, shared, undefined, new CoinService(prisma(), {} as RedisService));
+    await svc.rewardPost(f.circle, f.post, f.payer, 9, undefined, "synthetic-title-001");
+    const debit = await db.virtualCoinTransaction.findFirstOrThrow({ where: { userId: f.payer, scene: "POST_REWARD" } });
+    expect(debit.description).toBe("打赏帖子: 已核验的新标题");
+  });
+
+  it.each(["post", "member", "circle"])("资金事务先锁%s时变更等待，提交后才生效，不拆开分账", async kind => {
+    const f = await fixture(); const other = new PrismaClient({ datasources: { db: { url: testUrl! } } });
+    const pid = (await other.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`)[0].pid;
+    let reached!: () => void, release!: () => void;
+    const entered = new Promise<void>(resolve => { reached = resolve; });
+    const continuePayment = new Promise<void>(resolve => { release = resolve; });
+    const coins = new CoinService(prisma(), {} as RedisService), spend = coins.spend.bind(coins);
+    coins.spend = async (...args) => { reached(); await continuePayment; return spend(...args); };
+    const svc = new CirclePostService(prisma(), {} as AuditService, new CircleSharedService(prisma()), undefined, coins);
+    const payment = svc.rewardPost(f.circle, f.post, f.payer, 9, undefined, "synthetic-lock-001");
+    let mutation: Promise<unknown> | undefined;
+    try {
+      await entered;
+      mutation = kind === "post" ? other.post.update({ where: { id: f.post }, data: { status: "HIDDEN" } })
+        : kind === "member" ? other.circleMember.delete({ where: { circleId_userId: { circleId: f.circle, userId: f.payer } } })
+        : other.circle.update({ where: { id: f.circle }, data: { status: "DISABLED" } });
+      const started = mutation.then(() => true);
+      let locked = false;
+      for (let i = 0; i < 100; i++) {
+        const rows = await db.$queryRaw<Array<{ wait_event_type: string | null }>>`SELECT wait_event_type FROM pg_stat_activity WHERE pid = ${pid}`;
+        if (rows[0]?.wait_event_type === "Lock") { locked = true; break; }
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(locked).toBe(true); release(); await payment; await started;
+      expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(1991);
+      expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.author } })).balance).toBe(4);
+      expect(await db.circlePostRewardNotice.count()).toBe(1);
+    } finally { release(); await payment.catch(() => undefined); await mutation?.catch(() => undefined); await other.$disconnect(); }
+  });
+
+  it.each(["deleted", "hidden", "author", "circle"])("付款提交后%s变化，可信成交快照仍通知原作者且不留下无效帖子跳转", async kind => {
+    const f = await fixture(); const debit = await reward(f);
+    const fact = await db.circlePostRewardNotice.findUniqueOrThrow({ where: { debitId: debit.id } });
+    expect(fact).toMatchObject({ sourceVersion: "POST_REWARD_LOCKED_V1", sourcePostId: f.post, sourceCircleId: f.circle, sourceRecipientId: f.author });
+    if (kind === "deleted") await db.post.delete({ where: { id: f.post } });
+    if (kind === "hidden") await db.post.update({ where: { id: f.post }, data: { status: "HIDDEN" } });
+    if (kind === "author") await db.post.update({ where: { id: f.post }, data: { userId: await user() } });
+    if (kind === "circle") {
+      const other = await db.circle.create({ data: { name: "隔离归属变更圈", intro: "合成测试", tags: [], ownerId: f.author } }); circles.push(other.id);
+      await db.post.update({ where: { id: f.post }, data: { circleId: other.id } });
+    }
+    expect(await task().deliverPending()).toBe(1); expect(await task().deliverPending()).toBe(0);
+    const n = await db.notification.findFirstOrThrow({ where: { userId: f.author } });
+    expect(n).toMatchObject({ idempotencyKey: `${f.author}:POST_REWARD:${debit.id}`, targetType: null, targetId: null, circleId: f.circle });
+    expect(n.content).toContain("入账 4 币");
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(1991);
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.author } })).balance).toBe(4);
+  });
+
+  it.each(["sourcePostId", "sourceCircleId", "sourceRecipientId"])("成交快照%s与既成流水不一致时不恢复，不只凭收益存在", async field => {
+    const f = await fixture(); const debit = await reward(f);
+    await db.circlePostRewardNotice.update({ where: { debitId: debit.id }, data: { [field]: "synthetic-invalid-snapshot" } });
+    await db.post.delete({ where: { id: f.post } });
+    expect(await task().deliverPending()).toBe(0);
+    expect(await db.notification.count({ where: { userId: f.author } })).toBe(0);
+  });
+
+  it("增量字段全空的旧事实仍核当前帖子，删除后不冒充可信新快照", async () => {
+    const f = await fixture(); const debit = await reward(f);
+    await db.circlePostRewardNotice.update({ where: { debitId: debit.id }, data: { sourceVersion: null, sourcePostId: null, sourceCircleId: null, sourceRecipientId: null } });
+    expect(await task().deliverPending()).toBe(1);
+    await db.notification.deleteMany({ where: { userId: f.author } }); await db.post.delete({ where: { id: f.post } });
+    expect(await task().deliverPending()).toBe(0);
+    const fact = await db.circlePostRewardNotice.findUniqueOrThrow({ where: { debitId: debit.id } });
+    expect(fact.sourceVersion).toBeNull();
+  });
+
+  it.each(["partial", "unknown-version"])("%s快照形态被数据库拒绝，旧事实不隐式变成新凭据", async kind => {
+    const f = await fixture(); const debit = await reward(f);
+    await expect(db.circlePostRewardNotice.update({ where: { debitId: debit.id }, data: kind === "partial"
+      ? { sourceVersion: null } : { sourceVersion: "UNREVIEWED_SOURCE" } })).rejects.toThrow();
+    expect((await db.circlePostRewardNotice.findUniqueOrThrow({ where: { debitId: debit.id } })).sourceVersion).toBe("POST_REWARD_LOCKED_V1");
+  });
+
+  it("资金提交后帖子删除，即时通知不影响余额且不提供失效跳转", async () => {
+    const f = await fixture(); let delivered!: () => void;
+    const called = new Promise<void>(resolve => { delivered = resolve; });
+    const notices = { sendOnce: jest.fn().mockImplementation(async () => { delivered(); return null; }) } as unknown as NotificationService;
+    const proxy = { post: db.post, circleMember: db.circleMember, $transaction: async (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) => {
+      const result = await db.$transaction(callback); await db.post.delete({ where: { id: f.post } }); return result;
+    } } as unknown as PrismaClient;
+    await service(proxy, notices).rewardPost(f.circle, f.post, f.payer, 9, "成交后删帖", "synthetic-immediate-deleted");
+    await called;
+    expect(notices.sendOnce).toHaveBeenCalledWith(f.author, expect.stringContaining("POST_REWARD:"), expect.objectContaining({ targetType: undefined, targetId: undefined }));
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(1991);
+  });
+
+  it("提交后的可选帖子读取失败不改变成功资金结果，持久任务仍补通知", async () => {
+    const f = await fixture(); let reads = 0; const notices = { sendOnce: jest.fn().mockResolvedValue(null) } as unknown as NotificationService;
+    const proxy = { post: { findUnique: async (...args: Parameters<typeof db.post.findUnique>) => {
+      if (++reads > 1) throw new Error("synthetic optional read failure"); return db.post.findUnique(...args);
+    } }, circleMember: db.circleMember, $transaction: db.$transaction.bind(db) } as unknown as PrismaClient;
+    const svc = service(proxy, notices);
+    await expect(svc.rewardPost(f.circle, f.post, f.payer, 9, "可选读取失败", "synthetic-optional-read")).resolves.toEqual({ success: true, amount: 9 });
+    await new Promise(resolve => setImmediate(resolve)); expect(notices.sendOnce).not.toHaveBeenCalled();
+    expect((await db.virtualCoinAccount.findUniqueOrThrow({ where: { userId: f.payer } })).balance).toBe(1991);
+    expect(await task().deliverPending()).toBe(1);
+  });
+
 });

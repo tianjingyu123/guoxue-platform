@@ -529,31 +529,67 @@ export class CirclePostService {
         }
         return saved;
       }
+      // 预检只用于快速提示；真正扣款前锁定业务对象，避免读名单后撤权或归属变化。
+      // 固定圈子→帖子→成员顺序，锁保持到资金与通知事实一并提交。
+      const circles = await tx.$queryRaw<Array<{ status: string }>>`
+        SELECT status FROM "Circle" WHERE id = ${circleId} FOR SHARE
+      `;
+      if (circles[0]?.status !== "ACTIVE") {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "圈子当前不可打赏");
+      }
+      const posts = await tx.$queryRaw<Array<{ userId: string; circleId: string; title: string | null; status: string }>>`
+        SELECT "userId", "circleId", title, status FROM "Post" WHERE id = ${postId} FOR SHARE
+      `;
+      const currentPost = posts[0];
+      if (!currentPost || currentPost.circleId !== circleId || currentPost.userId !== post.userId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "帖子已变更，请刷新后重试");
+      }
+      if (currentPost.status !== "PUBLISHED" || publicQuarantinedIds("post").includes(postId)) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "帖子当前不可打赏");
+      }
+      const members = await tx.$queryRaw<Array<{ valid: boolean }>>`
+        SELECT ("expireAt" IS NULL OR "expireAt" > (clock_timestamp() AT TIME ZONE 'UTC')) AS valid
+        FROM "CircleMember" WHERE "circleId" = ${circleId} AND "userId" = ${userId} FOR SHARE
+      `;
+      if (!members[0]?.valid) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "圈子成员权益已失效，请刷新后重试");
+      }
       await coinService.spend(userId, {
         amountCoin: amount,
         scene: "POST_REWARD",
         refId: postId,
-        description: `打赏帖子: ${post.title || "无标题"}`,
+        description: `打赏帖子: ${currentPost.title || "无标题"}`,
       }, tx, debitId);
       if (authorShare > 0) {
-        await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${post.title || "无标题"}`, tx, debitId);
+        await coinService.refund(post.userId, authorShare, `帖子打赏收入: ${currentPost.title || "无标题"}`, tx, debitId);
       }
       // 保存业务提交事实，不在资金事务中调用通知服务。此写入失败与其它账本错误一样整笔回滚。
-      return tx.circlePostRewardNotice.create({ data: { debitId, recipientId: post.userId, circleId, message } });
+      return tx.circlePostRewardNotice.create({ data: {
+        debitId, recipientId: post.userId, circleId, message,
+        sourceVersion: "POST_REWARD_LOCKED_V1", sourcePostId: postId,
+        sourceCircleId: currentPost.circleId, sourceRecipientId: currentPost.userId,
+      } });
     }, { maxWait: 5000, timeout: 10000 });
 
     // 通知帖子作者（圈内通知·交易类：金额按作者实际入账口径，注明已扣除平台服务费）
     const notificationMessage = notice ? notice.message : message;
     if (this.notificationService) {
-      this.notificationService.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
-        type: "POST_REWARD",
-        title: "收到打赏",
-        content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${notificationMessage ? `：${notificationMessage}` : ""}`,
-        targetType: "POST",
-        targetId: postId,
-        category: "TRADE",
-        circleId,
-      }).catch(() => this.logger.warn("打赏通知发送失败，新打赏将由持久任务重试"));
+      const notifications = this.notificationService;
+      // 删除或隐藏正文后仍可提示既成收入；不给用户留下无效的帖子跳转。
+      // 提交后的可选读取和通知故障不能反向影响成功资金事务。
+      void (async () => {
+        const target = await this.prisma.post.findUnique({
+          where: { id: postId }, select: { userId: true, circleId: true, status: true },
+        });
+        const available = target?.userId === post.userId && target.circleId === circleId
+          && target.status === "PUBLISHED" && !publicQuarantinedIds("post").includes(postId);
+        await notifications.sendOnce(post.userId, `POST_REWARD:${debitId}`, {
+          type: "POST_REWARD", title: "收到打赏",
+          content: `有人打赏了你的帖子，入账 ${authorShare} 币（已扣除平台服务费）${notificationMessage ? `：${notificationMessage}` : ""}`,
+          targetType: available ? "POST" : undefined, targetId: available ? postId : undefined,
+          category: "TRADE", circleId,
+        });
+      })().catch(() => this.logger.warn("打赏通知发送失败，新打赏将由持久任务重试"));
     }
 
     return { success: true, amount };

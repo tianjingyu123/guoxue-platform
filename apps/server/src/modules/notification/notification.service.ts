@@ -8,6 +8,7 @@ import { PushService } from "./push.service";
 import { PushAudienceService } from "../user/push-audience.service";
 import { SendNotificationDto, BatchSendDto, BroadcastDto, CIRCLE_NOTIFICATION_CATEGORIES } from "./notification.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { Prisma } from "@prisma/client";
 
 const PREFS_TTL = 86400 * 30;
 
@@ -111,7 +112,11 @@ export class NotificationService {
   }
 
   /** 批量发送通知。事件键仅供内部可重试任务使用，按收件人落数据库唯一键。 */
-  async batchSend(dto: BatchSendDto, eventKey?: string) {
+  async batchSend(dto: BatchSendDto, eventKey?: string, persistBatch?: (
+    data: Prisma.NotificationCreateManyInput[],
+  ) => Promise<Array<{ id: string; userId: string }>>) {
+    // 内部业务可将状态复核与通知落库放在同一事务；可选推送仍只在提交后执行。
+    if (persistBatch && !eventKey) throw new BusinessException(ErrorCode.BAD_REQUEST, "受保护的批量通知必须提供事件键");
     if (eventKey && dto.userIds.some((userId) => `${userId}:${eventKey}`.length > 255)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "通知幂等键过长");
     }
@@ -128,7 +133,9 @@ export class NotificationService {
     }));
 
     // 重试任务只推送本次真正插入的收件人；数据库唯一键挡住进程崩溃后的再次写入。
-    const created = eventKey
+    const created = persistBatch
+      ? await persistBatch(data)
+      : eventKey
       ? await this.prisma.notification.createManyAndReturn({ data, skipDuplicates: true, select: { id: true, userId: true } })
       : null;
     if (!eventKey) await this.prisma.notification.createMany({ data });

@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "freeCourseCurrentBinding",
+  "currentBindingKey": "paidCourseExpiryCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1885,6 +1885,13 @@
   },
   "freeCourseCurrentBinding": {
     "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+    "record": "本版通知入口与持久恢复矩阵-20261002.json",
+    "rows": 17,
+    "allClosed": false,
+    "onlineUnknown": true
+  },
+  "paidCourseExpiryCurrentBinding": {
+    "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
     "record": "本版通知入口与持久恢复矩阵-20261002.json",
     "rows": 17,
     "allClosed": false,

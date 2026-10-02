@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
-  "checkedAt": "2026-10-02T20:14:33.571Z",
+  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+  "checkedAt": "2026-10-02T23:16:58.258Z",
   "rows": [
     {
       "id": "order-paid",
@@ -154,12 +154,14 @@
       "id": "course-paid",
       "event": "付费课程开通",
       "paths": [
-        "apps/server/src/modules/shop/shop-payment.service.ts"
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/paid-course-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
       ],
-      "key": "已有ORDER_PAID",
-      "state": "真实支付与课程权益入口",
-      "recovery": "未新增第二条独立COURSE_ENROLLED",
-      "gap": "独立权益/履约完成通知仍需明确补齐范围",
+      "key": "<userId>:COURSE_ENROLLED:<orderId>",
+      "state": "实际课程付款GRANT新标记COURSE_PAID_GRANTED_V1；任务注册并独立站内开通通知",
+      "recovery": "分钟SQL恢复并核本人/订单/课程/有效未冲正权益；DB唯一键防重，通知失败不影响已付主事务，不补旧流水",
+      "gap": "451项及编译26、最新485专项范围内通过；真实渠道、全部付款运输和同版手机未验",
       "online": "未知"
     },
     {
@@ -169,10 +171,10 @@
         "apps/server/src/modules/course/course-scheduler.service.ts",
         "apps/server/src/modules/course/course.module.ts"
       ],
-      "key": "COURSE_EXPIRING:<courseId>:<UTC日期>（收件人限定）",
-      "state": "实际每日Cron注册、最新有效付费订单及3日阈值",
-      "recovery": "数据库日防重、单课失败继续",
-      "gap": "非分钟持久恢复；日内崩溃补偿/正式时区尚未完整覆盖",
+      "key": "<userId>:COURSE_EXPIRING:<courseId>:<UTC date>",
+      "state": "原9点Cron保持；新增当天10/12/15/18/21点有限重试，过滤deletedAt",
+      "recovery": "复用原锁与UTC日期键，当天遗漏补回；不补历史、不新增分钟outbox",
+      "gap": "485项/编译16及镜像Redis两进程/HTTP目标权限列明范围通过；正式时区调度、外发渠道和同版手机未验",
       "online": "未知"
     },
     {
@@ -183,9 +185,9 @@
         "apps/server/src/modules/live/live.module.ts"
       ],
       "key": "LIVE_REMINDER:<roomId> / LIVE_STARTED:<roomId>",
-      "state": "真实预约准入、开播与分钟恢复入口",
-      "recovery": "预约持久状态、500分批、单房失败继续、防重",
-      "gap": "选取后取消竞态、正式媒体/真IM/匹配基座/真机仍未覆盖",
+      "state": "真实预约/开播及分钟恢复入口；名单选取后取消/结束/拒审/改期与收件人变化已真实PG验证",
+      "recovery": "房间→预约锁定、当前BOOKED重核，站内通知+标记同事务；失败回滚重试、500分批、DB唯一键",
+      "gap": "624及编译22限定隔离通过；真实Redis、媒体/真IM/匹配基座/同版真机、其它可见性及圈成员撤销竞态、正式Cron和两节点未覆盖",
       "online": "未知"
     },
     {
@@ -211,9 +213,9 @@
         "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts"
       ],
       "key": "<recipientId>:POST_REWARD:<debitId>",
-      "state": "真实事务事实、完整分账核对及分钟任务",
-      "recovery": "即时+持久补发；原分成与请求摘要保持",
-      "gap": "帖子删除/异常账本与真实手机、渠道仍未覆盖",
+      "state": "真实资金事务内准入、锁定及新成交快照，完整扣款/原作者收入核验保留",
+      "recovery": "新快照分钟恢复不依赖帖子存续；旧全空事实仍核当前归属；失效正文只通知收入、不生成帖子跳转",
+      "gap": "同源本机/Linux194、实际编译46；新快照不得代替完整账本核验，旧事实不回填；真实渠道、最终镜像/手机/生产升级未覆盖",
       "online": "未知"
     },
     {
@@ -232,7 +234,7 @@
   "bindings": [
     {
       "path": "apps/server/src/modules/shop/shop-payment.service.ts",
-      "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
+      "sha256": "ffa3f4253a4dae84c487e12ecf196f63ea5eb68cf46e36cde7fe536863a5911b"
     },
     {
       "path": "apps/server/src/modules/shop/shop-refund.service.ts",
@@ -264,7 +266,7 @@
     },
     {
       "path": "apps/server/src/modules/notification/notification.module.ts",
-      "sha256": "0d6dc0404811dc8bf4764e1236526caea1d50bb6198bc3d6e8ec1fb68bc2ca39"
+      "sha256": "aa0606fcd25c6cd23e98acfa1c4af06ad126b185ca6d94484d779f25d2f8cfc9"
     },
     {
       "path": "apps/mobile/src/lib/mine-data.ts",
@@ -307,12 +309,16 @@
       "sha256": "776a844e49e2190c6ebdda243bd954c3a0d58301cc86c492bfcecde3173af368"
     },
     {
+      "path": "apps/server/src/modules/notification/paid-course-notification.task.ts",
+      "sha256": "3433817aff8bf0a8ac41b28d7db8299fb7dda9188acfb41d8da807661e2c1400"
+    },
+    {
       "path": "apps/server/src/modules/course/course-scheduler.service.ts",
-      "sha256": "7f5de622749cceb6cb6fde6b1f2bc5085175555456ddfc4cbe341c7735e86ed6"
+      "sha256": "f5ed0041907d48b3bc3a9b826d88b36c71cd11842e703df1478ff6c392936f41"
     },
     {
       "path": "apps/server/src/modules/live/live.service.ts",
-      "sha256": "9fb616d9455286c110ba15921e7783c5c8c16f4eb086d4bacd84ba2c40b652df"
+      "sha256": "87fcc339b4db24e1f86f8524d4beab5dae3e82bc23507712dff9a6f0a268fbe3"
     },
     {
       "path": "apps/server/src/modules/live/live.module.ts",
@@ -336,15 +342,15 @@
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post.service.ts",
-      "sha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220"
+      "sha256": "aae5297444b5396ba9d3de1f81e5ec822654aeacb2e4595fbb28ff23dc4f89bb"
     },
     {
       "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
-      "sha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      "sha256": "f63a0164bfe69ad700bd2520654d08ff704467e375a9e663f248355cf2b8b099"
     },
     {
       "path": "apps/server/src/modules/notification/notification.service.ts",
-      "sha256": "32aa26b7711c07de89d311d5fcb772307fa3812411aa7bfb3b3a6baea5987cb5"
+      "sha256": "effa5e18a38ccdfcf0aab3e9f61d1ea9ef266a8d11d7839726bff6229a38187f"
     }
   ],
   "scope": "本次源码入口和已存在验收记录核对，不新增真实通知或声称全链路运行",
@@ -353,8 +359,8 @@
   "realChannels": false,
   "production": false,
   "previousBinding": {
-    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
-    "record": "月度积分赠券持久通知与双入口验收-20261002.json"
+    "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+    "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
   },
   "previousPaymentBinding": {
     "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",
@@ -363,5 +369,7 @@
   "previousMonthlyBinding": {
     "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
     "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
-  }
+  },
+  "previousSourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+  "migrationCount": 135
 }

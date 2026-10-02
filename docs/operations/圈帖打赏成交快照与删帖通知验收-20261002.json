@@ -1,0 +1,169 @@
+{
+  "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+  "acceptedCommits": [
+    "2b108baf7e61d30ceb8136bc9af0206a7591c916",
+    "4c546b89bf81121a051e785d3a399f3690205671"
+  ],
+  "parent": "e8319535f16429b70108f3ec46670f11016bb28e",
+  "local": {
+    "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+    "parent": "e8319535f16429b70108f3ec46670f11016bb28e",
+    "files": [
+      "apps/server/prisma/schema.prisma",
+      "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "apps/server/src/modules/circle/services/circle-post-reward-notification.task.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.ts",
+      "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql"
+    ],
+    "relatedPassed": 194,
+    "relatedSuites": 8,
+    "newTests": 12,
+    "compiledPassed": 46,
+    "bindings": [
+      {
+        "path": "modules/circle/services/circle-post.service",
+        "sourceSha256": "aae5297444b5396ba9d3de1f81e5ec822654aeacb2e4595fbb28ff23dc4f89bb",
+        "compiledSha256": "30b3ab808d125dfac3b3a30fa4cb7d6396fb06ca7162cece2832f9d252580949",
+        "gitLfSha256": "aae5297444b5396ba9d3de1f81e5ec822654aeacb2e4595fbb28ff23dc4f89bb"
+      },
+      {
+        "path": "modules/circle/services/circle-post-reward-notification.task",
+        "sourceSha256": "8a74672f022a026c742a1414c1b3b1f65ab468212eca08934063530ac0f13895",
+        "compiledSha256": "ded74d8f14acb6239e74f7dca2b8ecccc4c91a90e9a01e697ac2037d02239ce5",
+        "gitLfSha256": "f63a0164bfe69ad700bd2520654d08ff704467e375a9e663f248355cf2b8b099"
+      },
+      {
+        "path": "modules/coin/coin.service",
+        "sourceSha256": "3940d3febcbde97b60863f582122889fb277e70fc610cc3123a9075286afd07e",
+        "compiledSha256": "75c36e6a73bedf02cf6b179ed037141fa9a2cb27ff9576a1ab485ab8a891787d",
+        "gitLfSha256": "aec1adbb3cda67662835bf129078aaa1c9e54e79c24212246b46302227ea8dc2"
+      },
+      {
+        "path": "modules/circle/services/circle-shared.service",
+        "sourceSha256": "115eb5a0cbe5a801c0066591e67e501c10eaabb25cb2375d03f4b47c297a3994",
+        "compiledSha256": "478472d51aae790a37970b84ac74e92826f5cfc1b52a0b8c0b7e60b63527af54",
+        "gitLfSha256": "c1eb8ef782213b8e134af1ef965f8fbf7782af602cc3d9966f1b585cbfdcff7d"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "7d05953383dc8097514ecec8c48954cc59057cce96ace710ad0d6161f013d1ed",
+        "compiledSha256": "24ab860e79fa2f1928eb701ec9dcf956ee13135ce944c26626d3b72db63d537c",
+        "gitLfSha256": "effa5e18a38ccdfcf0aab3e9f61d1ea9ef266a8d11d7839726bff6229a38187f"
+      }
+    ],
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 13,
+    "old134MigrationsUnchanged": true,
+    "candidateMigrationCount": 135,
+    "upgrade": {
+      "sourceSchemaParent": "e8319535f16429b70108f3ec46670f11016bb28e",
+      "path": "A的134迁移对应schema副本→执行新07增量SQL；不是134条迁移账本或生产升级",
+      "newMigration": "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql",
+      "sha256": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+      "oldFactFourColumnsRemainNull": true,
+      "oldDebitUnchanged": true,
+      "realPostgres": true,
+      "production": false,
+      "oldMigrationsUnchanged": true,
+      "checkedAt": "2026-10-02T22:50:28.751Z"
+    },
+    "clientInputsUnchanged": true,
+    "realPostgres": true,
+    "realRedis": false,
+    "realFunds": false,
+    "realChannels": false,
+    "production": false,
+    "historicalBackfill": false,
+    "transportSignatureVerified": false,
+    "formalImage": false,
+    "firstTestObservationFailure": {
+      "passed": 193,
+      "failed": 1,
+      "reason": "只等一轮setImmediate不能证明异步数据库读取完成；改为等待通知调用事件，保留资金事务不等待通知的断言"
+    },
+    "initialPatchFailure": "Windows CRLF导致脚本定位失败，只写了隔离schema与新SQL；修正定位后完成源码，不是业务运行通过",
+    "checkedAt": "2026-10-02T23:14:52.206Z",
+    "originalCandidateCommit": "2b108baf7e61d30ceb8136bc9af0206a7591c916",
+    "acceptanceChain": [
+      "2b108baf7e61d30ceb8136bc9af0206a7591c916",
+      "4c546b89bf81121a051e785d3a399f3690205671"
+    ],
+    "testObservationCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+    "linuxInitialFailure": {
+      "runId": 37075255355,
+      "passed": 188,
+      "failed": 6,
+      "cause": "单测直接断言异步通知；资金服务不变，以通知调用事件同步并避免跨测试污染"
+    },
+    "localRetest": {
+      "passed": 194,
+      "suites": 8,
+      "typecheck": true,
+      "lintErrors": 0
+    }
+  },
+  "linux": {
+    "sourceCommit": "4c546b89bf81121a051e785d3a399f3690205671",
+    "runId": 37076242310,
+    "verificationHead": "1e31b805b96779fc0f58136746e94d68cb088626",
+    "artifactId": 11257505036,
+    "artifactDigest": "sha256:1e545c6aa802e3660f3137f4f6cfc5980b2177db9155f4bb6a2b554ede79794f",
+    "digestVerified": true,
+    "sourceHashesVerified": 1972,
+    "compiledBindingsVerified": 5,
+    "passed": 194,
+    "suites": 8,
+    "compiledPassed": 46,
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "lintWarnings": 13,
+    "realPostgres": true,
+    "realRedis": false,
+    "production": false,
+    "realFunds": false,
+    "realChannels": false,
+    "formalDockerfileImage": false,
+    "upgrade": {
+      "sourceSchemaParent": "e8319535f16429b70108f3ec46670f11016bb28e",
+      "path": "A的134迁移对应schema副本→执行新07增量SQL；不是134条迁移账本或生产升级",
+      "newMigration": "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql",
+      "sha256": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+      "oldFactFourColumnsRemainNull": true,
+      "oldDebitUnchanged": true,
+      "realPostgres": true,
+      "production": false,
+      "oldMigrationsUnchanged": true,
+      "checkedAt": "2026-10-02T23:11:09.672Z"
+    },
+    "checkedAt": "2026-10-02T23:15:14.807Z"
+  },
+  "acceptance": "审查线与隔离待发布线无冲突快进；master和线上不改",
+  "migrationCount": 135,
+  "newMigration": "manual_z_20261002_07_circle_post_reward_notice_snapshot",
+  "migrationScope": "仅真实合成PG从A schema执行新增07 SQL；完整135空库与生产升级尚未验证",
+  "old134MigrationsUnchanged": true,
+  "historicalBackfill": false,
+  "realFunds": false,
+  "realChannels": false,
+  "formalImage": false,
+  "clientInputsUnchanged": true,
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "rollback": [
+    "先撤本批纯文档",
+    "再撤4c单测同步修正",
+    "再撤2b业务快照六文件回e831；生产新增列不可盲回删，未迁移无需回退数据库",
+    "e831文档→f1资金准入→93文档→927直播批各自独立"
+  ],
+  "remaining": "全订单独立通知恢复、企微回流、N5旧券政策、最终同版渠道与七门槛仍未清零",
+  "checkedAt": "2026-10-02T23:16:58.256Z"
+}

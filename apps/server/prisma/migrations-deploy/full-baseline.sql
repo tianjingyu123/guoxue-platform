@@ -3555,6 +3555,10 @@ CREATE TABLE "VirtualCoinTransaction" (
 
 -- CreateTable
 CREATE TABLE "CirclePostRewardNotice" (
+    "sourceVersion" VARCHAR(32),
+    "sourcePostId" TEXT,
+    "sourceCircleId" TEXT,
+    "sourceRecipientId" TEXT,
     "debitId" TEXT NOT NULL,
     "recipientId" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
