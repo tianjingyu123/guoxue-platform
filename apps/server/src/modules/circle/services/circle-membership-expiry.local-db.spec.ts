@@ -17,7 +17,8 @@ jest.setTimeout(60000);
   const users: string[] = [], circles: string[] = [];
   const expiry = new Date("2020-01-01T00:00:00Z");
   const del = jest.fn(async () => 1), delByPattern = jest.fn(async () => 1);
-  const redis = { del, delByPattern, runExclusive: async (_k: string, _t: number, fn: () => Promise<void>) => fn() } as unknown as RedisService;
+  const pingShared = jest.fn(async () => undefined);
+  const redis = { del, delByPattern, pingShared, runExclusive: async (_k: string, _t: number, fn: () => Promise<void>) => fn() } as unknown as RedisService;
   const service = (client: unknown = db) => new CircleMembershipService(client as PrismaService, redis, {} as UnifiedPricingService, {} as CircleSharedService);
   const fixture = async () => {
     const owner = await db.user.create({ data: { nickname: "合成圈主" } }), user = await db.user.create({ data: { nickname: "合成到期成员" } }); users.push(owner.id, user.id);
@@ -46,6 +47,7 @@ jest.setTimeout(60000);
     expect(await db.virtualCoinTransaction.count({ where: { userId: { in: users } } })).toBe(0);
     await db.notification.deleteMany({ where: { userId: { in: users } } }); await db.circle.deleteMany({ where: { id: { in: circles.splice(0) } } }); await db.user.deleteMany({ where: { id: { in: users.splice(0) } } });
     del.mockReset().mockResolvedValue(1); delByPattern.mockReset().mockResolvedValue(1);
+    pingShared.mockReset().mockResolvedValue(undefined);
   });
   afterAll(async () => { await db.$disconnect(); });
   it("删除、人数、真实UTC到期事实共同提交；首次分类目标正确且不重复", async () => {
@@ -81,6 +83,14 @@ jest.setTimeout(60000);
   it("公共缓存失败留下待办，后续没有过期成员仍能恢复", async () => {
     const f = await fixture(); delByPattern.mockRejectedValueOnce(new Error("合成列表缓存失败")); await service().cleanupExpiredMembers(); expect((await fact(f))?.cacheClearedAt).toBeNull(); await service().cleanupExpiredMembers(); expect((await fact(f))?.cacheClearedAt).not.toBeNull();
   });
+  it("共享Redis不可用时不把进程内降级当作已完成，通知仍独立完成", async () => {
+    const f = await fixture(); pingShared.mockRejectedValue(new Error("共享 Redis 不可用"));
+    await service().cleanupExpiredMembers();
+    expect(await notice(f)).not.toBeNull(); expect((await fact(f))?.cacheClearedAt).toBeNull();
+    expect(del).not.toHaveBeenCalled(); expect(delByPattern).not.toHaveBeenCalled();
+    pingShared.mockResolvedValue(undefined); await new CircleMembershipExpiryNotificationTask(db as PrismaService, redis).tick();
+    expect((await fact(f))?.cacheClearedAt).not.toBeNull();
+  });
   it("220个真实删除跨批继续；通知/缓存恢复无饥饿或重复", async () => {
     const f = await fixture(), added = await db.user.createManyAndReturn({ data: Array.from({ length: 219 }, () => ({ nickname: "合成多批成员" })) }); users.push(...added.map(u => u.id)); await db.circleMember.createMany({ data: added.map(u => ({ circleId: f.circle, userId: u.id, expireAt: expiry })) }); await db.circle.update({ where: { id: f.circle }, data: { memberCount: 221 } });
     del.mockRejectedValue(new Error("合成缓存失败")); await service().cleanupExpiredMembers(); expect(await count(f)).toBe(1); expect(await db.circleMembershipExpiryNotice.count({ where: { circleId: f.circle } })).toBe(220); expect(await db.notification.count({ where: { circleId: f.circle } })).toBe(220);
@@ -89,6 +99,25 @@ jest.setTimeout(60000);
   it("两个独立连接并发清理只删除、计数、通知一次", async () => {
     const f = await fixture(), other = new PrismaClient({ datasources: { db: { url: testUrl! } } }); try { await Promise.all([service().cleanupExpiredMembers(), service(other).cleanupExpiredMembers()]); } finally { await other.$disconnect(); }
     expect(await count(f)).toBe(1); expect(await db.circleMembershipExpiryNotice.count({ where: { memberId: f.member } })).toBe(1); expect(await db.notification.count({ where: { userId: f.user } })).toBe(1);
+  });
+  it("归属在删除事务内锁定，独立连接不能中途改变圈主", async () => {
+    const f = await fixture(), other = new PrismaClient({ datasources: { db: { url: testUrl! } } });
+    let blocked = false;
+    const facade = { circleMember: db.circleMember, $queryRaw: db.$queryRaw.bind(db), $executeRaw: db.$executeRaw.bind(db),
+      $transaction: (fn: (tx: Prisma.TransactionClient) => Promise<unknown>) => db.$transaction(tx => fn({ ...tx,
+        circleMember: { ...tx.circleMember, deleteMany: async (args: Prisma.CircleMemberDeleteManyArgs) => {
+          try {
+            await other.$transaction(async competing => {
+              await competing.$executeRawUnsafe("SET LOCAL lock_timeout = '100ms'");
+              await competing.circle.update({ where: { id: f.circle }, data: { ownerId: f.user } });
+            });
+          } catch { blocked = true; }
+          return tx.circleMember.deleteMany(args);
+        } },
+      } as Prisma.TransactionClient)) };
+    try { await service(facade).cleanupExpiredMembers(); } finally { await other.$disconnect(); }
+    expect(blocked).toBe(true); expect((await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).ownerId).not.toBe(f.user);
+    expect(await count(f)).toBe(1); expect(await fact(f)).not.toBeNull();
   });
   it("分钟调度失败释放标记，通知异常不挡缓存恢复", async () => {
     const f = await fixture(); del.mockRejectedValue(new Error("合成缓存失败")); await service().cleanupExpiredMembers(); await db.notification.deleteMany({ where: { userId: f.user } }); const task = new CircleMembershipExpiryNotificationTask(db as PrismaService, redis);

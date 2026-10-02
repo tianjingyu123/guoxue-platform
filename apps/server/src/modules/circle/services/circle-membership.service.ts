@@ -609,6 +609,11 @@ export class CircleMembershipService {
       const removed = await this.prisma.$transaction(async (tx) => {
         let deleted = 0;
         const counts = new Map<string, number>();
+        // 归属检查与删除必须看到同一圈主；锁期间不允许圈主字段中途变化。
+        // NO KEY UPDATE兼容新成员外键检查，按圈ID排序避免不同清理批次反向锁圈。
+        for (const circleId of [...new Set(batch.map(m => m.circleId))].sort()) {
+          await tx.$queryRaw`SELECT id FROM "Circle" WHERE id=${circleId} FOR NO KEY UPDATE`;
+        }
         for (const member of batch) {
           if (!member.expireAt) continue;
           // 名单读取后续费、转让圈主或重入，均不能删除旧名单之外的新身份。
@@ -635,7 +640,7 @@ export class CircleMembershipService {
           if (!counted.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
         }
         return deleted;
-      });
+      }, { timeout: 30000 });
       removedCount += removed;
       // 提交后的通知或缓存故障不阻断后续删除批次，待办由每分钟任务恢复。
       await this.restoreExpiredMemberEffects();

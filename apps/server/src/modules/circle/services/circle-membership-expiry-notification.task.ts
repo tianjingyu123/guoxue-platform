@@ -40,6 +40,8 @@ export async function clearCircleExpiryCaches(prisma: PrismaService, redis: Redi
     WHERE "cacheClearedAt" IS NULL ORDER BY "removedAt", "memberId" LIMIT 100
   `;
   if (!rows.length) return 0;
+  // 持久完成标记必须代表共享缓存已清理，不能接受 Redis 的进程内降级。
+  await redis.pingShared();
   // 每批只扫描一次公共列表缓存，避免大量到期记录重复扫描相同前缀。
   await redis.delByPattern("circles:list:*");
   let cleared = 0;
