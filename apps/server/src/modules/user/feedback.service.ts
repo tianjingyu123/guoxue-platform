@@ -5,22 +5,20 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
 import { maskPhone, maskEmail, maskIdCard } from "../../common/crypto.util";
-import { NotificationService } from "../notification/notification.service";
-import { publicFeedbackReply } from "./feedback-reply";
+import { FeedbackNotificationTask } from "./feedback-notification.task";
+import { encodeFeedbackReply, publicFeedbackReply } from "./feedback-reply";
 import {
   FeedbackListQueryDto,
   UpdateFeedbackStatusDto,
   NON_TICKET_TYPES,
 } from "./feedback-admin.dto";
 
-// 历史 result 可能是内部处理备注，只有此版本明确作为用户回复写入的内容才对用户可见。
-const PUBLIC_REPLY_PREFIX = "[public-reply:v1]\n";
 
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
 
-  constructor(private prisma: PrismaService, private notifications: NotificationService) {}
+  constructor(private prisma: PrismaService, private notifications: FeedbackNotificationTask) {}
 
   async getFeedbackTypes() {
     const types = [
@@ -221,7 +219,7 @@ export class FeedbackService {
    *
    * 约束：
    *  - 置 `resolved` 必须填 `result`；回退到 `pending` 也必须填原因（写进 result）；
-   *  - 用 `updateMany + where status=<期望的当前状态>` 做条件更新并校验影响行数，
+   *  - 用 `updateMany + 当前状态、更新时间与结果快照` 做条件更新并校验影响行数，
    *    并发下只有一个人能改成功，后到的会收到「状态已变更」而不是静默覆盖；
    *  - **处理人不写进 Feedback 表**（表里没有这个字段，本任务包不改 schema）。
    *    「谁在什么时候把它改成了什么」由 `@Auditable` 写进 AuditLog，
@@ -230,7 +228,7 @@ export class FeedbackService {
   async adminUpdateStatus(id: string, dto: UpdateFeedbackStatusDto) {
     const current = await this.prisma.feedback.findUnique({
       where: { id },
-      select: { status: true, userId: true, type: true },
+      select: { status: true, userId: true, type: true, updatedAt: true, result: true },
     });
     if (!current) throw new BusinessException(ErrorCode.NOT_FOUND, "反馈不存在");
     if (current.status === dto.status) {
@@ -243,33 +241,28 @@ export class FeedbackService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "回退到待处理必须填写原因");
     }
 
-    const publicReply = dto.status === "resolved" ? dto.result!.trim().slice(0, 1000 - PUBLIC_REPLY_PREFIX.length) : null;
+    const isTicket = !NON_TICKET_TYPES.includes(current.type as typeof NON_TICKET_TYPES[number]);
+    const publicReply = dto.status === "resolved" ? encodeFeedbackReply(dto.result!, isTicket) : null;
     const changedAt = new Date();
     const changed = await this.prisma.feedback.updateMany({
-      where: { id, status: current.status },
+      where: { id, status: current.status, updatedAt: current.updatedAt, result: current.result },
       data: {
         status: dto.status,
         updatedAt: changedAt,
         ...(publicReply !== null
-          ? { result: `${PUBLIC_REPLY_PREFIX}${publicReply}` }
+          ? { result: publicReply }
           : dto.result?.trim() ? { result: dto.result.trim().slice(0, 1000) } : {}),
       },
     });
     if (changed.count !== 1) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "状态已被他人变更，请刷新后重试");
     }
-    // 结案先落库再建站内通知；通知失败不能回滚反馈状态。旧内部备注绝不进入通知正文。
-    if (dto.status === "resolved" && !NON_TICKET_TYPES.includes(current.type as typeof NON_TICKET_TYPES[number])) {
+    // 持久事件随结案一起落库；先即时尝试，失败由分钟任务恢复，不回滚结案。
+    if (dto.status === "resolved" && isTicket) {
       try {
-        await this.notifications.sendOnce(current.userId, `FEEDBACK_RESOLVED:${id}:${changedAt.getTime()}`, {
-          type: "SYSTEM",
-          title: "反馈已有处理结果",
-          content: "你提交的反馈已有处理结果，可在“我的反馈”查看。",
-          targetType: "FEEDBACK",
-          targetId: id,
-        });
-      } catch (err) {
-        this.logger.warn(`反馈已结案但站内通知发送失败 id=${id}`, err);
+        await this.notifications.deliverPendingReplies(id);
+      } catch {
+        this.logger.warn("反馈已结案，站内通知将在下次调度重试");
       }
     }
     return { id, status: dto.status };

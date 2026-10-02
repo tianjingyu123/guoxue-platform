@@ -10,6 +10,7 @@ import { TeenModeController } from "./teen-mode.controller";
 import { TeenModeService } from "./teen-mode.service";
 import { FeedbackController } from "./feedback.controller";
 import { FeedbackService } from "./feedback.service";
+import { FeedbackNotificationTask } from "./feedback-notification.task";
 import { WalletController } from "./wallet.controller";
 import { WalletService } from "./wallet.service";
 import { SystemModule } from "../system/system.module";
@@ -30,7 +31,7 @@ import { NotificationModule } from "../notification/notification.module";
   // CreationRankingsController 必须置于 UserController 之前：GET users/creation-rankings 是静态段，
   // 若 users/:id 先注册会将其吞掉（Express 按注册序匹配）
   controllers: [CreationRankingsController, UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
-  providers: [PreferredNameService, UserService, PushAudienceService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService, PersonalDataExportService],
+  providers: [PreferredNameService, UserService, PushAudienceService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, FeedbackNotificationTask, WalletService, PersonalDataExportService],
   exports: [UserService, PointsService, PushAudienceService],
 })
 export class UserModule {}
