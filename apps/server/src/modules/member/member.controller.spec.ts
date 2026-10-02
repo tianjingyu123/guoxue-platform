@@ -124,7 +124,7 @@ describe("MemberController", () => {
       const dto = { userId: "u1", level: "MONTHLY" as any, durationDays: 30 };
       const res = await ctrl.grantMember(dto, req);
       expect(res.userId).toBe("u1");
-      expect(mockService.grantMember).toHaveBeenCalledWith("u1", "MONTHLY", 30);
+      expect(mockService.grantMember).toHaveBeenCalledWith("u1", "MONTHLY", 30, "admin1");
     });
 
     it("POST admin/revoke/:userId → 撤销会员", async () => {
