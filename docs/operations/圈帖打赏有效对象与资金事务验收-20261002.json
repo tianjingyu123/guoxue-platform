@@ -1,0 +1,164 @@
+{
+  "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+  "parent": "93af27fce3a363b329708b87fa4ada728fe02a58",
+  "local": {
+    "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+    "parent": "93af27fce3a363b329708b87fa4ada728fe02a58",
+    "files": [
+      "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.spec.ts",
+      "apps/server/src/modules/circle/services/circle-post.service.ts"
+    ],
+    "relatedPassed": 182,
+    "relatedSuites": 8,
+    "newTests": 14,
+    "compiledPassed": 34,
+    "bindings": [
+      {
+        "path": "modules/circle/services/circle-post.service",
+        "sourceSha256": "c2b09f50097f1b6198b4006737b8dd8d8ed6184abf163e6ae3ba1921a96904c9",
+        "compiledSha256": "99564c00f57eca1f594e2471de7802b7cf181ac04f8893229fed79c0c6e234b5",
+        "gitLfSha256": "0652f79af55db00a5e8eb10b8a8b6efdf07ace06084c219e0ee040a73833c64e"
+      },
+      {
+        "path": "modules/circle/services/circle-post-reward-notification.task",
+        "sourceSha256": "92530761c13aa18a3fb3e788d4971ed4dfaa06599629554c550ee0bb3b5cc1ec",
+        "compiledSha256": "d392187c036a08fd12aad839b671f55873eb8830b5a3eb6ec4b56de8b013af46",
+        "gitLfSha256": "b4f663ece1ac9376e26625f1a2d262f7700d6cd572788bdd03ce758d4b9946c6"
+      },
+      {
+        "path": "modules/coin/coin.service",
+        "sourceSha256": "3940d3febcbde97b60863f582122889fb277e70fc610cc3123a9075286afd07e",
+        "compiledSha256": "75c36e6a73bedf02cf6b179ed037141fa9a2cb27ff9576a1ab485ab8a891787d",
+        "gitLfSha256": "aec1adbb3cda67662835bf129078aaa1c9e54e79c24212246b46302227ea8dc2"
+      },
+      {
+        "path": "modules/circle/services/circle-shared.service",
+        "sourceSha256": "115eb5a0cbe5a801c0066591e67e501c10eaabb25cb2375d03f4b47c297a3994",
+        "compiledSha256": "478472d51aae790a37970b84ac74e92826f5cfc1b52a0b8c0b7e60b63527af54",
+        "gitLfSha256": "c1eb8ef782213b8e134af1ef965f8fbf7782af602cc3d9966f1b585cbfdcff7d"
+      },
+      {
+        "path": "modules/notification/notification.service",
+        "sourceSha256": "7d05953383dc8097514ecec8c48954cc59057cce96ace710ad0d6161f013d1ed",
+        "compiledSha256": "24ab860e79fa2f1928eb701ec9dcf956ee13135ce944c26626d3b72db63d537c",
+        "gitLfSha256": "effa5e18a38ccdfcf0aab3e9f61d1ea9ef266a8d11d7839726bff6229a38187f"
+      }
+    ],
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 13,
+    "sourceSchemaAnd134MigrationsUnchanged": true,
+    "clientInputsUnchanged": true,
+    "realFunds": false,
+    "realChannels": false,
+    "production": false,
+    "uncovered": [
+      "付款后帖子硬删除的持久通知恢复仍未修复，不放松圈子归属和完整分账校验",
+      "最新正式Dockerfile镜像及同版手机",
+      "真实供应商和共享Redis"
+    ],
+    "firstRuntimeFailure": "77通过/3失败：UTC无时区列与本机America/Los_Angeles会话比较错误，及测试使用无效ARCHIVED枚举；已修业务UTC比较及夹具DISABLED后重跑",
+    "setupFailure": "错误cwd导致两套未启动，0项；修正runner服务器cwd后重验",
+    "checkedAt": "2026-10-02T22:33:43.567Z"
+  },
+  "linux": {
+    "sourceCommit": "f1c950c0861c97cc96d05af6e1be608a316d15cf",
+    "runId": 37073307404,
+    "verificationHead": "e827c63ffa22d607bbdf97a6183a64a06a839db9",
+    "artifactId": 11255251936,
+    "artifactDigest": "sha256:92dd00f61edd99571162c3b21ee14b4ea88444f40fa93d352d2f691350554503",
+    "digestVerified": true,
+    "sourceHashesVerified": 1971,
+    "compiledBindingsVerified": 5,
+    "passed": 182,
+    "suites": 8,
+    "compiledPassed": 34,
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "lintWarnings": 13,
+    "realPostgres": true,
+    "realRedis": false,
+    "production": false,
+    "realFunds": false,
+    "realChannels": false,
+    "formalDockerfileImage": false,
+    "checkedAt": "2026-10-02T22:41:03.393Z"
+  },
+  "baseline": {
+    "sourceCommit": "93af27fce3a363b329708b87fa4ada728fe02a58",
+    "compiledEquivalentTo": "927ffc8e65793b63aea7ae7372e7fc938624876b",
+    "postSourceUnchanged": true,
+    "sourceSha256": "1a581cc4079ae3b3aa067a95ca2dec5485c272cf4300b66efefdf3839378b220",
+    "compiledSha256": "c8864654efcdd05bc24a9c1d255e5ccaa584f24f5a651b7c5776e8e1270d3c81",
+    "realPostgres": true,
+    "realCoins": false,
+    "production": false,
+    "results": [
+      {
+        "kind": "hidden",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 1
+      },
+      {
+        "kind": "post-hidden-after-read",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 1
+      },
+      {
+        "kind": "post-author-after-read",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 0
+      },
+      {
+        "kind": "member-removed-after-read",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 1
+      },
+      {
+        "kind": "member-expired",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 1
+      },
+      {
+        "kind": "post-deleted-after-payment",
+        "paid": true,
+        "payerBalance": 92,
+        "originalAuthorCredit": 4,
+        "recoveredNotice": 0
+      }
+    ],
+    "checkedAt": "2026-10-02T22:25:13.233Z"
+  },
+  "acceptance": "主审查与隔离待发布线无冲突快进；不改master或线上",
+  "actualFunds": false,
+  "production": false,
+  "schemaAnd134MigrationsUnchanged": true,
+  "remaining": "付款后帖子硬删除/归属变化导致持久通知恢复缺失，已真实反证，下一批独立补可信成交快照，不放松账本校验或补旧流水",
+  "finalImage": "0078三十项仅为前版；当前源码最终镜像待冻结",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "rollback": [
+    "先撤本批纯文档",
+    "再撤f1三文件回93af27fce，直播批单独保留",
+    "无新迁移；有后续依赖须先核对，不自动线上回退"
+  ],
+  "checkedAt": "2026-10-02T22:42:40.869Z"
+}
