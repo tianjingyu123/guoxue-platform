@@ -48,7 +48,7 @@ async function dropTriggers() {
     await redis.setJson("notification:prefs:"+author,{PUSH_ENABLED:false},600);
     await p.circle.create({data:{id:circle,ownerId:author,name:"隔离打赏验收",intro:"仅合成数据，不对外开放",tags:[]}});
     await p.circleMember.createMany({data:[{circleId:circle,userId:payer},{circleId:circle,userId:author,role:"OWNER"}]});
-    await p.post.create({data:{id:post,circleId:circle,userId:author,content:"仅合成帖子"}});
+    await p.post.create({data:{id:post,circleId:circle,userId:author,status:"PUBLISHED",content:"仅合成帖子"}});
     await p.virtualCoinAccount.create({data:{userId:payer,balance:100}});
     const body={amount:8,requestId:"http-reward-rollback"};
     await send("anonymous-denied",null,body,401);
@@ -113,7 +113,28 @@ async function dropTriggers() {
       const response=await fetch("http://127.0.0.1:3000/api/v1/notifications/"+notification.id,{headers:headers(user),signal:AbortSignal.timeout(10000)});
       rows.push({name,status:response.status,expected,passed:response.status===expected});assert.equal(response.status,expected,name);
     }
-    console.log("NODE_TEST_RESULT:"+JSON.stringify({passed:true,scope:"two-full-apps-real-http-jwt-postgres-redis-synthetic-only",cases:rows,twoApplications:true,noRealMoney:true,noExternalDelivery:true,notificationTargetPagePermission:"not-covered"}));
+    // 验证实际目标权限和删除后的新成交快照恢复，不重付或补账。
+    await p.post.update({where:{id:post},data:{status:"HIDDEN"}});
+    for(const [name,user,expected] of [["hidden-target-author",author,200],["hidden-target-payer",payer,404],["hidden-target-outsider",outsider,404]]) {
+      const response=await fetch("http://127.0.0.1:3000/api/v1/circles/"+circle+"/posts/"+post,{headers:headers(user),signal:AbortSignal.timeout(10000)});
+      rows.push({name,status:response.status,expected,passed:response.status===expected});assert.equal(response.status,expected,name);
+    }
+    const {CirclePostRewardNotificationTask}=require("/app/apps/server/dist/modules/circle/services/circle-post-reward-notification.task");
+    const fundsBefore={payer:await balance(payer),author:await balance(author),ledgers:await p.virtualCoinTransaction.count({where:{userId:{in:[payer,author]}}})};
+    const fact=await p.circlePostRewardNotice.findUniqueOrThrow({where:{debitId:debitId(retryBody.requestId)}});
+    assert.equal(fact.sourceVersion,"POST_REWARD_LOCKED_V1");assert.equal(fact.sourceRecipientId,author);assert.equal(fact.sourceCircleId,circle);assert.equal(fact.sourcePostId,post);
+    await p.notification.delete({where:{id:notification.id}});await p.post.delete({where:{id:post}});
+    const restored=await new CirclePostRewardNotificationTask(p).deliverPending();assert.equal(restored,1);
+    const restoredNotice=await p.notification.findUniqueOrThrow({where:{idempotencyKey:eventKey(retryBody.requestId)}});
+    assert.equal(restoredNotice.userId,author);assert.equal(restoredNotice.targetType,null);assert.equal(restoredNotice.targetId,null);
+    assert.deepEqual({payer:await balance(payer),author:await balance(author),ledgers:await p.virtualCoinTransaction.count({where:{userId:{in:[payer,author]}}})},fundsBefore);
+    assert.equal(await new CirclePostRewardNotificationTask(p).deliverPending(),0);
+    rows.push({name:"deleted-post-snapshot-restores-notice-without-funds-or-invalid-target",passed:true});
+    for(const [name,user,expected]of [["deleted-income-notice-author",author,200],["deleted-income-notice-other-user",payer,404]]) {
+      const response=await fetch("http://127.0.0.1:3000/api/v1/notifications/"+restoredNotice.id,{headers:headers(user),signal:AbortSignal.timeout(10000)});
+      rows.push({name,status:response.status,expected,passed:response.status===expected});assert.equal(response.status,expected,name);
+    }
+    console.log("NODE_TEST_RESULT:"+JSON.stringify({passed:true,scope:"two-full-apps-real-http-jwt-postgres-redis-synthetic-only",cases:rows,twoApplications:true,noRealMoney:true,noExternalDelivery:true,notificationTargetPagePermission:"hidden-post-author-only-real-http",deletedPostDurableRecovery:true,noHistoricalBackfill:true}));
   } finally {
     await dropTriggers().catch(()=>{});
     await p.$executeRawUnsafe('DROP SEQUENCE IF EXISTS isolated_reward_notify_attempts').catch(()=>{});

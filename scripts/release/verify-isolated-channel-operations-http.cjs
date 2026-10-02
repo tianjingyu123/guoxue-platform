@@ -18,8 +18,12 @@ async function main() {
       .filter(entry => entry.isDirectory())
       .map(entry => ({ migration_name: entry.name, checksum: crypto.createHash('sha256')
         .update(fs.readFileSync(path.join(migrationRoot, entry.name, 'migration.sql'))).digest('hex') }));
-    assert.equal(migrations.length, 134, '本候选固定包迁移数量不符');
+    assert.equal(migrations.length, 135, '本候选固定包迁移数量不符');
     assert.deepEqual(ledger[0], { total: migrations.length, complete: migrations.length, failed: 0 });
+    const snapshotColumns = await prisma.$queryRawUnsafe(`SELECT column_name,is_nullable FROM information_schema.columns WHERE table_name='CirclePostRewardNotice' AND column_name IN ('sourceVersion','sourcePostId','sourceCircleId','sourceRecipientId') ORDER BY column_name`);
+    assert.equal(snapshotColumns.length,4);assert(snapshotColumns.every(c=>c.is_nullable==='YES'));
+    const snapshotCheck = await prisma.$queryRawUnsafe(`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname='CirclePostRewardNotice_source_snapshot_shape'`);
+    assert.equal(snapshotCheck.length,1);assert(snapshotCheck[0].definition.includes('POST_REWARD_LOCKED_V1'));
     const persisted = await prisma.$queryRawUnsafe(`SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`);
     const byName = rows => rows.sort((a, b) => a.migration_name.localeCompare(b.migration_name));
     assert.deepEqual(byName(persisted), byName(migrations), '迁移名称或 SQL 校验值不符');
@@ -37,7 +41,7 @@ async function main() {
     assert(registrations.every(row => row.channelId === 'legacy' && row.wgtPolicy === 'DENIED'));
     return { passed: true, ledger: ledger[0], checkConstraints: checks.map(row => row.conname), nullsNotDistinct: true,
       targetUserIdsNotNull: true, compatibilitySlots: registrations.map(({ platform, wgtPolicy }) => ({ platform, wgtPolicy })),
-      scope: 'formal-empty-bootstrap-only-not-production-upgrade' };
+      snapshotColumns:snapshotColumns.map(c=>c.column_name),snapshotShapeCheck:true,scope: 'formal-empty-bootstrap-only-not-production-upgrade' };
   }
   const jwt = req('jsonwebtoken');
   const rows = [];
