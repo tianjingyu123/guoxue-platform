@@ -43,6 +43,22 @@ test('支付退款通知直达已登记订单详情', () => {
   }
 })
 
+test('月度积分和赠券在两处消息入口直达本人页面，不采用目标用户参数', () => {
+  const mine = fs.readFileSync(new URL('../../apps/mobile/src/lib/mine-data.ts', import.meta.url), 'utf8')
+  const mineFn = mine.match(/function notifyLink\([\s\S]*?\n\}/)?.[0]
+  assert(mineFn)
+  const mineLink = vm.runInNewContext(`${stripTypeScriptTypes(mineFn)}; notifyLink`)
+  const routes = fs.readFileSync(new URL('../../apps/mobile/src/utils/router.ts', import.meta.url), 'utf8')
+  for (const [type, alias, page] of [['POINTS', '/mine/points', '/pkg-mine/points/index'], ['COUPON', '/shop/coupons', '/pkg-shop/coupons/index']]) {
+    for (const id of ['recipient', 'other-user?userId=other', 'id/path']) {
+      assert.equal(notifyLink(type, id), alias)
+      assert.equal(mineLink(type.toLowerCase(), id), alias)
+    }
+    assert(routes.includes(`'${alias}': '${page}'`))
+    assert(REGISTERED_PAGE_PATHS.has(page))
+  }
+})
+
 test('既有圈帖文章直播和用户通知映射保留', () => {
   const cases = [
     ['CIRCLE_POST', '/pkg-circle/circles/post'], ['POST', '/pkg-circle/circles/post'],

@@ -385,6 +385,8 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   if (t === 'FEEDBACK') return '/feedback?tab=history'
   // 权益页只请求当前登录用户的数据，不接受通知里的 userId 作为查询条件。
   if (t === 'ENTITLEMENT') return ENTITLEMENT_NOTIFICATION_ROUTE
+  if (t === 'POINTS') return '/mine/points'
+  if (t === 'COUPON') return '/shop/coupons'
   // 续费页只读取本人会员状态，忽略通知中的用户标识。
   if (t === 'MEMBER') return '/vip'
   if (t.includes('COURSE')) return `/pkg-course/detail/index?id=${id}`
