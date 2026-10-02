@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Cron } from "@nestjs/schedule";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { MemberBenefitService } from "./member-benefit.service";
@@ -8,12 +8,13 @@ import { MemberBenefitService } from "./member-benefit.service";
  * 书院会员定时发放（C1 权益③/连续包年提醒 · 2026-07-03）
  *
  * - 每月 1 日 09:00：向全部有效会员发当月积分+优惠券（幂等：按 member_monthly_YYYYMM 流水判重）
- * - 每日 10:00：连续包年（memberAutoRenew）到期前 7 天/当天站内提醒按 ¥148 续费
+ * - 每日北京 10:00 起：连续包年（memberAutoRenew）到期前 7 天/当天站内提醒按 ¥148 续费
  *   （微信 papay 代扣资质就绪前的诚实降级；就绪后升级为真自动扣费）
  */
 @Injectable()
 export class MemberGrantService {
   private readonly logger = new Logger(MemberGrantService.name);
+  private reminding = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -68,49 +69,70 @@ export class MemberGrantService {
     return { granted, skipped };
   }
 
-  @Cron("0 0 10 * * *")
+  @Cron(CronExpression.EVERY_MINUTE)
   async autoRenewRemindCron() {
-    await this.redis.runExclusive("member-renew-remind", 300, () => this.runAutoRenewRemind());
+    if (this.reminding) return;
+    this.reminding = true;
+    try {
+      await this.runAutoRenewRemind();
+    } catch {
+      // 用户当前到期日就是持久待办；失败不留认领标记，下次调度可继续尝试。
+      this.logger.warn("会员续费站内提醒写入失败，将在下次调度重试");
+    } finally {
+      this.reminding = false;
+    }
   }
 
-  /** 连续包年到期提醒：到期前 7 天与当天各提醒一次（redis 判重防重复打扰） */
-  async runAutoRenewRemind(): Promise<number> {
-    const now = new Date();
-    const in7d = new Date(now.getTime() + 7 * 86400000);
-    const users = await this.prisma.user.findMany({
-      where: {
-        memberAutoRenew: true,
-        memberLevel: { not: "NONE" },
-        memberExpire: { not: null, lte: in7d },
-      },
-      select: { id: true, memberExpire: true },
-    });
-
-    let sent = 0;
-    for (const u of users) {
-      const daysLeft = Math.max(0, Math.ceil(((u.memberExpire as Date).getTime() - now.getTime()) / 86400000));
-      if (daysLeft !== 7 && daysLeft !== 0) continue;
-      const dedupKey = `member:renew-remind:${u.id}:${daysLeft}:${(u.memberExpire as Date).toISOString().slice(0, 10)}`;
-      const first = await this.redis.setNX(dedupKey, "1", 8 * 86400);
-      if (!first) continue;
-      await this.prisma.notification.create({
-        data: {
-          userId: u.id,
-          type: "SYSTEM",
-          title: daysLeft === 0 ? "书院会员今日到期" : "书院会员即将到期",
-          content:
-            daysLeft === 0
-              // 🔴 2026-07-14 撤掉"电子书畅读"：板块 07-08 已下线，兑现不了；
-              //    这条是发给**真付费会员**的到期召回文案，不能拿下线功能招揽续费。
-              ? "你的书院会员今天到期。作为连续包年用户，现在续费仍享 ¥148/年 优惠价，AI 伴读不间断。"
-              : `你的书院会员将于 ${daysLeft} 天后到期。作为连续包年用户，续费仍享 ¥148/年 优惠价。`,
-          targetType: "MEMBER",
-          targetId: u.id,
-        },
-      }).catch((err) => this.logger.warn(`会员续费提醒发送失败 userId=${u.id}`, err));
-      sent++;
-    }
-    if (sent > 0) this.logger.log(`连续包年到期提醒已发送 ${sent} 条`);
-    return sent;
+  /** 北京自然日到期前 7 天及当天，10 点起补发；只建立站内通知，不触发扣费或外部推送。 */
+  async runAutoRenewRemind(now = new Date()): Promise<number> {
+    // 保留当前会员状态作为事实来源。共享锁使续期和本次通知写入有明确先后，
+    // 数据库唯一键收敛双节点并发；没有 Redis 先认领后丢失的窗口。
+    const inserted = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      WITH clock AS (
+        SELECT (${now}::timestamptz AT TIME ZONE 'UTC') AS utc_now,
+          (${now}::timestamptz AT TIME ZONE 'Asia/Shanghai') AS local_now
+      ), due AS (
+        SELECT u.id, u."memberExpire", c.utc_now,
+          (u."memberExpire" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date AS days_left,
+          u.id || ':MEMBER_RENEW_REMIND:' ||
+            to_char(u."memberExpire", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || ':' ||
+            ((u."memberExpire" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date)::text AS event_key
+        FROM "User" u CROSS JOIN clock c
+        WHERE u."memberAutoRenew" AND u."memberLevel" <> 'NONE'
+          AND u."memberExpire" IS NOT NULL
+          AND c.local_now::time >= time '10:00'
+          AND (u."memberExpire" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date IN (0, 7)
+          AND NOT EXISTS (
+            SELECT 1 FROM "Notification" n WHERE n."idempotencyKey" =
+              u.id || ':MEMBER_RENEW_REMIND:' || to_char(u."memberExpire", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || ':' ||
+              ((u."memberExpire" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date - c.local_now::date)::text
+          )
+          -- 滚动接收旧版当日已发送的无键提醒，防止升级当天再次打扰。
+          AND NOT EXISTS (
+            SELECT 1 FROM "Notification" n WHERE n."userId" = u.id AND n."idempotencyKey" IS NULL
+              AND n.type = 'SYSTEM' AND n."targetType" = 'MEMBER'
+              AND (n."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date = c.local_now::date
+              AND n.title = CASE WHEN
+                (u."memberExpire" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Shanghai')::date = c.local_now::date
+                THEN '书院会员今日到期' ELSE '书院会员即将到期' END
+          )
+        ORDER BY u.id
+        LIMIT 200
+        FOR SHARE OF u SKIP LOCKED
+      )
+      INSERT INTO "Notification"
+        (id, "userId", "idempotencyKey", type, title, content, "targetType", "targetId", "isRead", "createdAt")
+      SELECT gen_random_uuid()::text, id, event_key, 'SYSTEM',
+        CASE WHEN days_left = 0 THEN '书院会员今日到期' ELSE '书院会员即将到期' END,
+        CASE WHEN days_left = 0
+          THEN '你的书院会员今天到期。作为连续包年用户，现在续费仍享 ¥148/年 优惠价，AI 伴读不间断。'
+          ELSE '你的书院会员将于 7 天后到期。作为连续包年用户，续费仍享 ¥148/年 优惠价。' END,
+        'MEMBER', id, false, utc_now
+      FROM due
+      ON CONFLICT ("idempotencyKey") DO NOTHING
+      RETURNING id
+    `;
+    if (inserted.length > 0) this.logger.log(`连续包年到期提醒已发送 ${inserted.length} 条`);
+    return inserted.length;
   }
 }
