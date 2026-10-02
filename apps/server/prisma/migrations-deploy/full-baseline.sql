@@ -1268,6 +1268,16 @@ CREATE TABLE "TeacherCertification" (
 );
 
 -- CreateTable
+CREATE TABLE "FreeCourseEnrollmentNotice" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FreeCourseEnrollmentNotice_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "OrderLogistics" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
@@ -7437,6 +7447,9 @@ CREATE UNIQUE INDEX "TeacherCertification_userId_key" ON "TeacherCertification"(
 CREATE INDEX "TeacherCertification_status_idx" ON "TeacherCertification"("status");
 
 -- CreateIndex
+CREATE INDEX "FreeCourseEnrollmentNotice_createdAt_id_idx" ON "FreeCourseEnrollmentNotice"("createdAt", "id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "OrderLogistics_orderId_key" ON "OrderLogistics"("orderId");
 
 -- CreateIndex
@@ -10051,6 +10064,9 @@ ALTER TABLE "CourseReview" ADD CONSTRAINT "CourseReview_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "TeacherCertification" ADD CONSTRAINT "TeacherCertification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FreeCourseEnrollmentNotice" ADD CONSTRAINT "FreeCourseEnrollmentNotice_id_fkey" FOREIGN KEY ("id") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE SET NULL ON UPDATE CASCADE;

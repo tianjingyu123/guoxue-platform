@@ -6,6 +6,8 @@ describe("免费课程订阅完成通知边界", () => {
     course: { findUnique: jest.fn() },
     order: { findFirst: jest.fn(), create: jest.fn() },
     referralRelation: { findFirst: jest.fn() },
+    freeCourseEnrollmentNotice: { create: jest.fn() },
+    $transaction: jest.fn(),
   };
   const redis = { setNX: jest.fn(), del: jest.fn() };
   const pricing = { calculateTargetPrice: jest.fn() };
@@ -23,6 +25,8 @@ describe("免费课程订阅完成通知边界", () => {
     prisma.order.findFirst.mockResolvedValue(null);
     prisma.order.create.mockImplementation(({ data }) => Promise.resolve({ id: "free-order-1", ...data }));
     prisma.referralRelation.findFirst.mockResolvedValue(null);
+    prisma.freeCourseEnrollmentNotice.create.mockResolvedValue({ id: "free-order-1" });
+    prisma.$transaction.mockImplementation(async (work) => work(prisma));
     redis.setNX.mockResolvedValue(true);
     redis.del.mockResolvedValue(undefined);
     pricing.calculateTargetPrice.mockResolvedValue({ effectivePrice: 0, originalPrice: 0, appliedPromotion: null });

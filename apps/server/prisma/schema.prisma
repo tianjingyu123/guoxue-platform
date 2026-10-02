@@ -1592,6 +1592,7 @@ model Order {
 
   user           User            @relation(fields: [userId], references: [id])
   memberPurchase MemberPurchase?
+  freeCourseEnrollmentNotice FreeCourseEnrollmentNotice?
   ToolPayRecord  ToolPayRecord[]
 
   @@unique([payTransactionId])
@@ -1723,6 +1724,17 @@ model TeacherCertification {
 // ─────────────────────────────────────────────────
 // 物流追踪
 // ─────────────────────────────────────────────────
+
+// 新免费订阅通知事实与订单同事务保存，不回填历史订单。
+model FreeCourseEnrollmentNotice {
+  id        String @id
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+  order     Order @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, id])
+}
 
 model OrderLogistics {
   id           String   @id @default(uuid())

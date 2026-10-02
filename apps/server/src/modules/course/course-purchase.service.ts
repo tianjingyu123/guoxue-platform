@@ -150,7 +150,16 @@ export class CoursePurchaseService {
         orderData.payMethod = "FREE";
         orderData.payAmount = 0;
       }
-      const order = await this.prisma.order.create({ data: orderData });
+      // 免费订阅与新通知事实一同提交，收费待支付订单仍走原路径。
+      const order = orderData.payMethod === "FREE"
+        ? await this.prisma.$transaction(async (tx) => {
+            const created = await tx.order.create({ data: orderData });
+            await tx.freeCourseEnrollmentNotice.create({
+              data: { id: created.id, userId: created.userId, courseId: created.targetId },
+            });
+            return created;
+          })
+        : await this.prisma.order.create({ data: orderData });
       this.notifyFreeEnrollment(order);
       return order;
     } finally {
