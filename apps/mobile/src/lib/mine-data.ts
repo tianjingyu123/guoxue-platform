@@ -1324,6 +1324,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
   if (!targetType || !targetId) return ''
   const t = String(targetType).toLowerCase()
   if (t === 'entitlement') return ENTITLEMENT_NOTIFICATION_ROUTE
+  if (t === 'member') return '/vip'
   const map: Record<string, string> = {
     article: `/article/${targetId}`, course: `/course/${targetId}`,
     video: `/video/${targetId}`, product: `/shop/product/${targetId}`,
