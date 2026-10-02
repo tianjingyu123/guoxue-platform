@@ -1748,13 +1748,13 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
-    "releaseId": "launch-20261001-51b9883dd",
-    "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
-    "ciRun": 36951628317,
-    "imageRun": 36952768170,
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "releaseId": "launch-20261002-a02449f7d",
+    "receipt": "docs/operations/真实会员授予通知与剩余入口审计-20261002.json",
+    "ciRun": 36955419264,
+    "imageRun": 36955729995,
     "releaseDecision": "NO-GO",
-    "note": "非会员独立权益站内闭环与本人权益页；未部署"
+    "note": "真实管理员书院会员授予站内持久通知；五端等效51b，未部署"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1888,5 +1888,14 @@
     "note": "报告保存事务锁修复与智能体真实库测试依赖分开；104项软件跳过补验，29项硬件明确暂缓；未部署",
     "evidenceAsset": 603860871,
     "evidenceSha256": "7f55f11b94369438647a61ef76d0ca040d8256b28f122e2369c93b31934895d8"
+  },
+  "memberGrantHistoricalParentCandidate": {
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "releaseId": "launch-20261001-51b9883dd",
+    "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
+    "ciRun": 36951628317,
+    "imageRun": 36952768170,
+    "releaseDecision": "NO-GO",
+    "note": "非会员独立权益站内闭环与本人权益页；未部署"
   }
 }

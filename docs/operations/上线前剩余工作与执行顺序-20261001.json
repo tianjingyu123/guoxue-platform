@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T02:00:32.671Z",
-  "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+  "checkedAt": "2026-10-02T02:43:28.701Z",
+  "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
   "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
   "releaseReady": false,
   "states": [
@@ -55,14 +55,14 @@
       "externalOnly": false
     }
   ],
-  "softwareSkippedCovered": 115,
+  "softwareSkippedCovered": 122,
   "hardwareSkippedDeferred": 29,
   "deferred": [
     "L3",
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "独立权益到账与本人权益页隔离验收-20261001.json",
+  "record": "真实会员授予通知与剩余入口审计-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,20 +70,20 @@
     "skipped": 134
   },
   "formalImage": {
-    "source": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
-    "runId": 36952768170,
-    "checksPassed": 27,
+    "source": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "runId": 36955729995,
+    "checksPassed": 28,
     "production": false
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 36951628317,
-    "passed": 8935,
-    "skipped": 144,
+    "runId": 36955419264,
+    "passed": 8941,
+    "skipped": 151,
     "jobsPassed": 8
   },
   "historicalSoftwareSkippedCovered": 104,
-  "additionalSkippedCovered": 11,
+  "additionalSkippedCovered": 18,
   "independentEntitlementScope": {
     "event": "ENTITLEMENT_GRANTED:<ledgerId>",
     "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
@@ -100,5 +100,28 @@
     "paymentRefundCodeUnchanged": true,
     "allBusinessTriggersCompleted": false,
     "persistentRecoveryForAllBusinessEvents": false
+  },
+  "previousMemberGrantParentBinding": {
+    "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+    "ci": {
+      "runId": 36951628317,
+      "passed": 8935,
+      "skipped": 144,
+      "jobsPassed": 8
+    },
+    "formalImage": {
+      "source": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+      "runId": 36952768170,
+      "checksPassed": 27,
+      "production": false
+    }
+  },
+  "memberGrantScope": {
+    "marker": "MEMBER_GRANTED_V1",
+    "purchaseAndCurrentStateJoin": true,
+    "newAdminSchoolMembershipOnly": true,
+    "historicalBackfill": false,
+    "realPush": false,
+    "remainingAudit": "真实会员授予通知与剩余入口审计-20261002.json"
   }
 }
