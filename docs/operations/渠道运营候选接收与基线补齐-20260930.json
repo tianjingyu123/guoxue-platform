@@ -1748,13 +1748,17 @@
     "postgres": "pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff"
   },
   "currentCandidate": {
-    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
-    "releaseId": "launch-20261002-a02449f7d",
-    "receipt": "docs/operations/真实会员授予通知与剩余入口审计-20261002.json",
-    "ciRun": 36955419264,
-    "imageRun": 36955729995,
+    "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "releaseId": "launch-20261002-b7c51f4c4",
+    "receivedCommits": [
+      "1c2d4158eb374d95d91e7de70dda6cb675c28452",
+      "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6"
+    ],
+    "receipt": "docs/operations/会员续费提醒持久补发与本人续费直达-20261002.json",
+    "ciRun": 36965417490,
+    "imageRun": 36966143664,
     "releaseDecision": "NO-GO",
-    "note": "真实管理员书院会员授予站内持久通知；五端等效51b，未部署"
+    "note": "续费提醒持久防重/失败补发与本人续费直达；四目标重建，未部署"
   },
   "previousCandidate": {
     "sourceCommit": "80850d34ca3770cf39b57da891b96eee8b12af18",
@@ -1897,5 +1901,14 @@
     "imageRun": 36952768170,
     "releaseDecision": "NO-GO",
     "note": "非会员独立权益站内闭环与本人权益页；未部署"
+  },
+  "memberRenewHistoricalParentCandidate": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "releaseId": "launch-20261002-a02449f7d",
+    "receipt": "docs/operations/真实会员授予通知与剩余入口审计-20261002.json",
+    "ciRun": 36955419264,
+    "imageRun": 36955729995,
+    "releaseDecision": "NO-GO",
+    "note": "真实管理员书院会员授予站内持久通知；五端等效51b，未部署"
   }
 }

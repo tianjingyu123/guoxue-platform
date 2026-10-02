@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T02:43:28.701Z",
-  "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+  "checkedAt": "2026-10-02T04:58:02.214Z",
+  "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
   "testFixtureCommit": "e5e379d91f154e84484bb612dcde386197623504",
   "releaseReady": false,
   "states": [
@@ -55,14 +55,14 @@
       "externalOnly": false
     }
   ],
-  "softwareSkippedCovered": 122,
+  "softwareSkippedCovered": 136,
   "hardwareSkippedDeferred": 29,
   "deferred": [
     "L3",
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "真实会员授予通知与剩余入口审计-20261002.json",
+  "record": "会员续费提醒持久补发与本人续费直达-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,20 +70,20 @@
     "skipped": 134
   },
   "formalImage": {
-    "source": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
-    "runId": 36955729995,
-    "checksPassed": 28,
+    "source": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "runId": 36966143664,
+    "checksPassed": 29,
     "production": false
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 36955419264,
-    "passed": 8941,
-    "skipped": 151,
+    "runId": 36965417490,
+    "passed": 8945,
+    "skipped": 165,
     "jobsPassed": 8
   },
   "historicalSoftwareSkippedCovered": 104,
-  "additionalSkippedCovered": 18,
+  "additionalSkippedCovered": 32,
   "independentEntitlementScope": {
     "event": "ENTITLEMENT_GRANTED:<ledgerId>",
     "databaseKey": "<userId>:ENTITLEMENT_GRANTED:<ledgerId>",
@@ -123,5 +123,27 @@
     "historicalBackfill": false,
     "realPush": false,
     "remainingAudit": "真实会员授予通知与剩余入口审计-20261002.json"
+  },
+  "previousMemberRenewParentBinding": {
+    "sourceCommit": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "ci": {
+      "runId": 36955419264,
+      "passed": 8941,
+      "skipped": 151,
+      "jobsPassed": 8
+    },
+    "formalImage": {
+      "source": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+      "runId": 36955729995,
+      "checksPassed": 28,
+      "production": false
+    }
+  },
+  "memberRenewScope": {
+    "databaseKey": "<userId>:MEMBER_RENEW_REMIND:<精确UTC到期时刻>:<7或0>",
+    "window": "对应北京自然日10:00至24:00，每分钟最多200条；窗口外不补发过时文案",
+    "realChannels": false,
+    "production": false,
+    "remainingAudit": "会员续费提醒持久补发与本人续费直达-20261002.json"
   }
 }

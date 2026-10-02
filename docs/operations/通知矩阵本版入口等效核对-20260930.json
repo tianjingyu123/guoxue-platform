@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "memberGrantCurrentBinding",
+  "currentBindingKey": "memberRenewCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -482,6 +482,99 @@
         "path": "apps/server/src/modules/member",
         "before": "5c4ef3f9a8ea21bed2a3086ebb191d45c28dbf20",
         "after": "d666aefa74bf0c277ce24aeef89fcb9d6ed8e2be",
+        "equivalent": false
+      }
+    ],
+    "allNotificationTriggersCompleted": false,
+    "realChannelsVerified": false
+  },
+  "memberRenewCurrentBinding": {
+    "sourceCommit": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
+    "comparedTo": "a02449f7ddc9fc0c8c8bb626ce6ff7d544b2493b",
+    "record": "会员续费提醒持久补发与本人续费直达-20261002.json",
+    "paths": [
+      {
+        "path": "apps/server/src/modules/notification",
+        "before": "236c736c8e488487c939369350c62e2306e6b6aa",
+        "after": "236c736c8e488487c939369350c62e2306e6b6aa",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/entitlement",
+        "before": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33",
+        "after": "6f57a4f9ca7634cec15a842b3949da4eabb6fc33",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/course",
+        "before": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+        "after": "926fc7798e2463ec2a8d66396abab85a43d0e4ad",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/live",
+        "before": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+        "after": "aa859d3b6ca34818109a1cfb6f7009d77bb6df43",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/circle",
+        "before": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+        "after": "aa9685c57c3f22503b10a17bd2011f41a1cba637",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/shop",
+        "before": "14d387db935db80077e13736df39d35e9a109bb2",
+        "after": "14d387db935db80077e13736df39d35e9a109bb2",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/user/feedback.service.ts",
+        "before": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+        "after": "37150cf599075785236b2b0490d3a7e5a69e2cfd",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/user/user.module.ts",
+        "before": "c7d7457f9782b284c32d23141f24c8216153c567",
+        "after": "c7d7457f9782b284c32d23141f24c8216153c567",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/ai-gateway/customer-service.service.ts",
+        "before": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+        "after": "ad0ee1e9a795217bb2d145b6eb9c68822b745a57",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/ai-gateway/customer-service.controller.ts",
+        "before": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+        "after": "30c45f619481ebfb4f2c50ea9282c8058aabbf97",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/coin",
+        "before": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+        "after": "593ef5c060c8acf9553864036734b4fe24fdb0f0",
+        "equivalent": true
+      },
+      {
+        "path": "apps/server/src/modules/member",
+        "before": "d666aefa74bf0c277ce24aeef89fcb9d6ed8e2be",
+        "after": "5e71818416d9c78ed122a4c2e14eb1303652670e",
+        "equivalent": false
+      },
+      {
+        "path": "apps/mobile/src/lib/im-data.ts",
+        "before": "fa799d17c2b8e5ad7d5228f1117c0c074893ccab",
+        "after": "5e1542c7366fb1d7cec55b972a1738489a3b1325",
+        "equivalent": false
+      },
+      {
+        "path": "apps/mobile/src/lib/mine-data.ts",
+        "before": "27e83e3feb9ba4128e5517ab7e07e7494256d0de",
+        "after": "3304a099c405fddf62207614c48b5a001f64ed26",
         "equivalent": false
       }
     ],
