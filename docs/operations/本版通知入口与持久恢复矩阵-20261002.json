@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
-  "checkedAt": "2026-10-02T20:14:33.571Z",
+  "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
+  "checkedAt": "2026-10-02T21:39:01.472Z",
   "rows": [
     {
       "id": "order-paid",
@@ -154,12 +154,14 @@
       "id": "course-paid",
       "event": "付费课程开通",
       "paths": [
-        "apps/server/src/modules/shop/shop-payment.service.ts"
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/paid-course-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
       ],
-      "key": "已有ORDER_PAID",
-      "state": "真实支付与课程权益入口",
-      "recovery": "未新增第二条独立COURSE_ENROLLED",
-      "gap": "独立权益/履约完成通知仍需明确补齐范围",
+      "key": "<userId>:COURSE_ENROLLED:<orderId>",
+      "state": "实际课程付款GRANT新标记COURSE_PAID_GRANTED_V1；任务注册并独立站内开通通知",
+      "recovery": "分钟SQL恢复并核本人/订单/课程/有效未冲正权益；DB唯一键防重，通知失败不影响已付主事务，不补旧流水",
+      "gap": "451项及编译26、最新485专项范围内通过；真实渠道、全部付款运输和同版手机未验",
       "online": "未知"
     },
     {
@@ -169,10 +171,10 @@
         "apps/server/src/modules/course/course-scheduler.service.ts",
         "apps/server/src/modules/course/course.module.ts"
       ],
-      "key": "COURSE_EXPIRING:<courseId>:<UTC日期>（收件人限定）",
-      "state": "实际每日Cron注册、最新有效付费订单及3日阈值",
-      "recovery": "数据库日防重、单课失败继续",
-      "gap": "非分钟持久恢复；日内崩溃补偿/正式时区尚未完整覆盖",
+      "key": "<userId>:COURSE_EXPIRING:<courseId>:<UTC date>",
+      "state": "原9点Cron保持；新增当天10/12/15/18/21点有限重试，过滤deletedAt",
+      "recovery": "复用原锁与UTC日期键，当天遗漏补回；不补历史、不新增分钟outbox",
+      "gap": "485项/编译16及镜像Redis两进程/HTTP目标权限列明范围通过；正式时区调度、外发渠道和同版手机未验",
       "online": "未知"
     },
     {
@@ -232,7 +234,7 @@
   "bindings": [
     {
       "path": "apps/server/src/modules/shop/shop-payment.service.ts",
-      "sha256": "4063cc3fa1ebb9b922c9dca1f13a107ca4f04afd259e68e58196ead424715125"
+      "sha256": "ffa3f4253a4dae84c487e12ecf196f63ea5eb68cf46e36cde7fe536863a5911b"
     },
     {
       "path": "apps/server/src/modules/shop/shop-refund.service.ts",
@@ -264,7 +266,7 @@
     },
     {
       "path": "apps/server/src/modules/notification/notification.module.ts",
-      "sha256": "0d6dc0404811dc8bf4764e1236526caea1d50bb6198bc3d6e8ec1fb68bc2ca39"
+      "sha256": "aa0606fcd25c6cd23e98acfa1c4af06ad126b185ca6d94484d779f25d2f8cfc9"
     },
     {
       "path": "apps/mobile/src/lib/mine-data.ts",
@@ -307,8 +309,12 @@
       "sha256": "776a844e49e2190c6ebdda243bd954c3a0d58301cc86c492bfcecde3173af368"
     },
     {
+      "path": "apps/server/src/modules/notification/paid-course-notification.task.ts",
+      "sha256": "3433817aff8bf0a8ac41b28d7db8299fb7dda9188acfb41d8da807661e2c1400"
+    },
+    {
       "path": "apps/server/src/modules/course/course-scheduler.service.ts",
-      "sha256": "7f5de622749cceb6cb6fde6b1f2bc5085175555456ddfc4cbe341c7735e86ed6"
+      "sha256": "f5ed0041907d48b3bc3a9b826d88b36c71cd11842e703df1478ff6c392936f41"
     },
     {
       "path": "apps/server/src/modules/live/live.service.ts",
@@ -353,8 +359,8 @@
   "realChannels": false,
   "production": false,
   "previousBinding": {
-    "sourceCommit": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
-    "record": "月度积分赠券持久通知与双入口验收-20261002.json"
+    "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+    "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
   },
   "previousPaymentBinding": {
     "sourceCommit": "72883b815eee332d9a383c61abf8c6be8020c920",

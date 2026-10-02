@@ -1,0 +1,417 @@
+{
+  "sourceCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
+  "businessCommit": "e8d28529546832733d42021b3be1fd6a8972c2d9",
+  "testFixtureCommit": null,
+  "sourceReceipt": {
+    "sourceCommit": "e8d28529546832733d42021b3be1fd6a8972c2d9",
+    "parent": "9c6c2d120fa787c720449c8979c8fe8f5086d753",
+    "files": [
+      "apps/server/src/modules/notification/notification.module.ts",
+      "apps/server/src/modules/notification/paid-course-notification.task.spec.ts",
+      "apps/server/src/modules/notification/paid-course-notification.task.ts",
+      "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "apps/server/src/modules/shop/shop-payment.service.ts"
+    ],
+    "schemaChanged": false,
+    "migrationCount": 134,
+    "relatedPassed": 451,
+    "compiledFinalPending": false,
+    "production": false,
+    "checkedAt": "2026-10-02T20:52:34.897Z",
+    "compiledPassed": 26,
+    "prismaClientIsolated": true,
+    "specTypesPassed": true,
+    "serverTypesPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 13,
+    "gitLfBindingVerified": true
+  },
+  "localTests": 451,
+  "newTests": 29,
+  "compiledTests": 26,
+  "linux": {
+    "sourceCommit": "e8d28529546832733d42021b3be1fd6a8972c2d9",
+    "runId": 37063127774,
+    "verificationHead": "f5f0b850e8f6e887c956d3bec4ddb9e6ef3564d4",
+    "artifactId": 11251965028,
+    "artifactDigest": "sha256:21cf149fa1bef0b62c72508fdd2dcc82bee8afa1b1f4c1981a1a411eaa19e200",
+    "digestVerified": true,
+    "verifiedSourceHashLines": 1968,
+    "linux": "ubuntu-24.04",
+    "postgres": "18.4",
+    "passed": 451,
+    "suites": 23,
+    "compiledPassed": 26,
+    "compiledSourceBindings": 6,
+    "typecheck": true,
+    "build": true,
+    "lintErrors": 0,
+    "production": false,
+    "realRedis": false,
+    "realChannels": false,
+    "transportSignature": false,
+    "formalDockerfileImage": false,
+    "newDeviceTest": false,
+    "historicalBackfill": false,
+    "summaries": [
+      {
+        "file": "src/modules/shop/shop-payment.service.spec.ts",
+        "passed": 70
+      },
+      {
+        "file": "src/modules/shop/shop-refund.service.spec.ts",
+        "passed": 44
+      },
+      {
+        "file": "src/modules/shop/school-member-entitlement.postgres.spec.ts",
+        "passed": 33
+      },
+      {
+        "file": "src/modules/notification/entitlement-notification.postgres.spec.ts",
+        "passed": 17
+      },
+      {
+        "file": "src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+        "passed": 19
+      },
+      {
+        "file": "src/modules/notification/notification.service.spec.ts",
+        "passed": 29
+      },
+      {
+        "file": "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "passed": 14
+      },
+      {
+        "file": "src/modules/shop/paid-course-notification.postgres.spec.ts",
+        "passed": 26
+      },
+      {
+        "file": "src/modules/member/member-monthly-notification.postgres.spec.ts",
+        "passed": 19
+      },
+      {
+        "file": "src/modules/course/free-course-notification.postgres.spec.ts",
+        "passed": 20
+      },
+      {
+        "file": "src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+        "passed": 20
+      },
+      {
+        "file": "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "passed": 8
+      },
+      {
+        "file": "src/modules/entitlement/entitlement.service.spec.ts",
+        "passed": 6
+      },
+      {
+        "file": "src/modules/shop/payment-ack-boundary.spec.ts",
+        "passed": 75
+      },
+      {
+        "file": "src/modules/course/course-free-enrollment-notification.spec.ts",
+        "passed": 9
+      },
+      {
+        "file": "src/modules/member/member.service.spec.ts",
+        "passed": 18
+      },
+      {
+        "file": "src/modules/course/course-purchase.service.spec.ts",
+        "passed": 3
+      },
+      {
+        "file": "src/modules/member/member-grant.service.spec.ts",
+        "passed": 4
+      },
+      {
+        "file": "src/modules/notification/entitlement-notification.task.spec.ts",
+        "passed": 4
+      },
+      {
+        "file": "src/modules/notification/member-monthly-notification.task.spec.ts",
+        "passed": 3
+      },
+      {
+        "file": "src/modules/notification/paid-course-notification.task.spec.ts",
+        "passed": 3
+      },
+      {
+        "file": "src/modules/notification/free-course-notification.task.spec.ts",
+        "passed": 3
+      },
+      {
+        "file": "src/modules/shop/membership-period.spec.ts",
+        "passed": 4
+      }
+    ],
+    "checkedAt": "2026-10-02T20:54:59.026Z"
+  },
+  "ci": {
+    "checkedAt": "2026-10-02T21:10:16.2891842Z",
+    "passed": 9100,
+    "sourceCommit": "e8d28529546832733d42021b3be1fd6a8972c2d9",
+    "production": false,
+    "skipped": 529,
+    "jobsPassed": 8,
+    "runId": 37063060339,
+    "fullCIComplete": true,
+    "shards": [
+      {
+        "id": 111024655784,
+        "passed": 3088,
+        "skipped": 156,
+        "summary": "2026-10-02T20:54:41.0735387Z Tests:       156 skipped, 3088 passed, 3244 total",
+        "name": "单元测试 (3/3)"
+      },
+      {
+        "id": 111024655828,
+        "passed": 2930,
+        "skipped": 177,
+        "summary": "2026-10-02T21:05:36.3009656Z Tests:       177 skipped, 2930 passed, 3107 total",
+        "name": "单元测试 (1/3)"
+      },
+      {
+        "id": 111024655909,
+        "passed": 3082,
+        "skipped": 196,
+        "summary": "2026-10-02T20:54:42.9441700Z Tests:       196 skipped, 3082 passed, 3278 total",
+        "name": "单元测试 (2/3)"
+      }
+    ],
+    "artifactId": 11252077134,
+    "artifactDigest": "sha256:5c0ee999573fa7811a201443f7272f43d4ee1540ee7e1a78c325e235d6f1df97",
+    "artifactDigestVerified": true
+  },
+  "schemaChanged": false,
+  "migrationChanged": false,
+  "migrationCount": 134,
+  "baselineCounterexample": {
+    "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
+    "compiledSourceSha256": "53fb2f16c411b94ddb4dede335fc495fe7fe13ae2213870b324fd4642043067a",
+    "database": "entitlement_notice_qa_20261002_paid_course_counterexample",
+    "actualPaymentService": true,
+    "realPostgres": true,
+    "orderCommitted": true,
+    "courseEntitlementCommitted": true,
+    "genericPaidNotifications": 1,
+    "courseEnrollmentNotifications": 0,
+    "ledgerMetadata": {
+      "orderType": "COURSE"
+    },
+    "newPaidCourseNoticeGap": true,
+    "HTTPJWT": false,
+    "realRedis": false,
+    "realChannels": false,
+    "production": false
+  },
+  "mobile": {
+    "sourceCommit": "e8d28529546832733d42021b3be1fd6a8972c2d9",
+    "builtSource": "b18106b18731a626165f1cb5c8513a5b8fdf62f5",
+    "inputEquivalence": true,
+    "config": {
+      "VITE_RELEASE_CHANNEL": "formal",
+      "VITE_API_URL": "https://api.rebugx.cn",
+      "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+      "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn"
+    },
+    "configHash": "169ac4768c23c5c664b469a27c2d05d6850d50527069bde6b7b755ca0a60fca4",
+    "filesVerified": 7572,
+    "builds": [
+      {
+        "platform": "mp-weixin",
+        "fileCount": 2759,
+        "bytes": 11127130,
+        "fingerprint": "1ead4416b4f3c30e79f79ba48d354ca92804631126175d1957db1fde7b25c6ab"
+      },
+      {
+        "platform": "h5",
+        "fileCount": 1181,
+        "bytes": 11147496,
+        "fingerprint": "61078ebe4fb13408844c7edc46824ce580dd9dbe60f5348d8e2bfbf99b35212d"
+      },
+      {
+        "platform": "app",
+        "fileCount": 492,
+        "bytes": 12897547,
+        "fingerprint": "1317b62c1a6368b4c830e3ed4ab3534a380016cc9434f5bdb15b7d9d0a78f0f8"
+      },
+      {
+        "platform": "mp-harmony",
+        "fileCount": 2650,
+        "bytes": 11039457,
+        "fingerprint": "fd9a11b028443ae5bdd831bc7c27410a2561b18a3d99699776fa79c48a6ebef0"
+      },
+      {
+        "platform": "app-harmony",
+        "fileCount": 490,
+        "bytes": 12537060,
+        "fingerprint": "ec013c886e5c3a16ccf3935b8c78e398d3431c17f0763ea981d7caf7dcc50597"
+      }
+    ],
+    "miniSize": {
+      "mainBytes": 1701808,
+      "subpackages": [
+        {
+          "root": "pkg-paipan",
+          "bytes": 1764521
+        },
+        {
+          "root": "pkg-paipan3",
+          "bytes": 178884
+        },
+        {
+          "root": "pkg-paipan2",
+          "bytes": 580473
+        },
+        {
+          "root": "pkg-course",
+          "bytes": 272353
+        },
+        {
+          "root": "pkg-mall",
+          "bytes": 116024
+        },
+        {
+          "root": "pkg-shop",
+          "bytes": 213154
+        },
+        {
+          "root": "pkg-order",
+          "bytes": 142973
+        },
+        {
+          "root": "pkg-account",
+          "bytes": 152674
+        },
+        {
+          "root": "pkg-classics",
+          "bytes": 406996
+        },
+        {
+          "root": "pkg-circle",
+          "bytes": 1147445
+        },
+        {
+          "root": "pkg-agent",
+          "bytes": 250898
+        },
+        {
+          "root": "pkg-live",
+          "bytes": 566894
+        },
+        {
+          "root": "pkg-video",
+          "bytes": 189113
+        },
+        {
+          "root": "pkg-competition",
+          "bytes": 228961
+        },
+        {
+          "root": "pkg-merchant",
+          "bytes": 539464
+        },
+        {
+          "root": "pkg-operator",
+          "bytes": 496813
+        },
+        {
+          "root": "pkg-institute",
+          "bytes": 281696
+        },
+        {
+          "root": "pkg-offline",
+          "bytes": 276850
+        },
+        {
+          "root": "pkg-mine",
+          "bytes": 660168
+        },
+        {
+          "root": "pkg-profile",
+          "bytes": 46762
+        },
+        {
+          "root": "pkg-settings",
+          "bytes": 70501
+        },
+        {
+          "root": "pkg-auth",
+          "bytes": 71099
+        },
+        {
+          "root": "pkg-im",
+          "bytes": 165968
+        },
+        {
+          "root": "pkg-search",
+          "bytes": 56877
+        },
+        {
+          "root": "pkg-discover",
+          "bytes": 7752
+        },
+        {
+          "root": "pkg-bounty",
+          "bytes": 79751
+        },
+        {
+          "root": "pkg-help",
+          "bytes": 15187
+        },
+        {
+          "root": "pkg-report",
+          "bytes": 55003
+        },
+        {
+          "root": "pkg-notices",
+          "bytes": 34900
+        },
+        {
+          "root": "pkg-common",
+          "bytes": 42252
+        },
+        {
+          "root": "pkg-creator",
+          "bytes": 83244
+        },
+        {
+          "root": "pkg-solar-term",
+          "bytes": 19199
+        },
+        {
+          "root": "pkg-workspace",
+          "bytes": 210027
+        }
+      ],
+      "estimatedPlatformOverhead": 294912,
+      "estimatedUploadMain": 1996720,
+      "estimatedRemaining": 100432,
+      "minimumReserved": 81920,
+      "realUpload": false
+    },
+    "univerifyEnabled": "未设置，仍使用源码默认关闭；不能冒充手机号原生验收",
+    "newBuild": false,
+    "realDevice": false,
+    "signedNativeBundle": false,
+    "production": false,
+    "checkedAt": "2026-10-02T20:51:19.039Z"
+  },
+  "formalImageRecord": "最新固定源码包与正式镜像隔离验证-20261002.json",
+  "states": [
+    "代码候选完成",
+    "隔离验证完成",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "coverageNote": "测试范围重叠，不累加；整版CI对应业务提交，0078仅容器测试夹具收口。最终文档HEAD的CI另核对。",
+  "realProvider": false,
+  "realChannels": false,
+  "newDeviceTest": false,
+  "production": false,
+  "releaseReady": false
+}
