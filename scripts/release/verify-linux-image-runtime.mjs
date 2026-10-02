@@ -87,10 +87,8 @@ try {
   let dbReady = false;
   for (let i = 0; i < 30; i++) {
     // 官方入口初始化期间仅启动Unix socket临时服务器，之后会关闭；必须等待最终TCP服务器。
-    const result = spawnSync("docker", ["exec", database, "psql", "-h", "127.0.0.1", "-U", "guoxue", "-d", "guoxue", "-Atc", "SELECT 1"], {
-      env: { ...process.env }, encoding: "utf8", timeout: 10000,
-    });
-    if (result.status === 0 && result.stdout.trim() === "1") { dbReady = true; break; }
+    const result = spawnSync("docker", ["exec", database, "pg_isready", "-h", "127.0.0.1", "-U", "guoxue", "-d", "guoxue"], { stdio: "ignore", timeout: 10000 });
+    if (result.status === 0) { dbReady = true; break; }
     await sleep(2000);
   }
   assert(dbReady, "临时数据库启动超时");
