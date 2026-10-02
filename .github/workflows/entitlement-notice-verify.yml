@@ -9,7 +9,7 @@ on:
       source_commit:
         description: 已接收候选的完整提交 SHA
         required: true
-        default: 584705933d9a26e2321fb83f195d064f0029f840
+        default: 6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
       ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_linux
-      SOURCE_COMMIT: ${{ inputs.source_commit || '584705933d9a26e2321fb83f195d064f0029f840' }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || '6e2cc73106a9976c26ed8ec8cd0ab668d0e9112f' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -71,6 +71,7 @@ jobs:
           sha256sum apps/server/src/modules/circle/governance/circle-governance.service.ts apps/server/src/modules/circle/governance/circle-governance.service.spec.ts apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts >> artifacts/entitlement-notice/source-binding.txt
           sha256sum apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts apps/server/src/modules/circle/circle.service.spec.ts >> artifacts/entitlement-notice/source-binding.txt
           sha256sum apps/server/src/modules/circle/services/circle-core.service.ts apps/server/src/modules/circle/circle.controller.ts apps/server/src/modules/circle/services/circle-detail-privacy.spec.ts >> artifacts/entitlement-notice/source-binding.txt
+          sha256sum apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts >> artifacts/entitlement-notice/source-binding.txt
           pnpm install --frozen-lockfile
           pnpm --filter @guoxue/server exec prisma generate
           pnpm --filter @guoxue/shared build
@@ -81,7 +82,7 @@ jobs:
         working-directory: candidate/apps/server
         run: |
           set -euo pipefail
-          pnpm exec jest --runInBand --no-coverage --runTestsByPath src/modules/notification/entitlement-notification.task.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/entitlement/entitlement.service.spec.ts src/modules/notification/notification.service.spec.ts src/modules/member/member.service.spec.ts src/modules/member/member.controller.spec.ts src/modules/member/member-grant.service.spec.ts src/modules/member/member-renew.postgres.spec.ts src/modules/user/feedback.service.spec.ts src/modules/user/feedback.controller.access.spec.ts src/modules/user/feedback-notification.task.spec.ts src/modules/user/feedback-notification.postgres.spec.ts src/modules/im/im-callback.privacy.spec.ts src/modules/im/im-callback.controller.spec.ts src/common/tencent-im-callback.guard.spec.ts src/modules/member/member-benefit.monthly.postgres.spec.ts src/modules/member/member-benefit.ai-quota.spec.ts src/modules/shop/shop-payment.service.spec.ts src/modules/shop/shop-refund.service.spec.ts src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts src/modules/circle/services/circle-expiration-reminder.spec.ts src/modules/circle/services/circle-post.service.spec.ts src/modules/circle/services/circle-post-reward-notification.task.spec.ts src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts src/modules/notification/notification-classification.postgres.spec.ts src/modules/circle/governance/circle-governance.service.spec.ts src/modules/circle/governance/circle-governance-cas.postgres.spec.ts src/modules/circle/services/circle-member-removal.postgres.spec.ts src/modules/circle/circle.service.spec.ts src/modules/circle/services/circle-detail-privacy.spec.ts --json --outputFile ../../artifacts/entitlement-notice/jest-results.json 2>&1 | tee ../../artifacts/entitlement-notice/jest.log
+          pnpm exec jest --runInBand --no-coverage --runTestsByPath src/modules/notification/entitlement-notification.task.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/entitlement/entitlement.service.spec.ts src/modules/notification/notification.service.spec.ts src/modules/member/member.service.spec.ts src/modules/member/member.controller.spec.ts src/modules/member/member-grant.service.spec.ts src/modules/member/member-renew.postgres.spec.ts src/modules/user/feedback.service.spec.ts src/modules/user/feedback.controller.access.spec.ts src/modules/user/feedback-notification.task.spec.ts src/modules/user/feedback-notification.postgres.spec.ts src/modules/im/im-callback.privacy.spec.ts src/modules/im/im-callback.controller.spec.ts src/common/tencent-im-callback.guard.spec.ts src/modules/member/member-benefit.monthly.postgres.spec.ts src/modules/member/member-benefit.ai-quota.spec.ts src/modules/shop/shop-payment.service.spec.ts src/modules/shop/shop-refund.service.spec.ts src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts src/modules/circle/services/circle-expiration-reminder.spec.ts src/modules/circle/services/circle-post.service.spec.ts src/modules/circle/services/circle-post-reward-notification.task.spec.ts src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts src/modules/notification/notification-classification.postgres.spec.ts src/modules/circle/governance/circle-governance.service.spec.ts src/modules/circle/governance/circle-governance-cas.postgres.spec.ts src/modules/circle/services/circle-member-removal.postgres.spec.ts src/modules/circle/circle.service.spec.ts src/modules/circle/services/circle-detail-privacy.spec.ts src/modules/circle/services/circle-membership-count.postgres.spec.ts --json --outputFile ../../artifacts/entitlement-notice/jest-results.json 2>&1 | tee ../../artifacts/entitlement-notice/jest.log
           pnpm exec tsc --noEmit --incremental false 2>&1 | tee ../../artifacts/entitlement-notice/typecheck.log
           pnpm exec eslint src/modules/notification/entitlement-notification.task.ts src/modules/notification/entitlement-notification.task.spec.ts src/modules/notification/entitlement-notification.postgres.spec.ts src/modules/entitlement/entitlement.controller.ts src/modules/notification/notification.module.ts 2>&1 | tee ../../artifacts/entitlement-notice/eslint.log
           pnpm exec eslint src/modules/member/member.service.ts src/modules/member/member.controller.ts src/modules/member/member.dto.ts src/modules/member/member-grant.service.ts src/modules/member/member-grant.service.spec.ts src/modules/member/member-renew.postgres.spec.ts --format json --output-file ../../artifacts/entitlement-notice/member-lint.json
@@ -92,6 +93,7 @@ jobs:
           pnpm exec eslint src/modules/circle/governance/circle-governance.service.ts src/modules/circle/governance/circle-governance.service.spec.ts src/modules/circle/governance/circle-governance-cas.postgres.spec.ts --format json --output-file ../../artifacts/entitlement-notice/circle-governance-lint.json
           pnpm exec eslint src/modules/circle/governance/circle-governance.service.ts src/modules/circle/governance/circle-governance.service.spec.ts src/modules/circle/services/circle-membership.service.ts src/modules/circle/services/circle-member-removal.postgres.spec.ts src/modules/circle/circle.service.spec.ts --format json --output-file ../../artifacts/entitlement-notice/circle-member-removal-lint.json
           pnpm exec eslint src/modules/circle/services/circle-core.service.ts src/modules/circle/circle.controller.ts src/modules/circle/services/circle-detail-privacy.spec.ts src/modules/circle/circle.service.spec.ts --format json --output-file ../../artifacts/entitlement-notice/circle-detail-privacy-lint.json
+          pnpm exec eslint src/modules/circle/services/circle-membership.service.ts src/modules/circle/services/circle-membership-count.postgres.spec.ts src/modules/circle/circle.service.spec.ts --format json --output-file ../../artifacts/entitlement-notice/circle-membership-count-lint.json
       - name: 归档隔离验证证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
