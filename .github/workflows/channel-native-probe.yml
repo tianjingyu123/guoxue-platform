@@ -1,4 +1,4 @@
-name: Android SDK实际目录加载器许可只读核验
+name: 渠道构建根配置门禁Linux专项验收
 on:
   push:
     branches: [codex/channel-linux-probe-20261001]
@@ -8,33 +8,44 @@ concurrency:
   group: channel-native-probe-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  existing-license:
+  build-source-gates:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 7
     steps:
-      - name: 获取并核验本次独立测试提交
+      - name: 获取本次独立测试提交
         shell: bash
         run: |
           set -euo pipefail
           git init .
-          git remote add origin https://github.com/tianjingyu123/guoxue-platform.git
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
           git -c protocol.version=2 fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-      - name: 官方SDK目录加载器只读回查
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+      - name: 核验固定源码文件并运行真实Git与合成编译器检查
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/linux-native-probe "$RUNNER_TEMP/loaded-license-check"
-          curl --fail --proto '=https' --tlsv1.2 --max-time 45 https://dl.google.com/android/repository/sys-img/android/sys-img2-4.xml -o artifacts/linux-native-probe/sdk-aosp-catalog.xml
-          test "$(sha256sum artifacts/linux-native-probe/sdk-aosp-catalog.xml | cut -d ' ' -f1)" = fea06dcf5b6eed13d0cb9c8e06decd60dce36ac9eb3af0d2bb671edd96d77b50
-          javac -encoding UTF-8 -cp "$ANDROID_HOME/cmdline-tools/latest/lib/*" -d "$RUNNER_TEMP/loaded-license-check" .github/native-probe/OfficialLoadedSdkLicenses.java
-          java -cp "$RUNNER_TEMP/loaded-license-check:$ANDROID_HOME/cmdline-tools/latest/lib/*" OfficialLoadedSdkLicenses "$ANDROID_HOME" artifacts/linux-native-probe/sdk-aosp-catalog.xml | tee artifacts/linux-native-probe/official-loaded-license-readonly.jsonl
-      - name: 保存只读核验原始证据
+          mkdir -p artifacts/phase28-linux-source-gate
+          git rev-parse HEAD > artifacts/phase28-linux-source-gate/remote-source.txt
+          node --version > artifacts/phase28-linux-source-gate/node-version.txt
+          uname -a > artifacts/phase28-linux-source-gate/host.txt
+          test "$(sha256sum scripts/release/build-channel-resources.mjs | cut -d ' ' -f1)" = 0820518aad20c3ace05f13628f20b1bc43c926bd4bb412187d58026df00d850f
+          test "$(sha256sum scripts/release/resolve-pnpm-invocation.mjs | cut -d ' ' -f1)" = 52efd54d4614ea7aeabff1883419579c89ec68118a2cdae81af8c678b050ec2e
+          test "$(sha256sum scripts/release/check-resource-native-boundary.mjs | cut -d ' ' -f1)" = 589c0b846676b6bc579f9afd39febed41c7f4ba9eec227e342856f1c458f26cf
+          test "$(sha256sum scripts/release/check-wgt-archive.mjs | cut -d ' ' -f1)" = ac933b2b7e58acac15ad4cb683a359989b4224a3fae96f67f233741f201d0d1f
+          test "$(sha256sum tests/release/channel-build-source.test.mjs | cut -d ' ' -f1)" = 3ff00031551177d096a02ba9ec1de61d496d8cd7d93e5cc128e6a95999630aca
+          test "$(sha256sum tests/release/channel-package-gates.test.mjs | cut -d ' ' -f1)" = c4265626d8852fbef5c277dbaa493803a1a5ff862ec43e466cdf2e062968b0a8
+          test "$(sha256sum tests/release/resolve-pnpm-invocation.test.mjs | cut -d ' ' -f1)" = e8045c8c747c700690660a8060a1ea6594526c7a7cf95bcd44ecd85992a525d3
+          sha256sum scripts/release/build-channel-resources.mjs scripts/release/resolve-pnpm-invocation.mjs scripts/release/check-resource-native-boundary.mjs scripts/release/check-wgt-archive.mjs tests/release/channel-build-source.test.mjs tests/release/channel-package-gates.test.mjs tests/release/resolve-pnpm-invocation.test.mjs > artifacts/phase28-linux-source-gate/input-sha256.txt
+          node --test --test-reporter=tap tests/release/channel-build-source.test.mjs tests/release/channel-package-gates.test.mjs tests/release/resolve-pnpm-invocation.test.mjs | tee artifacts/phase28-linux-source-gate/tests.tap
+      - name: 保存专项原始证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: sdk-loaded-license-${{ github.sha }}
+          name: phase28-source-gate-${{ github.sha }}
           retention-days: 14
           if-no-files-found: error
-          path: artifacts/linux-native-probe/
+          path: artifacts/phase28-linux-source-gate/
