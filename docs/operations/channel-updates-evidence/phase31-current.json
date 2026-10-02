@@ -1,0 +1,252 @@
+{
+  "verifiedAt": "2026-10-02T02:07:37.121Z",
+  "sourceSha": "d6b7775312b77078580fcca576afeecb24f1d742",
+  "baseSha": "5bb4550d6e9442f2c30dbb9b5174baf5f49008e0",
+  "sourceDirtyAtArchive": false,
+  "changedFiles": [
+    "scripts/release/audit-store-readiness.mjs",
+    "tests/release/audit-store-readiness.test.mjs"
+  ],
+  "bug": "旧构建号 null/空白/布尔值/数组等经 Number 隐式转换，可能错误放行覆盖升级比较；不安全候选整数未拒绝",
+  "behavior": "仅接受正安全整数数字或十进制数字字符串；三端基线与候选均先验证，再进行严格大于比较",
+  "testExecution": {
+    "beforeFix": {
+      "auditSourceCommit": "5bb4550d6e9442f2c30dbb9b5174baf5f49008e0",
+      "testSourceCommit": "d6b7775312b77078580fcca576afeecb24f1d742",
+      "testAddedBeforeFix": true,
+      "sourceDirty": true,
+      "total": 20,
+      "passed": 7,
+      "failed": 13,
+      "skipped": 0,
+      "expectedFailure": true
+    },
+    "afterFix": {
+      "testExecutionBeforeCommit": true,
+      "validatedFilesEqualCommittedSource": true,
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "suites": [
+        "audit-store-readiness.test.mjs:20",
+        "channel-build-source.test.mjs:6",
+        "channel-package-gates.test.mjs:2"
+      ],
+      "syntaxChecksPassed": true
+    },
+    "releaseGate": {
+      "sourceClean": true,
+      "strictExitCode": 1,
+      "expectedBlocked": true,
+      "summary": {
+        "total": 23,
+        "passed": 21,
+        "failed": 2,
+        "externalBlockers": 2,
+        "configurationBlockers": 0,
+        "codeBlockers": 0
+      },
+      "failedNames": [
+        "App 原生 SDK/插件配置已完成",
+        "鸿蒙正式签名资料已核验"
+      ],
+      "notA16AccountVerification": true
+    }
+  },
+  "reusedEvidence": {
+    "unchangedInputs": [
+      {
+        "path": "apps/server",
+        "previousObject": "0f5925672e3713d98c005724df2cbcae54d91c57",
+        "currentObject": "0f5925672e3713d98c005724df2cbcae54d91c57"
+      },
+      {
+        "path": "apps/mobile",
+        "previousObject": "1f997cfaceb104743757f00f37c0b04dc81452df",
+        "currentObject": "1f997cfaceb104743757f00f37c0b04dc81452df"
+      },
+      {
+        "path": "apps/admin",
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c"
+      },
+      {
+        "path": "packages",
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      },
+      {
+        "path": "scripts/release/build-channel-resources.mjs",
+        "previousObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+        "currentObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389"
+      },
+      {
+        "path": "scripts/release/audit-mobile-native-bundle.mjs",
+        "previousObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149",
+        "currentObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149"
+      }
+    ],
+    "phase29ServerReportSha256": "d09371dd2822070103f552bf2954b416b08e5d8a485620ace52d26ee0ed58e0b",
+    "phase30MobileReportSha256": "ad3581d37e12dada253b0de4d404e0f10135a4af0275dcbe49b4d36912ed9909",
+    "businessTestsNotRerun": true,
+    "resourceBuildsNotRerun": true,
+    "oldCountsNotAccumulated": true,
+    "oldFrozenProductsNotOverwritten": true
+  },
+  "review": {
+    "patch": "artifacts/phase31-store-baseline-current/review-verified/store-baseline-guard.patch",
+    "bundle": "artifacts/phase31-store-baseline-current/review-verified/store-baseline-guard.bundle",
+    "bundleVerified": true,
+    "temporaryIndexOnly": true,
+    "reconstructedTree": "89d8d06eacb33213179ae182f04074c9a5a33e87",
+    "sourceTree": "89d8d06eacb33213179ae182f04074c9a5a33e87"
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T02:07:37.119Z",
+    "receiverSnapshot": "cf7ef433698a11bfff25d622ce0721aff552f7d1",
+    "candidateSource": "d6b7775312b77078580fcca576afeecb24f1d742",
+    "productPaths": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml"
+    ],
+    "changedFileCount": 50,
+    "changedFiles": [
+      "apps/admin/src/views/system/ClientPresentationPanel.vue",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+      "apps/mobile/src/lib/resource-update-lifecycle.ts",
+      "apps/mobile/src/lib/resource-updater.ts",
+      "apps/mobile/src/pkg-live/live-trtc-client.ts",
+      "apps/server/src/modules/auth/auth.service.spec.ts",
+      "apps/server/src/modules/auth/auth.service.ts",
+      "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+      "apps/server/src/modules/sms/sms.service.spec.ts",
+      "apps/server/src/modules/sms/sms.service.ts",
+      "scripts/release/android-probe-device-identity.mjs",
+      "scripts/release/android-probe-install.mjs",
+      "scripts/release/android-probe-log-cutoff.mjs",
+      "scripts/release/android-probe-log-stream.mjs",
+      "scripts/release/android-probe-recovery-evidence.mjs",
+      "scripts/release/audit-store-readiness.mjs",
+      "scripts/release/build-channel-resources.mjs",
+      "scripts/release/build-native-probe.mjs",
+      "scripts/release/probe-health-resources.mjs",
+      "scripts/release/probe-tls-server.mjs",
+      "scripts/release/verify-native-api26-baseline.mjs",
+      "scripts/release/verify-native-api26-controls.mjs",
+      "scripts/release/verify-native-base-upgrades.mjs",
+      "scripts/release/verify-native-health-window.mjs",
+      "scripts/release/verify-native-probe.mjs",
+      "scripts/release/verify-native-tls-android.mjs",
+      "scripts/release/verify-native-transfer-android.mjs",
+      "scripts/release/verify-native-transfer.mjs",
+      "scripts/release/verify-resource-native.mjs",
+      "tests/release/admin-client-presentation.test.cjs",
+      "tests/release/android-probe-device-identity.test.mjs",
+      "tests/release/android-probe-recovery-evidence.test.mjs",
+      "tests/release/android-probe/ProbeActivity.java",
+      "tests/release/android-probe/TlsScenarios.java",
+      "tests/release/android-probe/TransferScenarios.java",
+      "tests/release/audit-store-readiness.test.mjs",
+      "tests/release/channel-build-source.test.mjs",
+      "tests/release/channel-capability-jwt-postgres.test.cjs",
+      "tests/release/channel-login-concurrency-postgres.test.cjs",
+      "tests/release/channel-password-login-postgres.test.cjs",
+      "tests/release/channel-resource-updater.test.cjs",
+      "tests/release/channel-session-redis-postgres.test.cjs",
+      "tests/release/channel-sms-once-postgres.test.cjs",
+      "tests/release/channel-trusted-login-postgres.test.cjs",
+      "tests/release/mobile-live-safe-area.test.mjs",
+      "tests/release/mobile-shipping-regions.test.cjs",
+      "tests/release/native/NativeTransferProbe.java",
+      "tests/release/resource-health-lifecycle.test.cjs"
+    ],
+    "patch": "artifacts/phase31-store-baseline-current/mainline-review/remaining-channel-differences-from-cf7ef433.patch",
+    "patchBytes": 316989,
+    "patchSha256": "4a19e2b0bc004e8f462f58c24df9af73b7015c9e20cf5b59ac8d922bc69ae6a4",
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "c54b1a4b2349c0e1f3a3d2827da78210d8f5a51b",
+    "reconstructedProductInputsEqualCandidate": true,
+    "receiverOtherPathsPreserved": true,
+    "actualMainlineReception": false,
+    "masterUpdated": false,
+    "serverDeployed": false,
+    "receiverMustRevalidateCurrentSourceAndConflicts": true,
+    "crossThreadSendAuthorizationPending": true
+  },
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "signedApkBuilt": false,
+  "uploaded": false,
+  "evidence": {
+    "artifacts/phase31-store-baseline-current/before-fix.log": {
+      "bytes": 16738,
+      "sha256": "62653c463eb64322b404c538eb837019263c8dbb97a394a13540593d5eb1b3e2"
+    },
+    "artifacts/phase31-store-baseline-current/after-fix.log": {
+      "bytes": 3074,
+      "sha256": "3e21ff37327c3c9d56877a39ec4181eb302bfe6ddaf759c7929eb0ff906ef0be"
+    },
+    "artifacts/phase31-store-baseline-current/store-readiness.json": {
+      "bytes": 4688,
+      "sha256": "57e4bdfb160f81bc051a3fc3da4048ddf2cda9ddcc0ddc378090a8f3cce59045"
+    },
+    "artifacts/phase31-store-baseline-current/store-readiness.log": {
+      "bytes": 3140,
+      "sha256": "42b8a4d18c4694715cd1be828285c73d2538aecd8d522174af19c2bd4e592cf9"
+    },
+    "artifacts/phase31-store-baseline-current/review-verified/store-baseline-guard.patch": {
+      "bytes": 8341,
+      "sha256": "9b2d79ea44fee8fb2288126b3e5482b55bd6c1fe262136526c1bda649edb32d5"
+    },
+    "artifacts/phase31-store-baseline-current/review-verified/store-baseline-guard.bundle": {
+      "bytes": 2593,
+      "sha256": "02377bf8d77a853a592b50c80f6161e50cc59a82ce202156b0d8d68dfd79e1c7"
+    },
+    "artifacts/phase31-store-baseline-current/mainline-review/remaining-channel-differences-from-cf7ef433.patch": {
+      "bytes": 316989,
+      "sha256": "4a19e2b0bc004e8f462f58c24df9af73b7015c9e20cf5b59ac8d922bc69ae6a4"
+    },
+    "artifacts/phase31-store-baseline-current/mainline-review/proposal.json": {
+      "bytes": 3826,
+      "sha256": "9764640127bc492eacd51688512dc5cdf13063697ef8a99f5e5a9b79b28e0f34"
+    }
+  },
+  "externalState": {
+    "browserInventoryAvailable": true,
+    "browserChromeInventoryError": "nodeRepl.fetch request failed",
+    "sdkPageNewLoginStateVerified": false,
+    "noNewBrowserControlOrDownloads": true,
+    "noServerActions": true,
+    "noCrossThreadMessages": true
+  },
+  "limits": [
+    "测试20项包含原6项及新增14项；修复前13失败为期望反证，不计为通过",
+    "本轮只修改商店审计脚本与测试，不代表16商店账号、许可、签名、材料或提审已验收",
+    "正式语音真机与鸿蒙签名门禁仍阻断；完整SDK、旧安卓物理设备及全端业务验收仍未完成",
+    "主线cf7本轮仅文档变化，没有接收本渠道差异；主线CI/镜像结果仍保留其自己的51b源码，不绑定本候选",
+    "内部剩余业务、生产维护部署、安全容量与正式发布仍按主线清单保留"
+  ]
+}
