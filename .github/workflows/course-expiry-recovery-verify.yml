@@ -9,7 +9,7 @@ on:
       source_commit:
         description: 已评审的完整候选提交
         required: true
-        default: f77ba27303299a349aa6ba81850c61dcf0e506f1
+        default: 0078de02ceb5e22dc5df01ca8f665f6ba708382d
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_course_expiry_linux
       ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_course_expiry_linux
-      SOURCE_COMMIT: ${{ inputs.source_commit || 'f77ba27303299a349aa6ba81850c61dcf0e506f1' }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || '0078de02ceb5e22dc5df01ca8f665f6ba708382d' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -104,6 +104,7 @@ jobs:
           name: course-expiry-recovery-${{ env.SOURCE_COMMIT }}
           path: candidate/artifacts/course-expiry-recovery/
           retention-days: 30
+
 
 
 
