@@ -30,7 +30,8 @@ const buildEnvironment = {
 const record = { sourceSha, ...Object.fromEntries(['productId','applicationId','platform','channelId','clientKey','packageName','nativeBuild','resourceVersion'].map(key => [key, data[key]])),
   output, artifactType: 'compiled-resources', wgtEnabled: false, nativePackageVerified: false }
 if (mode === '--dry-run') { console.log(JSON.stringify(record, null, 2)); process.exit(0) }
-if (execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts'], { cwd: root, encoding: 'utf8' }).trim()) throw new Error('源代码未干净提交，禁止渠道构建')
+// 根依赖和工作区配置也会影响渠道构建，不能只检查子目录。
+if (execFileSync('git', ['status', '--porcelain', '--untracked-files=normal', '--', 'apps', 'packages', 'scripts', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'], { cwd: root, encoding: 'utf8' }).trim()) throw new Error('源代码未干净提交，禁止渠道构建')
 if (data.platform === 'android') {
   const native = JSON.parse(readFileSync(path.join(root, 'artifacts/native-resource-update/build.json'), 'utf8'))
   const aar = readFileSync(path.join(root, 'apps/mobile/src/uni_modules/rebu-resource-updater/utssdk/app-android/libs/rebu-resource-updater.aar'))
