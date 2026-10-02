@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-02T14:28:48.288Z",
-  "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
-  "testFixtureCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+  "checkedAt": "2026-10-02T14:54:50.629Z",
+  "sourceCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
+  "testFixtureCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "付费入圈续费缓存持久恢复与实际事务验收-20261002.json",
+  "record": "圈子角色转让原子性与双方缓存恢复验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -71,17 +71,17 @@
   },
   "formalImage": {
     "status": "待业务收口后的最终固定包重建",
-    "currentSource": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+    "currentSource": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
     "historicalSource": "b7c51f4c4de0beb38f4f61b35d590b26d5d125e6",
     "historicalChecks": 29,
     "isCurrentSourceEvidence": false
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "runId": 37017296743,
-    "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+    "runId": 37021148926,
+    "sourceCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
     "passed": 8997,
-    "skipped": 359,
+    "skipped": 383,
     "jobsPassed": 8
   },
   "historicalSoftwareSkippedCovered": 104,
@@ -163,7 +163,7 @@
       "production": false
     }
   },
-  "businessCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+  "businessCommit": "b4b5031ff8fda84671c4f6a643d34a916bc138a6",
   "feedbackMonthlyPrivacyScope": {
     "source": "3015217ef16c35ed986442e98c7ef29dd27c4ef1",
     "receipt": "工单补发与月度权益原子性及IM隐私收口-20261002.json",
@@ -534,12 +534,12 @@
     }
   },
   "linux": {
-    "runId": 37017426563,
-    "passed": 673,
-    "suites": 40,
+    "runId": 37021250372,
+    "passed": 737,
+    "suites": 42,
     "skipped": 0,
-    "artifactId": 11230920943,
-    "artifactDigest": "sha256:842423f7e2b20e08435e5b0d5c898ca1e9afa2ba3df3ae640cdc1c5a41200151"
+    "artifactId": 11234035750,
+    "artifactDigest": "sha256:1ed1a2a00065612d496bd75cf96cd478b53023ec3ba32887d213281d16ae42a4"
   },
   "circleRewardScope": {
     "receipt": "圈帖打赏提交后通知恢复与升级验收-20261002.json",
@@ -1734,17 +1734,15 @@
   },
   "membershipCacheScope": {
     "limitedMembershipCacheComplete": true,
-    "paidAndRoleCacheRecoveryComplete": false,
-    "remainingMembershipMethods": 2,
+    "paidAndRoleCacheRecoveryComplete": true,
+    "remainingMembershipMethods": 0,
     "paymentPostCommitEntryAlso": false,
     "realRedisLimitedConcurrency": true,
     "realProductionRedis": false,
     "N4OverallComplete": false,
     "paidMembershipCacheCompleteInIsolation": true,
-    "remainingMethods": [
-      "adminAddMember:nonMEMBER",
-      "updateMemberRole"
-    ]
+    "remainingMethods": [],
+    "roleTransferAtomicityCompleteInIsolation": true
   },
   "paidCacheHistoricalParentBinding": {
     "sourceCommit": "ae0cad36844cf6e1d5d52ccff08da11d13e2ecfe",
@@ -1769,6 +1767,25 @@
       "skipped": 0,
       "artifactId": 11228670770,
       "artifactDigest": "sha256:2e2539231dfe60ae1ad64f719e70a8946b1178a6ee947ad38d8b3a298662b4e1"
+    }
+  },
+  "roleCacheHistoricalParentBinding": {
+    "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+    "record": "付费入圈续费缓存持久恢复与实际事务验收-20261002.json",
+    "ci": {
+      "runId": 37017296743,
+      "sourceCommit": "ef6a0dc82226bcc1f7b7d60bb8ba6dfd4979e6ea",
+      "passed": 8997,
+      "skipped": 359,
+      "jobsPassed": 8
+    },
+    "linux": {
+      "runId": 37017426563,
+      "passed": 673,
+      "suites": 40,
+      "skipped": 0,
+      "artifactId": 11230920943,
+      "artifactDigest": "sha256:842423f7e2b20e08435e5b0d5c898ca1e9afa2ba3df3ae640cdc1c5a41200151"
     }
   }
 }
