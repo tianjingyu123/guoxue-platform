@@ -1,6 +1,7 @@
 import { FeedbackService } from "./feedback.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotificationService } from "../notification/notification.service";
+import { FeedbackNotificationTask } from "./feedback-notification.task";
+import { publicFeedbackReply } from "./feedback-reply";
 
 describe("反馈结案与用户回复", () => {
   const prisma = {
@@ -11,8 +12,8 @@ describe("反馈结案与用户回复", () => {
       count: jest.fn(),
     },
   };
-  const notifications = { sendOnce: jest.fn() };
-  const service = new FeedbackService(prisma as unknown as PrismaService, notifications as unknown as NotificationService);
+  const notifications = { deliverPendingReplies: jest.fn() };
+  const service = new FeedbackService(prisma as unknown as PrismaService, notifications as unknown as FeedbackNotificationTask);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -44,30 +45,31 @@ describe("反馈结案与用户回复", () => {
   it("仅在状态条件更新成功后通知对应用户，通知不含处理原文", async () => {
     prisma.feedback.findUnique.mockResolvedValue({ userId: "owner", type: "bug", status: "processing" });
     prisma.feedback.updateMany.mockResolvedValue({ count: 1 });
-    notifications.sendOnce.mockResolvedValue({ id: "notice" });
+    notifications.deliverPendingReplies.mockResolvedValue(1);
     await expect(service.adminUpdateStatus("ticket", { status: "resolved", result: "已修复，请重试" }))
       .resolves.toEqual({ id: "ticket", status: "resolved" });
     expect(prisma.feedback.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: "ticket", status: "processing" },
-      data: expect.objectContaining({ result: "[public-reply:v1]\n已修复，请重试" }),
+      where: expect.objectContaining({ id: "ticket", status: "processing" }),
+      data: expect.objectContaining({ result: expect.stringMatching(/^\[public-reply:v2:/) }),
     }));
-    expect(notifications.sendOnce).toHaveBeenCalledTimes(1);
-    expect(notifications.sendOnce).toHaveBeenCalledWith("owner", expect.stringMatching(/^FEEDBACK_RESOLVED:ticket:/),
-      expect.objectContaining({ targetType: "FEEDBACK", targetId: "ticket" }));
-    expect(JSON.stringify(notifications.sendOnce.mock.calls)).not.toContain("已修复，请重试");
+    const saved = prisma.feedback.updateMany.mock.calls[0][0].data.result;
+    expect(publicFeedbackReply(saved)).toBe("已修复，请重试");
+    expect(notifications.deliverPendingReplies).toHaveBeenCalledTimes(1);
+    expect(notifications.deliverPendingReplies).toHaveBeenCalledWith("ticket");
+    expect(JSON.stringify(notifications.deliverPendingReplies.mock.calls)).not.toContain("已修复，请重试");
   });
 
   it("并发状态更新失败时不发送成功通知", async () => {
     prisma.feedback.findUnique.mockResolvedValue({ userId: "owner", type: "bug", status: "processing" });
     prisma.feedback.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.adminUpdateStatus("ticket", { status: "resolved", result: "已修复" })).rejects.toThrow();
-    expect(notifications.sendOnce).not.toHaveBeenCalled();
+    expect(notifications.deliverPendingReplies).not.toHaveBeenCalled();
   });
 
   it("通知落库失败不阻断已经成功的结案", async () => {
     prisma.feedback.findUnique.mockResolvedValue({ userId: "owner", type: "bug", status: "processing" });
     prisma.feedback.updateMany.mockResolvedValue({ count: 1 });
-    notifications.sendOnce.mockRejectedValue(new Error("通知服务暂不可用"));
+    notifications.deliverPendingReplies.mockRejectedValue(new Error("通知服务暂不可用"));
     await expect(service.adminUpdateStatus("ticket", { status: "resolved", result: "已处理" }))
       .resolves.toEqual({ id: "ticket", status: "resolved" });
   });
@@ -78,6 +80,6 @@ describe("反馈结案与用户回复", () => {
     prisma.feedback.updateMany.mockResolvedValue({ count: 1 });
     await service.adminUpdateStatus("ticket", { status: "processing" });
     await service.adminUpdateStatus("signal", { status: "resolved", result: "已处理" });
-    expect(notifications.sendOnce).not.toHaveBeenCalled();
+    expect(notifications.deliverPendingReplies).not.toHaveBeenCalled();
   });
 });
