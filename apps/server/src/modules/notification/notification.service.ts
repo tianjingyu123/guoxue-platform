@@ -11,7 +11,7 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const PREFS_TTL = 86400 * 30;
 
-/** 圈内通知列表行（category/circleId 列经原生 SQL 访问·见 prisma/manual/2026-07-11-circle-notifications.sql） */
+/** 圈内通知列表行；分类与通知同次持久化，筛选列表沿用原生 SQL。 */
 export interface CircleNotificationRow {
   id: string;
   type: string;
@@ -45,7 +45,7 @@ export class NotificationService {
 
   /** 只有站内通知成功持久化，业务调用方才可确认通知已建立。 */
   private async persistNotification(userId: string, dto: SendNotificationDto) {
-    // 1. 写入DB
+    // 分类与正文在同一次INSERT写入，避免通知成功后补写失败或批量串标。
     const notification = await this.prisma.notification.create({
       data: {
         userId,
@@ -55,20 +55,18 @@ export class NotificationService {
         content: dto.content,
         targetType: dto.targetType,
         targetId: dto.targetId,
+        ...this.circleClassification(dto),
       },
     });
 
-    // 1.5 圈内通知分类落库（category/circleId 列不在 prisma client 里，原生 SQL 补写；失败不阻断主流程）
-    if (dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category)) {
-      await this.prisma
-        .$executeRawUnsafe(
-          `UPDATE "Notification" SET "category"=$1, "circleId"=$2 WHERE id=$3`,
-          dto.category, dto.circleId ?? null, notification.id,
-        )
-        .catch((err) => this.logger.warn(`圈内通知分类落库失败 id=${notification.id}`, err));
-    }
-
     return notification;
+  }
+
+  /** 保留既有语义：只接收四类圈内分类，不单独采用circleId，不改写历史通知。 */
+  private circleClassification(dto: Pick<SendNotificationDto, "category" | "circleId">) {
+    return dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category)
+      ? { category: dto.category, circleId: dto.circleId ?? null }
+      : {};
   }
 
   /** 可选推送独立于持久化；其失败不能导致已落库通知被再次创建。 */
@@ -126,6 +124,7 @@ export class NotificationService {
       content: dto.content,
       targetType: dto.targetType,
       targetId: dto.targetId,
+      ...this.circleClassification(dto),
     }));
 
     // 重试任务只推送本次真正插入的收件人；数据库唯一键挡住进程崩溃后的再次写入。
@@ -134,23 +133,6 @@ export class NotificationService {
       : null;
     if (!eventKey) await this.prisma.notification.createMany({ data });
     const insertedUsers = created ? created.map((row) => row.userId) : userIds;
-
-    // 圈内通知分类落库（createMany 拿不到 id，按 用户集合+type+target+5分钟窗口 补打标；失败不阻断）
-    if (dto.category && (CIRCLE_NOTIFICATION_CATEGORIES as readonly string[]).includes(dto.category) && insertedUsers.length > 0) {
-      const categorySql = created
-        ? `UPDATE "Notification" SET "category"=$1, "circleId"=$2 WHERE id = ANY($3)`
-        : `UPDATE "Notification" SET "category"=$1, "circleId"=$2
-           WHERE "userId" = ANY($3) AND "type"=$4 AND "targetId" IS NOT DISTINCT FROM $5
-             AND "category" IS NULL AND "createdAt" > NOW() - INTERVAL '5 minutes'`;
-      await this.prisma
-        .$executeRawUnsafe(
-          categorySql,
-          ...(created
-            ? [dto.category, dto.circleId ?? null, created.map((row) => row.id)]
-            : [dto.category, dto.circleId ?? null, insertedUsers, dto.type, dto.targetId ?? null]),
-        )
-        .catch((err) => this.logger.warn("圈内通知分类批量落库失败", err));
-    }
 
     if (!insertedUsers.length) return { success: true, count: 0, pushSkipped: 0 };
 

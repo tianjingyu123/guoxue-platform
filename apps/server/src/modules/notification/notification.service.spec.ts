@@ -224,38 +224,38 @@ describe("NotificationService", () => {
     });
   });
 
-  // ───────── 圈内通知中心（V0 待办 #36·复用本表·category/circleId 经原生 SQL） ─────────
+  // ───────── 圈内通知中心：分类和通知同次写入，不影响其他事件 ─────────
 
   describe("圈内通知：send 分类落库", () => {
-    it("send 带 category 时原生 SQL 补写 category+circleId", async () => {
+    it("send 带 category 时在首次创建中保存category+circleId", async () => {
       mockPrisma.notification.create.mockResolvedValue({ id: "n1" });
       await svc.send("u1", { type: "POST_COMMENT", title: "帖子有新回复", content: "x", category: "INTERACT", circleId: "c1" });
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining(`SET "category"=$1, "circleId"=$2`),
-        "INTERACT", "c1", "n1",
-      );
+      expect(mockPrisma.notification.create).toHaveBeenCalledWith({ data: expect.objectContaining({ category: "INTERACT", circleId: "c1" }) });
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
     });
 
     it("send 不带 category 不触发分类落库", async () => {
       mockPrisma.notification.create.mockResolvedValue({ id: "n1" });
       await svc.send("u1", { type: "SYSTEM", title: "t", content: "c" });
+      expect(mockPrisma.notification.create.mock.calls[0][0].data).not.toHaveProperty("category");
       expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
     });
 
-    it("分类落库失败不阻断主流程（仍返回通知）", async () => {
-      mockPrisma.notification.create.mockResolvedValue({ id: "n1" });
-      mockPrisma.$executeRawUnsafe.mockRejectedValueOnce(new Error("column not exists"));
-      const result = await svc.send("u1", { type: "LIVE_STARTED", title: "t", content: "c", category: "LIVE" });
-      expect(result.id).toBe("n1");
+    it("分类创建失败不返回成功，也不进入推送准备", async () => {
+      mockPrisma.notification.create.mockRejectedValueOnce(new Error("synthetic category failure"));
+      await expect(svc.send("u1", { type: "LIVE_STARTED", title: "t", content: "c", category: "LIVE" })).rejects.toThrow("synthetic category failure");
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
     });
 
-    it("batchSend 带 category 按用户集合+type+target 窗口补打标", async () => {
+    it("batchSend 带 category 只随本批创建数据写入，取消时间窗口补打标", async () => {
       mockPrisma.notification.createMany.mockResolvedValue({ count: 2 });
       await svc.batchSend({ userIds: ["u1", "u2"], type: "LIVE_STARTED", title: "t", content: "c", targetId: "r1", category: "LIVE", circleId: "c1" });
-      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining(`"category" IS NULL`),
-        "LIVE", "c1", ["u1", "u2"], "LIVE_STARTED", "r1",
-      );
+      expect(mockPrisma.notification.createMany).toHaveBeenCalledWith({ data: [
+        expect.objectContaining({ userId: "u1", category: "LIVE", circleId: "c1" }),
+        expect.objectContaining({ userId: "u2", category: "LIVE", circleId: "c1" }),
+      ] });
+      expect(mockPrisma.$executeRawUnsafe).not.toHaveBeenCalled();
     });
   });
 
