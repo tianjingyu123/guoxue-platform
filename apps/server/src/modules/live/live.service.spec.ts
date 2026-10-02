@@ -110,6 +110,8 @@ const mockPrisma = {
     count: jest.fn(),
   },
   $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
+  notification: { createManyAndReturn: jest.fn() },
 };
 
 const mockRedis = {
@@ -202,6 +204,16 @@ describe("LiveService", () => {
     delete process.env.TRTC_SDK_APP_ID;
     delete process.env.TRTC_SECRET_KEY;
     mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
+    mockPrisma.$queryRaw.mockImplementation(async (query: { sql: string }) => {
+      const dto = mockNotification.batchSend.mock.calls.at(-1)?.[0];
+      if (query.sql.includes('"LiveRoom"')) return [{ status: dto.type === "LIVE_STARTED" ? "LIVING" : "WAITING", auditStatus: "APPROVED", startTime: new Date(Date.now() + 5 * 60_000), title: "合成预约房间", circleId: dto.circleId ?? null }];
+      return await mockPrisma.liveBooking.findMany.mock.results.at(-1)?.value ?? [];
+    });
+    mockPrisma.notification.createManyAndReturn.mockImplementation(async ({ data }) => data.map((row, index) => ({ id: `notice-${index}`, userId: row.userId })));
+    mockNotification.batchSend.mockImplementation(async (dto, _event, persist) => {
+      if (persist) await persist(dto.userIds.map((userId: string) => ({ userId })));
+      return { success: true, count: dto.userIds.length };
+    });
   });
 
   describe("streamer settings", () => {
@@ -930,9 +942,9 @@ describe("LiveService", () => {
         circleId: "c1",
         targetType: "LIVE_ROOM",
         targetId: "r1",
-      }), "LIVE_STARTED:r1");
+      }), "LIVE_STARTED:r1", expect.any(Function));
       expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: { in: ["b1", "b2"] }, notifiedAt: null },
+        where: { id: { in: ["b1", "b2"] }, status: "BOOKED", notifiedAt: null },
       }));
     });
 
@@ -1017,18 +1029,18 @@ describe("LiveService", () => {
 
       expect(mockNotification.batchSend).toHaveBeenCalledTimes(2);
       expect(mockNotification.batchSend).toHaveBeenLastCalledWith(
-        expect.objectContaining({ targetId: "r-next", userIds: ["user-r-next"] }), `${event}:r-next`,
+        expect.objectContaining({ targetId: "r-next", userIds: ["user-r-next"] }), `${event}:r-next`, expect.any(Function),
       );
       expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledTimes(1);
       expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith({
-        where: { id: { in: ["booking-r-next"] }, [marker]: null }, data: { [marker]: expect.any(Date) },
+        where: { id: { in: ["booking-r-next"] }, status: "BOOKED", [marker]: null }, data: { [marker]: expect.any(Date) },
       });
     });
 
     it.each([
       ["开播前提醒", "remindUpcomingBookings", "LIVE_REMINDER"],
       ["开播补偿", "reconcileStartedBookingNotifications", "LIVE_STARTED"],
-    ] as const)("%s：已发送但标记失败时继续后续场次并保留原事件键重试", async (_label, method, event) => {
+    ] as const)("%s：标记事务失败时继续后续场次并保留原事件键重试", async (_label, method, event) => {
       mockPrisma.liveRoom.findMany.mockResolvedValue([
         { id: "r-failed", title: "标记失败场次", circleId: null, startTime: new Date(Date.now() + 5 * 60_000) },
         { id: "r-next", title: "后续场次", circleId: null, startTime: new Date(Date.now() + 6 * 60_000) },
@@ -1064,7 +1076,7 @@ describe("LiveService", () => {
         userIds: ["u1"],
         type: "LIVE_REMINDER",
         content: expect.stringMatching(/约 [45] 分钟后开始/),
-      }), "LIVE_REMINDER:r-catchup");
+      }), "LIVE_REMINDER:r-catchup", expect.any(Function));
     });
 
     it("开播补偿会分批处理超过单批上限的预约用户", async () => {

@@ -58,6 +58,27 @@ describe("NotificationService", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
+  describe("批量通知内部事务持久化", () => {
+    it("受保护的持久化必须有事件键，拒绝时不写入也不外发", async () => {
+      const persist = jest.fn();
+      await expect(svc.batchSend({ userIds: ["u1"], type: "LIVE_STARTED", title: "t", content: "c" }, undefined, persist)).rejects.toThrow("事件键");
+      expect(persist).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createManyAndReturn).not.toHaveBeenCalled();
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPush.sendMiniSubscribeMsg).not.toHaveBeenCalled();
+    });
+
+    it("内部事务回滚不能进入推送准备，也不另用默认写入补通知", async () => {
+      const persist = jest.fn().mockRejectedValue(new Error("synthetic transaction rollback"));
+      await expect(svc.batchSend({ userIds: ["u1"], type: "LIVE_STARTED", title: "t", content: "c" }, "LIVE_STARTED:r1", persist)).rejects.toThrow("transaction rollback");
+      expect(persist).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.notification.createManyAndReturn).not.toHaveBeenCalled();
+      expect(mockRedis.getJson).not.toHaveBeenCalled();
+      expect(mockPush.sendMiniSubscribeMsg).not.toHaveBeenCalled();
+    });
+  });
+
   describe("send", () => {
     it("发送单条通知成功", async () => {
       mockPrisma.notification.create.mockResolvedValue({
