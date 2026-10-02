@@ -1,0 +1,229 @@
+{
+  "verifiedAt": "2026-10-02T01:45:03.685Z",
+  "sourceSha": "fc539552a4eec793d4fe5db7011c14f2e3cf5f9b",
+  "baseSha": "b7636e376948c6db62efb203e9062e806f021ec8",
+  "sourceDirty": false,
+  "businessSourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
+  "independentCommit": "fc539552a4eec793d4fe5db7011c14f2e3cf5f9b",
+  "changedFiles": [
+    "apps/mobile/scripts/check-entitlement-notification.ts",
+    "apps/mobile/src/lib/im-data.ts",
+    "apps/mobile/src/lib/mine-data.ts",
+    "apps/mobile/src/pkg-mine/notifications/index.vue"
+  ],
+  "changedFilesIdenticalToMainlineSnapshot": true,
+  "historicalReproduction": {
+    "source": "ad85d913ecdf2facf92bd8c33357a04afefbe814",
+    "expectedExitCode": 1,
+    "actualExitCode": 1,
+    "observed": "两笔同文案仅保留 grant-a；系统分类、无权益链接"
+  },
+  "regression": {
+    "clientTests": 319,
+    "failed": 0,
+    "skipped": 0,
+    "presentationAssertions": 9,
+    "adapterChecks": [
+      "同文案不同流水保留",
+      "同ID重复记录去重",
+      "交易分类与权益标签",
+      "本人权益固定跳转，不使用targetId查询权益"
+    ],
+    "mobileLint": {
+      "errors": 0,
+      "warnings": 77
+    },
+    "mobileTypecheckExitCode": 0,
+    "nativeBundleAuditExitCode": 0
+  },
+  "reusedServerEvidence": {
+    "phase29Source": "133e14dafd094046083870fb02434d921f982dea",
+    "phase29ReportSha256": "d09371dd2822070103f552bf2954b416b08e5d8a485620ace52d26ee0ed58e0b",
+    "unchangedServerInputs": [
+      {
+        "path": "apps/server",
+        "previousObject": "0f5925672e3713d98c005724df2cbcae54d91c57",
+        "currentObject": "0f5925672e3713d98c005724df2cbcae54d91c57"
+      },
+      {
+        "path": "packages",
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      }
+    ],
+    "unitTests": 39,
+    "realPostgresJwtHttpTests": 10,
+    "notRerun": true,
+    "notCountedAsCurrentRun": true,
+    "frozenBuildReference": "artifacts/phase29-entitlement-current/frozen/133e14dafd094046083870fb02434d921f982dea/server"
+  },
+  "builds": [
+    {
+      "kind": "app-resources",
+      "fileCount": 491
+    },
+    {
+      "kind": "h5",
+      "fileCount": 1181
+    },
+    {
+      "kind": "mp-weixin",
+      "fileCount": 2759
+    }
+  ],
+  "buildManifestSha256": "3f3e66bc19623bb8bd9f6c7561afd4515df1271d94a5f28b5f8ec66d81e98226",
+  "signedApkBuilt": false,
+  "uploaded": false,
+  "actualMainlineReception": false,
+  "productionDeployed": false,
+  "review": {
+    "patch": "artifacts/phase30-notification-current/review-verified/notification-adapter-merge.patch",
+    "bundle": "artifacts/phase30-notification-current/review-verified/notification-adapter-merge.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "ef911299843bce4d0a917b3e2b7dce503f7c775f",
+    "sourceTree": "ef911299843bce4d0a917b3e2b7dce503f7c775f",
+    "temporaryIndexOnly": true
+  },
+  "outstandingMainlineDifferences": [
+    "apps/admin/src/views/system/ClientPresentationPanel.vue",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+    "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+    "apps/mobile/src/lib/resource-update-lifecycle.ts",
+    "apps/mobile/src/lib/resource-updater.ts",
+    "apps/mobile/src/pkg-live/live-trtc-client.ts",
+    "apps/server/src/modules/auth/auth.service.spec.ts",
+    "apps/server/src/modules/auth/auth.service.ts",
+    "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+    "apps/server/src/modules/sms/sms.service.spec.ts",
+    "apps/server/src/modules/sms/sms.service.ts",
+    "scripts/release/android-probe-device-identity.mjs",
+    "scripts/release/android-probe-install.mjs",
+    "scripts/release/android-probe-log-cutoff.mjs",
+    "scripts/release/android-probe-log-stream.mjs",
+    "scripts/release/android-probe-recovery-evidence.mjs",
+    "scripts/release/build-channel-resources.mjs",
+    "scripts/release/build-native-probe.mjs",
+    "scripts/release/probe-health-resources.mjs",
+    "scripts/release/probe-tls-server.mjs",
+    "scripts/release/verify-native-api26-baseline.mjs",
+    "scripts/release/verify-native-api26-controls.mjs",
+    "scripts/release/verify-native-base-upgrades.mjs",
+    "scripts/release/verify-native-health-window.mjs",
+    "scripts/release/verify-native-probe.mjs",
+    "scripts/release/verify-native-tls-android.mjs",
+    "scripts/release/verify-native-transfer-android.mjs",
+    "scripts/release/verify-native-transfer.mjs",
+    "scripts/release/verify-resource-native.mjs",
+    "tests/release/admin-client-presentation.test.cjs",
+    "tests/release/android-probe-device-identity.test.mjs",
+    "tests/release/android-probe-recovery-evidence.test.mjs",
+    "tests/release/android-probe/ProbeActivity.java",
+    "tests/release/android-probe/TlsScenarios.java",
+    "tests/release/android-probe/TransferScenarios.java",
+    "tests/release/channel-build-source.test.mjs",
+    "tests/release/channel-capability-jwt-postgres.test.cjs",
+    "tests/release/channel-login-concurrency-postgres.test.cjs",
+    "tests/release/channel-password-login-postgres.test.cjs",
+    "tests/release/channel-resource-updater.test.cjs",
+    "tests/release/channel-session-redis-postgres.test.cjs",
+    "tests/release/channel-sms-once-postgres.test.cjs",
+    "tests/release/channel-trusted-login-postgres.test.cjs",
+    "tests/release/mobile-live-safe-area.test.mjs",
+    "tests/release/mobile-shipping-regions.test.cjs",
+    "tests/release/native/NativeTransferProbe.java",
+    "tests/release/resource-health-lifecycle.test.cjs"
+  ],
+  "mainlineWholeClientOrImageNotEquivalent": true,
+  "evidence": {
+    "artifacts/phase30-notification-current/client-execution.json": {
+      "bytes": 1167,
+      "sha256": "103d829df789ec628031217e6d1f78f193ca73b6603ccd527a084ff41bc5c58c"
+    },
+    "artifacts/phase30-notification-current/historical-notification-reproduction.log": {
+      "bytes": 1012,
+      "sha256": "dba1020bbe3af6e9b53c87e78f7dea9c11813096e9e298efee79a56231b0a5ea"
+    },
+    "artifacts/phase30-notification-current/notification-adapter.log": {
+      "bytes": 198,
+      "sha256": "20f67d6f30f7c614a47a00d64b87b96d327826cadce1689829ddd144ba902b1b"
+    },
+    "artifacts/phase30-notification-current/client-gate.log": {
+      "bytes": 34357,
+      "sha256": "3de11180fb14bf7eff23197e3b63744c0a146b85dd7669c7a1203375283adeb6"
+    },
+    "artifacts/phase30-notification-current/mobile-eslint.json": {
+      "bytes": 145508,
+      "sha256": "1ab3691132872ea4181b4409bc7b84821095e13379924ef9d95e20cdeac77c55"
+    },
+    "artifacts/phase30-notification-current/mobile-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase30-notification-current/mobile-app-build.log": {
+      "bytes": 66378,
+      "sha256": "d4f943845fff84f797c0f15e1bf849375a9200da2e0f4216d634b7c4f12877b0"
+    },
+    "artifacts/phase30-notification-current/mobile-h5-build.log": {
+      "bytes": 66598,
+      "sha256": "6c091ee2a41f794ec066c79db9207970ed17136d1f36a660963368293b0c323a"
+    },
+    "artifacts/phase30-notification-current/mobile-mp-weixin-build.log": {
+      "bytes": 67388,
+      "sha256": "591a378c8d85573aa7c3ed199457316f1fdd2b4731c7786962a0ce6c8a5bd65c"
+    },
+    "artifacts/phase30-notification-current/native-bundle-audit.log": {
+      "bytes": 165,
+      "sha256": "bd093ec405321d81c47ac5d2ba7527a5ddb8c81a140131d889bbac8636837d13"
+    },
+    "artifacts/phase30-notification-current/build-manifest.json": {
+      "bytes": 839890,
+      "sha256": "3f3e66bc19623bb8bd9f6c7561afd4515df1271d94a5f28b5f8ec66d81e98226"
+    },
+    "artifacts/phase30-notification-current/review-verified/notification-adapter-merge.patch": {
+      "bytes": 7849,
+      "sha256": "b7c0bc84501e16f70d700c22e488d82b633f414d615eec8809f27b62aa34b8ba"
+    },
+    "artifacts/phase30-notification-current/review-verified/notification-adapter-merge.bundle": {
+      "bytes": 3465,
+      "sha256": "4850990f8812ad5c89d899fda965152a0318efed445004434b761c5f5b2ae328"
+    },
+    "artifacts/phase30-notification-current/mainline-review/remaining-channel-differences-from-51b9883d.patch": {
+      "bytes": 308648,
+      "sha256": "9c08c35955650354fe489557dbc5b897abcc4129dc1db5d4258d00e7672627de"
+    },
+    "artifacts/phase30-notification-current/mainline-review/proposal.json": {
+      "bytes": 3909,
+      "sha256": "586b06c4bc3e248f1cd77158a67cef85d45130041c71148974344b20144c0af2"
+    }
+  },
+  "externalReadOnly": {
+    "sdkBrowserAttempt": "浏览器控制30秒超时，未取得新页面状态，不反复重试",
+    "matchingSdkArchiveFoundInDownloads": false,
+    "adbDevices": [
+      "a07f9db3 LE2100 OnePlus9R"
+    ],
+    "oldAndroidPhysicalDeviceVerified": false
+  },
+  "limits": [
+    "仅适配器运行检查，未冒充独立候选整页点击或真机点击；主线另有截图证据，不能直接绑定此候选",
+    "App 为资源构建，未生成DCloud完整签名包；公开配置为合成域名",
+    "平台/术师会员、全部客服回复、剩余圈务与其他持久补发仍有内部缺口",
+    "完整包、旧安卓真机、正式第三方端到端、两节点发布与16商店账号签名材料提审仍未完成"
+  ]
+}
