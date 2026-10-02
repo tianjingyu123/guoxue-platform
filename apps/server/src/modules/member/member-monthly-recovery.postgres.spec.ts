@@ -22,22 +22,16 @@ jest.setTimeout(30000);
   const users: string[] = [],
     configs: string[] = [],
     coupons: string[] = [];
-  const clock = (date = new Date(2026, 9, 2, 12)) => {
-    jest.useFakeTimers({
-      doNotFake: [
-        "hrtime",
-        "nextTick",
-        "performance",
-        "queueMicrotask",
-        "setImmediate",
-        "clearImmediate",
-        "setInterval",
-        "clearInterval",
-        "setTimeout",
-        "clearTimeout",
-      ],
+  const NativeDate = Date;
+  let businessNow = NativeDate.now();
+  const clock = (date = new NativeDate(2026, 9, 2, 12)) => {
+    businessNow = date.getTime();
+    // 只固定业务无参日期；Prisma 的计时器和 Date.now 继续走真实时间。
+    global.Date = new Proxy(NativeDate, {
+      construct(target, args) {
+        return Reflect.construct(target, args.length ? args : [businessNow]);
+      },
     });
-    jest.setSystemTime(date);
   };
   const benefit = (client = db) =>
     new MemberBenefitService(client as unknown as PrismaService, {} as RedisService);
@@ -89,7 +83,7 @@ jest.setTimeout(30000);
   });
   beforeEach(() => clock());
   afterEach(async () => {
-    jest.useRealTimers();
+    global.Date = NativeDate;
     expect(await db.virtualCoinTransaction.count({ where: { userId: { in: users } } })).toBe(0);
     await db.couponRecord.deleteMany({ where: { userId: { in: users } } });
     await db.pointsRecord.deleteMany({ where: { userId: { in: users } } });
@@ -98,7 +92,10 @@ jest.setTimeout(30000);
     await db.memberConfig.deleteMany({ where: { id: { in: configs.splice(0) } } });
     await db.couponTemplate.deleteMany({ where: { id: { in: coupons.splice(0) } } });
   });
-  afterAll(async () => db.$disconnect());
+  afterAll(async () => {
+    global.Date = NativeDate;
+    await db.$disconnect();
+  });
   it("错过月初原调度，当月恢复自动发一次，重复调度不重复加余额", async () => {
     await config();
     const id = await member();
@@ -176,7 +173,7 @@ jest.setTimeout(30000);
                   if (k === "$queryRaw")
                     return async (...args: Parameters<typeof tx.$queryRaw>) => {
                       const result = await tx.$queryRaw(...args);
-                      jest.setSystemTime(new Date(2026, 10, 1, 0));
+                      businessNow = new NativeDate(2026, 10, 1, 0).getTime();
                       return result;
                     };
                   const v = Reflect.get(target, k, target);
