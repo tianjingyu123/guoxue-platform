@@ -1467,7 +1467,11 @@ export class ShopPaymentService {
       sourceType: "ORDER",
       sourceId: order.id,
       idempotencyKey: `order:${order.id}:${order.type.toLowerCase()}.access`,
-      metadata: { orderType: order.type },
+      metadata: {
+        orderType: order.type,
+        // 只标记本版真实付款开通课程的新流水，旧流水不补成功通知。
+        ...(order.type === "COURSE" ? { notificationEvent: "COURSE_PAID_GRANTED_V1" } : {}),
+      },
     });
   }
 

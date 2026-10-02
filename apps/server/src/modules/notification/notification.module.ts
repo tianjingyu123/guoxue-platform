@@ -13,11 +13,22 @@ import { PushAudienceService } from "../user/push-audience.service";
 import { EntitlementNotificationTask } from "./entitlement-notification.task";
 import { MemberMonthlyNotificationTask } from "./member-monthly-notification.task";
 import { FreeCourseNotificationTask } from "./free-course-notification.task";
+import { PaidCourseNotificationTask } from "./paid-course-notification.task";
 
 @Module({
   imports: [AuthModule, RedisModule, AiGatewayModule],
   controllers: [NotificationController],
-  providers: [NotificationService, PushService, WeworkService, SmartPushService, PushAudienceService, EntitlementNotificationTask, MemberMonthlyNotificationTask, FreeCourseNotificationTask],
+  providers: [
+    NotificationService,
+    PushService,
+    WeworkService,
+    SmartPushService,
+    PushAudienceService,
+    EntitlementNotificationTask,
+    MemberMonthlyNotificationTask,
+    FreeCourseNotificationTask,
+    PaidCourseNotificationTask,
+  ],
   exports: [NotificationService, PushService, WeworkService, SmartPushService],
 })
 export class NotificationModule {}
