@@ -1,0 +1,533 @@
+{
+  "verifiedAt": "2026-10-02T05:36:02.380Z",
+  "sourceSha": "e5a89eef2ea4a4ac72088812f1ea3833278a006e",
+  "sourceDirty": false,
+  "baseSha": "f78fa5507785df0bcd1b87ce088812c0e4770773",
+  "intermediateSourceSha": "ef548506cbe55e5e3c0c1fb34d7b684a36242e81",
+  "changedFiles": [
+    "apps/server/src/common/http-exception.filter.ts",
+    "apps/server/src/common/logging.interceptor.ts",
+    "apps/server/src/common/request-log-path.ts",
+    "apps/server/src/modules/im/im-callback.controller.ts",
+    "apps/server/src/modules/im/im-http-privacy.spec.ts",
+    "apps/server/src/modules/im/im-privacy.spec.ts",
+    "apps/server/src/modules/im/im.service.ts",
+    "apps/server/src/modules/websocket/websocket.gateway.ts"
+  ],
+  "sourceObjects": [
+    {
+      "path": "apps/server/src/common/http-exception.filter.ts",
+      "object": "03e4843bd94ea4835b9682501560aa0834c3afc9"
+    },
+    {
+      "path": "apps/server/src/common/logging.interceptor.ts",
+      "object": "9fd6d19c4163ac3b2d0679a979eb7580f7dbb1ad"
+    },
+    {
+      "path": "apps/server/src/common/request-log-path.ts",
+      "object": "0016ff4b6dbeee9969b64490e0dfa71f3fd2084b"
+    },
+    {
+      "path": "apps/server/src/modules/im/im-callback.controller.ts",
+      "object": "59a83610118b42e6c5c42c65490a62faed8b6933"
+    },
+    {
+      "path": "apps/server/src/modules/im/im.service.ts",
+      "object": "db783c06f9061e00d0093e61405fb27819ccb81a"
+    },
+    {
+      "path": "apps/server/src/modules/websocket/websocket.gateway.ts",
+      "object": "f871876cb71a34e3addbef253e2369a83af6eb7e"
+    }
+  ],
+  "mainlineSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+  "regression": {
+    "tests": 166,
+    "suites": 12,
+    "failed": 0,
+    "skipped": 0,
+    "suiteResults": [
+      {
+        "suite": "im-http-privacy.spec.ts",
+        "passed": 8
+      },
+      {
+        "suite": "pino-logger.service.spec.ts",
+        "passed": 1
+      },
+      {
+        "suite": "im-privacy.spec.ts",
+        "passed": 28
+      },
+      {
+        "suite": "im.controller.spec.ts",
+        "passed": 23
+      },
+      {
+        "suite": "websocket.gateway.spec.ts",
+        "passed": 36
+      },
+      {
+        "suite": "im.service.spec.ts",
+        "passed": 18
+      },
+      {
+        "suite": "im-callback.controller.spec.ts",
+        "passed": 14
+      },
+      {
+        "suite": "im-fallback.service.spec.ts",
+        "passed": 5
+      },
+      {
+        "suite": "im-policy.service.spec.ts",
+        "passed": 13
+      },
+      {
+        "suite": "tlssig.service.spec.ts",
+        "passed": 4
+      },
+      {
+        "suite": "ws-auth.service.spec.ts",
+        "passed": 8
+      },
+      {
+        "suite": "tencent-im-callback.guard.spec.ts",
+        "passed": 8
+      }
+    ],
+    "privacyAssertions": 28,
+    "realHttpTests": 8,
+    "lint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "typecheckExitCode": 0,
+    "buildExitCode": 0,
+    "intermediate157NotAdded": true,
+    "historicalCountsNotAccumulated": true
+  },
+  "reproduction": {
+    "module": {
+      "sourceSha": "f78fa5507785df0bcd1b87ce088812c0e4770773",
+      "productionSourceUnchanged": true,
+      "onlyNewTestUntracked": true,
+      "expectedFailures": 28,
+      "passed": 0,
+      "skipped": 0
+    },
+    "http": {
+      "sourceSha": "ef548506cbe55e5e3c0c1fb34d7b684a36242e81",
+      "productionSourceUnchanged": true,
+      "onlyNewTestUntracked": true,
+      "expectedFailures": 7,
+      "existingSignatureRejectionPassed": 1,
+      "skipped": 0
+    },
+    "supersededHarnessAttempts": [
+      {
+        "directory": "artifacts/phase35-im-before",
+        "testsExecuted": 0,
+        "issue": "Jest无DOMException，测试桩初始化失败，不作为缺陷复现"
+      },
+      {
+        "directory": "artifacts/phase35-im-before-runtime-fixed",
+        "failed": 22,
+        "passed": 6,
+        "issue": "异常非枚举字段及异步日志尚未完整捕获，汇总失败，不作为最终复现"
+      }
+    ],
+    "originalAttemptsPreserved": true
+  },
+  "http": {
+    "host": "127.0.0.1",
+    "port": "OS allocated ephemeral port",
+    "realTcp": true,
+    "realNestRouting": true,
+    "realTencentSignatureGuard": true,
+    "realGlobalLoggingInterceptor": true,
+    "realGlobalExceptionFilter": true,
+    "syntheticIdentity": true,
+    "pinoRawAndNestLoggerCallsCaptured": true,
+    "websocketDeliveryMocked": true,
+    "alertsMockedNoActualMessages": true,
+    "applicationClosedAfterAll": true,
+    "fullProductionAppNotVerified": true
+  },
+  "privacyScope": {
+    "callbackBodyAndAccountsNotLogged": true,
+    "commandsAndStateActionFiniteLabels": true,
+    "providerResponseDetailsNotLoggedOrReturned": true,
+    "metricReasonFiniteClassificationOrInteger": true,
+    "rawNetworkErrorsNotPropagated": true,
+    "asyncAuditErrorsNotLogged": true,
+    "websocketPushErrorsNotLogged": true,
+    "requestLogsAndAlertsStripQueries": true,
+    "imErrorLogAndTraceContextOnlySafeCategory": true,
+    "actualRequestAndCallbackSignaturePreserved": true
+  },
+  "reusedClientEvidence": {
+    "sourceSha": "39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88",
+    "reportSha256": "b93293f6595d3d1152078b0257aee1c6a08c30c2cf315f99a54fd28070083c92",
+    "inputs": [
+      {
+        "path": "apps/mobile",
+        "previousObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd",
+        "currentObject": "db2e9bfad511cfb6edc354b1ca97509543bc34bd"
+      },
+      {
+        "path": "apps/admin",
+        "previousObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c",
+        "currentObject": "c6bc26091863d96156d29ba5e0d38e27c880e81c"
+      },
+      {
+        "path": "packages",
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      },
+      {
+        "path": "scripts/release/build-channel-resources.mjs",
+        "previousObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389",
+        "currentObject": "8f2f3ba6782cab3369f87a1df1fbbeea7b1d2389"
+      },
+      {
+        "path": "scripts/release/audit-mobile-native-bundle.mjs",
+        "previousObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149",
+        "currentObject": "a51b83e2a51ba959ecfafb7d5b9ebb9df6ce1149"
+      }
+    ],
+    "previousClientTests": 320,
+    "builds": [
+      {
+        "kind": "app-resources",
+        "fileCount": 491,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\app-resources"
+      },
+      {
+        "kind": "h5",
+        "fileCount": 1181,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\h5"
+      },
+      {
+        "kind": "mp-weixin",
+        "fileCount": 2759,
+        "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase33-monthly-after\\frozen\\39ca4ea3a289ca93a712806d0ddf2bf9bd6c6a88\\mp-weixin"
+      }
+    ],
+    "notRerun": true,
+    "notCountedInCurrentRun": true
+  },
+  "reusedMonthlyEvidence": {
+    "sourceSha": "ea81451deaa952f168ea1a726712e38b82fab1b0",
+    "reportSha256": "376c173d7c7a06eb1111d89325a31032ffd8256d439d25a3721bf4e27b69c261",
+    "inputs": [
+      {
+        "path": "apps/server/src/modules/member/member-benefit.service.ts",
+        "previousObject": "048bce56e392210cc215a11a43249734a2a2e0dc",
+        "currentObject": "048bce56e392210cc215a11a43249734a2a2e0dc"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-monthly.postgres.spec.ts",
+        "previousObject": "9cfcfeab238b1146055e593e60b1a7016750a20e",
+        "currentObject": "9cfcfeab238b1146055e593e60b1a7016750a20e"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.ts",
+        "previousObject": "e40502584ea08f8c580ad4cad46d8426d60442aa",
+        "currentObject": "e40502584ea08f8c580ad4cad46d8426d60442aa"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-grant.service.spec.ts",
+        "previousObject": "e819b7042ff7bb46ca8468c9d5c21411160b9b9a",
+        "currentObject": "e819b7042ff7bb46ca8468c9d5c21411160b9b9a"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+        "previousObject": "75b1744d4bf26f1632f4a8552f45faa65e45e004",
+        "currentObject": "75b1744d4bf26f1632f4a8552f45faa65e45e004"
+      },
+      {
+        "path": "apps/server/src/modules/member/member-benefit.ai-quota.spec.ts",
+        "previousObject": "86e4da0a888f837323b3f5e3fe1733b14460181f",
+        "currentObject": "86e4da0a888f837323b3f5e3fe1733b14460181f"
+      },
+      {
+        "path": "apps/server/prisma/schema.prisma",
+        "previousObject": "3fc441e3eea001f6299636dd7cac1a8fcf738c95",
+        "currentObject": "3fc441e3eea001f6299636dd7cac1a8fcf738c95"
+      },
+      {
+        "path": "apps/server/prisma/migrations-deploy",
+        "previousObject": "cc1350bb3128987fcb74437b701038e093f610a8",
+        "currentObject": "cc1350bb3128987fcb74437b701038e093f610a8"
+      },
+      {
+        "path": "apps/server/prisma/migrations/20261002060000_member_monthly_grant",
+        "previousObject": "207fbdbd3a8aaecefca6f1c86d8853e6fbca91f5",
+        "currentObject": "207fbdbd3a8aaecefca6f1c86d8853e6fbca91f5"
+      },
+      {
+        "path": "packages",
+        "previousObject": "b1249418ea49296ffb90dcd883533060126d5637",
+        "currentObject": "b1249418ea49296ffb90dcd883533060126d5637"
+      },
+      {
+        "path": "package.json",
+        "previousObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5",
+        "currentObject": "e7be134b28831e12e15fd5ce321ed9262fb664d5"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "previousObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9",
+        "currentObject": "705138dbfef2d84c8e4f140db2ba51d8dccda1d9"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "previousObject": "662ce5f4baadaedd853e089f7ae020f001eb3328",
+        "currentObject": "662ce5f4baadaedd853e089f7ae020f001eb3328"
+      }
+    ],
+    "priorServiceTests": 38,
+    "notRerun": true,
+    "notCountedInCurrentRun": true,
+    "fullAppHttpEvidenceNotInferred": true
+  },
+  "serverBuild": {
+    "fileCount": 3464,
+    "frozenPath": "C:\\Users\\Administrator\\.codex\\worktrees\\channel-final-validation-20261001\\gx-deploy-91\\artifacts\\phase35-im-after-http-fixed\\frozen\\e5a89eef2ea4a4ac72088812f1ea3833278a006e\\server",
+    "manifestSha256": "1a3b307ebf0c0ce264a04980b71bd00d8deed243dab29fb92f6cea12c74df11f"
+  },
+  "review": {
+    "patch": "artifacts/phase35-im-after-http-fixed/review-verified/im-log-privacy.patch",
+    "bundle": "artifacts/phase35-im-after-http-fixed/review-verified/im-log-privacy.bundle",
+    "bundleVerified": true,
+    "reconstructedTree": "d031547e160a9a778976799dbeedee5c3b497488",
+    "temporaryIndexOnly": true
+  },
+  "proposal": {
+    "preparedAt": "2026-10-02T05:36:02.182Z",
+    "receiverSnapshot": "9dda89741f6db5f3dfb9b2648846df649bbe5629",
+    "candidateSource": "e5a89eef2ea4a4ac72088812f1ea3833278a006e",
+    "productPaths": [
+      "apps",
+      "packages",
+      "scripts",
+      "tests",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml"
+    ],
+    "changedFileCount": 63,
+    "changedFiles": [
+      "apps/admin/src/views/system/ClientPresentationPanel.vue",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceRuntime.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceStore.java",
+      "apps/mobile/native/resource-updater/src/cn/rebu/resource/ResourceTransfer.java",
+      "apps/mobile/src/lib/resource-update-lifecycle.ts",
+      "apps/mobile/src/lib/resource-updater.ts",
+      "apps/mobile/src/pkg-live/live-trtc-client.ts",
+      "apps/server/prisma/migrations-deploy/full-baseline.sql",
+      "apps/server/prisma/migrations/20261002060000_member_monthly_grant/migration.sql",
+      "apps/server/prisma/schema.prisma",
+      "apps/server/src/common/http-exception.filter.ts",
+      "apps/server/src/common/logging.interceptor.ts",
+      "apps/server/src/common/request-log-path.ts",
+      "apps/server/src/modules/auth/auth.service.spec.ts",
+      "apps/server/src/modules/auth/auth.service.ts",
+      "apps/server/src/modules/feature-flag/client-presentation.service.ts",
+      "apps/server/src/modules/im/im-callback.controller.ts",
+      "apps/server/src/modules/im/im-http-privacy.spec.ts",
+      "apps/server/src/modules/im/im-privacy.spec.ts",
+      "apps/server/src/modules/im/im.service.ts",
+      "apps/server/src/modules/member/member-benefit.service.ts",
+      "apps/server/src/modules/member/member-monthly.postgres.spec.ts",
+      "apps/server/src/modules/sms/sms.service.spec.ts",
+      "apps/server/src/modules/sms/sms.service.ts",
+      "apps/server/src/modules/websocket/websocket.gateway.ts",
+      "scripts/release/android-probe-device-identity.mjs",
+      "scripts/release/android-probe-install.mjs",
+      "scripts/release/android-probe-log-cutoff.mjs",
+      "scripts/release/android-probe-log-stream.mjs",
+      "scripts/release/android-probe-recovery-evidence.mjs",
+      "scripts/release/audit-store-readiness.mjs",
+      "scripts/release/build-channel-resources.mjs",
+      "scripts/release/build-native-probe.mjs",
+      "scripts/release/probe-health-resources.mjs",
+      "scripts/release/probe-tls-server.mjs",
+      "scripts/release/verify-native-api26-baseline.mjs",
+      "scripts/release/verify-native-api26-controls.mjs",
+      "scripts/release/verify-native-base-upgrades.mjs",
+      "scripts/release/verify-native-health-window.mjs",
+      "scripts/release/verify-native-probe.mjs",
+      "scripts/release/verify-native-tls-android.mjs",
+      "scripts/release/verify-native-transfer-android.mjs",
+      "scripts/release/verify-native-transfer.mjs",
+      "scripts/release/verify-resource-native.mjs",
+      "tests/release/admin-client-presentation.test.cjs",
+      "tests/release/android-probe-device-identity.test.mjs",
+      "tests/release/android-probe-recovery-evidence.test.mjs",
+      "tests/release/android-probe/ProbeActivity.java",
+      "tests/release/android-probe/TlsScenarios.java",
+      "tests/release/android-probe/TransferScenarios.java",
+      "tests/release/audit-store-readiness.test.mjs",
+      "tests/release/channel-build-source.test.mjs",
+      "tests/release/channel-capability-jwt-postgres.test.cjs",
+      "tests/release/channel-login-concurrency-postgres.test.cjs",
+      "tests/release/channel-password-login-postgres.test.cjs",
+      "tests/release/channel-resource-updater.test.cjs",
+      "tests/release/channel-session-redis-postgres.test.cjs",
+      "tests/release/channel-sms-once-postgres.test.cjs",
+      "tests/release/channel-trusted-login-postgres.test.cjs",
+      "tests/release/mobile-live-safe-area.test.mjs",
+      "tests/release/mobile-shipping-regions.test.cjs",
+      "tests/release/native/NativeTransferProbe.java",
+      "tests/release/resource-health-lifecycle.test.cjs"
+    ],
+    "patch": "artifacts/phase35-im-after-http-fixed/mainline-review/remaining-channel-differences-from-9dda8974.patch",
+    "patchBytes": 369477,
+    "patchSha256": "a3348a7119b6d058e0e487e6cc11361486d3c34d74e4716eac3d83624f73fb09",
+    "temporaryIndexApplied": true,
+    "reconstructedTree": "7bb8cc3150bc4e82f93da191275839e196cd6127",
+    "reconstructedProductInputsEqualCandidate": true,
+    "receiverOtherPathsPreserved": true,
+    "actualMainlineReception": false,
+    "masterUpdated": false,
+    "serverDeployed": false,
+    "receiverMustRevalidateCurrentSourceAndConflicts": true,
+    "crossThreadSendAuthorizationPending": true
+  },
+  "productionDeployed": false,
+  "signedPackageBuilt": false,
+  "uploaded": false,
+  "evidence": {
+    "artifacts/phase35-im-after-http-fixed/execution.json": {
+      "bytes": 651,
+      "sha256": "f3d2ef250220f14bd92c6853770587f93eadcecba40915af5dd55b68d2b56344"
+    },
+    "artifacts/phase35-im-after-http-fixed/regression-tests.json": {
+      "bytes": 59736,
+      "sha256": "7af96cd4690cf30e9e16b17a4fff81586822439b631e22f1fbf6cd3b5e337822"
+    },
+    "artifacts/phase35-im-after-http-fixed/im-regression.log": {
+      "bytes": 2038,
+      "sha256": "68c174673901502637eade6b9512d1cd4ce5a1b7e702d38f010ff59af8b03355"
+    },
+    "artifacts/phase35-im-after-http-fixed/server-eslint.json": {
+      "bytes": 3349,
+      "sha256": "2aaa5ee8245a0a93cdea1c69750120ac52c3c921ae3aa26ee0602f8704c66560"
+    },
+    "artifacts/phase35-im-after-http-fixed/server-eslint.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase35-im-after-http-fixed/server-typecheck.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "artifacts/phase35-im-after-http-fixed/server-build.log": {
+      "bytes": 143,
+      "sha256": "a2fd4c92f3c3c4f90bd0126e929d70f488f6e438daafd9de0ecb807752fd901e"
+    },
+    "artifacts/phase35-im-after-http-fixed/build-manifest.json": {
+      "bytes": 646811,
+      "sha256": "1a3b307ebf0c0ce264a04980b71bd00d8deed243dab29fb92f6cea12c74df11f"
+    },
+    "artifacts/phase35-im-before-complete-capture/execution.json": {
+      "bytes": 380,
+      "sha256": "77f10019773505d9f07f2710671d051a60888f007df1b4d9049f391b9f25db95"
+    },
+    "artifacts/phase35-im-before-http/execution.json": {
+      "bytes": 380,
+      "sha256": "541b3a2fb4177141f685b8d2d4fe40447b3b9408e56847a648ed7dee309f84e9"
+    },
+    "artifacts/phase35-im-before-complete-capture/privacy-tests.json": {
+      "bytes": 125307,
+      "sha256": "dbd0204829f3e4333aabe081adbfccd9967548563a1d5706fd08e8ebc7774134"
+    },
+    "artifacts/phase35-im-before-http/privacy-tests.json": {
+      "bytes": 41718,
+      "sha256": "8b6a081652a4e7f0a1d014dc71d5ad77ee168f0a35fcfdd0a07e9aa5efe8fb36"
+    },
+    "artifacts/phase35-im-before-complete-capture/privacy-reproduction.log": {
+      "bytes": 44281,
+      "sha256": "43633e8c503de39f439f5383fdd37ce1622bc36d4230766fb1833d63a83bbec2"
+    },
+    "artifacts/phase35-im-before-http/privacy-reproduction.log": {
+      "bytes": 15472,
+      "sha256": "9f485d6479582a03185e8b5ff88d3b787a29827d12a0eeff5a72c8ccf6d4be02"
+    },
+    "artifacts/phase35-im-before/execution.json": {
+      "bytes": 417,
+      "sha256": "dbe8b1fdaa51d7fa5508cdda241a26e29ce3409d7fc84c7d0117b622d7fd3fd1"
+    },
+    "artifacts/phase35-im-before/privacy-tests.json": {
+      "bytes": 1582,
+      "sha256": "a9f7fb56fcd137ce2682bbc126d799c6fb4ba5a6565539e6cbf37b5ad3f35124"
+    },
+    "artifacts/phase35-im-before-runtime-fixed/execution.json": {
+      "bytes": 417,
+      "sha256": "91ab541a51ebffb8ee252f3f35250dce7b1179ee6ec1d64c9759048413473fa5"
+    },
+    "artifacts/phase35-im-before-runtime-fixed/privacy-tests.json": {
+      "bytes": 65805,
+      "sha256": "347e5aa10f23edf81862c8f46476254f15442b16f88e58c6488bdb1df356c571"
+    },
+    "artifacts/phase35-im-after/execution.json": {
+      "bytes": 651,
+      "sha256": "427efdfbaf4c1ef48f0f4ff5ab9f93dcacddbd379cc63c9a3cace7372ee8f8bc"
+    },
+    "artifacts/phase35-im-after/regression-tests.json": {
+      "bytes": 55371,
+      "sha256": "10be1753a1fd09aede848f4a8bffe0583bc33de1deac581cd50cc83464afb50f"
+    },
+    "artifacts/phase35-im-after-http-fixed/review-verified/im-log-privacy.patch": {
+      "bytes": 31767,
+      "sha256": "30e1a7c968468301d56440fadec098cc409ff989dd0e2d3900a5a5974475a671"
+    },
+    "artifacts/phase35-im-after-http-fixed/review-verified/im-log-privacy.bundle": {
+      "bytes": 9436,
+      "sha256": "c018f4aa8bc8ad816f81c885d2b204f3cc1a4fd96787d3944ac724620d3c68d0"
+    },
+    "artifacts/phase35-im-after-http-fixed/mainline-review/remaining-channel-differences-from-9dda8974.patch": {
+      "bytes": 369477,
+      "sha256": "a3348a7119b6d058e0e487e6cc11361486d3c34d74e4716eac3d83624f73fb09"
+    },
+    "artifacts/phase35-im-after-http-fixed/mainline-review/proposal.json": {
+      "bytes": 4585,
+      "sha256": "15bc21b147dc444a3fd385d65c5cf3c05385eefd1a441f799cd0af05c937489e"
+    }
+  },
+  "remainingInternal": [
+    "Nginx两模板访问日志仍记录$request，部署配置与历史日志未修复",
+    "TracingInterceptor/HTTP自动追踪仍含原URL，追踪导出隐私未验收",
+    "WS连接身份/IP及直播深审异常日志不在本轮移除范围",
+    "历史券异常与跨月同券策略",
+    "从业会员完整事实与通知",
+    "工单持久补发、企业微信回流及部分圈务事件恢复"
+  ],
+  "limits": [
+    "仅应用日志、指标与告警参数的本轮八文件验收，不能宣称代理/追踪/全平台日志已经脱敏",
+    "真实HTTP为最小Nest模块、真实验签与全局两组件；Pino、WS、告警为受控捕获替身，不是生产完整App或真实腾讯云回调",
+    "第三方REST fetch与签名为合成替身；没有真实IM发送、推送、资金或外部通知",
+    "保留原消息原文与投递行为，错误详情改为通用中文提示；业务错误码仍THIRD_IM_FAILED",
+    "请求日志不保留任何查询参数，原请求、响应path字段与回调验签口径不改",
+    "旧157及历史38/320不累计为本轮，未重绑主线完整CI或镜像",
+    "主线正式接收、完整包SDK/旧真机、同版真实业务、生产与16商店实际提审仍未完成",
+    "没有跨会话消息、其他任务代码写入或腾讯云操作"
+  ]
+}
