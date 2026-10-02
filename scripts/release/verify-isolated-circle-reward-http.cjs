@@ -46,7 +46,8 @@ async function dropTriggers() {
     await redis.pingShared();
     for(const id of [payer,author,outsider])await p.user.create({data:{id,nickname:"合成打赏验收用户"}});
     await redis.setJson("notification:prefs:"+author,{PUSH_ENABLED:false},600);
-    await p.circle.create({data:{id:circle,ownerId:author,name:"隔离打赏验收",intro:"仅合成数据，不对外开放",tags:[]}});
+    // 新圈子默认为PENDING；资金故障测试必须先明确满足已启用圈子的准入条件。
+    await p.circle.create({data:{id:circle,ownerId:author,status:"ACTIVE",name:"隔离打赏验收",intro:"仅合成数据，不对外开放",tags:[]}});
     await p.circleMember.createMany({data:[{circleId:circle,userId:payer},{circleId:circle,userId:author,role:"OWNER"}]});
     await p.post.create({data:{id:post,circleId:circle,userId:author,status:"PUBLISHED",content:"仅合成帖子"}});
     await p.virtualCoinAccount.create({data:{userId:payer,balance:100}});
