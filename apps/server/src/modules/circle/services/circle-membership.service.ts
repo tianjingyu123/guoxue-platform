@@ -18,6 +18,7 @@ import { NotificationService } from "../../notification/notification.service";
 import { JoinCircleDto, UpdateMemberRoleDto } from "../circle.dto";
 import { Prisma, CircleMemberRole } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
+import { clearCircleExpiryCaches, deliverCircleExpiryNotices } from "./circle-membership-expiry-notification.task";
 import { CircleGovernanceService } from "../governance/circle-governance.service";
 import { fulfillCircleOrderTx, type FulfillResult } from "../../shop/circle-fulfillment";
 
@@ -599,74 +600,56 @@ export class CircleMembershipService {
   private async _cleanupExpiredMembers() {
     const cutoff = new Date();
     const expired = await this.prisma.circleMember.findMany({
-      where: {
-        expireAt: { lt: cutoff },
-        role: { not: "OWNER" },
-      },
-      select: { id: true, circleId: true, userId: true },
+      where: { expireAt: { lt: cutoff }, role: { not: "OWNER" } },
+      select: { id: true, circleId: true, userId: true, expireAt: true },
     });
-
-    if (expired.length === 0) return;
-
-    // 分批处理
-    const batchSize = 100;
     let removedCount = 0;
-    for (let i = 0; i < expired.length; i += batchSize) {
-      const batch = expired.slice(i, i + batchSize);
+    for (let i = 0; i < expired.length; i += 100) {
+      const batch = expired.slice(i, i + 100);
       const removed = await this.prisma.$transaction(async (tx) => {
-        const deleted: typeof batch = [];
+        let deleted = 0;
+        const counts = new Map<string, number>();
         for (const member of batch) {
-          // 查询名单后可能已续费或升为圈主，必须在实际写入时再次核对。
+          if (!member.expireAt) continue;
+          // 名单读取后续费、转让圈主或重入，均不能删除旧名单之外的新身份。
           const result = await tx.circleMember.deleteMany({ where: {
-            id: member.id, expireAt: { lt: cutoff }, role: { not: "OWNER" },
+            id: member.id, circleId: member.circleId, userId: member.userId,
+            expireAt: { equals: member.expireAt, lt: cutoff }, role: { not: "OWNER" },
+            circle: { ownerId: { not: member.userId } },
           } });
-          if (result.count > 0) deleted.push(member);
+          if (!result.count) continue;
+          // Prisma DateTime按UTC保存，不能将JS Date隐式转换为数据库本地TIMESTAMP。
+          await tx.circleMembershipExpiryNotice.create({ data: {
+            memberId: member.id, recipientId: member.userId, circleId: member.circleId,
+            expiredAt: member.expireAt, removedAt: cutoff,
+          } });
+          deleted += result.count;
+          counts.set(member.circleId, (counts.get(member.circleId) ?? 0) + result.count);
         }
-        if (!deleted.length) return deleted;
-        // 批量获取各圈子成员数
-        const circleIds = [...new Set(deleted.map((m) => m.circleId))];
-        const counts = await tx.circleMember.groupBy({
-          by: ["circleId"],
-          where: { circleId: { in: circleIds } },
-          _count: { id: true },
-        });
-        const countByCircle = new Map(counts.map(({ circleId, _count }) => [circleId, _count.id]));
-        for (const circleId of circleIds) {
-          await tx.circle.update({
-            where: { id: circleId },
-            data: { memberCount: countByCircle.get(circleId) ?? 0 },
+        // 原子减去实际删除量，避免重算快照覆盖并发入圈/退圈的计数；不改历史异常人数。
+        for (const [circleId, count] of [...counts].sort(([a], [b]) => a.localeCompare(b))) {
+          const counted = await tx.circle.updateMany({
+            where: { id: circleId, memberCount: { gte: count } },
+            data: { memberCount: { decrement: count } },
           });
+          if (!counted.count) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员信息正在核对，请联系管理员");
         }
         return deleted;
       });
-      if (!removed.length) continue;
-      removedCount += removed.length;
-
-      // 清除缓存（pipeline 批量删除）+ 发送通知
-      const redis = this.redis.getClient();
-      if (redis) {
-        const pipeline = redis.pipeline();
-        for (const m of removed) {
-          pipeline.del(`circles:member:${m.circleId}:${m.userId}`);
-        }
-        await pipeline.exec();
-      }
-      for (const m of removed) {
-        if (this.notificationService) {
-          this.notificationService.send(m.userId, {
-            type: "CIRCLE_EXPIRED",
-            title: "圈子会员已过期",
-            content: "您的圈子会员已过期，可续费重新加入",
-            targetType: "CIRCLE",
-            targetId: m.circleId,
-            category: "GOVERN",
-            circleId: m.circleId,
-          }).catch((err) => this.logger.warn("圈子通知发送失败", err));
-        }
-      }
+      removedCount += removed;
+      // 提交后的通知或缓存故障不阻断后续删除批次，待办由每分钟任务恢复。
+      await this.restoreExpiredMemberEffects();
     }
+    // 本轮没有过期成员也可恢复此前已提交但未完成的待办。
+    if (!expired.length) await this.restoreExpiredMemberEffects();
+    if (removedCount) this.logger.log(`已清理 ${removedCount} 个过期圈子成员`);
+  }
 
-    this.logger.log(`已清理 ${removedCount} 个过期圈子成员`);
+  private async restoreExpiredMemberEffects() {
+    try { await deliverCircleExpiryNotices(this.prisma); }
+    catch { this.logger.warn("圈子到期记录通知写入失败，将在下次调度重试"); }
+    try { await clearCircleExpiryCaches(this.prisma, this.redis); }
+    catch { this.logger.warn("圈子到期缓存恢复失败，将在下次调度重试"); }
   }
 
   /** 北京10点起按当前成员到期事实补发7/3/1天站内提醒，不调用外部推送。 */

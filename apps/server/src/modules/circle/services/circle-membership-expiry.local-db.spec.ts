@@ -1,80 +1,97 @@
-import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
-import { CircleMembershipService } from './circle-membership.service';
+import { Prisma, PrismaClient } from "@prisma/client";
+import { CircleMembershipService } from "./circle-membership.service";
+import { CircleMembershipExpiryNotificationTask, clearCircleExpiryCaches } from "./circle-membership-expiry-notification.task";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { RedisService } from "../../../redis/redis.service";
+import { CircleSharedService } from "./circle-shared.service";
+import { UnifiedPricingService } from "../../pricing/unified-pricing.service";
 
-const dbUrl = process.env.REBU_LOCAL_CIRCLE_EXPIRY_TEST_URL;
-if (dbUrl) {
-  const url = new URL(dbUrl);
-  if (url.hostname !== '127.0.0.1' || url.port !== '55439' || url.pathname !== '/rebu_candidate_test') {
-    throw new Error('只允许明确的本机隔离测试库');
-  }
+const testUrl = process.env.ENTITLEMENT_NOTICE_TEST_DATABASE_URL;
+if (testUrl) {
+  const u = new URL(testUrl);
+  if (u.protocol !== "postgresql:" || u.hostname !== "127.0.0.1" || u.port !== "55462" || u.username !== "qa_voice" || !u.pathname.startsWith("/entitlement_notice_qa_")) throw new Error("到期恢复只允许指定合成库");
 }
-const run = dbUrl ? describe : describe.skip;
-run('圈子过期清理独立数据库', () => {
-  const prefix = `synthetic-expiry-${randomUUID()}`;
-  const owner = `${prefix}-owner`, renewed = `${prefix}-renewed`, promoted = `${prefix}-promoted`, expired = `${prefix}-expired`;
+jest.setTimeout(60000);
+(testUrl ? describe : describe.skip)("过期删除事实同事务与站内恢复的真实数据库", () => {
   let db: PrismaClient;
-  let circleId: string;
-  const send = jest.fn().mockResolvedValue(undefined);
-  const del = jest.fn();
-  const exec = jest.fn().mockResolvedValue([]);
-  const redis = { runExclusive: async (_key: string, _ttl: number, fn: () => Promise<void>) => fn(), getClient: () => ({ pipeline: () => ({ del, exec }) }) };
+  const users: string[] = [], circles: string[] = [];
+  const expiry = new Date("2020-01-01T00:00:00Z");
+  const del = jest.fn(async () => 1), delByPattern = jest.fn(async () => 1);
+  const redis = { del, delByPattern, runExclusive: async (_k: string, _t: number, fn: () => Promise<void>) => fn() } as unknown as RedisService;
+  const service = (client: unknown = db) => new CircleMembershipService(client as PrismaService, redis, {} as UnifiedPricingService, {} as CircleSharedService);
+  const fixture = async () => {
+    const owner = await db.user.create({ data: { nickname: "合成圈主" } }), user = await db.user.create({ data: { nickname: "合成到期成员" } }); users.push(owner.id, user.id);
+    const c = await db.circle.create({ data: { name: "合成到期圈", intro: "只验证隔离事实", tags: [], ownerId: owner.id, memberCount: 2, status: "ACTIVE" } }); circles.push(c.id);
+    await db.circleMember.create({ data: { circleId: c.id, userId: owner.id, role: "OWNER" } });
+    const m = await db.circleMember.create({ data: { circleId: c.id, userId: user.id, expireAt: expiry } });
+    return { circle: c.id, user: user.id, member: m.id };
+  };
+  type F = Awaited<ReturnType<typeof fixture>>;
+  const fact = (f: F) => db.circleMembershipExpiryNotice.findUnique({ where: { memberId: f.member } });
+  const notice = (f: F) => db.notification.findUnique({ where: { idempotencyKey: f.user + ":CIRCLE_EXPIRED:" + f.member + ":" + expiry.toISOString() } });
+  const count = async (f: F) => (await db.circle.findUniqueOrThrow({ where: { id: f.circle } })).memberCount;
+  const scan = (work: () => Promise<void>) => ({ circleMember: { findMany: async (args: Prisma.CircleMemberFindManyArgs) => { const rows = await db.circleMember.findMany(args); await work(); return rows; } }, $transaction: (fn: (tx: Prisma.TransactionClient) => Promise<unknown>) => db.$transaction(fn), $queryRaw: db.$queryRaw.bind(db), $executeRaw: db.$executeRaw.bind(db) });
+  const fail = async (table: string, op: string, work: () => Promise<void>) => {
+    if (!["Circle", "Notification", "CircleMembershipExpiryNotice"].includes(table) || !["INSERT", "UPDATE"].includes(op)) throw new Error("故障目标不合法");
+    await db.$executeRawUnsafe("CREATE FUNCTION synthetic_expiry_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic expiry failure'; END $$");
+    await db.$executeRawUnsafe('CREATE TRIGGER synthetic_expiry_failure BEFORE ' + op + ' ON "' + table + '" FOR EACH ROW EXECUTE FUNCTION synthetic_expiry_failure()');
+    try { await work(); } finally { await db.$executeRawUnsafe('DROP TRIGGER synthetic_expiry_failure ON "' + table + '"'); await db.$executeRawUnsafe('DROP FUNCTION synthetic_expiry_failure()'); }
+  };
   beforeAll(async () => {
-    db = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-    await db.user.createMany({ data: [owner, renewed, promoted, expired].map(id => ({ id, nickname: '合成过期测试' })) });
+    db = new PrismaClient({ datasources: { db: { url: testUrl! } } });
+    const [id] = await db.$queryRaw<Array<{ name: string; port: number }>>`SELECT current_database() AS name, inet_server_port() AS port`;
+    if (!id.name.startsWith("entitlement_notice_qa_") || ![55462, 5432].includes(id.port)) throw new Error("隔离库身份不符");
   });
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const circle = await db.circle.create({ data: { name: '隔离测试圈', intro: '仅用于本机验证', tags: [], ownerId: owner, memberCount: 3 } });
-    circleId = circle.id;
-    await db.circleMember.createMany({ data: [renewed, promoted, expired].map(userId => ({ circleId, userId, expireAt: new Date(Date.now() - 86400000) })) });
+  afterEach(async () => {
+    expect(await db.virtualCoinTransaction.count({ where: { userId: { in: users } } })).toBe(0);
+    await db.notification.deleteMany({ where: { userId: { in: users } } }); await db.circle.deleteMany({ where: { id: { in: circles.splice(0) } } }); await db.user.deleteMany({ where: { id: { in: users.splice(0) } } });
+    del.mockReset().mockResolvedValue(1); delByPattern.mockReset().mockResolvedValue(1);
   });
-  afterEach(async () => { await db.circle.deleteMany({ where: { id: circleId } }); });
-  afterAll(async () => {
-    await db.user.deleteMany({ where: { id: { in: [owner, renewed, promoted, expired] } } });
-    await db.$disconnect();
+  afterAll(async () => { await db.$disconnect(); });
+  it("删除、人数、真实UTC到期事实共同提交；首次分类目标正确且不重复", async () => {
+    const f = await fixture(); await service().cleanupExpiredMembers(); await service().cleanupExpiredMembers();
+    expect(await count(f)).toBe(1); expect(await db.circleMember.findUnique({ where: { id: f.member } })).toBeNull(); expect((await fact(f))?.expiredAt.toISOString()).toBe(expiry.toISOString()); expect((await fact(f))?.cacheClearedAt).not.toBeNull();
+    const n = await notice(f); expect(n).toMatchObject({ userId: f.user, category: "GOVERN", circleId: f.circle, targetType: "CIRCLE", targetId: f.circle }); expect(n?.content).toContain("2020-01-01 08:00"); expect(n?.content).toContain("当前权益"); expect(await db.notification.count({ where: { userId: f.user } })).toBe(1);
   });
-  const service = (prisma: any) => new CircleMembershipService(prisma, redis as any, {} as any, {} as any, undefined, undefined, { send } as any);
-
-  it('扫描后已续费或变为圈主的成员不删除、不通知；只清理仍过期成员', async () => {
-    const facade = {
-      circleMember: { findMany: async (args: any) => {
-        const rows = await db.circleMember.findMany(args);
-        // 在扫描结束与清理事务开始之间提交状态变更，确定性复现旧名单竞态。
-        await db.circleMember.update({ where: { circleId_userId: { circleId, userId: renewed } }, data: { expireAt: new Date(Date.now() + 86400000) } });
-        await db.circleMember.update({ where: { circleId_userId: { circleId, userId: promoted } }, data: { role: 'OWNER' } });
-        return rows;
-      } },
-      $transaction: (fn: any) => db.$transaction(fn),
-    };
-    await service(facade).cleanupExpiredMembers();
-    const members = await db.circleMember.findMany({ where: { circleId }, select: { userId: true } });
-    expect(members.map(m => m.userId).sort()).toEqual([renewed, promoted].sort());
-    expect((await db.circle.findUniqueOrThrow({ where: { id: circleId } })).memberCount).toBe(2);
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith(expired, expect.objectContaining({ type: 'CIRCLE_EXPIRED' }));
-    expect(del).toHaveBeenCalledTimes(1);
-    expect(del).toHaveBeenCalledWith(`circles:member:${circleId}:${expired}`);
+  it.each(["renewed", "changedPast", "promoted", "owner", "rejoined"])("扫描后%s不删除、不创建旧事实", async (change) => {
+    const f = await fixture(); let replacement = f.member;
+    await service(scan(async () => {
+      if (change === "renewed" || change === "changedPast") await db.circleMember.update({ where: { id: f.member }, data: { expireAt: new Date(change === "renewed" ? "2040-01-01T00:00:00Z" : "2021-01-01T00:00:00Z") } });
+      if (change === "promoted") await db.circleMember.update({ where: { id: f.member }, data: { role: "OWNER" } });
+      if (change === "owner") await db.circle.update({ where: { id: f.circle }, data: { ownerId: f.user } });
+      if (change === "rejoined") { await db.circleMember.delete({ where: { id: f.member } }); replacement = (await db.circleMember.create({ data: { circleId: f.circle, userId: f.user, expireAt: expiry } })).id; }
+    })).cleanupExpiredMembers();
+    expect(await fact(f)).toBeNull(); expect(await notice(f)).toBeNull(); expect(await count(f)).toBe(2); expect(await db.circleMember.findUnique({ where: { id: replacement } })).not.toBeNull();
   });
-
-  it('最后一批成员过期后人数归零', async () => {
-    await service(db).cleanupExpiredMembers();
-    expect(await db.circleMember.count({ where: { circleId } })).toBe(0);
-    expect((await db.circle.findUniqueOrThrow({ where: { id: circleId } })).memberCount).toBe(0);
-    expect(send).toHaveBeenCalledTimes(3);
+  it.each([["CircleMembershipExpiryNotice", "INSERT"], ["Circle", "UPDATE"]])("真实%s写入失败删除/人数/事实回滚，不能通知成功", async (table, op) => {
+    const f = await fixture(); await fail(table, op, async () => { await expect(service().cleanupExpiredMembers()).rejects.toThrow(); });
+    expect(await count(f)).toBe(2); expect(await db.circleMember.findUnique({ where: { id: f.member } })).not.toBeNull(); expect(await fact(f)).toBeNull(); expect(await notice(f)).toBeNull(); expect(del).not.toHaveBeenCalled();
   });
-
-  it('事务内更新人数失败时删除回滚，不清缓存或发通知', async () => {
-    const facade = {
-      circleMember: db.circleMember,
-      $transaction: (fn: any) => db.$transaction(tx => fn({
-        circleMember: tx.circleMember,
-        circle: { update: async () => { throw new Error('synthetic count failure'); } },
-      })),
-    };
-    await expect(service(facade).cleanupExpiredMembers()).rejects.toThrow('synthetic count failure');
-    expect(await db.circleMember.count({ where: { circleId } })).toBe(3);
-    expect(send).not.toHaveBeenCalled();
-    expect(del).not.toHaveBeenCalled();
+  it("异常零人数拒绝整批，不变负数、不改历史计数", async () => {
+    const f = await fixture(); await db.circle.update({ where: { id: f.circle }, data: { memberCount: 0 } }); await expect(service().cleanupExpiredMembers()).rejects.toThrow("正在核对"); expect(await count(f)).toBe(0); expect(await fact(f)).toBeNull(); expect(await db.circleMember.findUnique({ where: { id: f.member } })).not.toBeNull();
+  });
+  it("通知INSERT失败不回滚删除、不挡缓存；调度恢复后只发一次", async () => {
+    const f = await fixture(); await fail("Notification", "INSERT", async () => { await service().cleanupExpiredMembers(); expect(await notice(f)).toBeNull(); }); expect(await count(f)).toBe(1); expect((await fact(f))?.cacheClearedAt).not.toBeNull();
+    const task = new CircleMembershipExpiryNotificationTask(db as PrismaService, redis); await task.tick(); await task.tick(); expect(await notice(f)).not.toBeNull(); expect(await db.notification.count({ where: { userId: f.user } })).toBe(1);
+  });
+  it("缓存失败不挡通知，恢复不修改已重新加入的权益", async () => {
+    const f = await fixture(); del.mockRejectedValue(new Error("合成缓存失败")); await service().cleanupExpiredMembers(); expect(await notice(f)).not.toBeNull(); expect((await fact(f))?.cacheClearedAt).toBeNull();
+    const renewed = await db.circleMember.create({ data: { circleId: f.circle, userId: f.user, expireAt: new Date("2040-01-01T00:00:00Z") } }); del.mockResolvedValue(1); await new CircleMembershipExpiryNotificationTask(db as PrismaService, redis).tick(); expect((await fact(f))?.cacheClearedAt).not.toBeNull(); expect((await db.circleMember.findUniqueOrThrow({ where: { id: renewed.id } })).expireAt?.toISOString()).toBe("2040-01-01T00:00:00.000Z");
+  });
+  it("公共缓存失败留下待办，后续没有过期成员仍能恢复", async () => {
+    const f = await fixture(); delByPattern.mockRejectedValueOnce(new Error("合成列表缓存失败")); await service().cleanupExpiredMembers(); expect((await fact(f))?.cacheClearedAt).toBeNull(); await service().cleanupExpiredMembers(); expect((await fact(f))?.cacheClearedAt).not.toBeNull();
+  });
+  it("220个真实删除跨批继续；通知/缓存恢复无饥饿或重复", async () => {
+    const f = await fixture(), added = await db.user.createManyAndReturn({ data: Array.from({ length: 219 }, () => ({ nickname: "合成多批成员" })) }); users.push(...added.map(u => u.id)); await db.circleMember.createMany({ data: added.map(u => ({ circleId: f.circle, userId: u.id, expireAt: expiry })) }); await db.circle.update({ where: { id: f.circle }, data: { memberCount: 221 } });
+    del.mockRejectedValue(new Error("合成缓存失败")); await service().cleanupExpiredMembers(); expect(await count(f)).toBe(1); expect(await db.circleMembershipExpiryNotice.count({ where: { circleId: f.circle } })).toBe(220); expect(await db.notification.count({ where: { circleId: f.circle } })).toBe(220);
+    del.mockResolvedValue(1); expect(await clearCircleExpiryCaches(db as PrismaService, redis)).toBe(100); expect(await clearCircleExpiryCaches(db as PrismaService, redis)).toBe(100); expect(await clearCircleExpiryCaches(db as PrismaService, redis)).toBe(20);
+  });
+  it("两个独立连接并发清理只删除、计数、通知一次", async () => {
+    const f = await fixture(), other = new PrismaClient({ datasources: { db: { url: testUrl! } } }); try { await Promise.all([service().cleanupExpiredMembers(), service(other).cleanupExpiredMembers()]); } finally { await other.$disconnect(); }
+    expect(await count(f)).toBe(1); expect(await db.circleMembershipExpiryNotice.count({ where: { memberId: f.member } })).toBe(1); expect(await db.notification.count({ where: { userId: f.user } })).toBe(1);
+  });
+  it("分钟调度失败释放标记，通知异常不挡缓存恢复", async () => {
+    const f = await fixture(); del.mockRejectedValue(new Error("合成缓存失败")); await service().cleanupExpiredMembers(); await db.notification.deleteMany({ where: { userId: f.user } }); const task = new CircleMembershipExpiryNotificationTask(db as PrismaService, redis);
+    await fail("Notification", "INSERT", async () => { del.mockResolvedValue(1); await task.tick(); expect((await fact(f))?.cacheClearedAt).not.toBeNull(); expect(await notice(f)).toBeNull(); }); await task.tick(); expect(await notice(f)).not.toBeNull();
   });
 });

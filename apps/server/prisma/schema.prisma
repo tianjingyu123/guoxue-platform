@@ -120,6 +120,7 @@ model User {
   comments              Comment[]
   collects              Collect[]
   notifications         Notification[]
+  circleExpiryNotices   CircleMembershipExpiryNotice[]
   searchHistories       SearchHistory[]
   readingProgresses     ReadingProgress[]
   bookmarks             Bookmark[]
@@ -556,11 +557,28 @@ model Circle {
   circleGuestEarnings CircleGuestEarning[]
   events              CircleEvent[]
   publishGrants       CirclePublishGrant[]
+  expiryNotices       CircleMembershipExpiryNotice[]
 
   @@index([ownerId])
   @@index([status])
   @@index([status, memberCount])
   @@index([stationId])
+}
+
+/// 只记录本版实际删除的过期成员事实；不外键已删除成员，不回填历史。
+model CircleMembershipExpiryNotice {
+  memberId String @id
+  recipientId String
+  circleId String
+  expiredAt DateTime
+  removedAt DateTime
+  cacheClearedAt DateTime?
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@index([removedAt, memberId])
+  @@index([cacheClearedAt, removedAt, memberId], map: "CircleMembershipExpiryNotice_cache_pending_idx")
 }
 
 model CirclePublishGrant {

@@ -3,6 +3,7 @@ import { CircleService } from "./circle.service";
 import { CircleSharedService } from "./services/circle-shared.service";
 import { CircleCoreService } from "./services/circle-core.service";
 import { CircleMembershipService } from "./services/circle-membership.service";
+import { CircleMembershipExpiryNotificationTask } from "./services/circle-membership-expiry-notification.task";
 import { CirclePostService } from "./services/circle-post.service";
 import { CirclePostRewardNotificationTask } from "./services/circle-post-reward-notification.task";
 import { CircleExpertService } from "./services/circle-expert.service";
@@ -39,7 +40,7 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
   controllers: [CircleController, CircleKnowledgeController, CircleKnowledgeShowcaseController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
-  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CirclePostRewardNotificationTask, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleKnowledgeShowcaseReviewService, CircleAssistantService, RecommendationService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
+  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CirclePostRewardNotificationTask, CircleMembershipExpiryNotificationTask, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleKnowledgeShowcaseReviewService, CircleAssistantService, RecommendationService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
   exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
 })
 export class CircleModule {}

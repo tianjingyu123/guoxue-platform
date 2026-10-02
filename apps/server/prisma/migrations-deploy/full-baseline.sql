@@ -444,6 +444,18 @@ CREATE TABLE "Circle" (
 );
 
 -- CreateTable
+CREATE TABLE "CircleMembershipExpiryNotice" (
+    "memberId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "expiredAt" TIMESTAMP(3) NOT NULL,
+    "removedAt" TIMESTAMP(3) NOT NULL,
+    "cacheClearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CircleMembershipExpiryNotice_pkey" PRIMARY KEY ("memberId")
+);
+
+-- CreateTable
 CREATE TABLE "CirclePublishGrant" (
     "id" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
@@ -6954,6 +6966,12 @@ CREATE INDEX "Circle_status_memberCount_idx" ON "Circle"("status", "memberCount"
 CREATE INDEX "Circle_stationId_idx" ON "Circle"("stationId");
 
 -- CreateIndex
+CREATE INDEX "CircleMembershipExpiryNotice_removedAt_memberId_idx" ON "CircleMembershipExpiryNotice"("removedAt", "memberId");
+
+-- CreateIndex
+CREATE INDEX "CircleMembershipExpiryNotice_cache_pending_idx" ON "CircleMembershipExpiryNotice"("cacheClearedAt", "removedAt", "memberId");
+
+-- CreateIndex
 CREATE INDEX "CirclePublishGrant_circleId_status_createdAt_idx" ON "CirclePublishGrant"("circleId", "status", "createdAt");
 
 -- CreateIndex
@@ -9808,6 +9826,12 @@ ALTER TABLE "Circle" ADD CONSTRAINT "Circle_ownerId_fkey" FOREIGN KEY ("ownerId"
 
 -- AddForeignKey
 ALTER TABLE "Circle" ADD CONSTRAINT "Circle_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleMembershipExpiryNotice" ADD CONSTRAINT "CircleMembershipExpiryNotice_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CircleMembershipExpiryNotice" ADD CONSTRAINT "CircleMembershipExpiryNotice_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
