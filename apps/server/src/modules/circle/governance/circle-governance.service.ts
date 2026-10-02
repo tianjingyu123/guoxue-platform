@@ -1,3 +1,4 @@
+import { enqueueCircleMembershipCache, clearCircleMembershipCaches } from "../services/circle-membership-cache.task";
 import { randomUUID } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -517,12 +518,14 @@ export class CircleGovernanceService {
         },
         `VIOLATION:${v.id}:REMOVE`,
       );
+      await enqueueCircleMembershipCache(tx, circleId, dto.userId);
       return v;
     });
-    await Promise.all([
-      this.redis.del(`circles:member:${circleId}:${dto.userId}`),
-      this.redis.del(`circles:detail:${circleId}`),
-    ]);
+    try {
+      await clearCircleMembershipCaches(this.prisma, this.redis, { circleId, userId: dto.userId });
+    } catch {
+      this.logger.warn("圈子治理移出缓存暂未恢复，已保留待办");
+    }
 
     // TODO(资金硬红线·本批不碰钱)：付费成员按圈子退款规则结算剩余费用——
     // 复用现有圈子退款流（CircleRefund 双审核·退款到钱包余额），由圈主/成员在退款入口发起，此处仅通知告知。

@@ -456,6 +456,17 @@ CREATE TABLE "CircleMembershipExpiryNotice" (
 );
 
 -- CreateTable
+CREATE TABLE "CircleMembershipCacheInvalidation" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "clearedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CircleMembershipCacheInvalidation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "CirclePublishGrant" (
     "id" TEXT NOT NULL,
     "circleId" TEXT NOT NULL,
@@ -6985,6 +6996,9 @@ CREATE INDEX "CircleMembershipExpiryNotice_removedAt_memberId_idx" ON "CircleMem
 
 -- CreateIndex
 CREATE INDEX "CircleMembershipExpiryNotice_cache_pending_idx" ON "CircleMembershipExpiryNotice"("cacheClearedAt", "removedAt", "memberId");
+
+-- CreateIndex
+CREATE INDEX "CircleMembershipCacheInvalidation_pending_idx" ON "CircleMembershipCacheInvalidation"("clearedAt", "createdAt", "id");
 
 -- CreateIndex
 CREATE INDEX "CirclePublishGrant_circleId_status_createdAt_idx" ON "CirclePublishGrant"("circleId", "status", "createdAt");

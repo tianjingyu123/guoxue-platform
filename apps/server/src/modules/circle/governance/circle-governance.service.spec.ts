@@ -22,6 +22,7 @@ const mockPrisma: any = {
   post: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   circleGovernanceNotice: { create: jest.fn() },
   $queryRaw: jest.fn(),
+  $executeRaw: jest.fn().mockResolvedValue(1),
   $transaction: jest.fn(),
 };
 

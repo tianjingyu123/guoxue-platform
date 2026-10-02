@@ -583,6 +583,16 @@ model CircleMembershipExpiryNotice {
   @@index([cacheClearedAt, removedAt, memberId], map: "CircleMembershipExpiryNotice_cache_pending_idx")
 }
 
+// 删除成员/圈子后仍须清除原缓存键，待办不级联丢失。
+model CircleMembershipCacheInvalidation {
+  id        String @id @default(uuid())
+  circleId  String
+  userId    String
+  createdAt DateTime
+  clearedAt DateTime?
+  @@index([clearedAt, createdAt, id], map: "CircleMembershipCacheInvalidation_pending_idx")
+}
+
 model CirclePublishGrant {
   id                    String                   @id @default(uuid())
   circleId              String

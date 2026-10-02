@@ -107,6 +107,28 @@ export class RedisService implements OnModuleDestroy {
     if ((await conn.ping()) !== "PONG") throw new Error("共享 Redis PING 未成功");
   }
 
+  /** 成员缓存恢复只接受同一共享连接，失败不得用进程内缓存冒充完成。 */
+  async clearCircleMembershipShared(
+    targets: ReadonlyArray<{ circleId: string; userId: string }>,
+  ): Promise<void> {
+    if (!targets.length) return;
+    const conn = await this.getConn();
+    if (!conn || (await conn.ping()) !== "PONG") throw new Error("共享 Redis 不可用");
+    const keys = [
+      ...new Set(
+        targets.flatMap(({ circleId, userId }) => [
+          `circles:member:${circleId}:${userId}`,
+          `circles:detail:${circleId}`,
+        ]),
+      ),
+    ];
+    await conn.del(...keys);
+    // 每批只扫描一次列表缓存；删除过程中断则保留数据库待办，稍后重复清理。
+    for await (const page of conn.scanStream({ match: "circles:list:*", count: 100 })) {
+      if (page.length) await conn.del(...page);
+    }
+  }
+
   async get(key: string): Promise<string | null> {
     const conn = await this.getConn();
     if (conn) return conn.get(key);

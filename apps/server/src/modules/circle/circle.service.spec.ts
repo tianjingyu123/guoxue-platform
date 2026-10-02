@@ -47,6 +47,7 @@ const mockPrisma = {
   circleInvitation: { create: jest.fn(), count: jest.fn(), findMany: jest.fn() },
   circleAnnouncement: { findFirst: jest.fn() },
   circleAnnouncementRead: { findUnique: jest.fn() },
+  $executeRaw: jest.fn().mockResolvedValue(1),
   $transaction: jest.fn((arg: any) => (typeof arg === "function" ? arg(mockPrisma) : Promise.all(arg))),
   // 圈子 needApproval 列绕过 Prisma generate 锁，service 用原生 SQL 读写（默认非审批制）
   $queryRawUnsafe: jest.fn().mockResolvedValue([{ needApproval: false }]),

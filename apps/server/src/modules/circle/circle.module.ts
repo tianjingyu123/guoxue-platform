@@ -1,3 +1,4 @@
+import { CircleMembershipCacheTask } from "./services/circle-membership-cache.task";
 import { CircleGovernanceNotificationTask } from "./governance/circle-governance-notification.task";
 import { Module } from "@nestjs/common";
 import { CircleService } from "./circle.service";
@@ -41,7 +42,7 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
   controllers: [CircleController, CircleKnowledgeController, CircleKnowledgeShowcaseController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
-  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CirclePostRewardNotificationTask, CircleMembershipExpiryNotificationTask, CircleGovernanceNotificationTask, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleKnowledgeShowcaseReviewService, CircleAssistantService, RecommendationService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
+  providers: [PreferredNameService, CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CirclePostRewardNotificationTask, CircleMembershipExpiryNotificationTask, CircleGovernanceNotificationTask, CircleMembershipCacheTask, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleKnowledgeShowcaseService, CircleKnowledgeShowcaseReviewService, CircleAssistantService, RecommendationService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
   exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
 })
 export class CircleModule {}
