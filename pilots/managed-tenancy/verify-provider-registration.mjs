@@ -22,6 +22,13 @@ try{
   await assert.rejects(()=>probeManagedQwen(input,binding,false,async()=>{calls++;return new Response('{}',{status:401});}));assert.equal(calls,3);
   await assert.rejects(()=>probeManagedQwen(input,binding,false,async()=>{calls++;throw new Error('synthetic-timeout');}));assert.equal(calls,4);
   record('非官方、明文、含凭据或查询串端点拒绝；错误模型、鉴权失败和超时均不签发核验、不自动重试');
+  const before=calls;
+  for(const callBudget of [undefined,{maxRequests:0,maxUnresolved:1},{maxRequests:2.5,maxUnresolved:1},{maxRequests:1000001,maxUnresolved:1},{maxRequests:1,maxUnresolved:2},{maxRequests:1000,maxUnresolved:101},{maxRequests:10,maxUnresolved:1,extra:1}])await assert.rejects(()=>probeManagedQwen({...input,callBudget},binding,true,fetcher));
+  assert.equal(calls,before);
+  const legacyPaid={...registered,receipt:{...registered.receipt,paidCallsAuthorized:true}};legacyPaid.signature=providerReceiptSignature(legacyPaid.receipt,binding.authKey);assert.throws(()=>verifyProviderRegistration(legacyPaid,binding.customerId,binding.spaceKey,binding.authKey));
+  const authorized=await probeManagedQwen({...input,callBudget:{maxRequests:10,maxUnresolved:2}},binding,true,fetcher);assert.deepEqual(authorized.receipt.callBudget,{maxRequests:10,maxUnresolved:2});assert.equal(verifyProviderRegistration(authorized,binding.customerId,binding.spaceKey,binding.authKey),authorized);
+  const altered={...authorized,receipt:{...authorized.receipt,callBudget:{maxRequests:11,maxUnresolved:2}}};assert.throws(()=>verifyProviderRegistration(altered,binding.customerId,binding.spaceKey,binding.authKey));
+  record('付费授权必须同时签名明确次数和未确认上限，缺失及非法预算在任何HTTP前拒绝；旧无预算付费记录及篡改预算不能启动');
 }catch(error){failure=error;writeFileSync(resolve(runtime,'provider-registration-diagnostic.txt'),error.stack||String(error),{mode:0o600});}
 const files=['apps/server/src/modules/managed-tenancy/managed-provider-probe.ts','apps/server/src/modules/managed-tenancy/managed-chat-provider.ts','scripts/ops/prisma-candidate/managed-provider-probe.mjs','pilots/managed-tenancy/verify-provider-registration.mjs'];
 const report={head:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim(),workingTreeDirty:!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8'}).trim(),sources:Object.fromEntries(files.map(path=>[path,createHash('sha256').update(readFileSync(resolve(repo,path))).digest('hex')])),checks,passed:checks.length,failed:failure?1:0,production:false,limits:['纯合成HTTP响应及签名验证，没有访问真实百炼账号，不代表真实API鉴权或收费通道可用','GET模型清单仅证明该只读结果，生成权限、额度、价格和输出质量仍须实际授权后的独立验收'],officialReferences:['https://help.aliyun.com/en/model-studio/list-models','https://help.aliyun.com/en/model-studio/base-url']};

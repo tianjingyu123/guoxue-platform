@@ -24,7 +24,7 @@ try {
   if(config.syntheticProviderUrl){
     const url=new URL(config.syntheticProviderUrl);
     if(url.hostname!=='127.0.0.1'||url.protocol!=='http:'||url.username||url.password||url.search||url.hash||url.pathname!=='/synthetic-complete'||!Number.isInteger(Number(url.port))||Number(url.port)<1)throw new Error('合成供应商须为本任务loopback服务');
-    syntheticProvider={ready:()=>true,complete:async input=>{
+    syntheticProvider={ready:()=>true,budget:()=>config.syntheticCallBudget??{maxRequests:1000000,maxUnresolved:100},complete:async input=>{
       const result=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:input.messages,requestId:input.requestId}),signal:input.signal});
       if(!result.ok)throw new Error('合成供应商结果未知');return result.json();
     }};
@@ -35,7 +35,7 @@ try {
     if(url.hostname!=='127.0.0.1'||url.protocol!=='http:'||url.username||url.password||url.search||url.hash||url.pathname!=='/synthetic-qwen/v1'||!Number.isInteger(Number(url.port))||Number(url.port)<1)throw new Error('合成Qwen须为本任务loopback服务');
     const {QwenAdapter}=require(resolve(repo,'apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts'));
     const adapter=new QwenAdapter({baseUrl:url.href,apiKey:'synthetic-test-key-never-an-account'});
-    syntheticProvider={ready:()=>true,complete:async input=>{const response=await adapter.chat('synthetic-model',input.messages,{maxTokens:512,timeout:30000,signal:input.signal});if(response.finishReason!=='stop')throw new Error('合成供应商未完整结束');return {content:response.content};}};
+    syntheticProvider={ready:()=>true,budget:()=>config.syntheticCallBudget??{maxRequests:1000000,maxUnresolved:100},complete:async input=>{const response=await adapter.chat('synthetic-model',input.messages,{maxTokens:512,timeout:30000,signal:input.signal});if(response.finishReason!=='stop')throw new Error('合成供应商未完整结束');return {content:response.content};}};
   }
   const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential,syntheticProvider);
   await runtime.initialize();

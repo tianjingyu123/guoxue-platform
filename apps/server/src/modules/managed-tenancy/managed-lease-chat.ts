@@ -4,8 +4,16 @@ import {AiMessage} from "../ai-gateway/adapters/base.adapter";
 import {contentBody,contentId,contentText,ManagedContentActor} from "./managed-lease-content";
 import {digest} from "./managed-policy";
 
+export type ManagedChatBudget={maxRequests:number;maxUnresolved:number};
+/** 累计次数不随签名续期重置；未知结果占位不按超时自动释放。 */
+export function managedChatBudget(value:unknown):ManagedChatBudget{
+  const raw=value as ManagedChatBudget;
+  if(!raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).length!==2||!Object.keys(raw).every(key=>["maxRequests","maxUnresolved"].includes(key))||!Number.isSafeInteger(raw.maxRequests)||raw.maxRequests<1||raw.maxRequests>1000000||!Number.isSafeInteger(raw.maxUnresolved)||raw.maxUnresolved<1||raw.maxUnresolved>100||raw.maxUnresolved>raw.maxRequests)throw new Error("客户模型调用预算无效");
+  return Object.freeze({maxRequests:raw.maxRequests,maxUnresolved:raw.maxUnresolved});
+}
 export interface ManagedChatProvider {
   ready():boolean;
+  budget():ManagedChatBudget;
   complete(input:{messages:AiMessage[];requestId:string;signal:AbortSignal}):Promise<{content:string;requestId?:string}>;
 }
 export type ManagedChatScope={agentId:string;circleId:string|null;name:string;persona:string;knowledge:Array<{id:string;content:string}>};
@@ -39,6 +47,8 @@ export class ManagedLeaseChatService {
     const scope=await this.scope(session.agentId);
     if(scope.circleId!==session.circleId)throw new ForbiddenException("会话知识域已变化，请重新建立会话");
     const reservation=await this.db.$transaction(async tx=>{
+      // 客户级串行预留覆盖不同用户、应用和进程；事务提交后不占着锁等待供应商。
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-chat-budget:${this.actor.customerId}`},0))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-chat:${this.actor.customerId}:${this.actor.userId}`},0))`;
       await tx.$queryRaw`SELECT id FROM "ManagedLeaseChatSession" WHERE id=${id} FOR UPDATE`;
       const previous=await tx.managedLeaseChatMessage.findUnique({where:{sessionId_requestKey:{sessionId:id,requestKey:key}},select:{...messageSelect,requestDigest:true}});
@@ -54,6 +64,11 @@ export class ManagedLeaseChatService {
       const unresolved=await tx.managedLeaseChatMessage.findFirst({where:{sessionId:id,state:{in:["DISPATCHING","UNKNOWN"]}},select:{id:true,state:true}});
       if(unresolved)throw new ConflictException("上一条调用结果尚未确认，请查询原重试键，不能换键盲目重发");
       if(!this.provider?.ready())throw new ServiceUnavailableException("本客户模型通道尚未完成鉴权核验及调用授权");
+      const budget=managedChatBudget(this.provider.budget());
+      const total=await tx.managedLeaseChatMessage.count({where:{session:{customerId:this.actor.customerId}}});
+      if(total>=budget.maxRequests)throw new ForbiddenException("本客户模型累计调用次数达到授权上限");
+      const pending=await tx.managedLeaseChatMessage.count({where:{session:{customerId:this.actor.customerId},state:{in:["DISPATCHING","UNKNOWN"]}}});
+      if(pending>=budget.maxUnresolved)throw new ConflictException("本客户未确认模型请求达到上限，请先核对已有结果");
       const recent=await tx.managedLeaseChatMessage.count({where:{createdAt:{gt:new Date(Date.now()-600000)},session:{customerId:this.actor.customerId,userId:this.actor.userId}}});
       if(recent>=20)throw new ForbiddenException("当前账号达到模型调用技术限流，请稍后再试");
       const latest=await tx.managedLeaseChatSession.update({where:{id},data:{nextSequence:{increment:1}},select:{nextSequence:true}});

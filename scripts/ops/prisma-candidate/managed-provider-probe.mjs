@@ -18,7 +18,7 @@ try{
   const deployment=await control.managedDeployment.findUnique({where:{customerId}});if(!deployment||deployment.state!=='READY')throw new Error('固定客户部署未验证');
   const credential=managedCredential(deployment.credentialRef);business=new PrismaClient({datasources:{db:{url:credential.databaseUrl}}});await verifyManagedDatabase(control,business,customerId,credential);
   const input=JSON.parse(readFileSync(inputFile,'utf8'));
-  if(Object.keys(input).some(key=>!['baseUrl','model','apiKey'].includes(key)))throw new Error('不接受不明确的模型或端点参数');
+  if(Object.keys(input).some(key=>!['baseUrl','model','apiKey','callBudget'].includes(key)))throw new Error('不接受不明确的模型或端点参数');
   // 此标志须由维护人员在获得实际人类调用授权后显式传入；默认只有只读核验。
   const registration=await probeManagedQwen(input,{customerId,spaceKey:deployment.spaceKey,authKey:credential.authKey},flags.includes('--authorize-paid-calls'));
   const registry=existsSync(output)?JSON.parse(readFileSync(output,'utf8')):{};registry[customerId]=registration;writeFileSync(output,JSON.stringify(registry,null,2)+'\n',{mode:0o600});
