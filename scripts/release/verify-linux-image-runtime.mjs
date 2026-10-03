@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:feb4aeb5c");
-const sourceCommit = "feb4aeb5c3d9b60c790b73fe38d0e901984941f5";
-const sourceSha256 = "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1";
+assert.equal(image, "rebu-linux-verify:cc78fbe4f");
+const sourceCommit = "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e";
+const sourceSha256 = "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc";
 const postgresImage = "rebu-isolated-pg18.4-vector:frozen";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -72,6 +72,11 @@ try {
   const grpcReport = JSON.parse(docker(["run", "--rm", "--network", "none", "--entrypoint", "node", image, "-e", grpcCode]));
   save("grpc-runtime-version.json", grpcReport);
   check("grpc-security-version-in-runtime-image", grpcReport);
+  // 新镜像必须核对补丁实际安装及防护行为，旧镜像摘要不能替代。
+  const bracesCode = readFileSync(new URL('./verify-installed-braces-runtime.cjs', import.meta.url), 'utf8');
+  const bracesReport = JSON.parse(docker(['run','--rm','--network','none','--entrypoint','node',image,'-e',bracesCode]));
+  save('braces-runtime-integrity.json', bracesReport);
+  check('braces-actual-dcloud-runtime-hashes-and-depth-protection', bracesReport);
   const staticCheck = `const fs=require('fs'); const assert=require('assert/strict'); const result=[]; for(const [name,prefix] of [['admin','/admin/'],['h5','/h5/']]) { const root='/app/'+name+'-dist'; const html=fs.readFileSync(root+'/index.html','utf8'); assert(html.includes(prefix+'assets/')); const walk=p=>fs.readdirSync(p,{withFileTypes:true}).flatMap(d=>d.isDirectory()?walk(p+'/'+d.name):[p+'/'+d.name]); const files=walk(root); const texts=files.filter(f=>/\\.(js|html|css)$/.test(f)).map(f=>fs.readFileSync(f,'utf8')); assert(texts.some(t=>t.includes('https://api.rebugx.cn'))); assert(!texts.some(t=>t.includes('https://pre-api.rebugx.cn'))); if(name==='h5') assert(texts.some(t=>t.includes('https://static.rebugx.cn'))); result.push({name,prefix,fileCount:files.length}); } process.stdout.write(JSON.stringify(result));`;
   const staticReport = JSON.parse(docker(["run", "--rm", "--network", "none", "--entrypoint", "node", image, "-e", staticCheck]));
   save("static-mounts.json", staticReport);
