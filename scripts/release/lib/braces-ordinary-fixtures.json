@@ -1,0 +1,152 @@
+[
+  {
+    "input": "a/{b,c}/d",
+    "method": "compile",
+    "expected": "a/(b|c)/d"
+  },
+  {
+    "input": "a/{b,c}/d",
+    "method": "expand",
+    "expected": ["a/b/d", "a/c/d"]
+  },
+  {
+    "input": "a/{b,c}/d",
+    "method": "stringify",
+    "expected": "a/{b,c}/d"
+  },
+  {
+    "input": "{1..5}",
+    "method": "compile",
+    "expected": "([1-5])"
+  },
+  {
+    "input": "{1..5}",
+    "method": "expand",
+    "expected": ["1", "2", "3", "4", "5"]
+  },
+  {
+    "input": "{1..5}",
+    "method": "stringify",
+    "expected": "{1..5}"
+  },
+  {
+    "input": "{01..05}",
+    "method": "compile",
+    "expected": "(0[1-5])"
+  },
+  {
+    "input": "{01..05}",
+    "method": "expand",
+    "expected": ["01", "02", "03", "04", "05"]
+  },
+  {
+    "input": "{01..05}",
+    "method": "stringify",
+    "expected": "{01..05}"
+  },
+  {
+    "input": "foo/{a,{b,c}}",
+    "method": "compile",
+    "expected": "foo/(a|(b|c))"
+  },
+  {
+    "input": "foo/{a,{b,c}}",
+    "method": "expand",
+    "expected": ["foo/a", "foo/b", "foo/c"]
+  },
+  {
+    "input": "foo/{a,{b,c}}",
+    "method": "stringify",
+    "expected": "foo/{a,{b,c}}"
+  },
+  {
+    "input": "\\{a,b\\}",
+    "method": "compile",
+    "expected": "{a,b}"
+  },
+  {
+    "input": "\\{a,b\\}",
+    "method": "expand",
+    "expected": ["{a,b}"]
+  },
+  {
+    "input": "\\{a,b\\}",
+    "method": "stringify",
+    "expected": "{a,b}"
+  },
+  {
+    "input": "[{}]",
+    "method": "compile",
+    "expected": "[{}]"
+  },
+  {
+    "input": "[{}]",
+    "method": "expand",
+    "expected": ["[{}]"]
+  },
+  {
+    "input": "[{}]",
+    "method": "stringify",
+    "expected": "[{}]"
+  },
+  {
+    "input": "${variable}",
+    "method": "compile",
+    "expected": "${variable}"
+  },
+  {
+    "input": "${variable}",
+    "method": "expand",
+    "expected": ["${variable}"]
+  },
+  {
+    "input": "${variable}",
+    "method": "stringify",
+    "expected": "${variable}"
+  },
+  {
+    "input": "a(b)c",
+    "method": "compile",
+    "expected": "a(b)c"
+  },
+  {
+    "input": "a(b)c",
+    "method": "expand",
+    "expected": ["a(b)c"]
+  },
+  {
+    "input": "a(b)c",
+    "method": "stringify",
+    "expected": "a(b)c"
+  },
+  {
+    "input": "{a}",
+    "method": "compile",
+    "expected": "{a}"
+  },
+  {
+    "input": "{a}",
+    "method": "expand",
+    "expected": ["{a}"]
+  },
+  {
+    "input": "{a}",
+    "method": "stringify",
+    "expected": "{a}"
+  },
+  {
+    "input": "{a,b}{c,d}",
+    "method": "compile",
+    "expected": "(a|b)(c|d)"
+  },
+  {
+    "input": "{a,b}{c,d}",
+    "method": "expand",
+    "expected": ["ac", "ad", "bc", "bd"]
+  },
+  {
+    "input": "{a,b}{c,d}",
+    "method": "stringify",
+    "expected": "{a,b}{c,d}"
+  }
+]

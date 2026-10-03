@@ -2,6 +2,11 @@
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import {
+  isSupportedBracesFinding,
+  verifyInstalledBraces,
+  validateAuditReport,
+} from "./lib/braces-depth-guard.mjs";
 
 const acceptedAdvisories = new Map([
   [
@@ -29,6 +34,7 @@ function runAudit() {
     cwd: process.cwd(),
     encoding: "utf8",
     maxBuffer: 20 * 1024 * 1024,
+    timeout: 120000,
   });
 
   if (result.error) {
@@ -45,7 +51,8 @@ function runAudit() {
   }
 
   try {
-    return JSON.parse(output.slice(jsonStart));
+    if (result.status !== 0 && result.status !== 1) throw new Error("审计命令未正常完成");
+    return validateAuditReport(JSON.parse(output.slice(jsonStart)));
   } catch (error) {
     console.error(`依赖审计结果解析失败：${error.message}`);
     process.exit(2);
@@ -59,34 +66,47 @@ function isAccepted(advisory) {
   if (!String(advisory.title || "").includes(rule.titleIncludes)) return false;
 
   const paths = (advisory.findings || []).flatMap((finding) => finding.paths || []);
-  return (
-    paths.length > 0 &&
-    paths.every((item) => rule.allowedPaths.includes(item))
-  );
+  return paths.length > 0 && paths.every((item) => rule.allowedPaths.includes(item));
 }
 
 const audit = runAudit();
 const advisories = Object.values(audit.advisories || {});
+// npm版本尚未修复时，只认可范围固定且安装后的源码与防护行为均实测的本地补丁。
+const locallyFixed = [];
+for (const advisory of advisories.filter(isSupportedBracesFinding)) {
+  try {
+    verifyInstalledBraces(process.cwd());
+    locallyFixed.push(advisory);
+  } catch {
+    console.error("braces本地补丁缺失、安装内容或防护行为未通过核验，继续阻断。");
+  }
+}
 const blocking = advisories.filter(
   (item) =>
     (item.severity === "high" || item.severity === "critical") &&
-    !isAccepted(item),
+    !isAccepted(item) &&
+    !locallyFixed.includes(item),
 );
 const accepted = advisories.filter(
-  (item) =>
-    (item.severity === "high" || item.severity === "critical") &&
-    isAccepted(item),
+  (item) => (item.severity === "high" || item.severity === "critical") && isAccepted(item),
 );
 const metadata = audit.metadata?.vulnerabilities || {};
+const print = (message) => process.stdout.write(message + "\n");
 
-console.log(
+print(
   `生产依赖审计：critical=${metadata.critical || 0} high=${metadata.high || 0} moderate=${metadata.moderate || 0} low=${metadata.low || 0}`,
 );
 
 for (const advisory of accepted) {
   const rule = acceptedAdvisories.get(Number(advisory.id));
-  console.log(`已接受的临时例外：#${advisory.id} ${advisory.module_name}`);
-  console.log(`  ${rule.reason}`);
+  print(`已接受的临时例外：#${advisory.id} ${advisory.module_name}`);
+  print(`  ${rule.reason}`);
+}
+
+for (const advisory of locallyFixed) {
+  print(
+    `已核实本地安全补丁：#${advisory.id} braces，固定消费路径、五文件摘要及深度保护实测通过；不代表上游已发布修复版。`,
+  );
 }
 
 for (const advisory of blocking) {
@@ -100,4 +120,4 @@ if (blocking.length > 0) {
   process.exit(1);
 }
 
-console.log("依赖安全门禁通过：没有未获批准的高危或严重漏洞。");
+print("依赖安全门禁通过：没有未处理的高危或严重漏洞；临时例外与已验证本地修复见上述明细。");
