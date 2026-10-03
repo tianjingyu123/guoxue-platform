@@ -161,14 +161,17 @@ describe("关键业务通知持久化与可选推送的响应边界", () => {
     const order = { id: "synthetic-order", userId: "synthetic-user", type: "COURSE", status: "PAID",
       amount: 15, payAmount: null, payMethod: "WECHAT", payTransactionId: "synthetic-transaction" };
     let committed = false;
+    const afterSale = { updateMany: jest.fn().mockResolvedValue({ count: 1 }) };
+    const executeRaw = jest.fn().mockResolvedValue(1);
     const transaction = jest.fn(async (run: (tx: unknown) => Promise<boolean>) => {
-      const changed = await run({ order: { updateMany: async () => ({ count: 1 }) } });
+      const changed = await run({ order: { updateMany: async () => ({ count: 1 }) },
+        afterSale, $executeRaw: executeRaw });
       if (failTransaction) throw new Error("合成事务提交失败");
       committed = true;
       return changed;
     });
     const prisma = { order: { findUnique: async () => order }, $transaction: transaction,
-      afterSale: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
+      afterSale };
     const redis = { setNX: async () => true, del: jest.fn().mockResolvedValue(undefined),
       delByPattern: async () => undefined };
     const webhook = { fire: jest.fn().mockResolvedValue(undefined) };
@@ -194,10 +197,15 @@ describe("关键业务通知持久化与可选推送的响应边界", () => {
         expect(result).toBe("合成事务提交失败");
         expect(f.prisma.notification.create).not.toHaveBeenCalled();
         expect(webhook.fire).not.toHaveBeenCalled();
+        expect(afterSale.updateMany).not.toHaveBeenCalled();
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(executeRaw).toHaveBeenCalledTimes(1);
       } else {
         expect(result).toBe("success");
         expect(f.prisma.notification.create).toHaveBeenCalledTimes(1);
         expect(prisma.afterSale.updateMany).toHaveBeenCalledTimes(1);
+        expect(transaction).toHaveBeenCalledTimes(2);
+        expect(executeRaw).toHaveBeenCalledTimes(2);
       }
     } finally {
       prefs.resolve({ PUSH_ENABLED: false });
