@@ -1,0 +1,112 @@
+{
+  "head": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "sources": {
+    "apps/server/src/lease-main.ts": "9523f74ae02dbf1db4575e3da29238fa78295ef7224bc78dfe54f197ec4d08f3",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "c089154278f7be496c25694cde7f4eb44494cdb286b1749383adb911597cce93",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "5e31e2fd74a135cb9e2fc0d15258e93bfe6b3fc4bae4d2e2c2c71bbd5a05d9f4",
+    "apps/server/src/modules/managed-tenancy/managed-lease-maintenance.service.ts": "8ee30677bb8b54f496a7144fb6541da54473626a82e237e3c9b171ecafdaa748",
+    "apps/server/src/modules/managed-tenancy/managed-credentials.ts": "02535c617315a33c6a5466cf64e1d5ce0173e9158e1e695073612c7e87bfb18c",
+    "apps/server/src/modules/auth/auth.service.ts": "9a24d0a91cd77c7bb5a6df466de2d64e0c6cc8748e27093f3a3987fcb21b109a",
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f",
+    "apps/server/prisma/migrations/manual_z_20261002_08_managed_lease_exit/migration.sql": "8393287291492b679e4135a6db2280b757f42b3c6efd5ce639e7d82fe59c8427"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "实际运行账号按表和字段授权，拒绝用户/价格改写、内部提示词、平台角色及审计删除",
+      "status": "PASS"
+    },
+    {
+      "name": "运行实例控制面账号只读，不能改合同或读取平台手机号",
+      "status": "PASS"
+    },
+    {
+      "name": "两真实独立客户库，维护侧验证才进入READY，公共应用登记复用",
+      "status": "PASS"
+    },
+    {
+      "name": "实际数据库核验与READY提交之间部署身份变化时拒绝，不把新身份误标为已验证",
+      "status": "PASS"
+    },
+    {
+      "name": "误接另一客户数据库或认证密钥时拒绝启动",
+      "status": "PASS"
+    },
+    {
+      "name": "即使账号与库身份正确，额外平台角色读取权限也使维护核验拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "客户业务账号可调用非系统特权函数时拒绝核验，不能绕过字段权限",
+      "status": "PASS"
+    },
+    {
+      "name": "三个真实Nest子进程：跨客户/应用/平台令牌、伪造上下文和非租赁路由拒绝，前端字段不能切库",
+      "status": "PASS"
+    },
+    {
+      "name": "平台来源会话同时复查软删除：客户库停本客户，平台账号停两个平台关联实例，状态恢复不重建身份",
+      "status": "PASS"
+    },
+    {
+      "name": "已持有上下文不能越过令牌期限；应用暂停和固定部署身份变化即时拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "真实商品白名单、批量越权整组拒绝及另一库商品ID拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "圈子已写入但提交前合同修订变化时实际事务回滚，不消耗数量名额",
+      "status": "PASS"
+    },
+    {
+      "name": "两个独立进程并发八次创建，仅合同剩余两个名额成功",
+      "status": "PASS"
+    },
+    {
+      "name": "真实指定智能体只检索本库授权圈子，禁止global兜底与另一客户智能体",
+      "status": "PASS"
+    },
+    {
+      "name": "复用公共FeatureFlag真实主库急停，合同授权不能覆盖平台关闭",
+      "status": "PASS"
+    },
+    {
+      "name": "到期旧令牌失效，新经营受限；本人订单及幂等售后受理保留，不自动退款",
+      "status": "PASS"
+    },
+    {
+      "name": "售后记录已写入但提交前身份修订变化时申请与审计整组回滚",
+      "status": "PASS"
+    },
+    {
+      "name": "导出manifest下载审计已写入但授权撤销时不返回数据，下载时间与审计回滚",
+      "status": "PASS"
+    },
+    {
+      "name": "真实一致性快照导出：手机号脱敏、无秘密/角色/另一客户数据，原申请人和额外短期凭据及下载审计",
+      "status": "PASS"
+    },
+    {
+      "name": "复用真实AuthService撤销路径，改密/封号时两个客户实例已有会话同时失效",
+      "status": "PASS"
+    },
+    {
+      "name": "主库撤销成员立即拒绝旧会话，不等待缓存过期",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务三个子进程与随机监听端口全部退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 22,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "真实本地PostgreSQL16、两客户业务库与只读控制面，三个实际Nest子进程",
+    "本机同一Windows用户，未验OS/网络隔离",
+    "仅已有商品、圈子、订单、知识与导出最小业务入口；不代表全平台、真实支付、COS或模型调用"
+  ]
+}

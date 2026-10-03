@@ -1,0 +1,57 @@
+{
+  "production": false,
+  "probes": [
+    {
+      "file": "shutdown-postgres.json",
+      "head": "3d8f42bebbdc227e3de165fb2ea81d10d0a5b19c",
+      "workingTreeDirty": true,
+      "passed": 1,
+      "failed": 1,
+      "sha256": "d65d47d51950f5fbc1115508cbabb36bb57e1ebbea25bb13ab447fe1cc6e12af",
+      "reason": "合成商品缺少正文，创建被400拒绝，尚未进入停机演练",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "shutdown-probe-r2.json",
+      "head": "3d8f42bebbdc227e3de165fb2ea81d10d0a5b19c",
+      "workingTreeDirty": true,
+      "passed": 1,
+      "failed": 1,
+      "sha256": "8ca43a803aea2455824857cc704d436d2e99be48e39deea88b35f9a556cc63dc",
+      "reason": "合成商品缺少本应用图片，上架被400拒绝，尚未进入停机演练",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "shutdown-probe-r3.json",
+      "head": "3d8f42bebbdc227e3de165fb2ea81d10d0a5b19c",
+      "workingTreeDirty": true,
+      "passed": 11,
+      "failed": 0,
+      "sha256": "8ea59b8ba438c7225ec0adac706d87b8f6ac5bc0f6c9386826d80052fc760176",
+      "reason": "补齐夹具后首轮11组通过；未冻结源码且未覆盖客户端断线，仅作为探针记录",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "shutdown-operation-probe.json",
+      "head": "0f160a3cc2241331fa5f7062014a423db5dbbf50",
+      "workingTreeDirty": true,
+      "passed": 16,
+      "failed": 0,
+      "sha256": "619bce48a499595b51e8e5805417695dcfd761806af50901a89cfe85539607ad",
+      "reason": "业务排空及客户端断线专项16组通过；尚未冻结源码，仅作为探针记录",
+      "usedAsFinalPassEvidence": false
+    }
+  ],
+  "httpOnlyBaseline": {
+    "sourceHead": "0f160a3cc2241331fa5f7062014a423db5dbbf50",
+    "suites": 26,
+    "shutdownPassed": 11,
+    "manifest": "baseline-http-manifest.json",
+    "shutdownReport": "baseline-http-shutdown.json",
+    "usedAsFinalPassEvidence": false,
+    "limit": "原始报告保留；该次没有断线业务计数及客户端取消场景，不能替代最终验证"
+  },
+  "finalSourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "finalShutdownPassed": 16,
+  "finalShutdownFailed": 0
+}
