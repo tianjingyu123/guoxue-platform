@@ -230,16 +230,16 @@ export class CoinService {
   }
 
   /** 充值（管理员手动充值 或 支付回调触发） */
-  async recharge(userId: string, dto: { amountCoin: number; amountRmb?: number; payMethod?: string; orderNo?: string; description?: string }) {
+  async recharge(userId: string, dto: { amountCoin: number; amountRmb?: number; payMethod?: string; orderNo?: string; description?: string }, prismaTx?: Prisma.TransactionClient) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "充值币数必须大于0");
 
-    await this.getOrCreateAccount(userId);
+    await this.getOrCreateAccount(userId, prismaTx);
 
     // 微信回调已携带下单时的实付金额快照，不应再依赖可能已变化或暂时不可用的实时汇率。
     const coinRate = dto.amountRmb === undefined ? await this.getCoinRate() : null;
 
     // 交互式事务：余额用 atomic increment，避免读-写竞态
-    const [updatedAccount, recharge, transaction] = await this.prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient) => {
       const acc = await tx.virtualCoinAccount.update({
         where: { userId },
         data: {
@@ -268,8 +268,9 @@ export class CoinService {
           description: dto.description || "充值",
         },
       });
-      return [acc, rec, txn];
-    });
+      return [acc, rec, txn] as const;
+    };
+    const [updatedAccount, recharge, transaction] = prismaTx ? await run(prismaTx) : await this.prisma.$transaction(run);
 
     return { account: updatedAccount, recharge, transaction };
   }

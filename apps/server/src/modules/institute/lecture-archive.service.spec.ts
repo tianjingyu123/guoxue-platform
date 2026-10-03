@@ -13,6 +13,18 @@ describe("LectureArchiveService（研-P1 大师讲座归档·复用课程系统�
 
   beforeEach(async () => {
     prisma = {
+      $transaction: jest.fn((callback: any) => callback(prisma)),
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      $queryRaw: jest.fn(async (sql: any, ...values: any[]) => {
+        const text = Array.isArray(sql) ? sql.join("?") : sql.sql;
+        if (text.includes('pg_advisory_xact_lock')) return [];
+        if (text.includes('FROM "Institute"')) return [{ id: "inst-1" }];
+        if (text.includes('FROM "User"')) return [{ status: "ACTIVE" }];
+        if (text.includes('FROM "InstituteMember"')) return [{ id: values[0], userId: values[0] === "im-mgr" ? "u-mgr" : "u-lect", instituteId: "inst-1", role: "PRESIDENT", status: "ACTIVE" }];
+        if (text.includes('FROM "LiveRoom"')) return [{ id: "lr-1", replayUrl: "https://vod.example.com/replay-lr1.m3u8" }];
+        if (text.includes('FROM "CourseCacheInvalidation"')) return [{ id: "cache-1", createdAt: new Date() }];
+        throw new Error("未预期SQL");
+      }),
       instituteMember: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
       liveRoom: { findUnique: jest.fn() },
       course: {
@@ -23,7 +35,7 @@ describe("LectureArchiveService（研-P1 大师讲座归档·复用课程系统�
       },
       teacherCertification: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    redis = { delByPattern: jest.fn() };
+    redis = { delByPatternShared: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -125,7 +137,7 @@ describe("LectureArchiveService（研-P1 大师讲座归档·复用课程系统�
         expect.objectContaining({ title: "讲座回放", content: "https://vod.example.com/a.mp4", sortOrder: 0 }),
         expect.objectContaining({ title: "讲义资料", content: "https://cos.example.com/notes.pdf", sortOrder: 1 }),
       ]);
-      expect(redis.delByPattern).toHaveBeenCalledWith("courses:list:*");
+      expect(redis.delByPatternShared).toHaveBeenCalledWith("courses:list:*");
     });
 
     it("liveRoomId 路径：取直播间 replayUrl 作回放", async () => {

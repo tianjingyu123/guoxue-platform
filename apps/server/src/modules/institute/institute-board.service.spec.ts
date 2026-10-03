@@ -10,7 +10,7 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
   let prisma: any;
   let redis: any;
 
-  const MGR = { id: "im-mgr", instituteId: "inst-1", role: "PRESIDENT" };
+  const MGR = { id: "im-mgr", userId: "u-mgr", instituteId: "inst-1", role: "PRESIDENT", status: "ACTIVE", seatType: "LECTURE" };
 
   beforeEach(async () => {
     prisma = {
@@ -30,7 +30,23 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
       user: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(async (cb: any) => cb(prisma)),
     };
-    redis = { delByPattern: jest.fn() };
+    prisma.pendingCacheRows = [];
+    prisma.$executeRaw = jest.fn(async (sql: unknown, ...values: unknown[]) => {
+      const text = Array.isArray(sql) ? sql.join("") : (sql as any)?.sql ?? "";
+      if (text.includes('INSERT INTO "CircleMembershipCacheInvalidation"')) prisma.pendingCacheRows.push({ id: values[0], circleId: values[1], userId: values[2], createdAt: new Date() });
+      return 1;
+    });
+    prisma.$queryRaw = jest.fn(async (sql: unknown, ...values: unknown[]) => {
+      const text = Array.isArray(sql) ? sql.join("") : (sql as any)?.sql ?? "";
+      if (text.includes('FROM "CircleMembershipCacheInvalidation"')) return prisma.pendingCacheRows;
+      if (text.includes('FROM "InstituteMember"')) {
+        const candidates = await Promise.all(prisma.instituteMember.findFirst.mock.results.map(item => item.value));
+        return candidates.filter(item => item?.id === values[0]);
+      }
+      if (text.includes('FROM "InstituteBoardGroup"')) { const row = await prisma.instituteBoardGroup.findUnique.mock.results.at(-1)?.value; return row ? [row] : []; }
+      return [{ id: values[0], status: "ACTIVE" }];
+    });
+    redis = { clearCircleMembershipShared: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -81,7 +97,7 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
     it("建组成功：私密圈参数正确（FREE+needApproval+ACTIVE·圈主=组长 OWNER·memberCount=1）+userRole+关联记录+缓存失效", async () => {
       prisma.instituteMember.findFirst
         .mockResolvedValueOnce(MGR)
-        .mockResolvedValueOnce({ seatType: "LECTURE" });
+        .mockResolvedValueOnce({ id: "im-leader", userId: "u-leader", instituteId: "inst-1", role: "TYPE_A", status: "ACTIVE", seatType: "LECTURE" });
       prisma.circle.create.mockResolvedValue({ id: "c-new" });
       prisma.instituteBoardGroup.create.mockResolvedValue({ id: "bg-1", circleId: "c-new" });
 
@@ -134,7 +150,7 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
       );
 
       // 圈子列表缓存失效
-      expect(redis.delByPattern).toHaveBeenCalledWith("circles:list:*");
+      expect(redis.clearCircleMembershipShared).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ circleId: "c-new", userId: "u-leader" })]));
     });
   });
 
@@ -145,7 +161,7 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
     });
 
     it("成员可见：实时 memberCount + joined/full 标注 + 组长信息", async () => {
-      prisma.instituteMember.findFirst.mockResolvedValue({ instituteId: "inst-1" });
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "im-self", userId: "u-me", instituteId: "inst-1", role: "TYPE_A", status: "ACTIVE", seatType: "STUDY" });
       prisma.instituteBoardGroup.findMany.mockResolvedValue([
         { id: "bg-1", name: "破局一组", topic: "客单价提升", circleId: "c-1", leaderId: "u-l1", memberLimit: 8, status: "ACTIVE" },
         { id: "bg-2", name: "增长二组", topic: null, circleId: "c-2", leaderId: "u-l2", memberLimit: 12, status: "ACTIVE" },
@@ -192,7 +208,7 @@ describe("InstituteBoardService（T9 私董会小组·私密子圈承载）", ()
 
       const res = await svc.disbandBoardGroup("u-mgr", "bg-1");
       expect(prisma.instituteBoardGroup.update).toHaveBeenCalledWith({
-        where: { id: "bg-1" },
+        where: expect.objectContaining({ id: "bg-1", instituteId: "inst-1", status: "ACTIVE" }),
         data: { status: "DISBANDED" },
       });
       expect(res.success).toBe(true);

@@ -1,5 +1,6 @@
 import { FundApprovalExecutor } from "./fund-approval.executor";
 import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /**
  * 资金审批执行器 · 职责分离（防自审自批）测试
@@ -16,7 +17,8 @@ describe("FundApprovalExecutor 自审自批防护", () => {
   beforeEach(() => {
     approvals = {
       findById: jest.fn(),
-      claim: jest.fn().mockResolvedValue(true),
+      claimForReview: jest.fn().mockImplementation(async (_id, _status, _reviewer, _note, snapshot) => snapshot),
+      executeLocalReview: jest.fn().mockImplementation(async (_id, _reviewer, _note, snapshot, execute) => execute(snapshot, { syntheticTx: true })),
       revertToPending: jest.fn(),
     };
     coin = { recharge: jest.fn().mockResolvedValue({ balance: 100 }) };
@@ -41,27 +43,30 @@ describe("FundApprovalExecutor 自审自批防护", () => {
 
   it("发起人不能审批自己发起的资金操作（approve）", async () => {
     approvals.findById.mockResolvedValue({ id: "a1", status: "PENDING", requestedBy: "admin-1", type: "RECHARGE", payload: {} });
+    approvals.executeLocalReview.mockRejectedValue(new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作"));
     await expect(executor.review("a1", true, undefined, "admin-1")).rejects.toBeInstanceOf(BusinessException);
-    expect(approvals.claim).not.toHaveBeenCalled();
+    expect(approvals.executeLocalReview).toHaveBeenCalled();
     expect(coin.recharge).not.toHaveBeenCalled();
   });
 
   it("发起人不能拒绝自己发起的资金操作（reject）", async () => {
     approvals.findById.mockResolvedValue({ id: "a1", status: "PENDING", requestedBy: "admin-1", type: "RECHARGE", payload: {} });
+    approvals.claimForReview.mockRejectedValue(new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作"));
     await expect(executor.review("a1", false, undefined, "admin-1")).rejects.toBeInstanceOf(BusinessException);
-    expect(approvals.claim).not.toHaveBeenCalled();
+    expect(approvals.claimForReview).toHaveBeenCalled();
   });
 
   it("其他审批人可以正常审批通过并执行", async () => {
     approvals.findById.mockResolvedValue({ id: "a1", status: "PENDING", requestedBy: "admin-1", type: "RECHARGE", payload: { userId: "u1", amountCoin: 100 } });
     const res = await executor.review("a1", true, undefined, "admin-2");
     expect(res.approved).toBe(true);
-    expect(approvals.claim).toHaveBeenCalledWith("a1", "APPROVED", "admin-2", undefined);
+    expect(approvals.executeLocalReview).toHaveBeenCalledWith("a1", "admin-2", undefined, expect.objectContaining({ id: "a1", requestedBy: "admin-1" }), expect.any(Function));
     expect(coin.recharge).toHaveBeenCalled();
   });
 
   it("已处理的审批单不可重复审批", async () => {
     approvals.findById.mockResolvedValue({ id: "a1", status: "APPROVED", requestedBy: "admin-1", type: "RECHARGE", payload: {} });
+    approvals.executeLocalReview.mockRejectedValue(new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理"));
     await expect(executor.review("a1", true, undefined, "admin-2")).rejects.toBeInstanceOf(BusinessException);
   });
 

@@ -12,7 +12,7 @@ import { SettlementRuleAdminService } from "../settlement/settlement-rule-admin.
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
- * 通过 FundApprovalService.claim 的原子状态流转做防重；执行失败回滚为 PENDING。
+ * 通过 FundApprovalService.claimForReview 复核当前权限并原子认领；执行失败回滚为 PENDING。
  * 各执行方法本身已自带事务/幂等（recharge 交互式事务、reverseCommission 同事务等）。
  */
 @Injectable()
@@ -32,25 +32,38 @@ export class FundApprovalExecutor {
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
   async review(id: string, approve: boolean, note: string | undefined, reviewerId: string) {
-    const approval = await this.approvals.findById(id);
-    if (approval.status !== "PENDING") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+    const snapshot = await this.approvals.findById(id);
+    if (approve && snapshot.type === "DIVIDEND") {
+      // 分配没有外部出款：认领与分配使用同一事务，待审占用不提前消失。
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => this.institute.createDividend(
+          approval.requestedBy, approval.payload as unknown as Parameters<InstituteService["createDividend"]>[1], tx,
+        ),
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    // 职责分离（防自审自批）：不得审批自己发起的资金操作，否则单人可发起+批准=凭空造币/套现
-    if (approval.requestedBy && approval.requestedBy === reviewerId) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己发起的资金操作，请由其他审批人处理");
+    if (approve && snapshot.type === "RECHARGE") {
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => {
+          const p = approval.payload as { userId: string; amountCoin: number; description?: string };
+          return this.coin.recharge(p.userId, {
+            amountCoin: p.amountCoin, description: p.description, orderNo: `FUND_RECHARGE_${approval.id}`,
+          }, tx);
+        },
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    if (!approve) {
-      const ok = await this.approvals.claim(id, "REJECTED", reviewerId, note);
-      if (!ok) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
-      return { approved: false, status: "REJECTED", message: "已拒绝" };
+    if (approve && snapshot.type === "COIN_REFUND") {
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, (approval, tx) => {
+          const p = approval.payload as { userId: string; amountCoin: number; description?: string };
+          return this.coin.refund(p.userId, p.amountCoin, p.description || "客诉退款", tx, approval.id);
+        },
+      );
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
-
-    // 原子认领，确保同一审批单只被执行一次
-    const claimed = await this.approvals.claim(id, "APPROVED", reviewerId, note);
-    if (!claimed) throw new BusinessException(ErrorCode.BAD_REQUEST, "该审批单已处理");
+    const approval = await this.approvals.claimForReview(id, approve ? "APPROVED" : "REJECTED", reviewerId, note, snapshot);
+    if (!approve) return { approved: false, status: "REJECTED", message: "已拒绝" };
 
     try {
       const result = await this.execute(approval);
