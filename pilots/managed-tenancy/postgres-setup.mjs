@@ -44,6 +44,8 @@ for(const [name,password] of Object.entries(credentials)) {
   if(existsSync(identityMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseIdentity';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(identityMigration,'utf8')+'\nCOMMIT;');
   const recoveryMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_11_managed_recovery_export/migration.sql');
   if(existsSync(recoveryMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedBrandRequest';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(recoveryMigration,'utf8')+'\nCOMMIT;');
+  const contentMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261003_12_managed_local_content/migration.sql');
+  if(existsSync(contentMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseResource';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(contentMigration,'utf8')+'\nCOMMIT;');
   sql(name,`REVOKE ALL ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ${name}; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO ${name}; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ${name};`);
 }
 const readerPath=resolve(runtime,'synthetic-reader.json');
@@ -69,5 +71,17 @@ for(const suffix of['a','b']){
     const field=columns.includes('*')?'':' ('+columns.map(column=>'"'+column+'"').join(',')+')';
     sql(database,`GRANT ${operation.toUpperCase()}${field} ON "${table}" TO ${role};`);
   }
+  // 独立客户订单插入只能待支付或真正零价课程；合成准备角色与客户角色不共享权限。
+  sql(database,`ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS managed_order_read ON "Order";
+    DROP POLICY IF EXISTS managed_order_fixture ON "Order";
+    DROP POLICY IF EXISTS managed_order_runtime_insert ON "Order";
+    DROP POLICY IF EXISTS managed_order_runtime_cancel ON "Order";
+    CREATE POLICY managed_order_read ON "Order" FOR SELECT TO PUBLIC USING (true);
+    CREATE POLICY managed_order_fixture ON "Order" FOR ALL TO ${database} USING (true) WITH CHECK (true);
+    CREATE POLICY managed_order_runtime_insert ON "Order" FOR INSERT TO ${role} WITH CHECK
+    (status='PENDING' OR (type='COURSE' AND status='PAID' AND "payMethod"='FREE' AND amount=0 AND "payAmount"=0 AND "paidAt" IS NOT NULL
+      AND EXISTS(SELECT 1 FROM "Course" c WHERE c.id="Order"."targetId" AND c.price=0 AND c."deletedAt" IS NULL AND c."auditStatus"='APPROVED')));
+    CREATE POLICY managed_order_runtime_cancel ON "Order" FOR UPDATE TO ${role} USING(status='PENDING') WITH CHECK(status='CANCELLED');`);
 }
 console.log(JSON.stringify({cluster:'127.0.0.1:55467',databases:Object.keys(credentials),production:false,passwordsPrinted:false}));

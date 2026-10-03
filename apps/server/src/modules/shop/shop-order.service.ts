@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -51,6 +51,7 @@ export class ShopOrderService {
     private unifiedPricing: UnifiedPricingService,
     private attribution: ShopAttributionService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
+    @Optional() @Inject("COMMERCE_SCOPE") private readonly commerceScope: "PLATFORM" | "INDEPENDENT" = "PLATFORM",
   ) {}
 
   /**
@@ -458,6 +459,8 @@ export class ShopOrderService {
     userId: string,
     dto: { targetId: string; type?: string; tempReferrerId?: string; sourceContentType?: string; sourceContentId?: string },
   ) {
+    // 独立租赁仅复用本库报价和库存，不继承热卜分站、渠道或自购资金关系。
+    if(this.commerceScope==="INDEPENDENT")return {tempReferrerId:null,tempRefSubjectType:null,permanentReferrerId:null,effectiveReferrerId:null,selfPurchaseRate:0,sourceContentType:null,sourceContentId:null};
     // ── 推荐归因（2026-07-02 拍板）──
     // 全平台单一分享链接（ref=分享者用户ID或分站推广码）：最近分享者=临时推荐人（前端7天窗口传入），
     // 优先于永久归属分站；永久归属由服务端从 ReferralRelation 回填，不信任前端传入的 referrerId。

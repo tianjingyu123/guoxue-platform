@@ -1,10 +1,12 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { PrismaClient } from "@prisma/client";
+import { json } from "express";
 import { managedCredential } from "./modules/managed-tenancy/managed-credentials";
 import { ManagedLeaseRuntime } from "./modules/managed-tenancy/managed-lease.runtime";
 import { ManagedLeaseModule } from "./modules/managed-tenancy/managed-lease.module";
 import { verifyManagedControlReader } from "./modules/managed-tenancy/managed-control-reader";
+import {managedChatProvider} from "./modules/managed-tenancy/managed-chat-provider";
 
 async function main() {
   const customerId = process.env.MANAGED_CUSTOMER_ID;
@@ -24,9 +26,10 @@ async function main() {
     if (writable[0]?.writable !== false) throw new Error("客户运行实例不能持有可写控制面账号");
     const credential = managedCredential(deployment.credentialRef);
     business = new PrismaClient({ datasources: { db: { url: credential.databaseUrl } } });
-    const runtime = new ManagedLeaseRuntime(control, business, customerId, credential);
+    const runtime = new ManagedLeaseRuntime(control, business, customerId, credential,managedChatProvider(customerId,deployment.spaceKey,credential));
     await runtime.initialize();
-    const app = await NestFactory.create(ManagedLeaseModule.register(runtime), { logger: ["warn", "error"] });
+    const app = await NestFactory.create(ManagedLeaseModule.register(runtime), { logger: ["warn", "error"],bodyParser:false });
+    app.use(json({limit:"2mb"}));
     app.setGlobalPrefix("api/v1");
     app.enableShutdownHooks();
     app.use((_req: unknown, res: { setHeader: (name: string, value: string) => void }, next: () => void) => { res.setHeader("Cache-Control", "private, no-store"); next(); });

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./base.adapter";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
@@ -24,9 +24,9 @@ export class QwenAdapter implements AiModelAdapter {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
-  constructor() {
-    this.baseUrl = process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    this.apiKey = process.env.DASHSCOPE_API_KEY || "";
+  constructor(@Optional() @Inject("QWEN_FIXED_CONFIGURATION") private readonly fixedConfiguration?: {baseUrl:string;apiKey:string}) {
+    this.baseUrl = fixedConfiguration ? fixedConfiguration.baseUrl : process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    this.apiKey = fixedConfiguration ? fixedConfiguration.apiKey : process.env.DASHSCOPE_API_KEY || "";
     if (!this.apiKey) {
       this.logger.warn("DASHSCOPE_API_KEY 未配置，Qwen适配器将无法使用");
     }
@@ -42,7 +42,7 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const signal = AbortSignal.timeout(timeout);
+    const signal = options?.signal ? AbortSignal.any([options.signal,AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout);
 
     const startedAt = Date.now();
     const body = {
@@ -64,6 +64,7 @@ export class QwenAdapter implements AiModelAdapter {
         },
         body: JSON.stringify(body),
         signal,
+        redirect: this.fixedConfiguration ? "error" : "follow",
       });
     } catch (err: unknown) {
       if ((err as Error).name === "TimeoutError" || (err as Error).name === "AbortError") {
@@ -76,8 +77,8 @@ export class QwenAdapter implements AiModelAdapter {
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
-      this.logger.error(`Qwen API错误 [${resp.status}]: ${errText}`);
-      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `Qwen API返回 ${resp.status}: ${errText.slice(0, 200)}`);
+      this.logger.error(this.fixedConfiguration?`Qwen API错误 [${resp.status}]`:`Qwen API错误 [${resp.status}]: ${errText}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, this.fixedConfiguration?`客户模型服务返回 ${resp.status}`:`Qwen API返回 ${resp.status}: ${errText.slice(0, 200)}`);
     }
 
     const data = (await resp.json()) as QwenResponse;

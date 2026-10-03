@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -25,6 +25,7 @@ export class CoursePurchaseService {
     private unifiedPricing: UnifiedPricingService,
     private attribution: ShopAttributionService,
     @Optional() private notifications?: NotificationService,
+    @Optional() @Inject("COMMERCE_SCOPE") private readonly commerceScope: "PLATFORM" | "INDEPENDENT" = "PLATFORM",
   ) {}
 
   /** 免费订阅订单已经落库后才建通知；不在下单流程中等待可选通知服务。 */
@@ -49,6 +50,7 @@ export class CoursePurchaseService {
    * 任一归因查询失败均 fail-open，不能阻断正常下单。
    */
   private async resolveOrderAttribution(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+    if(this.commerceScope==="INDEPENDENT")return {permanentReferrerId:null,tempReferrerId:null,tempRefSubjectType:null};
     let tempReferrerId: string | null = null;
     let tempRefSubjectType: string | null = null;
     try {

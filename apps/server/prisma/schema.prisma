@@ -146,6 +146,117 @@ model ManagedLeaseExport {
 }
 
 /// 单次一致性快照的不可变分页；下载必须校验原导出的申请人与短期凭据。
+/// 独立客户在固定应用内自建资源的不可变来源；不授品牌站上传权。
+model ManagedLeaseResource {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  kind String @db.VarChar(16)
+  resourceId String
+  creatorId String
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  @@unique([customerId, kind, resourceId])
+  @@index([customerId, applicationId, kind, id])
+}
+
+/// 受限数据库附件；明确保存字节摘要，不接受外部URL或磁盘路径。
+model ManagedLeaseAsset {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  contentType String @db.VarChar(64)
+  size Int
+  sha256 String @db.VarChar(64)
+  dataBase64 String @db.Text
+  createdAt DateTime @default(now())
+  @@index([customerId, applicationId, id])
+}
+
+model ManagedLeaseJoinRequest {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  circleId String
+  userId String
+  status String @default("PENDING") @db.VarChar(16)
+  reviewedBy String?
+  reason String?
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  @@unique([customerId, circleId, userId])
+  @@index([customerId, circleId, status, id])
+}
+
+model ManagedLeaseOrder {
+  orderId String @id
+  customerId String
+  applicationId String
+  userId String
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  order Order @relation(fields:[orderId],references:[id],onDelete:Restrict)
+  @@unique([customerId, applicationId, userId, requestKey])
+  @@index([customerId, applicationId, userId, orderId])
+}
+
+model ManagedLeasePostRequest {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  postId String @unique
+  createdAt DateTime @default(now())
+  post Post @relation(fields:[postId],references:[id],onDelete:Restrict)
+  @@unique([customerId, applicationId, userId, requestKey])
+}
+
+model ManagedLeaseCircleMute {
+  id String @id @default(uuid())
+  customerId String
+  circleId String
+  userId String
+  until DateTime
+  reason String
+  moderatedBy String
+  @@unique([customerId, circleId, userId])
+}
+
+model ManagedLeaseChatSession {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  agentId String
+  circleId String?
+  nextSequence Int @default(0)
+  createdAt DateTime @default(now())
+  messages ManagedLeaseChatMessage[]
+  @@index([customerId, applicationId, userId, id])
+}
+
+model ManagedLeaseChatMessage {
+  id String @id @default(uuid())
+  sessionId String
+  sequence Int
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  userText String @db.Text
+  assistantText String? @db.Text
+  state String @default("DISPATCHING") @db.VarChar(24)
+  failureCode String? @db.VarChar(64)
+  providerRequestId String? @db.VarChar(128)
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+  session ManagedLeaseChatSession @relation(fields:[sessionId],references:[id],onDelete:Restrict)
+  @@unique([sessionId, requestKey])
+  @@unique([sessionId, sequence])
+}
+
 model ManagedLeaseExportPage {
   exportId   String
   collection String
@@ -161,6 +272,7 @@ model ManagedLeaseAudit {
   customerId String
   userId     String
   action     String
+  reason     String?
   entityId   String
   createdAt  DateTime @default(now())
   @@index([customerId, createdAt])
@@ -1085,6 +1197,7 @@ enum PostType {
 }
 
 model Post {
+  managedLeaseRequest ManagedLeasePostRequest?
   id             String    @id @default(uuid())
   circleId       String
   userId         String
@@ -1763,6 +1876,7 @@ enum OrderStatus {
 
 // 【分区候选】P2阶段按月分区(createdAt)，分片键userId，365天后归档
 model Order {
+  managedLeaseOrigin ManagedLeaseOrder?
   id                 String      @id @default(uuid())
   userId             String
   type               OrderType

@@ -48,7 +48,7 @@ const call=async(port,path,token,key,method='GET',body,extra={})=>{
 try{
   for(const db of[aRuntimeDb,bRuntimeDb]){
     await assert.rejects(()=>db.$executeRawUnsafe('UPDATE "User" SET status=status'));
-    await assert.rejects(()=>db.$executeRawUnsafe('UPDATE "Product" SET price=price'));
+    await assert.rejects(()=>db.$executeRawUnsafe('UPDATE "Product" SET "commissionRate"="commissionRate"'));
     await assert.rejects(()=>db.$queryRawUnsafe('SELECT prompt FROM "VoiceAgentProfile" LIMIT 1'));
     await assert.rejects(()=>db.$queryRawUnsafe('SELECT * FROM "UserRole" LIMIT 1'));
     await assert.rejects(()=>db.$executeRawUnsafe('DELETE FROM "ManagedLeaseAudit" WHERE false'));
@@ -173,7 +173,7 @@ try{
   assert.equal(circles.filter(result=>result.status===201).length,2);assert.equal(await aDb.circle.count({where:{deletedAt:null}}),baseCount+2);
   record('两个独立进程并发八次创建，仅合同剩余两个名额成功');
   const knowledge=await call(a1,'/lease/agents/'+resourceIds.a.agent+'/knowledge?q=synthetic-keyword',tokens.a,selectors.a);assert.equal(knowledge.status,200);assert.equal(knowledge.body.length,1);assert.ok(knowledge.body[0].content.includes('客户a'));assert.ok(!JSON.stringify(knowledge.body).includes('全局兜底'));
-  assert.equal((await call(a1,'/lease/agents/'+resourceIds.b.agent+'/knowledge?q=synthetic-keyword',tokens.a,selectors.a)).status,403);
+  assert.equal((await call(a1,'/lease/agents/'+resourceIds.b.agent+'/knowledge?q=synthetic-keyword',tokens.a,selectors.a)).status,404);
   record('真实指定智能体只检索本库授权圈子，禁止global兜底与另一客户智能体');
   await control.featureFlag.upsert({where:{key:'client_emergency_close'},create:{key:'client_emergency_close',name:'合成全局急停验收',enabled:true},update:{enabled:true}});
   assert.equal((await call(a1,'/lease/resources?kind=product',tokens.a,selectors.a)).status,403);

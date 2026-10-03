@@ -14,6 +14,11 @@ import { managedLeasePermissions } from "./managed-lease-permissions";
 import { ManagedLeaseIdentityService, LocalPrincipal } from "./managed-lease-identity";
 import { createPagedLeaseExport } from "./managed-lease-export";
 import { ManagedLeaseLearningService } from "./managed-lease-learning";
+import { ManagedLeaseContentService, ManagedContentKind, contentId, managedAssetPath } from "./managed-lease-content";
+import { ManagedLeaseCircleService } from "./managed-lease-circle";
+import { verifyManagedOrderPolicies } from "./managed-order-policy";
+import { ManagedLeaseCommerceService } from "./managed-lease-commerce";
+import { ManagedLeaseChatService,ManagedChatProvider,ManagedChatScope } from "./managed-lease-chat";
 
 export type ManagedLeaseContext = Readonly<{ userId: string; role: string; applicationId: string; clientKey: string; revision: number; memberRevision: number; identityProvider: "PLATFORM" | "LOCAL"; credentialRevision?: number }>;
 type Context = ManagedLeaseContext;
@@ -42,6 +47,7 @@ export async function verifyManagedDatabase(control: PrismaClient, business: Pri
         AND has_column_privilege(current_user,c.oid,a.attnum,upper(operation.name))
         AND NOT(coalesce(rules -> c.relname -> operation.name,'[]'::jsonb) ? '*' OR coalesce(rules -> c.relname -> operation.name,'[]'::jsonb) ? a.attname)) excessive`;
   if (permission[0]?.excessive !== false) throw new ForbiddenException("客户数据库账号超出已挂载业务所需权限");
+  await verifyManagedOrderPolicies(business);
   return customer;
 }
 
@@ -51,7 +57,7 @@ export class ManagedLeaseRuntime {
   private identity: { databaseName: string; databaseRole: string; spaceKey: string; credentialRef: string };
   private readonly contexts = new WeakMap<object, string>();
   private readonly identities: ManagedLeaseIdentityService;
-  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
+  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential,private readonly chatProvider?:ManagedChatProvider) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
   async initialize() {
     const customer = await verifyManagedDatabase(this.control, this.business, this.customerId, this.credentials);
     if (customer.deployment?.state !== "READY" || !customer.deployment.verifiedAt) throw new ForbiddenException("部署尚未通过维护核验");
@@ -167,26 +173,84 @@ export class ManagedLeaseRuntime {
   async context(context: Context) {
     const customer = await this.authorize(context, undefined, false);
     const { application } = await this.application(context.clientKey);
-    return { customerId: this.customerId, applicationId: context.applicationId, userId: context.userId, identityProvider: context.identityProvider, role: context.role, applicationSubject: application.applicationSubject, tradingSubject: customer.tradingSubject, brand: application.brand, templateId: application.templateId, operatingStatus: operatingStatus(customer), modules: customer.grant!.modules };
+    return { customerId: this.customerId, applicationId: context.applicationId, userId: context.userId, identityProvider: context.identityProvider, role: context.role, applicationSubject: application.applicationSubject, tradingSubject: customer.tradingSubject, brand: application.brand, templateId: application.templateId, operatingStatus: operatingStatus(customer), modules: customer.grant!.modules,chatReady:!!this.chatProvider?.ready(),paymentReady:false };
   }
   async presentation(context: Context, build: string, capabilities: string, resource: string) {
     const customer = await this.authorize(context, undefined, false);
     const { application, registration } = await this.application(context.clientKey);
     return managedPresentation(this.control as PrismaService, versionScope(registration), context.userId, customer.grant!, application.templateId, Date.now() < customer.endAt.getTime(), build, capabilities, resource);
   }
+  private content(context: Context) { return new ManagedLeaseContentService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId}); }
+  private async resourceIds(context: Context, kind: ManagedResourceKind, resources: unknown) {
+    const granted=(resources as Record<string,string[]>)[kind]||[];
+    return [...new Set([...granted,...await this.content(context).ownedIds(kind)])];
+  }
+  private async contentAdmin(context: Context, kind?: ManagedContentKind, operating=true) {
+    if(kind&&!Object.hasOwn(moduleFor,kind))throw new NotFoundException("内容类型不存在");
+    const customer=await this.authorize(context,kind?moduleFor[kind]:undefined,operating);
+    if(context.role!=="CUSTOMER_ADMIN")throw new ForbiddenException("仅客户管理员可以经营自建内容");return customer;
+  }
+  async manageList(context: Context, kind: ManagedContentKind, cursor = "") {
+    await this.contentAdmin(context,kind,false);return this.content(context).list(kind,cursor);
+  }
+  async uploadAsset(context: Context, body: unknown) {
+    await this.contentAdmin(context);return this.content(context).uploadAsset(body,()=>this.contentAdmin(context));
+  }
+  async asset(context: Context, id: string) {
+    contentId(id);const customer=await this.authorize(context,undefined,false);
+    const row=await this.business.managedLeaseAsset.findFirst({where:{id,customerId:this.customerId,applicationId:context.applicationId},select:{id:true,contentType:true,size:true,sha256:true,dataBase64:true}});
+    if(!row)throw new NotFoundException("本应用附件不存在");
+    if(context.role!=="CUSTOMER_ADMIN"){
+      await this.authorize(context);
+      const path=managedAssetPath(id),productIds=customer.grant!.modules.includes("shop")?await this.resourceIds(context,"product",customer.grant!.resources):[],courseIds=customer.grant!.modules.includes("course")?await this.resourceIds(context,"course",customer.grant!.resources):[];
+      const product=productIds.length?await this.business.product.findFirst({where:{id:{in:productIds},deletedAt:null,status:"ON_SALE",images:{has:path}},select:{id:true}}):null;
+      const course=courseIds.length?await this.business.course.findFirst({where:{id:{in:courseIds},deletedAt:null,auditStatus:"APPROVED",cover:path},select:{id:true}}):null;
+      if(!product&&!course)throw new NotFoundException("附件尚未用于本应用已发布内容");
+      await this.authorize(context,product?"shop":"course");
+    }else if(Date.now()>=customer.exportUntil.getTime())throw new ForbiddenException("附件导出授权已结束");
+    return row;
+  }
+  async manageCreate(context: Context, kind: ManagedContentKind, body: unknown) {
+    const customer=await this.contentAdmin(context,kind),service=this.content(context),reauth=()=>this.contentAdmin(context,kind);
+    if(kind==="product")return service.createProduct(body,reauth);
+    if(kind==="course")return service.createCourse(body,reauth);
+    if(kind==="agent")return service.createAgent(body,reauth,await this.resourceIds(context,"circle",customer.grant!.resources));
+    return this.createCircle(context,body as {name:string;intro:string});
+  }
+  async manageEdit(context: Context, kind: ManagedContentKind, id: string, body: unknown) {
+    await this.contentAdmin(context,kind);const service=this.content(context),reauth=()=>this.contentAdmin(context,kind);
+    if(kind==="product")return service.editProduct(id,body,reauth);
+    if(kind==="course")return service.editCourse(id,body,reauth);
+    if(kind==="agent")return service.editAgent(id,body,reauth);
+    throw new NotFoundException("圈子编辑请使用审核配置入口");
+  }
+  async managePublish(context: Context, kind: ManagedContentKind, id: string, body: unknown) {
+    const customer=await this.contentAdmin(context,kind),service=this.content(context),reauth=()=>this.contentAdmin(context,kind);
+    if(kind==="product")return service.publishProduct(id,body,reauth);
+    if(kind==="course")return service.publishCourse(id,body,reauth);
+    if(kind==="circle")return service.publishCircle(id,body,reauth);
+    const {application}=await this.application(context.clientKey);
+    return service.publishAgent(id,body,reauth,application.templateId==="single-agent",(customer.grant!.resources as Record<string,string[]>).agent||[]);
+  }
+  async manageChapters(context: Context, id: string) {
+    await this.contentAdmin(context,"course",false);return this.content(context).chapters(id);
+  }
+  async manageSaveChapter(context: Context, id: string, body: unknown) {
+    await this.contentAdmin(context,"course");return this.content(context).saveChapter(id,body,()=>this.contentAdmin(context,"course"));
+  }
   async resources(context: Context, kind: ManagedResourceKind, query = "") {
     check(Object.hasOwn(moduleFor, kind) && typeof query === "string" && query.length <= 120, "资源类型或搜索无效");
     const customer = await this.authorize(context, moduleFor[kind]);
-    const ids = ((customer.grant!.resources as Record<string, string[]>)[kind] || []);
+    const ids = await this.resourceIds(context,kind,customer.grant!.resources);
     const title = query ? { contains: query, mode: "insensitive" as const } : undefined;
-    if (kind === "product") return this.business.product.findMany({ where: { id: { in: ids }, deletedAt: null, status: "ON_SALE", title }, select: { id: true, title: true, intro: true, price: true }, take: 200 });
-    if (kind === "course") return this.business.course.findMany({ where: { id: { in: ids }, deletedAt: null, auditStatus: "APPROVED", title }, select: { id: true, title: true, intro: true, price: true }, take: 200 });
+    if (kind === "product") return this.business.product.findMany({ where: { id: { in: ids }, deletedAt: null, status: "ON_SALE", title }, select: { id: true, title: true, intro: true, price: true,images:true }, take: 200 });
+    if (kind === "course") return this.business.course.findMany({ where: { id: { in: ids }, deletedAt: null, auditStatus: "APPROVED", title }, select: { id: true, title: true, intro: true, price: true,cover:true }, take: 200 });
     if (kind === "agent") return this.business.voiceAgentProfile.findMany({ where: { id: { in: ids }, status: "APPROVED", activeVersion: { not: null }, name: title }, select: { id: true, name: true, ownerType: true, ownerId: true, activeVersion: true }, take: 200 });
     return this.business.circle.findMany({ where: { id: { in: ids }, deletedAt: null, name: title }, select: { id: true, name: true, intro: true, status: true }, take: 200 });
   }
   private async learningScope(context: Context) {
     const customer = await this.authorize(context, "course");
-    return (customer.grant!.resources as Record<string, string[]>).course || [];
+    return this.resourceIds(context,"course",customer.grant!.resources);
   }
   async courseChapters(context: Context, courseId: string) {
     return new ManagedLeaseLearningService(this.business).chapters(context.userId, courseId, await this.learningScope(context));
@@ -229,28 +293,71 @@ export class ManagedLeaseRuntime {
       const customer = await this.authorize(context, "circle");
       const count = await tx.circle.count({ where: { deletedAt: null } });
       if (count >= customer.grant!.circleLimit) throw new ForbiddenException("圈子数量已达到合同上限");
-      const circle = await tx.circle.create({ data: { name: body.name.trim(), intro: body.intro, tags: [], ownerId: context.userId }, select: { id: true, name: true, status: true } });
+      const circle = await tx.circle.create({ data: { name: body.name.trim(), intro: body.intro, tags: [], ownerId: context.userId,memberCount:1 }, select: { id: true, name: true, status: true } });
+      await this.content(context).registerOwned(tx,"circle",circle.id);
+      await tx.$executeRaw`INSERT INTO "CircleMember" (id,"circleId","userId",role) VALUES (${randomUUID()},${circle.id},${context.userId},'OWNER')`;
+      await tx.managedLeaseAudit.create({data:{customerId:this.customerId,userId:context.userId,action:"CREATE_OWN_CIRCLE",entityId:circle.id}});
       await this.authorize(context, "circle");
-      return { id: circle.id, name: circle.name, status: circle.status };
+      return { id: circle.id, name: circle.name, status: circle.status,revision:1 };
     }, { timeout: 15000, maxWait: 15000 });
   }
-  async order(context: Context, id: string) {
-    await this.authorize(context, undefined, false);
-    check(typeof id === "string" && id.length <= 80, "订单标识无效");
-    const row = await this.business.order.findFirst({ where: { id, userId: context.userId }, select: { id: true, type: true, targetId: true, quantity: true, amount: true, status: true, paidAt: true, createdAt: true } });
-    if (!row) throw new NotFoundException("订单不存在或无权限");
-    return row;
+  async circleOperation(context: Context,id:string,action:"detail"|"join"|"leave"|"requests"|"reviewJoin"|"members"|"mute"|"posts"|"moderation"|"createPost"|"editPost"|"reviewPost",body?:unknown,target="",cursor="") {
+    const scope=async()=>{const customer=await this.authorize(context,"circle");return this.resourceIds(context,"circle",customer.grant!.resources);};
+    await scope();const circle=new ManagedLeaseCircleService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId,role:context.role},scope);
+    switch(action){
+      case "detail":return circle.detail(id);
+      case "join":return circle.join(id,body);
+      case "leave":return circle.leave(id,body);
+      case "requests":return circle.requests(id,cursor);
+      case "reviewJoin":return circle.reviewJoin(id,target,body);
+      case "members":return circle.members(id,cursor);
+      case "mute":return circle.mute(id,target,body);
+      case "posts":return circle.posts(id,cursor);
+      case "moderation":return circle.posts(id,cursor,true);
+      case "createPost":return circle.createPost(id,body);
+      case "editPost":return circle.editPost(id,target,body);
+      case "reviewPost":return circle.reviewPost(id,target,body);
+    }
   }
+  private commerce(context: Context) {
+    return new ManagedLeaseCommerceService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId},async kind=>{const customer=await this.authorize(context,moduleFor[kind]);return this.resourceIds(context,kind,customer.grant!.resources);},()=>this.authorize(context,undefined,false));
+  }
+  async order(context: Context, id: string) {return this.commerce(context).detail(id);}
+  async orders(context: Context,cursor="") {return this.commerce(context).list(cursor);}
+  async createOrder(context: Context,kind:"product"|"course",body:unknown) {return this.commerce(context).create(kind,body);}
+  async cancelOrder(context: Context,id:string,body:unknown) {return this.commerce(context).cancel(id,body);}
+  async addresses(context: Context) {return this.commerce(context).addresses();}
+  async saveAddress(context: Context,body:unknown,id?:string) {return this.commerce(context).saveAddress(body,id);}
   async knowledge(context: Context, agentId: string, query: string) {
-    const agents = await this.resources(context, "agent") as Array<{ id: string; ownerType: string; ownerId: string }>;
-    const agent = agents.find(row => row.id === agentId);
     check(typeof query === "string" && query.trim().length > 0 && query.length <= 200, "检索内容无效");
-    if (!agent || agent.ownerType !== "circle") throw new ForbiddenException("智能体知识域未授权");
-    const customer = await this.authorize(context, "agent");
-    if (!(customer.grant!.resources as Record<string, string[]>).circle.includes(agent.ownerId)) throw new ForbiddenException("智能体所属圈子未授权");
+    const scope=await this.chatScope(context,agentId);
+    if(!scope.circleId)throw new ForbiddenException("智能体没有已授权圈子知识域");
     // 只读当前独立数据库与指定圈子，禁止 global 兜底、外部库或跨客户向量搜索。
-    return this.business.circleKnowledge.findMany({ where: { circleId: agent.ownerId, scope: "circle", status: "active", content: { contains: query, mode: "insensitive" } }, select: { id: true, content: true, sourceType: true }, take: 20 });
+    return this.business.circleKnowledge.findMany({ where: { circleId: scope.circleId, scope: "circle", status: "active", content: { contains: query, mode: "insensitive" } }, select: { id: true, content: true, sourceType: true }, take: 20 });
   }
+  private async chatScope(context:Context,agentId:string):Promise<ManagedChatScope>{
+    contentId(agentId);const customer=await this.authorize(context,"agent"),ids=await this.resourceIds(context,"agent",customer.grant!.resources);
+    if(!ids.includes(agentId))throw new NotFoundException("本应用智能体未授权");
+    const agent=await this.business.voiceAgentProfile.findFirst({where:{id:agentId,status:"APPROVED",activeVersion:{not:null}},select:{id:true,name:true,persona:true,ownerType:true,ownerId:true}});
+    if(!agent)throw new NotFoundException("智能体未审核启用");
+    const {application}=await this.application(context.clientKey);
+    if(application.templateId==="single-agent"&&await this.business.voiceAgentProfile.count({where:{id:{in:ids},status:"APPROVED",activeVersion:{not:null}}})!==1)throw new ForbiddenException("单智能体模板须由维护人员选定唯一有效角色");
+    let circleId:string|null=null,knowledge:Array<{id:string;content:string}>=[];
+    if(agent.ownerType==="circle"){
+      await this.authorize(context,"circle");
+      if(!(await this.resourceIds(context,"circle",customer.grant!.resources)).includes(agent.ownerId))throw new ForbiddenException("所属圈子未授权");
+      const circle=await this.business.circle.findFirst({where:{id:agent.ownerId,status:"ACTIVE",deletedAt:null},select:{id:true,ownerId:true}});
+      if(!circle)throw new NotFoundException("所属圈子未启用");
+      if(circle.ownerId!==context.userId&&!await this.business.circleMember.findFirst({where:{circleId:circle.id,userId:context.userId,OR:[{expireAt:null},{expireAt:{gt:new Date()}}]},select:{id:true}}))throw new ForbiddenException("须为所属圈子有效成员才能调用知识域");
+      circleId=circle.id;knowledge=await this.business.circleKnowledge.findMany({where:{circleId,scope:"circle",status:"active"},select:{id:true,content:true},orderBy:{id:"asc"},take:20});
+    }else if(agent.ownerType==="managed"&&agent.ownerId!==context.applicationId)throw new ForbiddenException("角色来源不属于本应用");
+    return {agentId:agent.id,circleId,name:agent.name,persona:agent.persona.slice(0,2000),knowledge};
+  }
+  private chats(context:Context){return new ManagedLeaseChatService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId},id=>this.chatScope(context,id),()=>this.authorize(context,undefined,false),this.chatProvider);}
+  async createChat(context:Context,body:unknown){return this.chats(context).create(body);}
+  async chatList(context:Context,cursor=""){return this.chats(context).list(cursor);}
+  async chatMessages(context:Context,id:string,after="0"){return this.chats(context).messages(id,after);}
+  async sendChat(context:Context,id:string,body:unknown){return this.chats(context).send(id,body);}
   async aftercare(context: Context, body: { orderId: string; requestKey: string; reason: string }) {
     await this.authorize(context, undefined, false);
     check(body && Object.keys(body).every(key => ["orderId", "requestKey", "reason"].includes(key)) && typeof body.orderId === "string" && typeof body.requestKey === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(body.requestKey) && typeof body.reason === "string" && body.reason.trim().length >= 2 && body.reason.length <= 500, "售后申请内容无效");

@@ -19,9 +19,20 @@ let app;
 async function close(){if(app)await app.close();await control.$disconnect();await business.$disconnect();process.exit(0);}
 try {
   await verifyManagedControlReader(control,config.customerId);
-  const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential);
+  // 合成供应商只存在于本任务验证进程，不在正式lease-main中提供此配置通道。
+  let syntheticProvider;
+  if(config.syntheticProviderUrl){
+    const url=new URL(config.syntheticProviderUrl);
+    if(url.hostname!=='127.0.0.1'||url.protocol!=='http:'||url.username||url.password||url.search||url.hash||url.pathname!=='/synthetic-complete'||!Number.isInteger(Number(url.port))||Number(url.port)<1)throw new Error('合成供应商须为本任务loopback服务');
+    syntheticProvider={ready:()=>true,complete:async input=>{
+      const result=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:input.messages,requestId:input.requestId}),signal:input.signal});
+      if(!result.ok)throw new Error('合成供应商结果未知');return result.json();
+    }};
+  }
+  const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential,syntheticProvider);
   await runtime.initialize();
-  app=await NestFactory.create(ManagedLeaseModule.register(runtime),{logger:false});
+  app=await NestFactory.create(ManagedLeaseModule.register(runtime),{logger:false,bodyParser:false});
+  app.use(require('express').json({limit:'2mb'}));
   app.setGlobalPrefix('api/v1');
   app.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');next();});
   await app.listen(0,'127.0.0.1');
