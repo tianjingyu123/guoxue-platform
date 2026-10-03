@@ -1,0 +1,114 @@
+{
+  "checkedAt": "2026-10-03T15:47:29.539Z",
+  "source": "5b12a9f2a112477b864b00152732d176649d7600",
+  "historyRange": "8abd69955^..5b12a9f2a",
+  "currentProduct": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+  "onlyDocumentation": true,
+  "entries": [
+    {
+      "file": "docs/progress/多租户待办范围与完成判定-20261003.md",
+      "sourceGitBlob": "29ce2646c1a3d54bb0002b23683c9a68f561817e",
+      "sourceGitSha256": "5608dbe65ad8711d2f9e733b68733bb4d4dc24f3c21da9a72ab1e32ace02facb",
+      "bytes": 31394,
+      "receivedSha256": "c7767e552f4a307ab1f3890f9cc0f90d715389f49ee5f76a41caee2a0121fe39"
+    },
+    {
+      "file": "docs/progress/多租户首轮CLB域名与CORS只读核验-20261003.json",
+      "sourceGitBlob": "bc7ca7cf1970e34c272badc8aa0b1a30966c89e9",
+      "sourceGitSha256": "b9b50af81ce21e0071d6451780c84d1279abea49989e6081fa5da19df1cb55cf",
+      "bytes": 2063,
+      "receivedSha256": "b9b50af81ce21e0071d6451780c84d1279abea49989e6081fa5da19df1cb55cf"
+    },
+    {
+      "file": "docs/progress/多租户首轮两节点部署结构独立核验-20261003.json",
+      "sourceGitBlob": "1abd75976b9b1c112f34438dee9a4e01fab35aff",
+      "sourceGitSha256": "bc64faf1774f635cce5268d81308cbba571600e2c7a42697c746add503bc779e",
+      "bytes": 8165,
+      "receivedSha256": "bc64faf1774f635cce5268d81308cbba571600e2c7a42697c746add503bc779e"
+    },
+    {
+      "file": "docs/progress/多租户首轮公开入口UUID探针-20261003.json",
+      "sourceGitBlob": "004c8184017d173393989ec89c082f9b96b51560",
+      "sourceGitSha256": "0a91a4f23a4db0c28233c82d21f2bf0175f92bed7dadf2eda1f6542724bbeb77",
+      "bytes": 4224,
+      "receivedSha256": "0a91a4f23a4db0c28233c82d21f2bf0175f92bed7dadf2eda1f6542724bbeb77"
+    },
+    {
+      "file": "docs/progress/多租户首轮公开路由日志关联独立核验-20261003.json",
+      "sourceGitBlob": "338d98091de2fa6e9ac852700f7a098d28055d6a",
+      "sourceGitSha256": "734b7bd5705b335e20027812060a024900612060c91a53ec66fbd95fbc977ac9",
+      "bytes": 3749,
+      "receivedSha256": "734b7bd5705b335e20027812060a024900612060c91a53ec66fbd95fbc977ac9"
+    },
+    {
+      "file": "docs/progress/多租户首轮发布资源与Nginx路径独立核验-20261003.json",
+      "sourceGitBlob": "9e55710ee427ddc3f333665d34e754cc93e7af4f",
+      "sourceGitSha256": "be16b2eb564733347dae5b33a87fd6852be5958b433d388f49c253de66889bc9",
+      "bytes": 7223,
+      "receivedSha256": "be16b2eb564733347dae5b33a87fd6852be5958b433d388f49c253de66889bc9"
+    },
+    {
+      "file": "docs/progress/多租户首轮实例角色CLB权限独立核验-20261003.json",
+      "sourceGitBlob": "962aff29d211d5ee648cbce5315fb1bbf53fe1d4",
+      "sourceGitSha256": "759764854202429c52a0b2864469d9ca9bf616a4d795edacaa0c2f32de23c830",
+      "bytes": 2893,
+      "receivedSha256": "759764854202429c52a0b2864469d9ca9bf616a4d795edacaa0c2f32de23c830"
+    },
+    {
+      "file": "docs/progress/多租户首轮平台数据库身份独立核验-20261003.json",
+      "sourceGitBlob": "a3346be51bf02ec094435514bee77bb4e1a04e6d",
+      "sourceGitSha256": "82e79e219da681ef59c5a51ffc7cdec7a2e8c4a0bebefe4cd8533a7212f4ea4b",
+      "bytes": 2383,
+      "receivedSha256": "82e79e219da681ef59c5a51ffc7cdec7a2e8c4a0bebefe4cd8533a7212f4ea4b"
+    },
+    {
+      "file": "docs/progress/多租户首轮生产代理脚本修订独立核验-20261003.json",
+      "sourceGitBlob": "d862d6659fe41ba1151be090ba606a6a42d0f995",
+      "sourceGitSha256": "a134833092633ad6901a7a63c917dc4363ce6f3dc61b4062668da7e36d0e64a2",
+      "bytes": 3749,
+      "receivedSha256": "a134833092633ad6901a7a63c917dc4363ce6f3dc61b4062668da7e36d0e64a2"
+    },
+    {
+      "file": "docs/progress/多租户首轮生产代理脚本原稿独立审查-20261003.json",
+      "sourceGitBlob": "0c70d385a0f0acb8dcfc2aaf3c1699a946f28bb2",
+      "sourceGitSha256": "646ca7baabb70de822c7233a1046ec7afa5af64b51c9f0854aeea9bd39cc4a0b",
+      "bytes": 3817,
+      "receivedSha256": "646ca7baabb70de822c7233a1046ec7afa5af64b51c9f0854aeea9bd39cc4a0b"
+    },
+    {
+      "file": "docs/progress/多租户首轮节点间连通独立核验-20261003.json",
+      "sourceGitBlob": "884b47c210d69a3b81fd331c2e937263ff59fe49",
+      "sourceGitSha256": "c9bc8b1ee5c7ad07cd060d5657d9da530a91d7418061785c56b6ef403310b182",
+      "bytes": 3982,
+      "receivedSha256": "c9bc8b1ee5c7ad07cd060d5657d9da530a91d7418061785c56b6ef403310b182"
+    },
+    {
+      "file": "docs/progress/多租户首轮资金停写能力运行包只读核验-20261003.json",
+      "sourceGitBlob": "dd4b062ee76bbdda3544321d2e93c22df2dd71a2",
+      "sourceGitSha256": "78034794b39766a07ec0f93a9b003f478efccdba64b1583c25db8ec0cb45dfa1",
+      "bytes": 9197,
+      "receivedSha256": "78034794b39766a07ec0f93a9b003f478efccdba64b1583c25db8ec0cb45dfa1"
+    },
+    {
+      "file": "docs/progress/多租户首轮资金切换停写控制源码审查-20261003.json",
+      "sourceGitBlob": "4a7b78e9c88cea361d1acf46ac6886bc5f530bc3",
+      "sourceGitSha256": "cd15c3c54fc1d1ed41f82662606be9ba5f884ed887eb4f741667bb846c886e57",
+      "bytes": 7719,
+      "receivedSha256": "cd15c3c54fc1d1ed41f82662606be9ba5f884ed887eb4f741667bb846c886e57"
+    },
+    {
+      "file": "docs/progress/多租户首轮跨节点代理隔离契约独立核验-20261003.json",
+      "sourceGitBlob": "4f231d9bf7daa195f6406f76254c28b92486450f",
+      "sourceGitSha256": "d6c160b2d1b745594261751bce51bff048a70267268bbc72e97296076a0f4a5f",
+      "bytes": 6526,
+      "receivedSha256": "d6c160b2d1b745594261751bce51bff048a70267268bbc72e97296076a0f4a5f"
+    }
+  ],
+  "sourceStatusNotCurrentMainline": true,
+  "noTestsRerun": true,
+  "production": false,
+  "checkedSourceGitObjects": 11,
+  "localProxyInputHashes": 5,
+  "sourceDeclaredLocalProxyScenarios": 9,
+  "pauseControl": "NO_VERIFIED_FUND_WRITE_PAUSE_CONTROL"
+}

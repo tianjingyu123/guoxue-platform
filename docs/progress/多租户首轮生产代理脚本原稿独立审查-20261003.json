@@ -1,0 +1,89 @@
+{
+  "checkedAt": "2026-10-03T15:05:50.759923+00:00",
+  "fixedWorkPackage": "MT-06",
+  "status": "ORIGINAL_SCRIPTS_REJECTED_PENDING_OWNER_REPAIR",
+  "productionExecuted": false,
+  "sourceInputs": [
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\37-install-cross-node-nginx-config.sh.template",
+      "sha256": "777e4ced3058c17e6274d2dea93bb086b22b4cfb4f83559db0893d7cd5cbec2e",
+      "bytes": 3913,
+      "actuallyRead": true
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\38-restore-cross-node-nginx-config.sh.template",
+      "sha256": "06af8cf0efd701a7e879082de22d797ed818b3a177337d244e58cc7d81df2d0e",
+      "bytes": 2397,
+      "actuallyRead": true
+    },
+    {
+      "path": "D:\\gx-deploy-91\\artifacts\\ops\\tenant-linux-sandbox-20261003\\39-observe-old-nginx-workers.sh.template",
+      "sha256": "0a1dc19714b3ccc5ee6530ac9eaa87ef1f44c0e6012ea4c7492bd74ac05182c4",
+      "bytes": 1127,
+      "actuallyRead": true
+    }
+  ],
+  "mockEvidenceSha256": "ae8cbd736e0d810a3971aec7410156f78afc799e2598a6670a865b658f7d0a5f",
+  "mockEvidence": {
+    "scope": "LOCAL_MOCK_ONLY_NO_DOCKER_NO_SERVER",
+    "inputSha256": "0a1dc19714b3ccc5ee6530ac9eaa87ef1f44c0e6012ea4c7492bd74ac05182c4",
+    "cases": [
+      {
+        "name": "docker_exec_error_is_treated_as_drained",
+        "exitCode": 0,
+        "stdout": "OLD_NGINX_WORKERS_DRAINED|PASS",
+        "stderr": "MOCK_DOCKER_EXEC_UNAVAILABLE",
+        "unsafeFalsePositiveReproduced": true
+      },
+      {
+        "name": "empty_snapshot_is_treated_as_drained",
+        "exitCode": 0,
+        "stdout": "OLD_NGINX_WORKERS_DRAINED|PASS",
+        "stderr": "",
+        "unsafeFalsePositiveReproduced": true
+      }
+    ],
+    "harnessSha256": "fd246f3cd53e0ab3ea7c844cccc70c9298c36c23c8ea1461d740bd28a7762dac",
+    "temporaryFixtureCleanup": true
+  },
+  "findings": [
+    {
+      "id": "R1",
+      "evidence": "本地替身两场景实际复现",
+      "problem": "Docker exec失败与空旧worker快照均错误输出排空PASS并退出0",
+      "required": "成功读取容器/进程快照才判定；绑定容器身份和worker启动标识，空快照、重启、PID复用、查询异常中止"
+    },
+    {
+      "id": "R2",
+      "evidence": "原37/38/39源码静态审查",
+      "problem": "固定候选/回退/恢复临时路径无碰撞保护，38/39缺CHANGE_ID格式限制和备份文件链接拒绝",
+      "required": "本次专属临时文件、先拒碰撞、所有权清理，变更ID/链接与锁路径校验"
+    },
+    {
+      "id": "R3",
+      "evidence": "原37/38源码静态审查",
+      "problem": "仅宿主候选或备份摘要验证，复制后容器目标字节未在rename前绑定",
+      "required": "候选/恢复/回退文件在容器内摘要验证，并在最终rename前核候选和active"
+    },
+    {
+      "id": "R4",
+      "evidence": "原38源码静态审查",
+      "problem": "恢复后基线摘要不符直接退出，未回装变换配置",
+      "required": "rename后失败统一回退并核实际回退摘要，失败时保留证据"
+    },
+    {
+      "id": "R5",
+      "evidence": "原37/38源码静态审查",
+      "problem": "reload命令返回成功未单独核worker实际采用新配置",
+      "required": "有限实际worker/错误状态确认，不确定时中止并回退"
+    }
+  ],
+  "ownerThreadId": "01a089fd-340c-7e20-9b86-458425964366",
+  "mainThreadId": "01a07ac1-6523-7c53-8544-da414af9944f",
+  "repairRequested": true,
+  "limits": [
+    "本地函数替身不代表真实Nginx或生产故障测试",
+    "早期替身默认CRLF导致PID正则拒绝，修正仅测试夹具为LF后正常复现，未改原脚本",
+    "不重开已通过27至36，不增加固定工作包，不宣称生产排空或回退完成"
+  ]
+}

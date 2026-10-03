@@ -1,0 +1,158 @@
+{
+  "checkedAt": "2026-10-03T14:24:38.371Z",
+  "ownerReportSha256": "a8eb6302b9118c707b79977253ca9da03975322d72042f07f0dae72cd021158b",
+  "nodes": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "tasks": [
+        {
+          "taskId": "invt-e9f1rk0630",
+          "invocationId": "inv-e9f1rk062x",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "executedScriptSha256": "1db9e4b4183a2fed23e6ffadef28d71e9dd3ad7e7c598d839017114cb0bc0a56",
+          "rawRecordSha256": "5898921e3745170080e6e9ef59b9662f244b267649106513dbf8d415af39cdb1",
+          "rawRecordActuallyRead": true
+        },
+        {
+          "taskId": "invt-e9f1t7g78d",
+          "invocationId": "inv-e9f1t7g78c",
+          "instanceId": "ins-0sen8yvf",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "executedScriptSha256": "cac65952d2e68c0bfebc48a548ecc081c419db3bef127a7b12ea01b8357267eb",
+          "rawRecordSha256": "a014b754091d2ed6befe9c112da30b682248a2ae0d88cd744439b10ab9ea3974",
+          "rawRecordActuallyRead": true
+        }
+      ],
+      "facts": {
+        "COMPOSE_CONFIG_FILE_EXISTS": "YES",
+        "COMPOSE_CONFIG_SHA256": "659ff96c58d8117df9d83cdf5c17c07f29b7489af8c4598dc6d5d1369f602f92",
+        "NGINX_DEFAULT_CONFIG_MOUNTED": "NO",
+        "APP_PROXY_NETWORK_SET_EQUAL": "YES",
+        "SHARED_NETWORK_COUNT": "2",
+        "NETWORK_SET_SHA256": "c1c8cc43594128152b9df7f6eeddffffc4956befb841ca7e7cbec820fb64f5d3",
+        "APP_ALIAS_SERVER_PRESENT": "YES",
+        "CANDIDATE_CONTAINER_COLLISION": "NO",
+        "ROLLBACK_CONTAINER_COLLISION": "NO",
+        "ROOT_AVAILABLE_BYTES": "138228293632",
+        "DOCKER_AVAILABLE_BYTES": "138228293632",
+        "APP_MOUNT_LAYOUT_SHA256": "2a25bf9eae98b60b1f1476459e926006b3fdd1699835f474a7be713a78102cec",
+        "PROXY_RELOAD_SUPPORTED": "YES",
+        "PROXY_WORKER_ENUMERATION_SUPPORTED": "YES",
+        "FRESH_BACKUP_REQUIRED_BEFORE_MIGRATION": "YES",
+        "DATABASE_MIGRATION_EXECUTION_COUNT": "ONE",
+        "RELEASE_CUTOVER_PREFLIGHT": "OK",
+        "DEFAULT_CONFIG_IN_CONTAINER": "YES",
+        "DEFAULT_CONFIG_SHA256": "48801b39b849818cd0a79221fa1e2b60aa198453368fdd46071d4b9883f5777c",
+        "EXACT_SERVER_ALIAS_3000_COUNT": "1",
+        "OLD_WORKER_SHUTDOWN_TIMEOUT_DIRECTIVE_COUNT": "0",
+        "NGINX_CUTOVER_PATH_PREFLIGHT": "OK"
+      },
+      "templateDestinationObserved": true
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "tasks": [
+        {
+          "taskId": "invt-a9f1segwpn",
+          "invocationId": "inv-a9f1segwpm",
+          "instanceId": "ins-n0sqc627",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "executedScriptSha256": "1db9e4b4183a2fed23e6ffadef28d71e9dd3ad7e7c598d839017114cb0bc0a56",
+          "rawRecordSha256": "df3eeccc90927ebc8dfb4bad2462825b62f72c65f489be59d031de5136c6bd29",
+          "rawRecordActuallyRead": true
+        },
+        {
+          "taskId": "invt-a9f1tk0rqn",
+          "invocationId": "inv-a9f1tk0rqm",
+          "instanceId": "ins-n0sqc627",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "executedScriptSha256": "cac65952d2e68c0bfebc48a548ecc081c419db3bef127a7b12ea01b8357267eb",
+          "rawRecordSha256": "33e27a7561b5984dd61dafe09c62ca2e855878fa9e811caf474437c977e87dbb",
+          "rawRecordActuallyRead": true
+        }
+      ],
+      "facts": {
+        "COMPOSE_CONFIG_FILE_EXISTS": "YES",
+        "COMPOSE_CONFIG_SHA256": "7ec2616d7d76599d3e168dbbf77c165c9dff169bd75b344c7665326cfe1c0ce9",
+        "NGINX_DEFAULT_CONFIG_MOUNTED": "NO",
+        "APP_PROXY_NETWORK_SET_EQUAL": "YES",
+        "SHARED_NETWORK_COUNT": "2",
+        "NETWORK_SET_SHA256": "c1c8cc43594128152b9df7f6eeddffffc4956befb841ca7e7cbec820fb64f5d3",
+        "APP_ALIAS_SERVER_PRESENT": "YES",
+        "CANDIDATE_CONTAINER_COLLISION": "NO",
+        "ROLLBACK_CONTAINER_COLLISION": "NO",
+        "ROOT_AVAILABLE_BYTES": "235328667648",
+        "DOCKER_AVAILABLE_BYTES": "235328667648",
+        "APP_MOUNT_LAYOUT_SHA256": "2a25bf9eae98b60b1f1476459e926006b3fdd1699835f474a7be713a78102cec",
+        "PROXY_RELOAD_SUPPORTED": "YES",
+        "PROXY_WORKER_ENUMERATION_SUPPORTED": "YES",
+        "FRESH_BACKUP_REQUIRED_BEFORE_MIGRATION": "YES",
+        "DATABASE_MIGRATION_EXECUTION_COUNT": "ONE",
+        "RELEASE_CUTOVER_PREFLIGHT": "OK",
+        "DEFAULT_CONFIG_IN_CONTAINER": "YES",
+        "DEFAULT_CONFIG_SHA256": "48801b39b849818cd0a79221fa1e2b60aa198453368fdd46071d4b9883f5777c",
+        "EXACT_SERVER_ALIAS_3000_COUNT": "1",
+        "OLD_WORKER_SHUTDOWN_TIMEOUT_DIRECTIVE_COUNT": "0",
+        "NGINX_CUTOVER_PATH_PREFLIGHT": "OK"
+      },
+      "templateDestinationObserved": true
+    }
+  ],
+  "scope": "发布资源碰撞与实际Nginx配置路径只读预检；不等于摘流、排空或回退已执行。",
+  "preflightVerified": true,
+  "releaseExecutionVerified": false,
+  "productionModified": false,
+  "activeMainConfigCorrection": {
+    "checkedAt": "2026-10-03T14:27:30.216Z",
+    "priorIndependentReportSha256": "03fe747364c9baef9d2c9df5bc340b22da45ace1aa96d8105c0f6b2c7297ff64",
+    "updatedOwnerReportSha256": "74adcca0a1773598491fe1176ff8cb80791a862e4eaec032cf9ecea333c197ec",
+    "reason": "原DEFAULT_CONFIG_SHA256对应生成文件，不是实际生效主配置；已核nginx -T文件清单及主配置原始任务。发布只改实际nginx.conf。",
+    "nodes": [
+      {
+        "node": "A",
+        "instanceId": "ins-0sen8yvf",
+        "taskId": "invt-a9f1weg6t8",
+        "invocationId": "inv-a9f1weg6t7",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawRecordSha256": "28aec2bb1b0a50a49411f452a609aac0f0f270d7eee06e1dc5247c8827b2168d",
+        "executedScriptSha256": "89038fd7b9996d38f7d9913c929ebe96c2516f1b02a6804f80d0a2ec46fc4e0e",
+        "rawRecordActuallyRead": true,
+        "activeMainConfig": "/etc/nginx/nginx.conf",
+        "activeMainConfigSha256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+        "generatedDefaultConfigSha256": "48801b39b849818cd0a79221fa1e2b60aa198453368fdd46071d4b9883f5777c",
+        "generatedDefaultConfigIncludedByNginxT": false,
+        "priorVerifiedConfigListTaskId": "invt-e9f1t7g78d"
+      },
+      {
+        "node": "B",
+        "instanceId": "ins-n0sqc627",
+        "taskId": "invt-d9f1xagha6",
+        "invocationId": "inv-d9f1xagha5",
+        "status": "SUCCESS",
+        "exitCode": 0,
+        "dropped": 0,
+        "rawRecordSha256": "2b6c127f66ca33406038cb244d500417c3b320af7ea4049adaabf71b98930765",
+        "executedScriptSha256": "89038fd7b9996d38f7d9913c929ebe96c2516f1b02a6804f80d0a2ec46fc4e0e",
+        "rawRecordActuallyRead": true,
+        "activeMainConfig": "/etc/nginx/nginx.conf",
+        "activeMainConfigSha256": "c4318885c2206d8a09b88e133067c37bb2f016c307c680765dc6b6a02b3b8812",
+        "generatedDefaultConfigSha256": "48801b39b849818cd0a79221fa1e2b60aa198453368fdd46071d4b9883f5777c",
+        "generatedDefaultConfigIncludedByNginxT": false,
+        "priorVerifiedConfigListTaskId": "invt-a9f1tk0rqn"
+      }
+    ]
+  }
+}

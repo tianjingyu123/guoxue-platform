@@ -1,0 +1,201 @@
+{
+  "checkedAt": "2026-10-03T14:10:21.408Z",
+  "executionOwner": "01a089fd-340c-7e20-9b86-458425964366",
+  "handoffBytesActuallyReadAndHashed": true,
+  "handoffSha256": "1d7174081d7335f23915f17429018224a7b0bd86f3b3c2c528e1957719ea2a33",
+  "scriptBytesActuallyReadAndHashed": true,
+  "scripts": [
+    {
+      "name": "11-two-node-release-structure-readonly.sh",
+      "sha256": "94341a2a2d37ee6823985834db5bcb9d8314726b919e1219681c898a4abc2ce5"
+    },
+    {
+      "name": "13-nginx-upstream-readonly-proof.sh",
+      "sha256": "c348332e828d37f5253a032e07ce455583819678e9fd5b65a399bd5ec529dffc"
+    }
+  ],
+  "nodes": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "results": [
+        {
+          "kind": "structure",
+          "taskId": "invt-a9f124g3hr",
+          "invocationId": "inv-a9f124g3hq",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawRecordBytesActuallyReadAndHashed": true,
+          "rawRecordSha256": "5a3ec94a8de6c1926a3a54aabaa1a0b4028823acc921f5c5679f1d7d75f215bf",
+          "executedScriptBytesActuallyHashed": true,
+          "executedScriptSha256": "94341a2a2d37ee6823985834db5bcb9d8314726b919e1219681c898a4abc2ce5",
+          "facts": {
+            "CONTAINER_STATUS": "running",
+            "CONTAINER_HEALTH": "healthy",
+            "CONTAINER_IMAGE_ID": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+            "IMAGE_EXPOSES_3000": "YES",
+            "CONTAINER_PORT_BINDINGS_COUNT": "0",
+            "CONTAINER_RESTART_POLICY": "unless-stopped",
+            "MOUNT_COUNT": "5",
+            "NETWORK_COUNT": "2",
+            "RELEASE_ID": "ABSENT",
+            "NODE_VERSION": "v24.18.0",
+            "MAIN_JS_PRESENT": "YES",
+            "RUNTIME_PORT_ENV_IS_3000": "YES",
+            "LISTEN_80": "YES",
+            "LISTEN_443": "NO",
+            "LATEST_BACKUP_BYTES": "1816155855",
+            "BACKUP_DIR_MODE": "700",
+            "BACKUP_TOOLS_READY": "YES",
+            "SHARED_ENV_REGULAR": "YES",
+            "PUBLIC_ENTRY_UPSTREAM_PROVEN": "NO",
+            "TWO_NODE_RELEASE_STRUCTURE_READONLY": "OK"
+          }
+        },
+        {
+          "kind": "proxy",
+          "taskId": "invt-e9f17jgmki",
+          "invocationId": "inv-e9f17jgmkh",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawRecordBytesActuallyReadAndHashed": true,
+          "rawRecordSha256": "316471a3b799570cfb0c159431a3e2ec50ffbb61fd03a14551b6f880f2e65416",
+          "executedScriptBytesActuallyHashed": true,
+          "executedScriptSha256": "c348332e828d37f5253a032e07ce455583819678e9fd5b65a399bd5ec529dffc",
+          "facts": {
+            "UPSTREAM_MEMBER_COUNT": "1",
+            "UPSTREAM_MEMBER_TARGETS": "server:3000",
+            "UPSTREAM_MEMBER_PORTS": "3000",
+            "UPSTREAM_MEMBER_MATCHES_APP_ALIAS_PORT_3000": "1",
+            "PROXY_RESOLVES_APP_NAME": "YES",
+            "PROXY_APP_NETWORK_SET_EQUAL": "YES",
+            "PUBLIC_FRONT_ROUTE_PROVEN_BY_NODE_CONFIG": "NO",
+            "NGINX_UPSTREAM_READONLY_PROOF": "OK"
+          }
+        }
+      ]
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "results": [
+        {
+          "kind": "structure",
+          "taskId": "invt-d9f12p0a9e",
+          "invocationId": "inv-d9f12p0a9d",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawRecordBytesActuallyReadAndHashed": true,
+          "rawRecordSha256": "fdd003707f3ab490fe4aa083d3cddbabb3abf4e4b3635fbb9cdbb742519b3e2b",
+          "executedScriptBytesActuallyHashed": true,
+          "executedScriptSha256": "94341a2a2d37ee6823985834db5bcb9d8314726b919e1219681c898a4abc2ce5",
+          "facts": {
+            "CONTAINER_STATUS": "running",
+            "CONTAINER_HEALTH": "healthy",
+            "CONTAINER_IMAGE_ID": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+            "IMAGE_EXPOSES_3000": "YES",
+            "CONTAINER_PORT_BINDINGS_COUNT": "0",
+            "CONTAINER_RESTART_POLICY": "unless-stopped",
+            "MOUNT_COUNT": "5",
+            "NETWORK_COUNT": "2",
+            "RELEASE_ID": "ABSENT",
+            "NODE_VERSION": "v24.18.0",
+            "MAIN_JS_PRESENT": "YES",
+            "RUNTIME_PORT_ENV_IS_3000": "YES",
+            "LISTEN_80": "YES",
+            "LISTEN_443": "NO",
+            "LATEST_BACKUP_BYTES": "8447135",
+            "BACKUP_DIR_MODE": "755",
+            "BACKUP_TOOLS_READY": "YES",
+            "SHARED_ENV_REGULAR": "YES",
+            "PUBLIC_ENTRY_UPSTREAM_PROVEN": "NO",
+            "TWO_NODE_RELEASE_STRUCTURE_READONLY": "OK"
+          }
+        },
+        {
+          "kind": "proxy",
+          "taskId": "invt-c9f1880khe",
+          "invocationId": "inv-c9f1880khd",
+          "status": "SUCCESS",
+          "exitCode": 0,
+          "dropped": 0,
+          "rawRecordBytesActuallyReadAndHashed": true,
+          "rawRecordSha256": "3b1a3a29ca002961464707df699931d19aa898bf4443126165f87179df4170f3",
+          "executedScriptBytesActuallyHashed": true,
+          "executedScriptSha256": "c348332e828d37f5253a032e07ce455583819678e9fd5b65a399bd5ec529dffc",
+          "facts": {
+            "UPSTREAM_MEMBER_COUNT": "1",
+            "UPSTREAM_MEMBER_TARGETS": "server:3000",
+            "UPSTREAM_MEMBER_PORTS": "3000",
+            "UPSTREAM_MEMBER_MATCHES_APP_ALIAS_PORT_3000": "1",
+            "PROXY_RESOLVES_APP_NAME": "YES",
+            "PROXY_APP_NETWORK_SET_EQUAL": "YES",
+            "PUBLIC_FRONT_ROUTE_PROVEN_BY_NODE_CONFIG": "NO",
+            "NGINX_UPSTREAM_READONLY_PROOF": "OK"
+          }
+        }
+      ]
+    }
+  ],
+  "nodeAppAndProxyStructureVerified": true,
+  "currentNodeImagesEqual": false,
+  "publicFrontRouteVerified": false,
+  "formalImageDeployed": false,
+  "releaseMarkerFileAbsent": true,
+  "releaseEnvironmentOrHttpIdAbsenceClaimed": false,
+  "stopTimeoutVerified": true,
+  "stopTimeoutPriorFieldCorrection": {
+    "priorRead": "HostConfig.StopTimeout",
+    "correctRead": "Config.StopTimeout",
+    "reason": "已用正确.Config字段定向补核；两节点StopTimeout/StopSignal均NULL，未显式设置。标记文件缺失不等于HTTP releaseId缺失。",
+    "officialSource": "https://github.com/moby/moby/blob/master/api/types/container/config.go",
+    "originalIndependentReportSha256": "5faba76c0e49145df16aad60cd8bbe20f89a0a782f7b09944cc72f7e185e0ec2",
+    "checkedAt": "2026-10-03T14:12:35.998Z",
+    "defaultTimeoutOrStopCommandOverrideVerified": false
+  },
+  "backupSelection": "A现有备份可作为已验证演练基线；B旧备份不用作升级源；发布仍须新鲜备份",
+  "productionConfigModified": false,
+  "freshTatExecutionByThisTask": false,
+  "fullTaskDocumentsCopied": false,
+  "stopConfigEvidence": [
+    {
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-c9f1gp0x6m",
+      "invocationId": "inv-c9f1gp0x6k",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordBytesActuallyReadAndHashed": true,
+      "rawRecordSha256": "828a5d795a8b747c8fb349101999392024fd209bd2bfaf6c0c6bd34fe1735344",
+      "executedScriptSha256": "ae0b606f516f43667132fc72921135ac432116c15b31d98834770f7c2c3c95ad",
+      "facts": {
+        "CONFIG_STOP_TIMEOUT": "NULL",
+        "CONFIG_STOP_SIGNAL": "NULL",
+        "CONVENTIONAL_RELEASE_MARKER_FILE_PRESENT": "NO",
+        "HTTP_RELEASE_ID_CHECKED": "NO",
+        "CONTAINER_STOP_CONFIG_READONLY": "OK"
+      }
+    },
+    {
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-a9f1h7gama",
+      "invocationId": "inv-a9f1h7gam9",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordBytesActuallyReadAndHashed": true,
+      "rawRecordSha256": "05c8843b91d1b74c74d20e50a73c01094f486e1998c4874035279d804ef1bdf0",
+      "executedScriptSha256": "ae0b606f516f43667132fc72921135ac432116c15b31d98834770f7c2c3c95ad",
+      "facts": {
+        "CONFIG_STOP_TIMEOUT": "NULL",
+        "CONFIG_STOP_SIGNAL": "NULL",
+        "CONVENTIONAL_RELEASE_MARKER_FILE_PRESENT": "NO",
+        "HTTP_RELEASE_ID_CHECKED": "NO",
+        "CONTAINER_STOP_CONFIG_READONLY": "OK"
+      }
+    }
+  ]
+}

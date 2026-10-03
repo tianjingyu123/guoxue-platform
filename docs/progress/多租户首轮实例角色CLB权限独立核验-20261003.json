@@ -1,0 +1,76 @@
+{
+  "checkedAt": "2026-10-03T14:36:47.431Z",
+  "evidence": [
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-e9f26gg5d9",
+      "invocationId": "inv-e9f26gg5d8",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "22292635e9388d22d941aa14ffe115a9067ed671a65d867adda383fadf5ec437",
+      "executedScriptSha256": "d688d7b5a7b61716dbb5bb953b6d93229b289358fdf7c4f19b87076fd708f1e0",
+      "rawRecordActuallyRead": true,
+      "facts": {
+        "METADATA_HTTP_STATUS": "200",
+        "AUTOMATIC_RETRY": "NO",
+        "INSTANCE_ROLE_PRESENT": "YES",
+        "ROLE_NAME_SHA256": "6cf9d147f58d35e4a485cfb9a6c5f746e6d39e685f4c7e3f46889723153bd053",
+        "ROLE_NAME_BYTES": "23",
+        "TEMPORARY_CREDENTIALS_READ": "NO",
+        "INSTANCE_ROLE_LIST_READONLY": "OK"
+      }
+    },
+    {
+      "node": "B",
+      "instanceId": "ins-n0sqc627",
+      "taskId": "invt-d9f275gn6e",
+      "invocationId": "inv-d9f275gn6d",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "de8a04bd86906b197f373d9560400d273c69dd5617f6cce28bb7e0d7aa42f11c",
+      "executedScriptSha256": "d688d7b5a7b61716dbb5bb953b6d93229b289358fdf7c4f19b87076fd708f1e0",
+      "rawRecordActuallyRead": true,
+      "facts": {
+        "METADATA_HTTP_STATUS": "200",
+        "AUTOMATIC_RETRY": "NO",
+        "INSTANCE_ROLE_PRESENT": "YES",
+        "ROLE_NAME_SHA256": "6cf9d147f58d35e4a485cfb9a6c5f746e6d39e685f4c7e3f46889723153bd053",
+        "ROLE_NAME_BYTES": "23",
+        "TEMPORARY_CREDENTIALS_READ": "NO",
+        "INSTANCE_ROLE_LIST_READONLY": "OK"
+      }
+    },
+    {
+      "node": "A",
+      "instanceId": "ins-0sen8yvf",
+      "taskId": "invt-e9f27t0639",
+      "invocationId": "inv-e9f27t0638",
+      "status": "FAILED",
+      "exitCode": 1,
+      "dropped": 0,
+      "rawRecordSha256": "fd41d0c1829729cb8ef4986e6244ae5f26de3fa6a477417b5fb0f7e1e01f4903",
+      "executedScriptSha256": "e7ffac296027f18f3f42181386ed7ea5570e4076878e2c298c000f1b5b1720fe",
+      "rawRecordActuallyRead": true,
+      "officialErrorCode": "UnauthorizedOperation",
+      "errorTraceCopied": false,
+      "targetLoadBalancerId": "lb-kifcf99d",
+      "clbIdentityOrHealthDetailsVerified": false
+    }
+  ],
+  "method": "官方TAT在指定CVM运行角色列表只读探针，再以节点实例角色临时凭据在进程内调用官方TC3 DescribeLoadBalancers；首调用被拒，后续DescribeListeners未执行。",
+  "localTatCredentialsUsedForClb": false,
+  "instanceRolePresenceVerified": true,
+  "clbApiChannelUsable": false,
+  "clbHealthDetailsKnown": false,
+  "automaticRetry": false,
+  "iamChanged": false,
+  "credentialsCopiedOrLogged": false,
+  "productionModified": false,
+  "officialReferences": [
+    "https://cloud.tencent.com/document/product/213/47668",
+    "https://cloud.tencent.cn/document/api/214/30686"
+  ]
+}

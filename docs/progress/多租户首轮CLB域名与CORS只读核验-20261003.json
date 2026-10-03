@@ -1,0 +1,68 @@
+{
+  "checkedAt": "2026-10-03T14:08:10.842Z",
+  "dnsRows": [
+    {
+      "hostname": "api.rebugx.cn",
+      "cname": [
+        "lb-kifcf99d-5v1927jc0wm4nudq.clb.bj-tencentclb.com"
+      ],
+      "cnameError": null,
+      "a": [
+        {
+          "address": "43.180.212.44",
+          "ttl": 1
+        }
+      ],
+      "aError": null
+    },
+    {
+      "hostname": "gx.yrydai.com",
+      "cname": [
+        "lb-kifcf99d-5v1927jc0wm4nudq.clb.bj-tencentclb.com"
+      ],
+      "cnameError": null,
+      "a": [
+        {
+          "address": "43.180.212.44",
+          "ttl": 1
+        }
+      ],
+      "aError": null
+    }
+  ],
+  "dnsResolvesToNamedClb": true,
+  "clbIdFromDnsLabel": "lb-kifcf99d",
+  "dnsProvesClbBackend": false,
+  "clbControlPlaneAuthorizationVerified": false,
+  "origin": "https://gx.yrydai.com",
+  "corsPreflight": {
+    "checkedAt": "2026-10-03T14:08:10.841Z",
+    "httpStatus": 204,
+    "tlsAuthorized": true,
+    "peerAddress": "43.180.212.44",
+    "allowOrigin": "https://gx.yrydai.com",
+    "allowCredentials": "true",
+    "allowMethods": "GET,POST,PUT,DELETE,PATCH",
+    "allowHeaders": "authorization,content-type",
+    "vary": "Origin, Access-Control-Request-Headers"
+  },
+  "corsPublicPreflightObservedAllowed": true,
+  "scope": "公开DNS记录和API OPTIONS跨域预检，不替代带鉴权业务、支付、CLB后端或最终候选版本验收",
+  "historicalReference": "D:/gx-deploy-91/docs/progress/H5新域名节点接入推进-20260919.md",
+  "historicalTlsMismatchNotReproducedByPriorStrictTlsApiAndH5Probes": true,
+  "browserReadOnlyAttempt": {
+    "browserId": "2",
+    "createdTabId": "11",
+    "observedTitle": "总览 - 控制台 - 腾讯云",
+    "observedUrl": "https://console.cloud.tencent.com/",
+    "navigationAndPageStructureTimeouts": 3,
+    "clbBackendRead": false,
+    "accountAuthenticationVerified": false,
+    "resourceChangesPerformed": false,
+    "credentialsEntered": false,
+    "cookiesExtracted": false,
+    "tabClosureVerified": false
+  },
+  "productionConfigModified": false,
+  "dnsModified": false
+}
