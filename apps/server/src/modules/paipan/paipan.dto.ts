@@ -72,6 +72,23 @@ export class BaziInputDto {
   longitude?: number;
 }
 
+export class BaziReverseDto {
+  @ApiProperty({ description: "年柱干支" })
+  @IsString() @MaxLength(2) year: string;
+
+  @ApiProperty({ description: "月柱干支" })
+  @IsString() @MaxLength(2) month: string;
+
+  @ApiProperty({ description: "日柱干支" })
+  @IsString() @MaxLength(2) day: string;
+
+  @ApiProperty({ description: "时柱干支" })
+  @IsString() @MaxLength(2) hour: string;
+
+  @ApiProperty({ description: "子时换日口径", enum: ["traditional", "modern"] })
+  @IsIn(["traditional", "modern"]) ziShiMode: "traditional" | "modern";
+}
+
 /** 紫微斗数排盘输入 DTO */
 export class ZiweiInputDto {
   @ApiProperty({ description: "姓名", example: "测试" })
