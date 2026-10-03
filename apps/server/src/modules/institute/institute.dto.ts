@@ -233,9 +233,9 @@ export class CreateDividendDto {
   @IsIn(["MGMT_BONUS", "TEACHER_AWARD", "OPERATION"])
   type: string;
 
-  @ApiProperty({ description: "金额（元·单笔上限 100 万·仍走 FundApproval 人工审批）" })
+  @ApiProperty({ description: "金额（元·最多两位小数·单笔上限 100 万·仍走 FundApproval 人工审批）" })
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Max(1000000)
   amount: number;

@@ -962,6 +962,9 @@ export class InstituteService {
     if (!Number.isFinite(dto.amount) || dto.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "发放金额必须大于 0");
     }
+    const amount = new Prisma.Decimal(dto.amount);
+    if (amount.decimalPlaces() > 2)
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发放金额最多保留两位小数");
     if (!DIVIDEND_TYPES.includes(dto.type as (typeof DIVIDEND_TYPES)[number])) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的分红类型");
     }
@@ -992,11 +995,14 @@ export class InstituteService {
           select: { amount: true },
         }),
       ]);
-      const instituteShare = Number(revenueAgg._sum.amount || 0) * 0.5;
-      const distributed = Number(dividendAgg._sum.amount || 0);
-      const reserved = pendingApprovals.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-      const remaining = Math.max(0, instituteShare - distributed - reserved);
-      if (dto.amount > remaining) {
+      // 半池只使用已入账会费；奇数分向下取到分，避免数据库舍入导致超池。
+      const instituteShare = new Prisma.Decimal(revenueAgg._sum.amount ?? 0)
+        .mul(0.5).toDecimalPlaces(2, Prisma.Decimal.ROUND_FLOOR);
+      const distributed = new Prisma.Decimal(dividendAgg._sum.amount ?? 0);
+      const reserved = pendingApprovals.reduce((sum, a) => sum.plus(a.amount ?? 0), new Prisma.Decimal(0));
+      const available = instituteShare.minus(distributed).minus(reserved);
+      const remaining = available.isNegative() ? new Prisma.Decimal(0) : available;
+      if (amount.gt(remaining)) {
         throw new BusinessException(
           ErrorCode.BAD_REQUEST,
           `可分配余额不足，扣除待审占用后当前为 ¥${remaining.toFixed(2)}`,
@@ -1036,6 +1042,9 @@ export class InstituteService {
     if (!Number.isFinite(dto.amount) || dto.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "分配金额必须大于 0");
     }
+    const amount = new Prisma.Decimal(dto.amount);
+    if (amount.decimalPlaces() > 2)
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "分配金额最多保留两位小数");
     if (!DIVIDEND_TYPES.includes(dto.type as (typeof DIVIDEND_TYPES)[number])) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的分红类型");
     }
@@ -1060,10 +1069,12 @@ export class InstituteService {
         }),
       ]);
 
-      const instituteShare = Number(revenueAgg._sum.amount || 0) * 0.5;
-      const distributed = Number(dividendAgg._sum.amount || 0);
-      const remaining = Math.max(0, instituteShare - distributed);
-      if (dto.amount > remaining) {
+      const instituteShare = new Prisma.Decimal(revenueAgg._sum.amount ?? 0)
+        .mul(0.5).toDecimalPlaces(2, Prisma.Decimal.ROUND_FLOOR);
+      const distributed = new Prisma.Decimal(dividendAgg._sum.amount ?? 0);
+      const available = instituteShare.minus(distributed);
+      const remaining = available.isNegative() ? new Prisma.Decimal(0) : available;
+      if (amount.gt(remaining)) {
         throw new BusinessException(
           ErrorCode.BAD_REQUEST,
           `审批执行时余额不足，当前为 ¥${remaining.toFixed(2)}`,
