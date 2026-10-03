@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-03T16:12:58.156Z",
+  "source": "d2489df346d914ec31549b73b1c29a5a5710a5c9",
+  "candidate": "a2ab070eee13f3e81aa59e83cea48c8f4c4a03c9",
+  "previous": "3cb0299bd199a6d00d7b76a1dade877fb0214dcb",
+  "conflicts": 0,
+  "productFiles": 3,
+  "testFiles": 5,
+  "schemaAnd145MigrationsUnchanged": true,
+  "unit": {
+    "suites": 5,
+    "passed": 151,
+    "failed": 0,
+    "skipped": 0
+  },
+  "pg": {
+    "path": "E:/CodexReview/main-r08-d2489df34-20261003/receipt.json",
+    "sha256": "a12d94460c6874af86f7e79b0cf44098530dd95043740af2d8e26c24b1aca63a",
+    "passed": 35,
+    "skipped": 0,
+    "actualCompiledEntrypoints": true,
+    "sharedCompiled": true,
+    "independentProcessGrowth": true,
+    "fixtureCleanupVerified": true,
+    "postgresStopped": true,
+    "breakdown": {
+      "approvalDeletion": 9,
+      "approvalTransaction": 16,
+      "currentUnbind": 10
+    },
+    "fullProductionUpgradeTest": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/safety55-intake-20261003/r08-inputs.json",
+      "sha256": "15de1957eade27c474717b98ac32b4bec1e86d7e22d85b7c4d4fa750319fc3f6"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r08-main-build.log",
+      "sha256": "6ad260122ea3ab012f507a449a3ffd76e9fb63936291af7a0c15415102ef18d7"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r08-main-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r08-main-unit.json",
+      "sha256": "e14456a16fcd40414d303e0697a1519d966f3ac4f3f252b509c0e1c1bddfc021"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r08-main-unit.log",
+      "sha256": "fd15d2f123480b03615eaf95c21ae5759cc28306d18c1c1cf01f67a9e541410b"
+    }
+  ],
+  "review": {
+    "F2OutsideDeletionPreserved": true,
+    "existingNotificationTransactionsPreserved": true,
+    "applicantDisabledBlocked": true,
+    "permissionsRecheckedInTransaction": true,
+    "CircleThenUserLockOrder": true,
+    "cachePendingCommittedWithMembership": true,
+    "cacheFailureDoesNotRollbackCommit": true,
+    "optionalPushAfterCommit": true
+  },
+  "uncovered": [
+    "圈主注销后的圈子归属处置原业务待决策",
+    "最终同版手机交互与线上缓存任务",
+    "完整103到145生产备份副本升级"
+  ],
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（本修复范围）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "production": false
+}

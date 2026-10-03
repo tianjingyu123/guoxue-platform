@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T15:45:29.611Z",
+  "checkedAt": "2026-10-03T16:12:58.156Z",
   "reviewParent": "1bd57bb6006d5f6c77a3f1dc3b9a000321379464",
-  "sourceCommit": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+  "sourceCommit": "d2489df346d914ec31549b73b1c29a5a5710a5c9",
   "businessCodeChanged": true,
   "acceptedCandidateMigrations": 145,
   "monthlyCouponCandidateAccepted": false,
@@ -801,7 +801,7 @@
   },
   "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
   "latestLocalReception": {
-    "source": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+    "source": "d2489df346d914ec31549b73b1c29a5a5710a5c9",
     "document": "docs/operations/汇付恢复主线接收验收-20261003.json",
     "received": {
       "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
@@ -809,7 +809,8 @@
       "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
       "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
       "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
-      "R04": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069"
+      "R04": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+      "R08R12DeletionApproval": "d2489df346d914ec31549b73b1c29a5a5710a5c9"
     },
     "newValidation": {
       "unit": 331,
@@ -824,7 +825,16 @@
     "R04CodeClosed": true,
     "R04IsolatedValidationClosed": true,
     "R04FormalChannelClosed": false,
-    "productionGo": false
+    "productionGo": false,
+    "additionalValidation": {
+      "R08": {
+        "document": "docs/operations/圈子审批与注销遗漏主线接收-20261003.json",
+        "unit": 151,
+        "pgCompiled": 35,
+        "sourceHistorical35NotAdded": true,
+        "ownerPolicyClosed": false
+      }
+    }
   },
   "previousLocalReception": {
     "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
