@@ -64,7 +64,7 @@ async function main() {
     if (url.pathname.endsWith('/auth/me')) {
       await respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200, data: { id: userId, nickname: '合成用户', roles: [], interestGuideCompleted: true } }) }); return
     }
-    if (url.hostname === 'api.rebugx.cn') {
+    if (['xhr', 'fetch'].includes(req.resourceType())) {
       await respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200, data: {} }) }); return
     }
     await req.abort()
