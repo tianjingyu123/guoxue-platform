@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { runInThisContext } from "node:vm";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { QwenAdapter } from "./qwen.adapter";
@@ -18,9 +19,17 @@ describe("客户请求编号与原平台响应隔离", () => {
   let calls = 0;
   let responseId: unknown = "chatcmpl-synthetic-private-42", finishReason = "stop";
   const savedKey = process.env.DASHSCOPE_API_KEY, savedUrl = process.env.DASHSCOPE_BASE_URL;
+  const savedFetch = globalThis.fetch;
   const usage = { prompt_tokens: 4, completion_tokens: 3, total_tokens: 7 };
 
   beforeAll(async () => {
+    // Jest 29 沙箱可能没有 fetch；使用 Node 实际传输，禁止测试访问本机以外的通道。
+    const nativeFetch = runInThisContext("fetch") as typeof fetch;
+    globalThis.fetch = (input, init) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") throw new Error("边界测试仅允许本机 HTTP");
+      return nativeFetch(input, init);
+    };
     upstream = createServer(async (req, res) => {
       if (req.method !== "POST" || req.url !== "/v1/chat/completions") { res.writeHead(404).end(); return; }
       for await (const ignored of req) { void ignored; }
@@ -65,6 +74,8 @@ describe("客户请求编号与原平台响应隔离", () => {
     if (upstream) await new Promise<void>(done => upstream.close(() => done()));
     if (savedKey === undefined) delete process.env.DASHSCOPE_API_KEY; else process.env.DASHSCOPE_API_KEY = savedKey;
     if (savedUrl === undefined) delete process.env.DASHSCOPE_BASE_URL; else process.env.DASHSCOPE_BASE_URL = savedUrl;
+    if (savedFetch === undefined) delete (globalThis as { fetch?: typeof fetch }).fetch;
+    else globalThis.fetch = savedFetch;
   });
 
   const request = async (role = "admin", scene = "general_chat") => fetch(`${await app.getUrl()}/ai/chat`, {
