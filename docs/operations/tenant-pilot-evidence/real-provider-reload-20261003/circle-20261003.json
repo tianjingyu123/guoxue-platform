@@ -1,0 +1,48 @@
+{
+  "head": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-circle.ts": "9dde60ac8321ef15440a3d65b923e3edf4012f60f5c56632c1cf1d8fd5867a6b",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "a9e710554d6613ecf5b3308d654290bd20214c8540d0506f32e8cc510b7403a3",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "cacb3b367e6c8d087a3e16519ca733e504ff970c462597ca5b45af2eac86d0c4",
+    "pilots/managed-tenancy/verify-circle-postgres.mjs": "9444877a42dd56de8dec63ff7fc03f7e1740ed754c563ee1b170a0e3edaf0f7b",
+    "pilots/managed-tenancy/postgres-harness.mjs": "096b032599e3fc523ca45a1768665665bfad6e6c6e4e40c2f94504b643abcbba"
+  },
+  "checks": [
+    {
+      "name": "跨进程申请重放只有一行；人工审核竞争只生效一次，普通用户不能授角色、读申请或自批，成员计数准确",
+      "status": "PASS"
+    },
+    {
+      "name": "入圈后才可读取圈内帖子，成员明细仅圈主或客户管理员可见；同客户另一应用和另一客户均被圈子范围拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "发帖幂等与人工审核贯通，待审核正文只本人或审核人可见；并发发布不会重复计数，客户端不能指定已发布状态",
+      "status": "PASS"
+    },
+    {
+      "name": "作者修改会撤回发布并重新审核；私有草稿不进入他人审核队列，禁言立即禁止发帖及编辑，解除后恢复",
+      "status": "PASS"
+    },
+    {
+      "name": "并发退出/重入只改变一次成员计数并保留历史行；圈主不能自行退出，付费圈不能通过免费接口造权益或直接启用",
+      "status": "PASS"
+    },
+    {
+      "name": "圈子停用即时阻止读写，没有产生新帖子，历史数据保留",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务三个Nest进程及真实PostgreSQL合成圈子、成员、帖子；没有生产写入",
+    "只开放免费入圈、纯文本发帖和人工审核，真实付费入圈须另行核验本客户商户与原履约链路"
+  ]
+}

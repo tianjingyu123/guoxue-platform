@@ -1,0 +1,73 @@
+{
+  "head": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "workingTreeDirty": false,
+  "sources": {
+    "pilots/managed-tenancy/verify-virtual-pilot-postgres.mjs": "275112d52f63490939b2951dd60a32af627c460bd89739ae2267ef40fa747c6c",
+    "pilots/managed-tenancy/postgres-harness.mjs": "096b032599e3fc523ca45a1768665665bfad6e6c6e4e40c2f94504b643abcbba",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts": "3c3b4727ccf7cf97f4fdebc117d035781bc9f115a241349fa1584130a7a22565",
+    "apps/server/src/modules/managed-tenancy/managed-brand.service.ts": "3ca6af5e5fb5ac25a931a360526f82346144948c0ca17c61d8376195da617f5e",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "a9e710554d6613ecf5b3308d654290bd20214c8540d0506f32e8cc510b7403a3"
+  },
+  "checks": [
+    {
+      "name": "独立系统测试应用实际登记、独立进程注册登录和固定客户上下文通过；原合成客户ID及数据库绑定保留",
+      "status": "PASS"
+    },
+    {
+      "name": "独立系统测试实际经营建课、审核、零价订阅和学习通过，另一客户不可读取；没有商户资金调用",
+      "status": "PASS"
+    },
+    {
+      "name": "独立分站测试通过实际控制面幂等开通、既有分站绑定和应用启用，交易主体保留合成平台主体",
+      "status": "PASS"
+    },
+    {
+      "name": "独立分站测试复用原公共免费课订阅和学习内核，品牌公共课与独立客户私有课双向隔离",
+      "status": "PASS"
+    },
+    {
+      "name": "虚拟分站到期拒绝新经营、保留本人历史订单，演练后恢复合成期限，不执行付款续费",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "两个名称由用户指定，均为虚拟测试主体；独立系统使用既有合成客户A的固定库和新的命名应用，不改合同身份或旧恢复记录",
+    "本任务Windows/PostgreSQL和实际业务内核；品牌Redis为无缓存替身，没有生产、工商主体、正式AppID、商户、真实收退款或渠道审核",
+    "零价课程订阅使用原FREE规则，不能作为真实付费交易证明"
+  ],
+  "virtualSubjects": [
+    {
+      "name": "独立系统测试",
+      "virtual": true,
+      "mode": "LEASE",
+      "customerId": "90bdb7bc-ceb7-4755-9819-b8e06f2a71e1",
+      "usesExistingSyntheticCustomer": true,
+      "databaseName": "mt_customer_a",
+      "applicationId": "virtual-pilot-1791015787721-app-system",
+      "applicationSubject": "独立系统测试（虚拟应用主体）",
+      "tradingSubject": "synthetic-company-a",
+      "formalChannelRegistered": false,
+      "merchantRegistered": false
+    },
+    {
+      "name": "独立分站测试",
+      "virtual": true,
+      "mode": "BRAND",
+      "customerId": "fab21e22-12b4-40be-8136-d3f106e96877",
+      "stationId": "8a14768d-24c5-4bd5-aa77-108a109da99c",
+      "applicationId": "virtual-pilot-1791015787721-brand-app",
+      "applicationSubject": "独立分站测试（虚拟应用主体）",
+      "tradingSubject": "synthetic-rebu-company",
+      "formalChannelRegistered": false,
+      "merchantRegistered": false,
+      "independentCollection": false
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "production": false,
+  "probes": [
+    {
+      "file": "provider-reload-probe-fixed.json",
+      "head": "f81e147a2a080a6c486b628ce389bbb528529e14",
+      "workingTreeDirty": true,
+      "passed": 8,
+      "failed": 0,
+      "sha256": "21f758b112b068768706bd64088dad7b7ee754f3c54802f8f824e630af0f6240",
+      "usedAsFinalPassEvidence": false
+    }
+  ],
+  "finalSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "finalProviderReloadPassed": 8,
+  "interruptedProbe": {
+    "finalReportWritten": false,
+    "failure": "锁函数void反序列化及同步Promise拒绝处理缺失",
+    "cleanupReport": "failed-probe-cleanup.json",
+    "usedAsFinalPassEvidence": false
+  }
+}

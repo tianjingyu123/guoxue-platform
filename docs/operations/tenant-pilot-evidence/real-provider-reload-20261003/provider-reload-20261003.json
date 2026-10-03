@@ -1,0 +1,53 @@
+{
+  "head": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "d0fd78bc59295d19937d09bedaf2f220e8b70fde0143e0aeae31df15168f5d9f",
+    "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "4e47ba11ab835f4f81cd669311ae8461cad3822ebfed87d9ed94271c4f703711",
+    "pilots/managed-tenancy/lease-process.mjs": "d778948f660cd3e0390b77158d133c5e3f22b014d2781f582a623e90275b249d",
+    "pilots/managed-tenancy/verify-provider-reload-postgres.mjs": "aa3394e7aba5a50df4e7987ee47482a05de412baf11483320dc60127cb74533f"
+  },
+  "checks": [
+    {
+      "name": "共享受限文件原子替换后两个既有Nest进程都按签名减额拒绝新预留，不重启、不沿用旧预算、不发出新HTTP",
+      "status": "PASS"
+    },
+    {
+      "name": "真实PG暂停已核旧额度的预留；减额后派发前二次检查将请求ABORTED，零供应商调用，累计预留次数保留",
+      "status": "PASS"
+    },
+    {
+      "name": "显式提高合成签名预算后另一既有进程继续，历史及ABORTED次数均不清零，不自动退款",
+      "status": "PASS"
+    },
+    {
+      "name": "签名撤销同时阻断两个运行进程，状态返回未就绪；本人已完成历史仍可同键读取，不补发",
+      "status": "PASS"
+    },
+    {
+      "name": "删除登记、篡改预算签名和损坏JSON均关闭授权，不缓存旧记录；删除A条目不影响B的有效签名和独立调用",
+      "status": "PASS"
+    },
+    {
+      "name": "请求已经到达合成供应商后撤销，收到答复也不保存或下发助手正文，ABORTED仍计次数；不声称能撤回已派发费用",
+      "status": "PASS"
+    },
+    {
+      "name": "即使新密钥登记签名有效，原进程固定通道身份变化也拒绝，不在运行中改接另一密钥或模型",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "三个真实Nest进程、本任务PostgreSQL及共享签名文件，供应商为loopback替身，未进行真实鉴权或付费调用",
+    "单写维护者须原子替换同一受限文件，进程间配置副本分发一致性和Linux部署门禁另验",
+    "每次预留、派发和提交核当前授权，已通过最后检查并发给上游的请求不能回撤；撤销不证明上游未计费",
+    "启动时没有客户登记仍须登记后重启；固定模型、端点和密钥轮换须重启，UNKNOWN对账及真实费用仍未完成"
+  ]
+}
