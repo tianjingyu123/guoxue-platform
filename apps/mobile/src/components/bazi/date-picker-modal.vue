@@ -66,11 +66,14 @@ const candidates = ref<BaziReverseCandidate[]>([])
 const chosenIndex = ref<number | null>(null)
 const chosenHour = ref<number | null>(null)
 const chosenMinute = ref<number | null>(null)
+let lookupVersion = 0
 const chosenCandidate = computed(() => chosenIndex.value === null ? null : candidates.value[chosenIndex.value] || null)
 const availableHours = computed(() => chosenCandidate.value?.hours.map((item) => item.hour) || [])
 const availableMinutes = computed(() => chosenCandidate.value?.hours.find((item) => item.hour === chosenHour.value)?.minutes || [])
 
 function clearReverseSelection() {
+  lookupVersion++
+  lookingUp.value = false
   candidates.value = []
   chosenIndex.value = null
   chosenHour.value = null
@@ -79,6 +82,7 @@ function clearReverseSelection() {
 }
 
 watch(() => props.open, (v) => {
+  if (!v) { clearReverseSelection(); return }
   if (v) {
     mode.value = props.initialMode
     year.value = props.initialDate?.year || 1990
@@ -89,6 +93,7 @@ watch(() => props.open, (v) => {
     clearReverseSelection()
   }
 })
+watch(mode, () => clearReverseSelection())
 
 const dayCount = computed(() => daysInMonth(year.value, month.value))
 const dayItems = computed(() => mode.value === 'lunar' ? lunarDays.slice(0, dayCount.value) : Array.from({ length: dayCount.value }, (_, i) => i + 1))
@@ -162,17 +167,18 @@ async function lookupSizhu() {
     return
   }
   lookingUp.value = true
+  const version = ++lookupVersion
   reverseError.value = ''
   try {
     const result = await baziReverseApi.lookup(pillars)
-    if (!props.open || mode.value !== 'sizhu' || JSON.stringify(currentPillars()) !== JSON.stringify(pillars)) return
+    if (version !== lookupVersion || !props.open || mode.value !== 'sizhu' || JSON.stringify(currentPillars()) !== JSON.stringify(pillars)) return
     reverseRange.value = `${result.fromYear}—${result.toYear}年`
     candidates.value = result.candidates
     if (!result.candidates.length) reverseError.value = '查无匹配日期，请核对四柱或改用公历录入'
   } catch (cause) {
-    reverseError.value = (cause as Error)?.message || '反查暂时失败，请重试'
+    if (version === lookupVersion) reverseError.value = (cause as Error)?.message || '反查暂时失败，请重试'
   } finally {
-    lookingUp.value = false
+    if (version === lookupVersion) lookingUp.value = false
   }
 }
 
