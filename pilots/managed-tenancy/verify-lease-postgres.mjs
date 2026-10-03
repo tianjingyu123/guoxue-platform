@@ -1,3 +1,4 @@
+import { scopedControlUrl } from './scoped-control.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -34,7 +35,7 @@ const refPath=resolve(runtimeDir,'credentials.json');writeFileSync(refPath,JSON.
 const checks=[];const record=name=>checks.push({name,status:'PASS'});const children=[];const ports=[];let failure;
 const term={remindAt:'2035-01-01T00:00:00Z',endAt:'2036-01-01T00:00:00Z',exportUntil:'2037-01-01T00:00:00Z',downloadTtlSeconds:60};
 async function start(customerId,credential,suffix){
-  const path=resolve(runtimeDir,tag+'-'+suffix+'.json');writeFileSync(path,JSON.stringify({customerId,credential,controlUrl}),{mode:0o600});
+  const path=resolve(runtimeDir,tag+'-'+suffix+'.json');writeFileSync(path,JSON.stringify({customerId,credential,controlUrl:await scopedControlUrl(customerId)}),{mode:0o600});
   const child=fork(resolve(repo,'pilots/managed-tenancy/lease-process.mjs'),[path],{cwd:repo,stdio:['ignore','ignore','pipe','ipc'],windowsHide:true});children.push(child);
   let stderr='';child.stderr.on('data',data=>{stderr+=data.toString();});
   const result=await new Promise((done,reject)=>{const timer=setTimeout(()=>reject(new Error('独立租赁服务启动超时')),30000);child.once('message',message=>{clearTimeout(timer);done(message);});child.once('exit',code=>{if(code!==0){clearTimeout(timer);reject(new Error('独立租赁服务退出，错误输出已保留在受限运行目录'));}});});

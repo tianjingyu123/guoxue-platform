@@ -29,6 +29,10 @@ for(const [name,password] of Object.entries(credentials)) {
     // 空库基线仅用于本任务新库；不改变旧迁移，也不连接生产。
     sql(name,'BEGIN;\n'+readFileSync(resolve(repo,'apps/server/prisma/migrations-deploy/full-baseline.sql'),'utf8')+'\nCOMMIT;');
   }
+  // 固定接收点的公共增量；只补本任务合成库，不回写历史行。
+  const snapshotColumn=sql(name,`SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='CirclePostRewardNotice' AND column_name='sourceVersion';`).trim();
+  if(snapshotColumn==='0')sql(name,'BEGIN;\n'+readFileSync(resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql'),'utf8')+'\nCOMMIT;');
+  else if(sql(name,`SELECT count(*) FROM pg_constraint WHERE conrelid='"CirclePostRewardNotice"'::regclass AND conname='CirclePostRewardNotice_source_snapshot_shape';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(resolve(repo,'apps/server/prisma/migrations-deploy/circle-reward-snapshot.sql'),'utf8')+'\nCOMMIT;');
   if(sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedCustomer';`).trim()==='0') {
     sql(name,'BEGIN;\n'+readFileSync(resolve(repo,'apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql'),'utf8')+'\nCOMMIT;');
   }

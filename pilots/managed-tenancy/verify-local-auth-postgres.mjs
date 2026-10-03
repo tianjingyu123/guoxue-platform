@@ -1,3 +1,4 @@
+import { scopedControlUrl } from './scoped-control.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -24,7 +25,7 @@ const children=[],ports=[],checks=[],record=name=>checks.push({name,status:'PASS
 const password='Synthetic-'+randomBytes(12).toString('hex'),newPassword='Changed-'+randomBytes(12).toString('hex'),otherPassword='Other-'+randomBytes(12).toString('hex'),username='account-'+Date.now();
 const term={remindAt:'2035-01-01T00:00:00Z',endAt:'2036-01-01T00:00:00Z',exportUntil:'2037-01-01T00:00:00Z',downloadTtlSeconds:60};
 async function start(suffix,serial){
-  const path=resolve(runtime,tag+'-'+serial+'.json');writeFileSync(path,JSON.stringify({customerId:customers[suffix].id,credential:refs['secret-ref:synthetic/real-lease-'+suffix],controlUrl:`postgresql://mt_control_reader:${reader.password}@127.0.0.1:55467/mt_control`}),{mode:0o600});
+  const path=resolve(runtime,tag+'-'+serial+'.json');writeFileSync(path,JSON.stringify({customerId:customers[suffix].id,credential:refs['secret-ref:synthetic/real-lease-'+suffix],controlUrl:await scopedControlUrl(customers[suffix].id)}),{mode:0o600});
   const child=fork(resolve(repo,'pilots/managed-tenancy/lease-process.mjs'),[path],{cwd:repo,stdio:['ignore','ignore','pipe','ipc'],windowsHide:true});children.push(child);
   child.stderr.on('data',data=>writeFileSync(resolve(runtime,tag+'-'+serial+'-stderr.txt'),data,{mode:0o600,flag:'a'}));
   const result=await new Promise((done,reject)=>{const timer=setTimeout(()=>reject(new Error('客户认证服务启动超时')),30000);child.once('message',m=>{clearTimeout(timer);done(m);});child.once('exit',()=>{clearTimeout(timer);reject(new Error('客户认证服务退出'));});});

@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { managedCredential } from "./modules/managed-tenancy/managed-credentials";
 import { ManagedLeaseRuntime } from "./modules/managed-tenancy/managed-lease.runtime";
 import { ManagedLeaseModule } from "./modules/managed-tenancy/managed-lease.module";
+import { verifyManagedControlReader } from "./modules/managed-tenancy/managed-control-reader";
 
 async function main() {
   const customerId = process.env.MANAGED_CUSTOMER_ID;
@@ -12,6 +13,7 @@ async function main() {
   const control = new PrismaClient({ datasources: { db: { url: controlUrl } } });
   let business: PrismaClient | undefined;
   try {
+    await verifyManagedControlReader(control, customerId);
     const deployment = await control.managedDeployment.findUnique({ where: { customerId } });
     if (!deployment) throw new Error("客户部署不存在");
     // 控制面连接必须为只读账号，客户业务库使用独立最低权限账号。

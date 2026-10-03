@@ -11,12 +11,14 @@ require('reflect-metadata');
 const {NestFactory}=require('@nestjs/core');
 const {ManagedLeaseRuntime}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts'));
 const {ManagedLeaseModule}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease.module.ts'));
+const {verifyManagedControlReader}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-control-reader.ts'));
 const config=JSON.parse(readFileSync(process.argv[2],'utf8'));
 const control=new PrismaClient({datasources:{db:{url:config.controlUrl}}});
 const business=new PrismaClient({datasources:{db:{url:config.credential.databaseUrl}}});
 let app;
 async function close(){if(app)await app.close();await control.$disconnect();await business.$disconnect();process.exit(0);}
 try {
+  await verifyManagedControlReader(control,config.customerId);
   const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential);
   await runtime.initialize();
   app=await NestFactory.create(ManagedLeaseModule.register(runtime),{logger:false});

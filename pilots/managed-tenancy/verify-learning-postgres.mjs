@@ -1,3 +1,4 @@
+import { scopedControlUrl } from './scoped-control.mjs';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
@@ -13,7 +14,7 @@ const credentials=JSON.parse(readFileSync(resolve(runtime,'postgres/synthetic-co
 const client=name=>new PrismaClient({datasources:{db:{url:`postgresql://${name}:${credentials[name]}@127.0.0.1:55467/${name}`}}});const control=client('mt_control'),a=client('mt_customer_a'),b=client('mt_customer_b'),service=new ManagedTenancyService(control);
 const children=[],ports=[],checks=[],record=name=>checks.push({name,status:'PASS'}),customers={},selectors={},resources={},savedGrants={};const tag='learning-'+Date.now(),password='Synthetic-'+randomBytes(12).toString('hex');let failure;
 async function start(suffix,serial){
-  const file=resolve(runtime,tag+'-'+serial+'.json');writeFileSync(file,JSON.stringify({customerId:customers[suffix].id,credential:refs['secret-ref:synthetic/real-lease-'+suffix],controlUrl:`postgresql://mt_control_reader:${reader.password}@127.0.0.1:55467/mt_control`}),{mode:0o600});
+  const file=resolve(runtime,tag+'-'+serial+'.json');writeFileSync(file,JSON.stringify({customerId:customers[suffix].id,credential:refs['secret-ref:synthetic/real-lease-'+suffix],controlUrl:await scopedControlUrl(customers[suffix].id)}),{mode:0o600});
   const child=fork(resolve(repo,'pilots/managed-tenancy/lease-process.mjs'),[file],{cwd:repo,stdio:['ignore','ignore','pipe','ipc'],windowsHide:true});children.push(child);child.stderr.on('data',data=>writeFileSync(resolve(runtime,tag+'-'+serial+'-stderr.txt'),data,{mode:0o600,flag:'a'}));
   const result=await new Promise((done,reject)=>{const timer=setTimeout(()=>reject(new Error('独立学习入口启动超时')),30000);child.once('message',m=>{clearTimeout(timer);done(m);});child.once('exit',()=>{clearTimeout(timer);reject(new Error('独立学习入口退出'));});});assert.equal(result.ready,true);ports.push(result.port);return result.port;
 }
