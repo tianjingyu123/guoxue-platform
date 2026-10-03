@@ -6,7 +6,7 @@
     "dev:app": "uni -p app",
     "dev:mp-weixin": "uni -p mp-weixin",
     "dev:mp-harmony": "uni -p mp-harmony",
-    "build:app": "uni build -p app",
+    "build:app": "node scripts/build-app.mjs",
     "build:app-harmony": "uni build -p app-harmony",
     "build:mp-weixin": "uni build -p mp-weixin && node scripts/relocate-mp-shared-components.mjs && node scripts/prune-mp-static.mjs && node scripts/validate-mp-wxml.mjs && node scripts/validate-mp-artifacts.mjs && node scripts/check-mp-size.mjs",
     "build:mp-harmony": "uni build -p mp-harmony",

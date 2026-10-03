@@ -36,6 +36,8 @@ overrides:
   '@intlify/message-compiler': 9.14.5
   '@intlify/shared': 9.14.5
 
+pnpmfileChecksum: sha256-AO0lIMYVJj6KypUdMCBtaETmUHS2/yklfXyBskM0va8=
+
 patchedDependencies:
   braces@3.0.3:
     hash: 4a580e1663b63e24ca8f3d7a2ce51c4e8d6604ad72d3169f255f7d15baacaa74
@@ -1581,7 +1583,7 @@ packages:
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
-    libc: [gnu]
+    libc: [glibc]
 
   '@dcloudio/uts-linux-x64-musl@3.0.0-alpha-5020320260803001':
     resolution: {integrity: sha512-CXra3nXQurs3ZqzJ6yf7frFFQYR4En6DLD9pwYZxRYSVS0WojdkQfuEjOGNBeY09LdQTeFZrQbF6+SR4QhGg/Q==}
