@@ -123,20 +123,20 @@ describe("ShopRefundService", () => {
       expect(mockNotification.sendOnce).not.toHaveBeenCalled();
     });
 
-    it("退款与权益已提交后通知失败不回滚资金结果", async () => {
+    it("退款、分佣及售后已收口后通知失败不回滚资金结果", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o-committed", userId: "u1", type: "COURSE", status: "PAID", amount: 99 });
       mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
       mockNotification.sendOnce.mockRejectedValueOnce(new Error("notification db down"));
-      await expect((svc as any).applyRefundedBookkeeping("o-committed", 99, "退款")).resolves.toBe(true);
+      await expect((svc as any).finalizeChannelRefund("o-committed", "退款")).resolves.toBeUndefined();
       expect(mockEntitlement.revokeSourceWithTx).toHaveBeenCalled();
       expect(mockNotification.sendOnce).toHaveBeenCalledWith("u1", "ORDER_REFUNDED:o-committed", expect.any(Object));
     });
 
     it("退款已收敛时通知失败不改变退款结果，重投仍使用同一幂等键", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-notify", userId: "u-notify", status: "REFUNDED" });
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-notify", userId: "u-notify", status: "REFUNDED", amount: 99 });
       mockNotification.sendOnce.mockRejectedValueOnce(new Error("notification db down")).mockResolvedValueOnce(null);
-      await expect((svc as any).applyRefundedBookkeeping("o-notify", 99, "退款")).resolves.toBe(true);
-      await expect((svc as any).applyRefundedBookkeeping("o-notify", 99, "退款")).resolves.toBe(true);
+      await expect((svc as any).finalizeChannelRefund("o-notify", "退款")).resolves.toBeUndefined();
+      await expect((svc as any).finalizeChannelRefund("o-notify", "退款")).resolves.toBeUndefined();
       expect(mockNotification.sendOnce).toHaveBeenCalledTimes(2);
       expect(mockNotification.sendOnce).toHaveBeenCalledWith("u-notify", "ORDER_REFUNDED:o-notify", expect.objectContaining({ title: "退款完成" }));
     });
@@ -149,7 +149,9 @@ describe("ShopRefundService", () => {
       await expect((svc as any).applyRefundedBookkeeping(order.id, 99, "退款")).resolves.toBe(true);
       expect(mockRedis.del).toHaveBeenCalledWith("shop:order:o-cache");
       expect(mockRedis.delByPattern).toHaveBeenCalledWith("shop:userOrders:u-cache:*");
-      expect(mockWebhook.fire).toHaveBeenCalledWith("ORDER_REFUNDED", expect.objectContaining({ orderId: order.id }));
+      // 这里只完成订单与权益子阶段，尚未核对分佣及售后，不允许提前发完成事件。
+      expect(mockWebhook.fire).not.toHaveBeenCalled();
+      expect(mockNotification.sendOnce).not.toHaveBeenCalled();
     });
 
     it("重复退款确认仍尝试修复此前未清理的订单列表缓存", async () => {

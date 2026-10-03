@@ -153,21 +153,15 @@ export class ShopRefundService {
   }
 
   /**
-   * 退款成功后的统一记账（幂等）：CAS 置 REFUNDED → 失缓存 → 冲正分佣 → webhook。
+   * 退款成功后的订单与权益记账（幂等）：CAS 置 REFUNDED → 同事务撤销权益 → 失缓存。
    * 供 refundOrder / alipayRefund / unionpayRefund 复用，避免"退款后订单仍 PAID、
    * 佣金不冲正、仍被结算给商家"的重复出账。CAS 保证并发/重投下只冲正一次。
    */
-  private async applyRefundedBookkeeping(orderId: string, amount: number, reason?: string): Promise<boolean> {
+  private async applyRefundedBookkeeping(orderId: string, _amount: number, reason?: string): Promise<boolean> {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) return false;
     if (order.status === "REFUNDED") {
       await this.invalidateRefundedOrderCache(order.id, order.userId);
-      await this.webhook.fire("ORDER_REFUNDED", {
-        orderId,
-        amount,
-        reason: reason || "用户申请退款",
-      });
-      await this.notifyRefundCompleted(order);
       return true;
     }
     if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return false;
@@ -231,20 +225,13 @@ export class ShopRefundService {
     });
     if (!changed) {
       const current = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
-      if (current?.status === "REFUNDED") await this.notifyRefundCompleted(order);
       return current?.status === "REFUNDED";
     }
     await this.invalidateRefundedOrderCache(orderId, order.userId);
-    await this.webhook.fire("ORDER_REFUNDED", {
-      orderId,
-      amount,
-      reason: reason || "用户申请退款",
-    });
-    await this.notifyRefundCompleted(order);
     return true;
   }
 
-  /** 退款与权益事务已提交；通知故障不能改变资金结果，重投时再用同一幂等键补发。 */
+  /** 退款、权益、分佣及售后均已收口；通知故障不能改变资金结果，重投仍用原幂等键。 */
   private async notifyRefundCompleted(order: { id: string; userId: string }): Promise<void> {
     try {
       await this.notification?.sendOnce(order.userId, `ORDER_REFUNDED:${order.id}`, {
@@ -455,6 +442,13 @@ export class ShopRefundService {
       where: { orderId: order.id, type: { in: REFUND_AFTER_SALE_TYPES }, status: "PROCESSING" },
       data: { status: "COMPLETED" },
     });
+    // 分佣或售后收口失败时仍是处理中，不能提前通知用户或外部订阅退款完成。
+    await this.webhook.fire("ORDER_REFUNDED", {
+      orderId: order.id,
+      amount: Number(order.payAmount ?? order.amount),
+      reason,
+    });
+    await this.notifyRefundCompleted(order);
   }
 
   private async revertProcessingAfterSales(orderId: string, message: string): Promise<void> {
