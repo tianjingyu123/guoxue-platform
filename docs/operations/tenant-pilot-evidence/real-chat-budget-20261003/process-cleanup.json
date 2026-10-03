@@ -1,0 +1,12 @@
+{
+  "production": false,
+  "checkedAt": "2026-10-03T07:08:12.4945955Z",
+  "ownedLeaseAndPreviewProcesses": 0,
+  "postgresRetained": true,
+  "commandLinesPrinted": false,
+  "dataDeleted": false,
+  "limits": [
+    "本机子进程按本任务绝对路径及专用入口筛选；各随机端口关闭已由本批最终原始报告核验",
+    "只读取本任务进程状态，不停止PostgreSQL或其他窗口进程"
+  ]
+}

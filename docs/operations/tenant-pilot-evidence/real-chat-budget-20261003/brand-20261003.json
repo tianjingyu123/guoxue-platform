@@ -1,0 +1,68 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-brand.service.ts": "3ca6af5e5fb5ac25a931a360526f82346144948c0ca17c61d8376195da617f5e",
+    "apps/server/src/modules/managed-tenancy/managed-brand.module.ts": "04d91e00e783a79b9480ee1200bf9ad8c110db267469218b082ae422ce3c02dd",
+    "apps/server/src/modules/shop/shop-order.service.ts": "2130f75974009458838322c0363770d451f3394cbbdf2187159d457e75a98930",
+    "apps/server/src/modules/shop/shop-attribution.service.ts": "c96d3c326794f50d40fe8cf77c821ade7004603ba5b8a249a45d03335b9924dc",
+    "apps/server/src/modules/pricing/unified-pricing.service.ts": "973c588e19328c05b141cf4e13162778a9580c40b7b8ebb97f6e99ecfe1eea30",
+    "apps/server/src/modules/commission/commission.service.ts": "ee3401260454c6b8f45649df9ebe5a49e6d7102a9624c30d5336c0c77e40925c",
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f",
+    "apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql": "7b869e07ee7c5981cdec39d9f88ca5caef3520603e4f8fcfc67a582178ec3f8f"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "真实既有Station/Operator/品牌主体与公共应用登记，未建立独立收款",
+      "status": "PASS"
+    },
+    {
+      "name": "真实ShopOrder/UnifiedPricing/Attribution并发建单：服务端金额、一次库存扣减、一次来源关联，品牌不能改商户或报价",
+      "status": "PASS"
+    },
+    {
+      "name": "同一登录用户跨品牌私有订单拒绝；同一前端重试键按应用分域",
+      "status": "PASS"
+    },
+    {
+      "name": "真实CommissionService原自购规则仍生效，既有20%样本立减且无自购推荐归因",
+      "status": "PASS"
+    },
+    {
+      "name": "当前站长与所属运营商可读聚合，其他站长/运营商/买家拒绝，不下发私有客户地址手机号",
+      "status": "PASS"
+    },
+    {
+      "name": "真实订单已提交后注入来源事务故障：订单与请求意图保留、来源回滚、一次库存扣减；改内容复用原请求拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "到期后的四并发补登记仅修复一次来源和审计，不新增订单、库存扣减或资金操作；跨客户与未知字段拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "公共建单没有提交时维护核对保持等待，不创建订单或扣库存",
+      "status": "PASS"
+    },
+    {
+      "name": "品牌合同/既有分站到期分别检查；合同到期保留原应用本人历史订单",
+      "status": "PASS"
+    },
+    {
+      "name": "真实品牌控制器与原JWT HTTP鉴权：无身份/未知应用/跨应用订单/伪造字段拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "补登记维护HTTP只允许既有超管，无身份及普通买家拒绝，重复调用不产生新资金或审计",
+      "status": "PASS"
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "真实PostgreSQL与既有源码，只使用合成平台商品/主体/20%测试佣金配置",
+    "Redis缓存及撤销为空或内存适配器；没有真实支付/佣金入账/退款/对账实测",
+    "当前品牌入口最小商品购买与订单归属；未扩大站长上传或客户私有字段权限"
+  ]
+}

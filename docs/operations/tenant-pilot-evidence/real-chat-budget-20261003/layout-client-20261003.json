@@ -1,0 +1,45 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "workingTreeDirty": false,
+  "sources": {
+    "packages/shared/src/app-channels.ts": "81554621ffdf35be1575d8695c25a36a1288c332854daf8c4ee4282698f19f7f",
+    "packages/shared/src/client-presentation.ts": "7c0e17ad8e106633fe9f4b9471c85f232a0c275ecd037d1a17d53042187f5493",
+    "apps/server/src/modules/managed-tenancy/managed-presentation.ts": "1dd467bbbfc832b503012493d93d3bfef0fc9903b4e7ec43377b0101fd3159f8",
+    "apps/mobile/managed/presentation.ts": "0dd894e02b6c7b07a4b24c6b6bab6132c60b62830e1837c9f64f9691284fda64",
+    "apps/mobile/managed/pages/index.vue": "c0fa89ef6fda2ceae857503f99fda3b766d366d776150a5c8e0581b58e95a60e",
+    "pilots/managed-tenancy/verify-layout-client-postgres.mjs": "bb411c470498e712da1b2005f79871d32f1eae20c1eebe30593b1edd19816c12"
+  },
+  "checks": [
+    {
+      "name": "真实H5能力登记、草稿预览和发布；仅下发随包交付组件，隐藏入口不在宫格复现，HTML/跨业务入口不获得能力",
+      "status": "PASS"
+    },
+    {
+      "name": "旧包、缺协议声明或资源版本越界只返回默认配置，不误下发组件",
+      "status": "PASS"
+    },
+    {
+      "name": "同客户其他应用及另一客户不消费本应用布局；伪造应用选择器配旧令牌拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "实际第二版发布及历史回退恢复旧页面，重复发布不覆盖当前版本",
+      "status": "PASS"
+    },
+    {
+      "name": "撤权使旧令牌失效，新配置过滤课程入口，直接目录接口仍拒绝，装修不能授予业务权限",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务合成H5身份和真实PG/Nest接口，不代表正式包、商店审核或微信真机",
+    "前端消费另做真实本地页面验收；不运行脚本，不接受任意跳转或新增客户发布引擎"
+  ]
+}
