@@ -694,7 +694,18 @@ async function requestWechatLoginCode(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     uni.login({
       provider: 'weixin',
-      success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权 code'))),
+      // #ifdef APP-PLUS
+      // APP只取得临时票据，交服务端换取微信身份；不在客户端配置appsecret。
+      onlyAuthorize: true,
+      // #endif
+      success: (res) => {
+        const authorizationCode = typeof res.code === 'string' ? res.code.trim() : ''
+        if (authorizationCode) {
+          resolve(authorizationCode)
+        } else {
+          reject(new Error('未获取到微信授权 code'))
+        }
+      },
       fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
     })
   })
