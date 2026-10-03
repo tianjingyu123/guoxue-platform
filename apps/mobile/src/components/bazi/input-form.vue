@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 八字排盘输入表单——从原型 input-form.tsx 迁移 */
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
@@ -23,6 +23,8 @@ const useDaylightSaving = ref(false)
 const saveRecord = ref(true)
 const sourcePillars = ref<BaziReversePillars | null>(null)
 const submitting = ref(false)
+let disposed = false
+onUnmounted(() => { disposed = true })
 
 const showDatePicker = ref(false)
 const showLocationPicker = ref(false)
@@ -100,7 +102,7 @@ function onDateConfirm(d: { year: number; month: number; day: number; hour: numb
 }
 
 async function handleSubmit() {
-  if (submitting.value) return
+  if (disposed || submitting.value) return
   const p = { ...birthDate.value }
   const selectedPlace = { ...birthPlace.value }
   const selectedName = name.value
@@ -132,6 +134,7 @@ async function handleSubmit() {
         useDaylightSaving: optionsAtSubmit.dst,
         earlyZi: optionsAtSubmit.earlyZi,
       })
+      if (disposed) return
       if (JSON.stringify(birthDate.value) !== JSON.stringify(p)
         || JSON.stringify(birthPlace.value) !== JSON.stringify(selectedPlace)
         || name.value !== selectedName || gender.value !== selectedGender
@@ -151,6 +154,7 @@ async function handleSubmit() {
         return
       }
     } catch (cause) {
+      if (disposed) return
       uni.showToast({ title: (cause as Error)?.message || '四柱复核失败，请重试', icon: 'none' })
       return
     } finally {

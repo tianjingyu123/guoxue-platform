@@ -70,6 +70,11 @@ let lookupVersion = 0
 const chosenCandidate = computed(() => chosenIndex.value === null ? null : candidates.value[chosenIndex.value] || null)
 const availableHours = computed(() => chosenCandidate.value?.hours.map((item) => item.hour) || [])
 const availableMinutes = computed(() => chosenCandidate.value?.hours.find((item) => item.hour === chosenHour.value)?.minutes || [])
+// 0 是未选择占位；首个合法小时和 00 分都有独立选项，避免默认值冒充用户选择。
+const hourPickerItems = computed(() => ['请选择小时', ...availableHours.value.map((h) => `${String(h).padStart(2, '0')}时`)])
+const minutePickerItems = computed(() => ['请选择分钟', ...availableMinutes.value.map((m) => `${String(m).padStart(2, '0')}分`)])
+const hourPickerIndex = computed(() => chosenHour.value === null ? 0 : availableHours.value.indexOf(chosenHour.value) + 1)
+const minutePickerIndex = computed(() => chosenMinute.value === null ? 0 : availableMinutes.value.indexOf(chosenMinute.value) + 1)
 
 function clearReverseSelection() {
   lookupVersion++
@@ -94,6 +99,7 @@ watch(() => props.open, (v) => {
   }
 })
 watch(mode, () => clearReverseSelection())
+watch(() => props.ziShiMode, () => clearReverseSelection())
 
 const dayCount = computed(() => daysInMonth(year.value, month.value))
 const dayItems = computed(() => mode.value === 'lunar' ? lunarDays.slice(0, dayCount.value) : Array.from({ length: dayCount.value }, (_, i) => i + 1))
@@ -190,12 +196,12 @@ function chooseCandidate(index: number) {
 }
 
 function chooseHour(event: { detail: { value: string } }) {
-  chosenHour.value = availableHours.value[Number(event.detail.value)] ?? null
+  chosenHour.value = availableHours.value[Number(event.detail.value) - 1] ?? null
   chosenMinute.value = null
 }
 
 function chooseMinute(event: { detail: { value: string } }) {
-  chosenMinute.value = availableMinutes.value[Number(event.detail.value)] ?? null
+  chosenMinute.value = availableMinutes.value[Number(event.detail.value) - 1] ?? null
 }
 
 function confirm() {
@@ -307,10 +313,10 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
             {{ candidate.year }}年{{ candidate.month }}月{{ candidate.day }}日
           </view>
           <view v-if="chosenCandidate" class="dp-reverse-time">
-            <picker :range="availableHours.map((h) => `${String(h).padStart(2, '0')}时`)" @change="chooseHour">
+            <picker :range="hourPickerItems" :value="hourPickerIndex" @change="chooseHour">
               <view class="dp-reverse-picker">{{ chosenHour === null ? '选择出生小时' : `${String(chosenHour).padStart(2, '0')}时` }}</view>
             </picker>
-            <picker :range="availableMinutes.map((m) => `${String(m).padStart(2, '0')}分`)" :disabled="chosenHour === null" @change="chooseMinute">
+            <picker :range="minutePickerItems" :value="minutePickerIndex" :disabled="chosenHour === null" @change="chooseMinute">
               <view class="dp-reverse-picker">{{ chosenMinute === null ? '选择出生分钟' : `${String(chosenMinute).padStart(2, '0')}分` }}</view>
             </picker>
           </view>
