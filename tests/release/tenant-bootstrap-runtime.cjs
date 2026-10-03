@@ -37,14 +37,29 @@ async function main() {
   const checks = await prisma.$queryRawUnsafe("SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace AND conname LIKE 'Managed%' ORDER BY conname");
   assert.deepEqual(checks.map(row => row.conname), expectedChecks);
   const vector = await prisma.$queryRawUnsafe("SELECT extversion FROM pg_extension WHERE extname='vector'");assert.equal(vector.length, 1);
-  const diff = cp.spawnSync('pnpm', ['exec', 'prisma', 'migrate', 'diff', '--from-url', process.env.DATABASE_URL, '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code'], { cwd: path.join(root, 'apps/server'), encoding: 'utf8', timeout: 120000 });
+  const operations = fs.readFileSync(path.join(migrations, '20260730100000_repair_operational_database_objects/migration.sql'), 'utf8');
+  const operationalNames = [...operations.matchAll(/CREATE INDEX IF NOT EXISTS "([^"]+)"/g)].map(match => match[1]).sort();assert.equal(operationalNames.length, 21);
+  const operationalIndexes = await prisma.$queryRawUnsafe("SELECT c.relname AS name, i.indisvalid AS valid, pg_get_indexdef(i.indexrelid) AS definition FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname=ANY($1::text[]) ORDER BY c.relname", operationalNames);
+  assert.deepEqual(operationalIndexes.map(row => row.name).sort(), operationalNames);assert(operationalIndexes.every(row => row.valid));
+  const vectorColumns = await prisma.$queryRawUnsafe("SELECT c.relname AS table_name,a.attname AS column_name,format_type(a.atttypid,a.atttypmod) AS type FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid WHERE NOT a.attisdropped AND ((c.relname='AiCacheEntry' AND a.attname='queryVector') OR (c.relname='CircleKnowledge' AND a.attname='embedding')) ORDER BY c.relname");
+  assert.deepEqual(vectorColumns,[{table_name:'AiCacheEntry',column_name:'queryVector',type:'vector(1536)'},{table_name:'CircleKnowledge',column_name:'embedding',type:'vector(1536)'}]);
+  const diff = cp.spawnSync('pnpm', ['exec', 'prisma', 'migrate', 'diff', '--from-url', process.env.DATABASE_URL, '--to-schema-datamodel', 'prisma/schema.prisma', '--script', '--exit-code'], { cwd: path.join(root, 'apps/server'), encoding: 'utf8', timeout: 120000 });
   fs.writeFileSync(path.join(out, 'schema-diff.log'), (diff.stdout || '') + '\n' + (diff.stderr || ''));
-  assert.equal(diff.status, 0, '初始化后的 schema 不能漂移');
+  // 运维扩展不在 Prisma 模型里。只接受已逐项核验的外部对象差异，绝不执行这些 DROP。
+  const statements = diff.stdout.replace(/^--.*$/gm,'').split(';').map(value=>value.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const extraIndexes = ['Article_tags_gin_idx','Course_tags_gin_idx','Product_tags_gin_idx','Circle_tags_gin_idx','Content_tags_gin_idx','Video_tags_gin_idx','Article_title_trgm_idx','Course_title_trgm_idx','Product_title_trgm_idx','Circle_name_trgm_idx','Content_title_trgm_idx','ClassicBook_title_trgm_idx'].sort();
+  const removedIndexes=[],removedColumns=[];
+  for(const statement of statements){
+    const index=statement.match(/^DROP INDEX (?:"public"\.)?"([^"]+)"$/);
+    const column=statement.match(/^ALTER TABLE (?:"public"\.)?"([^"]+)" DROP COLUMN "([^"]+)"$/);
+    if(index)removedIndexes.push(index[1]);else if(column)removedColumns.push(column[1]+'.'+column[2]);else assert.fail('出现未登记的模型结构差异：'+statement);
+  }
+  assert.equal(diff.status,2);assert.deepEqual(removedIndexes.sort(),extraIndexes);assert.deepEqual(removedColumns.sort(),['AiCacheEntry.queryVector','CircleKnowledge.embedding']);
   const rejected = cp.spawnSync('bash', [script], { cwd: root, env: { ...process.env, CONFIRM_EMPTY_DATABASE: 'YES' }, encoding: 'utf8', timeout: 30000 });
   fs.writeFileSync(path.join(out, 'nonempty-rejection.log'), (rejected.stdout || '') + '\n' + (rejected.stderr || ''));
   assert.equal(rejected.status, 65, '同一非空库不能被再次初始化');
   assert.deepEqual(await prisma.$queryRawUnsafe('SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name'), ledger);
-  Object.assign(report, { passed: true, actualRepositoryScript: true, models: 414, ledgerEntries: ledger.length, rawMigrationChecksumsMatch: true, checks, vectorVersion: vector[0].extversion, schemaDiffExit: 0, nonemptyRejected: true, sourceSha256: hash(fs.readFileSync(path.join(root, script))), schemaSha256: hash(fs.readFileSync(path.join(root, 'apps/server/prisma/schema.prisma'))) });
+  Object.assign(report, { passed: true, actualRepositoryScript: true, models: 414, ledgerEntries: ledger.length, rawMigrationChecksumsMatch: true, checks, vectorVersion: vector[0].extversion, operationalIndexes, vectorColumns, schemaDiffExit: 2, schemaUnexpectedDrift: false, diffContainsOnlyVerifiedExternalObjects: true, diffSqlExecuted: false, nonemptyRejected: true, sourceSha256: hash(fs.readFileSync(path.join(root, script))), schemaSha256: hash(fs.readFileSync(path.join(root, 'apps/server/prisma/schema.prisma'))) });
 }
 main().catch(error => { report.passed = false; report.failure = error.message; process.exitCode = 1; }).finally(async () => {
   await prisma.$disconnect();fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(report, null, 2) + '\n');
