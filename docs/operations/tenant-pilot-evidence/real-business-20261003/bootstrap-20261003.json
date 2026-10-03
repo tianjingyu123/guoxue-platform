@@ -1,0 +1,31 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "sources": {
+    "apps/server/src/lease-main.ts": "29408d325bd55922831456ba5418c329c57b8d18442cbd3449cd324556bffc00",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "864821d1c5742b30b9f3941e1f712453fd835a71483bd086fdd9d0af7f7c8019",
+    "apps/server/.prisma-candidate/server-build/lease-main.js": "d57d8fa663c74aa04da349e453f5254956700964bd208ec276254f43dfb8a7d0"
+  },
+  "node": "v24.17.0",
+  "compiled": true,
+  "checks": [
+    {
+      "name": "实际lease-main入口拒绝可写控制面账号，启动前退出",
+      "status": "PASS"
+    },
+    {
+      "name": "实际lease-main入口完成固定身份启动、客户认证及控制面路由隔离",
+      "status": "PASS"
+    },
+    {
+      "name": "仅本任务实际启动子进程与端口全部退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 3,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务候选TypeScript编译产物及独立Prisma客户端，未部署容器或服务器",
+    "本机合成库，运行凭据文件只包含此客户引用，未验证Windows多账户ACL"
+  ]
+}

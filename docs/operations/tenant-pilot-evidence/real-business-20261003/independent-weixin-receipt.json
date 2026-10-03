@@ -1,0 +1,39 @@
+{
+  "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+  "version": 1,
+  "head": "73772132e4450855fb033e9d5f86c06300427662",
+  "workingTreeDirty": false,
+  "applicationId": "synthetic-real-lease-app-a",
+  "platform": "mp-weixin",
+  "channel": "local-candidate",
+  "sources": {
+    "apps/mobile/managed/App.vue": "4b288a7bafea440f296c4b7cd1a6364c92c23054f0ce72d94ed697431c67af86",
+    "apps/mobile/managed/client.ts": "e39b620705a7426028a660cf4f79d9caa879e00f7f72f992a222d93cd96a8a60",
+    "apps/mobile/managed/files.ts": "6f7dccaa5fe783664ae3bc38223f39bba1ca95f19a722eb5b03219bcfd1f2dd0",
+    "apps/mobile/managed/main.ts": "506cb8900ef1ef03c89e182f5143f8b388449f326a8bbd695eb6fac3fb5a7085",
+    "apps/mobile/managed/manifest.json": "493c6a2c27d46effb63a04344b0a176fcb3df58219fe10685363d6969c4ead52",
+    "apps/mobile/managed/pages/index.vue": "a634d63cfec587de15d2ee442a7a7ab9658b9efb9adb865d4aee2a36c47351f2",
+    "apps/mobile/managed/pages.json": "c0cfc0638b691af7869dd563147b814deec2f551d1850b27ee61a6f346434a37",
+    "apps/mobile/vite.managed.config.ts": "a30a5b6c081cd1b6e101060da987f3b3e583c27f998af134d81470a5e2641e79",
+    "scripts/ops/managed-client-build.mjs": "adb86beda68774f270f1b7f2e3b52d440b08666ab5bf0124bbb820dcd2568513"
+  },
+  "files": {
+    "app.js": "f1de5430e9dcb708f3571b65447f53e0160062620f7d7588c35147a73467e8e9",
+    "app.json": "6ef895d06861d7a61b9510bc03d3e0536d3a3946b1f6ae2c338c2c26b21a6d4f",
+    "app.wxss": "93f6167bc7bac7a65c45ee4038b454cc316140af2ac48431f8ec4636a577a544",
+    "client.js": "d99d5a2766419723d856a91aaeaff57680248bbee90ed9f001f2894014237db9",
+    "common/vendor.js": "e07af6b150b87f0f4714d77d2edc690d5cbb5dec71c9c4495c2cabb0dd6aa94c",
+    "files.js": "463107482ee52650cd1a4b1f0552566b41a21571694cdd39cd9dcf48f67e0b54",
+    "pages/index.js": "3494e1be8a04221b21d8b35a998fdbe3248c4095bcc9c6b6e6c665495f0964d2",
+    "pages/index.json": "e16de110ec79c434901f0ac96df87c354c2e48627231810bbe572189eeed8928",
+    "pages/index.wxml": "e6eab26b2e4f7cba6e372f39ec067957708d6e4c988c77d38acff56a2b00b0f0",
+    "pages/index.wxss": "2a9363fbffe20ef4b75b36a7c75b7acc1decc5267f1c9f57ffa4c2538e2c8394",
+    "project.config.json": "0c1e8c8e17876fd9fa8ec99473f6b6d164cd95dcf6a3530738e3c8260d56cb31"
+  },
+  "production": false,
+  "limits": [
+    "共享客户源码的渠道资源编译，不代表真实登记、证书签名、真机安装或商店上架",
+    "本构建不包含平台登录、支付、埋点、热更新或供应商SDK",
+    "本地候选使用合成AppID；正式配置仍须已有登记证据和发布授权"
+  ]
+}

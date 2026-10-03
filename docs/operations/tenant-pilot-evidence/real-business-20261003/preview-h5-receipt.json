@@ -1,0 +1,34 @@
+{
+  "dependencyLockSha256": "994f2584f94434c5b5594b54c92186dd87df13e5d47563c196b2af85f37687db",
+  "version": 1,
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "workingTreeDirty": true,
+  "applicationId": "client-preview-1791001496102-app-shared-web",
+  "platform": "h5",
+  "channel": "local-candidate",
+  "sources": {
+    "apps/mobile/managed/App.vue": "4b288a7bafea440f296c4b7cd1a6364c92c23054f0ce72d94ed697431c67af86",
+    "apps/mobile/managed/client.ts": "e39b620705a7426028a660cf4f79d9caa879e00f7f72f992a222d93cd96a8a60",
+    "apps/mobile/managed/files.ts": "6f7dccaa5fe783664ae3bc38223f39bba1ca95f19a722eb5b03219bcfd1f2dd0",
+    "apps/mobile/managed/main.ts": "506cb8900ef1ef03c89e182f5143f8b388449f326a8bbd695eb6fac3fb5a7085",
+    "apps/mobile/managed/manifest.json": "493c6a2c27d46effb63a04344b0a176fcb3df58219fe10685363d6969c4ead52",
+    "apps/mobile/managed/pages/index.vue": "a634d63cfec587de15d2ee442a7a7ab9658b9efb9adb865d4aee2a36c47351f2",
+    "apps/mobile/managed/pages.json": "c0cfc0638b691af7869dd563147b814deec2f551d1850b27ee61a6f346434a37",
+    "apps/mobile/vite.managed.config.ts": "a30a5b6c081cd1b6e101060da987f3b3e583c27f998af134d81470a5e2641e79",
+    "scripts/ops/managed-client-build.mjs": "adb86beda68774f270f1b7f2e3b52d440b08666ab5bf0124bbb820dcd2568513"
+  },
+  "files": {
+    "assets/index-2oYtlZxb.css": "851d8591502bd13d08f4be8e701f42d6d30ed88bceb23f0e356c7c7345558929",
+    "assets/index-C4KwpQOt.js": "3a5926420a15c8326c97dbcb56bad94ef68eaa97a312d4fc2f8561631b4fbe7e",
+    "assets/index-DOtiPCfY.css": "af314ac5b4df682cfac8e982e1f554993c8c3d6101610452c46f217a679cbfea",
+    "assets/pages-index.6hV7rksB.js": "16af24fa2971bddd737004c989f46e6a924565380fb25da209c0eaffe13ff86a",
+    "assets/uni.a0b39d2e.css": "a0b39d2ebf38709d6447b0f5d1bb9877eef6dea54ead3646e0ac61198af8bbb6",
+    "index.html": "c8877fc4fa0b5bbfc0ba6015d6464d14e49b9d76971d3e9e1db9a9e70e3169fd"
+  },
+  "production": false,
+  "limits": [
+    "共享客户源码的渠道资源编译，不代表真实登记、证书签名、真机安装或商店上架",
+    "本构建不包含平台登录、支付、埋点、热更新或供应商SDK",
+    "本地候选使用合成AppID；正式配置仍须已有登记证据和发布授权"
+  ]
+}

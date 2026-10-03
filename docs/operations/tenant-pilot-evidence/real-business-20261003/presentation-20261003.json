@@ -1,0 +1,44 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-presentation.ts": "83b26043fb52d308172504863cf100bc8690cc53859f679dad8492fed588e00c",
+    "apps/server/src/modules/feature-flag/client-presentation.service.ts": "f50af852528c4b76443ed2adfb50bcc242d763350855bcefd6ee48a0c802e307",
+    "apps/server/src/modules/feature-flag/feature-flag.service.ts": "54c7b2899260e285baff22e31c755716e348949ca799e51a264270f88de780bd",
+    "packages/shared/src/client-presentation.ts": "c2c5d0e3917cc782b940b8b870f121a464a1469b94900ec1cd2c74200452c6db"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "真实公共ClientPresentation草稿/发布/能力登记复用，脚本字段拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "单智能体模板按合同与包内能力收窄入口/导航/组件，返回配置仍符合共享解析协议",
+      "status": "PASS"
+    },
+    {
+      "name": "旧包/未声明能力保留公共引擎默认，不下发试验组件",
+      "status": "PASS"
+    },
+    {
+      "name": "合同到期时公共配置投影不授予新经营入口",
+      "status": "PASS"
+    },
+    {
+      "name": "公共急停优先于合同与模板，配置消费只收窄权限",
+      "status": "PASS"
+    },
+    {
+      "name": "客户投影不修改公共已发布配置、灰度或回退历史",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务真实PostgreSQL与公共引擎合成能力记录，仅test环境允许",
+    "公共目录目前无H5/小程序能力登记类型；本轮Android协议样本不代表商店或真包验收",
+    "客户端具体页面消费与真实首批品牌包尚未验收"
+  ]
+}
