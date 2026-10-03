@@ -40,6 +40,7 @@ const returnParcel=(row:BrandRow)=>run(async()=>{await brandApi.logistics(row.id
 onMounted(reload)
 </script>
 <style scoped>
-.store-page{min-height:100vh;background:#f6f8fb}.store{box-sizing:border-box;max-width:880px;margin:0 auto;padding-bottom:calc(24px + env(safe-area-inset-bottom))}.store button{min-height:44px}
+.store-page{min-height:100vh;background:#f6f8fb}.store{box-sizing:border-box;max-width:880px;margin:0 auto}.store button{min-height:44px}
 .store{padding:28px 20px;background:#f6f8fb;color:#21354a;min-height:100vh}.brand{border-bottom:2px solid #355d70;padding-bottom:24px}.headline{display:block;font-family:SimSun,serif;font-size:28px}.title{display:block;font-size:19px;font-weight:600}.muted,.copy{display:block;line-height:1.8;margin-top:12px;overflow-wrap:anywhere;white-space:pre-wrap}.muted{font-size:13px;color:#52687d}.tabs{display:flex;gap:10px}.item{padding:22px 0;border-bottom:1px solid #c2d0dc}.price{display:block;margin:12px 0;color:#355d70}.detail{padding:20px;background:white;border-left:3px solid #355d70;margin:24px 0}button{font-size:14px;background:#e5ecf3;color:#21354a;margin:12px 0}label{display:block;margin:18px 0}input,textarea{border:1px solid #c2d0dc;background:white;padding:12px;margin-top:10px}.error,.notice{display:block;padding:15px;margin:15px 0;background:#e5ecf3;line-height:1.8}.error{color:#ad392b;background:#fff1ef}
+.store{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 </style>
