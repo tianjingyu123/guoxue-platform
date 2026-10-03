@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-03T06:23:34.384Z",
+  "sourceCommit": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
+  "archive": "wechat-authorize-evidence-20261003.tar.gz",
+  "path": "C:/Users/Administrator/.codex/worktrees/channel-intake-review-20260930/gx-deploy-91/artifacts/channel-intake-20260930/monthly-coupon-source-20261002/wechat-authorize-evidence-20261003.tar.gz",
+  "bytes": 694594,
+  "sha256": "92e0a43564c85b3496fdca511b2102fd36d50931c44b2e41cbb063a9939ba82f",
+  "files": 26,
+  "localOnly": true,
+  "permanentRemoteArchive": false,
+  "realAuthorization": false,
+  "production": false
+}
