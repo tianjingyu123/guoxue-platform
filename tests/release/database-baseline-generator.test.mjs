@@ -12,6 +12,20 @@ const generatorPath = path.join(repoRoot, "scripts", "release", "generate-databa
 const auditPath = path.join(repoRoot, "scripts", "release", "audit-database-baseline.mjs");
 const schemaPath = path.join(repoRoot, "apps", "server", "prisma", "schema.prisma");
 
+test("空库初始化必须在历史迁移登记前同事务补齐多租户外部约束", async () => {
+  const dir = path.join(repoRoot, "apps/server/prisma/migrations-deploy");
+  const bootstrap = await readFile(path.join(dir, "bootstrap-empty-database.sh"), "utf8");
+  const operational = await readFile(path.join(dir, "managed-operations.sql"), "utf8");
+  assert.match(bootstrap, /\[ ! -f "\$MANAGED_OPERATIONS" \]/u);
+  const apply = bootstrap.indexOf('--file="$MANAGED_OPERATIONS"');
+  assert(apply > bootstrap.indexOf("--single-transaction"));
+  assert(apply < bootstrap.indexOf("登记全量基线覆盖的历史迁移"));
+  for (const name of ["ManagedLeaseWriteFence_state_check", "ManagedLeaseWriteFence_epoch_check", "ManagedBrandRequest_order_shape"]) {
+    assert.equal(operational.split(`ADD CONSTRAINT "${name}"`).length - 1, 1);
+  }
+  assert.doesNotMatch(operational, /\b(?:DROP|DELETE|UPDATE|TRUNCATE)\b/u);
+});
+
 function run(script, ...args) {
   return spawnSync(process.execPath, [script, ...args], {
     cwd: repoRoot,
