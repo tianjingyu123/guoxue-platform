@@ -1,0 +1,25 @@
+{
+  "head": "491e6e2755c7d90858e749157062ae43c045b37b",
+  "sourceSha256": "4bc7676dbeba77644ad877897e6864ec2926ae6271234230d3acf8e787f9971e",
+  "requests": 2,
+  "observations": [
+    {
+      "status": 200,
+      "responseBytes": 1048670,
+      "consumedBytes": 1048670,
+      "canceled": false,
+      "accepted": true
+    },
+    {
+      "status": 503,
+      "responseBytes": 1048670,
+      "consumedBytes": 1048670,
+      "canceled": false,
+      "accepted": false
+    }
+  ],
+  "demonstratesUnboundedWholeBodyRead": true,
+  "production": false,
+  "realNetworkRequests": 0,
+  "usedAsFinalPassEvidence": false
+}

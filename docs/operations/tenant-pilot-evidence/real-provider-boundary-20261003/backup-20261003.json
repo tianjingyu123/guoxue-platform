@@ -1,0 +1,66 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "源库与本任务新集群维护身份先只读核对",
+      "status": "PASS"
+    },
+    {
+      "name": "真实pg_dump一致性备份与本地文件SHA256，不含账号/密码授权",
+      "status": "PASS"
+    },
+    {
+      "name": "同版本新库恢复，恢复访问账号仅SELECT，原客户库继续保留",
+      "status": "PASS"
+    },
+    {
+      "name": "二十九类客户经营、附件字节、圈成员与帖子、会话、独立认证、写围栏及退出数据行数和内容摘要完全一致",
+      "status": "PASS"
+    },
+    {
+      "name": "恢复账户写入、结构修改与连接另一客户数据库均拒绝",
+      "status": "PASS"
+    }
+  ],
+  "passed": 5,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "仅本任务合成PostgreSQL库；恢复为只读访问，未切换业务写入者",
+    "包含数据库内PNG/JPEG和文字会话，未包含COS媒体、Redis/BullMQ、向量扩展、读副本或供应商端状态",
+    "未承诺线上RPO/RTO，不删除源库、恢复库或备份"
+  ],
+  "backupSha256": "37fdc254b0f5af054c9e06ce0d54f984cb7f84dd1a3d7eadc2b56792ac912518",
+  "comparison": {
+    "User": "5314:0076d37b64213c287d9cc3db570305c6",
+    "Product": "514:0bf2dc10cc90e309e804fc4dbd47bccc",
+    "ProductSku": "0:empty",
+    "CourseChapter": "88:98a1f08292d0d45a2b15315c5d0a8d96",
+    "CourseProgress": "15:0a7c0d4af94b7d05ad4defa7d6a0d61d",
+    "Course": "85:6ca43187d182683011e4f3b46a2c1f14",
+    "Circle": "128:2e21d7f4e5021256b0a3b4e3fdde97b4",
+    "CircleMember": "108:fc8adf528f1d92c80c4778d04f02c4ba",
+    "CircleKnowledge": "79:d8e71dcb62883fc194a954cf4d10d2a4",
+    "Post": "33:c0298253daaa6ba5de46e82fb3436249",
+    "VoiceAgentProfile": "81:32405adfb0f4c477a664acd97bce18f6",
+    "ShippingAddress": "13:a95c0e3f305833488ea9752e89dcdf48",
+    "Order": "129:02d8fac1abf246851e72cef9a150f527",
+    "ManagedLeaseAftercare": "24:a0a985c4aaf2c5d8479e2421549e8117",
+    "ManagedLeaseExport": "48:67807db26a516533c3479a252fd5b7ec",
+    "ManagedLeaseAudit": "2305:c13060d645b639ba9acc79cda828ceaf",
+    "ManagedLeaseIdentity": "229:f08a8a37c61a2b741acf631a93c6c992",
+    "ManagedLeaseRefresh": "552:f804e8cd4f0eb97a7aad2067f8b12d9b",
+    "ManagedLeaseLoginThrottle": "518:8e0aeae04e96a2d313dac090a987310c",
+    "ManagedLeaseExportPage": "1760:67abf1a081a6ef92bdb67e1a04b447e4",
+    "ManagedLeaseResource": "630:cbf73fdc069003543743449381966f2f",
+    "ManagedLeaseAsset": "45:65d023ed5a61600157e684fa8f1ac457",
+    "ManagedLeaseOrder": "37:9296466ec1057ed4d645642e9c56cf25",
+    "ManagedLeaseJoinRequest": "18:a58f12730a6b356713304caa9211d4e6",
+    "ManagedLeasePostRequest": "33:25c06e3d5d536525dbca50f98291f4e6",
+    "ManagedLeaseCircleMute": "8:1b1b21d4476f7769e8bdaf620e319468",
+    "ManagedLeaseChatSession": "50:5c0b5e8bc2c4a2c98c9efe6f36dd8dbe",
+    "ManagedLeaseChatMessage": "51:f44a964a08c3a3e59081a44bbaaa5832",
+    "ManagedLeaseWriteFence": "1:703efec31fb2b6d09421726cbf13aa02"
+  }
+}

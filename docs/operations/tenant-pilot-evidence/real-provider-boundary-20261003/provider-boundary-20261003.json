@@ -1,0 +1,55 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/ai-gateway/adapters/bounded-response.ts": "1685e9c5046f8dbb1203d671114ff43fc8e181a279fdff08bd9ee77041d19367",
+    "apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts": "ccd96ccdad5cc26cce9f39a573ff4f1aecbc6256d333f372f521a0c572cff3c6",
+    "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "90e62ada838afae90e8b38087b2af0e612a296ad836cd9c062f028e46b8f1367",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "42bfbb09d8a4786649dfdf5efdced803eacd9f839299b96ec984378a72275813",
+    "pilots/managed-tenancy/lease-process.mjs": "71df08b67e2c2e4a15dc4d59067d8d8cb0f765f74da98f5fa7d3cc223090db81",
+    "pilots/managed-tenancy/verify-provider-boundary-postgres.mjs": "ca861314c27cde19522e5d561f4190931895f7ce4fa3c2a72bbffd3d13078383"
+  },
+  "checks": [
+    {
+      "name": "真实loopback HTTP与固定Qwen适配器接入独立Nest，普通及gzip完整JSON正常提交，单次请求只派发一次",
+      "status": "PASS"
+    },
+    {
+      "name": "压缩超限在真实供应商派发后保留一条UNKNOWN，无助手正文；跨进程同键仅查询，换键也不再派发",
+      "status": "PASS"
+    },
+    {
+      "name": "错误正文在真实供应商派发后保留一条UNKNOWN，无助手正文；跨进程同键仅查询，换键也不再派发",
+      "status": "PASS"
+    },
+    {
+      "name": "截断正文在真实供应商派发后保留一条UNKNOWN，无助手正文；跨进程同键仅查询，换键也不再派发",
+      "status": "PASS"
+    },
+    {
+      "name": "无效编码在真实供应商派发后保留一条UNKNOWN，无助手正文；跨进程同键仅查询，换键也不再派发",
+      "status": "PASS"
+    },
+    {
+      "name": "gzip线上长度小于64KiB仍按解压后实际正文拒绝，不能借压缩头绕过读取上限",
+      "status": "PASS"
+    },
+    {
+      "name": "响应失败及取消期间另一客户查询正常，跨客户令牌不能读取当前会话",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本机合成HTTP、真实Qwen固定配置适配器、三个Nest进程和合成PostgreSQL；没有真实账号、外部请求或付费调用",
+    "合成Qwen入口只存在于pilots包装器，正式入口仍要求固定客户签名核验与调用授权",
+    "未知结果没有费用结论或自动补发；真实额度和供应商对账仍需另验",
+    "所有合成数据保留，原授权与本任务子进程按既有规则恢复"
+  ]
+}

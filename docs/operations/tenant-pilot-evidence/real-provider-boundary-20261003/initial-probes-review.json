@@ -1,0 +1,50 @@
+{
+  "production": false,
+  "baseline": {
+    "report": "response-baseline.json",
+    "head": "491e6e2755c7d90858e749157062ae43c045b37b",
+    "oldGitBlobSha256": "3e638451cc76bdbb07d805272900a947188007f9daa89f8835ee93f7daa4bd49",
+    "originalDiskHashPreserved": "4bc7676dbeba77644ad877897e6864ec2926ae6271234230d3acf8e787f9971e",
+    "originalRawFileReplacedByFix": true,
+    "restoredContentMatchesGit": true,
+    "restoredRawSha256": "58c871f1fdd346d21a9f3cad30792ea344a4b8a6b1d979083b9194491f1a89d2",
+    "restoredRawMatchesOriginalDiskHash": false,
+    "limit": "恢复副本启用CRLF转换，SHA与复现当时不同；只核对Git内容，不能回放原磁盘换行状态或冒称字节一致",
+    "usedAsFinalPassEvidence": false
+  },
+  "probes": [
+    {
+      "file": "provider-response-probe.json",
+      "head": "491e6e2755c7d90858e749157062ae43c045b37b",
+      "workingTreeDirty": true,
+      "passed": 9,
+      "failed": 0,
+      "sha256": "2171e051d529153c66754af41c0c293cb13d4bc179ee69bb559267fe4d7b428d",
+      "reason": "最初边界读取器字节流9组通过，未冻结源码",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "provider-response-buffer-probe.json",
+      "head": "491e6e2755c7d90858e749157062ae43c045b37b",
+      "workingTreeDirty": true,
+      "passed": 9,
+      "failed": 0,
+      "sha256": "54facb9a582b2bc475e128d4d4d7553fdf253e94ba9fd846a04f629a0cce4284",
+      "reason": "改用固定缓冲后字节流9组通过，未冻结源码",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "provider-boundary-probe.json",
+      "head": "491e6e2755c7d90858e749157062ae43c045b37b",
+      "workingTreeDirty": true,
+      "passed": 8,
+      "failed": 0,
+      "sha256": "208ce6660225c3294baf26eb657228c3c6b33e62d0c4905e6c904b21c8a0f6bb",
+      "reason": "真实loopback HTTP/PG/Nest8组通过，未冻结源码",
+      "usedAsFinalPassEvidence": false
+    }
+  ],
+  "finalSourceHead": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "finalResponsePassed": 9,
+  "finalDatabasePassed": 8
+}

@@ -1,0 +1,19 @@
+{
+  "sourceHead": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "legacyAttempt": {
+    "host": "Windows PowerShell 5.1",
+    "reportedExitCode": 0,
+    "effectivePass": false,
+    "reason": "Get-Acl对260字符路径返回非终止错误，旧脚本仍输出计数，不能作为全部路径权限核验通过",
+    "usedAsFinalPassEvidence": false
+  },
+  "correction": {
+    "errorsTerminate": true,
+    "verifiedLongPathLength": 260,
+    "verifiedPathAclRead": true,
+    "powerShellVersion": "7.6.5",
+    "finalScanRecordedSeparately": "private-acl.json",
+    "globalSystemSettingsModified": false
+  },
+  "production": false
+}
