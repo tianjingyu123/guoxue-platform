@@ -202,7 +202,7 @@ jest.setTimeout(30000);
     expect(await db.pointsRecord.count({ where: { userId: id, amount: 0, source } })).toBe(1);
     expect(await db.userPoints.count({ where: { userId: { in: users } } })).toBe(0);
   });
-  it("同模板已有未用券仍安全回滚，不擅自改为仅赠积分或多发券", async () => {
+  it("同模板已有旧券时恢复本月权益一次，不作废旧券", async () => {
     const c = await db.couponTemplate.create({
       data: {
         name: "合成当月券",
@@ -218,12 +218,17 @@ jest.setTimeout(30000);
     coupons.push(c.id);
     await config(100, c.id);
     const id = await member();
-    await db.couponRecord.create({ data: { couponId: c.id, userId: id, status: "UNUSED" } });
+    const old = await db.couponRecord.create({
+      data: { couponId: c.id, userId: id, status: "UNUSED" },
+    });
     await job().monthlyGrantRecoveryCron();
-    expect(await db.userPoints.findUnique({ where: { userId: id } })).toBeNull();
-    expect(await db.pointsRecord.count({ where: { userId: id, source } })).toBe(0);
+    await job().monthlyGrantRecoveryCron();
+    expect((await db.userPoints.findUniqueOrThrow({ where: { userId: id } })).balance).toBe(100);
+    expect(await db.pointsRecord.count({ where: { userId: id, source } })).toBe(1);
     expect((await db.couponTemplate.findUniqueOrThrow({ where: { id: c.id } })).claimedCount).toBe(
-      1,
+      2,
     );
+    expect(await db.couponRecord.count({ where: { userId: id } })).toBe(2);
+    expect(await db.couponRecord.findUniqueOrThrow({ where: { id: old.id } })).toEqual(old);
   });
 });

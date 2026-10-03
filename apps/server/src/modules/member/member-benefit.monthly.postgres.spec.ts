@@ -201,17 +201,78 @@ jest.setTimeout(30000);
     expect((await db.userPoints.findUniqueOrThrow({ where: { userId: second } })).balance).toBe(100);
   });
 
-  it("已有未用同模板券触发既有唯一约束时，积分和库存安全回滚", async () => {
+  it("旧券未用时本月权益仍发一次，旧券时间和状态保持不变", async () => {
     const couponId = await coupon();
     await config(100, couponId);
     const id = await member();
-    await db.couponRecord.create({ data: { userId: id, couponId, status: "UNUSED" } });
+    const old = await db.couponRecord.create({ data: { userId: id, couponId, status: "UNUSED" } });
     await db.couponTemplate.update({ where: { id: couponId }, data: { claimedCount: 1 } });
-    await expect(service().grantMonthlyBenefits(id, "MONTHLY")).rejects.toThrow();
-    expect(await db.userPoints.findUnique({ where: { userId: id } })).toBeNull();
-    expect(await db.pointsRecord.count({ where: { userId: id } })).toBe(0);
-    expect((await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } })).claimedCount).toBe(1);
-    expect(await db.couponRecord.count({ where: { userId: id } })).toBe(1);
+    expect(await service().grantMonthlyBenefits(id, "MONTHLY")).toBe(true);
+    expect(await service().grantMonthlyBenefits(id, "MONTHLY")).toBe(false);
+    expect((await db.userPoints.findUniqueOrThrow({ where: { userId: id } })).balance).toBe(100);
+    expect(await db.pointsRecord.count({ where: { userId: id } })).toBe(1);
+    expect(
+      (await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } })).claimedCount,
+    ).toBe(2);
+    expect(await db.couponRecord.count({ where: { userId: id } })).toBe(2);
+    expect(await db.couponRecord.findUniqueOrThrow({ where: { id: old.id } })).toEqual(old);
+  });
+
+  it("不同月份的券可共同使用或过期，普通领取仍保持同状态唯一", async () => {
+    const couponId = await coupon();
+    const id = await member();
+    const data = { userId: id, couponId, status: "UNUSED" };
+    const old = await db.couponRecord.create({ data });
+    await expect(db.couponRecord.create({ data })).rejects.toMatchObject({ code: "P2002" });
+    const month1 = await db.couponRecord.create({
+      data: { ...data, issuanceSource: "member_monthly_202609" },
+    });
+    const month2 = await db.couponRecord.create({
+      data: { ...data, issuanceSource: "member_monthly_202610" },
+    });
+    for (const status of ["USED", "EXPIRED"]) {
+      for (const record of [old, month1, month2]) {
+        await db.couponRecord.update({ where: { id: record.id }, data: { status } });
+      }
+      expect(await db.couponRecord.count({ where: { userId: id, status } })).toBe(3);
+    }
+    // 月券使用或过期之后也不能重领同一个月，不以券模板更换绕过。
+    const otherTemplate = await coupon();
+    await expect(
+      db.couponRecord.create({
+        data: { ...data, couponId: otherTemplate, issuanceSource: "member_monthly_202609" },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("有旧券的双进程竞争仍只发一次新券和积分", async () => {
+    const couponId = await coupon();
+    await config(100, couponId);
+    const id = await member();
+    const old = await db.couponRecord.create({ data: { userId: id, couponId } });
+    const code = `require('reflect-metadata');const {PrismaClient}=require('@prisma/client');const {MemberBenefitService}=require(${JSON.stringify(resolve("src/modules/member/member-benefit.service.ts"))});const db=new PrismaClient({datasources:{db:{url:process.env.ENTITLEMENT_NOTICE_TEST_DATABASE_URL}}});(async()=>{try{console.log(JSON.stringify({granted:await new MemberBenefitService(db,{}).grantMonthlyBenefits(${JSON.stringify(id)},'MONTHLY')}));}finally{await db.$disconnect();}})().catch(()=>process.exitCode=1);`;
+    const run = () =>
+      promisify(execFile)(process.execPath, ["-r", "ts-node/register/transpile-only", "-e", code], {
+        env: { ...process.env, TS_NODE_PROJECT: resolve("tsconfig.jest.json") },
+        timeout: 20000,
+      });
+    const results = await Promise.all([run(), run()]);
+    expect(results.map((r) => JSON.parse(r.stdout.trim()).granted).filter(Boolean)).toHaveLength(1);
+    expect(await db.couponRecord.count({ where: { userId: id } })).toBe(2);
+    expect(await db.pointsRecord.count({ where: { userId: id } })).toBe(1);
+    expect((await db.userPoints.findUniqueOrThrow({ where: { userId: id } })).balance).toBe(100);
+    expect(await db.couponRecord.findUniqueOrThrow({ where: { id: old.id } })).toEqual(old);
+  });
+
+  it("月券来源格式无效拒绝写入，不遗留券记录", async () => {
+    const couponId = await coupon();
+    const userId = await member();
+    for (const issuanceSource of ["", "member_monthly_202613", "manual_bypass"]) {
+      await expect(
+        db.couponRecord.create({ data: { couponId, userId, issuanceSource } }),
+      ).rejects.toThrow();
+    }
+    expect(await db.couponRecord.count({ where: { userId } })).toBe(0);
   });
 
   it("真实月度发放批次的单个失败不拖累其他用户，重跑只补失败者", async () => {

@@ -4146,6 +4146,7 @@ CREATE TABLE "CouponRecord" (
     "couponId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'UNUSED',
+    "issuanceSource" TEXT NOT NULL DEFAULT 'standard',
     "claimedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "usedAt" TIMESTAMP(3),
 
@@ -8817,7 +8818,7 @@ CREATE INDEX "CouponTemplate_status_endTime_idx" ON "CouponTemplate"("status", "
 CREATE INDEX "CouponRecord_userId_idx" ON "CouponRecord"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CouponRecord_couponId_userId_status_key" ON "CouponRecord"("couponId", "userId", "status");
+CREATE UNIQUE INDEX "CouponRecord_coupon_user_status_source_key" ON "CouponRecord"("couponId", "userId", "status", "issuanceSource");
 
 -- CreateIndex
 CREATE INDEX "DiscountActivity_status_startTime_idx" ON "DiscountActivity"("status", "startTime");

@@ -470,7 +470,7 @@ export class MarketingService {
   /**
    * 每人限领数。CouponTemplate 模型无 perUserLimit 字段（本次不改 schema），
    * 固定每人限领 1 张，按该用户在此模板下的历史领取记录总数计（含已使用/已过期）。
-   * 并发兜底：CouponRecord @@unique([couponId, userId, status]) 唯一约束防同状态重复插入。
+   * 并发兜底：普通券来源默认standard，仍由模板、用户、状态、来源唯一约束防重复插入。
    */
   private static readonly COUPON_PER_USER_LIMIT = 1;
 
@@ -528,7 +528,7 @@ export class MarketingService {
   /**
    * 用户主动领取一张优惠券。
    * 原子性：事务内「每人限领 count 校验 + 条件更新扣库存（CAS：仅 claimedCount < totalCount 时递增）+ 建领取记录」，
-   * 任一步失败整体回滚；并发双击由 CouponRecord 唯一约束 (couponId,userId,status) 兜底（P2002 转业务异常）。
+   * 任一步失败整体回滚；并发双击由普通券standard来源的同状态唯一约束兜底（P2002 转业务异常）。
    * 创建路径与 admin grant/batch-grant 完全一致（CouponRecord status=UNUSED），下单用券链路兼容。
    */
   async claimCouponTemplate(userId: string, templateId: string) {

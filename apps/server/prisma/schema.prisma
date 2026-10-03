@@ -5491,16 +5491,17 @@ model CouponTemplate {
 }
 
 model CouponRecord {
-  id        String    @id @default(uuid())
-  couponId  String
-  userId    String
-  status    String    @default("UNUSED") // UNUSED/USED/EXPIRED
-  claimedAt DateTime  @default(now())
-  usedAt    DateTime?
+  id             String    @id @default(uuid())
+  couponId       String
+  userId         String
+  status         String    @default("UNUSED") // UNUSED/USED/EXPIRED
+  issuanceSource String    @default("standard") // 普通领取沿用原防重；月度赠券按权益年月独立防重
+  claimedAt      DateTime  @default(now())
+  usedAt         DateTime?
 
   coupon CouponTemplate @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
-  @@unique([couponId, userId, status])
+  @@unique([couponId, userId, status, issuanceSource], map: "CouponRecord_coupon_user_status_source_key")
   @@index([userId])
 }
 

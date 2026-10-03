@@ -231,9 +231,9 @@ jest.setTimeout(30000);
       expect(fire).not.toHaveBeenCalled();
       expect(sendOnce).not.toHaveBeenCalled();
     });
-    it("旧未用赠券引发真实唯一键回滚，不能确认付款或发送成功", async () => {
+    it("旧未用券不阻断会员付款，本月权益一次发放且保留旧券", async () => {
       const userId = await user();
-      await db.couponRecord.create({
+      const old = await db.couponRecord.create({
         data: {
           userId,
           couponId,
@@ -242,15 +242,60 @@ jest.setTimeout(30000);
         },
       });
       const o = await order(userId, channel, true);
+      const claimed = (await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } }))
+        .claimedCount;
+      const svc = service();
+      expect(await call(svc, o, channel)).toBe(true);
+      expect((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status).toBe("PAID");
+      expect(await db.memberPurchase.count({ where: { orderId: o.id } })).toBe(1);
+      expect((await db.userPoints.findUniqueOrThrow({ where: { userId } })).balance).toBe(10);
+      expect(await db.couponRecord.count({ where: { userId, couponId } })).toBe(2);
+      expect(
+        (await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } })).claimedCount,
+      ).toBe(claimed + 1);
+      expect(await db.couponRecord.findUniqueOrThrow({ where: { id: old.id } })).toEqual(old);
+      // 会员权益事件与订单事件各自存在；这里只限制订单成功事件不重复。
+      expect(fire.mock.calls.filter(([event]) => event === "ORDER_PAID")).toHaveLength(1);
+      expect(sendOnce.mock.calls.filter(([, key]) => key === "ORDER_PAID:" + o.id)).toHaveLength(1);
+      expect(await db.memberMonthlyBenefitNotice.count({ where: { userId } })).toBe(1);
+      expect(await call(svc, o, channel)).toBe(true);
+      expect(await db.memberPurchase.count({ where: { orderId: o.id } })).toBe(1);
+      expect(await db.memberMonthlyBenefitNotice.count({ where: { userId } })).toBe(1);
+      expect(
+        await db.orderBusinessNotice.count({ where: { orderId: o.id, kind: "ORDER_PAID" } }),
+      ).toBe(1);
+      expect((await db.userPoints.findUniqueOrThrow({ where: { userId } })).balance).toBe(10);
+      expect(await db.couponRecord.count({ where: { userId, couponId } })).toBe(2);
+      // 重投允许再次尝试发送相同幂等键；测试替身的两次调用不等于两条真实通知。
+      expect(new Set(sendOnce.mock.calls.map(([, key]) => key))).toEqual(
+        new Set(["ORDER_PAID:" + o.id]),
+      );
+    });
+    it("月券真实写入失败仍回滚付款和权益，不确认渠道或发送成功", async () => {
+      const userId = await user();
+      const o = await order(userId, channel, true);
       const before = await db.user.findUniqueOrThrow({ where: { id: userId } });
       const claimed = (await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } }))
         .claimedCount;
-      expect(await call(service(), o, channel)).toBe(false);
+      await db.$executeRawUnsafe(
+        "CREATE FUNCTION synthetic_ack_coupon_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic coupon insert failure'; END $$",
+      );
+      await db.$executeRawUnsafe(
+        'CREATE TRIGGER synthetic_ack_coupon_fail BEFORE INSERT ON "CouponRecord" FOR EACH ROW EXECUTE FUNCTION synthetic_ack_coupon_fail()',
+      );
+      try {
+        await expect(call(service(), o, channel)).rejects.toThrow(
+          "synthetic coupon insert failure",
+        );
+      } finally {
+        await db.$executeRawUnsafe('DROP TRIGGER synthetic_ack_coupon_fail ON "CouponRecord"');
+        await db.$executeRawUnsafe("DROP FUNCTION synthetic_ack_coupon_fail()");
+      }
       expect((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status).toBe("PENDING");
       expect(await db.memberPurchase.count({ where: { orderId: o.id } })).toBe(0);
       expect(await db.entitlementLedger.count({ where: { sourceId: o.id } })).toBe(0);
       expect(await db.userPoints.count({ where: { userId } })).toBe(0);
-      expect(await db.couponRecord.count({ where: { userId, couponId } })).toBe(1);
+      expect(await db.couponRecord.count({ where: { userId, couponId } })).toBe(0);
       expect(
         (await db.couponTemplate.findUniqueOrThrow({ where: { id: couponId } })).claimedCount,
       ).toBe(claimed);

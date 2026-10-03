@@ -319,7 +319,13 @@ export class MemberBenefitService {
       });
       if (claimed.count === 1) {
         const couponRecord = await db.couponRecord.create({
-          data: { couponId: config.monthlyCouponId, userId, status: "UNUSED" },
+          // 仅新月度赠券使用年月来源；不改旧券状态、有效期或普通领券限制。
+          data: {
+            couponId: config.monthlyCouponId,
+            userId,
+            status: "UNUSED",
+            issuanceSource: source,
+          },
         });
         couponRecordId = couponRecord.id;
       } else {
