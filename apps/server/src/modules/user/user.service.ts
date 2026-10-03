@@ -1074,30 +1074,38 @@ export class UserService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的 provider: ${provider}`);
     }
 
-    // 检查是否已绑定
-    const auths = await this.prisma.auth.findMany({
-      where: { userId },
-      select: { provider: true, id: true, credential: true },
-    });
-    const targets = auths.filter(a => normalized === "wechat"
-      ? a.provider === "WECHAT"
-      : a.provider.toLowerCase() === normalized);
-    if (!targets.length) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "该账号未绑定");
-    }
-
-    // WECHAT_UNION 只是跨端锚点，不是一种独立登录方式；按真实可登录提供方计数。
-    const remainingLoginMethods = auths.filter(a =>
-      a.provider !== "WECHAT_UNION" &&
-      !(normalized === "wechat" ? a.provider === "WECHAT" : a.provider.toLowerCase() === normalized) &&
-      (a.provider !== "PASSWORD" || Boolean(a.credential)),
-    );
-    if (remainingLoginMethods.length === 0) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "至少保留一种登录方式，无法解绑最后一个账号");
-    }
-
     await this.prisma.$transaction(async (tx) => {
-      await tx.auth.deleteMany({ where: { id: { in: targets.map((item) => item.id) } } });
+      // 同一用户的各渠道解绑共用行锁；拿锁后读取并判断，避免并发请求都使用旧状态。
+      const owners = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "User" WHERE id=${userId} FOR UPDATE
+      `;
+      if (!owners.length) {
+        throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+      }
+      const auths = await tx.auth.findMany({
+        where: { userId },
+        select: { provider: true, id: true, credential: true },
+      });
+      const targets = auths.filter(a => normalized === "wechat"
+        ? a.provider === "WECHAT"
+        : a.provider.toLowerCase() === normalized);
+      if (!targets.length) {
+        throw new BusinessException(ErrorCode.NOT_FOUND, "该账号未绑定");
+      }
+
+      // WECHAT_UNION 只是跨端锚点，不是一种独立登录方式；按真实可登录提供方计数。
+      const remainingLoginMethods = auths.filter(a =>
+        a.provider !== "WECHAT_UNION" &&
+        !(normalized === "wechat" ? a.provider === "WECHAT" : a.provider.toLowerCase() === normalized) &&
+        (a.provider !== "PASSWORD" || Boolean(a.credential)),
+      );
+      if (remainingLoginMethods.length === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "至少保留一种登录方式，无法解绑最后一个账号");
+      }
+      const deleted = await tx.auth.deleteMany({ where: { userId, id: { in: targets.map((item) => item.id) } } });
+      if (deleted.count !== targets.length) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "绑定状态已变化，请刷新后重试");
+      }
       if (normalized === "wechat") {
         await tx.auth.deleteMany({ where: { userId, provider: "WECHAT_UNION" } });
       }
