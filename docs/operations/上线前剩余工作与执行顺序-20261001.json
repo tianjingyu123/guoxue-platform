@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T07:34:29.495Z",
-  "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+  "checkedAt": "2026-10-03T08:04:39.470Z",
+  "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -8741,8 +8741,8 @@
     {
       "id": "F2",
       "title": "第三方账号新绑定",
-      "current": "微信三端绑定代码已补齐并隔离接收；完整CI 9120通过/621跳过、八项成功；Linux四移动目标通过，2142份源码输入逐字节一致；本机H5产物18项通过。QQ/Apple新绑定未完成。",
-      "remaining": "真实微信授权、最终签名包及同版手机、真实数据库并发解绑未验收；QQ/Apple仍需逐渠道补接口与联调；新后端完整正式镜像需要按最终源码重新绑定。",
+      "current": "微信三端绑定代码及同账号解绑并发保护已隔离接收。新源码完整CI 9120通过/631跳过，八项成功；专项118含10真实PG，编译10重验，独立进程五轮及实际HTTP7通过。移动输入不变，复用前批四目标构建。QQ/Apple新绑定未完成。",
+      "remaining": "真实微信新授权、供应商取消/回跳、最终签名包及同版手机仍未验收；QQ/Apple仍需逐渠道补接口与联调；最终后端正式镜像需要按最终源码重新绑定。",
       "businessDecision": "不能将第三方登录等同账号绑定，不能自动合并不同用户账号。",
       "done": false,
       "deferredByUser": false,
@@ -8924,84 +8924,40 @@
     "record": "APP微信临时授权票据修复与隔离验收-20261003.json"
   },
   "latestSourceCI": {
-    "workflow": "ci.yml",
-    "runId": 37101746334,
-    "head": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
-    "status": "completed",
-    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37101746334",
-    "jobs": [
+    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+    "runId": 37107367771,
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37107367771",
+    "passed": 9120,
+    "defaultSkipped": 631,
+    "skipCountedAsPass": false,
+    "jobsPassed": 8,
+    "conclusion": "success",
+    "shards": [
       {
-        "failedSteps": [],
-        "name": "迁移与上线代码门禁",
-        "status": "completed",
-        "id": 111142476509,
-        "conclusion": "success"
-      },
-      {
-        "failedSteps": [],
-        "name": "ESLint + Prettier",
-        "status": "completed",
-        "id": 111142476588,
-        "conclusion": "success"
-      },
-      {
-        "failedSteps": [],
-        "name": "TypeScript 类型检查",
-        "status": "completed",
-        "id": 111142476593,
-        "conclusion": "success"
-      },
-      {
-        "failedSteps": [],
+        "id": 111158726952,
         "name": "单元测试 (2/3)",
-        "status": "completed",
-        "id": 111142719292,
-        "conclusion": "success"
+        "passed": 3044,
+        "skipped": 226,
+        "logSha256": "4869db4f07992a8773511c3a63017b8c6f17c64e74fa53d08fd861562e40c3f4"
       },
       {
-        "failedSteps": [],
+        "id": 111158727010,
         "name": "单元测试 (1/3)",
-        "status": "completed",
-        "id": 111142719345,
-        "conclusion": "success"
+        "passed": 2939,
+        "skipped": 241,
+        "logSha256": "8425975a130953503451a18b66f6a936894765de1fb2ae30d97f274eed19574d"
       },
       {
-        "failedSteps": [],
+        "id": 111158727082,
         "name": "单元测试 (3/3)",
-        "status": "completed",
-        "id": 111142719350,
-        "conclusion": "success"
-      },
-      {
-        "failedSteps": [],
-        "name": "构建产物",
-        "status": "completed",
-        "id": 111144936465,
-        "conclusion": "success"
-      },
-      {
-        "failedSteps": [],
-        "name": "测试结果汇总",
-        "status": "completed",
-        "id": 111144936519,
-        "conclusion": "success"
+        "passed": 3137,
+        "skipped": 164,
+        "logSha256": "22507db1af9f3208f2900ce1ad3621ff50c7baa78a96897ab9261955da2a57a0"
       }
     ],
-    "branch": "codex/launch-review-20260930",
-    "conclusion": "success",
-    "verified": {
-      "checkedAt": "2026-10-03T06:22:50.794Z",
-      "sourceCommit": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
-      "runId": 37101746334,
-      "officialJobsPassed": 8,
-      "artifactId": 11266188210,
-      "artifactDigest": "sha256:6075bd90ac7280c746a986da8922d278e1f8c309c6aeedfa167d6ae19d6fd10b",
-      "digestVerified": true,
-      "passed": 9104,
-      "defaultSkipped": 621,
-      "skipCountedAsPass": false,
-      "production": false
-    }
+    "artifactId": 11269005215,
+    "artifactDigest": "sha256:3e7d9a6210ba19ae96e6516f5ce43bf12658c21ab040a6c3cd0aa0c0560a839b",
+    "digestVerified": true
   },
   "previousBusinessSourceBeforeWechatBinding": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
   "wechatAccountBinding": {
@@ -9413,5 +9369,385 @@
     }
   },
   "currentSoftwareCoverageAppliesToNewBackend": false,
-  "currentSoftwareCoverageEvidenceSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e"
+  "currentSoftwareCoverageEvidenceSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "previousBusinessSourceBeforeAtomicUnbind": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+  "accountUnbindingAtomicity": {
+    "checkedAt": "2026-10-03T08:04:39.470Z",
+    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+    "fullCi": {
+      "runId": 37107367771,
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37107367771",
+      "passed": 9120,
+      "defaultSkipped": 631,
+      "skipCountedAsPass": false,
+      "jobsPassed": 8,
+      "conclusion": "success",
+      "shards": [
+        {
+          "id": 111158726952,
+          "name": "单元测试 (2/3)",
+          "passed": 3044,
+          "skipped": 226,
+          "logSha256": "4869db4f07992a8773511c3a63017b8c6f17c64e74fa53d08fd861562e40c3f4"
+        },
+        {
+          "id": 111158727010,
+          "name": "单元测试 (1/3)",
+          "passed": 2939,
+          "skipped": 241,
+          "logSha256": "8425975a130953503451a18b66f6a936894765de1fb2ae30d97f274eed19574d"
+        },
+        {
+          "id": 111158727082,
+          "name": "单元测试 (3/3)",
+          "passed": 3137,
+          "skipped": 164,
+          "logSha256": "22507db1af9f3208f2900ce1ad3621ff50c7baa78a96897ab9261955da2a57a0"
+        }
+      ],
+      "artifactId": 11269005215,
+      "artifactDigest": "sha256:3e7d9a6210ba19ae96e6516f5ce43bf12658c21ab040a6c3cd0aa0c0560a839b",
+      "digestVerified": true
+    },
+    "official": {
+      "checkedAt": "2026-10-03T07:56:00.416Z",
+      "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+      "toolCommit": "d1cbe0615ee567fa3d2f314cc4396fbdbd470dc5",
+      "runId": 37107579693,
+      "artifactId": 11268517034,
+      "artifactDigest": "sha256:5207d54095880692f007b9580cae8f7f3f6328aee93d7ffe6e537e669abc3357",
+      "digestVerified": true,
+      "sourceInputFilesVerified": 2369,
+      "regressionPassed": 118,
+      "realPostgresCases": 10,
+      "actualCompiledCases": 10,
+      "countsOverlap": true,
+      "sourceSha256": "73557bd2b0e05d1284adb3b35afa523c1d6bec02e569b3bad19635abbc82ce10",
+      "compiledSha256": "7405998676d2dc5d3d0178f3ac3b3f017472ab0061e10d2a285435ddad3fd5ca",
+      "schemaSha256": "b24da4d04c3e4428619451052d00e77c4fdcccf825547c82a89e34290ee4df78",
+      "mobileInputsIdenticalTo": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+      "mobileBuildReused": true,
+      "officialMiniUpload": false,
+      "signedNativePackage": false,
+      "realChannels": false,
+      "migrationUpgradeVerified": false,
+      "production": false
+    },
+    "localHttp": {
+      "checkedAt": "2026-10-03T07:58:19.421Z",
+      "passed": 7,
+      "checks": [
+        "真实JwtAuthGuard拒绝无令牌",
+        "真实JwtStrategy拒绝伪造令牌",
+        "发起主体与JWT不匹配拒绝且两账号未变",
+        "伪造userId不改变实际主体，仅解绑JWT本人",
+        "实际HTTP拒绝最后登录方式解绑",
+        "两个真实HTTP请求并发只成功一个，仍可登录",
+        "实际HTTP事务失败不返回成功，身份整笔回滚"
+      ],
+      "actualCompiledController": true,
+      "actualCompiledService": true,
+      "actualJwtGuardAndStrategy": true,
+      "realPostgres": true,
+      "redisRevocationLookupStub": true,
+      "unrelatedRouteGuardsStub": true,
+      "productionHttpServer": false,
+      "realChannels": false,
+      "production": false,
+      "controllerSha256": "a9bce101be1ec357d2a297332e779980196a88e2b7eed7c909b9d6f2d750898a",
+      "serviceSha256": "5f49e92ac5b6dd89b02d01f27f98012ae2669c5712616fdf12525aa46192d572",
+      "jwtStrategySha256": "779d85f5ec9ee23181db84a25c30742cb0a0e17b9f9b176a34936588584b1801"
+    },
+    "localCrossProcess": {
+      "checkedAt": "2026-10-03T07:43:51.596Z",
+      "realPostgres": "16.13",
+      "actualCompiledService": true,
+      "independentProcesses": 10,
+      "rounds": [
+        {
+          "round": 1,
+          "processes": 2,
+          "successfulUnbinds": 1,
+          "refusedUnbinds": 1,
+          "remainingProviders": [
+            "QQ"
+          ]
+        },
+        {
+          "round": 2,
+          "processes": 2,
+          "successfulUnbinds": 1,
+          "refusedUnbinds": 1,
+          "remainingProviders": [
+            "QQ"
+          ]
+        },
+        {
+          "round": 3,
+          "processes": 2,
+          "successfulUnbinds": 1,
+          "refusedUnbinds": 1,
+          "remainingProviders": [
+            "WECHAT"
+          ]
+        },
+        {
+          "round": 4,
+          "processes": 2,
+          "successfulUnbinds": 1,
+          "refusedUnbinds": 1,
+          "remainingProviders": [
+            "QQ"
+          ]
+        },
+        {
+          "round": 5,
+          "processes": 2,
+          "successfulUnbinds": 1,
+          "refusedUnbinds": 1,
+          "remainingProviders": [
+            "WECHAT"
+          ]
+        }
+      ],
+      "sourceSha256": "9da8b496c52ee221bb1e40308ca507f46ffa864b10a252bc10a8bfc947d8a4e5",
+      "compiledSha256": "5f49e92ac5b6dd89b02d01f27f98012ae2669c5712616fdf12525aa46192d572",
+      "realChannels": false,
+      "production": false
+    },
+    "receivedIntoStaging": true,
+    "stagingBranch": "release/launch-staging-20260927",
+    "previousStaging": "7212edbb1e952e48163b9849c237d6765cbddb28",
+    "reception": "ff-only，无冲突、无覆盖",
+    "wholeFormalDockerVerified": false,
+    "production": false,
+    "record": "docs/operations/账号解绑并发边界修复与隔离验收-20261003.md",
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（所列范围）",
+      "线上状态未知",
+      "待发布决策"
+    ]
+  },
+  "previousSourceCIBeforeAtomicUnbind": {
+    "workflow": "ci.yml",
+    "runId": 37101746334,
+    "head": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
+    "status": "completed",
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37101746334",
+    "jobs": [
+      {
+        "failedSteps": [],
+        "name": "迁移与上线代码门禁",
+        "status": "completed",
+        "id": 111142476509,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "ESLint + Prettier",
+        "status": "completed",
+        "id": 111142476588,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "TypeScript 类型检查",
+        "status": "completed",
+        "id": 111142476593,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "单元测试 (2/3)",
+        "status": "completed",
+        "id": 111142719292,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "单元测试 (1/3)",
+        "status": "completed",
+        "id": 111142719345,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "单元测试 (3/3)",
+        "status": "completed",
+        "id": 111142719350,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "构建产物",
+        "status": "completed",
+        "id": 111144936465,
+        "conclusion": "success"
+      },
+      {
+        "failedSteps": [],
+        "name": "测试结果汇总",
+        "status": "completed",
+        "id": 111144936519,
+        "conclusion": "success"
+      }
+    ],
+    "branch": "codex/launch-review-20260930",
+    "conclusion": "success",
+    "verified": {
+      "checkedAt": "2026-10-03T06:22:50.794Z",
+      "sourceCommit": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
+      "runId": 37101746334,
+      "officialJobsPassed": 8,
+      "artifactId": 11266188210,
+      "artifactDigest": "sha256:6075bd90ac7280c746a986da8922d278e1f8c309c6aeedfa167d6ae19d6fd10b",
+      "digestVerified": true,
+      "passed": 9104,
+      "defaultSkipped": 621,
+      "skipCountedAsPass": false,
+      "production": false
+    }
+  },
+  "currentDefaultCiSkipped": 631,
+  "newUnbindDefaultSkippedClosedInDedicatedRun": 10,
+  "softwareSkippedCoveredSourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "otherValidationSectionsAreVersionedHistoricalEvidence": true,
+  "functionalPrerequisites": {
+    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+    "record": "docs/operations/剩余功能缺口实现前置复核-20261003.md",
+    "sameCity": {
+      "checkedAt": "2026-10-03T07:58:57.025Z",
+      "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+      "readonly": true,
+      "schemaFieldCityCode": false,
+      "existingSceneCityCodeQueryRejected": true,
+      "officialHomeLocalEntryStillUnavailable": true,
+      "featureImplemented": false,
+      "production": false
+    },
+    "f1Implemented": false,
+    "f3Implemented": false,
+    "f4Implemented": false,
+    "f5Implemented": false
+  },
+  "tenantCandidateIntake": {
+    "record": "docs/operations/多租户候选冻结接收预检-20261003.md",
+    "preflight": {
+      "checkedAt": "2026-10-03T08:06:35.386Z",
+      "candidateBase": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+      "candidateSource": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+      "candidateHead": "f81e147a2a080a6c486b628ce389bbb528529e14",
+      "receivingSource": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+      "baseAlreadyInReceivingLine": true,
+      "candidateFiles": 443,
+      "overlappingFiles": [
+        "apps/server/prisma/schema.prisma",
+        "apps/server/src/modules/auth/auth.service.spec.ts",
+        "apps/server/src/modules/auth/auth.service.ts"
+      ],
+      "mergeTreeConflict": false,
+      "conflictingPaths": [],
+      "candidateMigrationPaths": [
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql",
+          "candidateGitBlob": "aeba14f67f013f356e4412c90cf718400380a9c4",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_08_managed_lease_exit/migration.sql",
+          "candidateGitBlob": "829d56941f5acfbbc24f716bbe9e446dde378de1",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql",
+          "candidateGitBlob": "0ee84c1652c904f9bcd6bbdb112d36d8fae07d6c",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_10_managed_lease_identity/migration.sql",
+          "candidateGitBlob": "c2588f7cc2bdca00939bb06a5dcb0314eb713dfe",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261002_11_managed_recovery_export/migration.sql",
+          "candidateGitBlob": "b63a4a96586f3219f148c1fdb88a40615fa4ebaa",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261003_12_managed_local_content/migration.sql",
+          "candidateGitBlob": "508c8a00718925f3f4c4b115dfe1385c1be3e9b4",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261003_13_managed_limits_fence/migration.sql",
+          "candidateGitBlob": "e7e5b99f2e7b8e0c75989619c325ea5d974ff690",
+          "currentExists": false,
+          "equivalent": false
+        },
+        {
+          "path": "apps/server/prisma/migrations/manual_z_20261003_14_managed_brand_course/migration.sql",
+          "candidateGitBlob": "51d1bb4ff6657195ca5f3ad5994e9a4b1df62fcc",
+          "currentExists": false,
+          "equivalent": false
+        }
+      ],
+      "worktreeChanged": false,
+      "received": false,
+      "testsIndependentReviewCompleted": false,
+      "production": false
+    },
+    "frozenEvidence": {
+      "checkedAt": "2026-10-03T08:15:10.893Z",
+      "source": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+      "archive": "f81e147a2a080a6c486b628ce389bbb528529e14",
+      "base": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+      "observedHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "candidateAdvancedAfterHandoff": true,
+      "gitSources": 133,
+      "currentWorkingSourcesMatch": 128,
+      "currentWorkingSourcesTotal": 133,
+      "currentCompiledMatch": 1363,
+      "currentCompiledTotal": 1365,
+      "reports": 31,
+      "archivedEvidence": 44,
+      "unchangedExistingMigrations": 135,
+      "bundleSha256": "c2639cd420de4eb660c12c4b764c58073d8126211c1481c57687e5d5e930735c",
+      "bundleStructureVerified": true,
+      "failures": [],
+      "independentTestRerun": false,
+      "freshRestoreCheckedByThisTask": false,
+      "received": false,
+      "production": false
+    },
+    "states": [
+      "候选交接已登记",
+      "冻结证据摘要复核完成",
+      "独立接收评审未完成",
+      "线上状态未知",
+      "待发布决策"
+    ],
+    "received": false,
+    "independentTestRerun": false,
+    "production": false
+  },
+  "latestEvidenceSeal": {
+    "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+    "sealedAt": "2026-10-03T08:17:23.523Z",
+    "fileCount": 31,
+    "package": "artifacts/channel-intake-20260930/unbind-intake-evidence-1791015443048.tar.gz",
+    "packageBytes": 7258423,
+    "packageSha256": "27d6a10bf5d8c2d6aefaa8e9543fcfd5ded9ed4aebc9ee515f102261289b4aa0",
+    "manifestSha256": "5ea915fbcad857e736173184644995e14902edae205537f73adca34dfa06d421",
+    "freshExtractionAllMatch": true,
+    "localArchiveOnly": true,
+    "remotePersistentArchive": false,
+    "production": false
+  }
 }

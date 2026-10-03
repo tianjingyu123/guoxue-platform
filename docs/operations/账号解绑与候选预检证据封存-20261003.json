@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70",
+  "sealedAt": "2026-10-03T08:17:23.523Z",
+  "fileCount": 31,
+  "package": "artifacts/channel-intake-20260930/unbind-intake-evidence-1791015443048.tar.gz",
+  "packageBytes": 7258423,
+  "packageSha256": "27d6a10bf5d8c2d6aefaa8e9543fcfd5ded9ed4aebc9ee515f102261289b4aa0",
+  "manifestSha256": "5ea915fbcad857e736173184644995e14902edae205537f73adca34dfa06d421",
+  "freshExtractionAllMatch": true,
+  "localArchiveOnly": true,
+  "remotePersistentArchive": false,
+  "production": false
+}
