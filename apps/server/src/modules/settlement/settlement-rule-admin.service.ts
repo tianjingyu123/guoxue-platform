@@ -91,19 +91,20 @@ export class SettlementRuleAdminService {
   }
 
   /** 创建规则（scene 唯一；updatedBy 写管理员 userId，种子据此不覆盖人工配置） */
-  async createRule(dto: CreateSettlementRuleDto, adminId: string) {
+  async createRule(dto: CreateSettlementRuleDto, adminId: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     const splits = this.validateSplits(dto.splits);
     const scene = dto.scene.trim();
     if (!scene) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 不能为空");
     }
 
-    const existing = await this.prisma.settlementRule.findUnique({ where: { scene } });
+    const existing = await db.settlementRule.findUnique({ where: { scene } });
     if (existing) {
       throw new BusinessException(ErrorCode.CONFLICT, `场景 ${scene} 已存在结算规则，请编辑现有规则`);
     }
 
-    const rule = await this.prisma.settlementRule.create({
+    const rule = await db.settlementRule.create({
       data: {
         scene,
         splits: splits as unknown as Prisma.InputJsonValue,
@@ -120,13 +121,14 @@ export class SettlementRuleAdminService {
   }
 
   /** 更新规则（禁止改 scene —— scene 是引擎查找键；updatedBy 写管理员 userId） */
-  async updateRule(id: string, dto: UpdateSettlementRuleDto, adminId: string) {
+  async updateRule(id: string, dto: UpdateSettlementRuleDto, adminId: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     // 防御性拒绝：DTO 层已不收 scene（forbidNonWhitelisted 400），此处再拦一道防止服务被绕过调用
     if ("scene" in (dto as Record<string, unknown>)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "scene 是结算引擎查找键，禁止修改");
     }
 
-    const existing = await this.prisma.settlementRule.findUnique({ where: { id } });
+    const existing = await db.settlementRule.findUnique({ where: { id } });
     if (!existing) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "结算规则不存在");
     }
@@ -141,7 +143,7 @@ export class SettlementRuleAdminService {
     if (dto.enabled !== undefined) data.enabled = dto.enabled;
     if (dto.remark !== undefined) data.remark = dto.remark;
 
-    const rule = await this.prisma.settlementRule.update({ where: { id }, data });
+    const rule = await db.settlementRule.update({ where: { id }, data });
     this.logger.log(
       `[规则管理] 管理员 ${adminId} 更新结算规则 scene=${existing.scene} 变更=${JSON.stringify(dto)}`,
     );

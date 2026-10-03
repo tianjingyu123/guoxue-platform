@@ -54,9 +54,10 @@ export class AdminReferralService {
     }
   }
 
-  private async assertScopeExists(stationId?: string | null, operatorId?: string | null) {
+  private async assertScopeExists(stationId?: string | null, operatorId?: string | null, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     if (stationId) {
-      const station = await this.prisma.station.findUnique({
+      const station = await db.station.findUnique({
         where: { id: stationId },
         select: { id: true },
       });
@@ -67,7 +68,7 @@ export class AdminReferralService {
         );
     }
     if (operatorId) {
-      const operator = await this.prisma.operator.findUnique({
+      const operator = await db.operator.findUnique({
         where: { id: operatorId },
         select: { id: true },
       });
@@ -153,10 +154,11 @@ export class AdminReferralService {
   }
 
   /** 审批通过后的真实创建入口。 */
-  async create(dto: ReferralConfigInput, createdBy?: string) {
+  async create(dto: ReferralConfigInput, createdBy?: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     const normalized = this.normalizeCreate(dto);
-    await this.assertScopeExists(normalized.stationId, normalized.operatorId);
-    return this.prisma.temporaryReferralConfig.create({
+    await this.assertScopeExists(normalized.stationId, normalized.operatorId, transaction);
+    return db.temporaryReferralConfig.create({
       data: {
         stationId: normalized.stationId,
         operatorId: normalized.operatorId,
@@ -188,8 +190,9 @@ export class AdminReferralService {
   }
 
   /** 审批通过后的真实更新入口。 */
-  async update(id: string, dto: ReferralConfigUpdate) {
-    const existing = await this.prisma.temporaryReferralConfig.findUnique({ where: { id } });
+  async update(id: string, dto: ReferralConfigUpdate, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    const existing = await db.temporaryReferralConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "临时推荐配置不存在");
     const normalized = this.normalizeUpdate(dto);
     const effective = {
@@ -200,7 +203,7 @@ export class AdminReferralService {
       validTo: normalized.validTo ?? existing.validTo,
     };
     this.assertValidConfig(effective);
-    await this.assertScopeExists(effective.stationId, effective.operatorId);
+    await this.assertScopeExists(effective.stationId, effective.operatorId, transaction);
 
     const data: Prisma.TemporaryReferralConfigUpdateInput = {};
     if (normalized.stationId !== undefined) data.stationId = normalized.stationId;
@@ -208,14 +211,15 @@ export class AdminReferralService {
     if (normalized.commissionRate !== undefined) data.commissionRate = normalized.commissionRate;
     if (normalized.validFrom !== undefined) data.validFrom = new Date(normalized.validFrom);
     if (normalized.validTo !== undefined) data.validTo = new Date(normalized.validTo);
-    return this.prisma.temporaryReferralConfig.update({ where: { id }, data });
+    return db.temporaryReferralConfig.update({ where: { id }, data });
   }
 
   /** 审批通过后的真实删除入口。 */
-  async delete(id: string) {
-    const existing = await this.prisma.temporaryReferralConfig.findUnique({ where: { id } });
+  async delete(id: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    const existing = await db.temporaryReferralConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "临时推荐配置不存在");
-    return this.prisma.temporaryReferralConfig.delete({ where: { id } });
+    return db.temporaryReferralConfig.delete({ where: { id } });
   }
 
   /** 当前生效的临时配置。 */

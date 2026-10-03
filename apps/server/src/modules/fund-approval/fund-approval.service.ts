@@ -146,7 +146,7 @@ export class FundApprovalService {
     return transaction ? claim(transaction) : this.prisma.$transaction(claim);
   }
 
-  /** 已核验的本地分配/充值/退币与认领共同提交；外部出款不能进入这个事务。 */
+  /** 本地分配、币操作及配置与认领共同提交；外部出款不能进入这个事务。 */
   async executeLocalReview<T>(
     id: string, reviewerId: string, reviewNote: string | undefined,
     expected: Pick<FundApproval, "type" | "requestedBy" | "payload" | "amount" | "summary">,
@@ -154,7 +154,7 @@ export class FundApprovalService {
   ): Promise<T> {
     return this.prisma.$transaction(async tx => {
       const approval = await this.claimForReview(id, "APPROVED", reviewerId, reviewNote, expected, tx);
-      if (!["DIVIDEND", "RECHARGE", "COIN_REFUND"].includes(approval.type))
+      if (!["DIVIDEND", "RECHARGE", "COIN_REFUND", "MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(approval.type))
         throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已核验的本地资金类型使用此执行事务");
       return execute(approval, tx);
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

@@ -1259,7 +1259,8 @@ export class SystemService {
   }
 
   /** 审批通过后的真实新增/覆盖入口。 */
-  async upsertMemberConfig(dto: MemberConfigCreateInput) {
+  async upsertMemberConfig(dto: MemberConfigCreateInput, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     this.validateMemberConfigValues(dto);
     this.logger.log(`更新会员配置: level=${dto.level}`);
     const update: Prisma.MemberConfigUpdateInput = {
@@ -1275,7 +1276,7 @@ export class SystemService {
       update.benefits = dto.benefits.map((item) => item.trim()) as Prisma.InputJsonValue;
     if (dto.maxBorrowDays !== undefined) update.maxBorrowDays = dto.maxBorrowDays;
     if (dto.isActive !== undefined) update.isActive = dto.isActive;
-    return this.prisma.memberConfig.upsert({
+    return db.memberConfig.upsert({
       where: { level: dto.level },
       create: {
         level: dto.level,
@@ -1294,9 +1295,10 @@ export class SystemService {
   }
 
   /** 审批通过后的真实更新入口。 */
-  async updateMemberConfig(id: string, dto: MemberConfigUpdateInput) {
+  async updateMemberConfig(id: string, dto: MemberConfigUpdateInput, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
     this.validateMemberConfigValues(dto);
-    const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
+    const existing = await db.memberConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
     const data: Prisma.MemberConfigUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
@@ -1310,16 +1312,17 @@ export class SystemService {
       data.benefits = dto.benefits.map((item) => item.trim()) as Prisma.InputJsonValue;
     if (dto.maxBorrowDays !== undefined) data.maxBorrowDays = dto.maxBorrowDays;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
-    return this.prisma.memberConfig.update({ where: { id }, data });
+    return db.memberConfig.update({ where: { id }, data });
   }
 
-  private async assertMemberConfigDeletable(id: string) {
-    const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
+  private async assertMemberConfigDeletable(id: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    const existing = await db.memberConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
     if (existing.isActive) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "启用中的会员套餐不能删除，请先停用");
     }
-    const referencedOrders = await this.prisma.order.count({
+    const referencedOrders = await db.order.count({
       where: { type: "MEMBER", targetId: id },
     });
     if (referencedOrders > 0) {
@@ -1332,8 +1335,9 @@ export class SystemService {
   }
 
   /** 审批通过后的真实删除入口。 */
-  async deleteMemberConfig(id: string) {
-    await this.assertMemberConfigDeletable(id);
-    return this.prisma.memberConfig.delete({ where: { id } });
+  async deleteMemberConfig(id: string, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    await this.assertMemberConfigDeletable(id, transaction);
+    return db.memberConfig.delete({ where: { id } });
   }
 }

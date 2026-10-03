@@ -89,7 +89,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "createTemporaryReferralConfig", dto },
     });
     await executor.review("a3", true, undefined, "admin-2");
-    expect(referrals.create).toHaveBeenCalledWith(dto, "admin-1");
+    expect(referrals.create).toHaveBeenCalledWith(dto, "admin-1", { syntheticTx: true });
   });
 
   it("临时分佣修改审批通过后执行真实更新", async () => {
@@ -99,7 +99,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "updateTemporaryReferralConfig", id: "r1", dto },
     });
     await executor.review("a4", true, undefined, "admin-2");
-    expect(referrals.update).toHaveBeenCalledWith("r1", dto);
+    expect(referrals.update).toHaveBeenCalledWith("r1", dto, { syntheticTx: true });
   });
 
   it("临时分佣删除审批通过后执行真实删除", async () => {
@@ -108,7 +108,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "deleteTemporaryReferralConfig", id: "r1" },
     });
     await executor.review("a5", true, undefined, "admin-2");
-    expect(referrals.delete).toHaveBeenCalledWith("r1");
+    expect(referrals.delete).toHaveBeenCalledWith("r1", { syntheticTx: true });
   });
   it("结算规则创建审批通过后才执行真实创建", async () => {
     const dto = { scene: "QUESTION", splits: [{ role: "PROVIDER", rate: 0.8 }] };
@@ -117,7 +117,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "createSettlementRule", dto },
     });
     await executor.review("a9", true, undefined, "admin-2");
-    expect(settlementRules.createRule).toHaveBeenCalledWith(dto, "admin-1");
+    expect(settlementRules.createRule).toHaveBeenCalledWith(dto, "admin-1", { syntheticTx: true });
   });
 
   it("结算规则修改审批通过后才执行真实更新", async () => {
@@ -127,7 +127,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "updateSettlementRule", id: "sr1", dto },
     });
     await executor.review("a10", true, undefined, "admin-2");
-    expect(settlementRules.updateRule).toHaveBeenCalledWith("sr1", dto, "admin-1");
+    expect(settlementRules.updateRule).toHaveBeenCalledWith("sr1", dto, "admin-1", { syntheticTx: true });
   });
 
   it("会员套餐新增审批通过后执行真实写入", async () => {
@@ -137,7 +137,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "upsertMemberConfig", dto },
     });
     await executor.review("a6", true, undefined, "admin-2");
-    expect(system.upsertMemberConfig).toHaveBeenCalledWith(dto);
+    expect(system.upsertMemberConfig).toHaveBeenCalledWith(dto, { syntheticTx: true });
   });
 
   it("会员套餐修改审批通过后执行真实更新", async () => {
@@ -147,7 +147,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "updateMemberConfig", id: "m1", dto },
     });
     await executor.review("a7", true, undefined, "admin-2");
-    expect(system.updateMemberConfig).toHaveBeenCalledWith("m1", dto);
+    expect(system.updateMemberConfig).toHaveBeenCalledWith("m1", dto, { syntheticTx: true });
   });
 
   it("会员套餐删除审批通过后执行真实删除", async () => {
@@ -156,6 +156,6 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       payload: { method: "deleteMemberConfig", id: "m1" },
     });
     await executor.review("a8", true, undefined, "admin-2");
-    expect(system.deleteMemberConfig).toHaveBeenCalledWith("m1");
+    expect(system.deleteMemberConfig).toHaveBeenCalledWith("m1", { syntheticTx: true });
   });
 });

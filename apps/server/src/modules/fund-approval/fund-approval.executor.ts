@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { FundApprovalService } from "./fund-approval.service";
@@ -62,6 +63,19 @@ export class FundApprovalExecutor {
       );
       return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
     }
+    if (approve && ["MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(snapshot.type)) {
+      // 配置和版本记录写入完成前，审批行及当前审核权限锁保持在同一事务内。
+      const result = await this.approvals.executeLocalReview(
+        id, reviewerId, note, snapshot, async (approval, tx) => this.execute(approval, tx),
+      );
+      const method = (snapshot.payload as { method?: string } | null)?.method;
+      if (snapshot.type === "COMMISSION_CONFIG" && [undefined, "updateConfig", "updateCommissionConfig"].includes(method)) {
+        // 进程缓存失效发生在实际提交后；缓存故障不能将已提交审批恢复为待审。
+        try { this.commission.invalidateConfigCache(); }
+        catch { this.logger.warn("配置已提交，进程内缓存失效失败"); }
+      }
+      return { approved: true, status: "APPROVED", message: "已审批通过并执行", result };
+    }
     const approval = await this.approvals.claimForReview(id, approve ? "APPROVED" : "REJECTED", reviewerId, note, snapshot);
     if (!approve) return { approved: false, status: "REJECTED", message: "已拒绝" };
 
@@ -77,7 +91,9 @@ export class FundApprovalExecutor {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 动态审批载荷：按 type 分发(DIVIDEND/RECHARGE/REFUND/COMMISSION_CONFIG/COIN_REFUND)，各类型 payload 形态不同，此处为唯一收敛分发点
-  private execute(approval: { type: string; requestedBy: string; payload: any }) {
+  private execute(approval: { type: string; requestedBy: string; payload: any }, transaction?: Prisma.TransactionClient) {
+    if (transaction && !["MEMBER_CONFIG", "COMMISSION_CONFIG"].includes(approval.type))
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "此配置事务不能执行外部出款");
     const p = approval.payload || {};
     switch (approval.type) {
       case "DIVIDEND":
@@ -90,33 +106,35 @@ export class FundApprovalExecutor {
         });
       case "COMMISSION_CONFIG":
         if (p.method === "updateCommissionConfig") {
-          return this.commission.updateCommissionConfig(p.type, p.rate);
+          return this.commission.updateCommissionConfig(p.type, p.rate, transaction);
         }
         if (p.method === "createTemporaryReferralConfig") {
-          return this.referrals.create(p.dto, approval.requestedBy);
+          return this.referrals.create(p.dto, approval.requestedBy, transaction);
         }
         if (p.method === "updateTemporaryReferralConfig") {
-          return this.referrals.update(p.id, p.dto ?? {});
+          return this.referrals.update(p.id, p.dto ?? {}, transaction);
         }
         if (p.method === "deleteTemporaryReferralConfig") {
-          return this.referrals.delete(p.id);
+          return this.referrals.delete(p.id, transaction);
         }
         if (p.method === "createSettlementRule") {
-          return this.settlementRules.createRule(p.dto, approval.requestedBy);
+          return this.settlementRules.createRule(p.dto, approval.requestedBy, transaction);
         }
         if (p.method === "updateSettlementRule") {
-          return this.settlementRules.updateRule(p.id, p.dto ?? {}, approval.requestedBy);
+          return this.settlementRules.updateRule(p.id, p.dto ?? {}, approval.requestedBy, transaction);
         }
-        return this.commission.updateConfig(p.key, p.dto ?? {});
+        if (p.method === undefined || p.method === "updateConfig")
+          return this.commission.updateConfig(p.key, p.dto ?? {}, transaction);
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未知分佣配置审批方法");
       case "MEMBER_CONFIG":
         if (p.method === "upsertMemberConfig") {
-          return this.system.upsertMemberConfig(p.dto);
+          return this.system.upsertMemberConfig(p.dto, transaction);
         }
         if (p.method === "updateMemberConfig") {
-          return this.system.updateMemberConfig(p.id, p.dto ?? {});
+          return this.system.updateMemberConfig(p.id, p.dto ?? {}, transaction);
         }
         if (p.method === "deleteMemberConfig") {
-          return this.system.deleteMemberConfig(p.id);
+          return this.system.deleteMemberConfig(p.id, transaction);
         }
         throw new BusinessException(ErrorCode.BAD_REQUEST, "未知会员配置审批方法");
       case "REFUND":

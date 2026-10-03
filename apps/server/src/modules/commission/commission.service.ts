@@ -131,10 +131,12 @@ export class CommissionService {
   async updateConfig(
     key: string,
     dto: { rateA?: number; rateB?: number; rateC?: number; description?: string },
+    transaction?: Prisma.TransactionClient,
   ) {
-    const config = await this.prisma.commissionConfig.findUnique({ where: { configKey: key } });
+    const db = transaction ?? this.prisma;
+    const config = await db.commissionConfig.findUnique({ where: { configKey: key } });
     if (!config) throw new BusinessException(ErrorCode.NOT_FOUND, "配置不存在");
-    const updated = await this.prisma.commissionConfig.update({
+    const updated = await db.commissionConfig.update({
       where: { configKey: key },
       data: {
         ...(dto.rateA !== undefined && { rateA: dto.rateA }),
@@ -143,8 +145,13 @@ export class CommissionService {
         ...(dto.description !== undefined && { description: dto.description }),
       },
     });
-    this.configCache.delete("all");
+    if (!transaction) this.invalidateConfigCache();
     return updated;
+  }
+
+  /** 仅在配置实际提交后清除本进程列表缓存。 */
+  invalidateConfigCache() {
+    this.configCache.delete("all");
   }
 
   // ───────── 佣金计算核心 ─────────
@@ -1717,10 +1724,11 @@ export class CommissionService {
     return result;
   }
 
-  async updateCommissionConfig(type: string, rate: number) {
-    let config = await this.prisma.commissionConfig.findUnique({ where: { configKey: type } });
+  async updateCommissionConfig(type: string, rate: number, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    let config = await db.commissionConfig.findUnique({ where: { configKey: type } });
     if (!config) {
-      config = await this.prisma.commissionConfig.create({
+      config = await db.commissionConfig.create({
         data: {
           configKey: type,
           configName: type,
@@ -1729,14 +1737,14 @@ export class CommissionService {
         },
       });
     } else {
-      config = await this.prisma.commissionConfig.update({
+      config = await db.commissionConfig.update({
         where: { configKey: type },
         data: { rateA: rate },
       });
     }
 
     // 保存变更记录到 ConfigVersion
-    await this.prisma.configVersion.create({
+    await db.configVersion.create({
       data: {
         configKey: `commission_config_${type}`,
         value: { rate },
@@ -1746,6 +1754,7 @@ export class CommissionService {
     });
 
     this.logger.log(`分佣配置已更新: ${type} = ${rate}`);
+    if (!transaction) this.invalidateConfigCache();
     return config;
   }
 }
