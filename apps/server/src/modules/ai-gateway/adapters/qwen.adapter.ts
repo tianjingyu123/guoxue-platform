@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./base.adapter";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
+import { readBoundedJson } from "./bounded-response";
 
 interface QwenResponse {
   choices?: Array<{ message?: { content?: string }; delta?: { content?: string }; finish_reason?: string }>;
@@ -42,7 +43,8 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const signal = options?.signal ? AbortSignal.any([options.signal,AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout);
+    const transport = new AbortController();
+    const signal = AbortSignal.any([transport.signal, AbortSignal.timeout(timeout), ...(options?.signal ? [options.signal] : [])]);
 
     const startedAt = Date.now();
     const body = {
@@ -76,12 +78,22 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     if (!resp.ok) {
+      if (this.fixedConfiguration) {
+        // 客户通道不读取或记录错误正文，也不因错误重发请求。
+        void resp.body?.cancel().catch(() => {}); transport.abort();
+        this.logger.error(`Qwen API错误 [${resp.status}]`);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `客户模型服务返回 ${resp.status}`);
+      }
       const errText = await resp.text().catch(() => "");
-      this.logger.error(this.fixedConfiguration?`Qwen API错误 [${resp.status}]`:`Qwen API错误 [${resp.status}]: ${errText}`);
-      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, this.fixedConfiguration?`客户模型服务返回 ${resp.status}`:`Qwen API返回 ${resp.status}: ${errText.slice(0, 200)}`);
+      this.logger.error(`Qwen API错误 [${resp.status}]: ${errText}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `Qwen API返回 ${resp.status}: ${errText.slice(0, 200)}`);
     }
 
-    const data = (await resp.json()) as QwenResponse;
+    let data: QwenResponse;
+    if (this.fixedConfiguration) {
+      try { data = (await readBoundedJson(resp, 64 * 1024, signal)).value as QwenResponse; }
+      catch { transport.abort(); throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "客户模型响应未完整读取或超过技术上限"); }
+    } else data = (await resp.json()) as QwenResponse;
     const choice = data.choices?.[0];
 
     return {

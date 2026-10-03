@@ -29,6 +29,14 @@ try {
       if(!result.ok)throw new Error('合成供应商结果未知');return result.json();
     }};
   }
+  if(config.syntheticQwenProviderUrl){
+    if(syntheticProvider)throw new Error('合成供应商配置只能选择一条通道');
+    const url=new URL(config.syntheticQwenProviderUrl);
+    if(url.hostname!=='127.0.0.1'||url.protocol!=='http:'||url.username||url.password||url.search||url.hash||url.pathname!=='/synthetic-qwen/v1'||!Number.isInteger(Number(url.port))||Number(url.port)<1)throw new Error('合成Qwen须为本任务loopback服务');
+    const {QwenAdapter}=require(resolve(repo,'apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts'));
+    const adapter=new QwenAdapter({baseUrl:url.href,apiKey:'synthetic-test-key-never-an-account'});
+    syntheticProvider={ready:()=>true,complete:async input=>{const response=await adapter.chat('synthetic-model',input.messages,{maxTokens:512,timeout:30000,signal:input.signal});if(response.finishReason!=='stop')throw new Error('合成供应商未完整结束');return {content:response.content};}};
+  }
   const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential,syntheticProvider);
   await runtime.initialize();
   app=await NestFactory.create(ManagedLeaseModule.register(runtime),{logger:false,bodyParser:false});
