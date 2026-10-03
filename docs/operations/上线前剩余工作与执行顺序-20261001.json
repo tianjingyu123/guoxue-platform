@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T10:02:52.733Z",
-  "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+  "checkedAt": "2026-10-03T10:54:05.340Z",
+  "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -8774,18 +8774,86 @@
     {
       "id": "F3",
       "title": "首页同城频道",
-      "current": "切换local时只提示即将开放并返回，未拉取同城内容。",
-      "remaining": "核实可用地域内容查询，设计拒绝定位后手选地区和空态，补真实页面加载。",
+      "current": "f209首页入口、真实手选目录、驿站分页及平台课程/商品已接候选并限定隔离验证；换城迟到响应、失败/空态、无图封面已处理。官方9141通过/631跳过、四端资源重建；未代表全部F3或真机。",
+      "remaining": "纯线下课程、未关联平台商品、同城活动独立真实详情、审核、时间、报名/核销及权限；旧发现驿站页城市目录同步；正式镜像、实际小程序上传、最终签名及同版真机。",
       "businessDecision": "定位需用户授权；不能静默取精确位置或以随机推荐冒充同城。",
       "done": false,
       "deferredByUser": false,
       "evidence": [
         {
+          "path": "apps/mobile/scripts/test-same-city-browser.cjs",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "5c4abcc15e98cff4b24cc45e1a508d26c62a59950fb331a7d253dd4db65d56fb"
+        },
+        {
+          "path": "apps/mobile/scripts/test-same-city-discovery.cjs",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "9f034009551c3a774d0455bacbb6e878d4efc8041ce9dd51806d7d25fa20b62c"
+        },
+        {
+          "path": "apps/mobile/src/components/common/recommend-section.vue",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "b8bd534249275287d898cc47575c0aa4e7744bfa2fc5f52e8a122246e7c54ca8"
+        },
+        {
+          "path": "apps/mobile/src/composables/use-same-city.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "bd4a6e4a5b25187dfa8b47d29bbd2beac51d90f76ac16056fc7085e90c609c70"
+        },
+        {
+          "path": "apps/mobile/src/lib/offline-data.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "ae7c47b4753c2fac6b3e55196be3723b254e4bf80d8e8c49e3db0e58cc6af5b3"
+        },
+        {
+          "path": "apps/mobile/src/lib/recommend-data.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "0c3b8bb4ac6dbeb34a19e887cb67e4c10420f0139e5d873c0239a657447db311"
+        },
+        {
+          "path": "apps/mobile/src/pages/index/index.vue",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "230c73de289b76905b53e05c6313d93d019c31a044de4a4ed256dc9cb4dc59f6"
+        },
+        {
+          "path": "apps/mobile/src/pkg-discover/same-city/feed.vue",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "a7f1247fbe49695c35dbc4d5dc4ad89fab597e8c0fd3d393c4a6bb8848c58d62"
+        },
+        {
+          "path": "apps/server/src/modules/offline/offline.controller.spec.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "1b37e77bc1ceafbb9da618bf6f6346549f2fee43928a1201cae88a754ba3e277"
+        },
+        {
+          "path": "apps/server/src/modules/offline/offline.controller.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "c9111422f9e8752dea5e0f8277107f2149eda35abe2c57289044faa77ffb5d58"
+        },
+        {
+          "path": "apps/server/src/modules/offline/offline.service.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "e637fee0b9969e8e80c3316727a89a007dfe9ebebe49a1053242fc7f6b420c58"
+        },
+        {
+          "path": "apps/server/src/modules/offline/services/offline-station-cities.spec.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "5f20d13db8818049e52c24232e99376368c703b6ad075c062d11a73e08ba2267"
+        },
+        {
+          "path": "apps/server/src/modules/offline/services/offline-station.service.ts",
+          "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+          "gitBlobSha256": "fb105df10d96cc0faeb129cca3a3535fa27add4b50d3fe186869ea002b6a5e0a"
+        }
+      ],
+      "historicalEvidence": [
+        {
           "path": "apps/mobile/src/pages/index/index.vue",
           "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
           "gitBlobSha256": "1e5897bb8cc34ef76a2f184a5eca8d5149a9814d470b6a2bc341c869ae0bc742"
         }
-      ]
+      ],
+      "record": "docs/operations/同城入口与手选城市浏览隔离验收-20261003.md"
     },
     {
       "id": "F4",
@@ -8924,50 +8992,53 @@
     "record": "APP微信临时授权票据修复与隔离验收-20261003.json"
   },
   "latestSourceCI": {
-    "checkedAt": "2026-10-03T09:55:05.304Z",
-    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
-    "runId": 37113833158,
-    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37113833158",
+    "checkedAt": "2026-10-03T10:51:48.447Z",
+    "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+    "runId": 37116778144,
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37116778144",
     "conclusion": "success",
     "jobsPassed": 8,
-    "passed": 9136,
+    "passed": 9141,
     "defaultSkipped": 631,
     "skipCountedAsPass": false,
     "shards": [
       {
-        "passed": 3081,
-        "skipped": 226,
-        "id": 111177112855,
-        "summary": "2026-10-03T09:46:20.5412896Z Tests:       226 skipped, 3081 passed, 3307 total",
-        "name": "单元测试 (2/3)",
-        "savedLogSha256": "a4cfb75f8872130e303f41d5fd39b58e07fdb7f7a49aa59859402ad0bf0441c0"
-      },
-      {
-        "passed": 3113,
-        "skipped": 164,
-        "id": 111177112864,
-        "summary": "2026-10-03T09:46:42.4229393Z Tests:       164 skipped, 3113 passed, 3277 total",
-        "name": "单元测试 (3/3)",
-        "savedLogSha256": "5eaa337cf720c34db9502b5cb874914583ffe22b62fed4586d3eb9ec75728d8d"
-      },
-      {
-        "passed": 2942,
-        "skipped": 241,
-        "id": 111177112905,
-        "summary": "2026-10-03T09:51:03.8365958Z Tests:       241 skipped, 2942 passed, 3183 total",
+        "summary": "2026-10-03T10:44:31.3823331Z Tests:       241 skipped, 2943 passed, 3184 total",
+        "id": 111185255080,
         "name": "单元测试 (1/3)",
-        "savedLogSha256": "97563b7e62480ce0f984e97e0f3830eb3e1a28ee58406c6c7a8fdba7071f4b88"
+        "passed": 2943,
+        "skipped": 241,
+        "savedLogSha256": "e4c5a8f19146e8f7c594f17769da1f536b8d16cb3c9e382589891377dcd390b9"
+      },
+      {
+        "summary": "2026-10-03T10:37:06.3374273Z Tests:       164 skipped, 3114 passed, 3278 total",
+        "id": 111185255104,
+        "name": "单元测试 (3/3)",
+        "passed": 3114,
+        "skipped": 164,
+        "savedLogSha256": "649ce1eea8df16d55db0eae44779f5a7a685748cbb9c163c5def224486606caf"
+      },
+      {
+        "summary": "2026-10-03T10:37:53.7254912Z Tests:       226 skipped, 3084 passed, 3310 total",
+        "id": 111185255142,
+        "name": "单元测试 (2/3)",
+        "passed": 3084,
+        "skipped": 226,
+        "savedLogSha256": "ea110a5439c909ae31d2eb555da0aad819af87eb0ddb519f00f5be214a3ebe27"
       }
     ],
     "jobLogsVerified": true,
-    "artifactId": 11270412746,
-    "artifactDigest": "sha256:a5de923d7140a3e9d3ca8fec00e5d6fea1d9d39e31cedce154ea10bd15bc9d2b",
+    "artifactId": 11272287310,
+    "artifactDigest": "sha256:b923b8f707b4a2e87eac12113ad80541c98631edeff1e19198906f3e6c527d65",
     "digestVerified": true,
     "artifactFiles": {
       "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
       "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
       "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
-      "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd"
+      "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd",
+      "modules/offline/offline.controller.js": "578504bb1a0b61e39cbe76e082e253a684ea87dc548e156dd952673813b566c7",
+      "modules/offline/offline.service.js": "1966e3dbc6999fbff22e2d49fd7cc74f461657bef4e78e71d8caa18bba0ddc1b",
+      "modules/offline/services/offline-station.service.js": "7e70b09d7784a98b76f5105690101792c475d5b6d9046732f29e3b1fc145ed3f"
     },
     "gitSources": {
       "apps/server/src/modules/recommend/recommend.controller.ts": "ab256df095629c6a18feef14466ea64c91959139c1801ab95f98af9b03ed7b44",
@@ -10142,13 +10213,13 @@
     "independentTestRerunScope": "上述定向范围，非原32套或全仓"
   },
   "latestEvidenceSeal": {
-    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
-    "sealedAt": "2026-10-03T09:56:03.658Z",
-    "fileCount": 30,
-    "package": "artifacts/channel-intake-20260930/same-city-final-evidence-1791021363279.tar.gz",
-    "packageBytes": 7148994,
-    "packageSha256": "f8b23f6c1874f72f3442fa12a23cbb73d1b565b8642d3d3bc62601723be3d681",
-    "manifestSha256": "ea74e7d88c5f8b2a7becff1cb782b8b85e520a6cbb2f003604065eb037763f80",
+    "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+    "sealedAt": "2026-10-03T10:52:10.650Z",
+    "fileCount": 4981,
+    "package": "artifacts/channel-intake-20260930/same-city-ui-evidence-1791024727109.tar.gz",
+    "packageBytes": 19485301,
+    "packageSha256": "bc8bc368700ec5bcb76dbb61ca8c13ec608594aebd92105c47f3ec5b0f0424e3",
+    "manifestSha256": "3412589e17567a3422666d83aacad5dd9777c007b57f0006446ba904d2397585",
     "freshExtractionAllMatch": true,
     "localArchiveOnly": true,
     "remotePersistentArchive": false,
@@ -10191,7 +10262,7 @@
     "artifactDigest": "sha256:3e7d9a6210ba19ae96e6516f5ce43bf12658c21ab040a6c3cd0aa0c0560a839b",
     "digestVerified": true
   },
-  "currentDefaultCiSkippedSourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+  "currentDefaultCiSkippedSourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
   "sameCityBackendBoundary": {
     "record": "docs/operations/同城推荐城市与公开目标边界修复-20261003.md",
     "checkedAt": "2026-10-03T09:44:09.542Z",
@@ -10341,5 +10412,696 @@
     "independentlyVerified": false,
     "sourceReported": "已独立冻结交接，本任务尚未审查，不能将来源33套回归计入本任务新验证",
     "scope": "Qwen已完整解析合法响应编号保存至既有providerRequestId，不改schema；待单独核验"
+  },
+  "previousSourceBeforeSameCityDiscovery": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+  "previousSourceCIBeforeSameCityDiscovery": {
+    "checkedAt": "2026-10-03T09:55:05.304Z",
+    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+    "runId": 37113833158,
+    "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37113833158",
+    "conclusion": "success",
+    "jobsPassed": 8,
+    "passed": 9136,
+    "defaultSkipped": 631,
+    "skipCountedAsPass": false,
+    "shards": [
+      {
+        "passed": 3081,
+        "skipped": 226,
+        "id": 111177112855,
+        "summary": "2026-10-03T09:46:20.5412896Z Tests:       226 skipped, 3081 passed, 3307 total",
+        "name": "单元测试 (2/3)",
+        "savedLogSha256": "a4cfb75f8872130e303f41d5fd39b58e07fdb7f7a49aa59859402ad0bf0441c0"
+      },
+      {
+        "passed": 3113,
+        "skipped": 164,
+        "id": 111177112864,
+        "summary": "2026-10-03T09:46:42.4229393Z Tests:       164 skipped, 3113 passed, 3277 total",
+        "name": "单元测试 (3/3)",
+        "savedLogSha256": "5eaa337cf720c34db9502b5cb874914583ffe22b62fed4586d3eb9ec75728d8d"
+      },
+      {
+        "passed": 2942,
+        "skipped": 241,
+        "id": 111177112905,
+        "summary": "2026-10-03T09:51:03.8365958Z Tests:       241 skipped, 2942 passed, 3183 total",
+        "name": "单元测试 (1/3)",
+        "savedLogSha256": "97563b7e62480ce0f984e97e0f3830eb3e1a28ee58406c6c7a8fdba7071f4b88"
+      }
+    ],
+    "jobLogsVerified": true,
+    "artifactId": 11270412746,
+    "artifactDigest": "sha256:a5de923d7140a3e9d3ca8fec00e5d6fea1d9d39e31cedce154ea10bd15bc9d2b",
+    "digestVerified": true,
+    "artifactFiles": {
+      "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
+      "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
+      "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
+      "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd"
+    },
+    "gitSources": {
+      "apps/server/src/modules/recommend/recommend.controller.ts": "ab256df095629c6a18feef14466ea64c91959139c1801ab95f98af9b03ed7b44",
+      "apps/server/src/modules/recommend/recommend.dto.ts": "2f378543c114a708a390abaaa23ae330c3cc8b9b55e5eb098cc61ec4e3299070",
+      "apps/server/src/modules/recommend/recommend.service.ts": "ca8ed95797a3959cd66081f5afdc42b026a1a6b19529a0b40691ace629d26198",
+      "apps/server/src/modules/recommend/services/recommend-scene.service.ts": "24c8c90d3850d6cbb1205995ac72d75f570659e6a077b67678d77c3854384b84"
+    },
+    "fullCIComplete": true,
+    "realPgNewCasesDefaultSkipped": 10,
+    "realPgNewCasesCoveredInPriorDedicatedSourceRun": true,
+    "formalDockerImage": false,
+    "production": false,
+    "status": "completed"
+  },
+  "previousEvidenceSealBeforeSameCityDiscovery": {
+    "sourceCommit": "c358a147b6d8902ec087be0f3e0fab648ce926a3",
+    "sealedAt": "2026-10-03T09:56:03.658Z",
+    "fileCount": 30,
+    "package": "artifacts/channel-intake-20260930/same-city-final-evidence-1791021363279.tar.gz",
+    "packageBytes": 7148994,
+    "packageSha256": "f8b23f6c1874f72f3442fa12a23cbb73d1b565b8642d3d3bc62601723be3d681",
+    "manifestSha256": "ea74e7d88c5f8b2a7becff1cb782b8b85e520a6cbb2f003604065eb037763f80",
+    "freshExtractionAllMatch": true,
+    "localArchiveOnly": true,
+    "remotePersistentArchive": false,
+    "production": false
+  },
+  "sameCityDiscovery": {
+    "record": "docs/operations/同城入口与手选城市浏览隔离验收-20261003.md",
+    "checkedAt": "2026-10-03T10:36:31.215Z",
+    "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+    "sourceTree": "1187c13d3e7aa86ee8c25ff0405889f5cda7feeb",
+    "sources": {
+      "apps/mobile/scripts/test-same-city-browser.cjs": {
+        "diskSha256": "5c4abcc15e98cff4b24cc45e1a508d26c62a59950fb331a7d253dd4db65d56fb",
+        "gitSha256": "5c4abcc15e98cff4b24cc45e1a508d26c62a59950fb331a7d253dd4db65d56fb"
+      },
+      "apps/mobile/scripts/test-same-city-discovery.cjs": {
+        "diskSha256": "9f034009551c3a774d0455bacbb6e878d4efc8041ce9dd51806d7d25fa20b62c",
+        "gitSha256": "9f034009551c3a774d0455bacbb6e878d4efc8041ce9dd51806d7d25fa20b62c"
+      },
+      "apps/mobile/src/components/common/recommend-section.vue": {
+        "diskSha256": "53493051e016e6e448ed3d181a548c38d7b5b0c9a73eb923be7012c30b291667",
+        "gitSha256": "b8bd534249275287d898cc47575c0aa4e7744bfa2fc5f52e8a122246e7c54ca8"
+      },
+      "apps/mobile/src/composables/use-same-city.ts": {
+        "diskSha256": "bd4a6e4a5b25187dfa8b47d29bbd2beac51d90f76ac16056fc7085e90c609c70",
+        "gitSha256": "bd4a6e4a5b25187dfa8b47d29bbd2beac51d90f76ac16056fc7085e90c609c70"
+      },
+      "apps/mobile/src/lib/offline-data.ts": {
+        "diskSha256": "c1cf50f919b99b0d60d32c63b8819b694c9c5ae6bfdae4172ee590095e8b3651",
+        "gitSha256": "ae7c47b4753c2fac6b3e55196be3723b254e4bf80d8e8c49e3db0e58cc6af5b3"
+      },
+      "apps/mobile/src/lib/recommend-data.ts": {
+        "diskSha256": "3ba48fbe59ebcc489f836dd2be949c389e1203137732246ed16b790e71bf52fa",
+        "gitSha256": "0c3b8bb4ac6dbeb34a19e887cb67e4c10420f0139e5d873c0239a657447db311"
+      },
+      "apps/mobile/src/pages/index/index.vue": {
+        "diskSha256": "3c6186a2ca90b25116eb062e040c6550be34fdba83fee07de621422c03f63a96",
+        "gitSha256": "230c73de289b76905b53e05c6313d93d019c31a044de4a4ed256dc9cb4dc59f6"
+      },
+      "apps/mobile/src/pkg-discover/same-city/feed.vue": {
+        "diskSha256": "a7f1247fbe49695c35dbc4d5dc4ad89fab597e8c0fd3d393c4a6bb8848c58d62",
+        "gitSha256": "a7f1247fbe49695c35dbc4d5dc4ad89fab597e8c0fd3d393c4a6bb8848c58d62"
+      },
+      "apps/server/src/modules/offline/offline.controller.spec.ts": {
+        "diskSha256": "d4e21221f20dbee7c64a8ccf566ac69c5e35a13469d0fcba1445e3e5b9468f69",
+        "gitSha256": "1b37e77bc1ceafbb9da618bf6f6346549f2fee43928a1201cae88a754ba3e277"
+      },
+      "apps/server/src/modules/offline/offline.controller.ts": {
+        "diskSha256": "2839857c29d0884b3fdc9ccc4fc470e392c4cd5d4437158a223d9c98b952cbec",
+        "gitSha256": "c9111422f9e8752dea5e0f8277107f2149eda35abe2c57289044faa77ffb5d58"
+      },
+      "apps/server/src/modules/offline/offline.service.ts": {
+        "diskSha256": "d6959690ae7b9f9a09148fdd770384add3a4542a109e4874b0fbd1381db03b57",
+        "gitSha256": "e637fee0b9969e8e80c3316727a89a007dfe9ebebe49a1053242fc7f6b420c58"
+      },
+      "apps/server/src/modules/offline/services/offline-station-cities.spec.ts": {
+        "diskSha256": "5f20d13db8818049e52c24232e99376368c703b6ad075c062d11a73e08ba2267",
+        "gitSha256": "5f20d13db8818049e52c24232e99376368c703b6ad075c062d11a73e08ba2267"
+      },
+      "apps/server/src/modules/offline/services/offline-station.service.ts": {
+        "diskSha256": "e22da8b4a206e85be89f94a19e2b957a43284f778c918adfd9d1b90510162253",
+        "gitSha256": "fb105df10d96cc0faeb129cca3a3535fa27add4b50d3fe186869ea002b6a5e0a"
+      }
+    },
+    "serverTests": {
+      "suites": 3,
+      "passed": 51,
+      "skipped": 0
+    },
+    "actualVueState": {
+      "passed": 11,
+      "mockedHttpAndStorage": true
+    },
+    "actualH5": {
+      "passed": 19,
+      "compiledProducts": true,
+      "detailInterfacesReRead": true,
+      "screenshotsReviewed": true,
+      "externalNetworkIntercepted": true,
+      "realDevice": false
+    },
+    "directoryHttp": {
+      "passed": 4,
+      "actualCompiledControllerAndFacade": true,
+      "realLocalPg": true,
+      "productionGuards": false
+    },
+    "mobile": {
+      "checkedAt": "2026-10-03T10:33:28.509Z",
+      "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+      "sourceTree": "1187c13d3e7aa86ee8c25ff0405889f5cda7feeb",
+      "environment": {
+        "publicVariables": {
+          "VITE_API_URL": "https://api.rebugx.cn",
+          "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+          "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn",
+          "VITE_RELEASE_CHANNEL": "formal"
+        },
+        "origin": "命令行显式环境；与受跟踪 vite.config.ts 正式环境校验相符",
+        "envProductionCopied": false,
+        "viteSha256": "197f88cefdc3a3fa787984d6475b1a3e74c1ddb56743f63367a1c06d77ccb8ad",
+        "managedBrandEntryEnabled": false,
+        "dnsOrProductionIdentityProved": false
+      },
+      "mp": {
+        "localMainBytes": 1705605,
+        "platformOverheadEstimateBytes": 294912,
+        "estimatedUploadBytes": 2000517,
+        "reserveBytes": 96635,
+        "requiredReserveBytes": 81920,
+        "subpackages": [
+          {
+            "root": "pkg-paipan",
+            "bytes": 1764521,
+            "pages": 64
+          },
+          {
+            "root": "pkg-paipan3",
+            "bytes": 178884,
+            "pages": 6
+          },
+          {
+            "root": "pkg-paipan2",
+            "bytes": 580473,
+            "pages": 14
+          },
+          {
+            "root": "pkg-course",
+            "bytes": 272353,
+            "pages": 11
+          },
+          {
+            "root": "pkg-mall",
+            "bytes": 116024,
+            "pages": 4
+          },
+          {
+            "root": "pkg-shop",
+            "bytes": 213154,
+            "pages": 15
+          },
+          {
+            "root": "pkg-order",
+            "bytes": 142973,
+            "pages": 8
+          },
+          {
+            "root": "pkg-account",
+            "bytes": 152674,
+            "pages": 6
+          },
+          {
+            "root": "pkg-classics",
+            "bytes": 406996,
+            "pages": 20
+          },
+          {
+            "root": "pkg-circle",
+            "bytes": 1147445,
+            "pages": 52
+          },
+          {
+            "root": "pkg-agent",
+            "bytes": 250898,
+            "pages": 14
+          },
+          {
+            "root": "pkg-live",
+            "bytes": 566894,
+            "pages": 23
+          },
+          {
+            "root": "pkg-video",
+            "bytes": 189113,
+            "pages": 7
+          },
+          {
+            "root": "pkg-competition",
+            "bytes": 228961,
+            "pages": 12
+          },
+          {
+            "root": "pkg-merchant",
+            "bytes": 539464,
+            "pages": 24
+          },
+          {
+            "root": "pkg-operator",
+            "bytes": 496813,
+            "pages": 25
+          },
+          {
+            "root": "pkg-institute",
+            "bytes": 281696,
+            "pages": 15
+          },
+          {
+            "root": "pkg-offline",
+            "bytes": 276850,
+            "pages": 13
+          },
+          {
+            "root": "pkg-mine",
+            "bytes": 657704,
+            "pages": 50
+          },
+          {
+            "root": "pkg-profile",
+            "bytes": 46762,
+            "pages": 4
+          },
+          {
+            "root": "pkg-settings",
+            "bytes": 70501,
+            "pages": 6
+          },
+          {
+            "root": "pkg-auth",
+            "bytes": 71140,
+            "pages": 5
+          },
+          {
+            "root": "pkg-im",
+            "bytes": 165968,
+            "pages": 10
+          },
+          {
+            "root": "pkg-search",
+            "bytes": 56877,
+            "pages": 2
+          },
+          {
+            "root": "pkg-discover",
+            "bytes": 11241,
+            "pages": 1
+          },
+          {
+            "root": "pkg-bounty",
+            "bytes": 79751,
+            "pages": 5
+          },
+          {
+            "root": "pkg-help",
+            "bytes": 15187,
+            "pages": 1
+          },
+          {
+            "root": "pkg-report",
+            "bytes": 55003,
+            "pages": 4
+          },
+          {
+            "root": "pkg-notices",
+            "bytes": 34900,
+            "pages": 3
+          },
+          {
+            "root": "pkg-common",
+            "bytes": 42252,
+            "pages": 6
+          },
+          {
+            "root": "pkg-creator",
+            "bytes": 83244,
+            "pages": 5
+          },
+          {
+            "root": "pkg-solar-term",
+            "bytes": 19199,
+            "pages": 1
+          },
+          {
+            "root": "pkg-workspace",
+            "bytes": 210027,
+            "pages": 8
+          }
+        ],
+        "registeredPages": 450,
+        "missingPageOutputs": [],
+        "optionalStylesAbsent": [
+          "pkg-paipan/bazi/history/groups",
+          "pkg-paipan/qimen/history/groups",
+          "pkg-paipan/yangpan/history/groups",
+          "pkg-mine/teen-mode/index",
+          "pkg-mine/teen-mode-intro/index"
+        ],
+        "componentReferences": 1319,
+        "unresolvedReferences": [],
+        "files": 2761,
+        "actualWechatUpload": false
+      },
+      "h5": {
+        "files": 1181,
+        "bytes": 11152121,
+        "productionDeployed": false
+      },
+      "nativeSignedPackage": false
+    },
+    "resourceTargets": [
+      {
+        "target": "h5",
+        "files": 1181,
+        "bytes": 11152121
+      },
+      {
+        "target": "mp-weixin",
+        "files": 2761,
+        "bytes": 11131993
+      },
+      {
+        "target": "app",
+        "files": 492,
+        "bytes": 12906936
+      },
+      {
+        "target": "app-harmony",
+        "files": 490,
+        "bytes": 12545406
+      }
+    ],
+    "mobileLintErrors": 0,
+    "mobileLintWarnings": 103,
+    "sourceSchemaAnd136MigrationsUnchanged": true,
+    "fullCI": "本批官方37116778144仍独立核验，以后续官方回执为准",
+    "featureF3ImplementedScope": "首页入口、稳定手选城市目录、真实驿站分页、公开平台课程商品、换城旧请求保护、诚实空错态及无图封面",
+    "featureF3Complete": false,
+    "remaining": [
+      "纯线下课程/未关联平台商品/同城活动真实契约及全链路",
+      "实际小程序上传与真机",
+      "当前源码正式Linux固定包和镜像",
+      "其余F1/F4/F5与七类上线门槛"
+    ],
+    "nativeSignedPackage": false,
+    "actualWechatUpload": false,
+    "production": false,
+    "officialCi": {
+      "checkedAt": "2026-10-03T10:51:48.447Z",
+      "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+      "runId": 37116778144,
+      "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37116778144",
+      "conclusion": "success",
+      "jobsPassed": 8,
+      "passed": 9141,
+      "defaultSkipped": 631,
+      "skipCountedAsPass": false,
+      "shards": [
+        {
+          "summary": "2026-10-03T10:44:31.3823331Z Tests:       241 skipped, 2943 passed, 3184 total",
+          "id": 111185255080,
+          "name": "单元测试 (1/3)",
+          "passed": 2943,
+          "skipped": 241,
+          "savedLogSha256": "e4c5a8f19146e8f7c594f17769da1f536b8d16cb3c9e382589891377dcd390b9"
+        },
+        {
+          "summary": "2026-10-03T10:37:06.3374273Z Tests:       164 skipped, 3114 passed, 3278 total",
+          "id": 111185255104,
+          "name": "单元测试 (3/3)",
+          "passed": 3114,
+          "skipped": 164,
+          "savedLogSha256": "649ce1eea8df16d55db0eae44779f5a7a685748cbb9c163c5def224486606caf"
+        },
+        {
+          "summary": "2026-10-03T10:37:53.7254912Z Tests:       226 skipped, 3084 passed, 3310 total",
+          "id": 111185255142,
+          "name": "单元测试 (2/3)",
+          "passed": 3084,
+          "skipped": 226,
+          "savedLogSha256": "ea110a5439c909ae31d2eb555da0aad819af87eb0ddb519f00f5be214a3ebe27"
+        }
+      ],
+      "jobLogsVerified": true,
+      "artifactId": 11272287310,
+      "artifactDigest": "sha256:b923b8f707b4a2e87eac12113ad80541c98631edeff1e19198906f3e6c527d65",
+      "digestVerified": true,
+      "artifactFiles": {
+        "modules/recommend/recommend.controller.js": "bba33fe3bf9712ff8bdc73ee532a243e681822b147b55a5c21d9f76354c7e77b",
+        "modules/recommend/recommend.dto.js": "f363ce4348be561c998b711f45f565a91ff5310663c1c5400a16532fd9a3211a",
+        "modules/recommend/recommend.service.js": "aca047e784a1b8b75061993bcb673b858810c21d1bbe2ffa056e50ba259993c6",
+        "modules/recommend/services/recommend-scene.service.js": "343bddd2bb508aada0e44a690b22fa56fe229ef0b6ac50945818954e5284e5dd",
+        "modules/offline/offline.controller.js": "578504bb1a0b61e39cbe76e082e253a684ea87dc548e156dd952673813b566c7",
+        "modules/offline/offline.service.js": "1966e3dbc6999fbff22e2d49fd7cc74f461657bef4e78e71d8caa18bba0ddc1b",
+        "modules/offline/services/offline-station.service.js": "7e70b09d7784a98b76f5105690101792c475d5b6d9046732f29e3b1fc145ed3f"
+      },
+      "gitSources": {
+        "apps/server/src/modules/recommend/recommend.controller.ts": "ab256df095629c6a18feef14466ea64c91959139c1801ab95f98af9b03ed7b44",
+        "apps/server/src/modules/recommend/recommend.dto.ts": "2f378543c114a708a390abaaa23ae330c3cc8b9b55e5eb098cc61ec4e3299070",
+        "apps/server/src/modules/recommend/recommend.service.ts": "ca8ed95797a3959cd66081f5afdc42b026a1a6b19529a0b40691ace629d26198",
+        "apps/server/src/modules/recommend/services/recommend-scene.service.ts": "24c8c90d3850d6cbb1205995ac72d75f570659e6a077b67678d77c3854384b84"
+      },
+      "fullCIComplete": true,
+      "realPgNewCasesDefaultSkipped": 10,
+      "realPgNewCasesCoveredInPriorDedicatedSourceRun": true,
+      "formalDockerImage": false,
+      "production": false
+    },
+    "build": {
+      "checkedAt": "2026-10-03T10:33:28.509Z",
+      "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+      "sourceTree": "1187c13d3e7aa86ee8c25ff0405889f5cda7feeb",
+      "environment": {
+        "publicVariables": {
+          "VITE_API_URL": "https://api.rebugx.cn",
+          "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+          "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn",
+          "VITE_RELEASE_CHANNEL": "formal"
+        },
+        "origin": "命令行显式环境；与受跟踪 vite.config.ts 正式环境校验相符",
+        "envProductionCopied": false,
+        "viteSha256": "197f88cefdc3a3fa787984d6475b1a3e74c1ddb56743f63367a1c06d77ccb8ad",
+        "managedBrandEntryEnabled": false,
+        "dnsOrProductionIdentityProved": false
+      },
+      "mp": {
+        "localMainBytes": 1705605,
+        "platformOverheadEstimateBytes": 294912,
+        "estimatedUploadBytes": 2000517,
+        "reserveBytes": 96635,
+        "requiredReserveBytes": 81920,
+        "subpackages": [
+          {
+            "root": "pkg-paipan",
+            "bytes": 1764521,
+            "pages": 64
+          },
+          {
+            "root": "pkg-paipan3",
+            "bytes": 178884,
+            "pages": 6
+          },
+          {
+            "root": "pkg-paipan2",
+            "bytes": 580473,
+            "pages": 14
+          },
+          {
+            "root": "pkg-course",
+            "bytes": 272353,
+            "pages": 11
+          },
+          {
+            "root": "pkg-mall",
+            "bytes": 116024,
+            "pages": 4
+          },
+          {
+            "root": "pkg-shop",
+            "bytes": 213154,
+            "pages": 15
+          },
+          {
+            "root": "pkg-order",
+            "bytes": 142973,
+            "pages": 8
+          },
+          {
+            "root": "pkg-account",
+            "bytes": 152674,
+            "pages": 6
+          },
+          {
+            "root": "pkg-classics",
+            "bytes": 406996,
+            "pages": 20
+          },
+          {
+            "root": "pkg-circle",
+            "bytes": 1147445,
+            "pages": 52
+          },
+          {
+            "root": "pkg-agent",
+            "bytes": 250898,
+            "pages": 14
+          },
+          {
+            "root": "pkg-live",
+            "bytes": 566894,
+            "pages": 23
+          },
+          {
+            "root": "pkg-video",
+            "bytes": 189113,
+            "pages": 7
+          },
+          {
+            "root": "pkg-competition",
+            "bytes": 228961,
+            "pages": 12
+          },
+          {
+            "root": "pkg-merchant",
+            "bytes": 539464,
+            "pages": 24
+          },
+          {
+            "root": "pkg-operator",
+            "bytes": 496813,
+            "pages": 25
+          },
+          {
+            "root": "pkg-institute",
+            "bytes": 281696,
+            "pages": 15
+          },
+          {
+            "root": "pkg-offline",
+            "bytes": 276850,
+            "pages": 13
+          },
+          {
+            "root": "pkg-mine",
+            "bytes": 657704,
+            "pages": 50
+          },
+          {
+            "root": "pkg-profile",
+            "bytes": 46762,
+            "pages": 4
+          },
+          {
+            "root": "pkg-settings",
+            "bytes": 70501,
+            "pages": 6
+          },
+          {
+            "root": "pkg-auth",
+            "bytes": 71140,
+            "pages": 5
+          },
+          {
+            "root": "pkg-im",
+            "bytes": 165968,
+            "pages": 10
+          },
+          {
+            "root": "pkg-search",
+            "bytes": 56877,
+            "pages": 2
+          },
+          {
+            "root": "pkg-discover",
+            "bytes": 11241,
+            "pages": 1
+          },
+          {
+            "root": "pkg-bounty",
+            "bytes": 79751,
+            "pages": 5
+          },
+          {
+            "root": "pkg-help",
+            "bytes": 15187,
+            "pages": 1
+          },
+          {
+            "root": "pkg-report",
+            "bytes": 55003,
+            "pages": 4
+          },
+          {
+            "root": "pkg-notices",
+            "bytes": 34900,
+            "pages": 3
+          },
+          {
+            "root": "pkg-common",
+            "bytes": 42252,
+            "pages": 6
+          },
+          {
+            "root": "pkg-creator",
+            "bytes": 83244,
+            "pages": 5
+          },
+          {
+            "root": "pkg-solar-term",
+            "bytes": 19199,
+            "pages": 1
+          },
+          {
+            "root": "pkg-workspace",
+            "bytes": 210027,
+            "pages": 8
+          }
+        ],
+        "registeredPages": 450,
+        "missingPageOutputs": [],
+        "optionalStylesAbsent": [
+          "pkg-paipan/bazi/history/groups",
+          "pkg-paipan/qimen/history/groups",
+          "pkg-paipan/yangpan/history/groups",
+          "pkg-mine/teen-mode/index",
+          "pkg-mine/teen-mode-intro/index"
+        ],
+        "componentReferences": 1319,
+        "unresolvedReferences": [],
+        "files": 2761,
+        "actualWechatUpload": false
+      },
+      "h5": {
+        "files": 1181,
+        "bytes": 11152121,
+        "productionDeployed": false
+      },
+      "nativeSignedPackage": false
+    },
+    "seal": {
+      "sourceCommit": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
+      "sealedAt": "2026-10-03T10:52:10.650Z",
+      "fileCount": 4981,
+      "package": "artifacts/channel-intake-20260930/same-city-ui-evidence-1791024727109.tar.gz",
+      "packageBytes": 19485301,
+      "packageSha256": "bc8bc368700ec5bcb76dbb61ca8c13ec608594aebd92105c47f3ec5b0f0424e3",
+      "manifestSha256": "3412589e17567a3422666d83aacad5dd9777c007b57f0006446ba904d2397585",
+      "freshExtractionAllMatch": true,
+      "localArchiveOnly": true,
+      "remotePersistentArchive": false,
+      "production": false
+    },
+    "receivedIntoStaging": true,
+    "finalF3Complete": false
   }
 }
