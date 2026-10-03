@@ -14,6 +14,7 @@ import { EntitlementNotificationTask } from "./entitlement-notification.task";
 import { MemberMonthlyNotificationTask } from "./member-monthly-notification.task";
 import { FreeCourseNotificationTask } from "./free-course-notification.task";
 import { PaidCourseNotificationTask } from "./paid-course-notification.task";
+import { OrderBusinessNotificationTask } from "./order-business-notification.task";
 
 @Module({
   imports: [AuthModule, RedisModule, AiGatewayModule],
@@ -28,6 +29,7 @@ import { PaidCourseNotificationTask } from "./paid-course-notification.task";
     MemberMonthlyNotificationTask,
     FreeCourseNotificationTask,
     PaidCourseNotificationTask,
+    OrderBusinessNotificationTask,
   ],
   exports: [NotificationService, PushService, WeworkService, SmartPushService],
 })

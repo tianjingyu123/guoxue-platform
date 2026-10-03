@@ -10,6 +10,7 @@ OPERATIONAL_DDL="$MIGRATIONS_DIR/20260730100000_repair_operational_database_obje
 MEMBER_PLANS_DML="$MIGRATIONS_DIR/20260829100000_bootstrap_member_plans/migration.sql"
 CHANNEL_OPERATIONS="$SCRIPT_DIR/channel-operations.sql"
 CIRCLE_REWARD_SNAPSHOT="$SCRIPT_DIR/circle-reward-snapshot.sql"
+ORDER_BUSINESS_NOTICE="$SCRIPT_DIR/order-business-notice.sql"
 
 if [ "${CONFIRM_EMPTY_DATABASE:-}" != "YES" ]; then
   echo "[db-bootstrap] 拒绝执行：必须显式设置 CONFIRM_EMPTY_DATABASE=YES"
@@ -21,7 +22,7 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 64
 fi
 
-if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ] || [ ! -f "$OPERATIONAL_DDL" ] || [ ! -f "$MEMBER_PLANS_DML" ] || [ ! -f "$CHANNEL_OPERATIONS" ] || [ ! -f "$CIRCLE_REWARD_SNAPSHOT" ]; then
+if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ] || [ ! -f "$OPERATIONAL_DDL" ] || [ ! -f "$MEMBER_PLANS_DML" ] || [ ! -f "$CHANNEL_OPERATIONS" ] || [ ! -f "$CIRCLE_REWARD_SNAPSHOT" ] || [ ! -f "$ORDER_BUSINESS_NOTICE" ]; then
   echo "[db-bootstrap] 缺少 schema.prisma、full-baseline.sql、operational DDL、会员基础套餐 DML、渠道约束或打赏快照约束"
   exit 66
 fi
@@ -71,7 +72,8 @@ psql "$DATABASE_URL" \
   --file="$OPERATIONAL_DDL" \
   --file="$MEMBER_PLANS_DML" \
   --file="$CHANNEL_OPERATIONS" \
-  --file="$CIRCLE_REWARD_SNAPSHOT"
+  --file="$CIRCLE_REWARD_SNAPSHOT" \
+  --file="$ORDER_BUSINESS_NOTICE"
 
 echo "[db-bootstrap] 在单个事务中登记全量基线覆盖的历史迁移..."
 MIGRATIONS_DIR="$MIGRATIONS_DIR" node <<'NODE'

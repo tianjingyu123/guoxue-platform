@@ -1268,6 +1268,19 @@ CREATE TABLE "TeacherCertification" (
 );
 
 -- CreateTable
+CREATE TABLE "OrderBusinessNotice" (
+    "eventKey" VARCHAR(200) NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "recipientId" TEXT NOT NULL,
+    "kind" VARCHAR(32) NOT NULL,
+    "sourceVersion" VARCHAR(32) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readyAt" TIMESTAMP(3),
+
+    CONSTRAINT "OrderBusinessNotice_pkey" PRIMARY KEY ("eventKey")
+);
+
+-- CreateTable
 CREATE TABLE "FreeCourseEnrollmentNotice" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -7451,6 +7464,9 @@ CREATE UNIQUE INDEX "TeacherCertification_userId_key" ON "TeacherCertification"(
 CREATE INDEX "TeacherCertification_status_idx" ON "TeacherCertification"("status");
 
 -- CreateIndex
+CREATE INDEX "OrderBusinessNotice_createdAt_eventKey_idx" ON "OrderBusinessNotice"("createdAt", "eventKey");
+
+-- CreateIndex
 CREATE INDEX "FreeCourseEnrollmentNotice_createdAt_id_idx" ON "FreeCourseEnrollmentNotice"("createdAt", "id");
 
 -- CreateIndex
@@ -10068,6 +10084,9 @@ ALTER TABLE "CourseReview" ADD CONSTRAINT "CourseReview_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "TeacherCertification" ADD CONSTRAINT "TeacherCertification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderBusinessNotice" ADD CONSTRAINT "OrderBusinessNotice_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FreeCourseEnrollmentNotice" ADD CONSTRAINT "FreeCourseEnrollmentNotice_id_fkey" FOREIGN KEY ("id") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;

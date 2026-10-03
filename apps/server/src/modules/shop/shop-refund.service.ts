@@ -19,6 +19,7 @@ import { reverseVoiceTopupOrderInTx } from "../voice/voice-topup";
 import { reverseXiaobuOrderVoiceInTx } from "../voice/xiaobu-commerce";
 import { addCalendarMonthsClamped } from "./membership-period";
 import { NotificationService } from "../notification/notification.service";
+import { recordOrderNoticeWithTx, releaseRefundNoticeWithTx } from "../notification/order-business-notification.task";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -221,6 +222,8 @@ export class ShopRefundService {
       if (order.type === "VOICE_MINUTES") await reverseVoiceTopupOrderInTx(tx, order);
       // 小卜报告/会员：权益已由上面 revokeSourceWithTx 撤销，这里冲正本单赠送的语音
       if (order.type === "XIAOBU_REPORT" || order.type === "XIAOBU_MEMBER") await reverseXiaobuOrderVoiceInTx(tx, order);
+      // 此时分佣/售后尚未收口，只记录未放行事实；旧已退款订单重投不补建。
+      await recordOrderNoticeWithTx(tx, order.id, "ORDER_REFUNDED");
       return true;
     });
     if (!changed) {
@@ -438,9 +441,12 @@ export class ShopRefundService {
     }
     // 订单退款、旧分佣、运营商管理奖及统一总账必须一起收敛；失败时保留 PROCESSING 供定时补偿。
     if (this.commissionSvc) await this.commissionSvc.reverseCommission(order.id);
-    await this.prisma.afterSale.updateMany({
-      where: { orderId: order.id, type: { in: REFUND_AFTER_SALE_TYPES }, status: "PROCESSING" },
-      data: { status: "COMPLETED" },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.afterSale.updateMany({
+        where: { orderId: order.id, type: { in: REFUND_AFTER_SALE_TYPES }, status: "PROCESSING" },
+        data: { status: "COMPLETED" },
+      });
+      await releaseRefundNoticeWithTx(tx, order.id);
     });
     // 分佣或售后收口失败时仍是处理中，不能提前通知用户或外部订阅退款完成。
     await this.webhook.fire("ORDER_REFUNDED", {

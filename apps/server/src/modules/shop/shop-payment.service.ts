@@ -32,6 +32,7 @@ import { serverConfig } from "../../config/server-config";
 import { StationPaipanSyncService } from "../station/station-paipan-sync.service";
 import { WechatService } from "../auth/wechat.service";
 import { NotificationService } from "../notification/notification.service";
+import { recordOrderNoticeWithTx } from "../notification/order-business-notification.task";
 import { clearCircleMembershipCaches } from "../circle/services/circle-membership-cache.task";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
@@ -1302,6 +1303,8 @@ export class ShopPaymentService {
    * 必须在翻状态的同一事务内调用，保证「订单 PAID」与「权益开通」原子。
    */
   async runPaidPostProcessors(order: Order, tx: any): Promise<PaidPostProcessOutcome> {
+    // 与首次支付CAS和权益写入共用事务；任一后处理回滚时事实也回滚。
+    await recordOrderNoticeWithTx(tx, order.id, "ORDER_PAID");
     if (order.type === "CIRCLE_JOIN" || order.type === "CIRCLE_RENEW") {
       // 圈子履约的结果必须回传给调用方，由调用方在**事务提交后**做缓存失效与收益记账。
       // 不放进服务实例上的共享状态：那是跨请求共享的，回滚后会留下可被消费的残留，

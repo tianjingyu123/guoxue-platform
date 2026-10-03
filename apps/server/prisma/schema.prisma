@@ -1593,6 +1593,7 @@ model Order {
   user           User            @relation(fields: [userId], references: [id])
   memberPurchase MemberPurchase?
   freeCourseEnrollmentNotice FreeCourseEnrollmentNotice?
+  businessNotices OrderBusinessNotice[]
   ToolPayRecord  ToolPayRecord[]
 
   @@unique([payTransactionId])
@@ -1726,6 +1727,20 @@ model TeacherCertification {
 // ─────────────────────────────────────────────────
 
 // 新免费订阅通知事实与订单同事务保存，不回填历史订单。
+// 本版新支付/退款的通知恢复事实；旧订单不回填，不包含金额、手机号或渠道凭据。
+model OrderBusinessNotice {
+  eventKey String @id @db.VarChar(200)
+  orderId String
+  recipientId String
+  kind String @db.VarChar(32)
+  sourceVersion String @db.VarChar(32)
+  createdAt DateTime @default(now())
+  readyAt DateTime?
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, eventKey])
+}
+
 model FreeCourseEnrollmentNotice {
   id        String @id
   userId    String
