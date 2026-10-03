@@ -11112,7 +11112,7 @@
       }
     ],
     "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37122191101",
-    "passed": 9156.0,
+    "passed": 9156,
     "realChannels": false,
     "artifacts": [
       {
@@ -11127,7 +11127,7 @@
       }
     ],
     "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
-    "skipped": 631.0,
+    "skipped": 631,
     "checkedAt": "2026-10-03T12:34:44.522439Z",
     "production": false,
     "runId": 37122191101,
@@ -11197,5 +11197,27 @@
     "candidate": "1e1199a9b9bc0e48092526017447b18ba37fb688",
     "received": false,
     "bundleBytes": 147950062
+  },
+  "firstLaunchScope": {
+    "userResponseVerified": true,
+    "scope": "先上线主平台和品牌分站，独立系统保留虚拟试点",
+    "document": "docs/operations/首轮上线范围与固定发布输入-20261003.md",
+    "sourceCommit": "7c060d32ff72b6594a36f894a11cb7d54975d2dc",
+    "testedSource": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+    "releaseId": "launch-20261003-7c060d32f",
+    "sourcePackageVerified": true,
+    "archiveSha256": "5c4a487ea9d72d385c1135dda8699c64273934c45b6122ca1fe78e558476c46a",
+    "manifestSha256": "4c492d4ec8fc86af8b35fab5894c438781f9cf28f93e327304bb847b39018533",
+    "migrations": 144,
+    "sourcePackageSubtaskClosed": "PKG-01",
+    "linuxImageRunId": 37125908232,
+    "linuxImageVerified": false,
+    "prodUpgradeVerified": false,
+    "brandEntryEnabled": false,
+    "brandActualMappingVerified": false,
+    "independentTenantCommercializationBlocksFirstLaunch": false,
+    "independentExitCliBlocksFirstLaunch": false,
+    "existingPlatformFeatureGapsRemain": true,
+    "productionGo": false
   }
 }
