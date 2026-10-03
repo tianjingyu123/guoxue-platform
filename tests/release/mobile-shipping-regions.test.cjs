@@ -5,7 +5,8 @@ const crypto=require('node:crypto');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const dir=path.join(root,'apps/mobile/src/pkg-account/lib');
-const source=fs.readFileSync(path.join(dir,'shipping-regions.ts'),'utf8');
+// Git 在 Windows 检出时可能转换为 CRLF，数据解析与摘要统一按来源的 LF 核验。
+const source=fs.readFileSync(path.join(dir,'shipping-regions.ts'),'utf8').replace(/\r\n/g,'\n');
 const match=source.match(/SHIPPING_REGIONS[^=]*= (\{[\s\S]*\})\n\nexport const SHIPPING_PROVINCES/);
 assert.ok(match,'地区数据字面量缺失');
 const regions=JSON.parse(match[1]);
@@ -40,7 +41,7 @@ test('来源版本、数据摘要、计数及完整MIT许可可追溯',()=>{
  assert.equal(Object.keys(regions).length,receipt.provinces);
  assert.equal(Object.values(regions).reduce((n,c)=>n+Object.keys(c).length,0),receipt.cities);
  assert.equal(Object.values(regions).reduce((n,c)=>n+Object.values(c).reduce((a,d)=>a+d.length,0),0),receipt.districts);
- const license=fs.readFileSync(path.join(dir,'shipping-regions.LICENSE'),'utf8');
+ const license=fs.readFileSync(path.join(dir,'shipping-regions.LICENSE'),'utf8').replace(/\r\n/g,'\n');
  assert.equal(hash(license),receipt.licenseSha256);assert.match(license,/Copyright \(c\) Youzan/);assert.match(license,/THE SOFTWARE IS PROVIDED "AS IS"/);
 });
 test('地区表仅由地址编辑页引入，不污染共享账户API或排盘数据',()=>{
