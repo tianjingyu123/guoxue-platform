@@ -19,7 +19,8 @@ import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { PaipanReportService } from "./paipan-report.service";
 import { PaipanReportDialogueService } from "./paipan-report-dialogue.service";
-import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto, GenerateReportDto, AskReportDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, ShanxiangMapDto, ShanxiangImageDto } from "./paipan.dto";
+import { BaziInputDto, BaziReverseDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, MeihuaInputDto, DaLiuRenInputDto, AnalyzeDto, AnalysisQueryDto, GroupListQueryDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto, HehunDto, GenerateReportDto, AskReportDto, XiaoliurenInputDto, XuankongInputDto, JinkoujueInputDto, BazhaiInputDto, YinpanInputDto, ShanxiangMapDto, ShanxiangImageDto } from "./paipan.dto";
+import { reverseBaziPillars } from "./bazi-reverse";
 import { SubmitCaseFeedbackDto, ReviewCaseFeedbackDto, CaseFeedbackQueryDto, FollowUpQueryDto } from "./paipan-case-feedback.dto";
 import { PaipanCaseFeedbackService } from "./paipan-case-feedback.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -74,6 +75,15 @@ export class PaipanController {
   @ApiResponse({ status: 400, description: "参数校验失败（缺少必填字段或格式错误）" })
   baziPreview(@Body() dto: BaziInputDto) {
     return this.paipan.calcBaziPreview(dto);
+  }
+
+  /** 四柱反查：仅返回当前引擎验证过的日期与时分，不替用户推定生时。 */
+  @Post("bazi/reverse")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "private, no-store")
+  @ApiOperation({ summary: "按四柱查询公历候选出生时间" })
+  baziReverse(@Body() dto: BaziReverseDto) {
+    return reverseBaziPillars(dto);
   }
 
   /** 八字排盘 GET 接口（兼容前端 /paipan/bazi/calculate 调用） */
