@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-10-03T16:17:42.030Z",
+  "source": "3d0ee34a590ce1e9cd5d9aa4a8846aa88baa4b05",
+  "candidate": "44ab8437c67db3a31ec71d1e12076aece8219c9b",
+  "previous": "3cac44b50",
+  "conflicts": 0,
+  "productFiles": 1,
+  "testFiles": 2,
+  "build": true,
+  "lint": true,
+  "compiledTests": {
+    "path": "E:/CodexReview/main-r11-3d0ee34a5-20261003/receipt.json",
+    "sha256": "e910ce8cda75c72af493e757092df4376b564dfa83bf41663f5c19ba41e41b55",
+    "suites": 4,
+    "passed": 39,
+    "failed": 0,
+    "skipped": 0,
+    "actualBusinessDist": true,
+    "sharedDist": true,
+    "localHttpCollector": true,
+    "defaultOtlpConsoleDebugModes": true
+  },
+  "evidence": [
+    {
+      "path": "artifacts/safety55-intake-20261003/r11-inputs.json",
+      "sha256": "942e9107ba209aabcae2c5c89e7950bf9588b7297fc085bffe4daff05284de4b"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r11-main-build.log",
+      "sha256": "6ad260122ea3ab012f507a449a3ffd76e9fb63936291af7a0c15415102ef18d7"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r11-main-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "historical": {
+    "source39": true,
+    "compiledSame39": true,
+    "notAddedTwice": true,
+    "oldSdkAndWireCounterexampleRetained": true
+  },
+  "review": {
+    "exportCopiesRemoveTraceState": true,
+    "spanParentLinkIdsFlagsPreserved": true,
+    "rawSdkContextPreserved": true,
+    "requestPropagationUnchanged": true,
+    "deletionApprovalAndF2Unchanged": true,
+    "schemaUnchanged": true
+  },
+  "R11WholeScopeClosed": false,
+  "uncovered": [
+    "追踪其他自由元数据与历史范围",
+    "线上两节点实际导出与访问控制"
+  ],
+  "status": [
+    "代码候选完成",
+    "隔离验证完成（限定上下文隐私修复）",
+    "线上状态未知",
+    "待发布决策"
+  ],
+  "releaseReady": false,
+  "production": false
+}
