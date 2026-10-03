@@ -1,0 +1,151 @@
+{
+  "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+  "checkedAt": "2026-10-03T15:09:14.124Z",
+  "evidence": [
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-targeted.json",
+      "sha256": "680e0028396aac4c2044a6fce7897ff5c485bb82e8c38ad3bcc7b91c7919439e"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-ui-before.log",
+      "sha256": "38476c0629b3bf979051f6fda0684e3509b16182397af2cc0e499840cc4f1a5d"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-ui-after.log",
+      "sha256": "685f5ff74bb5ca01f4449ced327012e2fd6fed5096af2017c587474b03ed3773"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-neighbor.log",
+      "sha256": "44813c46350637dabd6bc2f9bfc4ee3fcb3ab21cd765cf182e6d1b57e6d69a61"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-mobile-types.log",
+      "sha256": "c0d30d2538f166ec796368dc1b269a74cfd993fe2b1ed4ef919c391cb596ed29"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-server-build.log",
+      "sha256": "c9068e5ceb39ad22e025453d9f95c7ed5220220498ed42a064e05f9417c31e03"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-h5-build.log",
+      "sha256": "cfabbe744f1088d641148f44075f5a7309d73d3b1f8d85d22d083937cb009ed8"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-mp-build.log",
+      "sha256": "13a7e45d2ce33007f384742b7a3e33a45ea84e45372ffa552eb9fdd411814dfd"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f1-client-builds.json",
+      "sha256": "3deb18bc42e2e6cacbc21be108ed96109d7fbcc4b02997e129870c55ba14fcff"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r03-r12-inputs.json",
+      "sha256": "9799c558c849410817aff58f0bcd93c69b53f670b999d73c2632d20bc6e46a0e"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r03-r12-targeted.json",
+      "sha256": "12fdcf32c2e9b43813708390ef0188d6b00ac3452dbdc631d608ba7e77668827"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r03-r12-build.log",
+      "sha256": "c9068e5ceb39ad22e025453d9f95c7ed5220220498ed42a064e05f9417c31e03"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/r03-r12-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "pg": {
+    "path": "E:/CodexReview/main-combined-funds-34f36ad10-20261003-attempt3/receipt-resolved.json",
+    "sha256": "b9eefd5e512451211eb826d179eed1ab7c86faec6a0b785183afae00f434d3de",
+    "cases": [
+      {
+        "file": "modules/fund-approval/fund-config-atomic.postgres.spec.ts",
+        "sourceSha256": "5fa4bc986985d735c86fddc8785c1aebce0503c76725dbd2bbbf2d258afd9996",
+        "harnessSha256": "05bb8a672398fef64eeef24bffbe56d4e38ff559300af86607c7a14d8e6e7d0f",
+        "passed": 76,
+        "skipped": 0,
+        "clean": true,
+        "testsReusedFromSameSourceEarlierAttempt": true,
+        "resultPath": "E:/CodexReview/main-combined-funds-34f36ad10-20261003-attempt3/entitlement_notice_qa_main_combined_config-tests.json",
+        "testResultSha256": "ce4607248eaf311d3d182ceb9ea3562bafaa1ddf4bd46d7f06d1685c07cc979d"
+      },
+      {
+        "file": "modules/institute/institute-dividend-precision.postgres.spec.ts",
+        "sourceSha256": "565bd4eb3c1f4049c4ab8d606a5e1903fffc69b3f31b3200fe444a9877691d41",
+        "harnessSha256": "68b3003aee55f729bfd47182fae068db34e4f87373c83b53b7680e02e2e5defb",
+        "passed": 29,
+        "skipped": 0,
+        "clean": true,
+        "testsReusedFromSameSourceEarlierAttempt": false,
+        "resultPath": "E:/CodexReview/main-combined-funds-34f36ad10-20261003-attempt3/entitlement_notice_qa_main_combined_precision-tests-resolved.json",
+        "testResultSha256": "6eeda3b198c525e943eedee84ed089ddbf6ca5b6783a996aa9832ff874e7596d"
+      }
+    ],
+    "actualCompiledServices": true,
+    "sharedCompiled": true,
+    "prismaOwnTree": true,
+    "clientVersion": "6.19.3",
+    "originalFailuresPreserved": true,
+    "stopped": true
+  },
+  "received": {
+    "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+    "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+    "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+    "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+    "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9"
+  },
+  "newValidation": {
+    "f1Engine": 6,
+    "f1State": 10,
+    "f1AdjacentIncludesState": 21,
+    "fundsUnit": 330,
+    "fundsPg": 105,
+    "countsNotSummedBetweenSourceAndCompiled": true
+  },
+  "historicalSourceValidation": {
+    "R03": {
+      "unit": 554,
+      "pgSameSourceCompiled": 99
+    },
+    "R12": {
+      "unit": 126,
+      "pgSameSourceCompiled": 117
+    },
+    "strictCompiledSharedSupplementVerified": true
+  },
+  "clients": {
+    "sourceAtBuild": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+    "equivalentClientInputs": true,
+    "publicConfig": {
+      "VITE_API_URL": "https://api.rebugx.cn",
+      "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+      "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn",
+      "VITE_RELEASE_CHANNEL": "formal",
+      "VITE_MANAGED_BRAND_ENTRY": "false"
+    },
+    "mpFiles": 2767,
+    "h5Files": 1184,
+    "mainBytes": 1707668,
+    "estimatedRemaining": 94572,
+    "subpackages": 33,
+    "officialUpload": false,
+    "signedApp": false,
+    "nativePickerTest": false
+  },
+  "migrationCount": 145,
+  "schemaChangedByTheseThreeUnits": false,
+  "original144SqlUnchanged": true,
+  "fixed144HistoricalEvidenceRetained": true,
+  "final145PackageVerified": false,
+  "final145UpgradeVerified": false,
+  "R04Closed": false,
+  "deployed": false,
+  "productionMutation": false,
+  "releaseReady": false
+}

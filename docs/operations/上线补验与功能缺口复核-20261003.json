@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T12:40:30.134Z",
+  "checkedAt": "2026-10-03T15:09:14.124Z",
   "reviewParent": "1bd57bb6006d5f6c77a3f1dc3b9a000321379464",
-  "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
-  "businessCodeChanged": false,
-  "acceptedCandidateMigrations": 144,
+  "sourceCommit": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+  "businessCodeChanged": true,
+  "acceptedCandidateMigrations": 145,
   "monthlyCouponCandidateAccepted": false,
   "monthlyCouponPendingDecision": true,
   "states": [
@@ -445,8 +445,8 @@
       {
         "id": "F1",
         "title": "八字四柱直接录入到排盘",
-        "current": "四柱确认只提示开发中，不提交排盘。公历和农历入口不因此判为失败。",
-        "remaining": "先核现有四柱反查能力；接入有效干支组合校验和候选日期选择，再验证年/月/日/时与报告事实一致。不得随意替用户选出生时间。",
+        "current": "四柱直录已接入正式引擎反查和提交前复核；候选时分必须明确选择，原公历/农历与保存分组保持。",
+        "remaining": "原生键盘/滚动/picker真机，以及真实网络下结果保存和报告事实动线；代码和脚本验证不能替代真机。",
         "businessDecision": "四柱对应多日期时需要可解释选择流程，无新增付费政策。",
         "done": false,
         "deferredByUser": false,
@@ -456,7 +456,13 @@
             "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
             "gitBlobSha256": "3f9d086a62b495cbbb9110f466f24ec084f0002c08ce098adb6a3fdb63e55707"
           }
-        ]
+        ],
+        "codeComplete": true,
+        "isolatedValidationComplete": true,
+        "currentEvidence": {
+          "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+          "document": "docs/operations/F1与配置资金补件接收验收-20261003.json"
+        }
       },
       {
         "id": "F2",
@@ -611,7 +617,7 @@
     "phoneInstallation": false
   },
   "previousSourceBeforeTenantCombination": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
-  "migrationCount": 144,
+  "migrationCount": 145,
   "tenantCombinedIntake": {
     "record": "docs/operations/多租户与同城组合接收验收-20261003.json",
     "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
@@ -790,5 +796,32 @@
     "prodUpgradeVerificationScope": "生产备份的隔离完整副本103→144演练，非生产迁移",
     "productionMigrationPerformed": false,
     "fixed144GateReceipt": "docs/operations/固定144包镜像与完整副本升级验收-20261003.json"
+  },
+  "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "latestLocalReception": {
+    "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+    "document": "docs/operations/F1与配置资金补件接收验收-20261003.json",
+    "received": {
+      "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+      "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+      "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+      "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+      "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9"
+    },
+    "newValidation": {
+      "f1Engine": 6,
+      "f1State": 10,
+      "f1AdjacentIncludesState": 21,
+      "fundsUnit": 330,
+      "fundsPg": 105,
+      "countsNotSummedBetweenSourceAndCompiled": true
+    },
+    "migrations": 145,
+    "previousOfficialFullCiAppliesToThisSource": false,
+    "fixed144HistoricalEvidenceRetained": true,
+    "final145PackageVerified": false,
+    "final145UpgradeVerified": false,
+    "R04Closed": false,
+    "productionGo": false
   }
 }

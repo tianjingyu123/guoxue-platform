@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T12:40:30.134Z",
-  "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "checkedAt": "2026-10-03T15:09:14.124Z",
+  "sourceCommit": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -19,7 +19,7 @@
     },
     {
       "id": 2,
-      "title": "生产停写备份与迁移预检（组合候选144条，按实测正式账本定差额）",
+      "title": "生产停写备份与迁移预检（当前组合145条，固定144副本演练已通过）",
       "done": false,
       "externalOnly": false
     },
@@ -5371,7 +5371,7 @@
     "releaseReady": false,
     "production": false
   },
-  "migrationCount": 144,
+  "migrationCount": 145,
   "previousSourceRecord": {
     "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
     "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
@@ -11043,7 +11043,7 @@
     "finalF3Complete": false
   },
   "previousSourceBeforeTenantCombination": "f2097cc2263209102284f26bc2b459ff43c2c6dc",
-  "acceptedCandidateMigrations": 144,
+  "acceptedCandidateMigrations": 145,
   "tenantCombinedIntake": {
     "record": "docs/operations/多租户与同城组合接收验收-20261003.json",
     "sourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
@@ -11222,5 +11222,32 @@
     "prodUpgradeVerificationScope": "生产备份的隔离完整副本103→144演练，非生产迁移",
     "productionMigrationPerformed": false,
     "fixed144GateReceipt": "docs/operations/固定144包镜像与完整副本升级验收-20261003.json"
+  },
+  "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "latestLocalReception": {
+    "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+    "document": "docs/operations/F1与配置资金补件接收验收-20261003.json",
+    "received": {
+      "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+      "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+      "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+      "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+      "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9"
+    },
+    "newValidation": {
+      "f1Engine": 6,
+      "f1State": 10,
+      "f1AdjacentIncludesState": 21,
+      "fundsUnit": 330,
+      "fundsPg": 105,
+      "countsNotSummedBetweenSourceAndCompiled": true
+    },
+    "migrations": 145,
+    "previousOfficialFullCiAppliesToThisSource": false,
+    "fixed144HistoricalEvidenceRetained": true,
+    "final145PackageVerified": false,
+    "final145UpgradeVerified": false,
+    "R04Closed": false,
+    "productionGo": false
   }
 }
