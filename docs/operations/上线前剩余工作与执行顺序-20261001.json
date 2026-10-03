@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T03:14:37.959Z",
+  "checkedAt": "2026-10-03T04:11:49.411Z",
   "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
   "testFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "releaseReady": false,
@@ -8656,5 +8656,27 @@
     "migrationExecuted": false,
     "productionVersionMapped": false,
     "maintenanceWindowStillRequired": true
+  },
+  "monthlyCouponCandidate": {
+    "record": "会员月度独立赠券候选隔离验证-20261003.json",
+    "sourceCommit": "f96c0bdec2f2de93302e1284079e3fbd85d89db4",
+    "localPassed": 147,
+    "compiledPassed": 68,
+    "linuxRunId": 37095166901,
+    "oldMigrationFilesUnchanged": 136,
+    "candidateMigrationCount": 137,
+    "acceptedMigrationCount": 136,
+    "policyApproved": false,
+    "acceptedIntoReleaseLine": false,
+    "releaseReady": false,
+    "sealedEvidence": {
+      "file": "monthly-coupon-evidence-20261003.tar.gz",
+      "sha256": "1fa0b42f91c60b3aa94ecc0525ae4530b2db3508a6759c0cca2efc7c991ca557",
+      "bytes": 4469,
+      "receiptFiles": 7,
+      "extractedFilesVerified": true,
+      "localOnly": true,
+      "uploaded": false
+    }
   }
 }
