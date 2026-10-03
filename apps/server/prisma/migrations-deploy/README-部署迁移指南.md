@@ -30,41 +30,34 @@ pnpm release:audit-db-baseline
 cd apps/server
 CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh
 ```
-脚本会先确认目标库没有任何业务表，再创建当前 343 个 Prisma 模型对应的完整结构，
-并在单个事务中登记 82 条已被基线覆盖的历史迁移。任意非空库都会直接拒绝，不能用此脚本覆盖旧库。
+脚本会先确认目标库没有任何业务表，再创建当前 414 个 Prisma 模型对应的完整结构，
+并在单个事务中登记 144 条已被基线覆盖的历史迁移。任意非空库都会直接拒绝，不能用此脚本覆盖旧库。
 
-当前基线由 `schema.prisma` 生成：343 张业务表、848 条显式索引、254 个外键；
-连同 `_prisma_migrations` 账本共 344 张表。更新 schema 后必须重新生成并在隔离空库验收基线。
+当前基线由 `schema.prisma` 生成：414 张业务表、1032 条显式索引、296 个外键；
+连同 `_prisma_migrations` 账本共 415 张表。更新 schema 后必须重新生成并在隔离空库验收基线。
 仓库发布门禁会自动执行 `pnpm release:audit-db-baseline`，确保完整基线与当前 Prisma 模型一致。
 
-### 情况 B：已有旧库（★ 当前生产就是这种，推荐）
-只建缺的表、加缺的列，**不动已有数据**：
-```bash
-cd apps/server
-# 1) 在能连生产库的环境，生成"生产库 → 目标 schema"的精确增量
-npx prisma migrate diff \
-  --from-url "$DATABASE_URL" \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > deploy-incremental.sql
+完整初始化还应用pgvector等运维对象、会员基础套餐DML、渠道/打赏/订单通知及多租户外部CHECK。Prisma schema diff不能单独证明这些对象：Linux隔离空库已实测144原始校验值、3CHECK与非空拒绝，记录见《多租户与同城组合接收验收-20261003》。本机Windows缺vector的失败不能当完整初始化成功；已有正式库仍需最新备份副本增量验收，严禁运行空库脚本。
 
-# 2) ★必须人工 review deploy-incremental.sql：
-#    - 应该只有 CREATE TABLE / ADD COLUMN / CREATE INDEX
-#    - 如果出现 DROP TABLE "_quality_snapshot" → 删掉这一行再执行
-#      （它是监控脚本建的游离表，不在 schema，但不能删）
-#    - 如果出现任何 DROP TABLE / DROP COLUMN 有数据的表 → 停下来核对，别盲跑
+### 情况 B：已有旧库（当前正式目标属于此类）
 
-# 3) 确认无误后执行
-npx prisma db execute --file deploy-incremental.sql --schema prisma/schema.prisma
+不得运行空库初始化脚本，也不得将 `prisma db push` 或临时生成的 diff SQL 直接作为上线迁移。
+先只读核实当前正式账本、每份 SQL 校验值和实际表/列/约束，再用固定版本中经过评审的增量迁移，
+在最新正式数据备份副本演练。候选总数144、最后观测正式103的41份差额仅为名义计数，不能代替逐份核对。
+历史 SQL 不改写，未登记对象不能凭“列已经存在”就补记迁移成功。
 
-# 4) 验证一致性（期望：0 处不一致）
-npx tsx scripts/schema-db-check.ts
-```
+`migrate diff` 仅作结构对照，不执行它建议的删除。完整初始化的实际差异包含两个向量字段和12个
+GIN/模糊检索索引，均由固定运维 SQL 管理；另外还有表达式/HNSW索引、三个多租户CHECK、
+渠道和通知约束等无法仅凭 Prisma 模型覆盖的对象。须逐项检查定义、有效性及作用域，并拒绝其他结构漂移。
+不得为使 diff 退出0而删除这些对象或 `_quality_snapshot` 等已登记的外部对象。
 
-> 为什么不用 `prisma db push`：会把 schema 里没有、库里有的游离表(如 `_quality_snapshot`)判为多余要 DROP。用 `migrate diff` + 人工 review 最安全。
+副本验收还须覆盖原用户/订单/权益/审计数据保留、迁移事务失败、重试、锁时长和回退兼容。
+生产执行仅由当前单写窗口在正式维护时窗内使用同一个固定包、受限配置、实际备份与发布门禁流程；
+本轮未执行生产迁移。版本与完整初始化证据见《多租户与同城组合接收验收-20261003》。
 
-## 三、本次上线新增的关键表（增量应包含）
+## 三、历史关键表样例（不是本版待迁移清单）
 
-工作区固化后新增 ~21 个 model，生产旧库大概率缺：
+以下是早期功能样例；当前是否缺失须按144份候选与实际正式账本另行核查，不能按本表推断：
 讲师认证 TeacherCertification、钱包 UserWallet/UserBalanceTransaction、圈子退款 CircleRefundRequest、
 佣金追回 CommissionRecall、达人通话 ConsultCall、成长 CircleCheckin/MemberGrowth/BadgeRecord/JoinRequest、
 埋点 TrackEvent、资金审批 FundApproval、积分 PointsProduct/PointsExchangeRecord、

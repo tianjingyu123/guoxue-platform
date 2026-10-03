@@ -1,0 +1,92 @@
+{
+  "provider": {
+    "checkedAt": "2026-10-03T11:09:06.433Z",
+    "sourceCommit": "138471896851bbd5af978cf8ed5cd0b0f1bac362",
+    "sourceCandidate": "96ef90f56276dcf5e0d3b131d41b7072a5a8997e",
+    "receivedCandidateCommit": "6106351c3222a7ebcfd8128ac4fcec05bc424286",
+    "independentBase": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+    "schemaUnchangedFromBase": true,
+    "migrationCount": 144,
+    "tests": {
+      "actualPlatformHttpRegression": {
+        "beforePassed": 10,
+        "beforeFailed": 1,
+        "afterSuites": 3,
+        "afterPassed": 28,
+        "afterSkipped": 0,
+        "actualQwenAndGateway": true,
+        "syntheticJwtAndCache": true
+      },
+      "boundedResponse": {
+        "passed": 9,
+        "syntheticStreams": true
+      },
+      "actualCompiledPg": {
+        "passed": 12,
+        "db": "entitlement_notice_qa_20261003_tenant_intake",
+        "twoIndependentReplayProcesses": true,
+        "syntheticScope": true,
+        "fullLeaseHttpOrRls": false
+      }
+    },
+    "originalPgReportBinding": {
+      "head": "6106351c3222a7ebcfd8128ac4fcec05bc424286",
+      "workingTreeDirty": true,
+      "finalSourceAndCompiledHashesMatch": true
+    },
+    "gitSources": {
+      "apps/server/src/modules/ai-gateway/adapters/base.adapter.ts": "000d2f68a49c288ef888dbc19dabe4cb0a57d84a64dffdd4910ede609f7812f8",
+      "apps/server/src/modules/ai-gateway/adapters/qwen-request-privacy.spec.ts": "3f268ea55cea3e33ec7189d9fe195cb745c236f3f4340f0db1457da9db42f337",
+      "apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts": "7d6e1da1e988835afbcbe0b62bf9a6f38b9735eab62384b329283913de070726",
+      "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "ba624ed605161d99c8536825900f0899b78550c8a054ae3e1246173d83c64a3f",
+      "apps/server/src/modules/managed-tenancy/managed-chat-result.ts": "18e0d43231ea8bdfddbe19c9e6dc273df530845aaf5e821805da470e5f171163",
+      "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "899b55962735a5a8fe7b3fd4bd11106be4bc53c7905c1b2d5857c99ccd2b1568",
+      "pilots/managed-tenancy/README.md": "c078ce749b718edfc5c19f1fa02e24b3b4c6e2f644849cb9a560e412ebf997e8",
+      "pilots/managed-tenancy/lease-process.mjs": "fa30f45c6b100801599f569dd079b66f18430018d53c7c08693ae139b681c2e6",
+      "pilots/managed-tenancy/verify-provider-request-postgres.mjs": "a982baee4973bdfd76fa4123df2e520b8a3b9e999149518b6b07c2844636f1b6",
+      "pilots/managed-tenancy/verify-real-candidate.mjs": "c5387af948c0c2a19492da732d5b3667b08a35dac5208da01b9fcae30dd5e234"
+    },
+    "sourceAndCompiledHashes": {
+      "apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts": "29d832ba1c51be537f529096b5de427a9cb21d8fcd345524766225658c13e57b",
+      "apps/server/src/modules/managed-tenancy/managed-chat-result.ts": "8de1cab94624e548cee2bb1d635f9561afa56e73efc420008f3f107eb4115175",
+      "apps/server/src/modules/managed-tenancy/managed-lease-chat.ts": "62683301fbedb9eddddedd3d59d52bf6908fdb1951e76c5aaaf8e63ecb950ab1",
+      "apps/server/prisma/schema.prisma": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+      "apps/server/.prisma-candidate/server-build/modules/ai-gateway/adapters/qwen.adapter.js": "39b3cab689ba8d9fa9f1da7b841df77bfbf954fbb6db2c7bbcea68a5cb77b30e",
+      "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-chat-result.js": "ed4ce59d24dcde331f30c29bb04af99d3c5766dc345b7ec72ca7d3bd20124860",
+      "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-chat.js": "f93910a833e2d2888744ef067f6720338d93984a72a715ea0edb59833c53d5b8"
+    },
+    "ownClientMeta": {
+      "schemaSha256": "48b69ca3e103c16a6813ef66480c4ac4fac1f006bcd24d1e3498a0408510e99e",
+      "generatedAt": "2026-10-03T08:30:36.922Z",
+      "clientDir": "C:\\Users\\Administrator\\.codex\\worktrees\\tenant-intake-review-20261003\\gx-deploy-91\\apps\\server\\.prisma-candidate\\client"
+    },
+    "typeAndServerBuildExit": 0,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "fullSource33SuitesIndependentRerun": false,
+    "source33SuitesHistoricalOnly": true,
+    "officialCompleteCi": false,
+    "receivedIntoMainReview": false,
+    "receivedIntoStaging": false,
+    "externalCalls": 0,
+    "billableCalls": 0,
+    "production": false
+  },
+  "seal": {
+    "sourceCommit": "138471896851bbd5af978cf8ed5cd0b0f1bac362",
+    "sealedAt": "2026-10-03T11:09:06.622Z",
+    "fileCount": 32,
+    "package": "pilots/managed-tenancy/.runtime/provider-intake-20261003/provider-evidence-1791025746436.tar.gz",
+    "packageBytes": 152363,
+    "packageSha256": "edf62995a475cdfef1e457d67da93324aa88f23d5e6b232a688b9487f3980852",
+    "manifestSha256": "ba3939ace28b0eec88f59128e20d6e8cf9c6030875447e42f49fef9bd1311102",
+    "freshExtractionAllMatch": true,
+    "localArchiveOnly": true,
+    "remotePersistentArchive": false,
+    "production": false
+  },
+  "currentCombinedSource": "07e81fe51a2aa693e78b4714f200c91790420e1e",
+  "originalFrameNotOverwritten": true,
+  "currentReceipt": "docs/operations/多租户与同城组合接收验收-20261003.json",
+  "production": false
+}
