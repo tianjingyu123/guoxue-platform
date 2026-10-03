@@ -1,0 +1,108 @@
+diff --git a/lib/compile.js b/lib/compile.js
+index dce69beb9..94db3b594 100644
+--- a/lib/compile.js
++++ b/lib/compile.js
+@@ -2,8 +2,10 @@
+ 
+ const fill = require('fill-range');
+ const utils = require('./utils');
++const { assertDepth } = require('./depth-guard');
+ 
+ const compile = (ast, options = {}) => {
++  assertDepth(ast);
+   const walk = (node, parent = {}) => {
+     const invalidBlock = utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
+diff --git a/lib/depth-guard.js b/lib/depth-guard.js
+new file mode 100644
+index 000000000..330e6e0ea
+--- /dev/null
++++ b/lib/depth-guard.js
+@@ -0,0 +1,24 @@
++'use strict';
++
++// 限定所有公开AST入口的嵌套深度，避免递归访问耗尽原生调用栈。
++const MAX_DEPTH = 128;
++const fail = () => {
++  const error = new SyntaxError('Brace pattern exceeds safe AST depth or contains a cycle');
++  error.code = 'BRACES_AST_DEPTH_LIMIT';
++  throw error;
++};
++const assertDepth = ast => {
++  const pending = [[ast, 0]];
++  const seen = new WeakSet();
++  while (pending.length) {
++    const [node, depth] = pending.pop();
++    if (depth > MAX_DEPTH) fail();
++    if (!node || typeof node !== 'object') continue;
++    if (seen.has(node)) fail();
++    seen.add(node);
++    if (Array.isArray(node.nodes)) {
++      for (const child of node.nodes) pending.push([child, depth + 1]);
++    }
++  }
++};
++module.exports = { assertDepth, MAX_DEPTH, fail };
+diff --git a/lib/expand.js b/lib/expand.js
+index 35b2c41d6..40e0df215 100644
+--- a/lib/expand.js
++++ b/lib/expand.js
+@@ -3,6 +3,7 @@
+ const fill = require('fill-range');
+ const stringify = require('./stringify');
+ const utils = require('./utils');
++const { assertDepth } = require('./depth-guard');
+ 
+ const append = (queue = '', stash = '', enclose = false) => {
+   const result = [];
+@@ -31,6 +32,7 @@ const append = (queue = '', stash = '', enclose = false) => {
+ };
+ 
+ const expand = (ast, options = {}) => {
++  assertDepth(ast);
+   const rangeLimit = options.rangeLimit === undefined ? 1000 : options.rangeLimit;
+ 
+   const walk = (node, parent = {}) => {
+diff --git a/lib/parse.js b/lib/parse.js
+index 3a6988e62..8fbc14675 100644
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -1,6 +1,7 @@
+ 'use strict';
+ 
+ const stringify = require('./stringify');
++const { MAX_DEPTH, fail } = require('./depth-guard');
+ 
+ /**
+  * Constants
+@@ -144,6 +145,7 @@ const parse = (input, options = {}) => {
+ 
+     if (value === CHAR_LEFT_PARENTHESES) {
+       block = push({ type: 'paren', nodes: [] });
++      if (stack.length >= MAX_DEPTH) fail();
+       stack.push(block);
+       push({ type: 'text', value });
+       continue;
+@@ -210,6 +212,7 @@ const parse = (input, options = {}) => {
+       };
+ 
+       block = push(brace);
++      if (stack.length >= MAX_DEPTH) fail();
+       stack.push(block);
+       push({ type: 'open', value });
+       continue;
+diff --git a/lib/stringify.js b/lib/stringify.js
+index 8bcf872c3..d6270d072 100644
+--- a/lib/stringify.js
++++ b/lib/stringify.js
+@@ -1,8 +1,10 @@
+ 'use strict';
+ 
+ const utils = require('./utils');
++const { assertDepth } = require('./depth-guard');
+ 
+ module.exports = (ast, options = {}) => {
++  assertDepth(ast);
+   const stringify = (node, parent = {}) => {
+     const invalidBlock = options.escapeInvalid && utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
