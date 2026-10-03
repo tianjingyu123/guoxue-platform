@@ -19,9 +19,11 @@ const deferred = <T = any>() => {
 function database() {
   let order: any = { id: "order-1", userId: "user-1", amount: 1, status: "PENDING", type: "PRODUCT", payTransactionId: null, payMethod: null };
   let record: any = null;
+  let audit: any[] = [];
   let queue = Promise.resolve();
   let commits = 0;
   const db: any = {
+    auditLog: { create: jest.fn(async ({ data }: any) => { const row = { ...structuredClone(data), id: `audit-${audit.length}` }; audit.push(row); return row; }) },
     order: {
       findUnique: jest.fn(async () => structuredClone(order)),
       findFirst: jest.fn(async ({ where }: any) => order?.payTransactionId === where.payTransactionId ? structuredClone(order) : null),
@@ -47,9 +49,9 @@ function database() {
     },
     $transaction: jest.fn((fn: any) => {
       const result = queue.then(async () => {
-        const before = structuredClone({ order, record });
+        const before = structuredClone({ order, record, audit });
         try { const value = await fn(db); commits++; return value; }
-        catch (error) { order = before.order; record = before.record; throw error; }
+        catch (error) { order = before.order; record = before.record; audit = before.audit; throw error; }
       });
       queue = result.then(() => undefined, () => undefined);
       return result;

@@ -526,11 +526,7 @@ export class ShopRefundService {
               await this.revertProcessingAfterSales(order.id, "银联退款未受理，请核对后重试");
             }
           } else if (order.payMethod === "HUIFU") {
-            const result = await this.huifu.createRefund({
-              orderId: order.id,
-              amount: Number(order.payAmount ?? order.amount),
-              reason: "汇付退款幂等对账",
-            });
+            const result = await this.huifu.queryRefund(order.id);
             if (result.refundStatus === "SUCCESS") await this.finalizeChannelRefund(order.id, "汇付退款查询确认成功");
             else if (result.refundStatus === "FAILED") await this.revertProcessingAfterSales(order.id, "汇付退款失败，请核对后重试");
           }

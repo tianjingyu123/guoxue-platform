@@ -275,6 +275,7 @@ export function makeMockHuifu() {
     registerRefundNotifyHandler: jest.fn(),
     createPayment: jest.fn().mockResolvedValue({ outTradeNo: "HF1" }),
     createRefund: jest.fn().mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", raw: {} }),
+    queryRefund: jest.fn().mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", resultUnknown: true, raw: {} }),
   };
 }
 

@@ -65,6 +65,7 @@ describe("ShopRefundService", () => {
     mockPrisma.afterSale.create.mockResolvedValue({ id: "as-created", updatedAt: refundRequestedAt })
     mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
     mockHuifu.createRefund.mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", raw: {} })
+    mockHuifu.queryRefund.mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", resultUnknown: true, raw: {} })
     mockWechatPay.queryRefund.mockResolvedValue({ status: "PROCESSING" })
   })
 
@@ -463,6 +464,16 @@ describe("ShopRefundService", () => {
       await svc.reconcileProcessingRefundsCron();
       expect(mockWechatPay.queryRefund).toHaveBeenCalledWith("RFo-wx");
       expect(mockPrisma.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REFUNDED" }) }));
+    });
+
+    it.each(["PROCESSING", "SUCCESS", "FAILED"])("汇付对账%s只查询，不再次发起退款", async refundStatus => {
+      mockPrisma.afterSale.findMany.mockResolvedValue([{ orderId: "o-hf-query", updatedAt: refundRequestedAt }]);
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o-hf-query", userId: "u1", status: "PAID", amount: 88, payAmount: 88, payMethod: "HUIFU" });
+      mockHuifu.queryRefund.mockResolvedValue({ refundStatus, resultUnknown: refundStatus === "PROCESSING", raw: {} });
+      await svc.reconcileProcessingRefundsCron();
+      expect(mockHuifu.queryRefund).toHaveBeenCalledWith("o-hf-query");
+      expect(mockHuifu.createRefund).not.toHaveBeenCalled();
+      if (refundStatus !== "SUCCESS") expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
     });
 
     it("微信退款对账返回 CLOSED 时只退回退款类售后，不改订单资金状态", async () => {
