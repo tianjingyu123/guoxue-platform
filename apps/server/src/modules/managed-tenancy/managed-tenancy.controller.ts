@@ -19,6 +19,7 @@ export class ManagedTenancyController {
   @Post(":id/membership") membership(@Param("id") id: string, @Body() payload: Parameters<ManagedTenancyService["membership"]>[1], @Req() req: Request) { return this.service.membership(id, payload, req.user!.id); }
   @Post(":id/grant") grant(@Param("id") id: string, @Body() payload: Parameters<ManagedTenancyService["updateGrant"]>[1], @Req() req: Request) { return this.service.updateGrant(id, payload, req.user!.id); }
   @Post(":id/verify-deployment") verify(@Param("id") id: string, @Body() payload: Parameters<ManagedLeaseMaintenanceService["verify"]>[1], @Req() req: Request) { return this.maintenance.verify(id, payload, req.user!.id); }
+  @Post(":id/cutover-deployment") cutover(@Param("id") id:string,@Body() payload:Parameters<ManagedLeaseMaintenanceService["cutover"]>[1],@Req() req:Request){return this.maintenance.cutover(id,payload,req.user!.id);}
   @Post("applications/:id/enable") enable(@Param("id") id: string, @Body() payload: { reason: string }, @Req() req: Request) {
     check(payload && Object.keys(payload).every(key => key === "reason"), "启用请求包含未知字段");
     return this.service.enableApplication(id, req.user!.id, payload.reason);

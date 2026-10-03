@@ -63,6 +63,7 @@ model ManagedGrant {
   modules     String[]
   resources   Json
   circleLimit Int
+  creationLimits Json @default("{}")
   revision    Int @default(1)
   customer    ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 }
@@ -147,6 +148,16 @@ model ManagedLeaseExport {
 
 /// 单次一致性快照的不可变分页；下载必须校验原导出的申请人与短期凭据。
 /// 独立客户在固定应用内自建资源的不可变来源；不授品牌站上传权。
+model ManagedLeaseWriteFence {
+  customerId String @id
+  spaceKey String
+  writerRole String
+  authKeyFingerprint String @db.VarChar(64)
+  state String @default("ACTIVE") @db.VarChar(16)
+  epoch Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
 model ManagedLeaseResource {
   id String @id @default(uuid())
   customerId String
@@ -300,9 +311,11 @@ model ManagedBrandRequest {
   requestKey      String
   requestDigest   String
   clientRequestId String
-  productId       String
+  orderKind       String @default("PRODUCT") @db.VarChar(16)
+  courseId        String?
+  productId       String?
   quantity        Int
-  addressId       String
+  addressId       String?
   skuId           String?
   couponId        String?
   state           String @default("WAITING_ORDER")

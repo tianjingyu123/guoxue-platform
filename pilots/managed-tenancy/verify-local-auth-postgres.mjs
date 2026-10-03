@@ -102,7 +102,7 @@ try{
   const downloaded=await call(a1,keys.a,'/exports/'+exportResult.body.id,undefined,login.body.accessToken,'GET',{'x-export-token':exportResult.body.downloadToken});assert.equal(downloaded.status,200);
   const exported=JSON.stringify(downloaded.body);for(const forbidden of[password,newPassword,identity.passwordHash,'passwordHash','tokenHash','ManagedLeaseIdentity','refreshToken'])assert.ok(!exported.includes(forbidden));
   record('客户数据导出排除独立认证密码、刷新摘要和内部认证表');
-  assert.equal(downloaded.body.version,2);assert.equal(downloaded.body.collections.users.rows,await a.user.count());assert.ok(downloaded.body.collections.users.rows>5000);
+  assert.equal(downloaded.body.version,3);assert.equal(downloaded.body.collections.users.rows,await a.user.count());assert.ok(downloaded.body.collections.users.rows>5000);
   const addedAfter='synthetic-after-export-'+Date.now();await a.user.create({data:{id:addedAfter,nickname:'快照建立后新增的用户'}});
   await a.user.update({where:{id:volume[0].id},data:{nickname:'快照建立后修改'}});
   const userRows=[];

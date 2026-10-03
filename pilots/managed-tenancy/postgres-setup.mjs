@@ -46,6 +46,10 @@ for(const [name,password] of Object.entries(credentials)) {
   if(existsSync(recoveryMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedBrandRequest';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(recoveryMigration,'utf8')+'\nCOMMIT;');
   const contentMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261003_12_managed_local_content/migration.sql');
   if(existsSync(contentMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseResource';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(contentMigration,'utf8')+'\nCOMMIT;');
+  const fenceMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261003_13_managed_limits_fence/migration.sql');
+  if(existsSync(fenceMigration)&&sql(name,`SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ManagedLeaseWriteFence';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(fenceMigration,'utf8')+'\nCOMMIT;');
+  const brandCourseMigration=resolve(repo,'apps/server/prisma/migrations/manual_z_20261003_14_managed_brand_course/migration.sql');
+  if(existsSync(brandCourseMigration)&&sql(name,`SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='ManagedBrandRequest' AND column_name='orderKind';`).trim()==='0')sql(name,'BEGIN;\n'+readFileSync(brandCourseMigration,'utf8')+'\nCOMMIT;');
   sql(name,`REVOKE ALL ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ${name}; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO ${name}; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ${name};`);
 }
 const readerPath=resolve(runtime,'synthetic-reader.json');

@@ -2,6 +2,8 @@ import { Body, CanActivate, Controller, ExecutionContext, Get, HttpCode, Inject,
 import { Request } from "express";
 import { ManagedLeaseRuntime, ManagedResourceKind, ManagedLeaseContext } from "./managed-lease.runtime";
 import { ManagedContentKind } from "./managed-lease-content";
+import {APP_FILTER} from "@nestjs/core";
+import {ManagedLeaseExceptionFilter} from "./managed-lease-exception.filter";
 
 type ManagedRequest = Request & { managedContext: ManagedLeaseContext };
 function header(req: Request, name: string, fallback = "") {
@@ -30,6 +32,7 @@ export class ManagedLeaseController {
   @Get("context") context(@Req() req: ManagedRequest) { return this.runtime.context(req.managedContext); }
   @Get("presentation") presentation(@Req() req: ManagedRequest) { return this.runtime.presentation(req.managedContext, header(req, "x-native-build"), header(req, "x-client-capabilities"), header(req, "x-resource-version", "0")); }
   @Get("resources") resources(@Req() req: ManagedRequest, @Query("kind") kind: ManagedResourceKind, @Query("q") q?: string) { return this.runtime.resources(req.managedContext, kind, q); }
+  @Get("resources/paged") resourcesPage(@Req() req: ManagedRequest,@Query("kind") kind:ManagedResourceKind,@Query("q") q?:string,@Query("cursor") cursor?:string){return this.runtime.resourcesPage(req.managedContext,kind,q,cursor);}
   @Post("assets") uploadAsset(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.uploadAsset(req.managedContext,body); }
   @Get("assets/:id") asset(@Req() req: ManagedRequest, @Param("id") id: string) { return this.runtime.asset(req.managedContext,id); }
   @Get("manage/:kind") manageList(@Req() req: ManagedRequest, @Param("kind") kind: ManagedContentKind,@Query("cursor") cursor?: string) { return this.runtime.manageList(req.managedContext,kind,cursor); }
@@ -90,9 +93,14 @@ export class ManagedLeaseLoginController {
   @Post("login") @HttpCode(200) login(@Req() req: Request, @Body() body: unknown) { return this.runtime.loginLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
   @Post("refresh") @HttpCode(200) refresh(@Req() req: Request, @Body() body: unknown) { return this.runtime.refreshLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
 }
+@Controller("lease")
+export class ManagedLeasePublicController{
+  constructor(@Inject(MANAGED_LEASE_RUNTIME) private readonly runtime:ManagedLeaseRuntime){}
+  @Get("bootstrap") bootstrap(@Req() req:Request){return this.runtime.bootstrap(header(req,"x-app-client"));}
+}
 @Module({})
 export class ManagedLeaseModule {
   static register(runtime: ManagedLeaseRuntime) {
-    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController, ManagedLeaseLoginController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard] };
+    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController, ManagedLeaseLoginController,ManagedLeasePublicController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard,{provide:APP_FILTER,useClass:ManagedLeaseExceptionFilter}] };
   }
 }

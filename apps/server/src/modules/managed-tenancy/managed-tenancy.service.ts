@@ -37,7 +37,7 @@ export class ManagedTenancyService {
           createdBy: actorId,
           applications: { create: input.applications.map(app => ({ ...app, brand: app.brand as Prisma.InputJsonValue })) },
           ...(input.deployment ? { deployment: { create: input.deployment } } : {}),
-          grant: { create: { modules: input.modules, resources: input.resources as Prisma.InputJsonValue, circleLimit: input.circleLimit } },
+          grant: { create: { modules: input.modules, resources: input.resources as Prisma.InputJsonValue, circleLimit: input.circleLimit,...(input.creationLimits?{creationLimits:input.creationLimits as Prisma.InputJsonValue}:{}) } },
           audit: { create: { actorId, action: "CONFIGURE", reason: input.reason, revision: 1 } },
         }, include });
       });
@@ -111,15 +111,15 @@ export class ManagedTenancyService {
       return member;
     });
   }
-  async updateGrant(id: string, payload: { modules: string[]; resources: unknown; circleLimit: number; expectedRevision: number; reason: string }, actorId: string) {
-    check(payload && Object.keys(payload).every(key => ["modules", "resources", "circleLimit", "expectedRevision", "reason"].includes(key)) && Number.isInteger(payload.expectedRevision) && typeof payload.reason === "string" && payload.reason.trim().length >= 2 && payload.reason.length <= 500, "授权变更须提供当前修订和依据");
+  async updateGrant(id: string, payload: { modules: string[]; resources: unknown; circleLimit: number; creationLimits?:unknown;expectedRevision: number; reason: string }, actorId: string) {
+    check(payload && Object.keys(payload).every(key => ["modules", "resources", "circleLimit","creationLimits", "expectedRevision", "reason"].includes(key)) && Number.isInteger(payload.expectedRevision) && typeof payload.reason === "string" && payload.reason.trim().length >= 2 && payload.reason.length <= 500, "授权变更须提供当前修订和依据");
     await this.prisma.$transaction(async tx => {
       const customer = await tx.managedCustomer.findUnique({ where: { id } });
       if (!customer) throw new NotFoundException("客户不存在");
-      const grant = parseManagedGrant({ modules: payload.modules, resources: payload.resources, circleLimit: payload.circleLimit }, customer.mode as "LEASE" | "BRAND");
+      const grant = parseManagedGrant({ modules: payload.modules, resources: payload.resources, circleLimit: payload.circleLimit,...(payload.creationLimits!==undefined?{creationLimits:payload.creationLimits}:{}) }, customer.mode as "LEASE" | "BRAND");
       const changed = await tx.managedCustomer.updateMany({ where: { id, revision: payload.expectedRevision }, data: { revision: { increment: 1 } } });
       if (changed.count !== 1) throw new ConflictException("客户配置已变化，请刷新重试");
-      await tx.managedGrant.update({ where: { customerId: id }, data: { modules: grant.modules, resources: grant.resources as Prisma.InputJsonValue, circleLimit: grant.circleLimit, revision: { increment: 1 } } });
+      await tx.managedGrant.update({ where: { customerId: id }, data: { modules: grant.modules, resources: grant.resources as Prisma.InputJsonValue, circleLimit: grant.circleLimit,...(grant.creationLimits?{creationLimits:grant.creationLimits as Prisma.InputJsonValue}:{}), revision: { increment: 1 } } });
       await tx.managedAudit.create({ data: { customerId: id, actorId, action: "CHANGE_GRANT", reason: payload.reason, revision: payload.expectedRevision + 1 } });
     });
     return this.detail(id);

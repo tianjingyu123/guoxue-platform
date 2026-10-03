@@ -26,8 +26,24 @@ export interface ManagedInput {
   modules: string[];
   resources: Record<"product" | "course" | "circle" | "agent", string[]>;
   circleLimit: number;
+  creationLimits?: ManagedCreationLimits;
   deployment?: { spaceKey: string; databaseName: string; databaseRole: string; credentialRef: string; authKeyFingerprint: string };
   reason: string;
+}
+export type ManagedCreationLimits={products?:number;courses?:number;agents?:number;storageBytes?:number;users?:number};
+export function parseManagedDeployment(value:unknown):NonNullable<ManagedInput["deployment"]>{
+  const input=object(value,["spaceKey","databaseName","databaseRole","credentialRef","authKeyFingerprint"]);
+  check(typeof input.credentialRef === "string" && /^secret-ref:[a-zA-Z0-9/_-]{1,120}$/.test(input.credentialRef), "只允许受限凭据引用，不接受数据库连接字符串");
+  check(typeof input.authKeyFingerprint === "string" && /^[a-f0-9]{64}$/.test(input.authKeyFingerprint), "必须提供独立认证密钥摘要");
+  return {spaceKey:id(input.spaceKey),databaseName:id(input.databaseName),databaseRole:id(input.databaseRole),credentialRef:input.credentialRef,authKeyFingerprint:input.authKeyFingerprint};
+}
+export function parseCreationLimits(value:unknown,mode:"LEASE"|"BRAND"):ManagedCreationLimits{
+  const raw=object(value,["products","courses","agents","storageBytes","users"]);
+  for(const [key,limit] of Object.entries(raw)){
+    check(Number.isSafeInteger(limit)&&limit>=0&&limit<=({products:5000,courses:5000,agents:1000,storageBytes:64*1024*1024,users:200000}[key]||0),"创建限额必须为受支持的明确非负整数");
+    check(mode!=="BRAND"||limit===0,"品牌入口不能通过限额配置授予独立经营或客户库资源创建权");
+  }
+  return raw as ManagedCreationLimits;
 }
 export function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw new BadRequestException(message);
@@ -66,7 +82,7 @@ function validDate(value: unknown): boolean {
   return year > 0 && month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1] && hour <= 23 && minute <= 59 && second <= 59 && (!match[9] || (Number(match[9]) <= 23 && Number(match[10]) <= 59)) && Number.isFinite(Date.parse(value));
 }
 export function parseManagedGrant(value: unknown, mode: "LEASE" | "BRAND") {
-  const raw = object(value, ["modules", "resources", "circleLimit"]);
+  const raw = object(value, ["modules", "resources", "circleLimit","creationLimits"]);
   check(Array.isArray(raw.modules) && raw.modules.every((m: string) => ["shop", "course", "circle", "agent"].includes(m)) && new Set(raw.modules).size === raw.modules.length, "模块不在已实施范围");
   const resource = object(raw.resources, ["product", "course", "circle", "agent"]);
   const resources = Object.fromEntries(["product", "course", "circle", "agent"].map(key => {
@@ -75,10 +91,10 @@ export function parseManagedGrant(value: unknown, mode: "LEASE" | "BRAND") {
   })) as ManagedInput["resources"];
   check(Number.isInteger(raw.circleLimit) && raw.circleLimit >= 0 && raw.circleLimit <= 10000, "圈子数量无效");
   check(mode !== "BRAND" || raw.circleLimit === 0, "品牌入口不能增加站长创建圈子的权限");
-  return { modules: raw.modules as string[], resources, circleLimit: raw.circleLimit as number };
+  return { modules: raw.modules as string[], resources, circleLimit: raw.circleLimit as number,...(raw.creationLimits!==undefined?{creationLimits:parseCreationLimits(raw.creationLimits,mode)}:{}) };
 }
 export function parseManagedInput(value: unknown): ManagedInput {
-  const raw = object(value, ["requestKey", "name", "mode", "tradingSubject", "maintenancePrice", "term", "applications", "modules", "resources", "circleLimit", "deployment", "reason"]);
+  const raw = object(value, ["requestKey", "name", "mode", "tradingSubject", "maintenancePrice", "term", "applications", "modules", "resources", "circleLimit","creationLimits", "deployment", "reason"]);
   check(raw.mode === "LEASE" || raw.mode === "BRAND", "经营模式无效");
   check(raw.maintenancePrice === null || (typeof raw.maintenancePrice === "string" && /^\d{1,9}(\.\d{1,2})?$/.test(raw.maintenancePrice)), "维护金额未知时应填null，不能自动定价");
   check(Array.isArray(raw.applications) && raw.applications.length > 0 && raw.applications.length <= 10, "需登记1至10个应用");
@@ -95,13 +111,10 @@ export function parseManagedInput(value: unknown): ManagedInput {
     check(raw.mode !== "LEASE" || app.stationId === undefined, "独立客户不能绑定平台分站");
     return { applicationId, applicationSubject: text(app.applicationSubject), ...(app.stationId ? { stationId: id(app.stationId) } : {}), allowedPlatforms: app.allowedPlatforms, brand: { name: text(brand.name, 60), themeColor: brand.themeColor }, templateId: app.templateId };
   });
-  const grant = parseManagedGrant({ modules: raw.modules, resources: raw.resources, circleLimit: raw.circleLimit }, raw.mode);
+  const grant = parseManagedGrant({ modules: raw.modules, resources: raw.resources, circleLimit: raw.circleLimit,...(raw.creationLimits!==undefined?{creationLimits:raw.creationLimits}:{}) }, raw.mode);
   let deployment: ManagedInput["deployment"];
   if (raw.mode === "LEASE") {
-    const input = object(raw.deployment, ["spaceKey", "databaseName", "databaseRole", "credentialRef", "authKeyFingerprint"]);
-    check(typeof input.credentialRef === "string" && /^secret-ref:[a-zA-Z0-9/_-]{1,120}$/.test(input.credentialRef), "只允许受限凭据引用，不接受数据库连接字符串");
-    check(typeof input.authKeyFingerprint === "string" && /^[a-f0-9]{64}$/.test(input.authKeyFingerprint), "必须提供独立认证密钥摘要");
-    deployment = { spaceKey: id(input.spaceKey), databaseName: id(input.databaseName), databaseRole: id(input.databaseRole), credentialRef: input.credentialRef, authKeyFingerprint: input.authKeyFingerprint };
+    deployment = parseManagedDeployment(raw.deployment);
   } else check(raw.deployment === undefined, "品牌分站使用平台数据体系，不开独立收款部署");
   return { requestKey: id(raw.requestKey), name: text(raw.name), mode: raw.mode, tradingSubject: text(raw.tradingSubject), maintenancePrice: raw.maintenancePrice, term: parseTerm(raw.term), applications, ...grant, ...(deployment ? { deployment } : {}), reason: text(raw.reason, 500) };
 }

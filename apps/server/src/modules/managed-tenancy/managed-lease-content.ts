@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
+import {ManagedCreationLimits} from "./managed-policy";
 
 export type ManagedContentKind = "product" | "course" | "circle" | "agent";
 export type ManagedContentActor = { customerId: string; applicationId: string; userId: string };
@@ -25,7 +26,14 @@ function integer(value: unknown, max: number) {
 
 /** 内容写入只在固定客户库；资源来源按应用不可变，旧合同白名单仍单独保留。 */
 export class ManagedLeaseContentService {
-  constructor(private readonly db: PrismaClient, private readonly actor: ManagedContentActor) {}
+  constructor(private readonly db: PrismaClient, private readonly actor: ManagedContentActor,private readonly limits:ManagedCreationLimits={}) {}
+  private async createQuota(tx:Prisma.TransactionClient,kind:"product"|"course"|"agent"){
+    const limit=this.limits[{product:"products",course:"courses",agent:"agents"}[kind] as keyof ManagedCreationLimits];
+    if(!Number.isSafeInteger(limit)||!limit||limit<1)throw new ForbiddenException("合同未明确授权该类资源创建数量");
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-content-quota:${this.actor.customerId}:${kind}`},0))`;
+    const count=kind==="product"?await tx.product.count({where:{deletedAt:null}}):kind==="course"?await tx.course.count({where:{deletedAt:null}}):await tx.voiceAgentProfile.count();
+    if(count>=limit)throw new ForbiddenException("该类资源已达到客户合同数量上限，保留历史数据，不自动删除");
+  }
   async ownedIds(kind: ManagedContentKind) {
     const rows = await this.db.managedLeaseResource.findMany({ where: { customerId: this.actor.customerId, applicationId: this.actor.applicationId, kind }, select: { resourceId: true }, take: 5001 });
     if (rows.length > 5000) throw new BadRequestException("应用资源超过当前候选容量，请安排维护扩容，不能截断授权");
@@ -53,7 +61,7 @@ export class ManagedLeaseContentService {
     return this.db.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-assets:${this.actor.customerId}`},0))`;
       const bytes = await tx.managedLeaseAsset.aggregate({ where: { customerId: this.actor.customerId }, _sum: { size: true } });
-      if ((bytes._sum.size || 0) + data.length > 64 * 1024 * 1024) throw new ForbiddenException("当前附件存储技术上限已达到，请安排维护扩容");
+      if (!Number.isSafeInteger(this.limits.storageBytes)||!this.limits.storageBytes||(bytes._sum.size || 0) + data.length > Math.min(this.limits.storageBytes,64*1024*1024)) throw new ForbiddenException("附件未获明确存储授权或已达到合同限额，请安排维护处理");
       const row = await tx.managedLeaseAsset.create({ data: { ...this.actor, id: randomUUID(), contentType: body.contentType as string, size: data.length, sha256: createHash("sha256").update(data).digest("hex"), dataBase64: body.dataBase64 as string }, select: { id: true, size: true, sha256: true, contentType: true } });
       await this.audit(tx, "UPLOAD_LOCAL_ASSET", row.id, reauthorize);
       return { ...row, url: managedAssetPath(row.id) };
@@ -70,6 +78,7 @@ export class ManagedLeaseContentService {
     const body = contentBody(value, ["title","intro","detail","price","stock","assetIds"]);
     const data = { title: contentText(body.title,120), intro: contentText(body.intro ?? "",1000,true), detail: contentText(body.detail,12000), price: price(body.price), stock: integer(body.stock ?? 0,1000000) };
     return this.db.$transaction(async tx => {
+      await this.createQuota(tx,"product");
       const id = randomUUID(), images = await this.assetUrls(tx,body.assetIds ?? []);
       await tx.$executeRaw`INSERT INTO "Product" (id,"userId",title,intro,detail,price,stock,images,"updatedAt") VALUES (${id},${this.actor.userId},${data.title},${data.intro},${data.detail},${data.price},${data.stock},${images},${new Date()})`;
       await this.registerOwned(tx,"product",id); await this.audit(tx,"CREATE_OWN_PRODUCT",id,reauthorize);
@@ -105,6 +114,7 @@ export class ManagedLeaseContentService {
   async createCourse(value: unknown, reauthorize: () => Promise<unknown>) {
     const body=contentBody(value,["title","intro","price","validityDays","assetIds"]),title=contentText(body.title,120),intro=contentText(body.intro??"",2000,true),amount=price(body.price??0),days=integer(body.validityDays??0,36500);
     return this.db.$transaction(async tx=>{
+      await this.createQuota(tx,"course");
       const id=randomUUID(),assets=await this.assetUrls(tx,body.assetIds??[]);
       await tx.$executeRaw`INSERT INTO "Course" (id,"userId",title,intro,price,"validityDays",cover,type,"updatedAt") VALUES (${id},${this.actor.userId},${title},${intro},${amount},${days},${assets[0]??null},'TEXT',${new Date()})`;
       await this.registerOwned(tx,"course",id);await this.audit(tx,"CREATE_OWN_COURSE",id,reauthorize);
@@ -171,6 +181,7 @@ export class ManagedLeaseContentService {
     const circleId=body.circleId?contentId(body.circleId):null;
     if(circleId&&!circleIds.includes(circleId))throw new ForbiddenException("智能体所属圈子未授权");
     return this.db.$transaction(async tx=>{
+      await this.createQuota(tx,"agent");
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-agent:${this.actor.customerId}:${this.actor.applicationId}`},0))`;
       if(circleId&&!await tx.circle.findFirst({where:{id:circleId,deletedAt:null,status:"ACTIVE"},select:{id:true}}))throw new NotFoundException("所属圈子未启用");
       const ownerType=circleId?"circle":"managed",ownerId=circleId??this.actor.applicationId;

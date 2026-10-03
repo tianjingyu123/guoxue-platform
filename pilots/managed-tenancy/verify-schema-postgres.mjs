@@ -33,6 +33,9 @@ try {
       assert.ok(snapshotConstraint.definition.includes("'POST_REWARD_LOCKED_V1'"));
       // PG16规范化输出与已审阅接收迁移一致；防止保留字段词却追加OR TRUE。
       assert.equal(createHash('sha256').update(snapshotConstraint.definition).digest('hex'), 'd97551116e67fcf6cfccb0b8a9d583f86d004f06730cd2e9e06419e79e48aed3', '公共成交快照CHECK定义与固定接收点不一致');
+      const expectedChecks={ManagedBrandRequest_order_shape:'e3cc2d4fb151ed2d238cd69b725b9a23299ee1f40c6c0f66f36b2b9e0836e432',ManagedLeaseWriteFence_epoch_check:'e200470bf9b47619dedc497492a0b34528a8373ff9ebb2edd16cc125af4cbba2',ManagedLeaseWriteFence_state_check:'173a5248406bcd0cf82c32f3e5fbe0c35035b5f20337d4d228d7ba6ad7e75990'};
+      const additional=await db.$queryRawUnsafe(`SELECT conname,convalidated,pg_get_constraintdef(oid) definition FROM pg_constraint WHERE conname IN ('ManagedLeaseWriteFence_state_check','ManagedLeaseWriteFence_epoch_check','ManagedBrandRequest_order_shape') AND contype='c'`);
+      assert.equal(additional.length,3);for(const row of additional){assert.equal(row.convalidated,true);assert.equal(createHash('sha256').update(row.definition).digest('hex'),expectedChecks[row.conname], '写围栏或品牌订单CHECK与已审阅PG16定义不符');}
     } finally { await db.$disconnect(); }
     const cli = args => spawnSync(process.execPath, [resolve(require.resolve('prisma/package.json'), '../build/index.js'), ...args], { cwd: repo, env: { ...process.env, DATABASE_URL: url }, encoding: 'utf8', windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
     const validation = cli(['validate', '--schema', 'apps/server/prisma/schema.prisma']);
@@ -44,12 +47,12 @@ try {
     writeFileSync(resolve(runtime, `${database}-schema-diff.sql`), diff.stdout);
     // 仅检查，不运行返回的SQL；既有基线差异不能混入本专项迁移。
     const statements = diff.stdout.replace(/^--.*$/gm, '').trim();
-    assert.ok(!/"Managed(?:Customer|Deployment|Application|Grant|Membership|Audit|LeaseAftercare|LeaseExport|LeaseExportPage|LeaseAudit|LeaseIdentity|LeaseRefresh|LeaseLoginThrottle|BrandOrder|BrandRequest)"/.test(statements), '本专项新增结构与实际数据库不一致');
+    assert.ok(!/"Managed[A-Za-z]+"/.test(statements), '本专项新增结构与实际数据库不一致');
     results[database] = { managedTablesMatch: true, fullSchemaMatches: statements.length === 0, snapshotCheckValidated: true, snapshotCheckSha256: createHash('sha256').update(snapshotConstraint.definition).digest('hex'), diffSha256: createHash('sha256').update(diff.stdout).digest('hex') };
-    checks.push({ name: `${database}身份、schema语法与本专项十五张表结构一致性`, status: 'PASS' });
+    checks.push({ name: `${database}身份、完整schema及Managed结构、订单和写围栏CHECK一致性`, status: 'PASS' });
   }
 } catch (error) { failure = true; writeFileSync(resolve(runtime, 'schema-diagnostic.txt'), error.stack || String(error), { mode: 0o600 }); }
-const files = ['apps/server/prisma/schema.prisma', 'apps/server/prisma/migrations-deploy/full-baseline.sql', 'apps/server/prisma/migrations-deploy/circle-reward-snapshot.sql', 'apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql', ...['07_managed_customer_control', '08_managed_lease_exit', '09_managed_brand_order', '10_managed_lease_identity', '11_managed_recovery_export'].map(name => `apps/server/prisma/migrations/manual_z_20261002_${name}/migration.sql`)];
+const files = ['apps/server/prisma/schema.prisma', 'apps/server/prisma/migrations-deploy/full-baseline.sql', 'apps/server/prisma/migrations-deploy/circle-reward-snapshot.sql', 'apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql', ...['07_managed_customer_control', '08_managed_lease_exit', '09_managed_brand_order', '10_managed_lease_identity', '11_managed_recovery_export'].map(name => `apps/server/prisma/migrations/manual_z_20261002_${name}/migration.sql`),...['12_managed_local_content','13_managed_limits_fence','14_managed_brand_course'].map(name=>`apps/server/prisma/migrations/manual_z_20261003_${name}/migration.sql`)];
 const report = { head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), sources: Object.fromEntries(files.map(path => [path, createHash('sha256').update(readFileSync(resolve(repo, path))).digest('hex')])), node: process.version, checks, results, passed: checks.length, failed: failure ? 1 : 0, production: false, limits: ['只读比较本任务三个合成库；未执行修正SQL或生产迁移', '完整基线如有既有差异，单独记录，不混入本专项迁移'] };
 const output = resolve(process.argv[2] || resolve(runtime, 'schema-postgres.json'));
 mkdirSync(resolve(output, '..'), { recursive: true });

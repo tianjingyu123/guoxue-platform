@@ -9,6 +9,8 @@
  * X5 合规：padding-top 撑比例不用 aspect-ratio；吸顶实色+透明度不用毛玻璃；负反馈浮层纯色。
  */
 import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { APP_CLIENT_KEY } from "@/lib/app-distribution";
+const managedBrandEntry = APP_CLIENT_KEY && (import.meta as unknown as {env:Record<string,string>}).env.VITE_MANAGED_BRAND_ENTRY === "true";
 import { getClientPresentation } from "@/lib/client-presentation";
 import OperationsPanel from "@/components/layout/operations-panel.vue";
 import { onLoad } from "@dcloudio/uni-app";
@@ -359,6 +361,7 @@ function backToTop() {
   <view class="home">
     <app-network-bar />
     <customer-service-fab />
+    <button v-if="managedBrandEntry" class="managed-brand-entry" @click="navigateTo('/pkg-workspace/managed-store/index')">本品牌商品、课程与订单</button>
 
     <!-- 顶栏（自定义导航·实色吸顶）：不回加品牌大字，以统一搜索入口承接首要任务 -->
     <view class="brand-row" :style="{ paddingTop: statusBarHeight + 'px' }">

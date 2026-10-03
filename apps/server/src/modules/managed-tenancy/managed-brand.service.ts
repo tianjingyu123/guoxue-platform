@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException,Optional,ServiceUnavailableException } from "@nestjs/common";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShopOrderService } from "../shop/shop-order.service";
@@ -8,10 +8,14 @@ import { RedisService } from "../../redis/redis.service";
 import { versionScope } from "../system/distribution.util";
 import { check, operatingStatus } from "./managed-policy";
 import { managedPresentation } from "./managed-presentation";
+import {CoursePurchaseService} from "../course/course-purchase.service";
+import {CourseLearningService} from "../course/course-learning.service";
+import {ShopOrderLifecycleService} from "../shop/shop-order-lifecycle.service";
+import {ShopCouponService} from "../shop/shop-coupon.service";
 
 @Injectable()
 export class ManagedBrandService {
-  constructor(private readonly prisma: PrismaService, private readonly orders: ShopOrderService) {}
+  constructor(private readonly prisma: PrismaService, private readonly orders: ShopOrderService,@Optional() private readonly purchase?:CoursePurchaseService,@Optional() private readonly learning?:CourseLearningService,@Optional() private readonly lifecycle?:ShopOrderLifecycleService,@Optional() private readonly aftersales?:ShopCouponService) {}
   private async scope(clientKey: string, userId: string, operating = true) {
     check(typeof clientKey === "string" && clientKey.length > 0 && clientKey.length <= 80, "品牌应用选择器无效");
     const registration = await new DistributionService(this.prisma).resolve(clientKey);
@@ -21,8 +25,8 @@ export class ManagedBrandService {
     const platform = await this.prisma.brandConfig.findUnique({ where: { id: "default" }, select: { companyName: true } });
     if (station?.status !== "ACTIVE" || platform?.companyName !== application.customer.tradingSubject) throw new ForbiddenException("分站或平台交易主体已变化");
     if (operating && (Date.now() >= application.customer.endAt.getTime() || (station.expireAt && Date.now() >= station.expireAt.getTime()))) throw new ForbiddenException("品牌应用或既有分站已到期");
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
-    if (user?.status !== "ACTIVE") throw new ForbiddenException("用户身份无效");
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true,deletedAt:true } });
+    if (user?.status !== "ACTIVE"||user.deletedAt) throw new ForbiddenException("用户身份无效");
     return { registration, application, station };
   }
   private async shop(clientKey: string, userId: string) {
@@ -39,8 +43,54 @@ export class ManagedBrandService {
   async products(clientKey: string, userId: string) {
     const { application } = await this.shop(clientKey, userId);
     const ids = (application.customer.grant!.resources as Record<string, string[]>).product || [];
-    return this.prisma.product.findMany({ where: { id: { in: ids }, isPlatform: true, supplierType: "PLATFORM", stationId: null, status: "ON_SALE", deletedAt: null }, select: { id: true, title: true, intro: true, price: true }, take: 200 });
+    const rows=await this.prisma.product.findMany({ where: { id: { in: ids }, isPlatform: true, supplierType: "PLATFORM", stationId: null, status: "ON_SALE", deletedAt: null }, select: { id: true, title: true, intro: true, detail:true, images:true, price: true }, take: 1001 });
+    check(rows.length<=1000,"商品目录超过候选读取容量，请维护分页，不能截断目录");return rows;
   }
+  private async courseScope(clientKey:string,userId:string){
+    const scope=await this.scope(clientKey,userId),flags=new FeatureFlagService(this.prisma,{} as RedisService);
+    if(!scope.application.customer.grant?.modules.includes("course")||await flags.getConfiguredOperationState("client_course_purchase",userId,versionScope(scope.registration))!=="OPEN")throw new ForbiddenException("品牌课程模块未获授权或已关闭");
+    return scope;
+  }
+  async courses(clientKey:string,userId:string){
+    const {application}=await this.courseScope(clientKey,userId),ids=(application.customer.grant!.resources as Record<string,string[]>).course||[];
+    const rows=await this.prisma.course.findMany({where:{id:{in:ids},stationId:null,visibility:"PLATFORM",auditStatus:"APPROVED",deletedAt:null},select:{id:true,title:true,intro:true,cover:true,price:true,validityDays:true},take:1001});
+    check(rows.length<=1000,"课程目录超过候选读取容量，请维护分页，不截断授权");return rows;
+  }
+  private async allowedCourse(clientKey:string,userId:string,id:string){if(!(await this.courses(clientKey,userId)).some(row=>row.id===id))throw new NotFoundException("本品牌已审核的公共课程不存在");}
+  async createCourseOrder(clientKey:string,userId:string,body:{courseId:string;requestKey:string}){
+    check(body&&Object.keys(body).every(key=>["courseId","requestKey"].includes(key))&&typeof body.courseId==="string"&&/^[a-zA-Z0-9_-]{1,80}$/.test(body.courseId)&&typeof body.requestKey==="string"&&/^[a-zA-Z0-9_-]{1,80}$/.test(body.requestKey),"品牌课程只接受课程标识与重试键，不接受金额、归属或收款参数");
+    if(!this.purchase)throw new ServiceUnavailableException("品牌课程购买内核未挂载");
+    const {application,station}=await this.courseScope(clientKey,userId);await this.allowedCourse(clientKey,userId,body.courseId);
+    const clientRequestId="brand-course-"+createHash("sha256").update(application.applicationId+":"+userId+":"+body.requestKey).digest("hex"),requestDigest=createHash("sha256").update(JSON.stringify({orderKind:"COURSE",courseId:body.courseId})).digest("hex");
+    await this.prisma.managedBrandRequest.createMany({data:[{customerId:application.customerId,applicationId:application.applicationId,stationId:station.id,buyerId:userId,requestKey:body.requestKey,requestDigest,clientRequestId,orderKind:"COURSE",courseId:body.courseId,quantity:1}],skipDuplicates:true});
+    const intent=await this.prisma.managedBrandRequest.findUnique({where:{applicationId_buyerId_requestKey:{applicationId:application.applicationId,buyerId:userId,requestKey:body.requestKey}}});
+    if(!intent||intent.orderKind!=="COURSE"||intent.requestDigest!==requestDigest||intent.stationId!==station.id||intent.customerId!==application.customerId)throw new ConflictException("重试键已有不同的品牌订单来源或内容");
+    const orderId=await this.prisma.$transaction(async tx=>{
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`brand-course:${userId}:${body.courseId}`},0))`;
+      const existing=await tx.order.findFirst({where:{userId,clientRequestId},select:{id:true,type:true,targetId:true}});
+      if(existing){if(existing.type!=="COURSE"||existing.targetId!==body.courseId)throw new ConflictException("原课程订单与请求不符");return existing.id;}
+      await this.allowedCourse(clientKey,userId,body.courseId);
+      const order=await this.purchase!.purchaseInTransaction(tx,userId,body.courseId,{tempReferrerId:station.userId},clientRequestId);
+      await this.allowedCourse(clientKey,userId,body.courseId);return order.id;
+    },{timeout:20000,maxWait:20000});
+    await this.reconcileRequest(application.customerId,intent.id,{reason:"品牌课程原订单已存在后核对来源，不重建或收费"},userId);
+    return this.order(clientKey,userId,orderId);
+  }
+  async courseChapters(clientKey:string,userId:string,id:string){await this.allowedCourse(clientKey,userId,id);if(!this.learning)throw new ServiceUnavailableException("课程学习内核未挂载");return this.learning.getChapters(id);}
+  async courseChapter(clientKey:string,userId:string,id:string,chapterId:string){
+    await this.allowedCourse(clientKey,userId,id);if(!this.learning)throw new ServiceUnavailableException("课程学习内核未挂载");
+    if(!await this.prisma.courseChapter.findFirst({where:{id:chapterId,courseId:id},select:{id:true}}))throw new NotFoundException("本课程章节不存在");
+    const row=await this.learning.getChapterContent(userId,chapterId);await this.allowedCourse(clientKey,userId,id);return row;
+  }
+  async courseProgress(clientKey:string,userId:string,id:string){await this.allowedCourse(clientKey,userId,id);if(!this.learning)throw new ServiceUnavailableException("课程学习内核未挂载");return this.learning.getMyProgress(userId,id);}
+  async updateCourseProgress(clientKey:string,userId:string,id:string,chapterId:string,body:{progress:number}){
+    check(body&&Object.keys(body).length===1&&Number.isInteger(body.progress)&&body.progress>=0&&body.progress<=100,"学习进度须为0至100的整数，不接受身份或课程参数");
+    await this.courseChapter(clientKey,userId,id,chapterId);const result=await this.learning!.updateProgress(userId,chapterId,body);await this.allowedCourse(clientKey,userId,id);return result;
+  }
+  async cancelOrder(clientKey:string,userId:string,id:string,body:unknown){check(body&&typeof body==="object"&&!Array.isArray(body)&&Object.keys(body).length===0,"取消订单不接受额外参数");await this.order(clientKey,userId,id);if(!this.lifecycle)throw new ServiceUnavailableException("原订单履约内核未挂载");return this.lifecycle.cancelOrder(id,userId);}
+  private async afterSaleOrigin(clientKey:string,userId:string,id:string){const row=await this.prisma.afterSale.findUnique({where:{id},select:{orderId:true,userId:true}});if(!row||row.userId!==userId)throw new NotFoundException("本用户售后不存在");await this.order(clientKey,userId,row.orderId);if(!this.aftersales)throw new ServiceUnavailableException("原售后内核未挂载");}
+  async cancelAfterSale(clientKey:string,userId:string,id:string,body:unknown){check(body&&typeof body==="object"&&!Array.isArray(body)&&Object.keys(body).length===0,"取消售后不接受额外参数");await this.afterSaleOrigin(clientKey,userId,id);return this.aftersales!.cancelAfterSale(id,userId);}
+  async returnLogistics(clientKey:string,userId:string,id:string,body:{company:string;logisticsNo:string}){check(body&&Object.keys(body).every(key=>["company","logisticsNo"].includes(key))&&typeof body.company==="string"&&body.company.length>0&&body.company.length<=80&&typeof body.logisticsNo==="string"&&body.logisticsNo.length>=4&&body.logisticsNo.length<=80,"仅接受退货公司与运单号");await this.afterSaleOrigin(clientKey,userId,id);return this.aftersales!.submitReturnLogistics(id,userId,body.company,body.logisticsNo);}
   async presentation(clientKey: string, userId: string, build: string, capabilities: string, resource: string) {
     const { application, registration } = await this.scope(clientKey, userId, false);
     return managedPresentation(this.prisma, versionScope(registration), userId, application.customer.grant || { modules: [] }, application.templateId, Date.now() < application.customer.endAt.getTime(), build, capabilities, resource);
@@ -72,7 +122,8 @@ export class ManagedBrandService {
       const order = await tx.order.findFirst({ where: { userId: intent.buyerId, clientRequestId: intent.clientRequestId } });
       // 请求已经持久化但公共建单未提交时，只报告等待，不重报价、建单、扣库存或付款。
       if (!order) return { id, state: "WAITING_ORDER", orderId: null };
-      if (order.type !== "PRODUCT" || order.targetId !== intent.productId || order.quantity !== intent.quantity || order.addressId !== intent.addressId || order.skuId !== intent.skuId || order.couponId !== intent.couponId || (intent.orderId && intent.orderId !== order.id)) throw new ConflictException("已存在订单与品牌请求意图不一致，须人工核查");
+      const matches=intent.orderKind==="PRODUCT"?order.type==="PRODUCT"&&order.targetId===intent.productId&&order.quantity===intent.quantity&&order.addressId===intent.addressId&&order.skuId===intent.skuId&&order.couponId===intent.couponId:intent.orderKind==="COURSE"&&order.type==="COURSE"&&order.targetId===intent.courseId&&order.quantity===1&&order.addressId===null&&order.skuId===null&&order.couponId===null;
+      if (!matches || (intent.orderId && intent.orderId !== order.id)) throw new ConflictException("已存在订单与品牌请求意图不一致，须人工核查");
       await tx.managedBrandOrder.createMany({ data: [{ orderId: order.id, customerId: intent.customerId, applicationId: intent.applicationId, stationId: intent.stationId, buyerId: intent.buyerId }], skipDuplicates: true });
       const origin = await tx.managedBrandOrder.findUnique({ where: { orderId: order.id } });
       if (!origin || origin.customerId !== customerId || origin.applicationId !== intent.applicationId || origin.stationId !== intent.stationId || origin.buyerId !== intent.buyerId) throw new ConflictException("已存在订单来源冲突，须人工核查");
@@ -90,6 +141,17 @@ export class ManagedBrandService {
     if (!origin || origin.order.userId !== userId) throw new NotFoundException("订单不存在或不属于此应用与用户");
     return { id: origin.order.id, type: origin.order.type, targetId: origin.order.targetId, amount: origin.order.amount, status: origin.order.status, quantity: origin.order.quantity, paidAt: origin.order.paidAt, createdAt: origin.order.createdAt, tradingSubject: application.customer.tradingSubject };
   }
+  async orderList(clientKey:string,userId:string,cursor=""){
+    const {application}=await this.scope(clientKey,userId,false);check(!cursor||/^[a-zA-Z0-9_-]{1,128}$/.test(cursor),"订单分页无效");
+    const rows=await this.prisma.managedBrandOrder.findMany({where:{applicationId:application.applicationId,customerId:application.customerId,buyerId:userId,...(cursor?{orderId:{gt:cursor}}:{})},include:{order:{select:{id:true,type:true,targetId:true,amount:true,status:true,quantity:true,paidAt:true,createdAt:true}}},orderBy:{orderId:"asc"},take:51});
+    return {items:rows.slice(0,50).map(row=>({...row.order,tradingSubject:application.customer.tradingSubject})),nextCursor:rows.length>50?rows[49].orderId:null};
+  }
+  async confirmOrder(clientKey:string,userId:string,id:string,body:unknown){check(body&&typeof body==="object"&&!Array.isArray(body)&&!Object.keys(body).length,"收货不接受状态或金额参数");await this.order(clientKey,userId,id);if(!this.lifecycle)throw new ServiceUnavailableException("平台履约内核未挂载");return this.lifecycle.confirmOrder(id,userId);}
+  async applyAfterSale(clientKey:string,userId:string,id:string,body:{type:string;reason:string}){
+    check(body&&Object.keys(body).every(key=>["type","reason"].includes(key))&&typeof body.type==="string"&&["refund_only","refund_with_return","exchange"].includes(body.type)&&typeof body.reason==="string"&&body.reason.trim().length>=2&&body.reason.length<=500,"售后仅接受已支持类型和原因，不接受退款金额或商户参数");
+    await this.order(clientKey,userId,id);if(!this.aftersales)throw new ServiceUnavailableException("平台售后内核未挂载");return this.aftersales.applyAfterSale(userId,id,body.type,body.reason);
+  }
+  async afterSales(clientKey:string,userId:string,id:string,page=1){await this.order(clientKey,userId,id);check(Number.isInteger(page)&&page>=1&&page<=10000,"售后分页无效");if(!this.aftersales)throw new ServiceUnavailableException("平台售后内核未挂载");return this.aftersales.getUserAfterSales(userId,page,20,id);}
   async operatorSummary(clientKey: string, userId: string) {
     const { application, station } = await this.scope(clientKey, userId, false);
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { roles: true } });

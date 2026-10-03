@@ -1,4 +1,5 @@
 import { scopedControlUrl } from './scoped-control.mjs';
+import {installSyntheticFence} from './synthetic-fence.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -80,6 +81,7 @@ try{
     customer=await service.updateGrant(customer.id,{modules:['shop','course','circle','agent'],resources:{product:[product.id],course:[],circle:[circle.id],agent:[agent.id]},circleLimit:count+2,expectedRevision:customer.revision,reason:'真实授权更新与修订验收'},'synthetic-maintainer');
     const selector='synthetic-real-lease-client-'+suffix;selectors[suffix]=selector;
     await control.appDistribution.upsert({where:{clientKey:selector},create:{clientKey:selector,productId:'synthetic',applicationId:fixtureApp.applicationId,platform:'h5',channelId:'synthetic-web',packageName:'synthetic.no-real-registration'},update:{enabled:true}});
+    await installSyntheticFence(control,customer.id);
     await maintenance.verify(customer.id,{expectedRevision:customer.revision,reason:'真实本地数据库/角色/认证摘要最小只读核验'},'synthetic-maintainer');
     await service.enableApplication(fixtureApp.id,'synthetic-maintainer','本地合成渠道与数据库验证完成');
     customers[suffix]={...customer,applications:[fixtureApp]};resourceIds[suffix]={product:product.id,hidden:hidden.id,circle:circle.id,agent:agent.id};

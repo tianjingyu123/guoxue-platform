@@ -7,6 +7,7 @@ import {randomBytes,createHash} from 'node:crypto';
 import {fork,execFileSync} from 'node:child_process';
 import {loadCandidatePrisma} from '../../scripts/ops/prisma-candidate/client.mjs';
 import {scopedControlUrl} from './scoped-control.mjs';
+import {installSyntheticFence} from './synthetic-fence.mjs';
 
 export const repo=fileURLToPath(new URL('../../',import.meta.url)),runtime=resolve(repo,'pilots/managed-tenancy/.runtime');
 const require=createRequire(resolve(repo,'apps/server/package.json'));
@@ -44,9 +45,10 @@ export class ManagedPostgresHarness {
     const customer=await this.control.managedCustomer.findUnique({where:{id:app.customerId},include:{grant:true}});
     if(!this.saved.some(row=>row.id===customer.id)){this.saved.push({id:customer.id,grant:customer.grant});writeFileSync(resolve(runtime,this.tag+'-saved-grants.json'),JSON.stringify(this.saved),{mode:0o600});}
     const count=await app.db.circle.count({where:{deletedAt:null}});
-    await this.service.updateGrant(customer.id,{modules:['shop','course','circle','agent'],resources:resources??customer.grant.resources,circleLimit:Math.min(10000,Math.max(customer.grant.circleLimit,count+10)),expectedRevision:customer.revision,reason:'本任务经营入口合成授权'},'synthetic-maintainer');
+    await this.service.updateGrant(customer.id,{modules:['shop','course','circle','agent'],resources:resources??customer.grant.resources,circleLimit:Math.min(10000,Math.max(customer.grant.circleLimit,count+10)),creationLimits:{products:5000,courses:5000,agents:1000,storageBytes:64*1024*1024,users:200000},expectedRevision:customer.revision,reason:'本任务经营入口合成授权'},'synthetic-maintainer');
   }
   async start(app,serial=app.serial,extra={}){
+    await installSyntheticFence(this.control,app.customerId);
     const path=resolve(runtime,this.tag+'-'+serial+'.json');
     writeFileSync(path,JSON.stringify({customerId:app.customerId,credential:this.refs['secret-ref:synthetic/real-lease-'+app.suffix],controlUrl:await scopedControlUrl(app.customerId),...extra}),{mode:0o600});
     const child=fork(resolve(repo,'pilots/managed-tenancy/lease-process.mjs'),[path],{cwd:repo,stdio:['ignore','ignore','pipe','ipc'],windowsHide:true});this.children.push(child);
@@ -64,10 +66,10 @@ export class ManagedPostgresHarness {
     if(admin){await this.control.managedMembership.create({data:{customerId:app.customerId,userId:response.body.userId,identityProvider:'LOCAL',role:'CUSTOMER_ADMIN'}});response=await this.call(port,app,'/auth/login',undefined,'POST',{username,password:this.password});assert.equal(response.status,200);}
     return {...response.body,username};
   }
-  async login(port,app,account){const response=await this.call(port,app,'/auth/login',undefined,'POST',{username:account.username,password:this.password});assert.equal(response.status,200);return response.body;}
+  async login(port,app,account){const response=await this.call(port,app,'/auth/login',undefined,'POST',{username:account.username,password:this.password});assert.equal(response.status,200);return {...response.body,username:account.username};}
   async close(){
     for(const child of this.children)if(child.exitCode===null&&child.signalCode===null){if(child.connected)child.send('stop');else child.kill();await new Promise(done=>{const timer=setTimeout(()=>{child.kill();done();},10000);child.once('exit',()=>{clearTimeout(timer);done();});});}
-    for(const saved of this.saved){const row=await this.control.managedCustomer.findUnique({where:{id:saved.id}});await this.service.updateGrant(row.id,{modules:saved.grant.modules,resources:saved.grant.resources,circleLimit:saved.grant.circleLimit,expectedRevision:row.revision,reason:'合成经营验收恢复原授权'},'synthetic-maintainer');}
+    for(const saved of this.saved){const row=await this.control.managedCustomer.findUnique({where:{id:saved.id}});await this.service.updateGrant(row.id,{modules:saved.grant.modules,resources:saved.grant.resources,circleLimit:saved.grant.circleLimit,creationLimits:saved.grant.creationLimits,expectedRevision:row.revision,reason:'合成经营验收恢复原授权'},'synthetic-maintainer');}
     for(const db of[this.control,this.a,this.b])await db.$disconnect();
     for(const port of this.ports)await assert.rejects(()=>fetch(`http://127.0.0.1:${port}/api/v1/lease/context`));
     if(this.ports.length)this.record('本任务全部独立子进程及随机端口已退出');

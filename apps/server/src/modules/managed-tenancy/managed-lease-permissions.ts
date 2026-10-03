@@ -1,5 +1,7 @@
 /** 当前独立入口的数据库权限；扩展业务时须同时审查字段和授权范围。 */
 export const managedLeasePermissions: Record<string, Partial<Record<"select" | "insert" | "update", string[]>>> = {
+  // PostgreSQL 行锁需要一列 UPDATE 权限；围栏自身触发器始终拒绝客户写入。
+  ManagedLeaseWriteFence:{select:["*"],update:["updatedAt"]},
   User: { select: ["id", "status", "nickname", "phone", "deletedAt"], insert: ["id", "nickname", "updatedAt"] },
   ManagedLeaseIdentity: { select: ["*"], insert: ["id", "userId", "username", "passwordHash", "updatedAt"], update: ["passwordHash", "revision", "updatedAt"] },
   ManagedLeaseRefresh: { select: ["*"], insert: ["*"], update: ["revokedAt"] },
@@ -31,3 +33,9 @@ export const managedLeasePermissions: Record<string, Partial<Record<"select" | "
   ManagedLeaseExportPage: { select: ["*"], insert: ["*"] },
   ManagedLeaseAudit: { select: ["*"], insert: ["*"] },
 };
+
+/** 新独立数据库的最低列权限；调用者先核对实际维护身份，不能用于平台共享库。 */
+export function managedLeaseGrantSql(role:string){
+  if(!/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/.test(role))throw new Error("运行角色标识无效");
+  return `GRANT USAGE ON SCHEMA public TO "${role}"; REVOKE ALL ON ALL TABLES IN SCHEMA public FROM "${role}"; REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM "${role}";\n`+Object.entries(managedLeasePermissions).flatMap(([table,operations])=>Object.entries(operations).map(([operation,columns])=>`GRANT ${operation.toUpperCase()}${columns.includes('*')?'':' ('+columns.map(column=>'"'+column+'"').join(',')+')'} ON public."${table}" TO "${role}";`)).join("\n");
+}

@@ -1,4 +1,4 @@
-import { ConflictException, HttpException, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, HttpException, UnauthorizedException,ForbiddenException } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "crypto";
@@ -37,7 +37,7 @@ export class ManagedLeaseIdentityService {
       }
     });
   }
-  async register(value: unknown, clientKey: string, source: string): Promise<LocalPrincipal> {
+  async register(value: unknown, clientKey: string, source: string,options:{userLimit?:number;reauthorize?:()=>Promise<unknown>}={}): Promise<LocalPrincipal> {
     const input = body(value, ["username", "password", "nickname"]);
     const account = username(input.username), secret = password(input.password);
     check(typeof input.nickname === "string" && input.nickname.trim().length > 0 && input.nickname.length <= 60 && !/[<>]/.test(input.nickname) && !hasControlCharacters(input.nickname), "昵称无效");
@@ -46,12 +46,15 @@ export class ManagedLeaseIdentityService {
     const passwordHash = await bcrypt.hash(secret, 12);
     try {
       return await this.db.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-user-quota:${this.customerId}`},0))`;
+        if(options.userLimit!==undefined&&await tx.user.count({where:{deletedAt:null}})>=options.userLimit)throw new ForbiddenException("已达到客户合同用户数量上限，不能新增注册");
         // 明确列出插入字段，账号状态/认证修订使用数据库默认值，运行账号不能指定它们。
         const userId = randomUUID(), identityId = randomUUID(), now = new Date();
         await tx.$executeRaw`INSERT INTO "User" (id,nickname,"updatedAt") VALUES (${userId},${nickname},${now})`;
         const identities = await tx.$queryRaw<LocalPrincipal[]>`INSERT INTO "ManagedLeaseIdentity" (id,"userId",username,"passwordHash","updatedAt") VALUES (${identityId},${userId},${account},${passwordHash},${now}) RETURNING id,"userId",revision`;
         const identity = identities[0];
         await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId, action: "REGISTER_LOCAL_IDENTITY", entityId: identity.id } });
+        await options.reauthorize?.();
         return identity;
       });
     } catch (error) {

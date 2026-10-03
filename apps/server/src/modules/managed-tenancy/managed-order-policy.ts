@@ -6,6 +6,17 @@ export const managedOrderInsertExpression=`((status = 'PENDING'::"OrderStatus") 
 export const managedOrderUpdateUsing=`(status = 'PENDING'::"OrderStatus")`;
 export const managedOrderUpdateCheck=`(status = 'CANCELLED'::"OrderStatus")`;
 const normalize=(value:string|null)=>value?.replace(/\s+/g," ").trim();
+export function managedOrderPolicySql(role:string){
+  if(!/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/.test(role))throw new Error("订单运行角色标识无效");
+  return `ALTER TABLE public."Order" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS managed_order_read ON public."Order";
+DROP POLICY IF EXISTS managed_order_fixture ON public."Order";
+DROP POLICY IF EXISTS managed_order_runtime_insert ON public."Order";
+DROP POLICY IF EXISTS managed_order_runtime_cancel ON public."Order";
+CREATE POLICY managed_order_read ON public."Order" FOR SELECT TO PUBLIC USING (true);
+CREATE POLICY managed_order_runtime_insert ON public."Order" FOR INSERT TO "${role}" WITH CHECK ${managedOrderInsertExpression};
+CREATE POLICY managed_order_runtime_cancel ON public."Order" FOR UPDATE TO "${role}" USING ${managedOrderUpdateUsing} WITH CHECK ${managedOrderUpdateCheck};`;
+}
 export async function verifyManagedOrderPolicies(db:PrismaClient){
   const identities=await db.$queryRaw<Array<{secured:boolean}>>`SELECT (c.relrowsecurity AND (c.relforcerowsecurity OR NOT pg_has_role(current_user,c.relowner,'MEMBER'))) secured FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname='Order'`;
   const policies=await db.$queryRaw<Array<{name:string;cmd:string;permissive:boolean;using:string|null;check:string|null;exact_role:boolean}>>`SELECT p.polname name,p.polcmd::text cmd,p.polpermissive permissive,pg_get_expr(p.polqual,p.polrelid) "using",pg_get_expr(p.polwithcheck,p.polrelid) "check",(p.polroles=ARRAY[(SELECT oid FROM pg_roles WHERE rolname=current_user)]) exact_role

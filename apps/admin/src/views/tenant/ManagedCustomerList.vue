@@ -33,6 +33,7 @@
         <div class="form-grid">
           <el-form-item v-for="kind in resourceKinds" :key="kind.id" :label="kind.label + '资源白名单（逗号分隔）'"><el-input v-model="form.resources[kind.id]" placeholder="留空表示未授权具体资源" /></el-form-item>
           <el-form-item label="允许创建圈子数量"><el-input-number v-model="form.circleLimit" :min="0" :max="10000" :disabled="form.mode === 'BRAND'" /></el-form-item>
+          <el-form-item v-for="limit in creationFields" :key="limit.key" :label="limit.label"><el-input-number v-model="form.creationLimits[limit.key]" :min="0" :max="limit.max" :disabled="form.mode === 'BRAND'" /><span class="hint">留空表示未约定。商品、课程、智能体和附件须有明确限额才能新增。</span></el-form-item>
           <el-form-item label="下载授权有效秒数"><el-input-number v-model="form.downloadTtlSeconds" :min="1" :max="86400" /></el-form-item>
           <el-form-item v-for="item in termFields" :key="item.key" :label="item.label"><el-date-picker v-model="form[item.key]" type="datetime" value-format="YYYY-MM-DDTHH:mm:ssZ" placeholder="按合同填写时间" /></el-form-item>
         </div>
@@ -60,6 +61,14 @@
           <el-table-column label="状态 / 操作" width="130"><template #default="{ row }"><el-button v-if="row.enabled" link type="warning" @click="disable(row.id)">已启用 · 暂停</el-button><el-button v-else link type="primary" @click="enable(row.id)">核验后启用</el-button></template></el-table-column>
         </el-table>
         <el-collapse class="maintenance-panel">
+          <el-collapse-item v-if="selected.mode === 'LEASE'" title="迁移或回退后的实例切换" name="cutover">
+            <el-alert type="info" :closable="false" title="先冻结当前写入库，再从它恢复和核对新库。回退也必须携带切换后的新增数据；本操作不会恢复旧扣款或队列任务。" />
+            <el-form label-position="top">
+              <el-form-item v-for="field in cutoverFields" :key="field.key" :label="field.label"><el-input v-model="cutoverForm[field.key]" :maxlength="field.key === 'backupSha256' || field.key === 'authKeyFingerprint' ? 64 : 120" /></el-form-item>
+              <el-form-item label="迁移、核对或回退依据"><el-input v-model="cutoverForm.reason" maxlength="400" /></el-form-item>
+              <el-button type="primary" :loading="maintaining" @click="cutoverDeployment">核验并切换实例</el-button>
+            </el-form>
+          </el-collapse-item>
           <el-collapse-item v-if="selected.mode === 'BRAND'" title="待核对的品牌订单来源" name="brand-orders">
             <el-alert type="info" :closable="false" title="仅核对并补登记已经存在的订单；未提交的订单保持等待，不新建订单或付款。" />
             <el-button :loading="maintaining" @click="loadPendingBrandOrders">刷新待核对请求</el-button>
@@ -74,11 +83,12 @@
               <el-button type="primary" :loading="maintaining" @click="renewContract">保存期限</el-button>
             </el-form>
           </el-collapse-item>
-          <el-collapse-item title="模块、资源与圈子数量授权" name="grant">
+          <el-collapse-item title="模块、资源与数量授权" name="grant">
             <el-form label-position="top">
               <el-form-item label="授权模块"><el-checkbox-group v-model="grantForm.modules"><el-checkbox value="shop">商城</el-checkbox><el-checkbox value="course">课程</el-checkbox><el-checkbox value="circle">圈子</el-checkbox><el-checkbox value="agent">智能体</el-checkbox></el-checkbox-group></el-form-item>
               <el-form-item v-for="kind in resourceKinds" :key="kind.id" :label="kind.label + '资源白名单（逗号分隔）'"><el-input v-model="grantForm.resources[kind.id]" /></el-form-item>
               <el-form-item label="圈子数量上限"><el-input-number v-model="grantForm.circleLimit" :min="0" :max="10000" :disabled="selected.mode === 'BRAND'" /></el-form-item>
+              <el-form-item v-for="limit in creationFields" :key="limit.key" :label="limit.label"><el-input-number v-model="grantForm.creationLimits[limit.key]" :min="0" :max="limit.max" :disabled="selected.mode === 'BRAND'" /><span class="hint">留空为未约定；零表示停止新增。用户数量未约定时沿用现有注册规则。</span></el-form-item>
               <el-form-item label="授权变更依据"><el-input v-model="grantForm.reason" maxlength="500" /></el-form-item>
               <el-button type="primary" :loading="maintaining" @click="saveGrant">保存授权</el-button>
             </el-form>
@@ -115,15 +125,20 @@ const maintaining = ref(false);
 const pendingBrandOrders = ref<Array<{ id: string; applicationId: string; state: string; createdAt: string }>>([]);
 const renewal = reactive({ remindAt: "", endAt: "", exportUntil: "", downloadTtlSeconds: 1, reason: "" });
 const member = reactive({ userId: "", identityProvider: "LOCAL", role: "USER", enabled: true, reason: "" });
-const grantForm = reactive({ modules: [] as string[], resources: { product: "", course: "", circle: "", agent: "" }, circleLimit: 0, reason: "" });
+const cutoverForm=reactive({spaceKey:"",databaseName:"",databaseRole:"",credentialRef:"",authKeyFingerprint:"",backupSha256:"",reason:""});
+const cutoverFields=[{key:"spaceKey",label:"恢复目标的新空间标识"},{key:"databaseName",label:"新数据库名称"},{key:"databaseRole",label:"新最低权限运行账号"},{key:"credentialRef",label:"受限凭据引用（禁止输入密码）"},{key:"authKeyFingerprint",label:"新认证密钥SHA-256摘要"},{key:"backupSha256",label:"已核对备份文件SHA-256摘要"}] as const;
+type CreationLimits=Partial<Record<"products"|"courses"|"agents"|"storageBytes"|"users",number>>;
+const grantForm = reactive({ modules: [] as string[], resources: { product: "", course: "", circle: "", agent: "" }, circleLimit: 0,creationLimits:{} as CreationLimits, reason: "" });
+const creationFields=[{key:"products",label:"商品总数上限",max:5000},{key:"courses",label:"课程总数上限",max:5000},{key:"agents",label:"智能体总数上限",max:1000},{key:"storageBytes",label:"附件总字节上限",max:64*1024*1024},{key:"users",label:"用户总数上限",max:200000}] as const;
+function configuredLimits(value:CreationLimits){return Object.fromEntries(creationFields.filter(item=>value[item.key]!==undefined&&value[item.key]!==null).map(item=>[item.key,value[item.key]]));}
 const memberLabels: Record<string, string> = { CUSTOMER_ADMIN: "客户管理员", CUSTOMER_SUPPORT: "客户客服", USER: "普通用户" };
 const auditLabels: Record<string, string> = { RECONCILE_BRAND_ORDER: "核对并登记订单来源", CONFIGURE: "保存客户配置", RENEW_WITHOUT_JOB_REPLAY: "更新合同期限", MEMBERSHIP_CHANGE: "更新成员授权", CHANGE_GRANT: "更新合同授权", VERIFY_DATABASE_IDENTITY: "核验数据库身份", ENABLE_APPLICATION: "启用应用", DISABLE_APPLICATION: "暂停应用" };
 const resourceKinds = [{ id: "product", label: "商品" }, { id: "course", label: "课程" }, { id: "circle", label: "圈子" }, { id: "agent", label: "智能体" }] as const;
 const termFields = [{ key: "remindAt", label: "开始提醒时间" }, { key: "endAt", label: "合同到期时间" }, { key: "exportUntil", label: "导出保留截止" }] as const;
 const statusLabel: Record<string, string> = { ACTIVE: "正常", REMINDER: "到期提醒", EXPIRED_RESTRICTED: "到期受限 / 可导出", ARCHIVED_RETAINED: "归档保留" };
-const defaults = () => ({ requestKey: crypto.randomUUID(), name: "", mode: "LEASE", applicationSubject: "", tradingSubject: "", applicationId: "", stationId: "", brandName: "", themeColor: "#8B4513", templateId: "community", maintenancePrice: "", platforms: ["miniprogram", "h5"], modules: [] as string[], resources: { product: "", course: "", circle: "", agent: "" }, circleLimit: 0, downloadTtlSeconds: undefined as number | undefined, remindAt: "", endAt: "", exportUntil: "", spaceKey: "", databaseName: "", databaseRole: "", credentialRef: "", authKeyFingerprint: "", reason: "" });
+const defaults = () => ({ requestKey: crypto.randomUUID(), name: "", mode: "LEASE", applicationSubject: "", tradingSubject: "", applicationId: "", stationId: "", brandName: "", themeColor: "#8B4513", templateId: "community", maintenancePrice: "", platforms: ["miniprogram", "h5"], modules: [] as string[], resources: { product: "", course: "", circle: "", agent: "" }, circleLimit: 0, creationLimits:{} as CreationLimits, downloadTtlSeconds: undefined as number | undefined, remindAt: "", endAt: "", exportUntil: "", spaceKey: "", databaseName: "", databaseRole: "", credentialRef: "", authKeyFingerprint: "", reason: "" });
 const form = reactive(defaults());
-watch(() => form.mode, mode => { if (mode === "BRAND") { form.circleLimit = 0; form.platforms = form.platforms.filter(p => ["h5", "miniprogram"].includes(p)); } });
+watch(() => form.mode, mode => { if (mode === "BRAND") { form.circleLimit = 0;form.creationLimits={}; form.platforms = form.platforms.filter(p => ["h5", "miniprogram"].includes(p)); } });
 function message(e: unknown) { return (e as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (e as Error)?.message || "操作失败，请检查配置"; }
 async function load() { loading.value = true; error.value = ""; try { customers.value = (await managedTenancyApi.list()).data; } catch (e) { error.value = message(e); } finally { loading.value = false; } }
 function openCreate() { Object.assign(form, defaults()); formError.value = ""; creating.value = true; }
@@ -134,7 +149,7 @@ async function save() {
     if (!form.downloadTtlSeconds) throw new Error("请填写下载授权有效秒数");
     const term = Object.fromEntries(termFields.map(item => [item.key, new Date(form[item.key]).toISOString()]));
     const resources = Object.fromEntries(resourceKinds.map(item => [item.id, form.resources[item.id].split(/[,，]/).map(s => s.trim()).filter(Boolean)]));
-    await managedTenancyApi.create({ requestKey: form.requestKey, name: form.name, mode: form.mode, tradingSubject: form.tradingSubject, maintenancePrice: form.maintenancePrice || null, term: { ...term, downloadTtlSeconds: form.downloadTtlSeconds }, applications: [{ applicationId: form.applicationId, applicationSubject: form.applicationSubject, allowedPlatforms: form.platforms, brand: { name: form.brandName, themeColor: form.themeColor }, templateId: form.templateId, ...(form.mode === "BRAND" ? { stationId: form.stationId } : {}) }], modules: form.modules, resources, circleLimit: form.circleLimit, ...(form.mode === "LEASE" ? { deployment: { spaceKey: form.spaceKey, databaseName: form.databaseName, databaseRole: form.databaseRole, credentialRef: form.credentialRef, authKeyFingerprint: form.authKeyFingerprint } } : {}), reason: form.reason });
+    await managedTenancyApi.create({ requestKey: form.requestKey, name: form.name, mode: form.mode, tradingSubject: form.tradingSubject, maintenancePrice: form.maintenancePrice || null, term: { ...term, downloadTtlSeconds: form.downloadTtlSeconds }, applications: [{ applicationId: form.applicationId, applicationSubject: form.applicationSubject, allowedPlatforms: form.platforms, brand: { name: form.brandName, themeColor: form.themeColor }, templateId: form.templateId, ...(form.mode === "BRAND" ? { stationId: form.stationId } : {}) }], modules: form.modules, resources, circleLimit: form.circleLimit, creationLimits:configuredLimits(form.creationLimits), ...(form.mode === "LEASE" ? { deployment: { spaceKey: form.spaceKey, databaseName: form.databaseName, databaseRole: form.databaseRole, credentialRef: form.credentialRef, authKeyFingerprint: form.authKeyFingerprint } } : {}), reason: form.reason });
     ElMessage.success("合同配置已保存，应用仍需登记与验证"); creating.value = false; await load();
   } catch (e) { formError.value = message(e); } finally { saving.value = false; }
 }
@@ -143,6 +158,8 @@ async function inspect(id: string) { try {
   pendingBrandOrders.value = [];
   const row = selected.value; Object.assign(renewal, { remindAt: row.remindAt, endAt: row.endAt, exportUntil: row.exportUntil, downloadTtlSeconds: row.downloadTtlSeconds, reason: "" });
   grantForm.modules = [...row.grant.modules]; grantForm.circleLimit = row.grant.circleLimit; grantForm.reason = "";
+  grantForm.creationLimits={...row.grant.creationLimits};
+  Object.keys(cutoverForm).forEach(key=>{cutoverForm[key as keyof typeof cutoverForm]="";});
   for (const kind of resourceKinds) grantForm.resources[kind.id] = (row.grant.resources[kind.id] || []).join(", ");
   Object.assign(member, { userId: "", identityProvider: "LOCAL", role: "USER", enabled: true, reason: "" });
 } catch (e) { ElMessage.error(message(e)); } }
@@ -171,11 +188,12 @@ async function reconcileBrandOrder(requestId: string) {
     await loadPendingBrandOrders();
   } catch (e) { if (e !== "cancel" && e !== "close") ElMessage.error(message(e)); } finally { maintaining.value = false; }
 }
-async function saveGrant() { await maintain(row => managedTenancyApi.grant(row.id, { modules: grantForm.modules, resources: Object.fromEntries(resourceKinds.map(kind => [kind.id, grantForm.resources[kind.id].split(/[,，]/).map(id => id.trim()).filter(Boolean)])), circleLimit: grantForm.circleLimit, expectedRevision: row.revision, reason: grantForm.reason })); }
+async function saveGrant() { await maintain(row => managedTenancyApi.grant(row.id, { modules: grantForm.modules, resources: Object.fromEntries(resourceKinds.map(kind => [kind.id, grantForm.resources[kind.id].split(/[,，]/).map(id => id.trim()).filter(Boolean)])), circleLimit: grantForm.circleLimit, creationLimits:configuredLimits(grantForm.creationLimits), expectedRevision: row.revision, reason: grantForm.reason })); }
 async function verifyDeployment() {
   try { const result = await ElMessageBox.prompt("填写本次实例身份核验依据；服务器只读取预先配置的受限凭据引用", "核验实例", { inputValidator: value => value.trim().length >= 2 || "请填写核验依据" }); await maintain(row => managedTenancyApi.verify(row.id, row.revision, result.value)); }
   catch (e) { if (e !== "cancel" && e !== "close") ElMessage.error(message(e)); }
 }
+async function cutoverDeployment(){await maintain(row=>{const {backupSha256,reason,...deployment}=cutoverForm;return managedTenancyApi.cutover(row.id,{expectedRevision:row.revision,deployment,backupSha256,reason});});}
 async function enable(id: string) { try { const result = await ElMessageBox.prompt("填写公共登记和实例验证依据", "启用应用", { inputValidator: value => value.trim().length >= 2 || "请填写核验依据" }); await managedTenancyApi.enable(id, result.value); if (selected.value) await inspect(selected.value.id); await load(); } catch (e) { if (e !== "cancel" && e !== "close") ElMessage.error(message(e)); } }
 async function disable(id: string) { try { const result = await ElMessageBox.prompt("填写暂停依据；保留数据库、订单与审计，不删除任何客户资料", "暂停应用", { inputValidator: value => value.trim().length >= 2 || "请填写暂停依据" }); await managedTenancyApi.disable(id, result.value); if (selected.value) await inspect(selected.value.id); await load(); } catch (e) { if (e !== "cancel" && e !== "close") ElMessage.error(message(e)); } }
 onMounted(load);

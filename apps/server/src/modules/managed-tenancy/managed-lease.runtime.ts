@@ -12,13 +12,15 @@ import { versionScope } from "../system/distribution.util";
 import { managedPresentation } from "./managed-presentation";
 import { managedLeasePermissions } from "./managed-lease-permissions";
 import { ManagedLeaseIdentityService, LocalPrincipal } from "./managed-lease-identity";
-import { createPagedLeaseExport } from "./managed-lease-export";
+import { createPagedLeaseExport,managedExportCollections } from "./managed-lease-export";
 import { ManagedLeaseLearningService } from "./managed-lease-learning";
 import { ManagedLeaseContentService, ManagedContentKind, contentId, managedAssetPath } from "./managed-lease-content";
 import { ManagedLeaseCircleService } from "./managed-lease-circle";
 import { verifyManagedOrderPolicies } from "./managed-order-policy";
 import { ManagedLeaseCommerceService } from "./managed-lease-commerce";
 import { ManagedLeaseChatService,ManagedChatProvider,ManagedChatScope } from "./managed-lease-chat";
+import {ManagedCreationLimits} from "./managed-policy";
+import {verifyManagedWriteFence} from "./managed-write-fence";
 
 export type ManagedLeaseContext = Readonly<{ userId: string; role: string; applicationId: string; clientKey: string; revision: number; memberRevision: number; identityProvider: "PLATFORM" | "LOCAL"; credentialRevision?: number }>;
 type Context = ManagedLeaseContext;
@@ -26,9 +28,9 @@ const moduleFor = { product: "shop", course: "course", circle: "circle", agent: 
 export type ManagedResourceKind = keyof typeof moduleFor;
 
 /** 维护验证与启动均先核对实际连接身份，不能把连接成功当作身份正确。 */
-export async function verifyManagedDatabase(control: PrismaClient, business: PrismaClient, customerId: string, credentials: ManagedCredential) {
+export async function verifyManagedDatabase(control: PrismaClient, business: PrismaClient, customerId: string, credentials: ManagedCredential,maintenance?:{binding?:{databaseName:string;databaseRole:string;spaceKey:string;authKeyFingerprint:string};fenceState?:"ACTIVE"|"FROZEN"}) {
   const customer = await control.managedCustomer.findUnique({ where: { id: customerId }, include: { deployment: true, grant: true } });
-  const deployment = customer?.deployment;
+  const deployment = maintenance?.binding||customer?.deployment;
   if (!customer || customer.mode !== "LEASE" || !deployment || !customer.grant) throw new ForbiddenException("独立客户部署未配置");
   const url = new URL(credentials.databaseUrl);
   if (decodeURIComponent(url.pathname.slice(1)) !== deployment.databaseName || decodeURIComponent(url.username) !== deployment.databaseRole || url.hostname !== credentials.host || Number(url.port || 5432) !== credentials.port || createHash("sha256").update(credentials.authKey).digest("hex") !== deployment.authKeyFingerprint) throw new ForbiddenException("固定实例配置与客户部署身份不一致");
@@ -48,6 +50,7 @@ export async function verifyManagedDatabase(control: PrismaClient, business: Pri
         AND NOT(coalesce(rules -> c.relname -> operation.name,'[]'::jsonb) ? '*' OR coalesce(rules -> c.relname -> operation.name,'[]'::jsonb) ? a.attname)) excessive`;
   if (permission[0]?.excessive !== false) throw new ForbiddenException("客户数据库账号超出已挂载业务所需权限");
   await verifyManagedOrderPolicies(business);
+  await verifyManagedWriteFence(business,{customerId,spaceKey:deployment.spaceKey,databaseRole:deployment.databaseRole,authKeyFingerprint:deployment.authKeyFingerprint},maintenance?.fenceState);
   return customer;
 }
 
@@ -78,6 +81,10 @@ export class ManagedLeaseRuntime {
     if (!registration || !application?.enabled || application.customerId !== this.customerId || !application.allowedPlatforms.includes(registration.platform)) throw new UnauthorizedException("应用不属于当前实例或已停用");
     return { registration, application };
   }
+  async bootstrap(clientKey:string){
+    const customer=await this.current(),{application,registration}=await this.application(clientKey);
+    return {mode:"LEASE",applicationId:application.applicationId,platform:registration.platform,applicationSubject:application.applicationSubject,tradingSubject:customer.tradingSubject,brand:application.brand,templateId:application.templateId,operatingStatus:operatingStatus(customer),modules:customer.grant!.modules};
+  }
   /** 仅由平台已验证的登录身份调用；不暴露无身份签发、代他人签发或平台角色继承。 */
   async issueSession(userId: string, clientKey: string) {
     const customer = await this.current();
@@ -100,7 +107,8 @@ export class ManagedLeaseRuntime {
     const customer = await this.current();
     const { application } = await this.application(clientKey);
     if (Date.now() >= customer.endAt.getTime()) throw new ForbiddenException("合同已到期，暂停新增注册");
-    const principal = await this.identities.register(value, clientKey, source);
+    const limits=customer.grant!.creationLimits as ManagedCreationLimits;
+    const principal = await this.identities.register(value, clientKey, source,{userLimit:limits.users,reauthorize:async()=>{const latest=await this.current();await this.application(clientKey);if(latest.revision!==customer.revision||Date.now()>=latest.endAt.getTime())throw new ForbiddenException("注册期间合同或应用授权已变化");}});
     const session = await this.localSession(principal, clientKey);
     return { ...session, ...await this.identities.createRefresh(principal, application.applicationId, clientKey) };
   }
@@ -180,7 +188,7 @@ export class ManagedLeaseRuntime {
     const { application, registration } = await this.application(context.clientKey);
     return managedPresentation(this.control as PrismaService, versionScope(registration), context.userId, customer.grant!, application.templateId, Date.now() < customer.endAt.getTime(), build, capabilities, resource);
   }
-  private content(context: Context) { return new ManagedLeaseContentService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId}); }
+  private content(context: Context,limits:unknown={}) { return new ManagedLeaseContentService(this.business,{customerId:this.customerId,applicationId:context.applicationId,userId:context.userId},limits as ManagedCreationLimits); }
   private async resourceIds(context: Context, kind: ManagedResourceKind, resources: unknown) {
     const granted=(resources as Record<string,string[]>)[kind]||[];
     return [...new Set([...granted,...await this.content(context).ownedIds(kind)])];
@@ -194,7 +202,7 @@ export class ManagedLeaseRuntime {
     await this.contentAdmin(context,kind,false);return this.content(context).list(kind,cursor);
   }
   async uploadAsset(context: Context, body: unknown) {
-    await this.contentAdmin(context);return this.content(context).uploadAsset(body,()=>this.contentAdmin(context));
+    const customer=await this.contentAdmin(context);return this.content(context,customer.grant!.creationLimits).uploadAsset(body,()=>this.contentAdmin(context));
   }
   async asset(context: Context, id: string) {
     contentId(id);const customer=await this.authorize(context,undefined,false);
@@ -211,7 +219,7 @@ export class ManagedLeaseRuntime {
     return row;
   }
   async manageCreate(context: Context, kind: ManagedContentKind, body: unknown) {
-    const customer=await this.contentAdmin(context,kind),service=this.content(context),reauth=()=>this.contentAdmin(context,kind);
+    const customer=await this.contentAdmin(context,kind),service=this.content(context,customer.grant!.creationLimits),reauth=()=>this.contentAdmin(context,kind);
     if(kind==="product")return service.createProduct(body,reauth);
     if(kind==="course")return service.createCourse(body,reauth);
     if(kind==="agent")return service.createAgent(body,reauth,await this.resourceIds(context,"circle",customer.grant!.resources));
@@ -238,15 +246,25 @@ export class ManagedLeaseRuntime {
   async manageSaveChapter(context: Context, id: string, body: unknown) {
     await this.contentAdmin(context,"course");return this.content(context).saveChapter(id,body,()=>this.contentAdmin(context,"course"));
   }
-  async resources(context: Context, kind: ManagedResourceKind, query = "") {
+  private async resourceRows(context: Context, kind: ManagedResourceKind, query: string,cursor:string,take:number) {
     check(Object.hasOwn(moduleFor, kind) && typeof query === "string" && query.length <= 120, "资源类型或搜索无效");
     const customer = await this.authorize(context, moduleFor[kind]);
     const ids = await this.resourceIds(context,kind,customer.grant!.resources);
     const title = query ? { contains: query, mode: "insensitive" as const } : undefined;
-    if (kind === "product") return this.business.product.findMany({ where: { id: { in: ids }, deletedAt: null, status: "ON_SALE", title }, select: { id: true, title: true, intro: true, price: true,images:true }, take: 200 });
-    if (kind === "course") return this.business.course.findMany({ where: { id: { in: ids }, deletedAt: null, auditStatus: "APPROVED", title }, select: { id: true, title: true, intro: true, price: true,cover:true }, take: 200 });
-    if (kind === "agent") return this.business.voiceAgentProfile.findMany({ where: { id: { in: ids }, status: "APPROVED", activeVersion: { not: null }, name: title }, select: { id: true, name: true, ownerType: true, ownerId: true, activeVersion: true }, take: 200 });
-    return this.business.circle.findMany({ where: { id: { in: ids }, deletedAt: null, name: title }, select: { id: true, name: true, intro: true, status: true }, take: 200 });
+    check(!cursor||/^[a-zA-Z0-9_-]{1,128}$/.test(cursor),"目录分页无效");
+    const id={in:ids,...(cursor?{gt:cursor}:{})},orderBy={id:"asc" as const};
+    let rows;
+    if (kind === "product") rows = await this.business.product.findMany({ where: { id, deletedAt: null, status: "ON_SALE", title }, select: { id: true, title: true, intro: true, detail:true, price: true,images:true }, take,orderBy });
+    else if (kind === "course") rows = await this.business.course.findMany({ where: { id, deletedAt: null, auditStatus: "APPROVED", title }, select: { id: true, title: true, intro: true, price: true,cover:true,validityDays:true }, take,orderBy });
+    else if (kind === "agent") rows = await this.business.voiceAgentProfile.findMany({ where: { id, status: "APPROVED", activeVersion: { not: null }, name: title }, select: { id: true, name: true, ownerType: true, ownerId: true, activeVersion: true }, take,orderBy });
+    else rows = await this.business.circle.findMany({ where: { id, deletedAt: null, status:"ACTIVE", name: title }, select: { id: true, name: true, intro: true, status: true }, take,orderBy });
+    return rows;
+  }
+  async resources(context: Context, kind: ManagedResourceKind, query=""){
+    const rows=await this.resourceRows(context,kind,query,"",1001);check(rows.length<=1000,"旧目录协议超过容量，请使用分页目录，不能截断授权");return rows;
+  }
+  async resourcesPage(context:Context,kind:ManagedResourceKind,query="",cursor=""){
+    const rows=await this.resourceRows(context,kind,query,cursor,51);return {items:rows.slice(0,50),nextCursor:rows.length>50?rows[49].id:null};
   }
   private async learningScope(context: Context) {
     const customer = await this.authorize(context, "course");
@@ -412,17 +430,19 @@ export class ManagedLeaseRuntime {
   async downloadExportPage(context: Context, id: string, collection: string, pageValue: string, downloadToken: string) {
     const customer = await this.authorize(context, undefined, false);
     if (context.role !== "CUSTOMER_ADMIN" || Date.now() >= customer.exportUntil.getTime()) throw new ForbiddenException("导出授权已结束");
-    check(typeof pageValue === "string" && /^(0|[1-9][0-9]{0,3})$/.test(pageValue) && ["users", "products", "courses", "chapters", "progress", "circles", "orders", "knowledge", "aftercare"].includes(collection) && typeof downloadToken === "string" && /^[a-zA-Z0-9_-]{43}$/.test(downloadToken), "导出分页或下载授权无效");
+    check(typeof pageValue === "string" && /^(0|[1-9][0-9]{0,5})$/.test(pageValue) && managedExportCollections.includes(collection) && typeof downloadToken === "string" && /^[a-zA-Z0-9_-]{43}$/.test(downloadToken), "导出分页或下载授权无效");
     return this.business.$transaction(async tx => {
-      const row = await tx.managedLeaseExport.findFirst({ where: { id, customerId: this.customerId, userId: context.userId, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
+      const row = await tx.managedLeaseExport.findFirst({ where: { id, customerId: this.customerId, userId: context.userId, expiresAt: { gt: new Date() } }, select: { tokenHash: true,manifest:true,expiresAt:true } });
       const hash = createHash("sha256").update(downloadToken).digest("hex");
-      if (!row || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
+      if (!row || (row.manifest as Prisma.JsonObject).applicationId!==context.applicationId || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
       const chunk = await tx.managedLeaseExportPage.findUnique({ where: { exportId_collection_page: { exportId: id, collection, page: Number(pageValue) } }, select: { payload: true, sha256: true } });
       if (!chunk) throw new NotFoundException("导出分页不存在");
-      await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
-      await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT_PAGE", entityId: `${id}:${collection}:${pageValue}` } });
-      await this.authorize(context, undefined, false);
-      return { collection, page: Number(pageValue), ...chunk };
+      const frozen=(await tx.managedLeaseWriteFence.findUnique({where:{customerId:this.customerId}}))?.state==="FROZEN";
+      if(!frozen){await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
+      await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT_PAGE", entityId: `${id}:${collection}:${pageValue}` } });}
+      const latest=await this.authorize(context, undefined, false);
+      if(Date.now()>=latest.exportUntil.getTime()||Date.now()>=row.expiresAt.getTime())throw new ForbiddenException("读取期间导出授权已结束");
+      return { collection, page: Number(pageValue), ...chunk,...(frozen?{maintenanceReadOnly:true,auditRecorded:false}:{}) };
     });
   }
   async downloadExport(context: Context, id: string, downloadToken: string) {
@@ -432,11 +452,13 @@ export class ManagedLeaseRuntime {
     return this.business.$transaction(async tx => {
       const row = await tx.managedLeaseExport.findFirst({ where: { id, customerId: this.customerId, userId: context.userId, expiresAt: { gt: new Date() } } });
       const hash = createHash("sha256").update(downloadToken).digest("hex");
-      if (!row || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
-      await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
-      await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT", entityId: row.id } });
-      await this.authorize(context, undefined, false);
-      return row.manifest;
+      if (!row || (row.manifest as Prisma.JsonObject).applicationId!==context.applicationId || !timingSafeEqual(Buffer.from(hash), Buffer.from(row.tokenHash))) throw new NotFoundException("导出不存在、已过期或下载授权无效");
+      const frozen=(await tx.managedLeaseWriteFence.findUnique({where:{customerId:this.customerId}}))?.state==="FROZEN";
+      if(!frozen){await tx.managedLeaseExport.update({ where: { id }, data: { downloadedAt: new Date() } });
+      await tx.managedLeaseAudit.create({ data: { customerId: this.customerId, userId: context.userId, action: "DOWNLOAD_EXPORT", entityId: row.id } });}
+      const latest=await this.authorize(context, undefined, false);
+      if(Date.now()>=latest.exportUntil.getTime()||Date.now()>=row.expiresAt.getTime())throw new ForbiddenException("读取期间导出授权已结束");
+      return frozen?{...(row.manifest as Prisma.JsonObject),maintenanceReadOnly:true,auditRecorded:false}:row.manifest;
     });
   }
 }
