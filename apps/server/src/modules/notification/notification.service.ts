@@ -44,6 +44,11 @@ export class NotificationService {
     return notification;
   }
 
+  /** 内部业务已在事务中建立站内通知后，只尝试可选推送，不再次写通知。 */
+  async pushStoredNotification(userId: string, dto: SendNotificationDto): Promise<void> {
+    await this.pushPersistedNotification(userId, dto);
+  }
+
   /** 只有站内通知成功持久化，业务调用方才可确认通知已建立。 */
   private async persistNotification(userId: string, dto: SendNotificationDto) {
     // 分类与正文在同一次INSERT写入，避免通知成功后补写失败或批量串标。

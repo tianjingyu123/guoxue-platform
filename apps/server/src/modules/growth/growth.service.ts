@@ -1,7 +1,11 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { enqueueCircleMembershipCache, clearCircleMembershipCaches } from "../circle/services/circle-membership-cache.task";
 import { NotificationService } from "../notification/notification.service";
+import { SendNotificationDto } from "../notification/notification.dto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import {
@@ -31,6 +35,7 @@ export class GrowthService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly notification?: NotificationService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   // ── 工具 ──────────────────────────────────────────
@@ -60,13 +65,13 @@ export class GrowthService {
    * 圈主恒通过；其余角色按 CircleGovernanceConfig.rolePermissions 的 member.approve
    * 覆盖位判断，缺省回落默认矩阵（管理员✓ 合伙人✗ 嘉宾✗·可由圈主在矩阵中调整）。
    */
-  private async ensureCircleAdmin(circleId: string, userId: string) {
-    const member = await this.prisma.circleMember.findUnique({
+  private async ensureCircleAdmin(circleId: string, userId: string, db: Prisma.TransactionClient = this.prisma) {
+    const member = await db.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主或被授权的管理角色可操作");
     if (member.role === "OWNER") return;
-    const config = await this.prisma.circleGovernanceConfig.findUnique({
+    const config = await db.circleGovernanceConfig.findUnique({
       where: { circleId },
       select: { rolePermissions: true },
     });
@@ -389,76 +394,98 @@ export class GrowthService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");
     }
 
-    // 通过前置校验（治理·2026-07-11）：放在状态流转之前，校验不过时申请仍保持 PENDING 可再审
-    if (action === "approve") {
-      // ① 禁入拦截（#10 旁路补全）：被移出且禁入（REMOVE ACTIVE）者不能经审批绕回
-      const ban = await this.prisma.circleViolation.findFirst({
-        where: { circleId, userId: req.userId, type: "REMOVE", status: "ACTIVE" },
-        select: { id: true },
-      });
-      if (ban) {
-        throw new BusinessException(ErrorCode.FORBIDDEN, "该用户已被移出圈子且被限制重新加入，不能通过申请（可先在治理记录中解除禁入）");
-      }
-      // ② requireRuleAck 强制（TODO#5）：申请后圈主才开启确认/新增圈规的边缘情况——建成员前仍须已确认
-      const cfg = await this.prisma.circleGovernanceConfig.findUnique({
-        where: { circleId },
-        select: { requireRuleAck: true },
-      });
-      const requireAck = cfg ? cfg.requireRuleAck : DEFAULT_GOVERNANCE_CONFIG.requireRuleAck;
-      if (requireAck) {
-        const ruleCount = await this.prisma.circleRule.count({ where: { circleId } });
-        if (ruleCount > 0) {
-          const ack = await this.prisma.circleRuleAck.findUnique({
-            where: { circleId_userId: { circleId, userId: req.userId } },
-            select: { id: true },
-          });
-          if (!ack) {
-            throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "RULE_ACK_REQUIRED：该成员尚未确认圈规，请其在圈规确认页确认后再审批");
+    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
+    const reason = rejectReason?.trim() || null;
+    const committed = await this.prisma.$transaction(async (tx) => {
+      // 与普通入圈、移出和到期清理统一先锁圈子，再核对成员权限和写身份。
+      await tx.$queryRaw`SELECT id FROM "Circle" WHERE id=${circleId} FOR NO KEY UPDATE`;
+      // 名单读取后权限可能变化，提交前复核既有权限矩阵；不扩大审批权限。
+      await this.ensureCircleAdmin(circleId, operatorId, tx);
+      // 治理校验仍在状态流转之前；失败保留待审，并与后续写入使用同一事务。
+      if (action === "approve") {
+        // 账号状态在成员落库前保持稳定；与注销统一 Circle→User→Member。
+        await tx.$queryRaw`SELECT id FROM "User" WHERE id=${req.userId} FOR SHARE`;
+        const applicant = await tx.user.findUnique({ where: { id: req.userId }, select: { status: true } });
+        if (!applicant || applicant.status === "DISABLED") {
+          throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "申请人账号已禁用，不能审批入圈");
+        }
+        // ① 禁入拦截（#10 旁路补全）：被移出且禁入（REMOVE ACTIVE）者不能经审批绕回
+        const ban = await tx.circleViolation.findFirst({
+          where: { circleId, userId: req.userId, type: "REMOVE", status: "ACTIVE" },
+          select: { id: true },
+        });
+        if (ban) {
+          throw new BusinessException(ErrorCode.FORBIDDEN, "该用户已被移出圈子且被限制重新加入，不能通过申请（可先在治理记录中解除禁入）");
+        }
+        // ② requireRuleAck 强制（TODO#5）：申请后圈主才开启确认/新增圈规的边缘情况——建成员前仍须已确认
+        const cfg = await tx.circleGovernanceConfig.findUnique({
+          where: { circleId },
+          select: { requireRuleAck: true },
+        });
+        const requireAck = cfg ? cfg.requireRuleAck : DEFAULT_GOVERNANCE_CONFIG.requireRuleAck;
+        if (requireAck) {
+          const ruleCount = await tx.circleRule.count({ where: { circleId } });
+          if (ruleCount > 0) {
+            const ack = await tx.circleRuleAck.findUnique({
+              where: { circleId_userId: { circleId, userId: req.userId } },
+              select: { id: true },
+            });
+            if (!ack) {
+              throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "RULE_ACK_REQUIRED：该成员尚未确认圈规，请其在圈规确认页确认后再审批");
+            }
           }
         }
       }
-    }
 
-    const newStatus = action === "approve" ? "APPROVED" : "REJECTED";
-    // 状态流转加 PENDING 条件，防并发重复审批
-    const updated = await this.prisma.$executeRawUnsafe(
-      `UPDATE "CircleJoinRequest"
-       SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP, "rejectReason"=$5
-       WHERE id=$1 AND "circleId"=$2 AND "status"='PENDING'`,
-      reqId, circleId, newStatus, operatorId, action === "reject" ? (rejectReason?.trim() || null) : null,
-    );
-    if (updated === 0) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");
-    }
-
-    // 通过则加入成员（幂等：已是成员则跳过）
-    if (action === "approve") {
-      const exist = await this.prisma.circleMember.findUnique({
-        where: { circleId_userId: { circleId, userId: req.userId } },
-      });
-      if (!exist) {
-        await this.prisma.$transaction([
-          this.prisma.circleMember.create({ data: { circleId, userId: req.userId } }),
-          this.prisma.circle.update({ where: { id: circleId }, data: { memberCount: { increment: 1 } } }),
-        ]);
+      // 竞争待审状态及原收件人，旧请求不能审批被改派的新身份。
+      const updated = await tx.$executeRawUnsafe(
+        `UPDATE "CircleJoinRequest"
+         SET "status"=$3, "reviewedBy"=$4, "reviewedAt"=CURRENT_TIMESTAMP, "rejectReason"=$5
+         WHERE id=$1 AND "circleId"=$2 AND "status"='PENDING' AND "userId"=$6`,
+        reqId, circleId, newStatus, operatorId, action === "reject" ? reason : null, req.userId,
+      );
+      if (updated === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理，请勿重复审批");
       }
-    }
 
-    // 审批结果通知申请人（圈内通知中心·圈务 GOVERN·fire-and-forget 不阻断审批）
-    if (this.notification) {
-      const circle = await this.prisma.circle.findUnique({ where: { id: circleId }, select: { name: true } });
+      // 实际插入量决定人数增量，兼容另一份申请或其它入圈入口同时建成员。
+      if (action === "approve") {
+        const inserted = await tx.circleMember.createMany({
+          data: [{ circleId, userId: req.userId }], skipDuplicates: true,
+        });
+        if (inserted.count > 0) {
+          await tx.circle.update({ where: { id: circleId }, data: { memberCount: { increment: inserted.count } } });
+          await enqueueCircleMembershipCache(tx, circleId, req.userId);
+        }
+      }
+
+      // 申请裁决、成员、人数与站内结果共同提交，通知失败可重试原审批。
+      const circle = await tx.circle.findUnique({ where: { id: circleId }, select: { name: true } });
       const circleName = circle?.name ?? "圈子";
-      this.notification.send(req.userId, {
+      const payload: SendNotificationDto = {
         type: "CIRCLE_JOIN_REVIEW",
         title: action === "approve" ? "入圈申请已通过" : "入圈申请未通过",
         content: action === "approve"
           ? `你申请加入的「${circleName}」已通过审核，欢迎入圈`
-          : `你申请加入的「${circleName}」未通过审核${rejectReason?.trim() ? `：${rejectReason.trim()}` : ""}`,
+          : `你申请加入的「${circleName}」未通过审核${reason ? `：${reason}` : ""}`,
         targetType: "CIRCLE",
         targetId: circleId,
         category: "GOVERN",
         circleId,
-      }).catch((err) => this.logger.warn(`入圈审批通知发送失败 req=${reqId}`, err));
+      };
+      const stored = await tx.notification.createMany({
+        data: [{ userId: req.userId, ...payload, idempotencyKey: `${req.userId}:CIRCLE_JOIN_REVIEW:${reqId}` }],
+        skipDuplicates: true,
+      });
+      return { payload, push: stored.count > 0 };
+    });
+    if (action === "approve" && this.redis) {
+      try { await clearCircleMembershipCaches(this.prisma, this.redis, { circleId, userId: req.userId }); }
+      catch { this.logger.warn("审批入圈缓存暂未恢复，已保留待办"); }
+    }
+    if (committed.push) {
+      void this.notification?.pushStoredNotification(req.userId, committed.payload)
+        .catch(() => this.logger.warn("入圈审批与站内通知已提交，但可选推送失败"));
     }
 
     return { success: true, action, status: newStatus };

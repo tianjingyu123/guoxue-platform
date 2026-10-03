@@ -79,6 +79,23 @@ describe("NotificationService", () => {
     });
   });
 
+  describe("pushStoredNotification", () => {
+    it("业务事务已建立的通知只尝试推送，不再次INSERT", async () => {
+      mockRedis.getJson.mockResolvedValueOnce({ PUSH_ENABLED: false });
+      await svc.pushStoredNotification("u1", { type: "CIRCLE_GOVERNANCE", title: "合成治理", content: "已提交" });
+      expect(mockPrisma.notification.create).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+      expect(mockPush.send).not.toHaveBeenCalled();
+    });
+
+    it("推送偏好查询失败仍不再次写通知或向业务抛错", async () => {
+      mockRedis.getJson.mockRejectedValueOnce(new Error("合成偏好故障"));
+      await expect(svc.pushStoredNotification("u1", { type: "CIRCLE_GOVERNANCE", title: "合成治理", content: "已提交" })).resolves.toBeUndefined();
+      expect(mockPrisma.notification.create).not.toHaveBeenCalled();
+      expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("send", () => {
     it("发送单条通知成功", async () => {
       mockPrisma.notification.create.mockResolvedValue({

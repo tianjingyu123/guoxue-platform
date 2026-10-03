@@ -52,7 +52,7 @@ const mockPrisma = {
   virtualCoinAccount: { findUnique: jest.fn() },
   userPoints: { findUnique: jest.fn() },
   userCoupon: { count: jest.fn() },
-  circleMember: { count: jest.fn(), deleteMany: jest.fn() },
+  circleMember: { count: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
   courseProgress: { findMany: jest.fn() },
   deviceFingerprint: { findMany: jest.fn() },
   userInterest: { groupBy: jest.fn() },

@@ -11,6 +11,7 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
 import { PushAudienceService } from "./push-audience.service";
+import { enqueueCircleMembershipCache, clearCircleMembershipCaches } from "../circle/services/circle-membership-cache.task";
 
 type RateLimitWhitelistEntry = {
   userId: string;
@@ -940,7 +941,22 @@ export class UserService {
 
     const anonymizedPhone = `deleted_${userId.slice(0, 8)}`;
 
-    await this.prisma.$transaction(async (tx) => {
+    const changedCircles = await this.prisma.$transaction(async (tx) => {
+      // 先按固定顺序锁当前圈子，避免多圈注销与其它成员变更反向等待。
+      const membershipSnapshot = await tx.circleMember.findMany({ where: { userId }, select: { circleId: true } });
+      const circleIds = [...new Set(membershipSnapshot.map(m => m.circleId))].sort();
+      for (const circleId of circleIds) {
+        await tx.$queryRaw`SELECT id FROM "Circle" WHERE id=${circleId} FOR NO KEY UPDATE`;
+      }
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id=${userId} FOR UPDATE`;
+      const current = await tx.user.findUnique({ where: { id: userId }, select: { status: true, deleteRequestedAt: true } });
+      if (!current) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+      if (current.status === "DISABLED") return [];
+      if (!current.deleteRequestedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "用户未申请注销");
+      const memberships = await tx.circleMember.findMany({ where: { userId }, select: { id: true, circleId: true } });
+      if (memberships.some(m => !circleIds.includes(m.circleId))) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子成员关系已变化，请重试注销");
+      }
       // 1. 匿名化个人信息
       await tx.user.update({
         where: { id: userId },
@@ -966,7 +982,16 @@ export class UserService {
       await tx.bookmark.deleteMany({ where: { userId } });
 
       // 3. 退出所有圈子
-      await tx.circleMember.deleteMany({ where: { userId } });
+      const changed: string[] = [];
+      for (const circleId of circleIds) {
+        const ids = memberships.filter(m => m.circleId === circleId).map(m => m.id);
+        const removed = await tx.circleMember.deleteMany({ where: { userId, circleId, id: { in: ids } } });
+        if (removed.count === 0) continue;
+        const counted = await tx.circle.updateMany({ where: { id: circleId, memberCount: { gte: removed.count } }, data: { memberCount: { decrement: removed.count } } });
+        if (counted.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子人数不一致，请核对后重试注销");
+        await enqueueCircleMembershipCache(tx, circleId, userId);
+        changed.push(circleId);
+      }
 
       // 4. 记录审计日志
       await tx.auditLog.create({
@@ -978,7 +1003,13 @@ export class UserService {
           detail: `用户账号已注销，数据已匿名化`,
         },
       });
+      return changed;
     });
+
+    for (const circleId of changedCircles) {
+      try { await clearCircleMembershipCaches(this.prisma, this.redis, { circleId, userId }); }
+      catch { this.logger.warn("注销后的圈子缓存暂未恢复，已保留待办"); }
+    }
 
     this.logger.log(`用户 ${userId} 账号已注销并匿名化`);
     return { message: "账号已注销，数据已匿名化处理" };
