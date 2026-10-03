@@ -64,20 +64,22 @@ async function verify() {
     await p.$executeRawUnsafe('DROP TRIGGER IF EXISTS "' + name + '" ON "' + table + '"');
     await p.$executeRawUnsafe('DROP FUNCTION IF EXISTS "' + name + '"()');
   };
-  const trigger = async (name, table, condition) => {
+  const trigger = async (name, table, condition, action = "INSERT") => {
+    assert(["INSERT", "UPDATE"].includes(action));
     await p.$executeRawUnsafe('CREATE FUNCTION "' + name + '"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF ' + condition + ' THEN RAISE EXCEPTION \'isolated transaction failure\'; END IF; RETURN NEW; END $$');
-    await p.$executeRawUnsafe('CREATE TRIGGER "' + name + '" AFTER INSERT ON "' + table + '" FOR EACH ROW EXECUTE FUNCTION "' + name + '"()');
+    await p.$executeRawUnsafe('CREATE TRIGGER "' + name + '" AFTER ' + action + ' ON "' + table + '" FOR EACH ROW EXECUTE FUNCTION "' + name + '"()');
   };
   const rollbackId = "linux-pay-rollback";
   const notifyId = "linux-pay-notify-fail";
   const statusId = "linux-refund-status";
+  const completionId = "linux-refund-after-sale-final";
   try {
     // 不配置任何外部投递订阅；站内通知真实落库，推送偏好由 Redis 明确关闭。
     const { RedisService } = require("/app/apps/server/dist/redis/redis.service");
     const redis = new RedisService();
     try { await redis.pingShared(); await redis.setJson("notification:prefs:linux-user-a", { PUSH_ENABLED: false }, 600); }
     finally { await redis.onModuleDestroy(); }
-    for (const id of [rollbackId, notifyId, statusId]) {
+    for (const id of [rollbackId, notifyId, statusId, completionId]) {
       await p.course.create({ data: { id: "linux-http-course-" + id, userId: "linux-user-b", title: "隔离回调课程" } });
       await p.order.create({ data: {
       id, userId: "linux-user-a", type: "COURSE", targetId: "linux-http-course-" + id, amount: 1,
@@ -137,6 +139,23 @@ async function verify() {
       assert.equal(await notifications(statusId, "ORDER_REFUNDED"), 0);
     }
     assert.equal(await p.notification.count({ where: { targetId: statusId, title: "退款未完成" } }), 3);
+    // 正式签名 HTTP 入口：订单已退款但售后收口写失败时，不能提前发送完成提示。
+    await send("pay-before-refund-final-completion", "pay", payment(completionId), 200);
+    const afterSale = await p.afterSale.create({ data: { orderId: completionId, userId: "linux-user-a",
+      type: "refund_only", reason: "合成退款收口验证", status: "PROCESSING", amount: 1 } });
+    await trigger("isolated_refund_after_sale_failure", "AfterSale",
+      'NEW."orderId" = \'linux-refund-after-sale-final\' AND NEW."status" = \'COMPLETED\'', "UPDATE");
+    await send("refund-after-sale-final-write-failure", "refund", refund(completionId), 500);
+    assert.equal((await order(completionId)).status, "REFUNDED");
+    assert.equal(await ledgers(completionId, "REVOKE"), 1);
+    assert.equal((await p.afterSale.findUnique({ where: { id: afterSale.id } })).status, "PROCESSING");
+    assert.equal(await notifications(completionId, "ORDER_REFUNDED"), 0);
+    await drop("isolated_refund_after_sale_failure", "AfterSale");
+    await send("refund-after-sale-final-write-retry", "refund", refund(completionId), 200);
+    await send("refund-after-sale-final-duplicate", "refund", refund(completionId), 200);
+    assert.equal((await p.afterSale.findUnique({ where: { id: afterSale.id } })).status, "COMPLETED");
+    assert.equal(await ledgers(completionId, "REVOKE"), 1);
+    assert.equal(await notifications(completionId, "ORDER_REFUNDED"), 1);
     // 由独立验证分支挂载的 preload 控制偏好等待；业务产物中没有调试入口。
     const { RedisService: LatchRedis } = require("/app/apps/server/dist/redis/redis.service");
     const latch = new LatchRedis();
@@ -183,9 +202,10 @@ async function verify() {
       notificationFailureDoesNotRollbackPaymentOrRefund: true, callbackRetriesRestoreOneNotification: true,
       paymentAndRefundDuplicateLedgerCounts: 1, nonSuccessRefundNeverClaimsSuccess: true,
       paymentAndRefundRespondBeforePreferencesRelease: true, preferencesLatchOnlyInIsolatedPreload: true,
+      refundFinalCompletionWaitsForAfterSale: true, refundFinalWriteFailureRetryRestoresOneNotification: true,
       realProviderRequests: 0, scope: "synthetic-course-orders-not-real-provider-or-target-database" };
   } finally {
-    for (const [name, table] of [["isolated_pay_rollback", "EntitlementLedger"], ["isolated_refund_rollback", "EntitlementLedger"], ["isolated_notification_failure", "Notification"]]) await drop(name, table);
+    for (const [name, table] of [["isolated_pay_rollback", "EntitlementLedger"], ["isolated_refund_rollback", "EntitlementLedger"], ["isolated_notification_failure", "Notification"], ["isolated_refund_after_sale_failure", "AfterSale"]]) await drop(name, table);
   }
 }
 

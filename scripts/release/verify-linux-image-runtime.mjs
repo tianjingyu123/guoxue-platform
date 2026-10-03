@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:910806b8e");
-const sourceCommit = "910806b8e72b7259b6b8011604d3e23413ae93fd";
-const sourceSha256 = "3e78509d9c28bce9a5b14490685f667ea19ccc4e4e5d4315c95f770df342e304";
+assert.equal(image, "rebu-linux-verify:f2c7ccec4");
+const sourceCommit = "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7";
+const sourceSha256 = "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d";
 const postgresImage = "rebu-isolated-pg18.4-vector:frozen";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
