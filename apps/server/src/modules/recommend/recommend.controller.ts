@@ -147,7 +147,9 @@ export class RecommendController {
     return this.svc.getRecommendations({
       scene,
       userId: req.user?.id,
-      stationId,
+      // 同城公开入口不以客户端 Header/Query 切换私有分站资源范围。
+      stationId: scene === RecommendScene.SAME_CITY ? undefined : stationId,
+      city: query.city,
       contentId: query.contentId,
       paipanType: query.paipanType,
       listType: query.listType,

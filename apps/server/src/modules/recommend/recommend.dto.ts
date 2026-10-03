@@ -5,12 +5,14 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Length,
+  Matches,
   Max,
   Min,
   MinLength,
   ValidateNested,
 } from "class-validator";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export enum RecommendScene {
@@ -40,6 +42,14 @@ export enum RecommendItemType {
 }
 
 export class RecommendQueryDto {
+  @ApiPropertyOptional({ description: "同城场景城市名称，与公开驿站 city 字段精确对应" })
+  @IsOptional()
+  @Transform(({ value }) => typeof value === "string" ? value.trim() : value)
+  @IsString()
+  @Length(1, 64)
+  @Matches(/^[\p{L}\p{N}\s·-]+$/u)
+  city?: string;
+
   @ApiPropertyOptional({ description: "分页页码", default: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -153,7 +163,9 @@ export interface RecommendContext {
   pageSize: number;
   /** 同城推荐用：经纬度坐标 [lat, lng] */
   coords?: [number, number];
-  /** 同城推荐用：城市编码 */
+  /** 同城推荐用：公开驿站的城市名称，不猜测编码与城市的映射。 */
+  city?: string;
+  /** 旧调用保留类型兼容；没有映射来源时不能用作同城查询条件。 */
   cityCode?: string;
 }
 

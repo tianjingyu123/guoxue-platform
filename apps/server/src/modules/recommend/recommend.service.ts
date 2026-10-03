@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import {
   RecommendContext,
+  RecommendScene,
   RecommendResponse,
   RecommendLogDto,
 } from "./recommend.dto";
@@ -82,6 +83,7 @@ export class RecommendService {
   // ═══════════════════════════════════════════
 
   async getRecommendations(ctx: RecommendContext): Promise<RecommendResponse> {
+    const isSameCity = ctx.scene === RecommendScene.SAME_CITY;
     // 构建缓存键
     const cacheKey = this.cacheKey(ctx);
 
@@ -95,7 +97,7 @@ export class RecommendService {
     }
 
     // P3: 冷启动检测
-    const isColdStart = ctx.userId ? await this.coldStart.isColdStart(ctx.userId).catch((err: Error) => { this.logger.warn("冷启动检测失败", err.message); return false; }) : false;
+    const isColdStart = ctx.userId && !isSameCity ? await this.coldStart.isColdStart(ctx.userId).catch((err: Error) => { this.logger.warn("冷启动检测失败", err.message); return false; }) : false;
 
     // 按场景分发
     const items: RecommendItem[] = await this.sceneSvc.dispatch(ctx);
@@ -127,14 +129,14 @@ export class RecommendService {
 
     // P2: 分区强插 — 运营插入指定内容到指定位置
     try {
-      filtered = await this.insertSvc.applyInsertRules(ctx.scene, filtered);
+      if (!isSameCity) filtered = await this.insertSvc.applyInsertRules(ctx.scene, filtered);
     } catch (e) {
       this.logger.warn(`分区强插失败: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     // P2: 站长精选注入 — 分站站长配置的精选内容按固定位插入
     try {
-      filtered = await this.insertSvc.applyStationPicks(ctx, filtered);
+      if (!isSameCity) filtered = await this.insertSvc.applyStationPicks(ctx, filtered);
     } catch (e) {
       this.logger.warn(`站长精选注入失败: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -402,6 +404,11 @@ export class RecommendService {
 
   private cacheKey(ctx: RecommendContext): string {
     const params = [ctx.contentId, ctx.paipanType, ctx.listType, ctx.page, ctx.pageSize].join(":");
+    if (ctx.scene === RecommendScene.SAME_CITY) {
+      // 城市与分站参与缓存隔离；新版本不复用旧全国兜底或错误目标 ID。
+      const scope = JSON.stringify([ctx.city?.trim() ?? "", ctx.stationId ?? null]);
+      return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:${encodeURIComponent(scope)}:v3`;
+    }
     return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:v2`;
   }
 
