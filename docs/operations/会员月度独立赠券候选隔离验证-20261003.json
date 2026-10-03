@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-03T04:11:49.406Z",
+  "sourceCommit": "f96c0bdec2f2de93302e1284079e3fbd85d89db4",
+  "branch": "codex/monthly-coupon-review-20261002",
+  "acceptedBusinessSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "proposedPolicy": "每月独立赠券，保留旧券原有效期；普通领券限制不变",
+  "policyApproved": false,
+  "acceptedIntoReleaseLine": false,
+  "acceptedMigrationCount": 136,
+  "candidateMigrationCount": 137,
+  "productionObservedMigrationCount": 103,
+  "sourceFiles": [
+    {
+      "file": "apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh",
+      "sha256": "ae4626bcb8a7dd373c4b63a1cf5e863fc879d3b47601eddd72f109823613ace5"
+    },
+    {
+      "file": "apps/server/prisma/migrations-deploy/full-baseline.sql",
+      "sha256": "eb3bfc2769a3fb5b5e66981a01683609d67c6897d74d93f90a5f2f383dbfbff5"
+    },
+    {
+      "file": "apps/server/prisma/migrations-deploy/member-monthly-coupon-source.sql",
+      "sha256": "a01bef9920395952da82b93c4ac9a049395c6c3c39185c04c853cc16f551d2b8"
+    },
+    {
+      "file": "apps/server/prisma/migrations/manual_z_20261002_09_member_monthly_coupon_source/migration.sql",
+      "sha256": "8f7979d95abd95aec60218b244384abf3605eb40facd3e0cebb8130f13353d49"
+    },
+    {
+      "file": "apps/server/prisma/schema.prisma",
+      "sha256": "6269b9538bd42b1abfffdfb00e83f3243a334624a901ed02aef9e123996afe27"
+    },
+    {
+      "file": "apps/server/src/modules/marketing/marketing.service.ts",
+      "sha256": "c5f0655e632ec7f069bfd476e9c921b2e547545d1923d045aa98997b9f6183dd"
+    },
+    {
+      "file": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "sha256": "73d2d82a11798956cc844167022327d95faccb5cc2a4acbdc0fad6ca0b95aa62"
+    },
+    {
+      "file": "apps/server/src/modules/member/member-benefit.service.ts",
+      "sha256": "efeff59620bd50629caff53265b752d1bb8a5465feb44110e1022a1e4ba3fde4"
+    },
+    {
+      "file": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "sha256": "68245454b537fcc437cfee89b68821c60a057f698c6c12a516dc634cc35e0893"
+    },
+    {
+      "file": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "sha256": "4cf09c2b8d9bbc714c38a94be15a921d19d32172340427da9c09c6c73419826c"
+    }
+  ],
+  "local": {
+    "checkedAt": "2026-10-03T03:48:51.423Z",
+    "baseCommit": "d23fba6378180f9dfcf42d89dfd8a7178ab7447d",
+    "candidateUncommittedDiffSha256": "a71f112a9507c989643092d7105f7b825a2409c5535268a95a28eb5a2721b376",
+    "policy": "A每月独立赠券、旧券保留原有效期（隔离候选，待决策）",
+    "schemaFingerprint": "355a10b567554c1e776fd0fecf5fccc658791bc105ab2c37a752395ea9a9d9a0",
+    "upgrade": {
+      "oldSourceMigrationCount": 136,
+      "candidateSourceMigrationCount": 137,
+      "newMigration": "manual_z_20261002_09_member_monthly_coupon_source",
+      "existingSchemaIncrementalDDL": true,
+      "fullMigrationLedgerVerified": false,
+      "legacyRows": 3,
+      "legacyStatuses": [
+        "UNUSED",
+        "USED",
+        "EXPIRED"
+      ],
+      "existingFieldsUnchanged": true,
+      "defaultSourceStandard": true
+    },
+    "tests": {
+      "suites": 9,
+      "passed": 147,
+      "failed": 0,
+      "skipped": 0,
+      "paths": [
+        "src/modules/member/member-benefit.monthly.postgres.spec.ts",
+        "src/modules/member/member-monthly-recovery.postgres.spec.ts",
+        "src/modules/member/member-monthly-notification.postgres.spec.ts",
+        "src/modules/member/member-grant.service.spec.ts",
+        "src/modules/member/member-monthly-recovery.spec.ts",
+        "src/modules/member/member-benefit.ai-quota.spec.ts",
+        "src/modules/notification/member-monthly-notification.task.spec.ts",
+        "src/modules/marketing/marketing.service.spec.ts",
+        "src/modules/shop/payment-ack-boundary.postgres.spec.ts"
+      ]
+    },
+    "database": "entitlement_notice_qa_monthly_candidate_31ff02f357",
+    "realLocalPostgres": true,
+    "twoIndependentProcesses": true,
+    "production": false,
+    "realFunds": false,
+    "realNotifications": false,
+    "policyApproved": false,
+    "acceptedIntoReleaseLine": false,
+    "releaseReady": false,
+    "syntheticDatabaseDropped": true
+  },
+  "compiledLocal": {
+    "checkedAt": "2026-10-03T03:53:33.155Z",
+    "tests": {
+      "suites": 4,
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0
+    },
+    "compiledRuntime": true,
+    "realLocalPostgres": true,
+    "twoIndependentProcesses": true,
+    "bindings": [
+      {
+        "file": "modules/member/member-benefit.service",
+        "sourceSha256": "efeff59620bd50629caff53265b752d1bb8a5465feb44110e1022a1e4ba3fde4",
+        "compiledSha256": "f6fda7e3b4d7699dcf81afb76fc5b7ef30ce3f5e4227daddd147420e5a1f6093"
+      },
+      {
+        "file": "modules/member/member-grant.service",
+        "sourceSha256": "4ed6a55c5813ac70d5c09f9c5d8c5cf3386df7eddc961062ac481483203acdb7",
+        "compiledSha256": "595e4d008c5c2b3d8490d099dc93a7d03a2cdd99e836a0400cfbbb01e1bfffa3"
+      },
+      {
+        "file": "modules/notification/member-monthly-notification.task",
+        "sourceSha256": "2e3710bd209c8072217b8a0230d0f2123ab0447af9f4ea1e324da2e78fb8706e",
+        "compiledSha256": "75973ba9d7c2cf65a1185f096cabc8a1bb0a15f8a1feeb8a8ae0626ffb44d36e"
+      },
+      {
+        "file": "modules/shop/shop-payment.service",
+        "sourceSha256": "e2a25ed6ce35fed0468f00f318d503ea7905b2ce89f1131b9439455537dbb008",
+        "compiledSha256": "e7d60c1f9052d2d5892549d0f16892d6e8a7d71227851a77eb40a94ea2dd8fee"
+      },
+      {
+        "file": "modules/entitlement/entitlement.service",
+        "sourceSha256": "0ff437bf42f08e5d3ef8cdc2e05efbe7195895b9eb906ed5e3b113b3b667f25e",
+        "compiledSha256": "501512eea964f83269848809054741e01bce1b3ecf9ccb9cf8e0f526cb0107cd"
+      }
+    ],
+    "fixtureBinding": [
+      {
+        "file": "apps\\server\\src\\modules\\member\\.qa-monthly-compiled-0.spec.ts",
+        "sha256": "1956cf582e292a817b017c9648f932880ffb8b183a4d982c04fe210acc090127"
+      },
+      {
+        "file": "apps\\server\\src\\modules\\member\\.qa-monthly-compiled-1.spec.ts",
+        "sha256": "f330f06500f65f4ca78902d5fcdd2680a1484dbcaa03d910d083a49b6dedcfa8"
+      },
+      {
+        "file": "apps\\server\\src\\modules\\member\\.qa-monthly-compiled-2.spec.ts",
+        "sha256": "c0b41c5b6cdce2fa4c89227ce2651509ef2daba738fe7c931fda85bfc8155fbf"
+      },
+      {
+        "file": "apps\\server\\src\\modules\\shop\\.qa-monthly-compiled-3.spec.ts",
+        "sha256": "8c5b16370edbe22f4fbc21706a9c8769fa5f4419c04670762a6aaf034b6ce35b"
+      }
+    ],
+    "resultSha256": "9214ec7464223b7c5bb42c9f5e56ea30ff5d3885331fcef2be5de0a04bce7020",
+    "logSha256": "b6174cf76bbeebbdc005d2630be7f5c9d03f7279029414c75f1df77d58a23a73",
+    "cleanupInitialFailure": "Windows正反斜杠比较导致保护拒绝；未删除其他路径，未清理数据库；独立核实本次库身份后恢复清理",
+    "cleanupFailureLogSha256": "ee636a37beb20e56806eb04ace06565199021cc0375d51448371a7be8183fcbb",
+    "database": "entitlement_notice_qa_monthly_candidate_16f7b287fd",
+    "syntheticDatabaseDropped": true,
+    "fixturesRemoved": true,
+    "production": false,
+    "realFunds": false,
+    "realNotifications": false,
+    "policyApproved": false,
+    "acceptedIntoReleaseLine": false,
+    "releaseReady": false
+  },
+  "linux": {
+    "checkedAt": "2026-10-03T04:08:27.102Z",
+    "sourceCommit": "f96c0bdec2f2de93302e1284079e3fbd85d89db4",
+    "validationCommit": "298d32fcd49ba314e4c8f5a3b7f008a59d165b5e",
+    "runId": 37095166901,
+    "artifactId": 11263951435,
+    "artifactDigest": "sha256:898c24edcb00b4b32e87ba52882352ee9ae21c7874d87d112a30089baaf42569",
+    "digestVerified": true,
+    "oldMigrationFilesUnchanged": 136,
+    "upgrade": {
+      "source": "f96c0bdec2f2de93302e1284079e3fbd85d89db4",
+      "baseline": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "from": 136,
+      "to": 137,
+      "oldLedgerUnchanged": 136,
+      "newMigration": "manual_z_20261002_09_member_monthly_coupon_source",
+      "legacyRowsPreserved": 3,
+      "legacySourceStandard": true,
+      "memberPlansUnchanged": true,
+      "production": false
+    },
+    "empty": {
+      "source": "f96c0bdec2f2de93302e1284079e3fbd85d89db4",
+      "completeMigrations": 137,
+      "couponIndexesAndConstraintsMatchUpgraded": true,
+      "production": false
+    },
+    "tests": {
+      "suites": 9,
+      "passed": 147,
+      "skipped": 0,
+      "failed": 0
+    },
+    "compiled": {
+      "suites": 4,
+      "passed": 68,
+      "skipped": 0,
+      "failed": 0,
+      "realPostgres": true,
+      "actualServiceBindings": 14
+    },
+    "testSourceBindingsVerified": true,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "lintErrors": 0,
+    "lintWarnings": 6,
+    "officialSignedDevicePackage": false,
+    "formalDockerfileImage": false,
+    "fullSourceCI": false,
+    "production": false,
+    "realFunds": false,
+    "realChannels": false,
+    "policyApproved": false,
+    "acceptedIntoReleaseLine": false,
+    "releaseReady": false
+  },
+  "states": [
+    "代码候选完成",
+    "隔离验证完成（限定范围）",
+    "线上状态未知",
+    "待业务与发布决策"
+  ],
+  "releaseReady": false,
+  "uncovered": [
+    "方案接收决策",
+    "接收后的整版CI与固定运行包",
+    "接收后的同版渠道包及真机",
+    "生产迁移与正式两节点业务验收"
+  ],
+  "rollback": [
+    "拒绝方案时不接收f96c0bdec，现有发布候选cc78不变",
+    "接收后应先回退应用使用，不删除合法历史券，不改其状态",
+    "出现同模板同状态多张券后不能直接恢复旧唯一索引；不得以删券强行倒退DDL，需另拟数据保留回退方案"
+  ],
+  "evidenceFiles": [
+    {
+      "file": "counterexample.json",
+      "sha256": "7b6e5a30e1c7906913a74055a907017ac32910e3f257580b3d9e65d300d32808"
+    },
+    {
+      "file": "candidate-verified.json",
+      "sha256": "fb3dee506cf2d6874e60aa6388d43ab921ec4129d0f5a4787d93ed7ec31639a7"
+    },
+    {
+      "file": "compiled-candidate-verified.json",
+      "sha256": "51edfbff3b1b46525392e6bc35aa42ea4fc34cbd8ec75044da0ef7fa83aabe0a"
+    },
+    {
+      "file": "candidate-source-binding.json",
+      "sha256": "401d03fc2947e7f707ad64309dc287f7cc59002d3e41ebdd33a83811f8d99d63"
+    },
+    {
+      "file": "linux-candidate-verified.json",
+      "sha256": "51088a9e610dfff5c2d6609b9cb95869b64edbc8ef982c0530d7496f249cf2a9"
+    }
+  ],
+  "production": false,
+  "realFunds": false,
+  "realNotifications": false,
+  "historicalBackfill": false,
+  "sealedEvidence": {
+    "file": "monthly-coupon-evidence-20261003.tar.gz",
+    "sha256": "1fa0b42f91c60b3aa94ecc0525ae4530b2db3508a6759c0cca2efc7c991ca557",
+    "bytes": 4469,
+    "receiptFiles": 7,
+    "extractedFilesVerified": true,
+    "localOnly": true,
+    "uploaded": false
+  }
+}
