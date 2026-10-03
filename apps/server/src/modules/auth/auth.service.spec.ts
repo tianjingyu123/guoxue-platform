@@ -139,6 +139,55 @@ describe("AuthService", () => {
     });
   });
 
+  describe("客户会话撤销故障与平台安全边界", () => {
+    afterEach(() => {
+      mockPrisma.managedMembership.updateMany.mockReset().mockResolvedValue({ count: 0 });
+      mockRedis.smembers.mockReset().mockResolvedValue([]);
+      mockRedis.set.mockReset();
+      mockRedis.del.mockReset();
+    });
+
+    it("客户修订成功后撤销平台的刷新及访问令牌", async () => {
+      mockRedis.smembers.mockResolvedValue(["synthetic-refresh-a", "synthetic-refresh-b"]);
+      await svc.revokeAllRefreshTokens("synthetic-user");
+      expect(mockPrisma.managedMembership.updateMany).toHaveBeenCalledWith({
+        where: { userId: "synthetic-user", enabled: true, identityProvider: "PLATFORM" },
+        data: { revision: { increment: 1 } },
+      });
+      expect(mockRedis.del.mock.calls).toEqual([
+        ["refresh:synthetic-refresh-a"], ["refresh:synthetic-refresh-b"], ["refresh:user:synthetic-user"],
+      ]);
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("客户库修订失败仍撤销平台令牌，且不声称全部成功", async () => {
+      const failure = new Error("合成客户修订失败");
+      mockPrisma.managedMembership.updateMany.mockRejectedValueOnce(failure);
+      mockRedis.smembers.mockResolvedValue(["synthetic-refresh-a"]);
+      await expect(svc.revokeAllRefreshTokens("synthetic-user")).rejects.toBe(failure);
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:synthetic-refresh-a");
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:user:synthetic-user");
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("实际改密方法已写凭据后客户修订失败，不跳过平台撤销", async () => {
+      mockPrisma.auth.findFirst.mockResolvedValue({ id: "synthetic-auth", credential: "old-hash" });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
+      const failure = new Error("合成客户修订失败");
+      mockPrisma.managedMembership.updateMany.mockRejectedValueOnce(failure);
+      await expect(svc.changePassword("synthetic-user", { oldPassword: "old-pass", newPassword: "new-pass" })).rejects.toBe(failure);
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith({ where: { id: "synthetic-auth" }, data: { credential: "new-hash" } });
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:synthetic-user", expect.any(String), 7260);
+    });
+
+    it("平台撤销失败时仍拒绝成功，不将客户修订成功当成全部撤销", async () => {
+      mockRedis.set.mockRejectedValueOnce(new Error("合成平台撤销失败"));
+      await expect(svc.revokeAllRefreshTokens("synthetic-user")).rejects.toThrow("合成平台撤销失败");
+      expect(mockPrisma.managedMembership.updateMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("phoneRegister", () => {
     it("注册成功", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);

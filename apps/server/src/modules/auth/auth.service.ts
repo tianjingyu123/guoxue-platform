@@ -115,16 +115,19 @@ export class AuthService {
 
   /** 撤销指定用户所有 refreshToken 并使已签发 accessToken 失效（修改密码/封号等场景） */
   async revokeAllRefreshTokens(userId: string) {
-    // 客户实例使用独立短期令牌；同步推进成员修订，改密/封号同样立即撤销客户会话。
-    await this.prisma.managedMembership.updateMany({ where: { userId, enabled: true, identityProvider: "PLATFORM" }, data: { revision: { increment: 1 } } });
-    // 精确删除该用户全部 refreshToken（旧 refresh 立即失效，不影响撤销后的新登录）
-    const tokens = await this.redis.smembers(`refresh:user:${userId}`);
-    for (const t of tokens) {
-      await this.redis.del(`refresh:${t}`);
+    try {
+      // 客户实例使用独立短期令牌；同步推进成员修订，改密/封号同样撤销客户会话。
+      await this.prisma.managedMembership.updateMany({ where: { userId, enabled: true, identityProvider: "PLATFORM" }, data: { revision: { increment: 1 } } });
+    } finally {
+      // 客户修订故障不能跳过平台撤销；原异常继续向上抛，不声称全部撤销成功。
+      const tokens = await this.redis.smembers(`refresh:user:${userId}`);
+      for (const t of tokens) {
+        await this.redis.del(`refresh:${t}`);
+      }
+      await this.redis.del(`refresh:user:${userId}`);
+      // 记录撤销时刻，JwtStrategy 用 iat 比对拒绝撤销前签发的 accessToken；TTL 覆盖 accessToken 最长生命期(2h)
+      await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 2 * 3600 + 60);
     }
-    await this.redis.del(`refresh:user:${userId}`);
-    // 记录撤销时刻，JwtStrategy 用 iat 比对拒绝撤销前签发的 accessToken；TTL 覆盖 accessToken 最长生命期(2h)
-    await this.redis.set(`revoked:user:${userId}`, String(Date.now()), 2 * 3600 + 60);
   }
 
   /** 生成仅 accessToken（兼容旧接口） */
