@@ -22,6 +22,11 @@
           target.searchParams.set('wx_login', '1');
           target.searchParams.set('code', code);
           target.searchParams.set('state', state);
+        } else if (/^wxbind\.[0-9a-f]{48}$/.test(state)) {
+          target = new URL('/h5/pkg-mine/bind-accounts/index', window.location.origin);
+          target.searchParams.set('wx_bind', '1');
+          target.searchParams.set('code', code);
+          target.searchParams.set('state', state);
         } else {
           if (state.indexOf('wxpay.') !== 0) throw new Error('unknown callback state');
           target = new URL('/h5/pkg-shop/paying/index', window.location.origin);

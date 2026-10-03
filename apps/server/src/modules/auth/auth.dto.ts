@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsIn, IsBoolean, MinLength, MaxLength, Matches } from "class-validator";
+import { IsString, IsOptional, IsInt, IsIn, IsBoolean, IsUUID, MinLength, MaxLength, Matches } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -201,6 +201,11 @@ export class UniverifyCallbackDto {
 }
 
 export class BindWechatDto {
+  @ApiPropertyOptional({ description: "发起绑定的账号，仅用于校验；实际主体始终取 JWT" })
+  @IsOptional()
+  @IsUUID()
+  expectedUserId?: string;
+
   @ApiProperty({ description: "微信授权 code" })
   @IsString()
   @MinLength(1)

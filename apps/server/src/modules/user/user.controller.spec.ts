@@ -8,6 +8,7 @@ import { PreferredNameService } from "../dialogue/preferred-name.service";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
+  unbindAccount: jest.fn().mockResolvedValue({ success: true }),
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
   getNotifySettings: jest.fn().mockResolvedValue([{ key: "operatorTeam", value: true }] as any),
   updateNotifySettings: jest.fn().mockResolvedValue({ success: true } as any),
@@ -73,6 +74,11 @@ describe("UserController", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   const mockReq = () => ({ user: { id: "u1" }, ip: "127.0.0.1" } as any);
+
+  it("解绑接口使用 JWT 主体并传递发起主体校验", async () => {
+    await ctrl.unbindAccount(mockReq(), "wechat", "previous-user");
+    expect(mockUserSvc.unbindAccount).toHaveBeenCalledWith("u1", "wechat", "previous-user");
+  });
 
   it("PUT /users/profile — 更新个人资料", async () => {
     const result: any = await ctrl.updateProfile(mockReq(), { nickname: "新昵称" });

@@ -1,11 +1,21 @@
 import "reflect-metadata";
 import { validate } from "class-validator";
 import {
-  PhoneRegisterDto, PhoneLoginDto, SmsLoginDto,
+  PhoneRegisterDto, PhoneLoginDto, SmsLoginDto, BindWechatDto,
   SendCodeDto, WechatLoginDto, AppleLoginDto, UpdateProfileDto, ChangePasswordDto,
 } from "./auth.dto";
 
 describe("Auth DTO 校验", () => {
+  describe("微信绑定主体校验", () => {
+    it.each([undefined, "123e4567-e89b-42d3-a456-426614174000"])("兼容旧客户端或合法 UUID：%s", async expectedUserId => {
+      const dto = Object.assign(new BindWechatDto(), { code: "synthetic-code", loginType: "h5", expectedUserId });
+      expect(await validate(dto)).toEqual([]);
+    });
+    it.each(["", "other-user", 123])("拒绝伪造主体字段：%s", async expectedUserId => {
+      const dto = Object.assign(new BindWechatDto(), { code: "synthetic-code", expectedUserId });
+      expect((await validate(dto)).some(error => error.property === "expectedUserId")).toBe(true);
+    });
+  });
   describe("PhoneRegisterDto", () => {
     it("合法输入通过", async () => {
       const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", code: "123456", password: "Abc12345" });

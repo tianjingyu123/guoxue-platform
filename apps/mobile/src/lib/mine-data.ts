@@ -1462,12 +1462,13 @@ export const mineApi = {
     return await apiGet<BoundAccount[]>('/users/bound-accounts')
   },
 
-  /** 解绑第三方账号 —— DELETE /users/bound-accounts/:provider；绑定走 OAuth 后端暂无简单端点→诚实降级抛错 */
-  async toggleBind(_provider: string, _bind: boolean): Promise<boolean> {
+  /** 解绑第三方账号；微信新绑定使用 authApi.bindWechat，不以登录操作替代绑定。 */
+  async toggleBind(_provider: string, _bind: boolean, expectedUserId?: string): Promise<boolean> {
     if (_bind) {
       throw new Error('第三方账号绑定即将开放')
     }
-    await apiDelete(`/users/bound-accounts/${_provider}`)
+    const subject = expectedUserId ? `?expectedUserId=${encodeURIComponent(expectedUserId)}` : ''
+    await apiDelete(`/users/bound-accounts/${_provider}${subject}`)
     return true
   },
 

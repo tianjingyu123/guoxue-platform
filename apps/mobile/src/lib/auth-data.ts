@@ -183,9 +183,9 @@ export const authApi = {
   },
 
   /** 将当前已登录手机号账号与微信身份绑定，后续可一键进入排盘。 */
-  async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<{ success: boolean; message: string }> {
+  async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram', expectedUserId?: string): Promise<{ success: boolean; message: string }> {
     try {
-      await apiPost('/auth/bind/wechat', { code, loginType, clientKey: getWechatClientKey() })
+      await apiPost('/auth/bind/wechat', { code, loginType, clientKey: getWechatClientKey(), expectedUserId })
       return { success: true, message: '微信账号已关联' }
     } catch (e: any) {
       return { success: false, message: e?.message || '微信账号关联失败' }

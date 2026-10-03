@@ -1064,7 +1064,10 @@ export class UserService {
   }
 
   /** 解绑第三方账号，至少保留一种登录方式 */
-  async unbindAccount(userId: string, provider: string) {
+  async unbindAccount(userId: string, provider: string, expectedUserId?: string) {
+    if (expectedUserId !== undefined && expectedUserId !== userId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "登录账号已变化，请重新发起解绑");
+    }
     const validProviders = ["wechat", "qq", "apple"];
     const normalized = provider.toLowerCase();
     if (!validProviders.includes(normalized)) {

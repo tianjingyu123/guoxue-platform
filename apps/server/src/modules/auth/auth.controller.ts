@@ -328,6 +328,6 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   bindWechat(@Req() req: Request, @Body() dto: BindWechatDto) {
-    return this.auth.bindWechat(req.user.id, dto.code, (dto.loginType || "h5") as "h5" | "miniprogram" | "app", dto.clientKey);
+    return this.auth.bindWechat(req.user.id, dto.code, (dto.loginType || "h5") as "h5" | "miniprogram" | "app", dto.clientKey, dto.expectedUserId);
   }
 }

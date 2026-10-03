@@ -811,7 +811,12 @@ export class AuthService {
     code: string,
     loginType: WechatLoginType = "h5",
     clientKey?: string,
+    expectedUserId?: string,
   ) {
+    // 授权过程中切换账号或刷新请求时，不得把旧授权绑定到新会话。
+    if (expectedUserId && expectedUserId !== userId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "登录账号已变化，请重新发起微信绑定");
+    }
     await this.assertWechatAppLoginEnabled(loginType);
     const client = this.wechat.resolveLoginClient(loginType, clientKey);
     const wxUser =

@@ -64,6 +64,8 @@ function restoreWechatPaymentCallback(options?: { query?: Record<string, unknown
     const search = new URLSearchParams(window.location.search)
     const callbackCode = String(options?.query?.code || search.get('code') || '').trim()
     const callbackState = String(options?.query?.state || search.get('state') || '').trim()
+    // 登录和账号绑定回调不能被残留的支付会话劫持。
+    if (callbackState.startsWith('wxlogin.') || callbackState.startsWith('wxbind.')) return false
     const pending = sessionStorage.getItem('wx_oa_payment_return')
     const recovered = decodeWechatPaymentState(callbackState)
     if (!callbackCode || (!pending && !recovered)) return false

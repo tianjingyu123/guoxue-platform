@@ -9,6 +9,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { UniverifyBridgeService } from "./univerify-bridge.service";
 
 const mockAuthSvc = {
+  bindWechat: jest.fn().mockResolvedValue({ success: true }),
   phoneRegister: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三", phone: "138****1234" } }),
   phoneLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三" } }),
   smsLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三" } }),
@@ -53,6 +54,12 @@ describe("AuthController", () => {
 
   const mockReq = (overrides?: Record<string, unknown>) =>
     ({ ip: "127.0.0.1", user: { id: "u1" }, ...overrides } as any);
+
+  it("绑定接口始终使用 JWT 主体，发起主体只传给服务校验", async () => {
+    const expectedUserId = "123e4567-e89b-42d3-a456-426614174000";
+    await ctrl.bindWechat(mockReq(), { code: "synthetic-code", loginType: "miniprogram", clientKey: "wx-test", expectedUserId });
+    expect(mockAuthSvc.bindWechat).toHaveBeenCalledWith("u1", "synthetic-code", "miniprogram", "wx-test", expectedUserId);
+  });
 
   describe("注册", () => {
     it("POST /auth/register/phone — 手机号注册", async () => {

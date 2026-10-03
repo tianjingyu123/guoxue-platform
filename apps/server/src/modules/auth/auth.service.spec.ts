@@ -584,6 +584,27 @@ describe("AuthService", () => {
   });
 
   describe("微信身份绑定冲突", () => {
+    it("授权后切换 JWT 主体时在供应商交换和事务前拒绝绑定", async () => {
+      await expect(svc.bindWechat("current-user", "code", "h5", undefined, "previous-user")).rejects.toMatchObject({
+        errorCode: ErrorCode.BAD_REQUEST,
+      });
+      expect(mockWechat.resolveLoginClient).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("相同主体绑定仅关联身份，不创建用户或发新登录令牌", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-bind-test";
+      process.env.MINIPROGRAM_APP_SECRET = "synthetic-secret";
+      mockWechat.exchangeMiniCode.mockResolvedValue({ openId: "synthetic-open-id" });
+      mockPrisma.auth.upsert.mockResolvedValue({ userId: "current-user" });
+      mockPrisma.$transaction.mockImplementation(async callback => callback(mockPrisma));
+      await expect(svc.bindWechat("current-user", "code", "miniprogram", undefined, "current-user")).resolves.toEqual({ success: true });
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockJwt.sign).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code", "legacy-mini");
+    });
+
     it("手机号用户绑定已归属其他账号的 openId 时拒绝登录", async () => {
       process.env.WECHAT_MINI_APP_ID = "wx-mini-conflict";
       process.env.MINIPROGRAM_APP_SECRET = "mini-secret";

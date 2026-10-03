@@ -84,6 +84,10 @@ describe("UserService", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
+  it("切换会话后不能用旧授权操作解绑当前账号", async () => {
+    await expect(svc.unbindAccount("current-user", "wechat", "previous-user")).rejects.toThrow("登录账号已变化");
+  });
+
   describe("getUserById", () => {
     it("获取用户成功", async () => {
       const mockUser = {

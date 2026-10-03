@@ -121,8 +121,8 @@ export class UserController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "未绑定该账号" })
   @ApiResponse({ status: 401, description: "未登录" })
-  unbindAccount(@Req() req: Request, @Param("provider") provider: string) {
-    return this.user.unbindAccount(req.user.id, provider);
+  unbindAccount(@Req() req: Request, @Param("provider") provider: string, @Query("expectedUserId") expectedUserId?: string) {
+    return this.user.unbindAccount(req.user.id, provider, expectedUserId);
   }
 
   // ── 浏览历史 ──
