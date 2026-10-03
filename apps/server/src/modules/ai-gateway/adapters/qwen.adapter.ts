@@ -104,7 +104,8 @@ export class QwenAdapter implements AiModelAdapter {
         ? { promptTokens: data.usage.prompt_tokens || 0, completionTokens: data.usage.completion_tokens || 0, totalTokens: data.usage.total_tokens || 0 }
         : undefined,
       finishReason: choice?.finish_reason,
-      requestId: typeof data.id === "string" && /^[a-zA-Z0-9_.:-]{1,128}$/.test(data.id) ? data.id : undefined,
+      // 编号仅供固定客户通道维护；原平台网关及产品响应保持既有契约。
+      ...(this.fixedConfiguration && typeof data.id === "string" && /^[a-zA-Z0-9_.:-]{1,128}$/.test(data.id) ? { requestId: data.id } : {}),
     };
   }
 
