@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      SOURCE_COMMIT: 85192ea3cb962133c00c6564c56057667d8ea2da
+      SOURCE_COMMIT: 58e1576c74b7f6cfa9a544ea756317bd1e26426f
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -54,24 +54,17 @@ jobs:
           pnpm --dir candidate install --frozen-lockfile
           cd candidate
           git rev-parse HEAD > artifacts/braces-depth/source-binding.txt
-          git ls-files package.json pnpm-lock.yaml patches apps/mobile apps/admin packages | xargs sha256sum >> artifacts/braces-depth/source-binding.txt
+          git ls-files -z package.json pnpm-lock.yaml patches apps/mobile apps/admin packages scripts/release/audit-dependencies.mjs scripts/release/lib/braces-depth-guard.mjs scripts/release/lib/braces-ordinary-fixtures.json tests/release/braces-depth-guard.test.mjs | xargs -0 sha256sum >> artifacts/braces-depth/source-binding.txt
           node ../scripts/release/verify-isolated-braces-depth.cjs
-      - name: 固定公开目标配置与五端构建
+      - name: 实际安装核验测试与官方依赖审计
         working-directory: candidate
         run: |
           set -euo pipefail
-          printf '%s\n' 'VITE_API_URL=https://api.rebugx.cn' 'VITE_PUBLIC_H5_URL=https://gx.yrydai.com/h5/' 'VITE_PUBLIC_ASSET_ORIGIN=https://static.rebugx.cn' > apps/mobile/.env.production
-          cp apps/mobile/.env.production artifacts/braces-depth/public-config.env
-          pnpm --filter @guoxue/shared build 2>&1 | tee artifacts/braces-depth/shared-build.log
-          pnpm --filter @guoxue/bazi-engine build 2>&1 | tee artifacts/braces-depth/bazi-build.log
-          pnpm --filter @guoxue/ziwei-engine build 2>&1 | tee artifacts/braces-depth/ziwei-build.log
-          pnpm --filter @guoxue/admin build 2>&1 | tee artifacts/braces-depth/admin-build.log
-          pnpm --filter @guoxue/mobile build:h5 2>&1 | tee artifacts/braces-depth/h5-build.log
-          pnpm --filter @guoxue/mobile build:mp-weixin 2>&1 | tee artifacts/braces-depth/mp-build.log
-          pnpm --filter @guoxue/mobile build:app 2>&1 | tee artifacts/braces-depth/app-build.log
-          pnpm --filter @guoxue/mobile build:app-harmony 2>&1 | tee artifacts/braces-depth/harmony-build.log
+          pnpm release:test-braces-depth 2>&1 | tee artifacts/braces-depth/gate-tests.log
+          pnpm release:audit-deps 2>&1 | tee artifacts/braces-depth/dependency-audit.log
+          pnpm exec eslint scripts/release/lib/braces-depth-guard.mjs scripts/release/audit-dependencies.mjs tests/release/braces-depth-guard.test.mjs 2>&1 | tee artifacts/braces-depth/selected-lint.log
           git diff --exit-code -- package.json pnpm-lock.yaml patches
-          node -e 'const fs=require("fs");fs.writeFileSync("artifacts/braces-depth/build-summary.json",JSON.stringify({sourceCommit:process.env.SOURCE_COMMIT,targets:["admin","h5","mp-weixin","app","app-harmony"],passed:true,officialUpload:false,signedPackage:false,newDeviceTest:false,production:false}))'
+          node -e 'const fs=require("fs");fs.writeFileSync("artifacts/braces-depth/gate-summary.json",JSON.stringify({sourceCommit:process.env.SOURCE_COMMIT,passed:true,tests:4,selectedLint:true,installedDependencyAudit:true,newFiveBuilds:false,officialUpload:false,signedPackage:false,newDeviceTest:false,production:false}))'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

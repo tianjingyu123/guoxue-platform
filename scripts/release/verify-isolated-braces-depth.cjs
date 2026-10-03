@@ -1,5 +1,5 @@
 const fs=require('node:fs'),cp=require('node:child_process'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),{createRequire}=require('node:module');
-const root=process.cwd(),source='85192ea3cb962133c00c6564c56057667d8ea2da',out=root+'/artifacts/braces-depth';
+const root=process.cwd(),source='58e1576c74b7f6cfa9a544ea756317bd1e26426f',out=root+'/artifacts/braces-depth';
 assert.equal(cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),source);fs.mkdirSync(out,{recursive:true});
 const paths=[],mobile=createRequire(root+'/apps/mobile/package.json');let req=mobile;
 for(const name of ['@dcloudio/uni-app','@dcloudio/uni-cloud','@dcloudio/uni-cli-shared','chokidar']){
