@@ -12,7 +12,11 @@ describe("GrowthService reviewJoinRequest 治理接线", () => {
 
   beforeEach(() => {
     prisma = {
-      circleMember: { findUnique: jest.fn(), create: jest.fn() },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      user: { findUnique: jest.fn().mockResolvedValue({ status: 'ACTIVE' }) },
+      circleMember: { findUnique: jest.fn().mockResolvedValue({ circleId: "c1", userId: "owner", role: "OWNER" }), create: jest.fn(), createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      notification: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       circle: { update: jest.fn(), findUnique: jest.fn().mockResolvedValue({ name: "测试圈" }) },
       circleGovernanceConfig: { findUnique: jest.fn().mockResolvedValue(null) },
       circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
@@ -49,11 +53,11 @@ describe("GrowthService reviewJoinRequest 治理接线", () => {
   it("无禁入+已确认圈规：审批通过正常建成员+memberCount+1", async () => {
     prisma.circleRule.count.mockResolvedValue(2);
     prisma.circleRuleAck.findUnique.mockResolvedValue({ id: "ack1" });
-    prisma.circleMember.findUnique.mockResolvedValueOnce(null); // 第二次查：申请人还不是成员
-    prisma.circleMember.create.mockResolvedValue({ id: "m1" });
     const res = await svc.reviewJoinRequest("c1", "req1", "owner", "approve");
     expect(res.success).toBe(true);
-    expect(prisma.circleMember.create).toHaveBeenCalledWith({ data: { circleId: "c1", userId: "u9" } });
+    expect(prisma.$executeRaw).toHaveBeenCalledWith(expect.any(Array), expect.any(String), 'c1', 'u9');
+    expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.circleMember.createMany.mock.invocationCallOrder[0]);
+    expect(prisma.circleMember.createMany).toHaveBeenCalledWith({ data: [{ circleId: "c1", userId: "u9" }], skipDuplicates: true });
     expect(prisma.circle.update).toHaveBeenCalledWith({ where: { id: "c1" }, data: { memberCount: { increment: 1 } } });
   });
 
