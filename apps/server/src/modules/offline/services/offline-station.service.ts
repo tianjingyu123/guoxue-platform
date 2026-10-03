@@ -325,6 +325,16 @@ export class OfflineStationService {
 
   // ───────── 驿站发现（用户端） ─────────
 
+  async discoverStationCities() {
+    // 城市目录独立于某一页搜索结果；只公开已启用驿站的合法城市名称。
+    const rows = await this.prisma.stationOffline.groupBy({
+      by: ["city"], where: { status: "ACTIVE", city: { not: "" } }, orderBy: { city: "asc" },
+    });
+    return { cities: rows.map((row) => row.city).filter((city) =>
+      city === city.trim() && city.length <= 64 && /^[\p{L}\p{N}\s·-]+$/u.test(city),
+    ) };
+  }
+
   async discoverStations(params: { city?: string; keyword?: string; page?: number; pageSize?: number }) {
     const { city, keyword } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);

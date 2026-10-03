@@ -373,6 +373,17 @@ export type CalendarDays = Record<string, CalendarItem[]>
 
 // ============ API 层 ============
 export const offlineApi = {
+  /** 独立城市目录，不从当前城市的一页结果推断全国城市。 */
+  async discoverCities(): Promise<string[]> {
+    const data = await apiGet<{ cities: string[] }>('/offline/stations/cities')
+    return Array.isArray(data?.cities) ? data.cities : []
+  },
+
+  async discoverStationPage(city: string, page = 1, pageSize = 12): Promise<{ stations: Station[]; total: number }> {
+    const query = queryString([['city', city], ['page', page], ['pageSize', pageSize]])
+    return apiGet<{ stations: Station[]; total: number }>(`/offline/stations/discover?${query}`)
+  },
+
   /** 驿站发现（用户端）GET /offline/stations/discover → {stations,total} */
   async discoverStations(params?: { city?: string; keyword?: string }): Promise<Station[]> {
     const query = queryString([

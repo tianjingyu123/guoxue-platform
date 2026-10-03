@@ -55,6 +55,12 @@ export class OfflineController {
     return this.svc.listStations(+page, +pageSize, city, status);
   }
 
+  @Get("stations/cities")
+  @ApiOperation({ summary: "公开已启用驿站的城市目录（独立于搜索分页）" })
+  discoverStationCities() {
+    return this.svc.discoverStationCities();
+  }
+
   @Get("stations/discover")
   @ApiOperation({ summary: "驿站发现（用户端公开搜索）" })
   @ApiResponse({ status: 200, description: "成功" })

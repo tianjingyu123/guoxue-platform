@@ -82,6 +82,15 @@ function toRecommendItem(vo: RecommendVO, recommendId: string, position: number)
 }
 
 export const recommendApi = {
+  /** 同城首批精选；错误交由页面展示，不能将开关关闭/断网误当无内容。 */
+  async getSameCity(city: string): Promise<RecommendItem[]> {
+    const response = await apiGet<RecommendResponse>(`/recommend/same_city?city=${encodeURIComponent(city)}&pageSize=20`)
+    const items = Array.isArray(response?.items) ? response.items : []
+    return items.filter(item => item.type === 'COURSE' || item.type === 'PRODUCT')
+      .map((item, index) => toRecommendItem(item, response.recommendId || '', index))
+      .filter(item => item.id && item.title)
+  },
+
   /**
    * 拉取某场景的智能推荐，返回标准化推荐卡。
    * @param scene  推荐场景（详情页传 *_detail，通用区块传 guess_like）
