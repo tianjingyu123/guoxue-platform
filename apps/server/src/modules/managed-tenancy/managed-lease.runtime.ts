@@ -21,6 +21,8 @@ import { ManagedLeaseCommerceService } from "./managed-lease-commerce";
 import { ManagedLeaseChatService,ManagedChatProvider,ManagedChatScope } from "./managed-lease-chat";
 import {ManagedCreationLimits} from "./managed-policy";
 import {verifyManagedWriteFence} from "./managed-write-fence";
+import {Request} from "express";
+import {managedClientAddressResolver} from "./managed-client-address";
 
 export type ManagedLeaseContext = Readonly<{ userId: string; role: string; applicationId: string; clientKey: string; revision: number; memberRevision: number; identityProvider: "PLATFORM" | "LOCAL"; credentialRevision?: number }>;
 type Context = ManagedLeaseContext;
@@ -64,7 +66,9 @@ export class ManagedLeaseRuntime {
   private identity: { databaseName: string; databaseRole: string; spaceKey: string; credentialRef: string };
   private readonly contexts = new WeakMap<object, string>();
   private readonly identities: ManagedLeaseIdentityService;
-  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential,private readonly chatProvider?:ManagedChatProvider) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
+  private readonly addressResolver:ReturnType<typeof managedClientAddressResolver>;
+  constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential,private readonly chatProvider?:ManagedChatProvider) { this.identities = new ManagedLeaseIdentityService(business, customerId);this.addressResolver=managedClientAddressResolver(credentials.trustedProxyIps); }
+  clientAddress(request:Request){return this.addressResolver(request);}
   get draining() { return this.stopping; }
   get activeOperations() { return this.operations; }
   /** 统计控制器执行而非HTTP连接，客户端断线也不能提前释放正在使用的数据库。 */

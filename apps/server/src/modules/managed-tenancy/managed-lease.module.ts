@@ -108,15 +108,15 @@ export class ManagedLeaseController {
     return this.runtime.exportPaged(req.managedContext);
   }
   @Get("exports/:id/pages/:collection/:page") page(@Req() req: ManagedRequest, @Param("id") id: string, @Param("collection") collection: string, @Param("page") page: string) { return this.runtime.downloadExportPage(req.managedContext, id, collection, page, header(req, "x-export-token")); }
-  @Put("auth/password") password(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.changeLocalPassword(req.managedContext, body, req.socket.remoteAddress || "unknown"); }
+  @Put("auth/password") password(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.changeLocalPassword(req.managedContext, body, this.runtime.clientAddress(req)); }
   @Post("auth/logout") @HttpCode(200) logout(@Req() req: ManagedRequest, @Body() body: unknown) { return this.runtime.logoutLocal(req.managedContext, body); }
 }
 @Controller("lease/auth")
 export class ManagedLeaseLoginController {
   constructor(@Inject(MANAGED_LEASE_RUNTIME) private readonly runtime: ManagedLeaseRuntime) {}
-  @Post("register") register(@Req() req: Request, @Body() body: unknown) { return this.runtime.registerLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
-  @Post("login") @HttpCode(200) login(@Req() req: Request, @Body() body: unknown) { return this.runtime.loginLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
-  @Post("refresh") @HttpCode(200) refresh(@Req() req: Request, @Body() body: unknown) { return this.runtime.refreshLocal(header(req, "x-app-client"), body, req.socket.remoteAddress || "unknown"); }
+  @Post("register") register(@Req() req: Request, @Body() body: unknown) { return this.runtime.registerLocal(header(req, "x-app-client"), body, this.runtime.clientAddress(req)); }
+  @Post("login") @HttpCode(200) login(@Req() req: Request, @Body() body: unknown) { return this.runtime.loginLocal(header(req, "x-app-client"), body, this.runtime.clientAddress(req)); }
+  @Post("refresh") @HttpCode(200) refresh(@Req() req: Request, @Body() body: unknown) { return this.runtime.refreshLocal(header(req, "x-app-client"), body, this.runtime.clientAddress(req)); }
 }
 @Controller("lease")
 export class ManagedLeasePublicController{
