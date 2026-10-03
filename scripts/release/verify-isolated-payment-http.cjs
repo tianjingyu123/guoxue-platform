@@ -73,13 +73,14 @@ async function verify() {
   const notifyId = "linux-pay-notify-fail";
   const statusId = "linux-refund-status";
   const completionId = "linux-refund-after-sale-final";
+  const recoveryId = "linux-order-notice-durable";
   try {
     // 不配置任何外部投递订阅；站内通知真实落库，推送偏好由 Redis 明确关闭。
     const { RedisService } = require("/app/apps/server/dist/redis/redis.service");
     const redis = new RedisService();
     try { await redis.pingShared(); await redis.setJson("notification:prefs:linux-user-a", { PUSH_ENABLED: false }, 600); }
     finally { await redis.onModuleDestroy(); }
-    for (const id of [rollbackId, notifyId, statusId, completionId]) {
+    for (const id of [rollbackId, notifyId, statusId, completionId, recoveryId]) {
       await p.course.create({ data: { id: "linux-http-course-" + id, userId: "linux-user-b", title: "隔离回调课程" } });
       await p.order.create({ data: {
       id, userId: "linux-user-a", type: "COURSE", targetId: "linux-http-course-" + id, amount: 1,
@@ -150,12 +151,31 @@ async function verify() {
     assert.equal(await ledgers(completionId, "REVOKE"), 1);
     assert.equal((await p.afterSale.findUnique({ where: { id: afterSale.id } })).status, "PROCESSING");
     assert.equal(await notifications(completionId, "ORDER_REFUNDED"), 0);
+    assert.equal((await p.orderBusinessNotice.findUnique({ where: { eventKey: "ORDER_REFUNDED:" + completionId } })).readyAt, null);
     await drop("isolated_refund_after_sale_failure", "AfterSale");
     await send("refund-after-sale-final-write-retry", "refund", refund(completionId), 200);
     await send("refund-after-sale-final-duplicate", "refund", refund(completionId), 200);
     assert.equal((await p.afterSale.findUnique({ where: { id: afterSale.id } })).status, "COMPLETED");
     assert.equal(await ledgers(completionId, "REVOKE"), 1);
     assert.equal(await notifications(completionId, "ORDER_REFUNDED"), 1);
+    assert((await p.orderBusinessNotice.findUnique({ where: { eventKey: "ORDER_REFUNDED:" + completionId } })).readyAt);
+    // 独立恢复任务不要求再来一次支付渠道回调；只补站内通知，不外发。
+    const { OrderBusinessNotificationTask } = require("/app/apps/server/dist/modules/notification/order-business-notification.task");
+    const recovery = new OrderBusinessNotificationTask(p);
+    await trigger("isolated_notification_failure", "Notification", 'NEW."targetId" = \'linux-order-notice-durable\'');
+    await send("pay-notification-failure-durable-fact", "pay", payment(recoveryId), 200);
+    assert.equal(await notifications(recoveryId, "ORDER_PAID"), 0);
+    assert((await p.orderBusinessNotice.findUnique({ where: { eventKey: "ORDER_PAID:" + recoveryId } })).readyAt);
+    await drop("isolated_notification_failure", "Notification");
+    await recovery.deliverPending();
+    assert.equal(await notifications(recoveryId, "ORDER_PAID"), 1);
+    await trigger("isolated_notification_failure", "Notification", 'NEW."targetId" = \'linux-order-notice-durable\'');
+    await send("refund-notification-failure-durable-fact", "refund", refund(recoveryId), 200);
+    assert.equal(await notifications(recoveryId, "ORDER_REFUNDED"), 0);
+    assert((await p.orderBusinessNotice.findUnique({ where: { eventKey: "ORDER_REFUNDED:" + recoveryId } })).readyAt);
+    await drop("isolated_notification_failure", "Notification");
+    await recovery.deliverPending(); await recovery.deliverPending();
+    assert.equal(await notifications(recoveryId, "ORDER_REFUNDED"), 1);
     // 由独立验证分支挂载的 preload 控制偏好等待；业务产物中没有调试入口。
     const { RedisService: LatchRedis } = require("/app/apps/server/dist/redis/redis.service");
     const latch = new LatchRedis();
@@ -203,6 +223,7 @@ async function verify() {
       paymentAndRefundDuplicateLedgerCounts: 1, nonSuccessRefundNeverClaimsSuccess: true,
       paymentAndRefundRespondBeforePreferencesRelease: true, preferencesLatchOnlyInIsolatedPreload: true,
       refundFinalCompletionWaitsForAfterSale: true, refundFinalWriteFailureRetryRestoresOneNotification: true,
+      signedPaymentAndRefundNewFactsVerified: true, independentStationRecoveryWithoutProviderRetry: true,
       realProviderRequests: 0, scope: "synthetic-course-orders-not-real-provider-or-target-database" };
   } finally {
     for (const [name, table] of [["isolated_pay_rollback", "EntitlementLedger"], ["isolated_refund_rollback", "EntitlementLedger"], ["isolated_notification_failure", "Notification"], ["isolated_refund_after_sale_failure", "AfterSale"]]) await drop(name, table);

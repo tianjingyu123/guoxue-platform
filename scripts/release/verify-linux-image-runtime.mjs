@@ -7,9 +7,9 @@ import assert from "node:assert/strict";
 
 // 仅供独立验证分支：临时空库、封闭容器网络，不连接真实业务数据库或渠道。
 const image = process.env.IMAGE_TAG;
-assert.equal(image, "rebu-linux-verify:f2c7ccec4");
-const sourceCommit = "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7";
-const sourceSha256 = "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d";
+assert.equal(image, "rebu-linux-verify:feb4aeb5c");
+const sourceCommit = "feb4aeb5c3d9b60c790b73fe38d0e901984941f5";
+const sourceSha256 = "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1";
 const postgresImage = "rebu-isolated-pg18.4-vector:frozen";
 const redisImage = "redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2";
 const suffix = randomBytes(5).toString("hex");
@@ -328,6 +328,34 @@ try {
   assert(callbackReport.passed);
   save("payment-refund-http-transactions.json", callbackReport);
   check("signed-encrypted-http-payment-refund-rollback-notification-retry", callbackReport);
+
+  // 两个独立编译任务进程共用真实PG；Redis只做验证屏障，业务防重仍由订单锁/数据库唯一键负责。
+  const orderRecoverySeed = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');
+    const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();const {recordOrderNoticeWithTx}=require('/app/apps/server/dist/modules/notification/order-business-notification.task');
+    (async()=>{try{const o=await p.order.create({data:{id:'linux-order-independent-processes',userId:'linux-user-a',type:'PRODUCT',targetId:'synthetic-recovery-product',amount:1,status:'PAID',paidAt:new Date()}});
+      await p.$transaction(tx=>recordOrderNoticeWithTx(tx,o.id,'ORDER_PAID'));console.log('NODE_TEST_RESULT:'+JSON.stringify({newFact:true,noHistoricalBackfill:true}));
+    }finally{await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1;});`);
+  assert(orderRecoverySeed.newFact);
+  const orderRecoveryWorkers = await Promise.all([0, 1].map(slot => concurrentNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');const assert=require('assert/strict');
+    const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();const {OrderBusinessNotificationTask}=require('/app/apps/server/dist/modules/notification/order-business-notification.task');
+    const {RedisService}=require('/app/apps/server/dist/redis/redis.service');const r=new RedisService();
+    (async()=>{try{await r.pingShared();await r.set('isolated:order-notice-barrier:${slot}','1',60);
+      let ready=false;for(let i=0;i<100;i++){if(await r.get('isolated:order-notice-barrier:0')==='1'&&await r.get('isolated:order-notice-barrier:1')==='1'){ready=true;break;}await new Promise(done=>setTimeout(done,20));}assert(ready);
+      const inserted=await new OrderBusinessNotificationTask(p).deliverPending();console.log('NODE_TEST_RESULT:'+JSON.stringify({pid:process.pid,inserted,passed:true}));
+    }finally{await p.$disconnect();await r.onModuleDestroy();}})().catch(e=>{console.error(e.message);process.exitCode=1;});`)));
+  assert(orderRecoveryWorkers.every(row => row.passed));
+  assert.notEqual(orderRecoveryWorkers[0].pid, orderRecoveryWorkers[1].pid);
+  const orderRecoveryResult = appNode(`
+    const {createRequire}=require('module');const req=createRequire('/app/apps/server/package.json');const assert=require('assert/strict');const {PrismaClient}=req('@prisma/client');const p=new PrismaClient();
+    (async()=>{try{const count=await p.notification.count({where:{idempotencyKey:'linux-user-a:ORDER_PAID:linux-order-independent-processes'}});assert.equal(count,1);
+      const o=await p.order.findUnique({where:{id:'linux-order-independent-processes'}});assert.equal(o.status,'PAID');assert.equal(Number(o.amount),1);
+      console.log('NODE_TEST_RESULT:'+JSON.stringify({passed:true,notifications:count,orderAndAmountUnchanged:true,twoIndependentProcesses:true,redisBarrierOnly:true,realChannels:false,production:false}));
+    }finally{await p.$disconnect();}})().catch(e=>{console.error(e.message);process.exitCode=1;});`);
+  assert(orderRecoveryResult.passed);
+  save("order-notice-independent-processes.json", { ...orderRecoveryResult, workers: orderRecoveryWorkers });
+  check("new-order-station-notice-independent-compiled-processes", orderRecoveryResult);
 
   const recallCode = readFileSync(new URL("./verify-isolated-circle-recall-http.cjs", import.meta.url), "utf8");
   const recallReport = appNode(recallCode);
