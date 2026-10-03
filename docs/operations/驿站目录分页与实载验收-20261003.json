@@ -1,0 +1,138 @@
+{
+  "checkedAt": "2026-10-03T16:43:36.429Z",
+  "source": "96e8a7908255fce7bc9944b04092495baa0a1f75",
+  "previous": "da275f0e8",
+  "fixedWorkItem": "F3",
+  "schemaAndMigrationsUnchanged": true,
+  "newValidation": {
+    "vueState": 10,
+    "serverRegression": 40,
+    "simulatorUi": 6,
+    "serverBuild": true,
+    "mobileTypes": true,
+    "targetedLint": true,
+    "h5Build": true,
+    "mpBuild": true
+  },
+  "mini": {
+    "syntheticApi": true,
+    "productionOriginDisabledOnlyInTestCopy": true,
+    "originalArtifactAllHashesUnchanged": true,
+    "nativePickerEvent": true,
+    "realPhonePicker": false,
+    "receipts": [
+      {
+        "path": "E:/CodexReview/f3-mini-96e8a7908-20261003/simulator-receipt.json",
+        "sha256": "c65bfe9c402b8179a3f99a286b378337f04e5ba3e309ca8e36099be41baa422a"
+      },
+      {
+        "path": "E:/CodexReview/f3-mini-96e8a7908-20261003/search-receipt.json",
+        "sha256": "63fdd5eba15bb2891643f15209d1ad97a1d9f0e3bc6541527dd820b59f7bf3ad"
+      }
+    ],
+    "screenshot": {
+      "path": "E:/CodexReview/f3-mini-96e8a7908-20261003/station-directory.png",
+      "sha256": "9b828f4f1085732b7c67a73358414520e57fab52a50aa5fedf4901c6b6ce89ff",
+      "inspected": true,
+      "limitedResolution": true
+    }
+  },
+  "mp": {
+    "mainBytes": 1709983,
+    "estimatedUploadRemaining": 92257,
+    "subpackages": {
+      "pkg-account": 152674,
+      "pkg-agent": 250898,
+      "pkg-auth": 71140,
+      "pkg-bounty": 79751,
+      "pkg-circle": 1147445,
+      "pkg-classics": 406996,
+      "pkg-common": 42252,
+      "pkg-competition": 228961,
+      "pkg-course": 272353,
+      "pkg-creator": 83244,
+      "pkg-discover": 11241,
+      "pkg-help": 15187,
+      "pkg-im": 165968,
+      "pkg-institute": 281696,
+      "pkg-live": 566894,
+      "pkg-mall": 116024,
+      "pkg-merchant": 539464,
+      "pkg-mine": 657704,
+      "pkg-notices": 34900,
+      "pkg-offline": 277524,
+      "pkg-operator": 496813,
+      "pkg-order": 142973,
+      "pkg-paipan": 1770897,
+      "pkg-paipan2": 585356,
+      "pkg-paipan3": 178884,
+      "pkg-profile": 46762,
+      "pkg-report": 55003,
+      "pkg-search": 56877,
+      "pkg-settings": 70501,
+      "pkg-shop": 213154,
+      "pkg-solar-term": 19199,
+      "pkg-video": 189113,
+      "pkg-workspace": 221787
+    },
+    "officialUploadChecked": false
+  },
+  "evidence": [
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-directory-state.json",
+      "sha256": "626e71290766f38c07fc59192033264dcc2f91b283dc475a92decdcf45cc7360"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-directory-state-first.json",
+      "sha256": "0417e7bb1585a4dd08b14cae960b1cc0bb26607c038c26fd4ef3c84a7d99a8c5"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-directory-server.json",
+      "sha256": "9241fd12f9ba9f9a413222a9089cdb7cfe77c9f43566bdadeb8a29147f72d0ea"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-directory-server.log",
+      "sha256": "214c663f04b502422aed1eb2e384f4ed26a57c5551daa113c789d8a68b6a697b"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-mobile-types.log",
+      "sha256": "c0d30d2538f166ec796368dc1b269a74cfd993fe2b1ed4ef919c391cb596ed29"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-mobile-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-server-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-server-build.log",
+      "sha256": "6ad260122ea3ab012f507a449a3ffd76e9fb63936291af7a0c15415102ef18d7"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-h5-build.log",
+      "sha256": "cfabbe744f1088d641148f44075f5a7309d73d3b1f8d85d22d083937cb009ed8"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-mp-build.log",
+      "sha256": "a12c7ca848479ada34786fff28c0a6f50431d3ee11964c5558da34e4f95346a3"
+    },
+    {
+      "path": "artifacts/safety55-intake-20261003/f3-client-builds.json",
+      "sha256": "ffe8a2f9acb1dc1bcaa7dddc833818963db0bdc219d73d1cd0120fdaa1e4a58c"
+    }
+  ],
+  "firstAttemptNotes": [
+    "Vue测试首轮8过1失败，跨VM对象原型断言问题，接口实参值正确；夹具在宿主复制查询对象后10过，未改业务代码。",
+    "模拟器首次错误来自SDK替身返回abort对象；修正为返回响应结果后通过，原0项失败回执保留，未改发布资源。"
+  ],
+  "directoryCodeClosed": true,
+  "uncovered": [
+    "微信真机原生picker手势、真实业务数据与最终同版旅程",
+    "微信正式上传口径",
+    "F3原线下课程及驿站业务其他入口不由本目录修复推定闭合"
+  ],
+  "releaseReady": false,
+  "production": false
+}

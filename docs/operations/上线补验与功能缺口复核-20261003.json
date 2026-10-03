@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T16:17:42.030Z",
+  "checkedAt": "2026-10-03T16:43:36.429Z",
   "reviewParent": "1bd57bb6006d5f6c77a3f1dc3b9a000321379464",
-  "sourceCommit": "3d0ee34a590ce1e9cd5d9aa4a8846aa88baa4b05",
+  "sourceCommit": "96e8a7908255fce7bc9944b04092495baa0a1f75",
   "businessCodeChanged": true,
   "acceptedCandidateMigrations": 145,
   "monthlyCouponCandidateAccepted": false,
@@ -497,9 +497,9 @@
       },
       {
         "id": "F3",
-        "title": "首页同城频道",
-        "current": "切换local时只提示即将开放并返回，未拉取同城内容。",
-        "remaining": "核实可用地域内容查询，设计拒绝定位后手选地区和空态，补真实页面加载。",
+        "title": "同城与驿站目录",
+        "current": "首页同城已接收；本轮96e8修复旧驿站目录城市选项收缩、前100条截断、服务端筛选与分页，限定验证完成。",
+        "remaining": "最终同版真实数据/真机picker与原线下课程、驿站业务其他入口验收；不重开发已实现的首页同城。",
         "businessDecision": "定位需用户授权；不能静默取精确位置或以随机推荐冒充同城。",
         "done": false,
         "deferredByUser": false,
@@ -509,7 +509,9 @@
             "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
             "gitBlobSha256": "1e5897bb8cc34ef76a2f184a5eca8d5149a9814d470b6a2bc341c869ae0bc742"
           }
-        ]
+        ],
+        "directoryEvidence": "docs/operations/驿站目录分页与实载验收-20261003.json",
+        "directoryCodeClosed": true
       },
       {
         "id": "F4",
@@ -801,7 +803,7 @@
   },
   "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
   "latestLocalReception": {
-    "source": "3d0ee34a590ce1e9cd5d9aa4a8846aa88baa4b05",
+    "source": "96e8a7908255fce7bc9944b04092495baa0a1f75",
     "document": "docs/operations/汇付恢复主线接收验收-20261003.json",
     "received": {
       "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
@@ -811,7 +813,8 @@
       "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
       "R04": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
       "R08R12DeletionApproval": "d2489df346d914ec31549b73b1c29a5a5710a5c9",
-      "R11TraceContext": "3d0ee34a590ce1e9cd5d9aa4a8846aa88baa4b05"
+      "R11TraceContext": "3d0ee34a590ce1e9cd5d9aa4a8846aa88baa4b05",
+      "F3StationDirectory": "96e8a7908255fce7bc9944b04092495baa0a1f75"
     },
     "newValidation": {
       "unit": 331,
@@ -840,6 +843,14 @@
         "compiled": 39,
         "sourceHistorical39NotAdded": true,
         "wholeR11Closed": false
+      },
+      "F3Directory": {
+        "document": "docs/operations/驿站目录分页与实载验收-20261003.json",
+        "vue": 10,
+        "server": 40,
+        "simulator": 6,
+        "realPhone": false,
+        "wholeF3Closed": false
       }
     }
   },
