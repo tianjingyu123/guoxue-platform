@@ -65,7 +65,7 @@ main()
 NODE
 
 echo "[db-bootstrap] 在单一事务中应用全量基线与 Prisma 外部运维对象..."
-psql "$DATABASE_URL" \
+psql \
   -X \
   -v ON_ERROR_STOP=1 \
   --single-transaction \
@@ -75,7 +75,8 @@ psql "$DATABASE_URL" \
   --file="$CHANNEL_OPERATIONS" \
   --file="$CIRCLE_REWARD_SNAPSHOT" \
   --file="$ORDER_BUSINESS_NOTICE" \
-  --file="$MANAGED_OPERATIONS"
+  --file="$MANAGED_OPERATIONS" \
+  "$DATABASE_URL"
 
 echo "[db-bootstrap] 在单个事务中登记全量基线覆盖的历史迁移..."
 MIGRATIONS_DIR="$MIGRATIONS_DIR" node <<'NODE'
@@ -87,6 +88,24 @@ const prisma = new PrismaClient();
 
 async function main() {
   const migrationsDir = process.env.MIGRATIONS_DIR;
+  // 不凭 psql 退出码或历史账本数量证明 DDL 已应用；先复核真实结构。
+  const baseline = fs.readFileSync(path.join(migrationsDir, "../migrations-deploy/full-baseline.sql"), "utf8");
+  const expectedTables = [...baseline.matchAll(/CREATE TABLE "([^"]+)"/g)].map((match) => match[1]);
+  const actualTables = await prisma.$queryRawUnsafe(
+    "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'",
+  );
+  const tableNames = new Set(actualTables.map((row) => row.table_name));
+  if (expectedTables.length === 0 || expectedTables.some((name) => !tableNames.has(name))) {
+    throw new Error("空库基线业务表未完整落库，拒绝登记历史迁移");
+  }
+  const requiredChecks = ["ManagedLeaseWriteFence_state_check", "ManagedLeaseWriteFence_epoch_check", "ManagedBrandRequest_order_shape"];
+  const checks = await prisma.$queryRawUnsafe(
+    "SELECT conname FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace",
+  );
+  const checkNames = new Set(checks.map((row) => row.conname));
+  if (requiredChecks.some((name) => !checkNames.has(name))) {
+    throw new Error("多租户外部约束未完整落库，拒绝登记历史迁移");
+  }
   const migrations = fs
     .readdirSync(migrationsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

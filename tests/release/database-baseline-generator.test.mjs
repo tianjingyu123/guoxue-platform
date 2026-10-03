@@ -20,6 +20,10 @@ test("空库初始化必须在历史迁移登记前同事务补齐多租户外�
   const apply = bootstrap.indexOf('--file="$MANAGED_OPERATIONS"');
   assert(apply > bootstrap.indexOf("--single-transaction"));
   assert(apply < bootstrap.indexOf("登记全量基线覆盖的历史迁移"));
+  // Windows 的 psql 不接受连接 URI 之后的选项，避免退出 0 却未执行 DDL。
+  assert.match(bootstrap, /--file="\$MANAGED_OPERATIONS" \\\n\s+"\$DATABASE_URL"/u);
+  assert(bootstrap.indexOf("expectedTables.some") < bootstrap.indexOf('INSERT INTO "_prisma_migrations"'));
+  assert(bootstrap.indexOf("requiredChecks.some") < bootstrap.indexOf('INSERT INTO "_prisma_migrations"'));
   for (const name of ["ManagedLeaseWriteFence_state_check", "ManagedLeaseWriteFence_epoch_check", "ManagedBrandRequest_order_shape"]) {
     assert.equal(operational.split(`ADD CONSTRAINT "${name}"`).length - 1, 1);
   }
