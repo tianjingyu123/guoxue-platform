@@ -1,0 +1,24 @@
+{
+  "sourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "baseline": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+  "sourcesChecked": 121,
+  "compiledFilesChecked": 1363,
+  "reportsChecked": 26,
+  "databaseAndServiceGroups": 175,
+  "otherChecks": {
+    "provider-registration": 3,
+    "native-commerce": 100,
+    "auth": 47,
+    "sqlite": 18,
+    "isolation": 11
+  },
+  "sourceBytesAndGitBlobsMatch": true,
+  "allReportsPass": true,
+  "production": false,
+  "limits": [
+    "同一Windows主机、本任务合成PostgreSQL/SQLite数据",
+    "本清单不包含真实Redis、队列、COS、向量库、商户或真机渠道验收",
+    "服务端是专用候选客户端的完整TypeScript编译，独立启动验收；不是正式镜像或全AppModule运行验收",
+    "客户端构建和页面QA另行归档；本清单不将编译资源当成真机或商店验收"
+  ]
+}

@@ -26,6 +26,6 @@ import { CircleModule } from "../circle/circle.module";
   imports: [SystemModule, LiveModule, NotificationModule, AiGatewayModule, PricingModule, AuditModule, ShopModule, CircleModule],
   controllers: [CourseController, CourseAdminController],
   providers: [CourseService, CourseRecommendService, CourseAdminService, CourseCreatorService, CoursePurchaseService, CourseLearningService, CourseWorkService, CourseReviewQaService, CourseSchedulerService, MemberGuard, CourseCreatorGuard, StationIsolationGuard],
-  exports: [CourseService],
+  exports: [CourseService,CoursePurchaseService,CourseLearningService],
 })
 export class CourseModule {}

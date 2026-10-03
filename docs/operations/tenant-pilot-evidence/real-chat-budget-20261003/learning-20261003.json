@@ -1,0 +1,48 @@
+{
+  "head": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-lease-learning.ts": "f14edb069b96b5c1ec4dc0bd9bb8f7a6e9af3e0614558f80d12f86821b8beffe",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "c089154278f7be496c25694cde7f4eb44494cdb286b1749383adb911597cce93",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "5e31e2fd74a135cb9e2fc0d15258e93bfe6b3fc4bae4d2e2c2c71bbd5a05d9f4",
+    "apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts": "ba677560f44eda7291ea5a786deb0c104c3ca981dd2a42dc66f4d228add736e6",
+    "pilots/managed-tenancy/verify-learning-postgres.mjs": "bd8a63af66c6277f8eafb60f6422a087cb289700d3633c59baebb9ed9023fb8c"
+  },
+  "checks": [
+    {
+      "name": "三个Nest进程真实章节白名单、审核、课程归属、跨库与跨客户会话检查；合成文本内容可读",
+      "status": "PASS"
+    },
+    {
+      "name": "未购买只能看已授权试看；章节目录无内容和媒体地址，未有课程权益不能写进度",
+      "status": "PASS"
+    },
+    {
+      "name": "真实合成订单状态：未支付、过期或另一用户已付不授本人权益；本人有效已付订单授学习",
+      "status": "PASS"
+    },
+    {
+      "name": "跨进程进度写入只产生一行且单调前进，低进度重放不回退；未知用户/完成字段和越界值拒绝，读取只归本人",
+      "status": "PASS"
+    },
+    {
+      "name": "合成退款后即时拒绝内容和进度写入，既有进度保留，另一用户有效权益不受影响",
+      "status": "PASS"
+    },
+    {
+      "name": "课程下架即时拒绝章节；独立学习入口没有客户端指定已付状态或创建支付订单的路由",
+      "status": "PASS"
+    },
+    {
+      "name": "三个学习子进程与全部随机监听端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务三个Nest进程和真实PostgreSQL合成数据；已付/退款由准备账号置为合成状态，没有真实付款或退款",
+    "只覆盖文本章节、既有已付权益与本人进度，不继承平台会员，不含真实视频、证书、作业、课程交易或完整圈子/聊天",
+    "权益和进度不替代生产退款并发及媒体访问回收验收"
+  ]
+}

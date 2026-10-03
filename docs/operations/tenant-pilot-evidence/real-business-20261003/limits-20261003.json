@@ -1,0 +1,51 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-policy.ts": "09b5dc8b44c8b3a5657042aafeeae877d71bf4181b3b219c3924a325ca25e6f1",
+    "apps/server/src/modules/managed-tenancy/managed-lease-content.ts": "72d6b7d39a28f2927d63bade0240192cd96fbc921d9355acb3b20f73ab1f8dd5",
+    "apps/server/src/modules/managed-tenancy/managed-lease-identity.ts": "9482044f99266b04d33fda57ef904d2562122469aaacf62df020b5d185671d8b",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "864821d1c5742b30b9f3941e1f712453fd835a71483bd086fdd9d0af7f7c8019",
+    "pilots/managed-tenancy/verify-limits-postgres.mjs": "7aec289be91090342e25f4a629c59d1295f515f074500c4e6408fd9ff5993b67"
+  },
+  "checks": [
+    {
+      "name": "旧授权规范化保持历史幂等字段；未知、负数、超限及品牌独立创建授权拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "合同未约定创建或存储数量时不增加商品、附件，不冒充无限额度",
+      "status": "PASS"
+    },
+    {
+      "name": "同客户两个应用、两个真实进程争最后商品名额，只提交一次，不能换应用突破总量",
+      "status": "PASS"
+    },
+    {
+      "name": "课程创建在数据库事务中核对客户总数，跨进程竞争不会超合同数量",
+      "status": "PASS"
+    },
+    {
+      "name": "附件按客户实际字节累计；跨应用并发只使用一次剩余额度",
+      "status": "PASS"
+    },
+    {
+      "name": "智能体额度包含客户已有角色，历史资源不能通过来源不同绕过限额",
+      "status": "PASS"
+    },
+    {
+      "name": "两个应用并发注册只分配一个用户名额，失败请求不留下账户、独立身份或审计半成品",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务真实PostgreSQL及两个合成客户进程；技术候选容量限制不代表正式服务容量承诺"
+  ]
+}

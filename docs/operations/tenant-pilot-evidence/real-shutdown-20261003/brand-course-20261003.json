@@ -1,0 +1,53 @@
+{
+  "head": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-brand.service.ts": "3ca6af5e5fb5ac25a931a360526f82346144948c0ca17c61d8376195da617f5e",
+    "apps/server/src/modules/managed-tenancy/managed-brand.module.ts": "04d91e00e783a79b9480ee1200bf9ad8c110db267469218b082ae422ce3c02dd",
+    "apps/server/src/modules/course/course-purchase.service.ts": "ba6d2b2eced6ea9487f76f0ddcc7deac2ab10f3f6bde214e08eb2a37a7c4102e",
+    "apps/server/prisma/migrations/manual_z_20261003_14_managed_brand_course/migration.sql": "98f859ee124c59d0ded32f0e04fc9a2c12e180cad3b68dd502d6b8aae13b18c9",
+    "pilots/managed-tenancy/verify-brand-course-postgres.mjs": "84f031ccb4e39e8ed047281c5460d47d729c94c5fb8ce333b98d32706fe1438c"
+  },
+  "checks": [
+    {
+      "name": "品牌目录仅包含白名单内、平台公开、审核通过的课程；私有圈课程和金额篡改拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "四并发复用原免费课程订阅，仅一张零价原订单、一次通知事实和品牌来源；站长归因保留，章节不能跨课程",
+      "status": "PASS"
+    },
+    {
+      "name": "收费课程仍为原待支付订单，不伪造权益；原课程访问核验及应用、用户来源隔离生效",
+      "status": "PASS"
+    },
+    {
+      "name": "原课程订单提交后来源登记中断，可并发核对补登记；课程意图字段独立，不伪装商品、不重建或重复订阅",
+      "status": "PASS"
+    },
+    {
+      "name": "合成已付历史订单复用原收货和售后申请内核，跨应用拒绝、并发仅一张售后；无支付、退款或分佣资金调用",
+      "status": "PASS"
+    },
+    {
+      "name": "原学习进度、订单取消、售后取消和退货运单均按品牌来源隔离并复用原内核；不修改金额、不触发退款",
+      "status": "PASS"
+    },
+    {
+      "name": "新增课程目录和订单列表通过真实Nest HTTP与原JWT接线，平台身份及品牌选择器校验仍生效",
+      "status": "PASS"
+    },
+    {
+      "name": "软删除的原平台身份不能继续访问品牌订单或课程",
+      "status": "PASS"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "真实PostgreSQL和原业务内核；Redis为合成无缓存适配，未验真实缓存锁",
+    "付费、发货历史为明确合成准备数据，没有真实商户、退款或分佣入账",
+    "品牌课程只开放已审核的公共资源，不授权私有课程或独立收款"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "production": false,
+  "probes": [
+    {
+      "file": "provider-budget-registration-probe.json",
+      "head": "20d4c7bc44ac6d4d33e68d97e7fb46cdf079c176",
+      "workingTreeDirty": true,
+      "passed": 4,
+      "failed": 0,
+      "sha256": "bcfc7d3288acb04b01c5898470dca7dd05b80b2e36700c3b7a02dd7e315dbda4",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "chat-budget-probe.json",
+      "head": "20d4c7bc44ac6d4d33e68d97e7fb46cdf079c176",
+      "workingTreeDirty": true,
+      "passed": 7,
+      "failed": 0,
+      "sha256": "f92217ffcccf508083f53324384606d1d612e0ce681916cdebcfb16f3151013c",
+      "usedAsFinalPassEvidence": false
+    }
+  ],
+  "finalSourceHead": "a1d37c4a2cfd0167a4474798a47a4cb6706e6c69",
+  "finalRegistrationPassed": 4,
+  "finalDatabasePassed": 7
+}

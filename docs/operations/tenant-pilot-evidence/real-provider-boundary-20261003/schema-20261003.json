@@ -1,0 +1,62 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "sources": {
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f",
+    "apps/server/prisma/migrations-deploy/full-baseline.sql": "ec4221868784aaf3554d905c0594d81332592e44aae5dfe04681b0cd337596fe",
+    "apps/server/prisma/migrations-deploy/circle-reward-snapshot.sql": "6a828ba411a43f7d638716455b54553b67ed509af2a1674953bf2698aff77b28",
+    "apps/server/prisma/migrations/manual_z_20261002_07_circle_post_reward_notice_snapshot/migration.sql": "326d3f3e0fb800c0b2689da8a44e3e2c5f6b15b6b42e2896ccc91b69b09c6a88",
+    "apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql": "e0e69fef85a9da6fd05b5dc17d4fd09ee6abe57d54b30fd0ab9479bbc6cb468a",
+    "apps/server/prisma/migrations/manual_z_20261002_08_managed_lease_exit/migration.sql": "8393287291492b679e4135a6db2280b757f42b3c6efd5ce639e7d82fe59c8427",
+    "apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql": "7b869e07ee7c5981cdec39d9f88ca5caef3520603e4f8fcfc67a582178ec3f8f",
+    "apps/server/prisma/migrations/manual_z_20261002_10_managed_lease_identity/migration.sql": "1e247d22eb26532da63f98052e8a2898bc13fdf78392d3d3a0ac3445c219bb69",
+    "apps/server/prisma/migrations/manual_z_20261002_11_managed_recovery_export/migration.sql": "8e596b34cda3c78388c9e1a4877c8c0101be531776a97325ddf52348141931ea",
+    "apps/server/prisma/migrations/manual_z_20261003_12_managed_local_content/migration.sql": "086282ba20730c2920cfeb469274a3a2206e80c4c31115bfe6fd71160710dab5",
+    "apps/server/prisma/migrations/manual_z_20261003_13_managed_limits_fence/migration.sql": "86b7effa42c8c0dc6fd8dec53e0abc777d3d6af482c2233f759ac086283df2ce",
+    "apps/server/prisma/migrations/manual_z_20261003_14_managed_brand_course/migration.sql": "98f859ee124c59d0ded32f0e04fc9a2c12e180cad3b68dd502d6b8aae13b18c9"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "mt_control身份、完整schema及Managed结构、订单和写围栏CHECK一致性",
+      "status": "PASS"
+    },
+    {
+      "name": "mt_customer_a身份、完整schema及Managed结构、订单和写围栏CHECK一致性",
+      "status": "PASS"
+    },
+    {
+      "name": "mt_customer_b身份、完整schema及Managed结构、订单和写围栏CHECK一致性",
+      "status": "PASS"
+    }
+  ],
+  "results": {
+    "mt_control": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "snapshotCheckValidated": true,
+      "snapshotCheckSha256": "d97551116e67fcf6cfccb0b8a9d583f86d004f06730cd2e9e06419e79e48aed3",
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    },
+    "mt_customer_a": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "snapshotCheckValidated": true,
+      "snapshotCheckSha256": "d97551116e67fcf6cfccb0b8a9d583f86d004f06730cd2e9e06419e79e48aed3",
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    },
+    "mt_customer_b": {
+      "managedTablesMatch": true,
+      "fullSchemaMatches": true,
+      "snapshotCheckValidated": true,
+      "snapshotCheckSha256": "d97551116e67fcf6cfccb0b8a9d583f86d004f06730cd2e9e06419e79e48aed3",
+      "diffSha256": "e69c9f21be2b53770b13ea52bf6c4f304a9fc86b41f1e932729ec2de45574341"
+    }
+  },
+  "passed": 3,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "只读比较本任务三个合成库；未执行修正SQL或生产迁移",
+    "完整基线如有既有差异，单独记录，不混入本专项迁移"
+  ]
+}

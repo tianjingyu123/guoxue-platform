@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -25,6 +25,7 @@ export class CoursePurchaseService {
     private unifiedPricing: UnifiedPricingService,
     private attribution: ShopAttributionService,
     @Optional() private notifications?: NotificationService,
+    @Optional() @Inject("COMMERCE_SCOPE") private readonly commerceScope: "PLATFORM" | "INDEPENDENT" = "PLATFORM",
   ) {}
 
   /** 免费订阅订单已经落库后才建通知；不在下单流程中等待可选通知服务。 */
@@ -49,6 +50,7 @@ export class CoursePurchaseService {
    * 任一归因查询失败均 fail-open，不能阻断正常下单。
    */
   private async resolveOrderAttribution(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+    if(this.commerceScope==="INDEPENDENT")return {permanentReferrerId:null,tempReferrerId:null,tempRefSubjectType:null};
     let tempReferrerId: string | null = null;
     let tempRefSubjectType: string | null = null;
     try {
@@ -84,7 +86,8 @@ export class CoursePurchaseService {
   }
 
   /** 创建课程购买订单（Redis 锁防并发重复下单） */
-  async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+  async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto,request?:{clientRequestId:string}) {
+    if(request&&!/^[a-zA-Z0-9_-]{1,128}$/.test(request.clientRequestId))throw new BusinessException(ErrorCode.BAD_REQUEST,"内部课程请求标识无效");
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       select: { id: true, price: true, title: true, validityDays: true },
@@ -122,7 +125,7 @@ export class CoursePurchaseService {
       const pendingOrder = await this.prisma.order.findFirst({
         where: { userId, type: "COURSE", targetId: courseId, status: "PENDING" },
       });
-      if (pendingOrder) return pendingOrder;
+      if (pendingOrder) {if(request&&pendingOrder.clientRequestId!==request.clientRequestId)throw new BusinessException(ErrorCode.BAD_REQUEST,"课程已有其他来源的待支付订单，请先处理原订单");return pendingOrder;}
 
       const attribution = await this.resolveOrderAttribution(userId, courseId, dto);
       const orderData: any = {
@@ -136,6 +139,7 @@ export class CoursePurchaseService {
         tempReferrerId: attribution.tempReferrerId,
         tempRefSubjectType: attribution.tempRefSubjectType,
         status: "PENDING",
+        ...(request?{clientRequestId:request.clientRequestId}:{}),
       };
       if (pricing.appliedPromotion) {
         orderData.promotionType = pricing.appliedPromotion.type;
@@ -165,6 +169,12 @@ export class CoursePurchaseService {
     } finally {
       await this.redis.del(lockKey).catch(() => {});
     }
+  }
+  /** 品牌建单把原课程内核复用在外层数据库事务内，通知事实仍与零价订单同组提交。 */
+  async purchaseInTransaction(tx:Prisma.TransactionClient,userId:string,courseId:string,dto:PurchaseCourseDto,clientRequestId:string){
+    const prisma=new Proxy(tx,{get(target,key){if(key==="$transaction")return (work:(inner:Prisma.TransactionClient)=>Promise<unknown>)=>work(tx);const value=Reflect.get(target,key);return typeof value==="function"?value.bind(target):value;}}) as unknown as PrismaService;
+    // 事务尚未提交，不发送可选通知；原持久化通知事实由既有后台处理。
+    return new CoursePurchaseService(prisma,this.redis,this.unifiedPricing,this.attribution,undefined,this.commerceScope).purchase(userId,courseId,dto,{clientRequestId});
   }
 
   /** 检查用户是否有课程访问权限（含有效期检查；会员专属精品课对有效会员免费） */

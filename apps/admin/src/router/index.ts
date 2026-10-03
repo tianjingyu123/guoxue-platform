@@ -1240,10 +1240,16 @@ const routes = [
       },
       // === 租户管理 ===
       {
+        path: "managed-customers",
+        name: "ManagedCustomerList",
+        component: () => import("@/views/tenant/ManagedCustomerList.vue"),
+        meta: { title: "托管客户与品牌应用", roles: ["SUPER_ADMIN"] },
+      },
+      {
         path: "tenants",
         name: "TenantList",
         component: () => import("@/views/tenant/TenantList.vue"),
-        meta: { title: "租户管理", roles: ["SUPER_ADMIN"] },
+        meta: { title: "API配额租户", roles: ["SUPER_ADMIN"] },
       },
       {
         path: "tenants/:id",

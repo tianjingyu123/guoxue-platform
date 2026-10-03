@@ -27,6 +27,7 @@ const mockPrisma = {
     upsert: jest.fn(),
   },
   userRole: { findMany: jest.fn() },
+  managedMembership: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
   merchant: { findUnique: jest.fn() },

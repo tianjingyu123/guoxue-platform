@@ -1,0 +1,39 @@
+{
+  "head": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-provider-probe.ts": "581171fc96e644d0668b467293f7addb7e01dcea714dc0cfc624e1b48e131e21",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "32f969b043ce0bf5c1a7b5ab87695869cbcc6b69e6a53011f4eb31e6d70894b6",
+    "scripts/ops/prisma-candidate/managed-provider-probe.mjs": "6ea79268d00fe6437e212b0a2ba5103506c329095178e7f7a1e5a7a70ea256be",
+    "pilots/managed-tenancy/verify-provider-registration.mjs": "dc07ddb80e76789e3bd8d5e879b1add5bac4a88380341543e06e3200db985aee"
+  },
+  "checks": [
+    {
+      "name": "合成HTTP边界核验只构造一次固定官方GET模型清单请求，不生成内容，默认不授付费调用，签名绑定客户与空间",
+      "status": "PASS"
+    },
+    {
+      "name": "替换模型、密钥、客户、空间、调用授权或签名均拒绝，不能把另一客户核验记录搬来使用",
+      "status": "PASS"
+    },
+    {
+      "name": "非官方、明文、含凭据或查询串端点拒绝；错误模型、鉴权失败和超时均不签发核验、不自动重试",
+      "status": "PASS"
+    },
+    {
+      "name": "付费授权必须同时签名明确次数和未确认上限，缺失及非法预算在任何HTTP前拒绝；旧无预算付费记录及篡改预算不能启动",
+      "status": "PASS"
+    }
+  ],
+  "passed": 4,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "纯合成HTTP响应及签名验证，没有访问真实百炼账号，不代表真实API鉴权或收费通道可用",
+    "GET模型清单仅证明该只读结果，生成权限、额度、价格和输出质量仍须实际授权后的独立验收"
+  ],
+  "officialReferences": [
+    "https://help.aliyun.com/en/model-studio/list-models",
+    "https://help.aliyun.com/en/model-studio/base-url"
+  ]
+}

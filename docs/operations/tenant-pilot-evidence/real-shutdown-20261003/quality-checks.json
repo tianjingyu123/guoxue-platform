@@ -1,0 +1,18 @@
+{
+  "sourceHead": "7f150db57e98cea09b3a14b4e37e44e770723373",
+  "serverCompile": {
+    "command": "pnpm --filter @guoxue/server exec tsc -p ../../scripts/ops/prisma-candidate/tsconfig.candidate.json --noEmit false --outDir .prisma-candidate/server-build --tsBuildInfoFile .prisma-candidate/server-build.tsbuildinfo",
+    "sessionId": 35007,
+    "exitCode": 0,
+    "output": "apps/server/.prisma-candidate/server-build",
+    "candidateClientIsolated": true
+  },
+  "changedServerLint": {
+    "command": "pnpm --filter @guoxue/server exec eslint src/modules/managed-tenancy/managed-lease.runtime.ts src/modules/managed-tenancy/managed-lease.module.ts src/lease-main.ts",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "production": false,
+  "limits": ["退出码来自本任务执行工具结果；编译文件摘要另由完整验收清单核对", "lint仅覆盖本批相关服务端文件，不代表全工程lint或正式镜像验收"]
+}

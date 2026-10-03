@@ -2,6 +2,13 @@
 export const PRESENTATION_CAPABILITY = "presentation-v1";
 /** 完整包构建导出的能力清单。能力可用不表示已展示、已获用户授权或已通过渠道发布审查。 */
 export const CLIENT_CAPABILITY_PROFILES = {
+  "managed-presentation-v1": {
+    schemaVersion: 1,
+    surfaces: ["home", "shop", "course", "circle", "agent"],
+    components: ["notice", "richtext", "entry-grid"],
+    capabilities: ["home-entries.v1"],
+    nativeDependencies: [],
+  },
   "legacy-v1": {
     schemaVersion: 1,
     surfaces: [],

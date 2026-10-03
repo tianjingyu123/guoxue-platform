@@ -1,0 +1,67 @@
+{
+  "head": "0f160a3cc2241331fa5f7062014a423db5dbbf50",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/lease-main.ts": "9523f74ae02dbf1db4575e3da29238fa78295ef7224bc78dfe54f197ec4d08f3",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "337c985693dcf4565d3d9d822b343dbd22234922100c8441d442bb17cc79f0d0",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "d1446af14c3c6445c21a3a49e48b41bc899677a69fcbe7a1e21deeedc1d78f4b",
+    "apps/server/.prisma-candidate/server-build/lease-main.js": "425e2db2a4e1b9c751db7df93bc36172bbeb5d2a460c132d6bc13c1346e1d6f5",
+    "pilots/managed-tenancy/shutdown-process.mjs": "0ed9066eff6325f842358cfda33ebfe24717ef699386a79633048c513b9b04b3",
+    "pilots/managed-tenancy/verify-shutdown-postgres.mjs": "63e2a1c29f664b822cd3aa1bc1b6b81832837434641a1202c8850eec9b3d8e44"
+  },
+  "checks": [
+    {
+      "name": "实际编译lease-main完成固定客户启动与认证，测试包装器未新增HTTP停机路由",
+      "status": "PASS"
+    },
+    {
+      "name": "实际HTTP订单已进入PG事务并被本任务资源行锁阻塞，非延时伪造的在途请求",
+      "status": "PASS"
+    },
+    {
+      "name": "开始退出后新经营及公共请求返回503且关闭连接，不接受新订单或自动重发",
+      "status": "PASS"
+    },
+    {
+      "name": "客户A退出期间客户B独立认证与查询保持正常",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP关闭已开始且不接受新连接时，原PG事务仍在等待，数据库尚未释放",
+      "status": "PASS"
+    },
+    {
+      "name": "已接收订单与库存及来源同事务提交，新拒绝订单没有事实；没有真实支付调用",
+      "status": "PASS"
+    },
+    {
+      "name": "两次退出事件只执行一次生命周期，HTTP关闭后释放两库连接并回收监听端口",
+      "status": "PASS"
+    },
+    {
+      "name": "同一部署重启后原请求键核对同一待支付订单，不重复扣库存或建单",
+      "status": "PASS"
+    },
+    {
+      "name": "重启后另一客户令牌仍无法读取当前客户实例",
+      "status": "PASS"
+    },
+    {
+      "name": "重启实例正常完成相同关闭顺序，未关闭其他客户或数据库服务",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务真实PG/Nest/编译入口，合成待支付订单，没有真实收费或外部SDK",
+    "Windows包装器主动触发Node事件进入真实Nest关闭链路；不是Linux/systemd真实SIGTERM或宿主机隔离验收",
+    "包装器只暂停生命周期并采集完成事件，正式入口没有其IPC控制或额外HTTP路由",
+    "测试商品、订单、用户及历史记录保留，客户授权与测试子进程按原规则恢复"
+  ]
+}

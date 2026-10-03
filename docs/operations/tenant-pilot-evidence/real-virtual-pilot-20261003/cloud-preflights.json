@@ -1,0 +1,188 @@
+{
+  "scriptSourceHead": "c3f254304745e892526ea541bb1867987ceedc89",
+  "scriptSha256": "495bbf29ac24130ff113788eefa7961fc8c3eb0f10ba6350edc6ad5166f92c26",
+  "nodes": [
+    {
+      "node": "guoxue2",
+      "instanceId": "ins-0sen8yvf",
+      "invocationId": "inv-a9en0409ud",
+      "taskId": "invt-a9en0409ue",
+      "requestId": "9d1c2985-05fe-43c5-8e87-761b231d8f52",
+      "executedScriptSha256": "495bbf29ac24130ff113788eefa7961fc8c3eb0f10ba6350edc6ad5166f92c26",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "d59bc77801a78ca0a6c510443e9d39ca551b5c11f9edd36eddf98ecc09816562",
+      "report": {
+        "protocol": "managed-linux-readonly-v1",
+        "hostname": "VM-0-10-ubuntu",
+        "os": {
+          "VERSION_ID": "26.04",
+          "ID": "ubuntu"
+        },
+        "architecture": "x86_64",
+        "cpuLogicalCount": 8,
+        "memoryBytes": {
+          "MemTotal": 16230629376,
+          "MemAvailable": 12717006848
+        },
+        "rootDiskBytes": {
+          "total": 308988768256,
+          "available": 138298912768
+        },
+        "cgroup": {
+          "v2": true,
+          "controllers": [
+            "cpu",
+            "cpuset",
+            "dmem",
+            "hugetlb",
+            "io",
+            "memory",
+            "misc",
+            "pids",
+            "rdma"
+          ]
+        },
+        "systemd": {
+          "version": {
+            "available": true,
+            "exitCode": 0,
+            "version": "259.5"
+          },
+          "state": "running"
+        },
+        "tools": {
+          "node": {
+            "available": true,
+            "exitCode": 0,
+            "version": "v22.22.1"
+          },
+          "postgresClient": {
+            "available": true,
+            "exitCode": 0,
+            "version": "18.4"
+          },
+          "redisServer": {
+            "available": false
+          },
+          "dockerClient": {
+            "available": true,
+            "exitCode": 0,
+            "version": "29.6.2"
+          }
+        },
+        "pnpmCommandPresent": false,
+        "fixedListeningPortCounts": {
+          "80": 2,
+          "443": 0,
+          "5432": 0,
+          "6379": 0
+        },
+        "businessReadOnly": true,
+        "credentialsRead": false,
+        "servicesChanged": false,
+        "limits": [
+          "只证明主机能力及瞬时余量，不代表客户运行隔离、负载容量或停机验收",
+          "未连接数据库、Redis或Docker守护进程，未读取环境变量、业务配置或进程命令行",
+          "TAT执行代理仍会产生自身执行记录，不代表整个系统零文件写入"
+        ]
+      }
+    },
+    {
+      "node": "guoxue1",
+      "instanceId": "ins-n0sqc627",
+      "invocationId": "inv-e9en14g493",
+      "taskId": "invt-e9en14g494",
+      "requestId": "cb7e77e4-670c-48e3-a66e-33ee29fa49a3",
+      "executedScriptSha256": "495bbf29ac24130ff113788eefa7961fc8c3eb0f10ba6350edc6ad5166f92c26",
+      "status": "SUCCESS",
+      "exitCode": 0,
+      "dropped": 0,
+      "rawRecordSha256": "69c37b9efa922e091c3bd0c04325d08c763b0e8ff106d63deabb6615fa2ca9cc",
+      "report": {
+        "protocol": "managed-linux-readonly-v1",
+        "hostname": "VM-0-14-ubuntu",
+        "os": {
+          "VERSION_ID": "26.04",
+          "ID": "ubuntu"
+        },
+        "architecture": "x86_64",
+        "cpuLogicalCount": 8,
+        "memoryBytes": {
+          "MemTotal": 16230629376,
+          "MemAvailable": 13504507904
+        },
+        "rootDiskBytes": {
+          "total": 308988768256,
+          "available": 235387641856
+        },
+        "cgroup": {
+          "v2": true,
+          "controllers": [
+            "cpu",
+            "cpuset",
+            "dmem",
+            "hugetlb",
+            "io",
+            "memory",
+            "misc",
+            "pids",
+            "rdma"
+          ]
+        },
+        "systemd": {
+          "version": {
+            "available": true,
+            "exitCode": 0,
+            "version": "259.5"
+          },
+          "state": "running"
+        },
+        "tools": {
+          "node": {
+            "available": true,
+            "exitCode": 0,
+            "version": "v22.22.1"
+          },
+          "postgresClient": {
+            "available": true,
+            "exitCode": 0,
+            "version": "18.4"
+          },
+          "redisServer": {
+            "available": false
+          },
+          "dockerClient": {
+            "available": true,
+            "exitCode": 0,
+            "version": "29.6.2"
+          }
+        },
+        "pnpmCommandPresent": false,
+        "fixedListeningPortCounts": {
+          "80": 2,
+          "443": 0,
+          "5432": 0,
+          "6379": 0
+        },
+        "businessReadOnly": true,
+        "credentialsRead": false,
+        "servicesChanged": false,
+        "limits": [
+          "只证明主机能力及瞬时余量，不代表客户运行隔离、负载容量或停机验收",
+          "未连接数据库、Redis或Docker守护进程，未读取环境变量、业务配置或进程命令行",
+          "TAT执行代理仍会产生自身执行记录，不代表整个系统零文件写入"
+        ]
+      }
+    }
+  ],
+  "cloudBusinessReadOnly": true,
+  "productionDeployment": false,
+  "credentialsPrinted": false,
+  "limits": [
+    "TAT成功不代表COS/DNS/CLB/CAM权限",
+    "只核主机可见能力，不核容器内服务、客户资源隔离、45秒停机或承载容量",
+    "原始执行记录保留在受限目录，公开记录仅含预检输出和记录摘要"
+  ]
+}

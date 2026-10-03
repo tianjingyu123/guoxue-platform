@@ -1,0 +1,35 @@
+{
+  "production": false,
+  "probes": [
+    {
+      "file": "proxy-probe.json",
+      "head": "c3f254304745e892526ea541bb1867987ceedc89",
+      "workingTreeDirty": true,
+      "passed": 7,
+      "failed": 0,
+      "sha256": "d7d245c11d8c4497c505744333875c50327df733a49e0647282f1c6ffb26a500",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "virtual-pilot-probe.json",
+      "head": "c3f254304745e892526ea541bb1867987ceedc89",
+      "workingTreeDirty": true,
+      "passed": 2,
+      "failed": 1,
+      "sha256": "2962747227c7e6578dbe3f0060b8927ca2a14b2706ef1324c78ce779d17b048d",
+      "usedAsFinalPassEvidence": false
+    },
+    {
+      "file": "virtual-pilot-probe-fixed.json",
+      "head": "c3f254304745e892526ea541bb1867987ceedc89",
+      "workingTreeDirty": true,
+      "passed": 6,
+      "failed": 0,
+      "sha256": "f440288dfa327c199c48f63e7a54169f5e05d4bb994e72b59dd1692c970ab24c",
+      "usedAsFinalPassEvidence": false
+    }
+  ],
+  "finalSourceHead": "d4503b782f3378eee1c9a64bad97e957195c12ce",
+  "finalProxyPassed": 7,
+  "finalVirtualPilotPassed": 6
+}

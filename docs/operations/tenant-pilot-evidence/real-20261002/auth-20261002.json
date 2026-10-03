@@ -1,0 +1,17 @@
+{
+  "head": "4df811a851fd6c03e765bdd3152612cd3590f365",
+  "sources": {
+    "apps/server/src/modules/auth/auth.service.ts": "6c0064ad2825040b14a3a092b1137f20e5d318d3e52d13c99c33bee48083704e",
+    "apps/server/src/modules/auth/auth.service.spec.ts": "eaec59214bd8a9842940b160417d45f10dcc89b44ebda7a76a26d60502feb6d1",
+    "apps/server/prisma/schema.prisma": "dfc492f1926f7cb8b56273f88920faefe15f169f0b29ad14dd680e0c8d2445f2"
+  },
+  "node": "v24.17.0",
+  "passed": 47,
+  "failed": 0,
+  "success": true,
+  "production": false,
+  "limits": [
+    "现有认证服务的47项单元测试；候选服务端另行完整类型检查",
+    "Redis为原测试适配器；真实Redis ACL、队列和生产认证仍需验收"
+  ]
+}

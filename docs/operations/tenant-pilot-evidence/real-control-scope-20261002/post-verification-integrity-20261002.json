@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-10-03T00:19:57.978Z",
+  "sourceHead": "5bcca87c7bd06a11a258cc0c938a4b0be6f724fc",
+  "baseline": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+  "sourcesChecked": 67,
+  "reportsChecked": 13,
+  "sourceBytesAndGitBlobsMatch": true,
+  "allReportsPass": true,
+  "realDatabaseAndServiceGroups": 91,
+  "authRegression": 47,
+  "sqliteGroups": 18,
+  "candidateIsolationAssertions": 11,
+  "compiledManagedModules": {
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-brand.module.js": "6aed631c255df6ee6e38ae208c93a078585570100a759502feeb68efb9cac00d",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-brand.service.js": "40801dc9ef5377f9296550990441b96be9945aff0211ebb8270d05da7eb39b5a",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-control-reader.js": "f23ee2f88ceeaf6de2f199db83cf83c2f161f57752028ea6cea662c7d7c0e86a",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-credentials.js": "58bad028d2f4ba5d0a33d19a31e807980be1ba5a55ccdd240d5c266a0a1e8853",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-export.js": "b3bbc1b85387d7a3fc7e35e6d3b3e749d5112bda21503654c13b0b270073f167",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-identity.js": "9d2964e3d4a46e02f1d89e51aceac940c65c4a087a35b9a9efe198850dda4d85",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-learning.js": "d7fdbad7fb4ea4eeae67971f311dfec39954714785404ea06f95a3565a9fb315",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-maintenance.service.js": "6b842775ec579ec371aaf5f57c1104ed8e689c92f2cdd8e1f992404338e9f752",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease-permissions.js": "83927d06a0e73dcad8cf58002f00af9374abac0c62494622613000b7328c7207",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease.module.js": "3e4c3b540b8f6a80a498e85c497a7418ad4c2aa078997676eb89f40e3b65d26e",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-lease.runtime.js": "67e1afd8da914d43270f5f520f2918ae1e21e4ac6bc027b1655d247bc16924f2",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-policy.js": "3aa210ed86d6bf411cc17695026f23090adf01a6de323d28850f81d4c1a90267",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-presentation.js": "35335f8dbc22c56fce6c2406f8ff9918c6c5f627fda8d6232c8f32e8ebfb1818",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-tenancy.controller.js": "206bca66a6770d6212dfc0c2466dccb78f69c897adc28c88c700f39290d61251",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-tenancy.module.js": "5163f1b586359993898ef0be3292c165d3147109ec8697286f6726a44c646924",
+    "apps/server/.prisma-candidate/server-build/modules/managed-tenancy/managed-tenancy.service.js": "cb0b7ba7bb18ec360759670f3add9912f37900e9debe8362547e62436d2e6826"
+  },
+  "schemaSha256": "854ea849d5d396c1608dfe0ddafa6ab22fd5bdce3979ac7ad0ab025629b1be5e",
+  "compiledLeaseMainSha256": "20e73a6dc8295089546a8032fc456388ad6a50c6b2dc8249fb9f72b81736ba0a",
+  "production": false,
+  "limits": [
+    "编译模块摘要补录于全部验收完成后，受测入口及源码前后摘要一致",
+    "SQLite报告使用baselineHead，其余使用head；全部对应同一受测提交",
+    "不把单元、SQLite、客户端隔离断言叠加为真实交易覆盖"
+  ]
+}

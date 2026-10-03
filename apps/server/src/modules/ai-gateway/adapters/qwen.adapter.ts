@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional, Inject } from "@nestjs/common";
 import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./base.adapter";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
+import { readBoundedJson } from "./bounded-response";
 
 interface QwenResponse {
   choices?: Array<{ message?: { content?: string }; delta?: { content?: string }; finish_reason?: string }>;
@@ -24,9 +25,9 @@ export class QwenAdapter implements AiModelAdapter {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
-  constructor() {
-    this.baseUrl = process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
-    this.apiKey = process.env.DASHSCOPE_API_KEY || "";
+  constructor(@Optional() @Inject("QWEN_FIXED_CONFIGURATION") private readonly fixedConfiguration?: {baseUrl:string;apiKey:string}) {
+    this.baseUrl = fixedConfiguration ? fixedConfiguration.baseUrl : process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    this.apiKey = fixedConfiguration ? fixedConfiguration.apiKey : process.env.DASHSCOPE_API_KEY || "";
     if (!this.apiKey) {
       this.logger.warn("DASHSCOPE_API_KEY 未配置，Qwen适配器将无法使用");
     }
@@ -42,7 +43,8 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const signal = AbortSignal.timeout(timeout);
+    const transport = new AbortController();
+    const signal = AbortSignal.any([transport.signal, AbortSignal.timeout(timeout), ...(options?.signal ? [options.signal] : [])]);
 
     const startedAt = Date.now();
     const body = {
@@ -64,6 +66,7 @@ export class QwenAdapter implements AiModelAdapter {
         },
         body: JSON.stringify(body),
         signal,
+        redirect: this.fixedConfiguration ? "error" : "follow",
       });
     } catch (err: unknown) {
       if ((err as Error).name === "TimeoutError" || (err as Error).name === "AbortError") {
@@ -75,12 +78,22 @@ export class QwenAdapter implements AiModelAdapter {
     }
 
     if (!resp.ok) {
+      if (this.fixedConfiguration) {
+        // 客户通道不读取或记录错误正文，也不因错误重发请求。
+        void resp.body?.cancel().catch(() => {}); transport.abort();
+        this.logger.error(`Qwen API错误 [${resp.status}]`);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `客户模型服务返回 ${resp.status}`);
+      }
       const errText = await resp.text().catch(() => "");
       this.logger.error(`Qwen API错误 [${resp.status}]: ${errText}`);
       throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `Qwen API返回 ${resp.status}: ${errText.slice(0, 200)}`);
     }
 
-    const data = (await resp.json()) as QwenResponse;
+    let data: QwenResponse;
+    if (this.fixedConfiguration) {
+      try { data = (await readBoundedJson(resp, 64 * 1024, signal)).value as QwenResponse; }
+      catch { transport.abort(); throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "客户模型响应未完整读取或超过技术上限"); }
+    } else data = (await resp.json()) as QwenResponse;
     const choice = data.choices?.[0];
 
     return {

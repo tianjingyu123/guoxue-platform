@@ -2880,6 +2880,10 @@
       "root": "pkg-workspace",
       "pages": [
         {
+          "path": "managed-store/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
           "path": "index/index",
           "style": {
             "navigationStyle": "custom"

@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "kind": "STATIC_SOURCE_ONLY",
+  "head": "f27222a6d37ec3af65d84b881e21872fb4b1b286",
+  "modelCount": 388,
+  "modelsWithStationId": 32,
+  "extensionListedModelCount": 36,
+  "listedWithoutStationId": [
+    "Post",
+    "Ebook",
+    "Comment",
+    "Favorite",
+    "Interaction",
+    "Notification",
+    "Task",
+    "Competition",
+    "Order",
+    "MemberPurchase",
+    "BotConfig",
+    "CircleBot",
+    "BotKnowledgeBase",
+    "BotChatLog",
+    "Checkin",
+    "Bounty",
+    "ChurnPrediction",
+    "ChurnAction",
+    "BrowseHistory",
+    "DiscountActivity"
+  ],
+  "stationFieldNotListed": [
+    "ContentCatalog",
+    "StationBundleAccess",
+    "ToolRecord",
+    "StationToolConfig",
+    "StationPick",
+    "StationPinnedContent",
+    "OfflineCourse",
+    "OfflineCourseReview",
+    "StationEvent",
+    "StationTeacherBooking",
+    "StationTeacherRequest",
+    "PaidQuestion",
+    "AudioCallRecord",
+    "BountyQuestion",
+    "TemporaryReferralConfig",
+    "PromotionMaterial"
+  ],
+  "evidence": [
+    {
+      "observation": "上下文缺失继续查询",
+      "file": "apps/server/src/prisma/prisma.service.ts",
+      "found": true,
+      "line": 92,
+      "sha256": "8ed251d01a3da1c02413aba76dc8e6a78d91aa93212897ef93006b3c4bea2a2d"
+    },
+    {
+      "observation": "单条写入未列入 writeOps",
+      "file": "apps/server/src/prisma/prisma.service.ts",
+      "found": true,
+      "line": 96,
+      "sha256": "8ed251d01a3da1c02413aba76dc8e6a78d91aa93212897ef93006b3c4bea2a2d"
+    },
+    {
+      "observation": "原始方法和事务未复制为扩展委托",
+      "file": "apps/server/src/prisma/prisma.service.ts",
+      "found": true,
+      "line": 142,
+      "sha256": "8ed251d01a3da1c02413aba76dc8e6a78d91aa93212897ef93006b3c4bea2a2d"
+    },
+    {
+      "observation": "读副本另建客户端",
+      "file": "apps/server/src/prisma/prisma.service.ts",
+      "found": true,
+      "line": 66,
+      "sha256": "8ed251d01a3da1c02413aba76dc8e6a78d91aa93212897ef93006b3c4bea2a2d"
+    },
+    {
+      "observation": "读副本可直接取得",
+      "file": "apps/server/src/prisma/prisma.service.ts",
+      "found": true,
+      "line": 204,
+      "sha256": "8ed251d01a3da1c02413aba76dc8e6a78d91aa93212897ef93006b3c4bea2a2d"
+    },
+    {
+      "observation": "守卫无用户继续放行",
+      "file": "apps/server/src/common/station-isolation.guard.ts",
+      "found": true,
+      "line": 32,
+      "sha256": "c767a8af7d21097cbefa13a1d2e1bf92af107d8977e949b394d07c2075feadc0"
+    },
+    {
+      "observation": "站点缺失被解释为平台访问",
+      "file": "apps/server/src/common/station-access.guard.ts",
+      "found": true,
+      "line": 23,
+      "sha256": "303cabdb014d86f2199862d097a9a57bc9711e1d0f3750ef3db192a03210e9ea"
+    },
+    {
+      "observation": "上下文来自请求属性",
+      "file": "apps/server/src/common/logging.interceptor.ts",
+      "found": true,
+      "line": 27,
+      "sha256": "562e8ecb83e78d73b86c9f7be4f475a500228055beef6331042543e0028eb121"
+    },
+    {
+      "observation": "Tenant用量周期任务",
+      "file": "apps/server/src/modules/tenant/tenant.service.ts",
+      "found": true,
+      "line": 27,
+      "sha256": "7d28181f21305cc88fe499280257fe2d003de39cdaed2b576b5a661e468828bf"
+    },
+    {
+      "observation": "固定队列名称",
+      "file": "apps/server/src/modules/queue/queue.module.ts",
+      "found": true,
+      "line": 24,
+      "sha256": "3da278ecc8fccdb41ad2a1e0bdc28179486c24d2b4a7e86096496c821f493fd2"
+    },
+    {
+      "observation": "任务范围未提供客户字段",
+      "file": "apps/server/src/modules/queue/processors/reconciliation.processor.ts",
+      "found": true,
+      "line": 21,
+      "sha256": "d1193f6a9ed936929f5b2ea51df4f4e9c0ff2ab378c7abaa5957d98b5a1ded5b"
+    },
+    {
+      "observation": "Redis直接使用调用方键",
+      "file": "apps/server/src/redis/redis.service.ts",
+      "found": true,
+      "line": 135,
+      "sha256": "d4a0d26773015e9169d1007c56991068a3e3adb8355c5b5e48eca80dc6650270"
+    },
+    {
+      "observation": "公共搜索原始SQL限制为空站点",
+      "file": "apps/server/src/modules/search/search.service.ts",
+      "found": true,
+      "line": 15,
+      "sha256": "84eaf4d8e3f21cb7dea80bc96d5b6e7b8dd2cb47c7abdb7ab969ee237fa8c24a"
+    },
+    {
+      "observation": "全平台向量检索",
+      "file": "apps/server/src/modules/ai-gateway/vector.service.ts",
+      "found": true,
+      "line": 286,
+      "sha256": "5c924db46ae1894803de9dee147fa4834eb08680d9e604d74a77d81f05a973ec"
+    },
+    {
+      "observation": "全局知识库检索",
+      "file": "apps/server/src/modules/ai-gateway/vector.service.ts",
+      "found": true,
+      "line": 353,
+      "sha256": "5c924db46ae1894803de9dee147fa4834eb08680d9e604d74a77d81f05a973ec"
+    },
+    {
+      "observation": "存储使用统一桶配置",
+      "file": "apps/server/src/modules/upload/cos-storage.provider.ts",
+      "found": true,
+      "line": 30,
+      "sha256": "316b2dcb2b32adfe719cee40dd02e67bcba8897e5844452972175723556e7bfa"
+    },
+    {
+      "observation": "分站商品选品已有显式过滤",
+      "file": "apps/server/src/modules/station-pick/station-pick.service.ts",
+      "found": true,
+      "line": 85,
+      "sha256": "eb98f2f766f26b227c9c690f441c026e6c0f7277e712e8ae05a226ee517c9f75"
+    },
+    {
+      "observation": "微页面逐对象归属检查",
+      "file": "apps/server/src/modules/station/station-micro-page.controller.ts",
+      "found": true,
+      "line": 37,
+      "sha256": "a0a0414c0eec54dcd2c061ff694cefbed972a7c05bf660b8969f1ec5bfc18291"
+    },
+    {
+      "observation": "clientKey是公开选择器",
+      "file": "apps/server/src/modules/system/distribution.service.ts",
+      "found": true,
+      "line": 9,
+      "sha256": "e83097bb78ea47cd552d566c6fb91e11f5790637b31beb54f27f80bcf422a52d"
+    },
+    {
+      "observation": "运维控制器受平台角色保护",
+      "file": "apps/server/src/modules/ops/ops.controller.ts",
+      "found": true,
+      "line": 17,
+      "sha256": "9ffa9e47f8481f044814d3f3f9f040218429a86db40d9ae488d7b87dd5abed27"
+    }
+  ],
+  "limits": [
+    "源码观察不是运行绕过证明",
+    "只读本站固定候选，不覆盖每个业务调用、生产配置或权限",
+    "不把列有 stationId 的模型当成已完成租户隔离"
+  ]
+}

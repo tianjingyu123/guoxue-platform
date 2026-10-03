@@ -3,6 +3,342 @@ generator client {
   previewFeatures = []
 }
 
+/// 托管客户合同与归属；独立于外部 API 配额 Tenant。
+model ManagedCustomer {
+  id                 String @id @default(uuid())
+  requestKey         String @unique
+  requestDigest      String
+  name               String
+  mode               String
+  tradingSubject     String
+  status             String @default("CONFIGURED")
+  maintenanceCycle   String @default("ANNUAL")
+  maintenancePrice   String?
+  remindAt           DateTime
+  endAt              DateTime
+  exportUntil        DateTime
+  downloadTtlSeconds Int
+  revision           Int @default(1)
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  deployment         ManagedDeployment?
+  applications       ManagedApplication[]
+  grant              ManagedGrant?
+  memberships        ManagedMembership[]
+  audit              ManagedAudit[]
+}
+
+/// 只存公开部署身份与凭据引用；连接密码和 JWT 密钥不得写入此表。
+model ManagedDeployment {
+  id                 String @id @default(uuid())
+  customerId         String @unique
+  spaceKey           String @unique
+  databaseName       String @unique
+  databaseRole       String @unique
+  credentialRef      String
+  authKeyFingerprint String @unique
+  state              String @default("PLANNED")
+  verifiedAt         DateTime?
+  customer           ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+/// 只扩展应用归属；渠道和版本继续使用公共 AppDistribution。
+model ManagedApplication {
+  id                 String @id @default(uuid())
+  applicationId      String @unique
+  customerId         String
+  applicationSubject String
+  stationId          String?
+  allowedPlatforms   String[]
+  brand              Json
+  templateId         String
+  enabled            Boolean @default(false)
+  customer           ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@index([customerId])
+}
+
+model ManagedGrant {
+  customerId  String @id
+  modules     String[]
+  resources   Json
+  circleLimit Int
+  creationLimits Json @default("{}")
+  revision    Int @default(1)
+  customer    ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+}
+
+/// 客户身份不映射为平台 SUPER_ADMIN 或 OPERATION_ADMIN。
+model ManagedMembership {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  identityProvider String @default("PLATFORM")
+  role       String
+  enabled    Boolean @default(true)
+  revision   Int @default(1)
+  customer   ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@unique([customerId, userId])
+}
+
+/// 凭据与用户仅属于当前客户数据库，不关联平台账号或平台角色。
+model ManagedLeaseIdentity {
+  id           String @id @default(uuid())
+  userId       String @unique
+  username     String @unique
+  passwordHash String
+  enabled      Boolean @default(true)
+  revision     Int @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sessions     ManagedLeaseRefresh[]
+}
+
+/// 不透明刷新凭据仅存摘要，按当前客户、应用和账号修订校验及原子轮换。
+model ManagedLeaseRefresh {
+  id               String @id @default(uuid())
+  identityId       String
+  applicationId    String
+  clientKey        String
+  tokenHash        String @unique
+  identityRevision Int
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  identity         ManagedLeaseIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  @@index([identityId, expiresAt])
+}
+
+/// 限流摘要绑定固定应用及真实连接来源，数据库更新覆盖多个服务进程。
+model ManagedLeaseLoginThrottle {
+  key         String @id
+  windowStart DateTime
+  attempts    Int @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+/// 独立客户库的售后受理记录；受理不直接触发退款或改变支付状态。
+model ManagedLeaseAftercare {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  orderId    String
+  requestKey String
+  reason     String
+  status     String @default("PENDING_REVIEW")
+  createdAt  DateTime @default(now())
+  @@unique([userId, requestKey])
+  @@index([customerId, orderId])
+}
+
+/// 显式字段导出，额外下载凭据只存摘要，禁止包含连接信息、账号角色和供应商密钥。
+model ManagedLeaseExport {
+  id           String @id @default(uuid())
+  customerId   String
+  userId       String
+  tokenHash    String
+  expiresAt    DateTime
+  manifest     Json
+  createdAt    DateTime @default(now())
+  downloadedAt DateTime?
+  pages        ManagedLeaseExportPage[]
+  @@index([customerId, userId, expiresAt])
+}
+
+/// 单次一致性快照的不可变分页；下载必须校验原导出的申请人与短期凭据。
+/// 独立客户在固定应用内自建资源的不可变来源；不授品牌站上传权。
+model ManagedLeaseWriteFence {
+  customerId String @id
+  spaceKey String
+  writerRole String
+  authKeyFingerprint String @db.VarChar(64)
+  state String @default("ACTIVE") @db.VarChar(16)
+  epoch Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model ManagedLeaseResource {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  kind String @db.VarChar(16)
+  resourceId String
+  creatorId String
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  @@unique([customerId, kind, resourceId])
+  @@index([customerId, applicationId, kind, id])
+}
+
+/// 受限数据库附件；明确保存字节摘要，不接受外部URL或磁盘路径。
+model ManagedLeaseAsset {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  contentType String @db.VarChar(64)
+  size Int
+  sha256 String @db.VarChar(64)
+  dataBase64 String @db.Text
+  createdAt DateTime @default(now())
+  @@index([customerId, applicationId, id])
+}
+
+model ManagedLeaseJoinRequest {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  circleId String
+  userId String
+  status String @default("PENDING") @db.VarChar(16)
+  reviewedBy String?
+  reason String?
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  @@unique([customerId, circleId, userId])
+  @@index([customerId, circleId, status, id])
+}
+
+model ManagedLeaseOrder {
+  orderId String @id
+  customerId String
+  applicationId String
+  userId String
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  order Order @relation(fields:[orderId],references:[id],onDelete:Restrict)
+  @@unique([customerId, applicationId, userId, requestKey])
+  @@index([customerId, applicationId, userId, orderId])
+}
+
+model ManagedLeasePostRequest {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  postId String @unique
+  createdAt DateTime @default(now())
+  post Post @relation(fields:[postId],references:[id],onDelete:Restrict)
+  @@unique([customerId, applicationId, userId, requestKey])
+}
+
+model ManagedLeaseCircleMute {
+  id String @id @default(uuid())
+  customerId String
+  circleId String
+  userId String
+  until DateTime
+  reason String
+  moderatedBy String
+  @@unique([customerId, circleId, userId])
+}
+
+model ManagedLeaseChatSession {
+  id String @id @default(uuid())
+  customerId String
+  applicationId String
+  userId String
+  agentId String
+  circleId String?
+  nextSequence Int @default(0)
+  createdAt DateTime @default(now())
+  messages ManagedLeaseChatMessage[]
+  @@index([customerId, applicationId, userId, id])
+}
+
+model ManagedLeaseChatMessage {
+  id String @id @default(uuid())
+  sessionId String
+  sequence Int
+  requestKey String @db.VarChar(80)
+  requestDigest String @db.VarChar(64)
+  userText String @db.Text
+  assistantText String? @db.Text
+  state String @default("DISPATCHING") @db.VarChar(24)
+  failureCode String? @db.VarChar(64)
+  providerRequestId String? @db.VarChar(128)
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+  session ManagedLeaseChatSession @relation(fields:[sessionId],references:[id],onDelete:Restrict)
+  @@unique([sessionId, requestKey])
+  @@unique([sessionId, sequence])
+}
+
+model ManagedLeaseExportPage {
+  exportId   String
+  collection String
+  page       Int
+  payload    Json
+  sha256     String
+  export     ManagedLeaseExport @relation(fields: [exportId], references: [id], onDelete: Restrict)
+  @@id([exportId, collection, page])
+}
+
+model ManagedLeaseAudit {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String
+  action     String
+  reason     String?
+  entityId   String
+  createdAt  DateTime @default(now())
+  @@index([customerId, createdAt])
+}
+
+/// 品牌入口只记录来源与平台订单关联；金额、佣金和履约继续使用既有 Order。
+model ManagedBrandOrder {
+  orderId       String @id
+  customerId    String
+  applicationId String
+  stationId     String
+  buyerId       String
+  createdAt     DateTime @default(now())
+  order         Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  @@index([customerId, applicationId, buyerId])
+}
+
+/// 品牌建单前持久化请求意图；补登记只查已存在的平台订单，不能触发新订单或支付。
+model ManagedBrandRequest {
+  id              String @id @default(uuid())
+  customerId      String
+  applicationId   String
+  stationId       String
+  buyerId         String
+  requestKey      String
+  requestDigest   String
+  clientRequestId String
+  orderKind       String @default("PRODUCT") @db.VarChar(16)
+  courseId        String?
+  productId       String?
+  quantity        Int
+  addressId       String?
+  skuId           String?
+  couponId        String?
+  state           String @default("WAITING_ORDER")
+  orderId         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([applicationId, buyerId, requestKey])
+  @@unique([buyerId, clientRequestId])
+  @@index([customerId, state, createdAt])
+}
+
+model ManagedAudit {
+  id         String @id @default(uuid())
+  customerId String
+  actorId    String
+  action     String
+  reason     String
+  revision   Int
+  createdAt  DateTime @default(now())
+  customer   ManagedCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  @@index([customerId, createdAt])
+}
+
 /// 腾讯 IM 未开通期间的站内私信持久化；启用腾讯 IM 后仍保留用于平滑迁移与审计。
 model ImFallbackMessage {
   id         String   @id @default(cuid())
@@ -93,6 +429,7 @@ model User {
   updatedAt            DateTime      @updatedAt
 
   auths                 Auth[]
+  managedLeaseIdentity  ManagedLeaseIdentity?
   entitlementLedgers    EntitlementLedger[]
   entitlementBalances   EntitlementBalance[]
   roles                 UserRole[]
@@ -873,6 +1210,7 @@ enum PostType {
 }
 
 model Post {
+  managedLeaseRequest ManagedLeasePostRequest?
   id             String    @id @default(uuid())
   circleId       String
   userId         String
@@ -1551,6 +1889,7 @@ enum OrderStatus {
 
 // 【分区候选】P2阶段按月分区(createdAt)，分片键userId，365天后归档
 model Order {
+  managedLeaseOrigin ManagedLeaseOrder?
   id                 String      @id @default(uuid())
   userId             String
   type               OrderType
@@ -1591,6 +1930,7 @@ model Order {
   updatedAt          DateTime    @updatedAt
 
   user           User            @relation(fields: [userId], references: [id])
+  managedBrandOrder ManagedBrandOrder?
   memberPurchase MemberPurchase?
   freeCourseEnrollmentNotice FreeCourseEnrollmentNotice?
   businessNotices OrderBusinessNotice[]

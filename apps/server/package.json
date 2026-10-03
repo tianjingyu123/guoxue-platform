@@ -6,6 +6,7 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main",
+    "start:lease": "node dist/lease-main",
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "test:calculators": "jest --testPathPattern=\"(cross-validation|calculator\\.spec)\" --no-coverage --forceExit",

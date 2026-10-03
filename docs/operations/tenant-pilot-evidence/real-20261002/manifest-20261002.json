@@ -1,0 +1,141 @@
+{
+  "generatedAt": "2026-10-02T21:26:55.674Z",
+  "head": "4df811a851fd6c03e765bdd3152612cd3590f365",
+  "baseline": "9c6c2d120fa787c720449c8979c8fe8f5086d753",
+  "node": "v24.17.0",
+  "schemaSha256": "dfc492f1926f7cb8b56273f88920faefe15f169f0b29ad14dd680e0c8d2445f2",
+  "compiledLeaseMainSha256": "24ec7fdc632886b4a887716daf4432c04ac55ef05085285ff0eeeff322a4ca3c",
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-brand.module.ts": "7e35c0e34926a97fd551093fdcc96e16447db105527b447f75f2cee0024fedfb",
+    "apps/server/src/modules/managed-tenancy/managed-brand.service.ts": "55d8114fdc5f418b6a37767abb9d37d027b1a92314a1ca2aab9506cf6c32363e",
+    "apps/server/src/modules/managed-tenancy/managed-credentials.ts": "02535c617315a33c6a5466cf64e1d5ce0173e9158e1e695073612c7e87bfb18c",
+    "apps/server/src/modules/managed-tenancy/managed-lease-maintenance.service.ts": "80de2ab9065231f3a39b5872a9b78585a6372d0098b338425c5340b4d49e7e37",
+    "apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts": "dd4ee4bfe02448dbd3e5601aac061802b15d422820af3d4b6671d4893c0e1a70",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "1caf1ff613691c34f27a180ffc666f057bd4cef96784269ec51a8151168da3d5",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "e0431afc7fd1087727fc7b61bba0d4e7f25264f43d1f03278ceacb625608a079",
+    "apps/server/src/modules/managed-tenancy/managed-policy.ts": "190023016a88451273b4cf81764f598be6a8b4aaa760c023f7a7263ae34babec",
+    "apps/server/src/modules/managed-tenancy/managed-presentation.ts": "83b26043fb52d308172504863cf100bc8690cc53859f679dad8492fed588e00c",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.controller.ts": "34558df8542598c57cab06b3a263f24b045eafa7f08b4660d5c277eb83d02610",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.module.ts": "fe8e6aec4e78780d7199340405cda55480899391740cf6e73b8e9f08f8edd947",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts": "cc7691f0eeedc43b5ffcfb5f026bc98d6deda60824cec1f430fced7cb088051e",
+    "pilots/managed-tenancy/.gitignore": "583a5fce52fe225c4aa5b643ed01a896c464df302e47e919a5b4f5ae413896e4",
+    "pilots/managed-tenancy/audit-source.mjs": "7383fd7be14ebdfcaf4d8f74c94c404e9fee02ba35720b6f3002a1110d62f270",
+    "pilots/managed-tenancy/bootstrap-process.mjs": "ee24e5117496a4cd75ae1e61af14bbdad39ad59f16695d75f21e271037dc9092",
+    "pilots/managed-tenancy/lease-process.mjs": "3abfd350baccc66f84229ab17e1149861f78f2be16609aeaa56262d202568714",
+    "pilots/managed-tenancy/migrations/001-pilot.sql": "20cd456818e4c12e6a4d3d7622becdf08eb22b7e63b9f30598398720a5e92783",
+    "pilots/managed-tenancy/pilot.mjs": "f66aa2a10424dfa0a2bb51603b176ad7b6d100d537bc14121db9bf0f27cbf952",
+    "pilots/managed-tenancy/postgres-setup.mjs": "20e3deefe58b733120c448ebe11b0b4f2e2d2c312d7d410e3510fc178debc581",
+    "pilots/managed-tenancy/README.md": "b633ec16f216f3f507f6452714c751ec084ee6806a8cdcbc3513fb873a14e27f",
+    "pilots/managed-tenancy/server.mjs": "96638bfa2bed5856d282c716703a7a0d3a684dc09d3407352ba5720236794d13",
+    "pilots/managed-tenancy/ui-preview.mjs": "ca9a1114bb2cc26948d425f67fcf7a6f40b002c3beced8cf4833741d6894f717",
+    "pilots/managed-tenancy/verify-auth-regression.mjs": "e578fee0a1b32e207d7e04edfc959c16c0b4b05f0bd8282efb949ac06e6198f9",
+    "pilots/managed-tenancy/verify-backup-postgres.mjs": "ad1ba9efd580258249f4f52a216d18cf759bd8cbbb94556c51f4942afebfca36",
+    "pilots/managed-tenancy/verify-bootstrap-postgres.mjs": "5bc71cfec2654496ebd78c41f28622d54b5ef72f45b2a4c468ef09a8ceffaa3a",
+    "pilots/managed-tenancy/verify-brand-postgres.mjs": "5b6cb6b59960f3a67fd4f86d1df3d7c5a4ae693cefcd5bcd1d625587a00e0fa0",
+    "pilots/managed-tenancy/verify-control-postgres.mjs": "9162b53577e91dd78925a0900ee910a94a24b073c3fe89050c224d88cfc872ff",
+    "pilots/managed-tenancy/verify-lease-postgres.mjs": "6c4775ab541ac7422ee2f7118e9b411740fa8a58f5a3a4f697116a5e32499b5f",
+    "pilots/managed-tenancy/verify-presentation-postgres.mjs": "758fdf055163924a5881389edf2809e8197b8482a59b5e5d2add1af5ba1b8128",
+    "pilots/managed-tenancy/verify-real-candidate.mjs": "0d6c03b2c1f0513e01248a3b437e91d6cf43ab881a3999f6e2036618de7daacf",
+    "pilots/managed-tenancy/verify-schema-postgres.mjs": "eab88c10f075186aaa386f47975231f820503d7eeb044fea0e4b96bceb4a1a6a",
+    "pilots/managed-tenancy/verify.mjs": "01bf18a5588fce3982c267955d97c4b51bad1f0e2c889c3aeaa580dab3d2121c",
+    "apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql": "e0e69fef85a9da6fd05b5dc17d4fd09ee6abe57d54b30fd0ab9479bbc6cb468a",
+    "apps/server/prisma/migrations/manual_z_20261002_08_managed_lease_exit/migration.sql": "8393287291492b679e4135a6db2280b757f42b3c6efd5ce639e7d82fe59c8427",
+    "apps/server/prisma/migrations/manual_z_20261002_09_managed_brand_order/migration.sql": "7b869e07ee7c5981cdec39d9f88ca5caef3520603e4f8fcfc67a582178ec3f8f",
+    "apps/server/src/lease-main.ts": "e6981f70861f259f757a543a994302065e758ff1d86cb803d9d873bb206e7092",
+    "apps/server/prisma/schema.prisma": "dfc492f1926f7cb8b56273f88920faefe15f169f0b29ad14dd680e0c8d2445f2",
+    "apps/server/src/app.module.ts": "161aadb87d337d8f277af2920a17e651ef438eae022af38998194f2a4059b38b",
+    "apps/server/package.json": "66b6ce896be40aebe7d15ad567a0bb5f52cc949958fc29716ffc216d78dc453a",
+    "apps/server/src/modules/auth/auth.service.ts": "6c0064ad2825040b14a3a092b1137f20e5d318d3e52d13c99c33bee48083704e",
+    "apps/server/src/modules/auth/auth.service.spec.ts": "eaec59214bd8a9842940b160417d45f10dcc89b44ebda7a76a26d60502feb6d1",
+    "apps/admin/src/api/managed-tenancy.ts": "533843146dfc7b22f62c79aadb20ac3a063e9bbb59e4397fe10f86b8cd19a615",
+    "apps/admin/src/views/tenant/ManagedCustomerList.vue": "b97739a3fad54afb590261c652397f75af1146e4a14d9913a43590ef50558985",
+    "apps/admin/src/router/index.ts": "8f17880fd6385e120c8b1d403efd6141afbed617a8753acace5e70f7bc51fb9b",
+    "apps/admin/src/lib/menu-structure.ts": "033f7c590b1d5a7292a54b449ce702bc7bd41484c480ae571d9826e6b53cc233",
+    "packages/shared/src/client-presentation.ts": "c2c5d0e3917cc782b940b8b870f121a464a1469b94900ec1cd2c74200452c6db",
+    "apps/server/src/modules/feature-flag/client-presentation.service.ts": "f50af852528c4b76443ed2adfb50bcc242d763350855bcefd6ee48a0c802e307",
+    "apps/server/src/modules/feature-flag/feature-flag.service.ts": "54c7b2899260e285baff22e31c755716e348949ca799e51a264270f88de780bd",
+    "apps/server/src/modules/system/distribution.service.ts": "e83097bb78ea47cd552d566c6fb91e11f5790637b31beb54f27f80bcf422a52d",
+    "apps/server/src/modules/shop/shop-order.service.ts": "2c1cd42184b8fbd63f3f936215e1d3c59268834b0969db86361b396b23ce1085",
+    "apps/server/src/modules/shop/shop-attribution.service.ts": "c96d3c326794f50d40fe8cf77c821ade7004603ba5b8a249a45d03335b9924dc",
+    "apps/server/src/modules/pricing/unified-pricing.service.ts": "973c588e19328c05b141cf4e13162778a9580c40b7b8ebb97f6e99ecfe1eea30",
+    "apps/server/src/modules/commission/commission.service.ts": "ee3401260454c6b8f45649df9ebe5a49e6d7102a9624c30d5336c0c77e40925c"
+  },
+  "checks": [
+    {
+      "name": "control",
+      "passed": 10,
+      "failed": 0,
+      "report": "control-20261002.json",
+      "reportSha256": "807ba435d7f473b86b2ae6507212fdedb88d7cccdba231d8c9f0501f277ad370"
+    },
+    {
+      "name": "lease",
+      "passed": 16,
+      "failed": 0,
+      "report": "lease-20261002.json",
+      "reportSha256": "ed559ebdcb49639edfaa89e414555a2c094e16a0f6a22b30bf1cc607abbcd7ca"
+    },
+    {
+      "name": "brand",
+      "passed": 7,
+      "failed": 0,
+      "report": "brand-20261002.json",
+      "reportSha256": "9194759a42a39f4bc49d497567fb7e90bf3e1682449d69ab4dd089ea148aa2ea"
+    },
+    {
+      "name": "presentation",
+      "passed": 6,
+      "failed": 0,
+      "report": "presentation-20261002.json",
+      "reportSha256": "64dbc01c1f161d3af32f0788dbddd7916d84a042d9bccf3b5cee813d4c6f4661"
+    },
+    {
+      "name": "backup",
+      "passed": 5,
+      "failed": 0,
+      "report": "backup-20261002.json",
+      "reportSha256": "b672a291410010a931994125c5c81cd667836d32240806fc7abf721b5bcc36a9"
+    },
+    {
+      "name": "schema",
+      "passed": 3,
+      "failed": 0,
+      "report": "schema-20261002.json",
+      "reportSha256": "8ff80e41640fb20c50f41783ae4546a151aec2ac65e0fe2f7aa43b10df91d89b"
+    },
+    {
+      "name": "bootstrap",
+      "passed": 3,
+      "failed": 0,
+      "report": "bootstrap-20261002.json",
+      "reportSha256": "41a9aa49146be77e7dd57d42ef5e30e361624136e42e8bc805403bbba5fce26f"
+    },
+    {
+      "name": "auth",
+      "passed": 47,
+      "failed": 0,
+      "report": "auth-20261002.json",
+      "reportSha256": "7b4c2976ac3c3429e09d2dca55de1831e6b2f3d986c74a25ef1e4bc4b1900ea2"
+    },
+    {
+      "name": "sqlite",
+      "passed": 18,
+      "failed": 0,
+      "report": "sqlite-20261002.json",
+      "reportSha256": "d84dd677785cb18872e3eda902cad95e1d6703a83a3874dc7f76a369a180c482"
+    },
+    {
+      "name": "isolation",
+      "passed": 11,
+      "failed": 0,
+      "report": "isolation-20261002.json",
+      "reportSha256": "809256cc0f76d110fd3e24ee783a65d1a7dc132becbf108091034143dc28d550"
+    }
+  ],
+  "production": false,
+  "limits": [
+    "同一Windows主机、本任务合成PostgreSQL/SQLite数据",
+    "本清单不包含真实Redis、队列、COS、向量库、商户或真机渠道验收",
+    "服务端是专用候选客户端的完整TypeScript编译，独立启动验收；不是正式镜像或全AppModule运行验收"
+  ]
+}

@@ -1,0 +1,40 @@
+# 待维护人员按客户替换占位符并在目标Linux独立验收；本候选没有安装或启动此服务。
+[Unit]
+Description=客户独立租赁入口 %i
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+WorkingDirectory=/opt/rebu-managed/%i/server
+EnvironmentFile=/etc/rebu-managed/%i.env
+ExecStart=@NODE_ABSOLUTE_PATH@ /opt/rebu-managed/%i/server/lease-main.js
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=45
+KillSignal=SIGTERM
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadOnlyPaths=/opt/rebu-managed/%i /etc/rebu-managed/%i.env /run/rebu-managed/%i
+MemoryMax=@MEMORY_MAX@
+CPUQuota=@CPU_QUOTA@
+TasksMax=@TASKS_MAX@
+
+[Install]
+WantedBy=multi-user.target

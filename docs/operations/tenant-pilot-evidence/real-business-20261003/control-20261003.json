@@ -1,0 +1,62 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "sources": {
+    "apps/server/prisma/schema.prisma": "e532e1dca81b31c44e63460a0de4028708f584758aef0065755ac93936c0795f",
+    "apps/server/prisma/migrations/manual_z_20261002_07_managed_customer_control/migration.sql": "e0e69fef85a9da6fd05b5dc17d4fd09ee6abe57d54b30fd0ab9479bbc6cb468a",
+    "apps/server/src/modules/managed-tenancy/managed-policy.ts": "09b5dc8b44c8b3a5657042aafeeae877d71bf4181b3b219c3924a325ca25e6f1",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.service.ts": "3c3b4727ccf7cf97f4fdebc117d035781bc9f115a241349fa1584130a7a22565",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.controller.ts": "71b20363280ce3d524570223d1a0aa9a345bbb8b46e9ebb82767cf405d72860b",
+    "apps/server/src/modules/managed-tenancy/managed-tenancy.module.ts": "fe8e6aec4e78780d7199340405cda55480899391740cf6e73b8e9f08f8edd947"
+  },
+  "node": "v24.17.0",
+  "checks": [
+    {
+      "name": "三个真实数据库与非超管账号身份核对",
+      "status": "PASS"
+    },
+    {
+      "name": "客户数据库账号跨库连接、DDL与表结构修改拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "真实PostgreSQL并发开通仅一个客户与审计，空间/账号/凭据冲突拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "客户管理员独立成员表，不添加任何平台超管角色",
+      "status": "PASS"
+    },
+    {
+      "name": "续费并发乐观锁、修订与审计原子变化，不重跑支付任务",
+      "status": "PASS"
+    },
+    {
+      "name": "合同日期拒绝日历归一化、24时和无效时区，接受闰日与显式时区",
+      "status": "PASS"
+    },
+    {
+      "name": "租赁应用在实例身份验证前不能启用，公开选择器不扩大权限",
+      "status": "PASS"
+    },
+    {
+      "name": "品牌站沿用既有Station和平台主体，公开配置不下发运维字段",
+      "status": "PASS"
+    },
+    {
+      "name": "真实HTTP暂停须超管和审计，暂停不可公开访问，品牌主体变化即时拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "真实Nest模块HTTP和现有JWT策略：无身份/客户/站长拒绝，超管可配置，未知字段和伪造令牌拒绝",
+      "status": "PASS"
+    }
+  ],
+  "passed": 10,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "仅本任务合成数据与PostgreSQL16新集群",
+    "HTTP复用真实JWT策略，Redis撤销存储为本轮测试空适配器",
+    "不代表真实AppID、商户、前端或生产验收"
+  ]
+}

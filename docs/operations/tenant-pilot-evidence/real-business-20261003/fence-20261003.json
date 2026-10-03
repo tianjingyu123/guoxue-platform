@@ -1,0 +1,43 @@
+{
+  "head": "982e90e41408296f6b74b007bb78a645652ad80a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-write-fence.ts": "3c4611649df1a4d59739d15f573e37c88d51b85365661416a476688c04340e62",
+    "apps/server/src/modules/managed-tenancy/managed-lease-permissions.ts": "ba677560f44eda7291ea5a786deb0c104c3ca981dd2a42dc66f4d228add736e6",
+    "apps/server/src/modules/managed-tenancy/managed-lease-exception.filter.ts": "4ed11c66d43f36b42ff7f2e02ac5236220abc2a1b512ef810cdaaf5d9b1dc0f5",
+    "pilots/managed-tenancy/verify-fence-postgres.mjs": "bf1613aeacaf794383b6bebf467ef943328f06d4b83b4964bda8407e0055909a"
+  },
+  "checks": [
+    {
+      "name": "全部运行可写表具有实际语句级、始终启用触发器；客户不能改围栏、禁用触发器或切复制模式",
+      "status": "PASS"
+    },
+    {
+      "name": "启动核验实际函数正文、绑定与触发器；禁用保护或替换为空函数立即拒绝",
+      "status": "PASS"
+    },
+    {
+      "name": "冻结等待跨进程已有写事务提交；之后包括零行原始SQL均拒写，旧令牌仍可只读，HTTP维护响应不泄露连接",
+      "status": "PASS"
+    },
+    {
+      "name": "冻结前建立的RepeatableRead旧快照不能绕过围栏；行锁触发序列化拒绝且整笔写入回滚",
+      "status": "PASS"
+    },
+    {
+      "name": "维护状态变更要求当前epoch；旧修订不能解冻，正确解冻后重新核验及新写恢复",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "本任务真实PostgreSQL事务和本地HTTP，未切换正式基础设施",
+    "冻结可保留有效旧令牌的只读能力；刷新、登录及审计写入暂停，维护窗口不等于零停机承诺"
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "head": "1abb07d75b4598d9f2b89270ff3a0a5a03f0a71a",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/ai-gateway/adapters/bounded-response.ts": "1685e9c5046f8dbb1203d671114ff43fc8e181a279fdff08bd9ee77041d19367",
+    "apps/server/src/modules/ai-gateway/adapters/qwen.adapter.ts": "ccd96ccdad5cc26cce9f39a573ff4f1aecbc6256d333f372f521a0c572cff3c6",
+    "apps/server/src/modules/managed-tenancy/managed-provider-probe.ts": "6d881d53c97d8ed4b914ac24dcc03394813a255a9b8bc0a6561669becf84d759",
+    "apps/server/src/modules/managed-tenancy/managed-chat-provider.ts": "42bfbb09d8a4786649dfdf5efdced803eacd9f839299b96ec984378a72275813",
+    "pilots/managed-tenancy/verify-provider-response.mjs": "f524dc0342e2e89d147399cdbf0657d2cc286a7ab59e83b2a0a6725f738e1688"
+  },
+  "checks": [
+    {
+      "name": "64KiB精确边界完整JSON与跨块中文正常读取，一次固定端点请求，不切换供应商或重试",
+      "status": "PASS"
+    },
+    {
+      "name": "声明响应超过上限时未读取正文即取消流并中止传输",
+      "status": "PASS"
+    },
+    {
+      "name": "无长度或虚报小长度仍按实际字节拒绝超限块，不完整读入大正文",
+      "status": "PASS"
+    },
+    {
+      "name": "错误响应直接取消且不读取正文，错误与日志没有上游正文，单次失败不重发",
+      "status": "PASS"
+    },
+    {
+      "name": "截断JSON、无效UTF8及非对象响应拒绝，不返回部分正文",
+      "status": "PASS"
+    },
+    {
+      "name": "响应头成功但正文永不完成时超时结束，不等待永不完成的取消回调",
+      "status": "PASS"
+    },
+    {
+      "name": "调用方取消同样终止等待及传输，不被响应头成功误判为完成",
+      "status": "PASS"
+    },
+    {
+      "name": "只读模型清单原字节摘要及签名保持一致，1MiB上限和错误正文取消有效，失败不签发核验",
+      "status": "PASS"
+    },
+    {
+      "name": "原平台未指定固定客户配置的非流式适配行为保持不变，客户字节上限没有扩展到平台路径",
+      "status": "PASS"
+    }
+  ],
+  "observations": [
+    {
+      "bodyBytes": 65536,
+      "consumedBytes": 65536,
+      "canceled": false,
+      "transportAborted": false
+    },
+    {
+      "bodyBytes": 65630,
+      "consumedBytes": 0,
+      "canceled": true,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 1048670,
+      "consumedBytes": 69632,
+      "canceled": true,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 1048670,
+      "consumedBytes": 69632,
+      "canceled": true,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 330000,
+      "consumedBytes": 0,
+      "canceled": true,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 11,
+      "consumedBytes": 11,
+      "canceled": false,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 15,
+      "consumedBytes": 15,
+      "canceled": false,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 4,
+      "consumedBytes": 4,
+      "canceled": false,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 2,
+      "consumedBytes": 2,
+      "canceled": false,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 0,
+      "consumedBytes": 0,
+      "canceled": true,
+      "transportAborted": true
+    },
+    {
+      "bodyBytes": 0,
+      "consumedBytes": 0,
+      "canceled": true,
+      "transportAborted": true
+    }
+  ],
+  "passed": 9,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "纯合成Web字节流及fetch替身，没有外部请求、真实鉴权或付费调用",
+    "读取保存上限不等于进程或网络缓冲总内存上限；真实Linux资源配额仍需独立验收",
+    "原平台流式及完整网关运行不属于此专项"
+  ]
+}
