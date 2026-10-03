@@ -9,7 +9,7 @@ let releaseClose;const barrier=config.holdBeforeClose?new Promise(done=>{release
 const send=message=>new Promise(done=>process.connected?process.send(message,done):done());
 ExpressAdapter.prototype.close=function(){const closing=httpClose.call(this);return send({event:'httpClosing'}).then(()=>closing);};
 // 仅此合成验证包装器暂停生命周期及触发事件；正式入口没有IPC或HTTP停机命令。
-ManagedLeaseRuntime.prototype.beforeApplicationShutdown=async function(){before.call(this);await send({event:'draining'});await barrier;};
-ManagedLeaseRuntime.prototype.onApplicationShutdown=async function(){await send({event:'httpClosed'});const once=after.call(this);if(once!==after.call(this))throw new Error('连接释放未复用同一退出任务');await once;await send({event:'databasesClosed'});};
+ManagedLeaseRuntime.prototype.beforeApplicationShutdown=async function(){before.call(this);await send({event:'draining',activeOperations:this.activeOperations});await barrier;};
+ManagedLeaseRuntime.prototype.onApplicationShutdown=async function(){await send({event:'httpClosed',activeOperations:this.activeOperations});const once=after.call(this);if(once!==after.call(this))throw new Error('连接释放未复用同一退出任务');await once;await send({event:'databasesClosed',activeOperations:this.activeOperations});};
 process.on('message',message=>{if(message==='release-close')releaseClose?.();if(message==='shutdown'){process.emit('SIGTERM','SIGTERM');process.emit('SIGTERM','SIGTERM');}});
 require(resolve(compiled,'lease-main.js'));

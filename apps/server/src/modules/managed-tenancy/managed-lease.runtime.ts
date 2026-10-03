@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { createHash, randomUUID, randomBytes, timingSafeEqual } from "crypto";
 import * as jwt from "jsonwebtoken";
@@ -59,19 +59,39 @@ export class ManagedLeaseRuntime {
   private ready = false;
   private stopping = false;
   private shutdownPromise?: Promise<void>;
+  private operations = 0;
+  private operationWaiters: Array<() => void> = [];
   private identity: { databaseName: string; databaseRole: string; spaceKey: string; credentialRef: string };
   private readonly contexts = new WeakMap<object, string>();
   private readonly identities: ManagedLeaseIdentityService;
   constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential,private readonly chatProvider?:ManagedChatProvider) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
   get draining() { return this.stopping; }
-  /** 先关闭新HTTP请求入口，已接收请求仍逐次核业务身份并完成事务。 */
+  get activeOperations() { return this.operations; }
+  /** 统计控制器执行而非HTTP连接，客户端断线也不能提前释放正在使用的数据库。 */
+  beginOperation() {
+    if (this.stopping) throw new ServiceUnavailableException("本机构入口正在结束，请先查询已有记录再重试");
+    if (!this.ready) throw new ForbiddenException("实例未通过启动检查");
+    this.operations += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.operations -= 1;
+      if (this.operations === 0) for (const done of this.operationWaiters.splice(0)) done();
+    };
+  }
+  private waitForOperations() {
+    return this.operations === 0 ? Promise.resolve() : new Promise<void>(done => this.operationWaiters.push(done));
+  }
+  /** 先关闭新HTTP请求入口，已进入业务的请求仍逐次核身份并完成事务。 */
   beforeApplicationShutdown() { this.stopping = true; }
-  /** Nest关闭HTTP连接后才释放本实例连接，避免退出信号与在途事务竞争。 */
+  /** Nest关闭HTTP连接后继续等待业务结束，包括客户端已经断线的操作。 */
   onApplicationShutdown() {
     if (!this.shutdownPromise) {
       this.stopping = true;
-      this.ready = false;
-      this.shutdownPromise = Promise.allSettled([this.control.$disconnect(), this.business.$disconnect()]).then(results => {
+      this.shutdownPromise = this.waitForOperations().then(async () => {
+        this.ready = false;
+        const results = await Promise.allSettled([this.control.$disconnect(), this.business.$disconnect()]);
         if (results.some(result => result.status === "rejected")) throw new Error("独立客户连接释放失败，请核对本实例退出记录");
       });
     }

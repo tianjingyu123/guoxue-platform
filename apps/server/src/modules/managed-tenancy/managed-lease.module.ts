@@ -1,8 +1,9 @@
-import { Body, CanActivate, Controller, ExecutionContext, Get, HttpCode, Inject, Injectable, Module, Param, Post, Put, Query, Req, UseGuards, UnauthorizedException } from "@nestjs/common";
+import { Body, CallHandler, CanActivate, Controller, ExecutionContext, Get, HttpCode, Inject, Injectable, Module, NestInterceptor, Param, Post, Put, Query, Req, UseGuards, UnauthorizedException } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 import { ManagedLeaseRuntime, ManagedResourceKind, ManagedLeaseContext } from "./managed-lease.runtime";
 import { ManagedContentKind } from "./managed-lease-content";
-import {APP_FILTER} from "@nestjs/core";
+import {APP_FILTER, APP_INTERCEPTOR} from "@nestjs/core";
+import {defer, finalize} from "rxjs";
 import {ManagedLeaseExceptionFilter} from "./managed-lease-exception.filter";
 
 type ManagedRequest = Request & { managedContext: ManagedLeaseContext };
@@ -26,6 +27,17 @@ function header(req: Request, name: string, fallback = "") {
 }
 
 export const MANAGED_LEASE_RUNTIME = Symbol("MANAGED_LEASE_RUNTIME");
+@Injectable()
+export class ManagedLeaseOperationInterceptor implements NestInterceptor {
+  constructor(@Inject(MANAGED_LEASE_RUNTIME) private readonly runtime: ManagedLeaseRuntime) {}
+  intercept(_context: ExecutionContext, next: CallHandler) {
+    return defer(() => {
+      const release = this.runtime.beginOperation();
+      // 同步抛错和异步完成均释放一次；不以客户端连接关闭作为业务完成依据。
+      return defer(() => next.handle()).pipe(finalize(release));
+    });
+  }
+}
 @Injectable()
 export class ManagedLeaseGuard implements CanActivate {
   constructor(@Inject(MANAGED_LEASE_RUNTIME) private readonly runtime: ManagedLeaseRuntime) {}
@@ -114,6 +126,6 @@ export class ManagedLeasePublicController{
 @Module({})
 export class ManagedLeaseModule {
   static register(runtime: ManagedLeaseRuntime) {
-    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController, ManagedLeaseLoginController,ManagedLeasePublicController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard,{provide:APP_FILTER,useClass:ManagedLeaseExceptionFilter}] };
+    return { module: ManagedLeaseModule, controllers: [ManagedLeaseController, ManagedLeaseLoginController,ManagedLeasePublicController], providers: [{ provide: MANAGED_LEASE_RUNTIME, useValue: runtime }, ManagedLeaseGuard,{provide:APP_FILTER,useClass:ManagedLeaseExceptionFilter},{provide:APP_INTERCEPTOR,useClass:ManagedLeaseOperationInterceptor}] };
   }
 }
