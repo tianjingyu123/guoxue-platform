@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T15:09:14.124Z",
-  "sourceCommit": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+  "checkedAt": "2026-10-03T15:45:29.611Z",
+  "sourceCommit": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -11196,7 +11196,9 @@
     "actualBundleHashChecked": true,
     "candidate": "1e1199a9b9bc0e48092526017447b18ba37fb688",
     "received": false,
-    "bundleBytes": 147950062
+    "bundleBytes": 147950062,
+    "blocksFirstLaunch": false,
+    "scopeReason": "用户已确认先上线主平台与品牌分站，独立系统保留虚拟试点；原候选未接收事实保留。"
   },
   "firstLaunchScope": {
     "userResponseVerified": true,
@@ -11225,6 +11227,33 @@
   },
   "historicalSnapshotSourceCommit": "07e81fe51a2aa693e78b4714f200c91790420e1e",
   "latestLocalReception": {
+    "source": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069",
+    "document": "docs/operations/汇付恢复主线接收验收-20261003.json",
+    "received": {
+      "safety": "79926b179f130429d219ac34802da38a68f5cdd4",
+      "F1": "8fdbcc66aff5e39fb562ba2e59d2221ed666ce53",
+      "F1Followup": "1f0ccd8a2c0498cb309cc1a7ba3e3eed752ae157",
+      "R03": "94999c3fa5e018bc9e6f2c7348f9a2abaed45a51",
+      "R12": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
+      "R04": "988414ccfbf2924a017dfe80cf5bdeb5f32d7069"
+    },
+    "newValidation": {
+      "unit": 331,
+      "pgCompiled": 68,
+      "sourceHistorical68NotAdded": true
+    },
+    "migrations": 145,
+    "previousOfficialFullCiAppliesToThisSource": false,
+    "fixed144HistoricalEvidenceRetained": true,
+    "final145PackageVerified": false,
+    "final145UpgradeVerified": false,
+    "R04CodeClosed": true,
+    "R04IsolatedValidationClosed": true,
+    "R04FormalChannelClosed": false,
+    "productionGo": false
+  },
+  "businessCodeChanged": true,
+  "previousLocalReception": {
     "source": "34f36ad10b3f979f5c0613bbaf7a333212cfaed9",
     "document": "docs/operations/F1与配置资金补件接收验收-20261003.json",
     "received": {
@@ -11249,5 +11278,13 @@
     "final145UpgradeVerified": false,
     "R04Closed": false,
     "productionGo": false
+  },
+  "releaseRoute": {
+    "route": "维护窗口：双入口阻新资金写入、核在途、停止两旧业务进程并确认退出后迁移和启动同版",
+    "mixedOldNewForbidden": true,
+    "oldRefundTasksMustNotResumeAfterNewIntents": true,
+    "recoveryIntentAndBaselineMustBeRetainedTogether": true,
+    "existingPauseControlNotVerified": true,
+    "localMaintenanceImplementationUnderReview": true
   }
 }
