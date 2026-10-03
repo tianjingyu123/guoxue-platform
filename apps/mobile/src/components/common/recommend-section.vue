@@ -12,6 +12,7 @@ import { navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
 import { getCurrentInstance, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { apiPostOptionalAuth } from '@/utils/request'
+import SmartCover from '@/components/common/smart-cover.vue'
 
 export interface RecommendItem {
   id: string | number
@@ -135,7 +136,14 @@ function go(item: RecommendItem) {
         @tap="go(item)"
       >
         <view class="rec__cover">
-          <image :src="item.cover" mode="aspectFill" class="rec__img" lazy-load />
+          <view class="cover-img rec__img">
+            <smart-cover
+              :src="item.cover"
+              :title="item.title"
+              :type="item.itemType?.toLowerCase() || 'default'"
+              deco
+            />
+          </view>
           <text v-if="item.tag" class="rec__tag">{{ item.tag }}</text>
         </view>
         <text class="rec__name">{{ item.title }}</text>

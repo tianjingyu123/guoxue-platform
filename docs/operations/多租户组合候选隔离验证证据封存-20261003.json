@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "bd30924d7ff6e7d4824d9344546585c7cf2f5011",
+  "receivingBase": "ebd27667bfde889953b97d5083bffa78cd1ed86a",
+  "sealedAt": "2026-10-03T09:20:54.890Z",
+  "fileCount": 99,
+  "package": "artifacts/channel-intake-20260930/tenant-independent-evidence-1791019254634.tar.gz",
+  "packageBytes": 286627,
+  "packageSha256": "d440851c6cbfb6f599b79fa247bc94ea02be2f52c4aa0785a8d10eaa6fe59110",
+  "manifestSha256": "ae9382c2cce3eb9ae930288b1ee332d2c2b2f16cdd319e98533209361c2651a1",
+  "freshExtractionAllMatch": true,
+  "localArchiveOnly": true,
+  "remotePersistentArchive": false,
+  "production": false
+}

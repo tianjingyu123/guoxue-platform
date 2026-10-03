@@ -46,7 +46,7 @@ const builtinTabs: Array<{ id: TabId; label: string; soon?: boolean }> = [
   { id: "recommend", label: "推荐" },
   { id: "following", label: "关注" },
   { id: "hot", label: "热门" },
-  { id: "local", label: "同城", soon: true },
+  { id: "local", label: "同城" },
 ];
 const tabs = computed(() =>
   getClientPresentation().homeChannels.flatMap((id) => builtinTabs.filter((tab) => tab.id === id)),
@@ -256,7 +256,7 @@ function colItems(items: FeedEnvelope[], side: 0 | 1): FeedEnvelope[] {
 // ── Tab 切换 ──
 function switchTab(id: TabId) {
   if (id === "local") {
-    uni.showToast({ title: "同城频道即将开放", icon: "none" });
+    navigateTo("/pkg-discover/same-city/feed");
     return;
   }
   if (id === activeTab.value) return;

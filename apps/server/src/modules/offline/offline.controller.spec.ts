@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
 const mockOfflineSvc = {
+  discoverStationCities: jest.fn().mockResolvedValue({ cities: ["保定市", "北京市"] }),
   createStation: jest.fn().mockResolvedValue({ id: "s1", name: "北京驿站" }),
   listStations: jest.fn().mockResolvedValue([{ id: "s1", name: "北京驿站" }]),
   discoverStations: jest.fn().mockResolvedValue([{ id: "s1", name: "北京驿站", distance: 2.5 }]),
@@ -54,6 +55,11 @@ describe("OfflineController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("GET /offline/stations/cities — 公开目录独立于分页搜索", async () => {
+    expect(await ctrl.discoverStationCities()).toEqual({ cities: ["保定市", "北京市"] });
+    expect(mockOfflineSvc.discoverStationCities).toHaveBeenCalledTimes(1);
+  });
 
   // ─── 驿站 CRUD ───
   it("POST /offline/stations — 创建驿站", async () => {

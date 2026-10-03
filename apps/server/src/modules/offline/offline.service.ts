@@ -57,6 +57,10 @@ export class OfflineService {
 
   // ───────── 驿站发现（用户端） ─────────
 
+  discoverStationCities() {
+    return this.stationSvc.discoverStationCities();
+  }
+
   discoverStations(params: { city?: string; keyword?: string; page?: number; pageSize?: number }) {
     return this.stationSvc.discoverStations(params);
   }
