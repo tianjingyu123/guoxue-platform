@@ -1,0 +1,54 @@
+name: 多租户候选完整空库初始化隔离验证
+on:
+  push:
+    branches: ["codex/verify-tenant-bootstrap-20261003"]
+permissions:
+  contents: read
+concurrency:
+  group: isolated-tenant-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
+        env:
+          POSTGRES_USER: guoxue_test
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: tenant_bootstrap_isolated
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://guoxue_test:isolated-test-only@127.0.0.1:5432/tenant_bootstrap_isolated
+      EXPECTED_BUSINESS_SOURCE: 07e81fe51a2aa693e78b4714f200c91790420e1e
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: "10.33.3"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 生成隔离客户端
+        working-directory: apps/server
+        run: pnpm exec prisma generate
+      - name: 核验源码并执行实际初始化及非空拒绝
+        run: node tests/release/tenant-bootstrap-runtime.cjs
+      - name: 保留原始日志与判定
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tenant-bootstrap-isolated
+          path: artifacts/tenant-bootstrap-isolated/
+          if-no-files-found: error
+          retention-days: 30
