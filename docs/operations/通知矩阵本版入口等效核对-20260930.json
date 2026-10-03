@@ -321,7 +321,7 @@
     "previousSource": "9695462de758faff9a0d278d5197aeb118bf986b",
     "checkedAt": "2026-10-01T18:09:30.1152301Z"
   },
-  "currentBindingKey": "paidCourseExpiryCurrentBinding",
+  "currentBindingKey": "securityAppBuildCurrentBinding",
   "independentEntitlementCurrentBinding": {
     "sourceCommit": "51b9883dd5670c549ff02f9c40a73d1e06f2006a",
     "receipt": "docs/operations/独立权益到账与本人权益页隔离验收-20261001.json",
@@ -1896,5 +1896,355 @@
     "rows": 17,
     "allClosed": false,
     "onlineUnknown": true
+  },
+  "latestAcceptedSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "securityAppBuildCurrentBinding": {
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "record": "安全补丁接收与五端固定包验收-20261002.json",
+    "fullCI": {
+      "jobsPassed": 8,
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "shards": [
+        {
+          "skipped": 164,
+          "passed": 3097,
+          "name": "单元测试 (3/3)",
+          "summary": "2026-10-03T02:53:08.5279928Z Tests:       164 skipped, 3097 passed, 3261 total",
+          "id": 111111530462
+        },
+        {
+          "skipped": 216,
+          "passed": 3075,
+          "name": "单元测试 (2/3)",
+          "summary": "2026-10-03T02:52:22.8380552Z Tests:       216 skipped, 3075 passed, 3291 total",
+          "id": 111111530463
+        },
+        {
+          "skipped": 241,
+          "passed": 2932,
+          "name": "单元测试 (1/3)",
+          "summary": "2026-10-03T03:00:35.8123509Z Tests:       241 skipped, 2932 passed, 3173 total",
+          "id": 111111530564
+        }
+      ],
+      "checkedAt": "2026-10-03T03:05:32.9046743Z",
+      "skipped": 621,
+      "fullCIComplete": true,
+      "passed": 9104,
+      "runId": 37091033180,
+      "production": false,
+      "artifactId": 11262549427,
+      "artifactDigest": "sha256:a6cda367ddc2ccb712a35237d579373af6c209de9fedc0b96079157c5d4801f1",
+      "officialDigestMatches": true,
+      "rawLogDigests": {
+        "ci-111111530462.log": "514835cee3d174e8fc4449d44046d1af6273e66c642e2c9d0844414b1e80ff67",
+        "ci-111111530463.log": "fe332c494bedddc941d447d42d043ad54e93bd2bce9504d12288dbd2afbb34c9",
+        "ci-111111530564.log": "58d955584dd865b263f8535b6b3b37575fbc4c8bc5a7e7f1fbec8cc1568c7711"
+      }
+    },
+    "formalImage": {
+      "checkedAt": "2026-10-03T03:07:27.762Z",
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "runId": 37091675083,
+      "verificationHead": "67a2cf8117cb34d819e30295069814ef99ef4654",
+      "artifactId": 11263220100,
+      "artifactDigest": "sha256:788d3a9f49d95bc5efbe9094a83f44bb173675dad4e3065ac9ab6c20b79ab561",
+      "digestVerified": true,
+      "sourcePackageDigest": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc",
+      "sourcePackageFiles": 4189,
+      "formalDockerfile": true,
+      "bracesRuntime": {
+        "verified": true,
+        "files": 5,
+        "ordinaryComparisons": 30,
+        "protectedCases": 10,
+        "actualDCloudConsumption": true,
+        "packageDir": "/app/node_modules/.pnpm/braces@3.0.3_patch_hash=4a580e1663b63e24ca8f3d7a2ce51c4e8d6604ad72d3169f255f7d15baacaa74/node_modules/braces"
+      },
+      "passedChecks": 33,
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true
+        },
+        {
+          "name": "grpc-security-version-in-runtime-image",
+          "passed": true
+        },
+        {
+          "name": "braces-actual-dcloud-runtime-hashes-and-depth-protection",
+          "passed": true
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true
+        },
+        {
+          "name": "postgres-runtime-version-match",
+          "passed": true
+        },
+        {
+          "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+          "passed": true
+        },
+        {
+          "name": "postgres-vector-extension-runtime",
+          "passed": true
+        },
+        {
+          "name": "production-entrypoint-health-public-http",
+          "passed": true
+        },
+        {
+          "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+          "passed": true
+        },
+        {
+          "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+          "passed": true
+        },
+        {
+          "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+          "passed": true
+        },
+        {
+          "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+          "passed": true
+        },
+        {
+          "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+          "passed": true
+        },
+        {
+          "name": "new-order-station-notice-independent-compiled-processes",
+          "passed": true
+        },
+        {
+          "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+          "passed": true
+        },
+        {
+          "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+          "passed": true
+        },
+        {
+          "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+          "passed": true
+        },
+        {
+          "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+          "passed": true
+        },
+        {
+          "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+          "passed": true
+        },
+        {
+          "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "competition-disclosure-finished-only-and-public-state-boundary",
+          "passed": true
+        },
+        {
+          "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+          "passed": true
+        },
+        {
+          "name": "redis7-two-process-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "database-unique-after-redis-key-loss",
+          "passed": true
+        },
+        {
+          "name": "notification-failure-release-and-two-process-retry",
+          "passed": true
+        },
+        {
+          "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+          "passed": true
+        },
+        {
+          "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+          "passed": true
+        },
+        {
+          "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+          "passed": true
+        }
+      ],
+      "imageIdentity": {
+        "id": "sha256:98bbb87c882cd0a879e3fb85b96ff7f5279c9c3fadace2bfb508a4e8d72a1d39",
+        "os": "linux",
+        "architecture": "amd64",
+        "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+        "sourceSha256": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc"
+      },
+      "prisma": {
+        "schemaVersion": 1,
+        "kind": "prisma-build-binding",
+        "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+        "clientVersion": "6.19.3"
+      },
+      "migrationLedger": {
+        "total": 136,
+        "complete": 136,
+        "failed": 0
+      },
+      "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+      "postgresRuntime": {
+        "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+        "targetObserved": "18.4",
+        "patchMatched": true,
+        "productionVersionRecheckStillRequired": true
+      },
+      "snapshotColumns": [
+        "sourceCircleId",
+        "sourcePostId",
+        "sourceRecipientId",
+        "sourceVersion"
+      ],
+      "snapshotShapeCheck": true,
+      "details": {
+        "circle-auto-refund-http.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "synthetic-http-not-real-provider-or-settlement"
+        },
+        "circle-post-detail-http-permissions.json": {
+          "cases": 89,
+          "passed": true,
+          "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+        },
+        "circle-recall-http-transactions.json": {
+          "cases": 22,
+          "passed": true,
+          "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+        },
+        "circle-reward-http-transactions.json": {
+          "cases": 25,
+          "passed": true,
+          "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+        },
+        "competition-disclosure-http-boundary.json": {
+          "cases": 8,
+          "passed": true,
+          "scope": "full-app-real-public-http-postgres-synthetic-only"
+        },
+        "course-expiry-reminder-runtime.json": {
+          "cases": 15,
+          "passed": true,
+          "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+        },
+        "course-free-enrollment-runtime.json": {
+          "cases": 19,
+          "passed": true,
+          "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+        },
+        "finance-http-boundaries.json": {
+          "cases": 22,
+          "passed": true
+        },
+        "im-fallback-http-transactions.json": {
+          "cases": 26,
+          "passed": true,
+          "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+        },
+        "im-two-process-socket-transactions.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+        },
+        "live-booking-notification-runtime.json": {
+          "cases": 31,
+          "passed": true,
+          "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+        },
+        "merchant-shipping-http-transactions.json": {
+          "cases": 14,
+          "passed": true,
+          "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+        },
+        "payment-refund-http-transactions.json": {
+          "cases": 30,
+          "passed": true,
+          "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+        },
+        "sensitive-http-audit.json": {
+          "cases": 36,
+          "passed": true
+        }
+      },
+      "cleanup": {
+        "rebu-app-second-c13150bfe2": true,
+        "rebu-app-c13150bfe2": true,
+        "rebu-db-c13150bfe2": true,
+        "rebu-redis-c13150bfe2": true,
+        "networkAbsent": true
+      },
+      "realRedisInIsolatedImage": true,
+      "twoIndependentAppProcesses": true,
+      "production": false,
+      "productionUpgrade": false,
+      "realPaymentProvider": false,
+      "externalDelivery": false,
+      "newDeviceTest": false,
+      "refundFinalCompletionWaitsForAfterSale": true,
+      "refundFinalWriteFailureRetryRestoresOneNotification": true,
+      "orderNoticeShapeCheck": true,
+      "orderNoticeInitiallyEmpty": true,
+      "independentStationRecoveryWithoutProviderRetry": true,
+      "orderNoticeIndependentProcesses": {
+        "passed": true,
+        "notifications": 1,
+        "orderAndAmountUnchanged": true,
+        "twoIndependentProcesses": true,
+        "redisBarrierOnly": true,
+        "realChannels": false,
+        "production": false,
+        "workers": [
+          {
+            "pid": 249,
+            "inserted": 0,
+            "passed": true
+          },
+          {
+            "pid": 250,
+            "inserted": 1,
+            "passed": true
+          }
+        ]
+      },
+      "historicalBackfill": false,
+      "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+    },
+    "notificationBusinessCodeChanged": false,
+    "realChannels": false,
+    "productionVersionMapped": false,
+    "N4OverallComplete": false,
+    "N5OverallComplete": false
   }
 }

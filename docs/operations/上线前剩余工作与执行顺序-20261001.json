@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T01:33:41.756Z",
-  "sourceCommit": "624929155d054de9f58502107e6500311b8d5e0d",
+  "checkedAt": "2026-10-03T03:14:37.959Z",
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
   "testFixtureCommit": "0078de02ceb5e22dc5df01ca8f665f6ba708382d",
   "releaseReady": false,
   "states": [
@@ -62,7 +62,7 @@
     "硬件商业化",
     "未经审核诗词内容"
   ],
-  "record": "全订单新事实与独立站内恢复验收-20261002.json",
+  "record": "安全补丁接收与五端固定包验收-20261002.json",
   "handoffCi": {
     "head": "06704cd34a8e145dfd3d108dfdec8e91401f4b81",
     "runId": 36903974810,
@@ -70,17 +70,25 @@
     "skipped": 134
   },
   "formalImage": {
-    "checkedAt": "2026-10-03T01:10:54.081Z",
-    "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
-    "runId": 37084380867,
-    "verificationHead": "6e1b84b7b3292dcb91b163a708ac0f82602f6f0d",
-    "artifactId": 11260547167,
-    "artifactDigest": "sha256:f91c899e0a59d9af572e24d9a27edac28b0eb3a04d7dda04361bb66e67996446",
+    "checkedAt": "2026-10-03T03:07:27.762Z",
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "runId": 37091675083,
+    "verificationHead": "67a2cf8117cb34d819e30295069814ef99ef4654",
+    "artifactId": 11263220100,
+    "artifactDigest": "sha256:788d3a9f49d95bc5efbe9094a83f44bb173675dad4e3065ac9ab6c20b79ab561",
     "digestVerified": true,
-    "sourcePackageDigest": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1",
-    "sourcePackageFiles": 4505,
+    "sourcePackageDigest": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc",
+    "sourcePackageFiles": 4189,
     "formalDockerfile": true,
-    "passedChecks": 32,
+    "bracesRuntime": {
+      "verified": true,
+      "files": 5,
+      "ordinaryComparisons": 30,
+      "protectedCases": 10,
+      "actualDCloudConsumption": true,
+      "packageDir": "/app/node_modules/.pnpm/braces@3.0.3_patch_hash=4a580e1663b63e24ca8f3d7a2ce51c4e8d6604ad72d3169f255f7d15baacaa74/node_modules/braces"
+    },
+    "passedChecks": 33,
     "checks": [
       {
         "name": "image-identity",
@@ -92,6 +100,10 @@
       },
       {
         "name": "grpc-security-version-in-runtime-image",
+        "passed": true
+      },
+      {
+        "name": "braces-actual-dcloud-runtime-hashes-and-depth-protection",
         "passed": true
       },
       {
@@ -212,11 +224,11 @@
       }
     ],
     "imageIdentity": {
-      "id": "sha256:47cc5cf0580efc297bc8919dccfe6cd9b56def83a9c99f1570e6b4af4607bd6d",
+      "id": "sha256:98bbb87c882cd0a879e3fb85b96ff7f5279c9c3fadace2bfb508a4e8d72a1d39",
       "os": "linux",
       "architecture": "amd64",
-      "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
-      "sourceSha256": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1"
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "sourceSha256": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc"
     },
     "prisma": {
       "schemaVersion": 1,
@@ -314,10 +326,10 @@
       }
     },
     "cleanup": {
-      "rebu-app-second-ad4dab3fe9": true,
-      "rebu-app-ad4dab3fe9": true,
-      "rebu-db-ad4dab3fe9": true,
-      "rebu-redis-ad4dab3fe9": true,
+      "rebu-app-second-c13150bfe2": true,
+      "rebu-app-c13150bfe2": true,
+      "rebu-db-c13150bfe2": true,
+      "rebu-redis-c13150bfe2": true,
       "networkAbsent": true
     },
     "realRedisInIsolatedImage": true,
@@ -343,12 +355,12 @@
       "workers": [
         {
           "pid": 249,
-          "inserted": 1,
+          "inserted": 0,
           "passed": true
         },
         {
-          "pid": 253,
-          "inserted": 0,
+          "pid": 250,
+          "inserted": 1,
           "passed": true
         }
       ]
@@ -358,40 +370,45 @@
   },
   "previousBusinessSource": "9c8e5e1a2a9a6090c2d4a87cfd8bbbfc31154f94",
   "ci": {
-    "fullCIComplete": true,
-    "sourceCommit": "f77ba27303299a349aa6ba81850c61dcf0e506f1",
-    "runId": 37065459515,
-    "production": false,
     "jobsPassed": 8,
-    "passed": 9102,
-    "checkedAt": "2026-10-02T21:33:29.1370908Z",
-    "skipped": 545,
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
     "shards": [
       {
-        "summary": "2026-10-02T21:18:02.7664565Z Tests:       156 skipped, 3097 passed, 3253 total",
+        "skipped": 164,
         "passed": 3097,
-        "id": 111032652304,
         "name": "单元测试 (3/3)",
-        "skipped": 156
+        "summary": "2026-10-03T02:53:08.5279928Z Tests:       164 skipped, 3097 passed, 3261 total",
+        "id": 111111530462
       },
       {
-        "summary": "2026-10-02T21:17:44.7000777Z Tests:       196 skipped, 3075 passed, 3271 total",
+        "skipped": 216,
         "passed": 3075,
-        "id": 111032652349,
         "name": "单元测试 (2/3)",
-        "skipped": 196
+        "summary": "2026-10-03T02:52:22.8380552Z Tests:       216 skipped, 3075 passed, 3291 total",
+        "id": 111111530463
       },
       {
-        "summary": "2026-10-02T21:24:44.1971323Z Tests:       193 skipped, 2930 passed, 3123 total",
-        "passed": 2930,
-        "id": 111032652367,
+        "skipped": 241,
+        "passed": 2932,
         "name": "单元测试 (1/3)",
-        "skipped": 193
+        "summary": "2026-10-03T03:00:35.8123509Z Tests:       241 skipped, 2932 passed, 3173 total",
+        "id": 111111530564
       }
     ],
-    "artifactId": 11252692894,
-    "artifactDigest": "sha256:c46b6b56b51b3b384951d6f148cb3b7fdd2bd4190d74d27485513754401925c3",
-    "artifactDigestVerified": true
+    "checkedAt": "2026-10-03T03:05:32.9046743Z",
+    "skipped": 621,
+    "fullCIComplete": true,
+    "passed": 9104,
+    "runId": 37091033180,
+    "production": false,
+    "artifactId": 11262549427,
+    "artifactDigest": "sha256:a6cda367ddc2ccb712a35237d579373af6c209de9fedc0b96079157c5d4801f1",
+    "officialDigestMatches": true,
+    "rawLogDigests": {
+      "ci-111111530462.log": "514835cee3d174e8fc4449d44046d1af6273e66c642e2c9d0844414b1e80ff67",
+      "ci-111111530463.log": "fe332c494bedddc941d447d42d043ad54e93bd2bce9504d12288dbd2afbb34c9",
+      "ci-111111530564.log": "58d955584dd865b263f8535b6b3b37575fbc4c8bc5a7e7f1fbec8cc1568c7711"
+    }
   },
   "historicalSoftwareSkippedCovered": 104,
   "additionalSkippedCovered": 32,
@@ -6290,14 +6307,9 @@
     "releaseReady": false
   },
   "formalImageRuntimeEquivalence": {
-    "from": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
-    "to": "624929155d054de9f58502107e6500311b8d5e0d",
-    "changedFiles": [
-      "apps/server/src/modules/notification/notification-response-boundary.spec.ts"
-    ],
-    "excludedByServerBuild": "**/*.spec.ts",
-    "runtimeSourceAndSchemaAndDependenciesUnchanged": true,
-    "scope": "Linux及固定包镜像严格绑定feb；624仅测试夹具变化，编译输入等价。不能把feb附件改写为624同源固定包"
+    "scope": "同源源码/锁/patch/安装钩子重建，不复用旧镜像等效证明",
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "verified": true
   },
   "orderNoticeScope": {
     "sourceCommit": "624929155d054de9f58502107e6500311b8d5e0d",
@@ -7155,14 +7167,1494 @@
       "企业微信回流",
       "N5旧UNUSED券规则待业务决策",
       "七类整体放行门槛"
-    ]
+    ],
+    "currentFullCIReference": {
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "runId": 37091033180,
+      "passed": 9104,
+      "skipped": 621
+    }
   },
   "dependencySecurityBlocker": {
     "id": 1240992,
     "advisory": "GHSA-vfj7-8cjw-p6xm",
-    "upstreamFix": null,
-    "localPatchBranch": "codex/braces-depth-guard-20261002",
-    "accepted": false,
-    "scope": "独立补丁安装验证通过，未接收；DCloud消费路径及各端构建未验证，门禁保持阻断"
+    "upstreamFix": false,
+    "localPatchAccepted": true,
+    "blocking": false,
+    "realConsumerVerified": true,
+    "scope": "固定编号/版本/全部路径/五摘要及行为验证才认定本地修复，未知返回继续阻断"
+  },
+  "previousSecurityIntakeParentBinding": {
+    "sourceCommit": "624929155d054de9f58502107e6500311b8d5e0d",
+    "ci": {
+      "fullCIComplete": true,
+      "sourceCommit": "f77ba27303299a349aa6ba81850c61dcf0e506f1",
+      "runId": 37065459515,
+      "production": false,
+      "jobsPassed": 8,
+      "passed": 9102,
+      "checkedAt": "2026-10-02T21:33:29.1370908Z",
+      "skipped": 545,
+      "shards": [
+        {
+          "summary": "2026-10-02T21:18:02.7664565Z Tests:       156 skipped, 3097 passed, 3253 total",
+          "passed": 3097,
+          "id": 111032652304,
+          "name": "单元测试 (3/3)",
+          "skipped": 156
+        },
+        {
+          "summary": "2026-10-02T21:17:44.7000777Z Tests:       196 skipped, 3075 passed, 3271 total",
+          "passed": 3075,
+          "id": 111032652349,
+          "name": "单元测试 (2/3)",
+          "skipped": 196
+        },
+        {
+          "summary": "2026-10-02T21:24:44.1971323Z Tests:       193 skipped, 2930 passed, 3123 total",
+          "passed": 2930,
+          "id": 111032652367,
+          "name": "单元测试 (1/3)",
+          "skipped": 193
+        }
+      ],
+      "artifactId": 11252692894,
+      "artifactDigest": "sha256:c46b6b56b51b3b384951d6f148cb3b7fdd2bd4190d74d27485513754401925c3",
+      "artifactDigestVerified": true
+    },
+    "formalImage": {
+      "checkedAt": "2026-10-03T01:10:54.081Z",
+      "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+      "runId": 37084380867,
+      "verificationHead": "6e1b84b7b3292dcb91b163a708ac0f82602f6f0d",
+      "artifactId": 11260547167,
+      "artifactDigest": "sha256:f91c899e0a59d9af572e24d9a27edac28b0eb3a04d7dda04361bb66e67996446",
+      "digestVerified": true,
+      "sourcePackageDigest": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1",
+      "sourcePackageFiles": 4505,
+      "formalDockerfile": true,
+      "passedChecks": 32,
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true
+        },
+        {
+          "name": "grpc-security-version-in-runtime-image",
+          "passed": true
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true
+        },
+        {
+          "name": "postgres-runtime-version-match",
+          "passed": true
+        },
+        {
+          "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+          "passed": true
+        },
+        {
+          "name": "postgres-vector-extension-runtime",
+          "passed": true
+        },
+        {
+          "name": "production-entrypoint-health-public-http",
+          "passed": true
+        },
+        {
+          "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+          "passed": true
+        },
+        {
+          "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+          "passed": true
+        },
+        {
+          "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+          "passed": true
+        },
+        {
+          "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+          "passed": true
+        },
+        {
+          "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+          "passed": true
+        },
+        {
+          "name": "new-order-station-notice-independent-compiled-processes",
+          "passed": true
+        },
+        {
+          "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+          "passed": true
+        },
+        {
+          "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+          "passed": true
+        },
+        {
+          "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+          "passed": true
+        },
+        {
+          "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+          "passed": true
+        },
+        {
+          "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+          "passed": true
+        },
+        {
+          "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "competition-disclosure-finished-only-and-public-state-boundary",
+          "passed": true
+        },
+        {
+          "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+          "passed": true
+        },
+        {
+          "name": "redis7-two-process-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "database-unique-after-redis-key-loss",
+          "passed": true
+        },
+        {
+          "name": "notification-failure-release-and-two-process-retry",
+          "passed": true
+        },
+        {
+          "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+          "passed": true
+        },
+        {
+          "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+          "passed": true
+        },
+        {
+          "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+          "passed": true
+        }
+      ],
+      "imageIdentity": {
+        "id": "sha256:47cc5cf0580efc297bc8919dccfe6cd9b56def83a9c99f1570e6b4af4607bd6d",
+        "os": "linux",
+        "architecture": "amd64",
+        "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+        "sourceSha256": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1"
+      },
+      "prisma": {
+        "schemaVersion": 1,
+        "kind": "prisma-build-binding",
+        "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+        "clientVersion": "6.19.3"
+      },
+      "migrationLedger": {
+        "total": 136,
+        "complete": 136,
+        "failed": 0
+      },
+      "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+      "postgresRuntime": {
+        "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+        "targetObserved": "18.4",
+        "patchMatched": true,
+        "productionVersionRecheckStillRequired": true
+      },
+      "snapshotColumns": [
+        "sourceCircleId",
+        "sourcePostId",
+        "sourceRecipientId",
+        "sourceVersion"
+      ],
+      "snapshotShapeCheck": true,
+      "details": {
+        "circle-auto-refund-http.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "synthetic-http-not-real-provider-or-settlement"
+        },
+        "circle-post-detail-http-permissions.json": {
+          "cases": 89,
+          "passed": true,
+          "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+        },
+        "circle-recall-http-transactions.json": {
+          "cases": 22,
+          "passed": true,
+          "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+        },
+        "circle-reward-http-transactions.json": {
+          "cases": 25,
+          "passed": true,
+          "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+        },
+        "competition-disclosure-http-boundary.json": {
+          "cases": 8,
+          "passed": true,
+          "scope": "full-app-real-public-http-postgres-synthetic-only"
+        },
+        "course-expiry-reminder-runtime.json": {
+          "cases": 15,
+          "passed": true,
+          "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+        },
+        "course-free-enrollment-runtime.json": {
+          "cases": 19,
+          "passed": true,
+          "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+        },
+        "finance-http-boundaries.json": {
+          "cases": 22,
+          "passed": true
+        },
+        "im-fallback-http-transactions.json": {
+          "cases": 26,
+          "passed": true,
+          "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+        },
+        "im-two-process-socket-transactions.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+        },
+        "live-booking-notification-runtime.json": {
+          "cases": 31,
+          "passed": true,
+          "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+        },
+        "merchant-shipping-http-transactions.json": {
+          "cases": 14,
+          "passed": true,
+          "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+        },
+        "payment-refund-http-transactions.json": {
+          "cases": 30,
+          "passed": true,
+          "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+        },
+        "sensitive-http-audit.json": {
+          "cases": 36,
+          "passed": true
+        }
+      },
+      "cleanup": {
+        "rebu-app-second-ad4dab3fe9": true,
+        "rebu-app-ad4dab3fe9": true,
+        "rebu-db-ad4dab3fe9": true,
+        "rebu-redis-ad4dab3fe9": true,
+        "networkAbsent": true
+      },
+      "realRedisInIsolatedImage": true,
+      "twoIndependentAppProcesses": true,
+      "production": false,
+      "productionUpgrade": false,
+      "realPaymentProvider": false,
+      "externalDelivery": false,
+      "newDeviceTest": false,
+      "refundFinalCompletionWaitsForAfterSale": true,
+      "refundFinalWriteFailureRetryRestoresOneNotification": true,
+      "orderNoticeShapeCheck": true,
+      "orderNoticeInitiallyEmpty": true,
+      "independentStationRecoveryWithoutProviderRetry": true,
+      "orderNoticeIndependentProcesses": {
+        "passed": true,
+        "notifications": 1,
+        "orderAndAmountUnchanged": true,
+        "twoIndependentProcesses": true,
+        "redisBarrierOnly": true,
+        "realChannels": false,
+        "production": false,
+        "workers": [
+          {
+            "pid": 249,
+            "inserted": 1,
+            "passed": true
+          },
+          {
+            "pid": 253,
+            "inserted": 0,
+            "passed": true
+          }
+        ]
+      },
+      "historicalBackfill": false,
+      "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+    },
+    "dependencySecurityBlocker": {
+      "id": 1240992,
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "upstreamFix": null,
+      "localPatchBranch": "codex/braces-depth-guard-20261002",
+      "accepted": false,
+      "scope": "独立补丁安装验证通过，未接收；DCloud消费路径及各端构建未验证，门禁保持阻断"
+    }
+  },
+  "securityAppBuildScope": {
+    "schemaVersion": 1,
+    "checkedAt": "2026-10-03T03:14:37.959Z",
+    "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "acceptedCommits": [
+      {
+        "original": "85192ea3cb962133c00c6564c56057667d8ea2da",
+        "accepted": "0995b8636799a824e9c0afbdbeaedae52523ed85",
+        "scope": "braces深度保护及锁绑定"
+      },
+      {
+        "original": "58e1576c74b7f6cfa9a544ea756317bd1e26426f",
+        "accepted": "1abd0eb7b5d6f225d26c6b2d5b83d6b32d42c40d",
+        "scope": "实际安装、路径、摘要、行为及未知审计返回阻断"
+      },
+      {
+        "original": "b30cd5afaedd46d9fe0ea4e942e4f742dc79da5f",
+        "accepted": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+        "scope": "固定Linux UTS libc元数据及APP成品阻断"
+      }
+    ],
+    "parent": "ba1d015231bbd6b416d5011ef4e5237350253363",
+    "conflicts": false,
+    "master": "54d94160e34f09423798f4f2e5e8a0fd5ba7afeb",
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（限定范围）",
+      "线上状态未知",
+      "待发布决策"
+    ],
+    "fullCI": {
+      "jobsPassed": 8,
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "shards": [
+        {
+          "skipped": 164,
+          "passed": 3097,
+          "name": "单元测试 (3/3)",
+          "summary": "2026-10-03T02:53:08.5279928Z Tests:       164 skipped, 3097 passed, 3261 total",
+          "id": 111111530462
+        },
+        {
+          "skipped": 216,
+          "passed": 3075,
+          "name": "单元测试 (2/3)",
+          "summary": "2026-10-03T02:52:22.8380552Z Tests:       216 skipped, 3075 passed, 3291 total",
+          "id": 111111530463
+        },
+        {
+          "skipped": 241,
+          "passed": 2932,
+          "name": "单元测试 (1/3)",
+          "summary": "2026-10-03T03:00:35.8123509Z Tests:       241 skipped, 2932 passed, 3173 total",
+          "id": 111111530564
+        }
+      ],
+      "checkedAt": "2026-10-03T03:05:32.9046743Z",
+      "skipped": 621,
+      "fullCIComplete": true,
+      "passed": 9104,
+      "runId": 37091033180,
+      "production": false,
+      "artifactId": 11262549427,
+      "artifactDigest": "sha256:a6cda367ddc2ccb712a35237d579373af6c209de9fedc0b96079157c5d4801f1",
+      "officialDigestMatches": true,
+      "rawLogDigests": {
+        "ci-111111530462.log": "514835cee3d174e8fc4449d44046d1af6273e66c642e2c9d0844414b1e80ff67",
+        "ci-111111530463.log": "fe332c494bedddc941d447d42d043ad54e93bd2bce9504d12288dbd2afbb34c9",
+        "ci-111111530564.log": "58d955584dd865b263f8535b6b3b37575fbc4c8bc5a7e7f1fbec8cc1568c7711"
+      }
+    },
+    "clients": {
+      "checkedAt": "2026-10-03T02:57:25.665Z",
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "toolCommit": "c534514499a882fcdccecd4ca416e5f79ae6f9fb",
+      "runId": 37091072163,
+      "artifactId": 11262324127,
+      "artifactDigest": "sha256:61fd64ae2438e332eb5dafaf544e870088a3b334f2640b68353438885ce582af",
+      "officialDigestMatches": true,
+      "sourceFilesVerified": 4714,
+      "installationInputsBound": [
+        ".pnpmfile.cjs",
+        ".gitattributes",
+        "pnpm-workspace.yaml",
+        "pnpm-lock.yaml",
+        "patches"
+      ],
+      "publicConfiguration": "VITE_API_URL=https://api.rebugx.cn\nVITE_PUBLIC_H5_URL=https://gx.yrydai.com/h5/\nVITE_PUBLIC_ASSET_ORIGIN=https://static.rebugx.cn\n",
+      "targets": [
+        {
+          "name": "管理后台",
+          "directory": "apps/admin/dist",
+          "expectedKeys": [
+            "VITE_API_URL",
+            "VITE_PUBLIC_H5_URL"
+          ],
+          "files": 505,
+          "textFiles": 505,
+          "sourceMaps": 0,
+          "bytes": 6487586,
+          "contentSha256": "4ce4a0bab65a6c1969751e67d3f664569a44b4c7291b0b3db8125116ebd17b14",
+          "success": true
+        },
+        {
+          "name": "H5",
+          "directory": "apps/mobile/dist/build/h5",
+          "expectedKeys": [
+            "VITE_API_URL",
+            "VITE_PUBLIC_ASSET_ORIGIN"
+          ],
+          "files": 1181,
+          "textFiles": 1164,
+          "sourceMaps": 0,
+          "bytes": 11147092,
+          "contentSha256": "6e9d4a01fda8476fc7027fa4f57cf66e8d30a4be063aec3425115be2bcdaf28c",
+          "success": true
+        },
+        {
+          "name": "微信小程序",
+          "directory": "apps/mobile/dist/build/mp-weixin",
+          "expectedKeys": [
+            "VITE_API_URL",
+            "VITE_PUBLIC_ASSET_ORIGIN"
+          ],
+          "files": 2759,
+          "textFiles": 2753,
+          "sourceMaps": 0,
+          "bytes": 11127073,
+          "contentSha256": "2ab07dbbf45e25b003e9f71c1a30d53a215a04b4e31c3f5bfbb8ab43e86464d8",
+          "success": true
+        },
+        {
+          "name": "App",
+          "directory": "apps/mobile/dist/build/app",
+          "expectedKeys": [
+            "VITE_API_URL",
+            "VITE_PUBLIC_ASSET_ORIGIN"
+          ],
+          "files": 491,
+          "textFiles": 471,
+          "sourceMaps": 0,
+          "bytes": 12863915,
+          "contentSha256": "6f4b2b7ea208fa14c38564fec85bcfc71bd185abddf8cc4a3c6b3d3d660a7dde",
+          "success": true
+        },
+        {
+          "name": "鸿蒙 App",
+          "directory": "apps/mobile/dist/build/app-harmony",
+          "expectedKeys": [
+            "VITE_API_URL",
+            "VITE_PUBLIC_ASSET_ORIGIN"
+          ],
+          "files": 490,
+          "textFiles": 468,
+          "sourceMaps": 0,
+          "bytes": 12536666,
+          "contentSha256": "e84601831f25fdb55c68a52838675805001968136d45f453e3aabf97df4354a0",
+          "success": true
+        }
+      ],
+      "fullFiveTargetBuild": true,
+      "clientProductsIndependentlyVerified": true,
+      "bracesTests": 4,
+      "appBoundaryTests": 3,
+      "securityAuditPassed": true,
+      "upstreamBracesFixed": false,
+      "existingViteException": true,
+      "fixedPackage": {
+        "schemaVersion": 1,
+        "generatedAt": "2026-10-03T02:54:58.758Z",
+        "archive": "gx-deploy-91-launch-20261002-cc78fbe4f.tar.gz",
+        "sha256": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc",
+        "releaseId": "launch-20261002-cc78fbe4f",
+        "commit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+        "expectedCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+        "fileCount": 4189,
+        "allowDirty": false,
+        "success": true,
+        "errorCount": 0,
+        "warningCount": 0,
+        "errors": [],
+        "warnings": []
+      },
+      "miniSize": {
+        "mainBytes": 1701751,
+        "subpackages": [
+          {
+            "root": "pkg-paipan",
+            "bytes": 1764521
+          },
+          {
+            "root": "pkg-paipan3",
+            "bytes": 178884
+          },
+          {
+            "root": "pkg-paipan2",
+            "bytes": 580473
+          },
+          {
+            "root": "pkg-course",
+            "bytes": 272353
+          },
+          {
+            "root": "pkg-mall",
+            "bytes": 116024
+          },
+          {
+            "root": "pkg-shop",
+            "bytes": 213154
+          },
+          {
+            "root": "pkg-order",
+            "bytes": 142973
+          },
+          {
+            "root": "pkg-account",
+            "bytes": 152674
+          },
+          {
+            "root": "pkg-classics",
+            "bytes": 406996
+          },
+          {
+            "root": "pkg-circle",
+            "bytes": 1147445
+          },
+          {
+            "root": "pkg-agent",
+            "bytes": 250898
+          },
+          {
+            "root": "pkg-live",
+            "bytes": 566894
+          },
+          {
+            "root": "pkg-video",
+            "bytes": 189113
+          },
+          {
+            "root": "pkg-competition",
+            "bytes": 228961
+          },
+          {
+            "root": "pkg-merchant",
+            "bytes": 539464
+          },
+          {
+            "root": "pkg-operator",
+            "bytes": 496813
+          },
+          {
+            "root": "pkg-institute",
+            "bytes": 281696
+          },
+          {
+            "root": "pkg-offline",
+            "bytes": 276850
+          },
+          {
+            "root": "pkg-mine",
+            "bytes": 660168
+          },
+          {
+            "root": "pkg-profile",
+            "bytes": 46762
+          },
+          {
+            "root": "pkg-settings",
+            "bytes": 70501
+          },
+          {
+            "root": "pkg-auth",
+            "bytes": 71099
+          },
+          {
+            "root": "pkg-im",
+            "bytes": 165968
+          },
+          {
+            "root": "pkg-search",
+            "bytes": 56877
+          },
+          {
+            "root": "pkg-discover",
+            "bytes": 7752
+          },
+          {
+            "root": "pkg-bounty",
+            "bytes": 79751
+          },
+          {
+            "root": "pkg-help",
+            "bytes": 15187
+          },
+          {
+            "root": "pkg-report",
+            "bytes": 55003
+          },
+          {
+            "root": "pkg-notices",
+            "bytes": 34900
+          },
+          {
+            "root": "pkg-common",
+            "bytes": 42252
+          },
+          {
+            "root": "pkg-creator",
+            "bytes": 83244
+          },
+          {
+            "root": "pkg-solar-term",
+            "bytes": 19199
+          },
+          {
+            "root": "pkg-workspace",
+            "bytes": 210027
+          }
+        ],
+        "estimatedPlatformOverhead": 294912,
+        "estimatedUploadMain": 1996663,
+        "estimatedRemaining": 100489,
+        "minimumReserved": 81920,
+        "officialUpload": false
+      },
+      "production": false,
+      "signedPackage": false,
+      "newDeviceTest": false
+    },
+    "formalImage": {
+      "checkedAt": "2026-10-03T03:07:27.762Z",
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "runId": 37091675083,
+      "verificationHead": "67a2cf8117cb34d819e30295069814ef99ef4654",
+      "artifactId": 11263220100,
+      "artifactDigest": "sha256:788d3a9f49d95bc5efbe9094a83f44bb173675dad4e3065ac9ab6c20b79ab561",
+      "digestVerified": true,
+      "sourcePackageDigest": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc",
+      "sourcePackageFiles": 4189,
+      "formalDockerfile": true,
+      "bracesRuntime": {
+        "verified": true,
+        "files": 5,
+        "ordinaryComparisons": 30,
+        "protectedCases": 10,
+        "actualDCloudConsumption": true,
+        "packageDir": "/app/node_modules/.pnpm/braces@3.0.3_patch_hash=4a580e1663b63e24ca8f3d7a2ce51c4e8d6604ad72d3169f255f7d15baacaa74/node_modules/braces"
+      },
+      "passedChecks": 33,
+      "checks": [
+        {
+          "name": "image-identity",
+          "passed": true
+        },
+        {
+          "name": "prisma-source-compile-runtime-binding",
+          "passed": true
+        },
+        {
+          "name": "grpc-security-version-in-runtime-image",
+          "passed": true
+        },
+        {
+          "name": "braces-actual-dcloud-runtime-hashes-and-depth-protection",
+          "passed": true
+        },
+        {
+          "name": "admin-h5-base-and-public-config",
+          "passed": true
+        },
+        {
+          "name": "postgres-runtime-version-match",
+          "passed": true
+        },
+        {
+          "name": "formal-empty-bootstrap-ledger-and-channel-constraints",
+          "passed": true
+        },
+        {
+          "name": "postgres-vector-extension-runtime",
+          "passed": true
+        },
+        {
+          "name": "production-entrypoint-health-public-http",
+          "passed": true
+        },
+        {
+          "name": "real-jwt-global-guards-cross-user-and-admin-roles",
+          "passed": true
+        },
+        {
+          "name": "channel-registration-real-jwt-roles-public-minimization-default-wgt-denied",
+          "passed": true
+        },
+        {
+          "name": "sensitive-feedback-roles-mask-audit-limit-and-validation",
+          "passed": true
+        },
+        {
+          "name": "manual-no-change-payout-audit-failure-and-write-role-boundaries",
+          "passed": true
+        },
+        {
+          "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+          "passed": true
+        },
+        {
+          "name": "new-order-station-notice-independent-compiled-processes",
+          "passed": true
+        },
+        {
+          "name": "circle-recall-order-binding-proportion-rollback-and-concurrent-resolution",
+          "passed": true
+        },
+        {
+          "name": "automatic-refund-share-cap-zero-share-and-once-only-wallet-credit",
+          "passed": true
+        },
+        {
+          "name": "merchant-shipping-ownership-replay-rollback-and-concurrency",
+          "passed": true
+        },
+        {
+          "name": "im-fallback-user-isolation-last-quota-concurrency-and-insert-rollback",
+          "passed": true
+        },
+        {
+          "name": "circle-reward-real-http-atomicity-replay-two-apps-and-notification-permissions",
+          "passed": true
+        },
+        {
+          "name": "circle-post-published-state-context-preview-and-notification-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "competition-disclosure-finished-only-and-public-state-boundary",
+          "passed": true
+        },
+        {
+          "name": "im-two-app-processes-redis-socket-privacy-quota-and-rollback",
+          "passed": true
+        },
+        {
+          "name": "redis7-two-process-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "database-unique-after-redis-key-loss",
+          "passed": true
+        },
+        {
+          "name": "notification-failure-release-and-two-process-retry",
+          "passed": true
+        },
+        {
+          "name": "course-reminder-db-failure-daily-idempotency-two-processes-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "free-course-full-http-postcommit-notification-failure-and-permissions",
+          "passed": true
+        },
+        {
+          "name": "live-booking-real-db-failures-retry-concurrency-and-http-target-permissions",
+          "passed": true
+        },
+        {
+          "name": "compiled-entitlement-service-and-durable-notification-idempotency",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-grant-state-durable-notification-failure-retry-and-revoke",
+          "passed": true
+        },
+        {
+          "name": "compiled-member-renew-durable-retry-date-boundary-rollback-and-renewal-lock",
+          "passed": true
+        },
+        {
+          "name": "compiled-practitioner-concurrent-payment-refund-durable-notice",
+          "passed": true
+        }
+      ],
+      "imageIdentity": {
+        "id": "sha256:98bbb87c882cd0a879e3fb85b96ff7f5279c9c3fadace2bfb508a4e8d72a1d39",
+        "os": "linux",
+        "architecture": "amd64",
+        "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+        "sourceSha256": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc"
+      },
+      "prisma": {
+        "schemaVersion": 1,
+        "kind": "prisma-build-binding",
+        "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+        "clientVersion": "6.19.3"
+      },
+      "migrationLedger": {
+        "total": 136,
+        "complete": 136,
+        "failed": 0
+      },
+      "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
+      "postgresRuntime": {
+        "actual": "18.4 (Debian 18.4-1.pgdg13+1)",
+        "targetObserved": "18.4",
+        "patchMatched": true,
+        "productionVersionRecheckStillRequired": true
+      },
+      "snapshotColumns": [
+        "sourceCircleId",
+        "sourcePostId",
+        "sourceRecipientId",
+        "sourceVersion"
+      ],
+      "snapshotShapeCheck": true,
+      "details": {
+        "circle-auto-refund-http.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "synthetic-http-not-real-provider-or-settlement"
+        },
+        "circle-post-detail-http-permissions.json": {
+          "cases": 89,
+          "passed": true,
+          "scope": "full-app-real-http-jwt-postgres-synthetic-only"
+        },
+        "circle-recall-http-transactions.json": {
+          "cases": 22,
+          "passed": true,
+          "scope": "synthetic-ledger-http-not-production-funds-or-settlement"
+        },
+        "circle-reward-http-transactions.json": {
+          "cases": 25,
+          "passed": true,
+          "scope": "two-full-apps-real-http-jwt-postgres-redis-synthetic-only"
+        },
+        "competition-disclosure-http-boundary.json": {
+          "cases": 8,
+          "passed": true,
+          "scope": "full-app-real-public-http-postgres-synthetic-only"
+        },
+        "course-expiry-reminder-runtime.json": {
+          "cases": 15,
+          "passed": true,
+          "scope": "compiled-scheduler-real-pg-redis-independent-processes-and-full-http-target-permissions"
+        },
+        "course-free-enrollment-runtime.json": {
+          "cases": 19,
+          "passed": true,
+          "scope": "full-http-real-di-postcommit-pg-failure-and-lock-redis-permissions"
+        },
+        "finance-http-boundaries.json": {
+          "cases": 22,
+          "passed": true
+        },
+        "im-fallback-http-transactions.json": {
+          "cases": 26,
+          "passed": true,
+          "scope": "synthetic-http-real-jwt-postgresql-transactions-no-external-im"
+        },
+        "im-two-process-socket-transactions.json": {
+          "cases": 12,
+          "passed": true,
+          "scope": "isolated-two-app-processes-synthetic-socket-http-no-tencent-no-production"
+        },
+        "live-booking-notification-runtime.json": {
+          "cases": 31,
+          "passed": true,
+          "scope": "compiled-live-schedulers-real-pg-redis-two-processes-booking-http-and-target-permissions"
+        },
+        "merchant-shipping-http-transactions.json": {
+          "cases": 14,
+          "passed": true,
+          "scope": "synthetic-http-no-carrier-or-wechat-delivery"
+        },
+        "payment-refund-http-transactions.json": {
+          "cases": 30,
+          "passed": true,
+          "scope": "synthetic-course-orders-not-real-provider-or-target-database"
+        },
+        "sensitive-http-audit.json": {
+          "cases": 36,
+          "passed": true
+        }
+      },
+      "cleanup": {
+        "rebu-app-second-c13150bfe2": true,
+        "rebu-app-c13150bfe2": true,
+        "rebu-db-c13150bfe2": true,
+        "rebu-redis-c13150bfe2": true,
+        "networkAbsent": true
+      },
+      "realRedisInIsolatedImage": true,
+      "twoIndependentAppProcesses": true,
+      "production": false,
+      "productionUpgrade": false,
+      "realPaymentProvider": false,
+      "externalDelivery": false,
+      "newDeviceTest": false,
+      "refundFinalCompletionWaitsForAfterSale": true,
+      "refundFinalWriteFailureRetryRestoresOneNotification": true,
+      "orderNoticeShapeCheck": true,
+      "orderNoticeInitiallyEmpty": true,
+      "independentStationRecoveryWithoutProviderRetry": true,
+      "orderNoticeIndependentProcesses": {
+        "passed": true,
+        "notifications": 1,
+        "orderAndAmountUnchanged": true,
+        "twoIndependentProcesses": true,
+        "redisBarrierOnly": true,
+        "realChannels": false,
+        "production": false,
+        "workers": [
+          {
+            "pid": 249,
+            "inserted": 0,
+            "passed": true
+          },
+          {
+            "pid": 250,
+            "inserted": 1,
+            "passed": true
+          }
+        ]
+      },
+      "historicalBackfill": false,
+      "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+    },
+    "fixedDraft": {
+      "draft": true,
+      "archiveSha256": "3888a55bdf9db2f4f8f38d9eca5a95d3c9ffe2182fa75ee26fdeb4faba7f90cc",
+      "assetId": 607016952,
+      "officialDigestMatches": true,
+      "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "bytes": 15512266,
+      "checkedAt": "2026-10-03T02:58:19.4760565Z",
+      "tag": "launch-20261002-cc78fbe4f",
+      "releaseId": 402293794,
+      "published": false
+    },
+    "productionReadOnly": {
+      "checkedAt": "2026-10-03T03:04:51.054Z",
+      "candidateSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "scriptSha256": "7a721285d75571451af7e745e916fb5082e22fa6450c88b207d30761d81e200a",
+      "nodes": [
+        {
+          "node": "guoxue2",
+          "instanceId": "ins-0sen8yvf",
+          "taskId": "invt-d9edwig84u",
+          "invocationId": "inv-d9edwig84t",
+          "checkedAt": "2026-10-03T03:01:57Z",
+          "sourceRawSha256": "ea39c850fe785045180cd0d7de332efd67ca36d7821e6a66d7fc5535f2a8ac5a",
+          "readonly": true,
+          "execution": "official-tat",
+          "output": {
+            "hostname": "VM-0-10-ubuntu",
+            "checkedUtc": "2026-10-03T03:01:57Z",
+            "containerStatus": "running",
+            "containerRunning": "true",
+            "containerHealth": "healthy",
+            "containerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+            "imageCreated": "2026-09-20T22:24:13.08587369+08:00",
+            "releaseIdentity": "absent",
+            "envFileRegular": "true",
+            "univerifySecretKeyCount": "0",
+            "univerifySecretReady": "false",
+            "redisUrlKeyCount": "1",
+            "redisUrlPresent": "true",
+            "runtimeUniverifySecretPresent": "false",
+            "runtimeUniverifySecretReady": "false",
+            "runtimeRedisConfigured": "true",
+            "runtimeMigrationDirs": "103",
+            "completedMigrations": "103",
+            "completedMigrationNames": "[\"20260507053959_init_full_schema\",\"20260507094349_add_classic_books\",\"20260509000000_add_missing_models\",\"20260509222741_add_paid_question_fields_and_call_billing\",\"20260509224842_add_live_mic_slide_mute_flash_audit\",\"20260509225200_add_video_counts\",\"20260509230000_add_course_review\",\"20260509230000_add_institute_task_event\",\"20260509_add_fulltext_search_indices\",\"20260509_add_performance_indices\",\"20260509_add_recommend_system\",\"20260509_add_station_miniapp_config\",\"20260509_add_stationid_to_article_course_video_circle\",\"20260509_add_stationid_to_content_product\",\"20260509_add_type_createdat_index\",\"20260509_add_webhook_system\",\"20260510000000_add_marketing_risk_finance\",\"20260510000000_course_live_linkage\",\"20260510000001_add_gap_models\",\"20260510_add_perf_indexes_p8\",\"20260511143311_add_merchant\",\"20260511145554_add_merchant\",\"20260513130000_enable_pgvector\",\"20260513_add_automation_infrastructure\",\"20260513_add_compound_indexes\",\"20260514_add_category_fields\",\"20260515000000_partition_preembed\",\"20260515_add_ai_cache_entry\",\"20260515_add_bazi_knowledge_classic_commentary\",\"20260515_add_classic_bazi_tags\",\"20260515_add_missing_fk_indexes\",\"20260515_add_quality_score_record\",\"20260515_add_rag_template_bigscreen_token_live_minute_data\",\"20260515_rag_layers_2_4\",\"20260518_add_classic_images\",\"20260518_add_missing_indexes\",\"20260519_add_classic_reading_note\",\"20260519_add_competition_system\",\"20260519_add_course_qa\",\"20260519_add_course_review_reply\",\"20260519_add_ebook_review_reading_session\",\"20260519_add_missing_fk_indexes\",\"20260519_add_tags_gin_indexes\",\"20260521124129_add_station_id_and_payment_unique\",\"20260521145000_add_identity_verified_fields\",\"20260521150000_add_operator_management_bonus\",\"20260521160000_seed_prd_config_params\",\"20260521170000_add_risk_control_station_dimension\",\"20260521180000_add_banned_user_status\",\"20260521180000_add_task_expiry_churn_fields\",\"20260521200000_add_permission_model\",\"20260530_add_discover_comment_indexes\",\"20260530_add_pg_trgm_extension\",\"20260530_add_tags_gin_indexes\",\"20260530_remove_redundant_indexes\",\"20260604_add_circle_read_and_booking\",\"20260617000000_baseline\",\"20260620000000_add_notify_settings_and_feedback\",\"20260723000000_add_live_description\",\"20260726000000_add_article_layout\",\"20260726030000_add_merchant_qualification_risk\",\"20260726_add_classic_note_anchor\",\"20260728090000_add_circle_publish_grants\",\"20260728110000_add_live_watch_progress\",\"20260730100000_repair_operational_database_objects\",\"20260802000000_enforce_auth_provider_uniqueness\",\"20260802030000_unified_accounts_and_entitlements\",\"20260810120554_add_classic_copyright\",\"20260811100000_gate_classics_by_audited_license\",\"20260815150000_add_live_gift_idempotency\",\"20260815152000_add_live_mic_media_mode\",\"20260815163000_add_live_gift_spending_protection\",\"20260821100000_bootstrap_launch_business_surfaces\",\"20260829100000_bootstrap_member_plans\",\"add_stationId_bounty_call\",\"add_stationId_marketing\",\"manual_20260623_audit_fixes\",\"manual_add_ai_decision_outcome_provenance\",\"manual_add_ai_event_delivery_state\",\"manual_add_app_version_release_workflow\",\"manual_add_apple_iap\",\"manual_add_article_hot_index\",\"manual_add_audit_autonomy_level\",\"manual_add_bounty_close_evidence\",\"manual_add_brand_config\",\"manual_add_capability_request\",\"manual_add_content_supply_chain\",\"manual_add_groupbuy_paid_flow\",\"manual_add_institute_audit_split\",\"manual_add_legacy_migration_audit\",\"manual_add_live_booking_and_replay_publish_state\",\"manual_add_merchant_suppliers\",\"manual_add_ops_task_approval_evidence\",\"manual_add_order_shipping_address\",\"manual_add_payout_account_encryption\",\"manual_add_product_sku_lifecycle\",\"manual_add_purchase_receipts\",\"manual_add_station_paipan_link\",\"manual_add_teacher_certification\",\"manual_add_tenant_saas_fields\",\"manual_add_user_interest_guide_completed\",\"manual_add_webhook_delivery_outbox\",\"manual_bind_product_freight_template\"]",
+            "unfinishedMigrations": "0",
+            "rolledBackMigrations": "1",
+            "runtimePendingMigrations": "0",
+            "redisPing": "fail",
+            "rootBytesTotal": "308988768256",
+            "rootBytesUsed": "158026698752",
+            "rootBytesAvailable": "138283565056",
+            "rootPercentUsed": "54%",
+            "guoxueBytesTotal": "308988768256",
+            "guoxueBytesUsed": "158026698752",
+            "guoxueBytesAvailable": "138283565056",
+            "guoxuePercentUsed": "54%",
+            "memoryBytesTotal": "16230629376",
+            "memoryBytesAvailable": "12549677056",
+            "dockerBytes": "Images=29.48GB;Containers=389.1kB;Local Volumes=37.53GB;Build Cache=9.242GB;",
+            "imageRepoTags": "[\"guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.XMHO9VlR\"]",
+            "ociRevision": "",
+            "ociVersion": "",
+            "ociCreated": "",
+            "composeImage": "",
+            "candidateMigrationsNotRecorded": [
+              "20260918120000_add_circle_revenue_order_idempotency",
+              "20260919090000_add_commission_recall_reason",
+              "20260920090000_add_commission_recall_resolution",
+              "20260923010000_add_public_content_catalog",
+              "20260923120000_circle_knowledge_showcase",
+              "20260928183000_add_im_fallback",
+              "20260930090000_app_distribution_and_operations",
+              "20261002100008_order_business_notification_facts",
+              "manual_add_couple_scene",
+              "manual_add_order_client_request_id",
+              "manual_add_paipan_case_feedback",
+              "manual_add_user_preferred_name",
+              "manual_add_voice_minutes_order_type",
+              "manual_add_xiaobu_ai_assets",
+              "manual_add_xiaobu_commerce_order_types",
+              "manual_z_20260926_01_knowledge_debate",
+              "manual_z_20260926_02_knowledge_source",
+              "manual_z_20260926_03_owner_services",
+              "manual_z_20260926_04_voice_provider_boundary",
+              "manual_z_20260926_05_voice_device_terminal_identity",
+              "manual_z_20260926_06_voice_firmware_release",
+              "manual_z_20260926_07_voice_session_idle",
+              "manual_z_20260926_08_voice_trial_usage",
+              "manual_z_20260926_09_bot_quota_reservation",
+              "manual_z_20260926_10_bot_quota_purchase_idempotency",
+              "manual_z_20260926_11_notification_idempotency_key",
+              "manual_z_20261002_01_circle_post_reward_notice",
+              "manual_z_20261002_02_circle_membership_expiry_notice",
+              "manual_z_20261002_03_circle_governance_notice",
+              "manual_z_20261002_04_circle_membership_cache",
+              "manual_z_20261002_05_member_monthly_benefit_notice",
+              "manual_z_20261002_06_free_course_enrollment_notice",
+              "manual_z_20261002_07_circle_post_reward_notice_snapshot"
+            ],
+            "recordedMigrationsOutsideCandidate": []
+          },
+          "redisFollowup": {
+            "taskId": "invt-c9ee2xgc4q",
+            "invocationId": "inv-c9ee2xgc4p",
+            "rawSha256": "c8ef42ca82977cb245fce0efc3387088588a9fb169f37cc12bab01c1505d115c",
+            "scriptSha256": "4314e9740b969776b7dd47078dc6aa5abc32e76d8d9da7b51672925c379179d2",
+            "diagnostic": {
+              "readOnly": true,
+              "strictDefault": {
+                "pong": false,
+                "code": "ERR_TLS_CERT_ALTNAME_INVALID"
+              },
+              "runtimeOptions": {
+                "pong": true,
+                "code": null
+              },
+              "runtimeCaVerification": true,
+              "runtimeHelperSha256": "d00e5fa04c255e7aff24575457ce1c27a250f30e50317f86a20799f0deaeb2ff"
+            }
+          },
+          "redisInterpretation": "严格Node默认TLS探测与平台已存在的CA链校验及精确CN兼容分开记录；不能将前者失败写为实际Redis宕机"
+        },
+        {
+          "node": "guoxue1",
+          "instanceId": "ins-n0sqc627",
+          "taskId": "invt-e9edwngs77",
+          "invocationId": "inv-e9edwngs76",
+          "checkedAt": "2026-10-03T03:02:05Z",
+          "sourceRawSha256": "5297ec8c5ddf07cdd119935598723508f808c4169a36b42de3efe55bb745d0b2",
+          "readonly": true,
+          "execution": "official-tat",
+          "output": {
+            "hostname": "VM-0-14-ubuntu",
+            "checkedUtc": "2026-10-03T03:02:05Z",
+            "containerStatus": "running",
+            "containerRunning": "true",
+            "containerHealth": "healthy",
+            "containerImage": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+            "imageCreated": "2026-09-20T22:40:42.527883529+08:00",
+            "releaseIdentity": "absent",
+            "envFileRegular": "true",
+            "univerifySecretKeyCount": "0",
+            "univerifySecretReady": "false",
+            "redisUrlKeyCount": "1",
+            "redisUrlPresent": "true",
+            "runtimeUniverifySecretPresent": "false",
+            "runtimeUniverifySecretReady": "false",
+            "runtimeRedisConfigured": "true",
+            "runtimeMigrationDirs": "103",
+            "completedMigrations": "103",
+            "completedMigrationNames": "[\"20260507053959_init_full_schema\",\"20260507094349_add_classic_books\",\"20260509000000_add_missing_models\",\"20260509222741_add_paid_question_fields_and_call_billing\",\"20260509224842_add_live_mic_slide_mute_flash_audit\",\"20260509225200_add_video_counts\",\"20260509230000_add_course_review\",\"20260509230000_add_institute_task_event\",\"20260509_add_fulltext_search_indices\",\"20260509_add_performance_indices\",\"20260509_add_recommend_system\",\"20260509_add_station_miniapp_config\",\"20260509_add_stationid_to_article_course_video_circle\",\"20260509_add_stationid_to_content_product\",\"20260509_add_type_createdat_index\",\"20260509_add_webhook_system\",\"20260510000000_add_marketing_risk_finance\",\"20260510000000_course_live_linkage\",\"20260510000001_add_gap_models\",\"20260510_add_perf_indexes_p8\",\"20260511143311_add_merchant\",\"20260511145554_add_merchant\",\"20260513130000_enable_pgvector\",\"20260513_add_automation_infrastructure\",\"20260513_add_compound_indexes\",\"20260514_add_category_fields\",\"20260515000000_partition_preembed\",\"20260515_add_ai_cache_entry\",\"20260515_add_bazi_knowledge_classic_commentary\",\"20260515_add_classic_bazi_tags\",\"20260515_add_missing_fk_indexes\",\"20260515_add_quality_score_record\",\"20260515_add_rag_template_bigscreen_token_live_minute_data\",\"20260515_rag_layers_2_4\",\"20260518_add_classic_images\",\"20260518_add_missing_indexes\",\"20260519_add_classic_reading_note\",\"20260519_add_competition_system\",\"20260519_add_course_qa\",\"20260519_add_course_review_reply\",\"20260519_add_ebook_review_reading_session\",\"20260519_add_missing_fk_indexes\",\"20260519_add_tags_gin_indexes\",\"20260521124129_add_station_id_and_payment_unique\",\"20260521145000_add_identity_verified_fields\",\"20260521150000_add_operator_management_bonus\",\"20260521160000_seed_prd_config_params\",\"20260521170000_add_risk_control_station_dimension\",\"20260521180000_add_banned_user_status\",\"20260521180000_add_task_expiry_churn_fields\",\"20260521200000_add_permission_model\",\"20260530_add_discover_comment_indexes\",\"20260530_add_pg_trgm_extension\",\"20260530_add_tags_gin_indexes\",\"20260530_remove_redundant_indexes\",\"20260604_add_circle_read_and_booking\",\"20260617000000_baseline\",\"20260620000000_add_notify_settings_and_feedback\",\"20260723000000_add_live_description\",\"20260726000000_add_article_layout\",\"20260726030000_add_merchant_qualification_risk\",\"20260726_add_classic_note_anchor\",\"20260728090000_add_circle_publish_grants\",\"20260728110000_add_live_watch_progress\",\"20260730100000_repair_operational_database_objects\",\"20260802000000_enforce_auth_provider_uniqueness\",\"20260802030000_unified_accounts_and_entitlements\",\"20260810120554_add_classic_copyright\",\"20260811100000_gate_classics_by_audited_license\",\"20260815150000_add_live_gift_idempotency\",\"20260815152000_add_live_mic_media_mode\",\"20260815163000_add_live_gift_spending_protection\",\"20260821100000_bootstrap_launch_business_surfaces\",\"20260829100000_bootstrap_member_plans\",\"add_stationId_bounty_call\",\"add_stationId_marketing\",\"manual_20260623_audit_fixes\",\"manual_add_ai_decision_outcome_provenance\",\"manual_add_ai_event_delivery_state\",\"manual_add_app_version_release_workflow\",\"manual_add_apple_iap\",\"manual_add_article_hot_index\",\"manual_add_audit_autonomy_level\",\"manual_add_bounty_close_evidence\",\"manual_add_brand_config\",\"manual_add_capability_request\",\"manual_add_content_supply_chain\",\"manual_add_groupbuy_paid_flow\",\"manual_add_institute_audit_split\",\"manual_add_legacy_migration_audit\",\"manual_add_live_booking_and_replay_publish_state\",\"manual_add_merchant_suppliers\",\"manual_add_ops_task_approval_evidence\",\"manual_add_order_shipping_address\",\"manual_add_payout_account_encryption\",\"manual_add_product_sku_lifecycle\",\"manual_add_purchase_receipts\",\"manual_add_station_paipan_link\",\"manual_add_teacher_certification\",\"manual_add_tenant_saas_fields\",\"manual_add_user_interest_guide_completed\",\"manual_add_webhook_delivery_outbox\",\"manual_bind_product_freight_template\"]",
+            "unfinishedMigrations": "0",
+            "rolledBackMigrations": "1",
+            "runtimePendingMigrations": "0",
+            "redisPing": "fail",
+            "rootBytesTotal": "308988768256",
+            "rootBytesUsed": "60971405312",
+            "rootBytesAvailable": "235338858496",
+            "rootPercentUsed": "21%",
+            "guoxueBytesTotal": "308988768256",
+            "guoxueBytesUsed": "60971405312",
+            "guoxueBytesAvailable": "235338858496",
+            "guoxuePercentUsed": "21%",
+            "memoryBytesTotal": "16230629376",
+            "memoryBytesAvailable": "13480357888",
+            "dockerBytes": "Images=26.48GB;Containers=352.3kB;Local Volumes=942.3MB;Build Cache=8.344GB;",
+            "imageRepoTags": "[\"guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.S1Vudo6x\"]",
+            "ociRevision": "",
+            "ociVersion": "",
+            "ociCreated": "",
+            "composeImage": "",
+            "candidateMigrationsNotRecorded": [
+              "20260918120000_add_circle_revenue_order_idempotency",
+              "20260919090000_add_commission_recall_reason",
+              "20260920090000_add_commission_recall_resolution",
+              "20260923010000_add_public_content_catalog",
+              "20260923120000_circle_knowledge_showcase",
+              "20260928183000_add_im_fallback",
+              "20260930090000_app_distribution_and_operations",
+              "20261002100008_order_business_notification_facts",
+              "manual_add_couple_scene",
+              "manual_add_order_client_request_id",
+              "manual_add_paipan_case_feedback",
+              "manual_add_user_preferred_name",
+              "manual_add_voice_minutes_order_type",
+              "manual_add_xiaobu_ai_assets",
+              "manual_add_xiaobu_commerce_order_types",
+              "manual_z_20260926_01_knowledge_debate",
+              "manual_z_20260926_02_knowledge_source",
+              "manual_z_20260926_03_owner_services",
+              "manual_z_20260926_04_voice_provider_boundary",
+              "manual_z_20260926_05_voice_device_terminal_identity",
+              "manual_z_20260926_06_voice_firmware_release",
+              "manual_z_20260926_07_voice_session_idle",
+              "manual_z_20260926_08_voice_trial_usage",
+              "manual_z_20260926_09_bot_quota_reservation",
+              "manual_z_20260926_10_bot_quota_purchase_idempotency",
+              "manual_z_20260926_11_notification_idempotency_key",
+              "manual_z_20261002_01_circle_post_reward_notice",
+              "manual_z_20261002_02_circle_membership_expiry_notice",
+              "manual_z_20261002_03_circle_governance_notice",
+              "manual_z_20261002_04_circle_membership_cache",
+              "manual_z_20261002_05_member_monthly_benefit_notice",
+              "manual_z_20261002_06_free_course_enrollment_notice",
+              "manual_z_20261002_07_circle_post_reward_notice_snapshot"
+            ],
+            "recordedMigrationsOutsideCandidate": []
+          },
+          "redisFollowup": {
+            "taskId": "invt-a9ee2xg6de",
+            "invocationId": "inv-a9ee2xg6dd",
+            "rawSha256": "32c2c4ab9e7f5177994004508c3507319b3abd68656fcae21990c65fdd502bd4",
+            "scriptSha256": "4314e9740b969776b7dd47078dc6aa5abc32e76d8d9da7b51672925c379179d2",
+            "diagnostic": {
+              "readOnly": true,
+              "strictDefault": {
+                "pong": false,
+                "code": "ERR_TLS_CERT_ALTNAME_INVALID"
+              },
+              "runtimeOptions": {
+                "pong": true,
+                "code": null
+              },
+              "runtimeCaVerification": true,
+              "runtimeHelperSha256": "d00e5fa04c255e7aff24575457ce1c27a250f30e50317f86a20799f0deaeb2ff"
+            }
+          },
+          "redisInterpretation": "严格Node默认TLS探测与平台已存在的CA链校验及精确CN兼容分开记录；不能将前者失败写为实际Redis宕机"
+        }
+      ],
+      "productionMutation": false,
+      "migrationExecuted": false,
+      "productionVersionMapped": false,
+      "maintenanceWindowStillRequired": true
+    },
+    "upstreamBracesFixed": false,
+    "registryAdvisoryStillPresent": true,
+    "existingViteExceptionUnchanged": true,
+    "appLinuxFalseSuccessCorrected": {
+      "oldRun": 37087122563,
+      "counterexampleRun": 37089001341,
+      "compilerDiagnosticRun": 37089562486,
+      "fixedCompilerRun": 37090790101,
+      "oldAppConclusionValid": false,
+      "oldRawEvidencePreserved": true
+    },
+    "installationInputs": [
+      ".pnpmfile.cjs",
+      ".gitattributes LF",
+      "pnpmfileChecksum",
+      "冻结workspace与patch"
+    ],
+    "priorPackageRemovedOnlyDevelopmentFiles": {
+      "removed": 321,
+      "directory": ".claude",
+      "businessSourceRemoved": false,
+      "record": "prior-package-path-diff.json"
+    },
+    "rollback": [
+      "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+      "1abd0eb7b5d6f225d26c6b2d5b83d6b32d42c40d",
+      "0995b8636799a824e9c0afbdbeaedae52523ed85",
+      "ba1d015231bbd6b416d5011ef4e5237350253363"
+    ],
+    "noProduction": true,
+    "noRealFunds": true,
+    "noRealChannels": true,
+    "noProductionMigration": true,
+    "noOfficialUpload": true,
+    "noPaidPackaging": true,
+    "newDeviceTest": false,
+    "releaseReady": false,
+    "remaining": [
+      "草稿PR正式评审接收及放行",
+      "生产停写一致性备份与逐项升级核对",
+      "两节点同包和入口配置",
+      "手机号云函数与共享签名接通",
+      "各渠道签名包/小程序正式体积/体验审核",
+      "同版全端用户旅程",
+      "N5旧券政策与企业微信回流",
+      "版权原件、异常账目、预发布商品与QA驿站不可见",
+      "带鉴权容量、安全告警及回退放行"
+    ]
+  },
+  "latestProductionReadonly": {
+    "checkedAt": "2026-10-03T03:04:51.054Z",
+    "candidateSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+    "scriptSha256": "7a721285d75571451af7e745e916fb5082e22fa6450c88b207d30761d81e200a",
+    "nodes": [
+      {
+        "node": "guoxue2",
+        "instanceId": "ins-0sen8yvf",
+        "taskId": "invt-d9edwig84u",
+        "invocationId": "inv-d9edwig84t",
+        "checkedAt": "2026-10-03T03:01:57Z",
+        "sourceRawSha256": "ea39c850fe785045180cd0d7de332efd67ca36d7821e6a66d7fc5535f2a8ac5a",
+        "readonly": true,
+        "execution": "official-tat",
+        "output": {
+          "hostname": "VM-0-10-ubuntu",
+          "checkedUtc": "2026-10-03T03:01:57Z",
+          "containerStatus": "running",
+          "containerRunning": "true",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:5258150c8878fc5fc95afb68bb2b4f6e68c400670b6de96556ed2826838bf484",
+          "imageCreated": "2026-09-20T22:24:13.08587369+08:00",
+          "releaseIdentity": "absent",
+          "envFileRegular": "true",
+          "univerifySecretKeyCount": "0",
+          "univerifySecretReady": "false",
+          "redisUrlKeyCount": "1",
+          "redisUrlPresent": "true",
+          "runtimeUniverifySecretPresent": "false",
+          "runtimeUniverifySecretReady": "false",
+          "runtimeRedisConfigured": "true",
+          "runtimeMigrationDirs": "103",
+          "completedMigrations": "103",
+          "completedMigrationNames": "[\"20260507053959_init_full_schema\",\"20260507094349_add_classic_books\",\"20260509000000_add_missing_models\",\"20260509222741_add_paid_question_fields_and_call_billing\",\"20260509224842_add_live_mic_slide_mute_flash_audit\",\"20260509225200_add_video_counts\",\"20260509230000_add_course_review\",\"20260509230000_add_institute_task_event\",\"20260509_add_fulltext_search_indices\",\"20260509_add_performance_indices\",\"20260509_add_recommend_system\",\"20260509_add_station_miniapp_config\",\"20260509_add_stationid_to_article_course_video_circle\",\"20260509_add_stationid_to_content_product\",\"20260509_add_type_createdat_index\",\"20260509_add_webhook_system\",\"20260510000000_add_marketing_risk_finance\",\"20260510000000_course_live_linkage\",\"20260510000001_add_gap_models\",\"20260510_add_perf_indexes_p8\",\"20260511143311_add_merchant\",\"20260511145554_add_merchant\",\"20260513130000_enable_pgvector\",\"20260513_add_automation_infrastructure\",\"20260513_add_compound_indexes\",\"20260514_add_category_fields\",\"20260515000000_partition_preembed\",\"20260515_add_ai_cache_entry\",\"20260515_add_bazi_knowledge_classic_commentary\",\"20260515_add_classic_bazi_tags\",\"20260515_add_missing_fk_indexes\",\"20260515_add_quality_score_record\",\"20260515_add_rag_template_bigscreen_token_live_minute_data\",\"20260515_rag_layers_2_4\",\"20260518_add_classic_images\",\"20260518_add_missing_indexes\",\"20260519_add_classic_reading_note\",\"20260519_add_competition_system\",\"20260519_add_course_qa\",\"20260519_add_course_review_reply\",\"20260519_add_ebook_review_reading_session\",\"20260519_add_missing_fk_indexes\",\"20260519_add_tags_gin_indexes\",\"20260521124129_add_station_id_and_payment_unique\",\"20260521145000_add_identity_verified_fields\",\"20260521150000_add_operator_management_bonus\",\"20260521160000_seed_prd_config_params\",\"20260521170000_add_risk_control_station_dimension\",\"20260521180000_add_banned_user_status\",\"20260521180000_add_task_expiry_churn_fields\",\"20260521200000_add_permission_model\",\"20260530_add_discover_comment_indexes\",\"20260530_add_pg_trgm_extension\",\"20260530_add_tags_gin_indexes\",\"20260530_remove_redundant_indexes\",\"20260604_add_circle_read_and_booking\",\"20260617000000_baseline\",\"20260620000000_add_notify_settings_and_feedback\",\"20260723000000_add_live_description\",\"20260726000000_add_article_layout\",\"20260726030000_add_merchant_qualification_risk\",\"20260726_add_classic_note_anchor\",\"20260728090000_add_circle_publish_grants\",\"20260728110000_add_live_watch_progress\",\"20260730100000_repair_operational_database_objects\",\"20260802000000_enforce_auth_provider_uniqueness\",\"20260802030000_unified_accounts_and_entitlements\",\"20260810120554_add_classic_copyright\",\"20260811100000_gate_classics_by_audited_license\",\"20260815150000_add_live_gift_idempotency\",\"20260815152000_add_live_mic_media_mode\",\"20260815163000_add_live_gift_spending_protection\",\"20260821100000_bootstrap_launch_business_surfaces\",\"20260829100000_bootstrap_member_plans\",\"add_stationId_bounty_call\",\"add_stationId_marketing\",\"manual_20260623_audit_fixes\",\"manual_add_ai_decision_outcome_provenance\",\"manual_add_ai_event_delivery_state\",\"manual_add_app_version_release_workflow\",\"manual_add_apple_iap\",\"manual_add_article_hot_index\",\"manual_add_audit_autonomy_level\",\"manual_add_bounty_close_evidence\",\"manual_add_brand_config\",\"manual_add_capability_request\",\"manual_add_content_supply_chain\",\"manual_add_groupbuy_paid_flow\",\"manual_add_institute_audit_split\",\"manual_add_legacy_migration_audit\",\"manual_add_live_booking_and_replay_publish_state\",\"manual_add_merchant_suppliers\",\"manual_add_ops_task_approval_evidence\",\"manual_add_order_shipping_address\",\"manual_add_payout_account_encryption\",\"manual_add_product_sku_lifecycle\",\"manual_add_purchase_receipts\",\"manual_add_station_paipan_link\",\"manual_add_teacher_certification\",\"manual_add_tenant_saas_fields\",\"manual_add_user_interest_guide_completed\",\"manual_add_webhook_delivery_outbox\",\"manual_bind_product_freight_template\"]",
+          "unfinishedMigrations": "0",
+          "rolledBackMigrations": "1",
+          "runtimePendingMigrations": "0",
+          "redisPing": "fail",
+          "rootBytesTotal": "308988768256",
+          "rootBytesUsed": "158026698752",
+          "rootBytesAvailable": "138283565056",
+          "rootPercentUsed": "54%",
+          "guoxueBytesTotal": "308988768256",
+          "guoxueBytesUsed": "158026698752",
+          "guoxueBytesAvailable": "138283565056",
+          "guoxuePercentUsed": "54%",
+          "memoryBytesTotal": "16230629376",
+          "memoryBytesAvailable": "12549677056",
+          "dockerBytes": "Images=29.48GB;Containers=389.1kB;Local Volumes=37.53GB;Build Cache=9.242GB;",
+          "imageRepoTags": "[\"guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.XMHO9VlR\"]",
+          "ociRevision": "",
+          "ociVersion": "",
+          "ociCreated": "",
+          "composeImage": "",
+          "candidateMigrationsNotRecorded": [
+            "20260918120000_add_circle_revenue_order_idempotency",
+            "20260919090000_add_commission_recall_reason",
+            "20260920090000_add_commission_recall_resolution",
+            "20260923010000_add_public_content_catalog",
+            "20260923120000_circle_knowledge_showcase",
+            "20260928183000_add_im_fallback",
+            "20260930090000_app_distribution_and_operations",
+            "20261002100008_order_business_notification_facts",
+            "manual_add_couple_scene",
+            "manual_add_order_client_request_id",
+            "manual_add_paipan_case_feedback",
+            "manual_add_user_preferred_name",
+            "manual_add_voice_minutes_order_type",
+            "manual_add_xiaobu_ai_assets",
+            "manual_add_xiaobu_commerce_order_types",
+            "manual_z_20260926_01_knowledge_debate",
+            "manual_z_20260926_02_knowledge_source",
+            "manual_z_20260926_03_owner_services",
+            "manual_z_20260926_04_voice_provider_boundary",
+            "manual_z_20260926_05_voice_device_terminal_identity",
+            "manual_z_20260926_06_voice_firmware_release",
+            "manual_z_20260926_07_voice_session_idle",
+            "manual_z_20260926_08_voice_trial_usage",
+            "manual_z_20260926_09_bot_quota_reservation",
+            "manual_z_20260926_10_bot_quota_purchase_idempotency",
+            "manual_z_20260926_11_notification_idempotency_key",
+            "manual_z_20261002_01_circle_post_reward_notice",
+            "manual_z_20261002_02_circle_membership_expiry_notice",
+            "manual_z_20261002_03_circle_governance_notice",
+            "manual_z_20261002_04_circle_membership_cache",
+            "manual_z_20261002_05_member_monthly_benefit_notice",
+            "manual_z_20261002_06_free_course_enrollment_notice",
+            "manual_z_20261002_07_circle_post_reward_notice_snapshot"
+          ],
+          "recordedMigrationsOutsideCandidate": []
+        },
+        "redisFollowup": {
+          "taskId": "invt-c9ee2xgc4q",
+          "invocationId": "inv-c9ee2xgc4p",
+          "rawSha256": "c8ef42ca82977cb245fce0efc3387088588a9fb169f37cc12bab01c1505d115c",
+          "scriptSha256": "4314e9740b969776b7dd47078dc6aa5abc32e76d8d9da7b51672925c379179d2",
+          "diagnostic": {
+            "readOnly": true,
+            "strictDefault": {
+              "pong": false,
+              "code": "ERR_TLS_CERT_ALTNAME_INVALID"
+            },
+            "runtimeOptions": {
+              "pong": true,
+              "code": null
+            },
+            "runtimeCaVerification": true,
+            "runtimeHelperSha256": "d00e5fa04c255e7aff24575457ce1c27a250f30e50317f86a20799f0deaeb2ff"
+          }
+        },
+        "redisInterpretation": "严格Node默认TLS探测与平台已存在的CA链校验及精确CN兼容分开记录；不能将前者失败写为实际Redis宕机"
+      },
+      {
+        "node": "guoxue1",
+        "instanceId": "ins-n0sqc627",
+        "taskId": "invt-e9edwngs77",
+        "invocationId": "inv-e9edwngs76",
+        "checkedAt": "2026-10-03T03:02:05Z",
+        "sourceRawSha256": "5297ec8c5ddf07cdd119935598723508f808c4169a36b42de3efe55bb745d0b2",
+        "readonly": true,
+        "execution": "official-tat",
+        "output": {
+          "hostname": "VM-0-14-ubuntu",
+          "checkedUtc": "2026-10-03T03:02:05Z",
+          "containerStatus": "running",
+          "containerRunning": "true",
+          "containerHealth": "healthy",
+          "containerImage": "sha256:e47d5a8c92151d28cd493ea269a066e32038ea3560855a67b15afc26d43d0eb7",
+          "imageCreated": "2026-09-20T22:40:42.527883529+08:00",
+          "releaseIdentity": "absent",
+          "envFileRegular": "true",
+          "univerifySecretKeyCount": "0",
+          "univerifySecretReady": "false",
+          "redisUrlKeyCount": "1",
+          "redisUrlPresent": "true",
+          "runtimeUniverifySecretPresent": "false",
+          "runtimeUniverifySecretReady": "false",
+          "runtimeRedisConfigured": "true",
+          "runtimeMigrationDirs": "103",
+          "completedMigrations": "103",
+          "completedMigrationNames": "[\"20260507053959_init_full_schema\",\"20260507094349_add_classic_books\",\"20260509000000_add_missing_models\",\"20260509222741_add_paid_question_fields_and_call_billing\",\"20260509224842_add_live_mic_slide_mute_flash_audit\",\"20260509225200_add_video_counts\",\"20260509230000_add_course_review\",\"20260509230000_add_institute_task_event\",\"20260509_add_fulltext_search_indices\",\"20260509_add_performance_indices\",\"20260509_add_recommend_system\",\"20260509_add_station_miniapp_config\",\"20260509_add_stationid_to_article_course_video_circle\",\"20260509_add_stationid_to_content_product\",\"20260509_add_type_createdat_index\",\"20260509_add_webhook_system\",\"20260510000000_add_marketing_risk_finance\",\"20260510000000_course_live_linkage\",\"20260510000001_add_gap_models\",\"20260510_add_perf_indexes_p8\",\"20260511143311_add_merchant\",\"20260511145554_add_merchant\",\"20260513130000_enable_pgvector\",\"20260513_add_automation_infrastructure\",\"20260513_add_compound_indexes\",\"20260514_add_category_fields\",\"20260515000000_partition_preembed\",\"20260515_add_ai_cache_entry\",\"20260515_add_bazi_knowledge_classic_commentary\",\"20260515_add_classic_bazi_tags\",\"20260515_add_missing_fk_indexes\",\"20260515_add_quality_score_record\",\"20260515_add_rag_template_bigscreen_token_live_minute_data\",\"20260515_rag_layers_2_4\",\"20260518_add_classic_images\",\"20260518_add_missing_indexes\",\"20260519_add_classic_reading_note\",\"20260519_add_competition_system\",\"20260519_add_course_qa\",\"20260519_add_course_review_reply\",\"20260519_add_ebook_review_reading_session\",\"20260519_add_missing_fk_indexes\",\"20260519_add_tags_gin_indexes\",\"20260521124129_add_station_id_and_payment_unique\",\"20260521145000_add_identity_verified_fields\",\"20260521150000_add_operator_management_bonus\",\"20260521160000_seed_prd_config_params\",\"20260521170000_add_risk_control_station_dimension\",\"20260521180000_add_banned_user_status\",\"20260521180000_add_task_expiry_churn_fields\",\"20260521200000_add_permission_model\",\"20260530_add_discover_comment_indexes\",\"20260530_add_pg_trgm_extension\",\"20260530_add_tags_gin_indexes\",\"20260530_remove_redundant_indexes\",\"20260604_add_circle_read_and_booking\",\"20260617000000_baseline\",\"20260620000000_add_notify_settings_and_feedback\",\"20260723000000_add_live_description\",\"20260726000000_add_article_layout\",\"20260726030000_add_merchant_qualification_risk\",\"20260726_add_classic_note_anchor\",\"20260728090000_add_circle_publish_grants\",\"20260728110000_add_live_watch_progress\",\"20260730100000_repair_operational_database_objects\",\"20260802000000_enforce_auth_provider_uniqueness\",\"20260802030000_unified_accounts_and_entitlements\",\"20260810120554_add_classic_copyright\",\"20260811100000_gate_classics_by_audited_license\",\"20260815150000_add_live_gift_idempotency\",\"20260815152000_add_live_mic_media_mode\",\"20260815163000_add_live_gift_spending_protection\",\"20260821100000_bootstrap_launch_business_surfaces\",\"20260829100000_bootstrap_member_plans\",\"add_stationId_bounty_call\",\"add_stationId_marketing\",\"manual_20260623_audit_fixes\",\"manual_add_ai_decision_outcome_provenance\",\"manual_add_ai_event_delivery_state\",\"manual_add_app_version_release_workflow\",\"manual_add_apple_iap\",\"manual_add_article_hot_index\",\"manual_add_audit_autonomy_level\",\"manual_add_bounty_close_evidence\",\"manual_add_brand_config\",\"manual_add_capability_request\",\"manual_add_content_supply_chain\",\"manual_add_groupbuy_paid_flow\",\"manual_add_institute_audit_split\",\"manual_add_legacy_migration_audit\",\"manual_add_live_booking_and_replay_publish_state\",\"manual_add_merchant_suppliers\",\"manual_add_ops_task_approval_evidence\",\"manual_add_order_shipping_address\",\"manual_add_payout_account_encryption\",\"manual_add_product_sku_lifecycle\",\"manual_add_purchase_receipts\",\"manual_add_station_paipan_link\",\"manual_add_teacher_certification\",\"manual_add_tenant_saas_fields\",\"manual_add_user_interest_guide_completed\",\"manual_add_webhook_delivery_outbox\",\"manual_bind_product_freight_template\"]",
+          "unfinishedMigrations": "0",
+          "rolledBackMigrations": "1",
+          "runtimePendingMigrations": "0",
+          "redisPing": "fail",
+          "rootBytesTotal": "308988768256",
+          "rootBytesUsed": "60971405312",
+          "rootBytesAvailable": "235338858496",
+          "rootPercentUsed": "21%",
+          "guoxueBytesTotal": "308988768256",
+          "guoxueBytesUsed": "60971405312",
+          "guoxueBytesAvailable": "235338858496",
+          "guoxuePercentUsed": "21%",
+          "memoryBytesTotal": "16230629376",
+          "memoryBytesAvailable": "13480357888",
+          "dockerBytes": "Images=26.48GB;Containers=352.3kB;Local Volumes=942.3MB;Build Cache=8.344GB;",
+          "imageRepoTags": "[\"guoxue-server:wechat-scheme-4e11bd06-wechat-scheme-4e11bd06.S1Vudo6x\"]",
+          "ociRevision": "",
+          "ociVersion": "",
+          "ociCreated": "",
+          "composeImage": "",
+          "candidateMigrationsNotRecorded": [
+            "20260918120000_add_circle_revenue_order_idempotency",
+            "20260919090000_add_commission_recall_reason",
+            "20260920090000_add_commission_recall_resolution",
+            "20260923010000_add_public_content_catalog",
+            "20260923120000_circle_knowledge_showcase",
+            "20260928183000_add_im_fallback",
+            "20260930090000_app_distribution_and_operations",
+            "20261002100008_order_business_notification_facts",
+            "manual_add_couple_scene",
+            "manual_add_order_client_request_id",
+            "manual_add_paipan_case_feedback",
+            "manual_add_user_preferred_name",
+            "manual_add_voice_minutes_order_type",
+            "manual_add_xiaobu_ai_assets",
+            "manual_add_xiaobu_commerce_order_types",
+            "manual_z_20260926_01_knowledge_debate",
+            "manual_z_20260926_02_knowledge_source",
+            "manual_z_20260926_03_owner_services",
+            "manual_z_20260926_04_voice_provider_boundary",
+            "manual_z_20260926_05_voice_device_terminal_identity",
+            "manual_z_20260926_06_voice_firmware_release",
+            "manual_z_20260926_07_voice_session_idle",
+            "manual_z_20260926_08_voice_trial_usage",
+            "manual_z_20260926_09_bot_quota_reservation",
+            "manual_z_20260926_10_bot_quota_purchase_idempotency",
+            "manual_z_20260926_11_notification_idempotency_key",
+            "manual_z_20261002_01_circle_post_reward_notice",
+            "manual_z_20261002_02_circle_membership_expiry_notice",
+            "manual_z_20261002_03_circle_governance_notice",
+            "manual_z_20261002_04_circle_membership_cache",
+            "manual_z_20261002_05_member_monthly_benefit_notice",
+            "manual_z_20261002_06_free_course_enrollment_notice",
+            "manual_z_20261002_07_circle_post_reward_notice_snapshot"
+          ],
+          "recordedMigrationsOutsideCandidate": []
+        },
+        "redisFollowup": {
+          "taskId": "invt-a9ee2xg6de",
+          "invocationId": "inv-a9ee2xg6dd",
+          "rawSha256": "32c2c4ab9e7f5177994004508c3507319b3abd68656fcae21990c65fdd502bd4",
+          "scriptSha256": "4314e9740b969776b7dd47078dc6aa5abc32e76d8d9da7b51672925c379179d2",
+          "diagnostic": {
+            "readOnly": true,
+            "strictDefault": {
+              "pong": false,
+              "code": "ERR_TLS_CERT_ALTNAME_INVALID"
+            },
+            "runtimeOptions": {
+              "pong": true,
+              "code": null
+            },
+            "runtimeCaVerification": true,
+            "runtimeHelperSha256": "d00e5fa04c255e7aff24575457ce1c27a250f30e50317f86a20799f0deaeb2ff"
+          }
+        },
+        "redisInterpretation": "严格Node默认TLS探测与平台已存在的CA链校验及精确CN兼容分开记录；不能将前者失败写为实际Redis宕机"
+      }
+    ],
+    "productionMutation": false,
+    "migrationExecuted": false,
+    "productionVersionMapped": false,
+    "maintenanceWindowStillRequired": true
   }
 }
