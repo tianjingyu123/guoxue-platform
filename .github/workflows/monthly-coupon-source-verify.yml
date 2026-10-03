@@ -1,0 +1,98 @@
+name: 月度赠券来源候选与旧版升级隔离验证
+on:
+  push:
+    branches: [codex/monthly-coupon-validation-20261002]
+    paths: [.github/workflows/monthly-coupon-source-verify.yml, scripts/release/verify-monthly-coupon-linux.cjs]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SOURCE_COMMIT: f96c0bdec2f2de93302e1284079e3fbd85d89db4
+      DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_monthly_upgrade_linux
+      ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_monthly_upgrade_linux
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          sparse-checkout: scripts/release
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          path: candidate
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/.claude/
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e
+          path: baseline
+          sparse-checkout: apps/server/prisma
+      - name: 清除临时检出鉴权头
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
+          git -C baseline config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: 独立依赖与PG18.4向量基座
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git -C baseline rev-parse HEAD)" = cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e
+          mkdir -p candidate/artifacts/monthly-coupon
+          docker build -f scripts/release/isolated-pg18-4-vector.Dockerfile -t rebu-monthly-vector scripts/release > candidate/artifacts/monthly-coupon/database-image.log 2>&1
+          docker run -d --name "rebu-monthly-qa-${{ github.run_id }}" -p 55462:5432 -e POSTGRES_USER=qa_voice -e POSTGRES_PASSWORD=synthetic-test-only -e POSTGRES_DB=entitlement_notice_qa_monthly_upgrade_linux rebu-monthly-vector
+          for attempt in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 55462 -U qa_voice && break; sleep 2; done
+          pnpm -C candidate install --frozen-lockfile
+          pnpm -C candidate --filter @guoxue/server exec prisma generate
+          pnpm -C candidate --filter @guoxue/shared build
+          pnpm -C candidate --filter @guoxue/bazi-engine build
+          pnpm -C candidate --filter @guoxue/ziwei-engine build
+      - name: 旧136空库入口、带旧券升级137及迁移摘要
+        working-directory: candidate
+        env:
+          PGPASSWORD: synthetic-test-only
+        run: |
+          set -euo pipefail
+          ln -s "$GITHUB_WORKSPACE/candidate/apps/server/node_modules" ../baseline/apps/server/node_modules
+          CONFIRM_EMPTY_DATABASE=YES sh ../baseline/apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh > artifacts/monthly-coupon/old-bootstrap.log 2>&1
+          node ../scripts/release/verify-monthly-coupon-linux.cjs seed
+          pnpm --filter @guoxue/server exec prisma migrate deploy > artifacts/monthly-coupon/upgrade.log 2>&1
+          node ../scripts/release/verify-monthly-coupon-linux.cjs upgrade
+          createdb -h 127.0.0.1 -p 55462 -U qa_voice entitlement_notice_qa_monthly_empty_linux
+          DATABASE_URL=postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_monthly_empty_linux CONFIRM_EMPTY_DATABASE=YES sh apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh > artifacts/monthly-coupon/new-bootstrap.log 2>&1
+          node ../scripts/release/verify-monthly-coupon-linux.cjs empty
+      - name: 指定回归、类型检查与实际编译
+        working-directory: candidate/apps/server
+        run: |
+          set -euo pipefail
+          pnpm exec jest --runInBand --no-coverage --runTestsByPath src/modules/member/member-benefit.monthly.postgres.spec.ts src/modules/member/member-monthly-recovery.postgres.spec.ts src/modules/member/member-monthly-notification.postgres.spec.ts src/modules/member/member-grant.service.spec.ts src/modules/member/member-monthly-recovery.spec.ts src/modules/member/member-benefit.ai-quota.spec.ts src/modules/notification/member-monthly-notification.task.spec.ts src/modules/marketing/marketing.service.spec.ts src/modules/shop/payment-ack-boundary.postgres.spec.ts --json --outputFile ../../artifacts/monthly-coupon/jest-results.json > ../../artifacts/monthly-coupon/jest.log 2>&1
+          node -e 'const r=require("../../artifacts/monthly-coupon/jest-results.json");if(r.numPassedTests!==147||r.numFailedTests||r.numPendingTests||r.numPassedTestSuites!==9)throw Error("回归数量或状态不符")'
+          node -e 'require("fs").writeFileSync(".qa-coupon-types.json",JSON.stringify({extends:"./tsconfig.jest.json",compilerOptions:{incremental:false},include:["src/types/**/*.d.ts","src/modules/member/member-benefit.monthly.postgres.spec.ts","src/modules/member/member-monthly-recovery.postgres.spec.ts","src/modules/member/member-monthly-notification.postgres.spec.ts","src/modules/shop/payment-ack-boundary.postgres.spec.ts","src/modules/marketing/marketing.service.spec.ts"],exclude:["node_modules","dist"]}))'
+          pnpm exec tsc --noEmit -p .qa-coupon-types.json > ../../artifacts/monthly-coupon/typecheck.log 2>&1
+          rm .qa-coupon-types.json
+          pnpm build > ../../artifacts/monthly-coupon/build.log 2>&1
+          pnpm exec eslint src/modules/member/member-benefit.service.ts src/modules/member/member-benefit.monthly.postgres.spec.ts src/modules/member/member-monthly-recovery.postgres.spec.ts src/modules/shop/payment-ack-boundary.postgres.spec.ts src/modules/marketing/marketing.service.ts --format json --output-file ../../artifacts/monthly-coupon/lint.json
+      - name: 编译产物真实服务与双进程
+        working-directory: candidate
+        run: node ../scripts/release/verify-monthly-coupon-linux.cjs compiled
+      - name: 清理专用隔离容器
+        if: always()
+        run: docker rm -f "rebu-monthly-qa-${{ github.run_id }}" || true
+      - name: 归档证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: monthly-coupon-${{ env.SOURCE_COMMIT }}-${{ github.run_id }}
+          path: candidate/artifacts/monthly-coupon/
+          retention-days: 30
