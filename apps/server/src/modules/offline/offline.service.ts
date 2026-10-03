@@ -61,7 +61,7 @@ export class OfflineService {
     return this.stationSvc.discoverStationCities();
   }
 
-  discoverStations(params: { city?: string; keyword?: string; page?: number; pageSize?: number }) {
+  discoverStations(params: { city?: string; keyword?: string; type?: string; page?: number; pageSize?: number }) {
     return this.stationSvc.discoverStations(params);
   }
 

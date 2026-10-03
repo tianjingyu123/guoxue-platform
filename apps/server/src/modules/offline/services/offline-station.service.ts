@@ -335,12 +335,17 @@ export class OfflineStationService {
     ) };
   }
 
-  async discoverStations(params: { city?: string; keyword?: string; page?: number; pageSize?: number }) {
-    const { city, keyword } = params;
+  async discoverStations(params: { city?: string; keyword?: string; type?: string; page?: number; pageSize?: number }) {
+    const { city, keyword, type } = params;
+    if (type && !["center", "academy", "studio", "partner"].includes(type)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "驿站类型无效");
+    }
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.StationOfflineWhereInput = { status: "ACTIVE" };
     if (city) where.city = city;
-    if (keyword) where.name = { contains: keyword };
+    if (type) where.type = type;
+    const term = keyword?.trim();
+    if (term) where.OR = ["name", "address", "city"].map(field => ({ [field]: { contains: term } }));
 
     const [stations, total] = await Promise.all([
       this.prisma.stationOffline.findMany({
@@ -357,7 +362,7 @@ export class OfflineStationService {
           },
         },
         skip, take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       this.prisma.stationOffline.count({ where }),
     ]);

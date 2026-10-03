@@ -66,6 +66,7 @@ export class OfflineController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "city", required: false })
   @ApiQuery({ name: "keyword", required: false })
+  @ApiQuery({ name: "type", required: false, enum: ["center", "academy", "studio", "partner"] })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   discoverStations(
@@ -73,8 +74,9 @@ export class OfflineController {
     @Query("keyword") keyword?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
+    @Query("type") type?: string,
   ) {
-    return this.svc.discoverStations({ city, keyword, page: +page, pageSize: +pageSize });
+    return this.svc.discoverStations({ city, keyword, ...(type ? { type } : {}), page: +page, pageSize: +pageSize });
   }
 
   @Get("stations/my")

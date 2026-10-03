@@ -384,6 +384,13 @@ export const offlineApi = {
     return apiGet<{ stations: Station[]; total: number }>(`/offline/stations/discover?${query}`)
   },
 
+  /** 目录筛选和翻页均由服务端完成，不截断为前100家。 */
+  async searchStationPage(params: { city?: string; keyword?: string; type?: StationType; page?: number; pageSize?: number }): Promise<{ stations: Station[]; total: number }> {
+    const query = queryString([['city', params.city], ['keyword', params.keyword], ['type', params.type],
+      ['page', params.page ?? 1], ['pageSize', params.pageSize ?? 20]])
+    return apiGet<{ stations: Station[]; total: number }>(`/offline/stations/discover?${query}`)
+  },
+
   /** 驿站发现（用户端）GET /offline/stations/discover → {stations,total} */
   async discoverStations(params?: { city?: string; keyword?: string }): Promise<Station[]> {
     const query = queryString([

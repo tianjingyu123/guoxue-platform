@@ -12,11 +12,13 @@
 
       <!-- 城市选择 + 搜索 -->
       <view class="c1-filter">
-        <view class="c1-city" @tap="showCityPicker">
+        <picker :range="cityOptions" :value="cityOptions.indexOf(selectedCity)" @change="changeCity">
+        <view class="c1-city">
           <app-icon name="map-pin" :size="13" color="#C41E3A" />
           <text class="c1-city-text">{{ selectedCity }}</text>
           <app-icon name="chevron-down" :size="11" color="#999" />
         </view>
+        </picker>
         <view class="c1-search">
           <app-icon name="search" :size="14" color="#bbb" />
           <input
@@ -25,12 +27,14 @@
             placeholder="搜索驿站名称 / 地区"
             placeholder-class="c1-ph"
             confirm-type="search"
+            @confirm="load"
           />
-          <view v-if="keyword" class="c1-search-clear" @tap="keyword = ''">
+          <view v-if="keyword" class="c1-search-clear" @tap="clearSearch">
             <app-icon name="x" :size="13" color="#bbb" />
           </view>
         </view>
       </view>
+      <view v-if="directoryError" class="c1-directory-retry" @tap="loadCities">城市目录加载失败，点击重试</view>
 
       <!-- 类型筛选条（后端真有 type·替代原型虚构的距离/热度排序） -->
       <scroll-view scroll-x class="c1-types" :show-scrollbar="false">
@@ -39,14 +43,14 @@
           :key="t.value"
           class="c1-pill"
           :class="{ on: selectedType === t.value }"
-          @tap="selectedType = t.value"
+          @tap="selectType(t.value)"
         >
           {{ t.label }}
         </view>
       </scroll-view>
     </view>
 
-    <scroll-view scroll-y class="c1-body">
+    <scroll-view scroll-y class="c1-body" @scrolltolower="loadMore">
       <!-- 加载态：骨架屏 3 张卡片占位 -->
       <view v-if="loading" class="c1-page-pad">
         <view v-for="i in 3" :key="i" class="c1-skeleton">
@@ -67,7 +71,7 @@
       </view>
 
       <!-- 空态：该地区暂无驿站 -->
-      <view v-else-if="filteredStations.length === 0" class="c1-empty">
+      <view v-else-if="stations.length === 0" class="c1-empty">
         <app-icon name="map-pin" :size="72" color="#d3c9b6" />
         <text class="c1-empty-title serif">该地区暂无驿站</text>
         <text class="c1-empty-sub">当前城市 / 搜索条件下没有找到线下驿站{{ '\n' }}你也可以申请开设线下驿站</text>
@@ -75,9 +79,11 @@
           <view v-if="!hasFilter" class="c1-btn" @tap="goApplyStation">
             <text class="c1-btn-text">申请开设驿站</text>
           </view>
-          <view class="c1-btn o" @tap="showCityPicker">
+          <picker :range="cityOptions" :value="cityOptions.indexOf(selectedCity)" @change="changeCity">
+          <view class="c1-btn o">
             <text class="c1-btn-text o">切换城市</text>
           </view>
+          </picker>
           <view v-if="hasFilter" class="c1-btn" @tap="clearFilter">
             <text class="c1-btn-text">清空筛选</text>
           </view>
@@ -91,12 +97,12 @@
             <view class="c1-dot" />
             <text class="c1-sec-title serif">{{ keyword ? '搜索结果' : '全部驿站' }}</text>
           </view>
-          <text class="c1-sec-count">共 {{ filteredStations.length }} 家</text>
+          <text class="c1-sec-count">共 {{ total }} 家</text>
         </view>
 
         <view class="c1-list">
           <view
-            v-for="s in filteredStations"
+            v-for="s in stations"
             :key="s.id"
             class="c1-card"
             @tap="goDetail(s.id)"
@@ -148,7 +154,9 @@
           </view>
         </view>
 
-        <text class="c1-end">— 已加载全部 —</text>
+        <view v-if="moreError" class="c1-end c1-more" @tap="loadMore">{{ moreError }} · 重试</view>
+        <view v-else-if="hasMore" class="c1-end c1-more" @tap="loadMore">{{ loadingMore ? '加载中…' : '加载更多' }}</view>
+        <text v-else class="c1-end">— 已加载全部 —</text>
       </view>
       <view class="c1-safe" />
     </scroll-view>
@@ -156,19 +164,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { useStationDirectory } from '@/composables/use-station-directory'
 import {
-  offlineApi,
   stationTypeFilters,
   getStationTypeLabel,
   getFacilityInfo,
   stationStatusLabel,
   type Station,
-  type StationType,
 } from '@/lib/offline-data'
 
 const statusBarHeight = ref(0)
@@ -176,83 +183,22 @@ try {
   statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
 } catch {}
 
-const loading = ref(true)
-const errMsg = ref('')
-const all = ref<Station[]>([])
-const selectedType = ref<StationType | 'all'>('all')
-const selectedCity = ref('全部')
-const keyword = ref('')
+const { cityOptions, directoryError, selectedType, selectedCity, keyword, stations, total,
+  loading, errMsg, loadingMore, moreError, hasMore, hasFilter, loadCities, load,
+  selectCity, selectType, clearFilter, loadMore, dispose } = useStationDirectory()
 
 // 环境图取值：优先 cover，回退 images 首张，无 → 空串走占位
 function stationCover(s: Station): string {
   return s.cover || (s.images && s.images.length ? s.images[0] : '') || ''
 }
 
-async function load() {
-  loading.value = true
-  errMsg.value = ''
-  try {
-    // 城市在服务端过滤（后端 discover 支持 city 参数），关键词客户端二次过滤更跟手
-    all.value = await offlineApi.discoverStations({
-      city: selectedCity.value === '全部' ? undefined : selectedCity.value,
-    })
-  } catch (e) {
-    errMsg.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+onLoad(() => { void loadCities(); void load() })
+onUnmounted(dispose)
+function changeCity(event: { detail: { value: string | number } }) {
+  const city = cityOptions.value[Number(event.detail.value)]
+  if (city) void selectCity(city)
 }
-onLoad(() => load())
-
-// 可选城市列表：由已返回驿站的 city 去重派生（后端无独立城市字典）
-const cityOptions = computed(() => {
-  const set = new Set<string>()
-  all.value.forEach((s) => { if (s.city) set.add(s.city) })
-  return ['全部', ...Array.from(set)]
-})
-
-const hasFilter = computed(
-  () => !!keyword.value || selectedType.value !== 'all' || selectedCity.value !== '全部'
-)
-
-const filteredStations = computed(() => {
-  let list = all.value
-  if (selectedType.value !== 'all') list = list.filter((s) => s.type === selectedType.value)
-  if (selectedCity.value !== '全部') list = list.filter((s) => s.city === selectedCity.value)
-  const kw = keyword.value.trim()
-  if (kw) {
-    list = list.filter(
-      (s) => s.name.includes(kw) || (s.address || '').includes(kw) || (s.city || '').includes(kw)
-    )
-  }
-  return list
-})
-
-function showCityPicker() {
-  const opts = cityOptions.value
-  if (opts.length <= 1) {
-    uni.showToast({ title: '暂无更多城市', icon: 'none' })
-    return
-  }
-  uni.showActionSheet({
-    itemList: opts,
-    success: (res) => {
-      const city = opts[res.tapIndex]
-      if (city === selectedCity.value) return
-      selectedCity.value = city
-      load()
-    },
-  })
-}
-
-function clearFilter() {
-  keyword.value = ''
-  selectedType.value = 'all'
-  if (selectedCity.value !== '全部') {
-    selectedCity.value = '全部'
-    load()
-  }
-}
+function clearSearch() { keyword.value = ''; void load() }
 
 function goDetail(id: string) {
   navigateTo(`/offline/stations/${id}`)
@@ -264,6 +210,8 @@ function goApplyStation() {
 </script>
 
 <style lang="scss" scoped>
+.c1-directory-retry { color: #a32336; font-size: 12px; padding: 0 20px 8px; }
+.c1-more { color: #a32336; min-height: 44px; }
 .c1-page {
   height: 100vh;
   background: #faf8f5;
