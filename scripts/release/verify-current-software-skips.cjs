@@ -1,9 +1,9 @@
 // 当前源码的条件跳过软件测试补验；只允许专用合成库。
 const fs=require('fs'),path=require('path'),cp=require('child_process'),crypto=require('crypto'),assert=require('assert/strict');
-const root=process.cwd(),output=path.join(root,'artifacts/current-skips'),manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'skipped-case-manifest-cc78.json')));
+const root=process.cwd(),output=path.join(root,'artifacts/current-skips'),manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'skipped-case-manifest-cc78.json'))),orderOnly=process.argv.includes('--order-only');
 assert.equal(cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),manifest.sourceCommit);
 assert.equal(manifest.expectedSoftware,592);assert.equal(manifest.softwareFiles.length,48);
-for(const key of ['XIAOBU_IT_DATABASE_URL','ENTITLEMENT_NOTICE_TEST_DATABASE_URL','BOT_QUOTA_TEST_DATABASE_URL']){
+for(const key of orderOnly?['ENTITLEMENT_NOTICE_TEST_DATABASE_URL']:['XIAOBU_IT_DATABASE_URL','ENTITLEMENT_NOTICE_TEST_DATABASE_URL','BOT_QUOTA_TEST_DATABASE_URL']){
  const url=new URL(process.env[key]);assert.equal(url.hostname,'127.0.0.1');assert.equal(url.port,'55462');assert.equal(url.username,'qa_voice');
 }
 fs.mkdirSync(output,{recursive:true});
@@ -21,14 +21,17 @@ fs.writeFileSync(guard,[
 ].join('\n'));
 const env={...process.env,NODE_OPTIONS:(process.env.NODE_OPTIONS||'')+' --require='+guard};
 delete env.WEWORK_WEBHOOK_ALERT_URL;
-const result=cp.spawnSync(process.execPath,[root+'/apps/server/node_modules/jest/bin/jest.js','--runInBand','--no-coverage','--runTestsByPath',...manifest.softwareFiles.map(file=>root+'/'+file),'--json','--outputFile',output+'/jest-results.json'],{cwd:root+'/apps/server',env,encoding:'utf8',timeout:900000,maxBuffer:25e6});
+const files=orderOnly?manifest.softwareFiles.filter(file=>file.endsWith('/order-business-notification.postgres.spec.ts')):manifest.softwareFiles;
+const expected=orderOnly?20:592;
+const result=cp.spawnSync(process.execPath,[root+'/apps/server/node_modules/jest/bin/jest.js','--runInBand','--no-coverage','--detectOpenHandles','--runTestsByPath',...files.map(file=>root+'/'+file),'--json','--outputFile',output+'/jest-results.json'],{cwd:root+'/apps/server',env,encoding:'utf8',timeout:900000,maxBuffer:25e6});
 fs.writeFileSync(output+'/jest.log',(result.stdout||'')+(result.stderr||''));
 assert.equal(result.status,0,'本版受保护软件测试失败，保留逐用例结果和日志');
 const report=JSON.parse(fs.readFileSync(output+'/jest-results.json'));
-assert.equal(report.numFailedTests,0);assert.equal(report.numPendingTests,0);assert.equal(report.numPassedTests,592);assert.equal(report.numPassedTestSuites,48);
+assert.equal(report.numFailedTests,0);assert.equal(report.numPendingTests,0);assert.equal(report.numPassedTests,expected);assert.equal(report.numPassedTestSuites,files.length);
 const actual=report.testResults.flatMap(suite=>suite.assertionResults.map(test=>({path:path.relative(root,suite.name).replaceAll('\\','/'),name:test.fullName,status:test.status})));
 const sorted=rows=>rows.map(row=>row.path+'\t'+row.name).sort();
-assert.deepEqual(sorted(actual),sorted(manifest.rows));assert(actual.every(row=>row.status==='passed'));
+assert.deepEqual(sorted(actual),sorted(manifest.rows.filter(row=>files.includes(row.path))));assert(actual.every(row=>row.status==='passed'));
 assert.deepEqual(JSON.parse(fs.readFileSync(output+'/source-binding.json')).files,bindingFiles.map(file=>({path:file,sha256:hash(file)})));
-fs.writeFileSync(output+'/verified.json',JSON.stringify({source:manifest.sourceCommit,passed:592,skipped:0,suites:48,defaultSkipped:621,hardwareDeferred:29,exactNamesVerified:true,sourceUnmodified:true,realPostgres:true,realRedis:true,loopbackOnly:true,realProviders:false,realFunds:false,production:false},null,2)+'\n');
-console.log({passed:592,suites:48,skipped:0,production:false});
+assert.equal(report.openHandles.length,0,'需排查未释放的测试资源');
+fs.writeFileSync(output+'/verified.json',JSON.stringify({source:manifest.sourceCommit,passed:expected,skipped:0,suites:files.length,defaultSkipped:621,hardwareDeferred:29,exactNamesVerified:true,sourceUnmodified:true,realPostgres:true,realRedis:!orderOnly,openHandles:0,loopbackOnly:true,realProviders:false,realFunds:false,production:false},null,2)+'\n');
+console.log({passed:expected,suites:files.length,skipped:0,production:false});

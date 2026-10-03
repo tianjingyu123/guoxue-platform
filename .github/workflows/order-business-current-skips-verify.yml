@@ -1,0 +1,71 @@
+name: 当前候选订单通知20项定向补验
+on:
+  push:
+    branches: [codex/launch-order-skips-cc78-20261003]
+    paths: [.github/workflows/order-business-current-skips-verify.yml, scripts/release/verify-current-software-skips.cjs]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SOURCE_COMMIT: cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e
+      DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_20261002_order_business
+      ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-test-only@127.0.0.1:55462/entitlement_notice_qa_20261002_order_business
+      NODE_ENV: test
+      BULLMQ_DISABLED: "true"
+      PGPASSWORD: synthetic-test-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          sparse-checkout: scripts/release
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e
+          path: candidate
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/.claude/
+      - name: 清除临时检出鉴权头
+        run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git -C candidate config --local --unset-all http.https://github.com/.extraheader || true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: 独立依赖和PG18.4
+        run: |
+          set -euo pipefail
+          mkdir -p candidate/artifacts/current-skips
+          docker build -f scripts/release/isolated-pg18-4-vector.Dockerfile -t rebu-order-skips-vector scripts/release > candidate/artifacts/current-skips/database-image.log 2>&1
+          docker run -d --name rebu-order-skips-db -p 55462:5432 -e POSTGRES_USER=qa_voice -e POSTGRES_PASSWORD=synthetic-test-only -e POSTGRES_DB=entitlement_notice_qa_20261002_order_business rebu-order-skips-vector
+          for attempt in $(seq 1 30); do pg_isready -h 127.0.0.1 -p 55462 -U qa_voice && break; sleep 2; done
+          pnpm -C candidate install --frozen-lockfile
+          pnpm -C candidate --filter @guoxue/server exec prisma generate
+          pnpm -C candidate --filter @guoxue/shared build
+          pnpm -C candidate --filter @guoxue/bazi-engine build
+          pnpm -C candidate --filter @guoxue/ziwei-engine build
+      - name: 专用空库136基线与剩余20项
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -XAtc 'SHOW server_version' > artifacts/current-skips/postgres-version.txt
+          CONFIRM_EMPTY_DATABASE=YES sh apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh > artifacts/current-skips/bootstrap.log 2>&1
+          node ../scripts/release/verify-current-software-skips.cjs --order-only
+      - name: 清理专用隔离容器
+        if: always()
+        run: docker rm -f rebu-order-skips-db || true
+      - name: 保存逐例结果
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: order-skips-current-cc78
+          path: candidate/artifacts/current-skips/
+          retention-days: 30
