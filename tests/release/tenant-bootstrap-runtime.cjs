@@ -26,7 +26,8 @@ async function main() {
   const migrations = path.join(root, 'apps/server/prisma/migrations');
   const ledger = await prisma.$queryRawUnsafe('SELECT migration_name, checksum FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name');
   const names = fs.readdirSync(migrations).filter(name => fs.existsSync(path.join(migrations, name, 'migration.sql'))).sort();
-  assert.equal(names.length, 144);assert.deepEqual(ledger.map(row => row.migration_name), names);
+  // 数据库排序规则与 JS 字符排序可能不同；账本成员按同一排序比较，校验值逐行核验。
+  assert.equal(names.length, 144);assert.deepEqual(ledger.map(row => row.migration_name).sort(), names);
   for (const row of ledger) assert.equal(row.checksum, hash(fs.readFileSync(path.join(migrations, row.migration_name, 'migration.sql'))));
   const models = [...fs.readFileSync(path.join(root, 'apps/server/prisma/migrations-deploy/full-baseline.sql'), 'utf8').matchAll(/CREATE TABLE "([^"]+)"/g)].map(match => match[1]);
   assert.equal(models.length, 414);
