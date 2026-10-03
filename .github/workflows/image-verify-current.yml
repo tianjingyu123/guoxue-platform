@@ -6,6 +6,7 @@ on:
       - .github/workflows/image-verify-current.yml
       - scripts/release/verify-linux-image-runtime.mjs
       - scripts/release/verify-isolated-*.cjs
+      - scripts/release/isolated-notification-latch.cjs
 permissions:
   contents: read
 concurrency:
@@ -31,6 +32,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.18.0
+      - name: 构建前核验全部本地验收辅助文件
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const source=fs.readFileSync("scripts/release/verify-linux-image-runtime.mjs","utf8"); const paths=[...source.matchAll(/\x22(\.\/[^\x22]+\.cjs)\x22|\x27(\.\/[^\x27]+\.cjs)\x27/g)].map(m=>m[1]||m[2]); assert(paths.length>5); for(const item of paths) assert(fs.existsSync("scripts/release/"+item.slice(2)),item); console.log(JSON.stringify({helperPathsChecked:paths.length}));'
       - name: 只读取草稿附件并验真固定输入
         env:
           GH_TOKEN: ${{ github.token }}
