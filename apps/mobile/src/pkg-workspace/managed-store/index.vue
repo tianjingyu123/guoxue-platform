@@ -1,4 +1,6 @@
 <template>
+  <view class="store-page">
+  <app-nav-bar title="品牌服务" title-align="left" background="#F6F8FB" />
   <view class="store"><view class="brand"><text class="headline">{{ context?.brand.name || '品牌服务' }}</text><text class="muted">应用登记：{{ context?.applicationSubject || '待读取' }}</text><text class="muted">交易、履约与售后：{{ context?.tradingSubject || '待读取' }}</text></view>
     <text v-if="error" class="error">{{ error }}</text><text v-if="notice" class="notice">{{ notice }}</text><button :disabled="busy" @click="reload">刷新已有记录</button>
     <view v-if="context" class="tabs"><button @click="changeTab('product')">商品</button><button @click="changeTab('course')">课程</button><button @click="changeTab('orders')">我的订单</button></view>
@@ -9,9 +11,11 @@
       <view v-if="salesOrder" class="detail"><text class="title">订单售后记录</text><view v-for="row in sales" :key="row.id" class="item"><text>{{ label(row.status) }}　{{ row.reason }}</text><button v-if="row.status==='PENDING'" :disabled="busy" @click="cancelSale(row)">取消申请</button><template v-if="row.status==='APPROVED'"><label>快递公司<input v-model="company" maxlength="80" /></label><label>退货运单<input v-model="logisticsNo" maxlength="80" /></label><button :disabled="busy" @click="returnParcel(row)">登记运单</button></template></view><button v-if="sales.length<salesTotal" :disabled="busy" @click="nextSales">读取下一页售后</button></view>
     </template>
   </view>
+  </view>
 </template>
 <script setup lang="ts">
 import {ref,onMounted} from 'vue'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
 import {apiGet} from '@/utils/request'
 import {brandApi,brandKey,type BrandRow,type BrandContext} from '@/lib/managed-brand'
 const context=ref<BrandContext>(),tab=ref('product'),busy=ref(false),error=ref(''),notice=ref(''),products=ref<BrandRow[]>([]),courses=ref<BrandRow[]>([]),orders=ref<BrandRow[]>([]),cursor=ref(''),addresses=ref<BrandRow[]>([]),addressIndex=ref(0),quantity=ref('1'),selected=ref<BrandRow>(),chapters=ref<BrandRow[]>([]),chapter=ref<BrandRow>(),key=ref(brandKey()),reason=ref(''),saleType=ref(0),salesOrder=ref<BrandRow>(),sales=ref<BrandRow[]>([]),salesPage=ref(1),salesTotal=ref(0),company=ref(''),logisticsNo=ref('')
@@ -36,5 +40,6 @@ const returnParcel=(row:BrandRow)=>run(async()=>{await brandApi.logistics(row.id
 onMounted(reload)
 </script>
 <style scoped>
+.store-page{min-height:100vh;background:#f6f8fb}.store{box-sizing:border-box;max-width:880px;margin:0 auto;padding-bottom:calc(24px + env(safe-area-inset-bottom))}.store button{min-height:44px}
 .store{padding:28px 20px;background:#f6f8fb;color:#21354a;min-height:100vh}.brand{border-bottom:2px solid #355d70;padding-bottom:24px}.headline{display:block;font-family:SimSun,serif;font-size:28px}.title{display:block;font-size:19px;font-weight:600}.muted,.copy{display:block;line-height:1.8;margin-top:12px;overflow-wrap:anywhere;white-space:pre-wrap}.muted{font-size:13px;color:#52687d}.tabs{display:flex;gap:10px}.item{padding:22px 0;border-bottom:1px solid #c2d0dc}.price{display:block;margin:12px 0;color:#355d70}.detail{padding:20px;background:white;border-left:3px solid #355d70;margin:24px 0}button{font-size:14px;background:#e5ecf3;color:#21354a;margin:12px 0}label{display:block;margin:18px 0}input,textarea{border:1px solid #c2d0dc;background:white;padding:12px;margin-top:10px}.error,.notice{display:block;padding:15px;margin:15px 0;background:#e5ecf3;line-height:1.8}.error{color:#ad392b;background:#fff1ef}
 </style>
