@@ -1,0 +1,71 @@
+{
+  "sourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "builds": [
+    {
+      "name": "independent-h5",
+      "originalBuildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "originalBuildReceiptSha256": "627e8f1dd77120ad86cb19aec59878432120f571d5a869c5fa341118b743c2fc",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 6,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "independent-weixin",
+      "originalBuildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "originalBuildReceiptSha256": "dbb284e9e0b62831b8e421e02b9fc41a94026fe8106d3232c4439fea3ab36993",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 12,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "independent-app-resources",
+      "originalBuildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "originalBuildReceiptSha256": "9391530ec379590c67b8ddfb77f06486ba9137182c8d8a45440cf7ef34ae552b",
+      "clientSourcesChecked": 11,
+      "outputFilesChecked": 18,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "brand-h5",
+      "originalBuildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "originalBuildReceiptSha256": "7b41926e0774fb526a7b5d145343ee13bd29d451fa6eef7d5a66a1fe8a695a41",
+      "clientSourcesChecked": 1201,
+      "outputFilesChecked": 1182,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    },
+    {
+      "name": "brand-weixin",
+      "originalBuildSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+      "currentBackendSourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+      "originalBuildReceiptSha256": "2634d626fa11bb5c1e1d0228adf58f3ad1a772ae70cb4aacb57b1b2823e8bdeb",
+      "clientSourcesChecked": 1201,
+      "outputFilesChecked": 2656,
+      "sourceBytesUnchanged": true,
+      "outputHashesMatch": true,
+      "usedAsCompatibilityOnly": true,
+      "production": false
+    }
+  ],
+  "originalEvidenceDirectory": "../real-layout-20261003",
+  "production": false,
+  "limits": [
+    "保留原始五类构建提交，本批仅复核源码及输出摘要",
+    "未重跑UI、签名、装机或真实渠道验收"
+  ]
+}

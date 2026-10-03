@@ -1,0 +1,38 @@
+{
+  "sourceHead": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "production": false,
+  "syntheticSubjectsOnly": true,
+  "browser": "Codex In-app Browser",
+  "previewLoopbackOnly": true,
+  "currentH5Build": {
+    "receiptSha256": "1fcbe1b0929a095996979f18a7d1c862896da5f0f0aa42d8f3b8738761ac12b4",
+    "sourceFilesChecked": 11,
+    "outputFilesChecked": 6,
+    "hashesMatch": true
+  },
+  "observed": {
+    "login": true,
+    "customerAdministrator": true,
+    "exitSnapshotCreated": true,
+    "collections": 22,
+    "totalRows": 11827,
+    "totalBytes": 2022818,
+    "manifestControlClicked": true,
+    "status": "已提交浏览器下载",
+    "downloadEventWaitMs": 15000,
+    "downloadEventTimedOut": true,
+    "downloadPathReturned": false,
+    "screenshotCaptured": true
+  },
+  "downloadFilesVerified": false,
+  "allPagesDownloaded": false,
+  "mpAndAppRealDeviceVerified": false,
+  "previewClosedGracefully": true,
+  "previewProcessExitCode": 0,
+  "limits": [
+    "页面成功提示只证明已提交下载，不证明文件实际落盘",
+    "Chrome连接未能使用，备用应用内浏览器未返回下载事件；未绕过安全保护或枚举用户下载目录",
+    "未导出任何认证凭据，未将合成密码写入本报告",
+    "H5落盘及全部分页原字节核验仍待支持下载的浏览器验收，MP/App真机也未完成"
+  ]
+}

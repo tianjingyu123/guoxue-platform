@@ -1,0 +1,49 @@
+{
+  "head": "4717b6ec10e8307bac8918a5cd58b86d712ef717",
+  "workingTreeDirty": false,
+  "sources": {
+    "apps/server/src/modules/managed-tenancy/managed-client-address.ts": "e2f073cd871c2e70a0cffff2aa9105cca8ffd287b2c13e20a977c3a27d7ae92c",
+    "apps/server/src/modules/managed-tenancy/managed-credentials.ts": "3152310aedc0b18d7c44b5c07cd346ac885493031c292a093c9882318fae9068",
+    "apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts": "a9e710554d6613ecf5b3308d654290bd20214c8540d0506f32e8cc510b7403a3",
+    "apps/server/src/modules/managed-tenancy/managed-lease.module.ts": "cacb3b367e6c8d087a3e16519ca733e504ff970c462597ca5b45af2eac86d0c4",
+    "pilots/managed-tenancy/verify-proxy-postgres.mjs": "43849381558c57c0a63d42c7309e50eb50203da04695db716eaae39219137868"
+  },
+  "checks": [
+    {
+      "name": "实际Nest进程拒绝通配、CIDR、跳数型及归一化后重复的代理配置，没有监听入口",
+      "status": "PASS"
+    },
+    {
+      "name": "可信代理缺失、非法或过长来源链在认证数据库计数前拒绝，不回退成代理地址",
+      "status": "PASS"
+    },
+    {
+      "name": "未配置信任的直连入口忽略伪造转发头，轮换30个自报地址仍共用实际连接限流",
+      "status": "PASS"
+    },
+    {
+      "name": "从右侧核可信链，在首个不可信来源停止，左侧伪造值无效；IPv4映射归一，同一真实来源跨进程共享30次上限，其他来源独立",
+      "status": "PASS"
+    },
+    {
+      "name": "IPv6压缩和完整写法使用同一持久限流摘要，不能靠地址文本切换分散计数",
+      "status": "PASS"
+    },
+    {
+      "name": "可信来源贯通实际注册、刷新和改密；A的来源限额不污染B客户的认证计数",
+      "status": "PASS"
+    },
+    {
+      "name": "本任务全部独立子进程及随机端口已退出",
+      "status": "PASS"
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "production": false,
+  "limits": [
+    "真实本机Nest与PostgreSQL，转发头由测试构造；不代表真实Nginx、网关或生产网络路由验收",
+    "可信IP由受限配置显式维护，网关必须正确覆盖/追加来源链且业务端口不得向不可信路径开放",
+    "只影响认证来源限流，不授予代理身份或客户权限，不自动信任私网、全部loopback网段或跳数"
+  ]
+}
