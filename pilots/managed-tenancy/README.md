@@ -4,7 +4,7 @@
 
 本目录现同时保存第一阶段 SQLite 试点和第二阶段真实 Nest/Prisma/PostgreSQL 验收器。正式候选源码位于 `apps/server/src/modules/managed-tenancy`、`apps/server/src/lease-main.ts` 和 `apps/admin/src/views/tenant/ManagedCustomerList.vue`，已在候选 `AppModule` 登记控制面与品牌模块；独立客户入口只加载专用最小模块。
 
-当前状态和未完成项见[持续推进记录](../../docs/progress/多租户一期真实集成与持续推进-20261002.md)，最新候选和同源证据见[补齐记录](../../docs/operations/多租户独立认证与退出补齐-20261002.md)，[第一批验证](../../docs/operations/多租户真实数据库候选验证-20261002.md)保留。下文“无依赖、不改 AppModule”等仅适用于原 SQLite 试点。
+当前状态和未完成项见[持续推进记录](../../docs/progress/多租户一期真实集成与持续推进-20261002.md)，最近完成批次见[微页面与品牌资源交接](../../docs/operations/多租户微页面消费与品牌小程序补齐-20261003.md)，[第一批验证](../../docs/operations/多租户真实数据库候选验证-20261002.md)保留。下文“无依赖、不改 AppModule”等仅适用于原 SQLite 试点。
 
 复验前提：本任务自己的 PostgreSQL 16 集群已监听 `127.0.0.1:55467`；合成维护凭据、连接登记与只读账号保存在忽略的 `.runtime/postgres`，不能改成生产连接。`postgres-setup.mjs` 会只读核对 `postgres:mt_admin:55467`，只初始化 `mt_control/mt_customer_a/mt_customer_b` 及专用角色；其余数据库不在范围内。该脚本要求已有本任务集群和合成密码文件，不是生产部署安装器。
 
@@ -19,9 +19,9 @@ pnpm --filter @guoxue/admin build
 node pilots/managed-tenancy/verify-real-candidate.mjs
 ```
 
-总验收器按顺序执行控制面、租赁、独立认证、课程学习、品牌、公共页面投影、备份恢复、schema与CHECK只读检查、客户控制面视图、编译入口、认证、SQLite、客户端隔离，共十三套。它核对前后源码摘要一致；失败诊断仅留在忽略目录。默认报告位于 `.runtime/final-evidence`；归档时可显式指定另一目录，不能覆盖第一阶段历史报告。
+总验收器串行执行26套：控制面、租赁、独立认证、课程学习、内容经营、圈子、订单、会话、额度、围栏、完整退出、品牌及品牌课程、公共编排及独立消费、备份、切换回退、结构、受限控制面、关闭顺序、供应商模拟、原商业内核、编译入口、认证、SQLite及客户端隔离。它核对前后源码摘要一致；失败诊断仅留在忽略目录。默认报告位于 `.runtime/final-evidence`；归档时显式指定新目录，不覆盖历史报告。
 
-运行账号 `mt_customer_a_runtime/mt_customer_b_runtime` 按表和字段授权，商品只允许改标题，订单只读，售后及审计只允许追加，导出仅可更新manifest和下载时间，快照页不可改删。合成样本的准备账号拥有较宽的测试写权限，与应用运行账号分开。独立入口使用固定客户安全屏障视图，基础表、其他客户视图与任意配置不可读；共用只读账号不再可用于独立进程。启动时检查实际账号、数据库、端口、密钥摘要和额外表/字段权限，过宽授权拒绝启动。
+运行账号 `mt_customer_a_runtime/mt_customer_b_runtime` 按当前 `managed-lease-permissions.ts` 的表及字段白名单授权，订单同时受固定RLS策略限制，经营写入受客户绑定及ACTIVE围栏约束。快照页、历史审计不可改删；合成准备账号与应用运行账号分开。控制面使用固定客户安全屏障视图，基础表、其他客户视图与任意配置不可读。启动精确核账号、库、端口、密钥摘要、字段权限、RLS及围栏，过宽授权拒绝启动。停机通过Nest生命周期先拒新HTTP，再关闭HTTP及本实例连接；Windows事件演练不等同Linux真实信号验收。
 
 `ui-preview.mjs` 是仅监听本机、使用合成超管和真实管理页的视觉验收器，不能放入部署启动命令。输入 `stop` 关闭本任务 UI/API。其虚拟入口不在生产前端构建里。
 

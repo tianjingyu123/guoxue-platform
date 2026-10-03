@@ -1,11 +1,24 @@
 import { Body, CanActivate, Controller, ExecutionContext, Get, HttpCode, Inject, Injectable, Module, Param, Post, Put, Query, Req, UseGuards, UnauthorizedException } from "@nestjs/common";
-import { Request } from "express";
+import { Request, Response, NextFunction } from "express";
 import { ManagedLeaseRuntime, ManagedResourceKind, ManagedLeaseContext } from "./managed-lease.runtime";
 import { ManagedContentKind } from "./managed-lease-content";
 import {APP_FILTER} from "@nestjs/core";
 import {ManagedLeaseExceptionFilter} from "./managed-lease-exception.filter";
 
 type ManagedRequest = Request & { managedContext: ManagedLeaseContext };
+/** 停机阶段只拒绝新请求，不提前断开已经进入业务处理的数据库连接。 */
+export function managedLeaseRequestGate(runtime: ManagedLeaseRuntime) {
+  return (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    if (runtime.draining) {
+      res.setHeader("Connection", "close");
+      res.setHeader("Retry-After", "1");
+      res.status(503).json({ statusCode: 503, message: "本机构入口正在结束，请先查询已有记录再重试" });
+      return;
+    }
+    next();
+  };
+}
 function header(req: Request, name: string, fallback = "") {
   const value = req.headers[name];
   if (value !== undefined && typeof value !== "string") throw new UnauthorizedException("请求头必须为单一值");

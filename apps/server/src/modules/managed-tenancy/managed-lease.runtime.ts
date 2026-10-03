@@ -57,10 +57,26 @@ export async function verifyManagedDatabase(control: PrismaClient, business: Pri
 /** 独立入口只挂载本模块的少量路由，不加载平台 AppModule、原始SQL、运维或支付控制器。 */
 export class ManagedLeaseRuntime {
   private ready = false;
+  private stopping = false;
+  private shutdownPromise?: Promise<void>;
   private identity: { databaseName: string; databaseRole: string; spaceKey: string; credentialRef: string };
   private readonly contexts = new WeakMap<object, string>();
   private readonly identities: ManagedLeaseIdentityService;
   constructor(private readonly control: PrismaClient, private readonly business: PrismaClient, readonly customerId: string, private readonly credentials: ManagedCredential,private readonly chatProvider?:ManagedChatProvider) { this.identities = new ManagedLeaseIdentityService(business, customerId); }
+  get draining() { return this.stopping; }
+  /** 先关闭新HTTP请求入口，已接收请求仍逐次核业务身份并完成事务。 */
+  beforeApplicationShutdown() { this.stopping = true; }
+  /** Nest关闭HTTP连接后才释放本实例连接，避免退出信号与在途事务竞争。 */
+  onApplicationShutdown() {
+    if (!this.shutdownPromise) {
+      this.stopping = true;
+      this.ready = false;
+      this.shutdownPromise = Promise.allSettled([this.control.$disconnect(), this.business.$disconnect()]).then(results => {
+        if (results.some(result => result.status === "rejected")) throw new Error("独立客户连接释放失败，请核对本实例退出记录");
+      });
+    }
+    return this.shutdownPromise;
+  }
   async initialize() {
     const customer = await verifyManagedDatabase(this.control, this.business, this.customerId, this.credentials);
     if (customer.deployment?.state !== "READY" || !customer.deployment.verifiedAt) throw new ForbiddenException("部署尚未通过维护核验");

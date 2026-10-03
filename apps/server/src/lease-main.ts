@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { json } from "express";
 import { managedCredential } from "./modules/managed-tenancy/managed-credentials";
 import { ManagedLeaseRuntime } from "./modules/managed-tenancy/managed-lease.runtime";
-import { ManagedLeaseModule } from "./modules/managed-tenancy/managed-lease.module";
+import { ManagedLeaseModule, managedLeaseRequestGate } from "./modules/managed-tenancy/managed-lease.module";
 import { verifyManagedControlReader } from "./modules/managed-tenancy/managed-control-reader";
 import {managedChatProvider} from "./modules/managed-tenancy/managed-chat-provider";
 
@@ -29,16 +29,14 @@ async function main() {
     const runtime = new ManagedLeaseRuntime(control, business, customerId, credential,managedChatProvider(customerId,deployment.spaceKey,credential));
     await runtime.initialize();
     const app = await NestFactory.create(ManagedLeaseModule.register(runtime), { logger: ["warn", "error"],bodyParser:false });
+    app.use(managedLeaseRequestGate(runtime));
     app.use(json({limit:"2mb"}));
     app.setGlobalPrefix("api/v1");
     app.enableShutdownHooks();
-    app.use((_req: unknown, res: { setHeader: (name: string, value: string) => void }, next: () => void) => { res.setHeader("Cache-Control", "private, no-store"); next(); });
     const port = Number(process.env.MANAGED_LEASE_PORT);
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("必须显式指定客户独立监听端口");
     await app.listen(port, process.env.MANAGED_LEASE_BIND || "127.0.0.1");
     process.stdout.write(JSON.stringify({ managedLeaseReady: true, port }) + "\n");
-    const disconnect = () => { void Promise.all([control.$disconnect(), business!.$disconnect()]); };
-    process.once("SIGINT", disconnect); process.once("SIGTERM", disconnect);
   } catch {
     await control.$disconnect(); if (business) await business.$disconnect();
     throw new Error("独立客户启动失败，请核对受限配置、数据库身份与部署验证记录");

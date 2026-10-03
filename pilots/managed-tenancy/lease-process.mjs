@@ -10,7 +10,7 @@ require('ts-node').register({transpileOnly:true,compilerOptions:{module:'commonj
 require('reflect-metadata');
 const {NestFactory}=require('@nestjs/core');
 const {ManagedLeaseRuntime}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease.runtime.ts'));
-const {ManagedLeaseModule}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease.module.ts'));
+const {ManagedLeaseModule,managedLeaseRequestGate}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-lease.module.ts'));
 const {verifyManagedControlReader}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-control-reader.ts'));
 const config=JSON.parse(readFileSync(process.argv[2],'utf8'));
 const control=new PrismaClient({datasources:{db:{url:config.controlUrl}}});
@@ -32,9 +32,9 @@ try {
   const runtime=new ManagedLeaseRuntime(control,business,config.customerId,config.credential,syntheticProvider);
   await runtime.initialize();
   app=await NestFactory.create(ManagedLeaseModule.register(runtime),{logger:false,bodyParser:false});
+  app.use(managedLeaseRequestGate(runtime));
   app.use(require('express').json({limit:'2mb'}));
   app.setGlobalPrefix('api/v1');
-  app.use((_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');next();});
   await app.listen(0,'127.0.0.1');
   process.send?.({ready:true,port:app.getHttpServer().address().port});
   process.on('message',message=>{if(message==='stop')void close();});
