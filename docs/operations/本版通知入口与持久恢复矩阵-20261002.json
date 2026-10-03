@@ -1,31 +1,36 @@
 {
-  "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
-  "checkedAt": "2026-10-03T00:38:53.789Z",
+  "sourceCommit": "624929155d054de9f58502107e6500311b8d5e0d",
+  "checkedAt": "2026-10-03T01:33:41.756Z",
   "rows": [
     {
       "id": "order-paid",
       "event": "订单最终付款成功",
       "paths": [
-        "apps/server/src/modules/shop/shop-payment.service.ts"
+        "apps/server/src/modules/shop/shop-payment.service.ts",
+        "apps/server/src/modules/notification/order-business-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
       ],
       "key": "ORDER_PAID:<orderId>",
-      "state": "真实代码入口；课程合成签名HTTP、从业真实PG等限定验证",
-      "recovery": "站内sendOnce失败独立捕获，依赖回调重投；WebhookDelivery仅外部订阅恢复，通用站内持久事实尚未接入",
-      "gap": "四入口回滚/CAS冲突不误确认、通知失败与退款重投语义在本版真实PG及成品通过；验签运输、真实供应商、Redis锁、线上两节点及同版手机未覆盖",
-      "online": "未知"
+      "state": "真实支付CAS/权益事务内新事实；提交后即时尝试",
+      "recovery": "已注册独立分钟站内恢复；复核订单/收件人、数据库唯一和行锁；不依赖渠道重投、不补旧订单",
+      "gap": "限定真实PG/编译/签名HTTP及两个独立进程已验；真实供应商/正式Cron/最终同版手机/北京两节点未知；微信短信App未真实发送",
+      "online": "未知",
+      "evidence": "全订单新事实与独立站内恢复验收-20261002.json"
     },
     {
       "id": "order-refunded",
       "event": "订单最终退款完成",
       "paths": [
-        "apps/server/src/modules/shop/shop-refund.service.ts"
+        "apps/server/src/modules/shop/shop-refund.service.ts",
+        "apps/server/src/modules/notification/order-business-notification.task.ts",
+        "apps/server/src/modules/notification/notification.module.ts"
       ],
       "key": "ORDER_REFUNDED:<orderId>",
-      "state": "真实代码入口；CAS/权益、分佣冲正及售后终态收口后才发完成通知",
-      "recovery": "通知失败不改退款结果；重投补发",
-      "gap": "提前成功提示已独立修复并同源PG/编译/正式签名HTTP验收；全订单独立站内恢复尚未接收，真实供应商/手机/线上未知",
+      "state": "退款CAS/权益新待就绪事实；分佣完成后售后终态与readyAt同事务",
+      "recovery": "已注册独立分钟站内恢复；复核订单/收件人、数据库唯一和行锁；不依赖渠道重投、不补旧订单",
+      "gap": "限定真实PG/编译/签名HTTP及两个独立进程已验；真实供应商/正式Cron/最终同版手机/北京两节点未知；微信短信App未真实发送",
       "online": "未知",
-      "evidence": "退款成功通知最终收口与运行包验收-20261002.json"
+      "evidence": "全订单新事实与独立站内恢复验收-20261002.json"
     },
     {
       "id": "admin-entitlement",
@@ -371,21 +376,21 @@
     "sourceCommit": "f8e03c883cd648033fe44b409487a67c0073c746",
     "record": "支付事务回滚误确认与退款重投通知验收-20261002.json"
   },
-  "previousSourceCommit": "910806b8e72b7259b6b8011604d3e23413ae93fd",
+  "previousSourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
   "migrationCount": 135,
   "previousEvidenceSource": "4c546b89bf81121a051e785d3a399f3690205671",
   "currentFormalImage": {
-    "checkedAt": "2026-10-03T00:35:37.228Z",
-    "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
-    "runId": 37082128277,
-    "verificationHead": "ffd2ce02ca255a356460f7aa46e202b689248d79",
-    "artifactId": 11259372984,
-    "artifactDigest": "sha256:5304e603f4f3eaf73097ccc272e28a5e65d03b0744b03372e4d0a4c8b09a3648",
+    "checkedAt": "2026-10-03T01:10:54.081Z",
+    "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+    "runId": 37084380867,
+    "verificationHead": "6e1b84b7b3292dcb91b163a708ac0f82602f6f0d",
+    "artifactId": 11260547167,
+    "artifactDigest": "sha256:f91c899e0a59d9af572e24d9a27edac28b0eb3a04d7dda04361bb66e67996446",
     "digestVerified": true,
-    "sourcePackageDigest": "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d",
-    "sourcePackageFiles": 4501,
+    "sourcePackageDigest": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1",
+    "sourcePackageFiles": 4505,
     "formalDockerfile": true,
-    "passedChecks": 31,
+    "passedChecks": 32,
     "checks": [
       {
         "name": "image-identity",
@@ -437,6 +442,10 @@
       },
       {
         "name": "signed-encrypted-http-payment-refund-rollback-notification-retry",
+        "passed": true
+      },
+      {
+        "name": "new-order-station-notice-independent-compiled-processes",
         "passed": true
       },
       {
@@ -513,21 +522,21 @@
       }
     ],
     "imageIdentity": {
-      "id": "sha256:11c31fe93100790315537c543a5bc80716fa577b383a646439dd781ec2b1d835",
+      "id": "sha256:47cc5cf0580efc297bc8919dccfe6cd9b56def83a9c99f1570e6b4af4607bd6d",
       "os": "linux",
       "architecture": "amd64",
-      "sourceCommit": "f2c7ccec4737e175a3df5550f5b1bc788ed1d2c7",
-      "sourceSha256": "fd2b50733f7db588eb2008796b9ca819e50429d3b28dc6a8f9577968c255488d"
+      "sourceCommit": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+      "sourceSha256": "bab859754f1a2f0c22ebfd28442e74778ee0c1532e27023794e2e6e0cb9b52b1"
     },
     "prisma": {
       "schemaVersion": 1,
       "kind": "prisma-build-binding",
-      "schemaHash": "b8a508852cd78e97228018f16da04cc98b92cbbc34a07c5044a027d59df44f33",
+      "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
       "clientVersion": "6.19.3"
     },
     "migrationLedger": {
-      "total": 135,
-      "complete": 135,
+      "total": 136,
+      "complete": 136,
       "failed": 0
     },
     "migrationScope": "formal-empty-bootstrap-only-not-production-upgrade",
@@ -605,7 +614,7 @@
         "scope": "synthetic-http-no-carrier-or-wechat-delivery"
       },
       "payment-refund-http-transactions.json": {
-        "cases": 28,
+        "cases": 30,
         "passed": true,
         "scope": "synthetic-course-orders-not-real-provider-or-target-database"
       },
@@ -615,10 +624,10 @@
       }
     },
     "cleanup": {
-      "rebu-app-second-3d3260e92e": true,
-      "rebu-app-3d3260e92e": true,
-      "rebu-db-3d3260e92e": true,
-      "rebu-redis-3d3260e92e": true,
+      "rebu-app-second-ad4dab3fe9": true,
+      "rebu-app-ad4dab3fe9": true,
+      "rebu-db-ad4dab3fe9": true,
+      "rebu-redis-ad4dab3fe9": true,
       "networkAbsent": true
     },
     "realRedisInIsolatedImage": true,
@@ -630,7 +639,41 @@
     "newDeviceTest": false,
     "refundFinalCompletionWaitsForAfterSale": true,
     "refundFinalWriteFailureRetryRestoresOneNotification": true,
+    "orderNoticeShapeCheck": true,
+    "orderNoticeInitiallyEmpty": true,
+    "independentStationRecoveryWithoutProviderRetry": true,
+    "orderNoticeIndependentProcesses": {
+      "passed": true,
+      "notifications": 1,
+      "orderAndAmountUnchanged": true,
+      "twoIndependentProcesses": true,
+      "redisBarrierOnly": true,
+      "realChannels": false,
+      "production": false,
+      "workers": [
+        {
+          "pid": 249,
+          "inserted": 1,
+          "passed": true
+        },
+        {
+          "pid": 253,
+          "inserted": 0,
+          "passed": true
+        }
+      ]
+    },
     "historicalBackfill": false,
     "scope": "正式Dockerfile、真实隔离PG18.4与Redis、两个完整应用进程；不代表生产升级、真实供应商、手机或线上版本"
+  },
+  "runtimeEquivalence": {
+    "from": "feb4aeb5c3d9b60c790b73fe38d0e901984941f5",
+    "to": "624929155d054de9f58502107e6500311b8d5e0d",
+    "changedFiles": [
+      "apps/server/src/modules/notification/notification-response-boundary.spec.ts"
+    ],
+    "excludedByServerBuild": "**/*.spec.ts",
+    "runtimeSourceAndSchemaAndDependenciesUnchanged": true,
+    "scope": "Linux及固定包镜像严格绑定feb；624仅测试夹具变化，编译输入等价。不能把feb附件改写为624同源固定包"
   }
 }
