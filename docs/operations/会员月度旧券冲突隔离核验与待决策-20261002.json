@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-03T03:30:12.958Z",
+  "sourceCommit": "b30cd5afaedd46d9fe0ea4e942e4f742dc79da5f",
+  "equivalentAcceptedBusinessSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "schemaSha256": "e86a97016f329804b97425570d19923b172f1a9e84f2b9d1f69979948e526e6b",
+  "sourceSha256": "7ce2a08c46250f8db4204062f46fc983d7fc25a3b7aa063103cd599d35e41447",
+  "compiledSha256": "8a691ec2e4811ab8e55d0b01de4c59a97fc1fa426119f5df281f941dea7f30cf",
+  "database": "entitlement_notice_qa_old_coupon_ad21f8e1cd",
+  "realLocalPostgres": true,
+  "compiledRealService": true,
+  "attempts": 2,
+  "errors": [
+    {
+      "code": "P2002",
+      "target": [
+        "couponId",
+        "userId",
+        "status"
+      ]
+    },
+    {
+      "code": "P2002",
+      "target": [
+        "couponId",
+        "userId",
+        "status"
+      ]
+    }
+  ],
+  "defectReproduced": true,
+  "currentMonthPointsGranted": false,
+  "newCouponGranted": false,
+  "transactionRollback": true,
+  "balanceUnchanged": true,
+  "stockUnchanged": true,
+  "oldCouponPreserved": true,
+  "noNewSuccessNotice": true,
+  "production": false,
+  "realFunds": false,
+  "historicalBackfill": false,
+  "policyChanged": false,
+  "releaseReady": false,
+  "syntheticDatabaseDropped": true,
+  "prisma": {
+    "schemaVersion": 1,
+    "kind": "prisma-build-binding",
+    "schemaHash": "ad40b9587d9c42393668f3d5a2432ec0b73855504f83f0d74ee19f7f9f74965c",
+    "clientVersion": "6.19.3"
+  },
+  "scope": "真实本机PG及编译后的实际服务；缺陷反证，不是发布通过用例",
+  "evidence": [
+    {
+      "file": "artifacts/monthly-coupon-review-20261002/counterexample.json",
+      "sha256": "7b6e5a30e1c7906913a74055a907017ac32910e3f257580b3d9e65d300d32808",
+      "bytes": 1242
+    },
+    {
+      "file": "artifacts/monthly-coupon-review-20261002/reproduce-old-coupon.cjs",
+      "sha256": "5730784928bf4071ff97c3cc23a41ec5e6f74bb013d5045892a51032ebdfa909",
+      "bytes": 4589
+    },
+    {
+      "file": "artifacts/monthly-coupon-review-20261002/prisma-receipt.json",
+      "sha256": "28631887dd79c75c00858dda305bc1e59d5511e7537a507acb769b287b358f88",
+      "bytes": 172
+    },
+    {
+      "file": "artifacts/monthly-coupon-review-20261002/server-build.log",
+      "sha256": "6a844b5acad68a15e41529661f7486fa25b827732dd26c8d6f0e33f2d25954d9",
+      "bytes": 141
+    }
+  ],
+  "decisions": [
+    {
+      "id": "A",
+      "recommended": true,
+      "name": "每月独立赠券，保留旧券原有效期",
+      "design": [
+        "按用户、权益来源、年月建立赠券防重；月度赠券允许跨月同时保留",
+        "普通领券防重另保留；不能仅删除CouponRecord现有唯一约束",
+        "历史券不作废、不自动使用、不补发历史月份",
+        "使用新增迁移；验证既有版本到新版本升级、各券状态变化及并发；积分与本月赠券保持原子发放"
+      ],
+      "approved": false
+    },
+    {
+      "id": "B",
+      "recommended": false,
+      "name": "同模板旧券未用完时，本月只发积分",
+      "design": [
+        "改变每月权益承诺，必须明确业务批准",
+        "通知明确本月未发新券，不能声称券到账",
+        "用户用完旧券后是否补本月券仍需明确；不能用已发积分记录掩盖应补券"
+      ],
+      "approved": false
+    }
+  ],
+  "unsafeShortcuts": [
+    "删除旧券或改其状态以腾唯一键",
+    "捕获P2002后继续使用已经失败的PG事务",
+    "吞掉错误并伪造本月券到账",
+    "仅删除唯一约束却取消普通领券防重"
+  ],
+  "states": [
+    "代码候选完成（当前旧券冲突尚未修复）",
+    "隔离反证完成",
+    "线上状态未知",
+    "待业务决策"
+  ],
+  "productionMigration": false,
+  "realNotifications": false
+}
