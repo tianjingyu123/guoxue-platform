@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "checkedAt": "2026-10-03T06:22:54.257Z",
-  "sourceCommit": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
+  "checkedAt": "2026-10-03T07:34:29.495Z",
+  "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
   "releaseReady": false,
   "states": [
     "代码候选完成",
@@ -5371,7 +5371,7 @@
     "releaseReady": false,
     "production": false
   },
-  "migrationCount": 135,
+  "migrationCount": 136,
   "previousSourceRecord": {
     "sourceCommit": "8c8a9574074013730e4f1d400bc0738eca002e45",
     "record": "免费课程订阅持久通知与增量升级验收-20261002.json"
@@ -8741,8 +8741,8 @@
     {
       "id": "F2",
       "title": "第三方账号新绑定",
-      "current": "用户端新绑定处于预告；后端确有受保护的POST /auth/bind/wechat，不能误写为所有绑定接口都不存在。QQ、Apple绑定不据微信接口推定完成。",
-      "remaining": "核对已有微信授权与绑定入口、渠道能力、绑定冲突和账号合并边界，复用已有授权流程；逐渠道补接口与页面联调。",
+      "current": "微信三端绑定代码已补齐并隔离接收；完整CI 9120通过/621跳过、八项成功；Linux四移动目标通过，2142份源码输入逐字节一致；本机H5产物18项通过。QQ/Apple新绑定未完成。",
+      "remaining": "真实微信授权、最终签名包及同版手机、真实数据库并发解绑未验收；QQ/Apple仍需逐渠道补接口与联调；新后端完整正式镜像需要按最终源码重新绑定。",
       "businessDecision": "不能将第三方登录等同账号绑定，不能自动合并不同用户账号。",
       "done": false,
       "deferredByUser": false,
@@ -8767,7 +8767,9 @@
           "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
           "gitBlobSha256": "81f6944621e5c84ece37adcf180ae71a21ef36fe0135a09ae7f46ba4a1b25faa"
         }
-      ]
+      ],
+      "wechatCodeCandidate": true,
+      "record": "docs/operations/微信账号绑定页面与主体边界隔离验收-20261003.md"
     },
     {
       "id": "F3",
@@ -9000,5 +9002,416 @@
       "skipCountedAsPass": false,
       "production": false
     }
-  }
+  },
+  "previousBusinessSourceBeforeWechatBinding": "ecdb9dfe72edab291be92d64d4c8097ca5f8db68",
+  "wechatAccountBinding": {
+    "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+    "codeCommit": "26aa29c55ed309f154164057822eb196bd49d947",
+    "testGateRepair": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+    "local": {
+      "checkedAt": "2026-10-03T07:15:23.746Z",
+      "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+      "backendPassed": 207,
+      "backendSuites": 6,
+      "actualJwtHttpCases": 6,
+      "contractsPassed": 27,
+      "existingLoginPassed": 14,
+      "browserPassed": 18,
+      "localTypesPassed": true,
+      "mobileLintErrors": 0,
+      "mobileLintWarnings": 19,
+      "nativeAuthorization": false,
+      "realAccountWrite": false,
+      "realDatabaseTransaction": false,
+      "signedPackage": false,
+      "deployed": false,
+      "migrationCountUnchanged": 136,
+      "mainBytes": 1702864,
+      "platformOverheadEstimateBytes": 294912,
+      "reserveBytes": 99376,
+      "subpackages": [
+        {
+          "name": "pkg-paipan",
+          "bytes": 1764521
+        },
+        {
+          "name": "pkg-circle",
+          "bytes": 1147445
+        },
+        {
+          "name": "pkg-mine",
+          "bytes": 657704
+        },
+        {
+          "name": "pkg-paipan2",
+          "bytes": 580473
+        },
+        {
+          "name": "pkg-live",
+          "bytes": 566894
+        },
+        {
+          "name": "pkg-merchant",
+          "bytes": 539464
+        },
+        {
+          "name": "pkg-operator",
+          "bytes": 496813
+        },
+        {
+          "name": "pkg-classics",
+          "bytes": 406996
+        },
+        {
+          "name": "pkg-institute",
+          "bytes": 281696
+        },
+        {
+          "name": "pkg-offline",
+          "bytes": 276850
+        },
+        {
+          "name": "pkg-course",
+          "bytes": 272353
+        },
+        {
+          "name": "pkg-agent",
+          "bytes": 250898
+        },
+        {
+          "name": "pkg-competition",
+          "bytes": 228961
+        },
+        {
+          "name": "pkg-shop",
+          "bytes": 213154
+        },
+        {
+          "name": "pkg-workspace",
+          "bytes": 210027
+        },
+        {
+          "name": "pkg-video",
+          "bytes": 189113
+        },
+        {
+          "name": "pkg-paipan3",
+          "bytes": 178884
+        },
+        {
+          "name": "pkg-im",
+          "bytes": 165968
+        },
+        {
+          "name": "pkg-account",
+          "bytes": 152674
+        },
+        {
+          "name": "pkg-order",
+          "bytes": 142973
+        },
+        {
+          "name": "pkg-mall",
+          "bytes": 116024
+        },
+        {
+          "name": "pkg-creator",
+          "bytes": 83244
+        },
+        {
+          "name": "pkg-bounty",
+          "bytes": 79751
+        },
+        {
+          "name": "pkg-auth",
+          "bytes": 71140
+        },
+        {
+          "name": "pkg-settings",
+          "bytes": 70501
+        },
+        {
+          "name": "pkg-search",
+          "bytes": 56877
+        },
+        {
+          "name": "pkg-report",
+          "bytes": 55003
+        },
+        {
+          "name": "pkg-profile",
+          "bytes": 46762
+        },
+        {
+          "name": "pkg-common",
+          "bytes": 42252
+        },
+        {
+          "name": "pkg-notices",
+          "bytes": 34900
+        },
+        {
+          "name": "pkg-solar-term",
+          "bytes": 19199
+        },
+        {
+          "name": "pkg-help",
+          "bytes": 15187
+        },
+        {
+          "name": "pkg-discover",
+          "bytes": 7752
+        }
+      ],
+      "publicBuildConfig": {
+        "VITE_API_URL": "https://api.rebugx.cn",
+        "VITE_PUBLIC_H5_URL": "https://gx.yrydai.com/h5/",
+        "VITE_PUBLIC_ASSET_ORIGIN": "https://static.rebugx.cn"
+      },
+      "localAppBuildExactFinalInputVerified": false,
+      "evidence": [
+        {
+          "file": "binding-page-contract.json",
+          "bytes": 3005,
+          "sha256": "6a42e347c78fe4060d3d4de68ada5a2e7019703b15d38aae92034839a22cd4b5"
+        },
+        {
+          "file": "binding-prior-login-regression.json",
+          "bytes": 62,
+          "sha256": "d372083b7f742f70a4afbbe31b7c651a7f42dc18ec3c540476d894e1261477d0"
+        },
+        {
+          "file": "binding-backend-final.log",
+          "bytes": 2783,
+          "sha256": "09f5d7783e493bc293c8104aae6440e34204c1910e3feafee162594095c5a922"
+        },
+        {
+          "file": "binding-prisma-generate.log",
+          "bytes": 490,
+          "sha256": "fb801580e06a1ae3753dcf3f0923ec6a53b27124e6cb00ccc62074f9d2118f17"
+        },
+        {
+          "file": "binding-server-types-final.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "file": "binding-mobile-types-final.log",
+          "bytes": 155,
+          "sha256": "99bdd9c86490f797989178369f41fa63af2086c1984036071c2d7d3323ba7d76"
+        },
+        {
+          "file": "binding-mobile-eslint.json",
+          "bytes": 127403,
+          "sha256": "b78067d7aefc473ebf324bddb6de9f3ece33ea687ab245a527656bde8661e65b"
+        },
+        {
+          "file": "binding-server-lint.log",
+          "bytes": 271,
+          "sha256": "4bdff19bee8d357db2ec67d993d6dc73b036ba19d5ad30400b28365b1c665be1"
+        },
+        {
+          "file": "binding-h5-final-source.log",
+          "bytes": 68255,
+          "sha256": "27998cd8b1af52db8ae6a2631131f08f63db9550e6b1e7569d64560553770f41"
+        },
+        {
+          "file": "binding-mp-final-source.log",
+          "bytes": 69056,
+          "sha256": "1364b902f9a898a68e0510d08bb6e074c7c0035b81a5ece3a7879daaf7dadeb4"
+        },
+        {
+          "file": "binding-browser-accepted.log",
+          "bytes": 169,
+          "sha256": "6770be79979fb0f221e7b3b59148c9bae7979863c017fc214d4e44b752d1802d"
+        },
+        {
+          "file": "binding-browser/result.json",
+          "bytes": 949,
+          "sha256": "1333022778b7299b58d97b6c41187fa1657bed2b190985772b478943d41e5a97"
+        },
+        {
+          "file": "binding-browser/binding-320.png",
+          "bytes": 39448,
+          "sha256": "c61edbbdbad5e07980ea9df01ce1eb8ffab413be13e515d5df9001a489612061"
+        },
+        {
+          "file": "binding-browser/binding-375.png",
+          "bytes": 43479,
+          "sha256": "ab0e1baeaa0da801aee6ee57a092ab50b75a2c46e293373861330d19193665f7"
+        },
+        {
+          "file": "binding-browser/binding-390.png",
+          "bytes": 48045,
+          "sha256": "b285a3e99e173570643d64ff009dc17743cbfc87d10fb7d6983d6b4c640efe17"
+        },
+        {
+          "file": "binding-browser/binding-result.png",
+          "bytes": 50149,
+          "sha256": "835e8d313e913470914af09f11d8117862954fe95d7380959d36e8ebfaa79807"
+        }
+      ]
+    },
+    "localRuntimeInputEquivalence": [
+      {
+        "path": "apps/mobile/src",
+        "gitTree": "2bc0676e382e51829d4b5f2cb74ccaa9f7e7ea6c",
+        "originalSource": "26aa29c55ed309f154164057822eb196bd49d947"
+      },
+      {
+        "path": "apps/mobile/static",
+        "gitTree": "ca092771b1da2a30f6612f1c8511e68f3c065df3",
+        "originalSource": "26aa29c55ed309f154164057822eb196bd49d947"
+      },
+      {
+        "path": "apps/server/src",
+        "gitTree": "3a649af8987761402a9814c563fe388f0b025f9b",
+        "originalSource": "26aa29c55ed309f154164057822eb196bd49d947"
+      }
+    ],
+    "states": [
+      "代码候选完成",
+      "隔离验证完成（所列范围）",
+      "线上状态未知",
+      "待发布决策"
+    ],
+    "record": "docs/operations/微信账号绑定页面与主体边界隔离验收-20261003.md",
+    "receivedIntoStaging": true,
+    "realAuthorization": false,
+    "productionWrite": false,
+    "wholeLinuxCiVerified": true,
+    "linuxFourTargetsVerified": true,
+    "finalPackageVerified": false,
+    "qqAndAppleBindingComplete": false,
+    "concurrentUnbindingRealDatabaseVerified": false,
+    "officialVerification": {
+      "checkedAt": "2026-10-03T07:34:29.495Z",
+      "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+      "ci": {
+        "runId": 37105684344,
+        "url": "https://github.com/tianjingyu123/guoxue-platform/actions/runs/37105684344",
+        "conclusion": "success",
+        "jobsPassed": 8,
+        "passed": 9120,
+        "defaultSkipped": 621,
+        "skipCountedAsPass": false,
+        "shards": [
+          {
+            "id": 111153929667,
+            "name": "单元测试 (3/3)",
+            "passed": 3097,
+            "skipped": 164,
+            "logSha256": "dbf4871d0eed4f8cfa37d70d091306027917957243c69eb4fc7ef7758933082e"
+          },
+          {
+            "id": 111153929672,
+            "name": "单元测试 (1/3)",
+            "passed": 2939,
+            "skipped": 241,
+            "logSha256": "5943e0e1b1ac7bebfd4de6f27e59317972e1ac02c9936a202cdc43b4ecf73a3c"
+          },
+          {
+            "id": 111153929684,
+            "name": "单元测试 (2/3)",
+            "passed": 3084,
+            "skipped": 216,
+            "logSha256": "d5484fe60fccdc586a62ec195bcdb209a4e2cbfc88b8453666282485637e05b8"
+          }
+        ],
+        "artifactId": 11267193553,
+        "artifactDigest": "sha256:c3b2c2844a764624d8a82485e6fbe216953f842cedff8b5537aee318be8d86bc",
+        "digestVerified": true
+      },
+      "mobile": {
+        "checkedAt": "2026-10-03T07:24:06.379Z",
+        "sourceCommit": "fd488b9bfd820f839808a4dc3df2e810ca12813f",
+        "toolCommit": "350a7b69e22d53a3db94d419b856692083961e21",
+        "runId": 37105763937,
+        "artifactId": 11267593857,
+        "artifactDigest": "sha256:51d158dde4291fe19998d949478beb0ff8f4dd9c60eb9608210a71b202a24662",
+        "officialConclusion": "success",
+        "sourceInputsVerified": 2142,
+        "priorLoginContracts": 14,
+        "bindingContracts": 27,
+        "lintErrors": 0,
+        "lintWarnings": 188,
+        "targets": [
+          {
+            "target": "h5",
+            "files": 1181,
+            "bytes": 11146631
+          },
+          {
+            "target": "mp-weixin",
+            "files": 2760,
+            "bytes": 11125707
+          },
+          {
+            "target": "app",
+            "files": 491,
+            "bytes": 12862104
+          },
+          {
+            "target": "app-harmony",
+            "files": 490,
+            "bytes": 12533812
+          }
+        ],
+        "mainBytes": 1702808,
+        "platformOverheadEstimateBytes": 294912,
+        "reserveBytes": 99432,
+        "subpackages": {
+          "pkg-account": 152674,
+          "pkg-agent": 250898,
+          "pkg-auth": 71140,
+          "pkg-bounty": 79751,
+          "pkg-circle": 1147445,
+          "pkg-classics": 406996,
+          "pkg-common": 42252,
+          "pkg-competition": 228961,
+          "pkg-course": 272353,
+          "pkg-creator": 83244,
+          "pkg-discover": 7752,
+          "pkg-help": 15187,
+          "pkg-im": 165968,
+          "pkg-institute": 281696,
+          "pkg-live": 566894,
+          "pkg-mall": 116024,
+          "pkg-merchant": 539464,
+          "pkg-mine": 657704,
+          "pkg-notices": 34900,
+          "pkg-offline": 276850,
+          "pkg-operator": 496813,
+          "pkg-order": 142973,
+          "pkg-paipan": 1764521,
+          "pkg-paipan2": 580473,
+          "pkg-paipan3": 178884,
+          "pkg-profile": 46762,
+          "pkg-report": 55003,
+          "pkg-search": 56877,
+          "pkg-settings": 70501,
+          "pkg-shop": 213154,
+          "pkg-solar-term": 19199,
+          "pkg-video": 189113,
+          "pkg-workspace": 210027
+        },
+        "downloadedCompiledProducts": false,
+        "scope": "官方执行四目标实际构建与产物检查；本机下载并验真源码、日志、产品清单，未下载全部编译产品逐字节复验",
+        "realAuthorization": false,
+        "signedNativePackage": false,
+        "officialMiniUpload": false,
+        "production": false
+      },
+      "receivedIntoStaging": true,
+      "stagingBranch": "release/launch-staging-20260927",
+      "priorStaging": "e722d05a2e65e5bb20d5d3429dca9c10b50fed2a",
+      "reception": "ff-only；两个独立提交，无冲突、无覆盖",
+      "production": false,
+      "realAuthorization": false,
+      "signedNativePackage": false,
+      "fullFormalDockerVerified": false
+    }
+  },
+  "currentSoftwareCoverageAppliesToNewBackend": false,
+  "currentSoftwareCoverageEvidenceSource": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e"
 }
