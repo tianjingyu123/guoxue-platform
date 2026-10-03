@@ -1,0 +1,32 @@
+{
+  "sourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+  "workingTreeDirty": false,
+  "applicationSynthetic": true,
+  "production": false,
+  "passed": 7,
+  "failed": 0,
+  "checks": [
+    "本地独立管理员登录",
+    "已发布公告及宫格可见",
+    "课程宫格读取本应用课程及课程文字组件",
+    "合成免费课程订阅、正文、进度100%",
+    "固定订单入口保留且显示零价订单",
+    "390像素视口无页面横向溢出",
+    "宫格圈子入口读取本客户圈子"
+  ],
+  "mobileViewport": 390,
+  "mobileDocumentWidth": 375,
+  "buildReceipt": "C:\\Users\\Administrator\\.codex\\worktrees\\tenant-isolation-pilot-20261002\\gx-deploy-91\\pilots\\managed-tenancy\\.runtime\\managed-build\\h5-NQWZhr\\receipt.json",
+  "screenshots": [
+    "desktop-layout.jpg",
+    "course-layout.jpg",
+    "fixed-orders.jpg",
+    "mobile-layout.jpg",
+    "circle-layout.jpg"
+  ],
+  "limits": [
+    "只使用本任务本机合成数据及免费课程，没有真实付款",
+    "未运行品牌原平台外壳SDK，不表示小程序/App真机验收",
+    "窄屏导航本身横向滚动；页面正文无横向溢出"
+  ]
+}

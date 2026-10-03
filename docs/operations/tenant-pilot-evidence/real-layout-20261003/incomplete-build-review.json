@@ -1,0 +1,14 @@
+{
+  "production": false,
+  "initialSourceHead": "2771399e6613e8dad4bfa5f28189ee9fef7fcc6e",
+  "initialCompilerExit": 0,
+  "initialOutputFiles": 23,
+  "result": "FAILED_INCOMPLETE",
+  "reason": "隔离输入main.ts与Vite根目录未匹配，仅生成运行外壳；缺少品牌页面及路由，不能作为通过证据",
+  "initialReceiptSha256": "ee7872dcfa98cc4139b3e55f8ccdf6e146a04d97214c52474d86c3bbe3ca7d27",
+  "initialOutputHashesMatch": true,
+  "correctedSourceHead": "6bb0b15608114996db5eac1a64945a98290494c4",
+  "correctedOutputFiles": 1182,
+  "correctedBrandPageCompiled": true,
+  "correctedBrandRouteCompiled": true
+}

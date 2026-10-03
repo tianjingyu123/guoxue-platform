@@ -1,0 +1,17 @@
+﻿{
+    "production":  false,
+    "checkedAt":  "2026-10-03T05:12:00.8303224Z",
+    "previewSession":  68886,
+    "previewExitCode":  0,
+    "buildSession":  96675,
+    "buildExitCode":  0,
+    "ownedLeaseAndPreviewProcesses":  0,
+    "previewPort":  55560,
+    "previewListeners":  0,
+    "postgresRetained":  true,
+    "commandLinesPrinted":  false,
+    "limits":  [
+                   "本机进程按本任务绝对路径及lease/preview入口筛选；会话退出码来自执行工具返回",
+                   "只检查本任务预览端口，不停止PostgreSQL或其他窗口进程"
+               ]
+}
