@@ -7,6 +7,8 @@ WORKDIR /app
 
 # 依赖缓存层
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY .pnpmfile.cjs ./
+COPY patches/ ./patches/
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
