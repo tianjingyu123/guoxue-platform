@@ -536,13 +536,13 @@ try {
   check('compiled-practitioner-concurrent-payment-refund-durable-notice',proReport);
   if(process.env.REBU_ISOLATED_BOUNDED_BURST==='1'){
     // 仅新验证分支启用；资源上限与测试规模显式留痕，不更改业务限流。
-    for(const name of [app,secondApp]) docker(['update','--cpus','1','--memory','1g',name]);
-    docker(['update','--cpus','1','--memory','1g',database]);
-    docker(['update','--cpus','0.25','--memory','256m',redis]);
+    for(const name of [app,secondApp]) docker(['update','--cpus','1','--memory','1g','--memory-swap','1g',name]);
+    docker(['update','--cpus','1','--memory','1g','--memory-swap','1g',database]);
+    docker(['update','--cpus','0.25','--memory','256m','--memory-swap','256m',redis]);
     const burstCode=readFileSync(new URL('./verify-isolated-authenticated-burst.cjs',import.meta.url),'utf8');
     const burstReport=parseTestResult(docker(['exec','-e','ISOLATED_SECOND_APP=http://'+secondApp+':3000',app,'node','-e',burstCode]));
     assert(burstReport?.passed);save('authenticated-burst.json',burstReport);
-    const limits=[app,secondApp,database,redis].map(name=>({name,...JSON.parse(docker(['inspect','--format','{"memoryBytes":{{.HostConfig.Memory}},"nanoCpus":{{.HostConfig.NanoCpus}}}',name]))}));
+    const limits=[app,secondApp,database,redis].map(name=>({name,...JSON.parse(docker(['inspect','--format','{"memoryBytes":{{.HostConfig.Memory}},"memorySwapBytes":{{.HostConfig.MemorySwap}},"nanoCpus":{{.HostConfig.NanoCpus}}}',name]))}));
     save('authenticated-burst-resource-limits.json',{limits,hostCpuCount:os.cpus().length,hostMemoryBytes:os.totalmem(),production:false});
     check('bounded-authenticated-read-concurrency-with-two-apps-and-default-permissions',burstReport);
   }
@@ -575,5 +575,4 @@ try {
   save("runtime-verification.json", report);
   console.log(JSON.stringify({ passed: report.passed, completedChecks: report.checks.map(item => item.name) }));
 }
-
 
