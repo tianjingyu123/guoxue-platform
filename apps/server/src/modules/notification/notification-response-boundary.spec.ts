@@ -59,9 +59,11 @@ describe("关键业务通知持久化与可选推送的响应边界", () => {
     const delivery = deferred<unknown>();
     f.push.sendMiniSubscribeMsg.mockReturnValueOnce(delivery.promise);
     let result: unknown;
-    const task = f.service.sendOnce("synthetic-user", "ORDER_PAID:synthetic-order", {
+    const pushDto = {
       ...dto, pushData: { miniTemplateId: "synthetic-template" },
-    }).then(value => { result = value; });
+    };
+    const task = f.service.sendOnce("synthetic-user", "ORDER_PAID:synthetic-order", pushDto)
+      .then(value => { result = value; });
     try {
       await nextTurn();
       expect(f.push.sendMiniSubscribeMsg).toHaveBeenCalledTimes(1);
