@@ -1,0 +1,3018 @@
+{
+  "sourceCommit": "cc78fbe4f7cc4d7e7489a877b1f2c6252f1b396e",
+  "defaultSkipped": 621,
+  "hardwareDeferred": 29,
+  "expectedSoftware": 592,
+  "softwareFiles": [
+    "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+    "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+    "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+    "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+    "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+    "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+    "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+    "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+    "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+    "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+    "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+    "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+    "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+    "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+    "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+    "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+    "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+    "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+    "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+    "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+    "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+    "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+    "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+    "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+    "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+    "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+    "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+    "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+    "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+    "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+    "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+    "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+    "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+    "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+    "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+    "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+    "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+    "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+    "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+    "apps/server/src/modules/shop/after-sale-access.local-db.http.spec.ts",
+    "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+    "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+    "apps/server/src/modules/notification/notification-access.local-db.http.spec.ts",
+    "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+    "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+    "apps/server/src/modules/course/course-review-status.local-db.http.spec.ts",
+    "apps/server/src/modules/shop/shop-refund-notification.local-db.spec.ts",
+    "apps/server/src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts"
+  ],
+  "rows": [
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 真实扣款、分成及事实同事务提交，恢复准确留言和分类，重复不扣款或重复通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 真实作者入账失败回滚扣款、开户和事实，不产生成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 真实业务事实写入失败回滚整笔资金，不是提交后通知故障",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 真实Notification写入失败不影响已提交余额，下一实例补一条",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 子进程在资金提交后立即退出，下次恢复不依赖原进程或Redis认领",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 两个独立进程同时恢复，数据库唯一键仅建一条",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 两个独立进程重试同请求仍只扣一笔并保存一份事实",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 零分成仅扣一币、不新建作者账户，仍恢复零分成通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 missing关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 duplicate关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 author关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 amount关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 scene关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 circle关联损坏只拒绝恢复，不自动补钱或成功通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 旧流水不历史补发；显式重试旧请求仍不新建事实或重新扣款",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 未提交打赏不可见，所在事务失败时事实、资金及通知共同回滚",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 作者收益行正在修改时跳过，错误修改提交后也不通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 已通知事件不占批次额度，101笔按100加1处理",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 JWT付款入口在Redis通知故障时成功，跨用户通知及私密帖子访问拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 JWT真实资金入口作者入账失败时不留下成功通知或待办",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 HIDDEN帖子不得产生新的扣款、分成或通知事实",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 DRAFT帖子不得产生新的扣款、分成或通知事实",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 AUDITING帖子不得产生新的扣款、分成或通知事实",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后hidden变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后deleted变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后author变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后member变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后expired变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 预检后circle变更已提交，真实资金事务重新核验并拒绝",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 已过期但清理任务尚未移出的成员不能打赏",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 标题改变采用事务内最新标题，不把旧内容写入实际账本",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 资金事务先锁post时变更等待，提交后才生效，不拆开分账",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 资金事务先锁member时变更等待，提交后才生效，不拆开分账",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 资金事务先锁circle时变更等待，提交后才生效，不拆开分账",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 付款提交后deleted变化，可信成交快照仍通知原作者且不留下无效帖子跳转",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 付款提交后hidden变化，可信成交快照仍通知原作者且不留下无效帖子跳转",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 付款提交后author变化，可信成交快照仍通知原作者且不留下无效帖子跳转",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 付款提交后circle变化，可信成交快照仍通知原作者且不留下无效帖子跳转",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 成交快照sourcePostId与既成流水不一致时不恢复，不只凭收益存在",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 成交快照sourceCircleId与既成流水不一致时不恢复，不只凭收益存在",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 成交快照sourceRecipientId与既成流水不一致时不恢复，不只凭收益存在",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 增量字段全空的旧事实仍核当前帖子，删除后不冒充可信新快照",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 partial快照形态被数据库拒绝，旧事实不隐式变成新凭据",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 unknown-version快照形态被数据库拒绝，旧事实不隐式变成新凭据",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 资金提交后帖子删除，即时通知不影响余额且不提供失效跳转",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-post-reward-notification.postgres.spec.ts",
+      "name": "圈帖打赏 PostgreSQL 持久通知与真实JWT入口 提交后的可选帖子读取失败不改变成功资金结果，持久任务仍补通知",
+      "sourceSha256": "783edb43d2f77cd175f833cb3c3e2b04129ec01b4d040a7e8afb8480dc7dfdb4"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 商业 API 未配置：返回暂未开放，不建会话、不预留额度",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 同一 clientRequestId 并发开始 5 次：只建 1 个会话、只调 1 次供应商、只预留 1 次",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 不同请求号并发开始同一账户：只有一个能预留成功，另一个被拒",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 并发结束两次：只向供应商请求一次；重复回调只扣一次；时长按供应商用量",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 另一个事件号带不同时长的迟到回调：不重复扣减，标记待对账",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 供应商不支持用量回调时：有客户端估算记 estimated；没有记 unknown 且不扣、不填 0",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 签发被拒：会话失败、预留释放、用量确定为 none；签发超时：用量记 unknown 待对账",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 他人的会话：查、结束、评价一律 404（不暴露存在性）",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 超时清理：超过上限的会话被结束；卡在 reserved 的被释放",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 1 分钟无新输入自动结束（决策人 09-21）：服务端在客户端之后 15 秒兜底；新输入刷新计时",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 空闲秒数后台可调（限 15–600）；一直有输入的会话到时长上限按 max_duration 结束；他人不能替我刷新",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 客户端到点自动挂断：结束原因记 idle_timeout",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 切换供应商后，旧供应商遗留的会话不发给新供应商，按用量未知收尾",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 免费模式（chargeUsers=false，默认）：不扣额度，单次时长受免费上限约束",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 硬件设备状态机（模拟设备契约，不等于真实硬件验收） 序列号不明文落库；绑定码一次性，并发绑定只有一个成功",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 硬件设备状态机（模拟设备契约，不等于真实硬件验收） 转赠后新主人看不到旧主人的设备历史；旧主人失去设备访问",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-session.integration.spec.ts",
+      "name": "小卜语音会话编排 · 真实库 + 模拟供应商 硬件设备状态机（模拟设备契约，不等于真实硬件验收） 停用后不能发起会话、不能解绑；恢复后回到原状态",
+      "sourceSha256": "dc71498d7c38d9d29f7b79744a7b92d8e12e8926aa735314c6cce1a6b160ca78"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 付款同事务到账，重投不续费或重复发积分，分钟任务只补一条通知",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 两笔不同订单并发first，两期不丢且积分本月仅一次",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 两笔不同订单并发renew，两期不丢且积分本月仅一次",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 同一订单并发成功回调，仅一个购买记录及一期",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 真实EntitlementLedger失败，付款和全部权益回滚，无成功通知，重投可恢复",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 真实PointsRecord失败，付款和全部权益回滚，无成功通知，重投可恢复",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 退款完成排除未投递到账，重复退款不重复冲正或通知",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 冲正事务失败不提交退款、购买退款标记或退款成功通知",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 退款与另一单续费并发，保留剩余一期且无死锁",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 两单并发退款不会互相复活会员",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 保留LIFETIME既有套餐语义，允许真实到账通知",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 保留YEARLY_AUTO既有套餐语义，允许真实到账通知",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 已有终身会员付款低档仍为终身，不丢新付款事实",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除legacy，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除wrong-user，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除wrong-type，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除not-paid，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-refunded，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-missing，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-wrong-user，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-amount，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-plan，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除purchase-expiry，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除inactive-user，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除expired-user，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除invalid-lifetime，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除expired-ledger，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 排除wrong-key，不凭人工流水报告到账",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 支付通知落库失败不阻断真实付款，权益通知独立恢复",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 权益通知故障保留持久待办，恢复后一次补发",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 退款通知故障不阻断已提交退款，重投恢复一条",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 本人可查看到账通知与权益，其他用户不能读详情或改变已读状态",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/shop/school-member-entitlement.postgres.spec.ts",
+      "name": "书院开通续费退款与持久到账真实PG 两个独立进程补同一到账事实，数据库唯一键只建一条",
+      "sourceSha256": "65eae0a4ca385002f050ce741ef924091bc9ade0774934a7b2892627fe63f254"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实管理员入口提交后换一个任务实例补发；重试发放与双实例处理只生成一条",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 权益事务失败不会留下持久事件或成功通知",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 UTC 不改变生效判断或通知时间",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 Asia/Shanghai 不改变生效判断或通知时间",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 数据库会话时区 America/Los_Angeles 不改变生效判断或通知时间",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 两个独立 Node 进程同时重放同一个持久事件，最终仅创建一条通知",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 通知数据库写入失败不回滚已到账权益；下次任务能补发",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 不补历史、订单、迁移、调整、零数量、未生效、已过期或已冲正记录；无限权益正常通知",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 已完成记录超过一批后不饿死新待办：100 + 5，之后为零",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实 JWT 和角色守卫拒绝普通用户发放；通知与权益点击接口均只读取本人数据",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实会员授予 HTTP：状态、购买记录与标记同事务提交，重启和并发只通知一次",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 真实数据库拒绝会员流水时，购买记录和用户会员状态一起回滚，不发送成功通知",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 会员通知 INSERT 失败不影响会员已生效；故障释放后能恢复发送",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 只有流水或错误归属的购买记录，不能冒充已生效会员；从业会员继续排除",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 授予已被新等级覆盖、被撤销或已过期，不再发送陈旧成功通知",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 终身会员 NULL 到期和三种数据库时区均匹配，已有通知不重建",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/notification/entitlement-notification.postgres.spec.ts",
+      "name": "权益到账通知 PostgreSQL 与真实 JWT HTTP 会员授予守卫及参数拒绝：普通用户、NONE、非正整数均不修改会员",
+      "sourceSha256": "8fed7051632149fc7f2f597a7468c4defba26fc99081258c77a00820794011b1"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 成功回调同事务开通，重投不延长；新任务只补一条权益到账",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 不同订单并发first，两笔入账与两个月均不丢",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 不同订单并发renew，两笔入账与两个月均不丢",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 真实权益流水失败，订单、profile与到账通知均回滚，重试正常",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 退款成功前未投递的旧权益不报到账，重复退款只冲正一次",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 真实退款冲正失败不提交退款或成功通知，恢复后可重试",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 一单退款与另一单续费并发无死锁，按剩余订单重建",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除legacy来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除wrong-user来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除wrong-type来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除not-paid来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除inactive-profile来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 排除expired来源，不因存在流水就报告成功",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 权益通知数据库故障不阻断已入账的支付，新任务恢复不重复",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 同一订单并发回调，数据库CAS只开通一次并建立一条支付通知",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 过期续费从当下起算且保留首次开通日",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 两笔已支付订单并发退款，最终无从业权益，不互相复活",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 退款通知落库失败不阻断已提交退款，重投补一条",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/shop/practitioner-entitlement.postgres.spec.ts",
+      "name": "从业开通续费退款与权益通知真实PG 两个独立进程争从业新到账事实，数据库唯一键只允许一条通知",
+      "sourceSha256": "173b420dd0b05165426c4b95b5eae26ceebeb585a0f5600305f42b9b73969165"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 真实结案入口先落状态再建一条站内通知，回复与内部信息不进入通知",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 通知 INSERT 实际失败不回滚结案，新实例恢复后只补一条",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 结案后未执行即时发送也有持久待办，新任务无需重做结案",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 结案 UPDATE 实际失败不留下事件或成功通知",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 结案与通知所在事务回滚，不留下成功通知或待办",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 两个独立 Node 进程竞争真实待办，仅一条通知",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 结案提交后进程实际退出，新进程仍能识别待办",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 同一旧快照的两个结案请求，CAS 仅允许一个写入与通知",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 结案后的行锁阻挡即时通知，释放后分钟任务补发且不重复",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 回退正在持锁时不发送过时结案，重新结案建立新事件",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 已通知后回退再结案，相同回复也不复用原事件键",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 状态回到同名但版本已变更时，旧快照不能覆盖新的处理结果",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 历史 V1、内部备注、非工单和损坏标记不补发",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 已完成记录不占满批次，101 个结案分两次补齐",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 会话时区 UTC 不改变通知时间与事件键",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 会话时区 Asia/Shanghai 不改变通知时间与事件键",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 会话时区 America/Los_Angeles 不改变通知时间与事件键",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 真实 JWT HTTP 权限链：客服结案，本人读取，跨用户与未登录拒绝",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/user/feedback-notification.postgres.spec.ts",
+      "name": "工单持久补发 PostgreSQL 与真实 JWT HTTP 真实 HTTP 结案在通知库故障时仍成功，恢复后补发；参数错误不能结案",
+      "sourceSha256": "3483efd19bb556c4b8a9cb2707b95809c37a49a851be7ced6a1b451feadcf2d8"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 new：实际成员变更、订单认领和缓存事实一次提交；同单不重复",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 expired：实际成员变更、订单认领和缓存事实一次提交；同单不重复",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 renew：实际成员变更、订单认领和缓存事实一次提交；同单不重复",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 new：缓存事实写入失败，订单、成员/期限和人数全部回滚",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 expired：缓存事实写入失败，订单、成员/期限和人数全部回滚",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 renew：缓存事实写入失败，订单、成员/期限和人数全部回滚",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 REFUNDED订单不发权益、不造缓存成功事实",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 CANCELLED订单不发权益、不造缓存成功事实",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 PENDING订单不发权益、不造缓存成功事实",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 active待人工保持订单和缓存事实不变",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 renewMissing待人工保持订单和缓存事实不变",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 inactive待人工保持订单和缓存事实不变",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 两笔续费并发各顺延一次，并分别保留缓存待办",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 真实回调事务成功后Redis故障仍回成功；同单重投不重复履约",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 真实付款入口中缓存事实失败：PENDING状态、权益、待办一起回滚，不能发送成功通知",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 客户端join确认提交后缓存故障仍成功，完成订单重试恢复原待办",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 客户端renew确认提交后缓存故障仍成功，完成订单重试恢复原待办",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 单笔和批量补偿入口共用实际履约待办，Redis故障不误报履约失败",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 人工确认入口实际事务也产生待办，Redis故障不阻断已确认付款",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 人工确认的缓存事实失败：付款状态、权益和成功通知整体不产生",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 缓存与通知同时故障仍保留已提交付款，通知幂等键不变",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 客户端确认拒绝跨用户订单，不能创建权益和缓存事实",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/shop/circle-paid-cache.postgres.spec.ts",
+      "name": "付费圈子实际履约与持久缓存事实 履约提交后进程中断，待办保留供现有分钟恢复任务处理",
+      "sourceSha256": "aaf927cb3bc58951ae68e7c7d8d18f7aa682486a56c2821b8f28453e526a0eff"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 ADMIN角色变更提交后Redis故障仍成功，恢复后才确认",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 PARTNER角色变更提交后Redis故障仍成功，恢复后才确认",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 VOLUNTEER角色变更提交后Redis故障仍成功，恢复后才确认",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 GUEST角色变更提交后Redis故障仍成功，恢复后才确认",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 普通角色缓存事实失败，角色和人数不改变",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 转让双方角色、ownerId和两方待办原子提交；旧圈主立刻失去原权限",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 转让第二方缓存事实失败，第一方待办和全部角色/ownerId一起回滚",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 不能直接降当前圈主，平台旁路=false",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 不能直接降当前圈主，平台旁路=true",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 平台管理员可转让；旧圈主成员缺失的原容错保留且不改人数",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 相同角色或相同圈主幂等，无新待办或重复清理",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 两次旧圈主转让并发只有一个成功，不留下多个OWNER",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 目标退圈重入：旧ADMIN请求不能更新新成员行",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 目标退圈重入：旧OWNER请求不能更新新成员行",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 读取后圈主改变：旧圈主普通角色写请求必须失败",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 目标角色并发变化：旧请求不能覆盖较新的角色",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 普通成员无圈主权限；无效role拒绝且不写资金和缓存",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 管理代加ADMIN初始角色、成员人数和缓存待办一起提交，Redis故障不半成功",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 管理代加角色待办失败，成员和人数完全回滚",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 管理代加同用户并发只建一个成员，只加一人数与一待办",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 转让后两方缓存失败，分钟恢复可分别确认，恢复不重复转让",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 读取后旧圈主成员重建，旧转让不能降级新成员行",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 目标只有OWNER角色却不是实际圈主，拒绝把不一致状态当作正常转让",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-role-cache.postgres.spec.ts",
+      "name": "成员角色和圈主转让真实PG原子性 角色请求的用户不属于指定圈子，不能凭另一圈成员行写入",
+      "sourceSha256": "bf947673fa96b026e95664e7d1720c4a0b831b6cac8b7c47f103b1ff3b8723f5"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 WARNING仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 MUTE仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 REMOVE仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 LIFTED仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 APPEAL仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 APPROVED仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 REJECTED仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 EXPIRED仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 OVERDUE仅随实际处理保存快照，恢复分类目标正确且重复不建通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 WARNING事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 MUTE事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 REMOVE事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 LIFTED事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 APPEAL事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 APPROVED事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 REJECTED事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 EXPIRED事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 OVERDUE事实INSERT失败时业务回滚且绝不生成成功通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 真实通知INSERT失败不回滚已经提交的审核，恢复成功只生成一次",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 自动阶梯禁言与警告各有独立事实，不操作资金",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 同一帖子再次进入待审形成新的裁决事件，不被永久postId键吞掉",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 旧待审请求遇到重新提交的新版本不得审核新正文",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 两次并发解除只有一个成功，原ACTIVE状态不被已完成裁决覆盖",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 权限校验后圈主已转让，旧圈主不得解除",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 普通成员无权解除或审核，跨圈目标拒绝；不产生事实",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 迟到恢复保留当时快照和日期，不追随当前改名、撤销或帖子修改",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 收件人已注销且旧治理记录仍保留时，状态清理完成而不伪造用户或通知",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 真实站内通知详情只允许收件人，目标治理记录不跨用户泄露",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 超过一批的通知能够继续恢复，已完成行不堵塞队首",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-notice.postgres.spec.ts",
+      "name": "治理九入口的事实事务、恢复与权限真实PG验收 账户停用或圈子删除不发送，恢复可用后仍能消费保存的快照",
+      "sourceSha256": "2be12b89ec833abae9995c299b61fc36dc56db7a0f756028b8652e5f910c677b"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 带分类通知首次INSERT即携带圈子字段，实际JWT列表本人可见他人不可见",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 分类写入失败时不留下无分类通知，sendOnce释放认领后可完整重试",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 sendOnce重投由数据库唯一键保留首个事件分类和圈子",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 无键批量通知不误标同用户同目标的其他未分类通知",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 不同圈子同用户同目标并发批量不会串分类",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 带事件键批量失败全批不入库，修复后重投一次且不改首个分类",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 普通批量收件人不存在时整次INSERT失败而不遗留部分通知",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 不带分类或运行时非法分类保持非圈内通知，不采用单独circleId",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 实际支付退款服务使用真实通知：通知INSERT失败不回滚资金权益，重投仅一份通知",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-classification.postgres.spec.ts",
+      "name": "通知分类同次持久化与真实JWT筛选 实际权益事务失败时真实通知服务不会生成支付或退款成功通知",
+      "sourceSha256": "52ff5e6dabb6a380c067d8b18283dc176da8836498490dd1ee58a9e47c4ee5d2"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 能力探测公开可查，且不暴露供应商名与运营说明",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 未登录 401；缺请求号/非法场景/硬件场景走通用入口 400",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 暂未开放：201 + available=false，库里不留会话",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 模拟供应商：开始 → 本人可查 → 他人 404 → 本人结束 → 回调结算；响应标注 isMock",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 回调：签名错 401；未启用的供应商 404；无需登录但不能伪造",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 设备：普通用户不能进后台；客服只读；运营可登记；未激活设备不可通话",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-http.integration.spec.ts",
+      "name": "小卜语音 HTTP 层契约 运营后台：客服能看会话与异常（脱敏），不能发放；财务不能发放；运营发放幂等",
+      "sourceSha256": "221cd9defcb824ddf82a34c178019d331133f001af0ae52e0e34fbdf71ed2332"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 真实付款与新开通标记同事务，订单支付通知保留，课程只补一条",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 永久有效课程的新开通可以通知",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 真实权益流水失败导致付款整笔回滚，不能创建任何成功通知",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 课程通知真实写入失败不阻断付款，分钟任务失败后释放并恢复",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 两个独立进程并发补发只建立一条",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 真实退款冲正完成后不得再补开通成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实order-type不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实order-status不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实order-paidAt不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实order-user不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实order-target不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-source不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-resource不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-key不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-scope不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-quantity不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-unlimited不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-marker不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 错事实ledger-user不报告课程成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 课程deleted不得补成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 课程unapproved不得补成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 课程expired不得补成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 权益流水future不补成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 权益流水expired不补成功",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 已完成订单的有效新权益可以补发",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/shop/paid-course-notification.postgres.spec.ts",
+      "name": "付费课程新付款事实与独立通知真实PG 通知跨用户拒绝，课程点击后的付费权限继续校验",
+      "sourceSha256": "a879a336cde3ff28a1d830666d7ab7659bf3bc22702dc186a174ccc1f0deffc0"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 有效预约通知和标记同时提交，重复扫描只一条",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 选取后真实取消已提交，不发通知也不标记已取消行",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 选取后房间结束，不发送过时通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 选取后房间下架，不泄露下架场次通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 候选行收件人已改变，不能仅凭行ID标记其他用户",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 通知数据库失败不落标记，释放后下一轮成功",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 标记数据库失败整笔回滚通知，下一轮只一条",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 两个独立数据库连接抢同一批只建立一条通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 提前 通知详情仍核对收件人，其他用户不可读取",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 有效预约通知和标记同时提交，重复扫描只一条",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 选取后真实取消已提交，不发通知也不标记已取消行",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 选取后房间结束，不发送过时通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 选取后房间下架，不泄露下架场次通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 候选行收件人已改变，不能仅凭行ID标记其他用户",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 通知数据库失败不落标记，释放后下一轮成功",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 标记数据库失败整笔回滚通知，下一轮只一条",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 两个独立数据库连接抢同一批只建立一条通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 开播 通知详情仍核对收件人，其他用户不可读取",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 选取后改期到窗口外，不发原排期提醒",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 选取后标题和有效排期变化，按锁定的新值落通知",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 两个独立Node进程不用Redis锁也由数据库防重",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/live/live-booking-notice-boundary.postgres.spec.ts",
+      "name": "直播预约选取后取消与同事务通知边界 通知已取得行锁时取消等待提交，以实际事务先后决定结果",
+      "sourceSha256": "f1193b90adaca6293d7c5c33ef8f454386f8bb481ace7add720950d27232369b"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 积分流水失败不能先增加余额，恢复后仅发一次",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 券记录失败时积分、积分流水和库存一起回滚，恢复后可重试",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 仅赠券的方案也保存零积分防重记录，重放不增库存",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 双实例发同一用户的当月权益仅一次",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 两个独立 Node 进程发同一用户仅一次",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 不同用户竞争最后一张券不会超发，积分仍按原缺券政策发放",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 购买场景传入事务不另行提交，父事务失败全部回滚",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 旧正积分流水仍防重复，不历史补发可能漏发的券",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 撤销、过期和不存在的用户不被旧 cron 快照继续发放",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 cron 旧等级快照使用锁内最新等级，购买事务保留明确方案参数",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 库存不足与模板不存在保留既有跳过赠券语义，不凭空增加库存",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 已有未用同模板券触发既有唯一约束时，积分和库存安全回滚",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 真实月度发放批次的单个失败不拖累其他用户，重跑只补失败者",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-benefit.monthly.postgres.spec.ts",
+      "name": "月度积分与券 PostgreSQL 原子性 不存在方案不发放，负积分配置不能悄悄发券或写完成记录",
+      "sourceSha256": "509c40958b7d6ceff6c9e7881bc5e920c24c2e0a32fe321027f68d06efd799a3"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 删除、人数、真实UTC到期事实共同提交；首次分类目标正确且不重复",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 扫描后renewed不删除、不创建旧事实",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 扫描后changedPast不删除、不创建旧事实",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 扫描后promoted不删除、不创建旧事实",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 扫描后owner不删除、不创建旧事实",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 扫描后rejoined不删除、不创建旧事实",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 真实CircleMembershipExpiryNotice写入失败删除/人数/事实回滚，不能通知成功",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 真实Circle写入失败删除/人数/事实回滚，不能通知成功",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 异常零人数拒绝整批，不变负数、不改历史计数",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 通知INSERT失败不回滚删除、不挡缓存；调度恢复后只发一次",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 缓存失败不挡通知，恢复不修改已重新加入的权益",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 公共缓存失败留下待办，后续没有过期成员仍能恢复",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 共享Redis不可用时不把进程内降级当作已完成，通知仍独立完成",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 220个真实删除跨批继续；通知/缓存恢复无饥饿或重复",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 两个独立连接并发清理只删除、计数、通知一次",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 归属在删除事务内锁定，独立连接不能中途改变圈主",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-expiry.local-db.spec.ts",
+      "name": "过期删除事实同事务与站内恢复的真实数据库 分钟调度失败释放标记，通知异常不挡缓存恢复",
+      "sourceSha256": "850d6d8e08024e406013fb19869b1c1b372e6bce283a95490144ea504773ec17"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 积分和券提交后分别到账并直达本人明细，重复调度不再生成",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 积分10和赠券false只通知真实非空权益",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 积分0和赠券true只通知真实非空权益",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 积分0和赠券false只通知真实非空权益",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 缺券库存只通知真实积分，不能发赠券成功文案",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 父付款事务回滚，没有发放事实或成功通知",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 发放事实写入失败连同积分券回滚，不留下部分到账",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 通知真实写入失败不改已提交积分券，释放后可补发",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 双实例发放及双实例补发均不重复",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 两个独立进程补发总共只有两条通知",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 旧流水不产生新事实或历史通知",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 与真实积分流水的source不符不报到账",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 与真实积分流水的points不符不报到账",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 与真实积分流水的userId不符不报到账",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 其他用户的赠券不被本人的积分事实冒用",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 当前NONE会员不补成功通知",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 当前EXPIRED会员不补成功通知",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 跨用户不能读取通知，自己的目标不携带另一个用户页面参数",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-notification.postgres.spec.ts",
+      "name": "月度实际发放与持久通知真实PG 已完成事实不挤占批次，后面的待办仍能送达",
+      "sourceSha256": "f9e562d8273cd452f43b8ecd5a97daff26511208e48ea4106cd1615613dd79ee"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 旧已支付与已退款订单不生成事实或历史通知",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 真实支付入口通知失败仍确认；新事实分钟恢复且重复回调唯一",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 管理员线下确认复用同一事实入口",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 支付后处理事务失败不残留事实或成功通知",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 通知INSERT真实失败不改已付订单；解除故障恢复一次",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 分佣故障仅保留待放行退款事实；恢复后无需再依赖通知重投",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 售后终态失败不放行；退款重试同事务放行且只恢复一次",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 退款权益事务失败不残留退款事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 旧已退款订单重投不补建恢复事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 双独立客户端并发恢复只有一条数据库通知",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 订单已退款不再恢复迟到的支付成功；只恢复最终退款",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 恢复时复核订单收件人，错误主体事实不发通知",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 恢复通知详情跨用户仍拒绝，正文不泄露手机号或渠道流水",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 退款状态PROCESSING不记录已完成恢复事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 退款状态CLOSED不记录已完成恢复事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 退款状态ABNORMAL不记录已完成恢复事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 数据库CHECK拒绝错误kind事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 数据库CHECK拒绝错误eventKey事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 数据库CHECK拒绝错误sourceVersion事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/notification/order-business-notification.postgres.spec.ts",
+      "name": "新订单站内持久事实与失败恢复真实PG 数据库CHECK拒绝错误readyAt事实",
+      "sourceSha256": "2ea7c1d9d238922be42e05d073e352e72fc52ecda07780cae1d0b1d05d69aa26"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 真实免费订阅订单与事实一起提交，没有可选通知服务也可补发",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 新事实写入失败连同订单回滚，绝不通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 外层真实事务回滚，已运行订阅逻辑也不能留下成功事实",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 立即通知真实插入失败不回滚订单，分钟任务失败释放后可恢复",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 立即通知与独立恢复竞争仍只有一条通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 两个独立进程补发同一订单总共一条通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 收费待支付与复用待支付不产生成功事实",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 促销到零元保留原价但不改变免费事实与课程目标",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的status与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的payMethod与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的amount与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的payAmount与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的paidAt与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的userId与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 订单的targetId与免费事实不符不能通知成功",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 课程deleted不补成功通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 课程notApproved不补成功通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 课程expired不补成功通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 旧免费订单不生成新事实或历史通知",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/course/free-course-notification.postgres.spec.ts",
+      "name": "免费课程同事务事实与持久通知真实PG 通知跨用户拒绝，课程目标的原付费访问检查仍然生效",
+      "sourceSha256": "0d0f4b02dec11a0b2d686fdda4a99332594ccfbc9e24c32978f3a2156304767c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 7/3/1北京自然日提醒准确，类别和目标一并落库，重复只建一条",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 北京10点前不打扰，10点后可以补发",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 圈主、永久、非提醒日期、下架和软删除圈子不发提醒",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 会话时区UTC不改变自然日、通知时间或事件键",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 会话时区Asia/Shanghai不改变自然日、通知时间或事件键",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 会话时区America/Los_Angeles不改变自然日、通知时间或事件键",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 真实INSERT失败不改变成员或圈子，下一实例只补一条",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 两实例同时发送仅有一条，计数相加为一",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 两个独立Node进程调用真实入口仅建立一条",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 调用所在事务回滚不会留下通知，下次仍可发送",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 正在续期时跳过，提交新到期日后不发旧提醒",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 正在退圈时跳过，删除提交后不发不存在成员的提醒",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 正在下架圈子时跳过，下架提交后不发续费提醒",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 超过原500上限的501名成员分批全部完成，已发送不占批次",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 升级当日旧无键同圈同天数提醒不重发，其他旧日期不挡住",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 续期后的精确新到期时间不被旧键挡住，跨日不补旧7天文案",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-expiration-reminder.postgres.spec.ts",
+      "name": "圈子到期提醒 PostgreSQL 持久恢复 同用户两个圈子的提醒各自建立，不跨圈去重",
+      "sourceSha256": "49d601a1b69240f6b54978612d75a2fb273e70a1baac518721495d237d69dbf4"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG WECHAT 已付款后退款的真实订单重投，不再发送支付成功通知",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG WECHAT 旧未用赠券引发真实唯一键回滚，不能确认付款或发送成功",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG WECHAT 同订单并发真实CAS，赢家及核实后的重投均确认同笔入账",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG WECHAT 读取后取消抢先提交，真实CAS失败不能确认支付",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG WECHAT 另一笔流水先入账，真实CAS失败不能确认当前扣款",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG ALIPAY 已付款后退款的真实订单重投，不再发送支付成功通知",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG ALIPAY 旧未用赠券引发真实唯一键回滚，不能确认付款或发送成功",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG ALIPAY 同订单并发真实CAS，赢家及核实后的重投均确认同笔入账",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG ALIPAY 读取后取消抢先提交，真实CAS失败不能确认支付",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG ALIPAY 另一笔流水先入账，真实CAS失败不能确认当前扣款",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG UNIONPAY 已付款后退款的真实订单重投，不再发送支付成功通知",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG UNIONPAY 旧未用赠券引发真实唯一键回滚，不能确认付款或发送成功",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG UNIONPAY 同订单并发真实CAS，赢家及核实后的重投均确认同笔入账",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG UNIONPAY 读取后取消抢先提交，真实CAS失败不能确认支付",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG UNIONPAY 另一笔流水先入账，真实CAS失败不能确认当前扣款",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG HUIFU 已付款后退款的真实订单重投，不再发送支付成功通知",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG HUIFU 旧未用赠券引发真实唯一键回滚，不能确认付款或发送成功",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG HUIFU 同订单并发真实CAS，赢家及核实后的重投均确认同笔入账",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG HUIFU 读取后取消抢先提交，真实CAS失败不能确认支付",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/shop/payment-ack-boundary.postgres.spec.ts",
+      "name": "支付回滚和并发确认真实PG HUIFU 另一笔流水先入账，真实CAS失败不能确认当前扣款",
+      "sourceSha256": "420334b077cdf95568dde129506747c5fc7ddb329a5a08a58489025b9f396203"
+    },
+    {
+      "path": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+      "name": "小卜报告购买与AI会员 · 真实库 报告：未购买时无权生成；下单价格按服务端 29 元，前端金额无效；别人的盘、非法类型拒绝",
+      "sourceSha256": "a0bdd378157c1c6d9300048cfaa78a6dca87d955dfe17ef436dfb1f96861008e"
+    },
+    {
+      "path": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+      "name": "小卜报告购买与AI会员 · 真实库 报告：付款后可生成且送 30 分钟；重复处理只送一次；同一份不能再买；其他报告类型仍需购买；退款后撤销并扣回时长",
+      "sourceSha256": "a0bdd378157c1c6d9300048cfaa78a6dca87d955dfe17ef436dfb1f96861008e"
+    },
+    {
+      "path": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+      "name": "小卜报告购买与AI会员 · 真实库 会员：四档价格按拍板值；开通即免费生成任意报告、当月送 300 分钟；会员不能再单买报告",
+      "sourceSha256": "a0bdd378157c1c6d9300048cfaa78a6dca87d955dfe17ef436dfb1f96861008e"
+    },
+    {
+      "path": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+      "name": "小卜报告购买与AI会员 · 真实库 会员叠加与退款：期内续买从期末起算；同月再买不重复送语音；中间一笔退款后后续购买前移",
+      "sourceSha256": "a0bdd378157c1c6d9300048cfaa78a6dca87d955dfe17ef436dfb1f96861008e"
+    },
+    {
+      "path": "apps/server/src/modules/voice/xiaobu-commerce.integration.spec.ts",
+      "name": "小卜报告购买与AI会员 · 真实库 月度发放：只给有效会员发，同月重跑不重复；过期会员不发",
+      "sourceSha256": "a0bdd378157c1c6d9300048cfaa78a6dca87d955dfe17ef436dfb1f96861008e"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 join：Redis失败仍返回业务成功，待办恢复后才确认完成",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 leave：Redis失败仍返回业务成功，待办恢复后才确认完成",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 remove：Redis失败仍返回业务成功，待办恢复后才确认完成",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 governance：Redis失败仍返回业务成功，待办恢复后才确认完成",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 join：待办INSERT失败回滚成员/人数，治理事实也不能提前成功",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 leave：待办INSERT失败回滚成员/人数，治理事实也不能提前成功",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 remove：待办INSERT失败回滚成员/人数，治理事实也不能提前成功",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 governance：待办INSERT失败回滚成员/人数，治理事实也不能提前成功",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 重复入圈/退圈不产生额外待办或人数变化",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 管理端代加复用创建待办，故障不误报创建失败",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 缓存清理期间的新变更保留独立待办，不被旧确认吞掉",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 实际数据库确认失败保留待办，重复清理后恢复",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 两个恢复者重复清缓存可安全并发，只确认一行",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 220行按100/100/20恢复，已确认行不阻挡后续批",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-cache.postgres.spec.ts",
+      "name": "成员变更与缓存待办的真实PG边界 圈子和成员删除后仍保留原键待办，恢复不依赖当前成员存在",
+      "sourceSha256": "48f40ed9d3b751579141234dfcf501a10b8d76a3eac79a451b745006a350b522"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+      "name": "商品建单独立库 HTTP 游客被拒；同键并发只建一单扣一次库存；改量拒绝复用",
+      "sourceSha256": "8d05f8cc4b581761f54a13da20db776c9d72fd2a7145e192dd6302ae38aa36ea"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+      "name": "商品建单独立库 HTTP 客户端丢弃成功响应正文后，同键重试仍返回已提交的原订单",
+      "sourceSha256": "8d05f8cc4b581761f54a13da20db776c9d72fd2a7145e192dd6302ae38aa36ea"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+      "name": "商品建单独立库 HTTP 本人订单详情缓存命中后仍拒绝其他用户读取",
+      "sourceSha256": "8d05f8cc4b581761f54a13da20db776c9d72fd2a7145e192dd6302ae38aa36ea"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.http.spec.ts",
+      "name": "商品建单独立库 HTTP 可读通知指向他人订单时，点击目标仍被订单权限拒绝",
+      "sourceSha256": "8d05f8cc4b581761f54a13da20db776c9d72fd2a7145e192dd6302ae38aa36ea"
+    },
+    {
+      "path": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+      "name": "古籍派生资产 · 真实库 未发布、版权许可不可商用的章节：段落与简体接口一律 404",
+      "sourceSha256": "cd144d58283188f8611d768be7cb95151143407a4fa257178103eb1f269253fb"
+    },
+    {
+      "path": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+      "name": "古籍派生资产 · 真实库 章节简体版：底本不变；每段等长、偏移指回原文；乾元按词组、餘→馀、於→于",
+      "sourceSha256": "cd144d58283188f8611d768be7cb95151143407a4fa257178103eb1f269253fb"
+    },
+    {
+      "path": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+      "name": "古籍派生资产 · 真实库 段落简体版持久化：并发 5 次只生成 1 份资产，第二次命中",
+      "sourceSha256": "cd144d58283188f8611d768be7cb95151143407a4fa257178103eb1f269253fb"
+    },
+    {
+      "path": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+      "name": "古籍派生资产 · 真实库 段落译文：none → 生成（桩）→ success，并发只调一次；原文修订后旧译文判 expired、不返回旧正文",
+      "sourceSha256": "cd144d58283188f8611d768be7cb95151143407a4fa257178103eb1f269253fb"
+    },
+    {
+      "path": "apps/server/src/modules/classic/classic-derived.integration.spec.ts",
+      "name": "古籍派生资产 · 真实库 译文人工复核：改译通过 → 读者看到改后译文；旧版本号拒绝；驳回 → 下线、重新生成后回到待复核",
+      "sourceSha256": "cd144d58283188f8611d768be7cb95151143407a4fa257178103eb1f269253fb"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 相反人工裁决并发只有一个成功，处理状态与胜出裁决一致且通知一次",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 人工裁决与自动超时裁决竞争不能覆盖已完成的裁决",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 同一待审帖两次并发通过只计一次且通知一次",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 通过和驳回竞争只有一个结果，计数与实际帖子状态一致",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 扫描禁言后状态已改为REVOKED时不覆盖、不发到期解除通知",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 扫描禁言后状态已改为LIFTED时不覆盖、不发到期解除通知",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 扫描禁言后期限延长时不提前解除",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 通过审核帖子计数更新失败时帖子事务回滚且不通知",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/circle/governance/circle-governance-cas.postgres.spec.ts",
+      "name": "圈子人工裁决、审核与禁言到期真实PG竞态 人工申诉处理撤销失败时申诉和处理均回滚且不通知",
+      "sourceSha256": "ce4efd134d84be5de1f141354be716d463c65896b50bcfca46312f69db4815bf"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 9点实际通知写入失败，10点新实例恢复，当天再跑只有一条",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 一门课程失败不阻断另一门，恢复时只补遗漏",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后订单变为PENDING，不补过期提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后订单变为CANCELLED，不补过期提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后订单变为REFUNDED，不补过期提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后已续购，按最新付款期限重新判断，不再误报旧单",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后课程deleted，不补提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后课程unapproved，不补提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 失败后课程permanent，不补提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 剩余0天不提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 剩余-1天不提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 剩余4天不提醒",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 恰好3天提醒，同用户同课程重复已付订单仍只一条",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 不同用户独立提醒，跨用户不能读详情或获得课程访问权限",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 次日新键继续原每日提醒，不补之前遗漏日期",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-expiry-recovery.postgres.spec.ts",
+      "name": "课程到期提醒真实PG与故障恢复 两个独立进程实际调度只建一条站内通知",
+      "sourceSha256": "63968685b2815e64b34090b0e8fc10be3643c9286447390b8bc794126e96387b"
+    },
+    {
+      "path": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+      "name": "圈内语音时长充值五五分成 · 真实库 成员在圈内充值：付款后记圈主收益 50% 与平台抽成 50%；回调重放只记一次",
+      "sourceSha256": "d4e67ef389ffb6971d82a65f6a9637d177ef7e2b1e5e08b633c07c3da795ff83"
+    },
+    {
+      "path": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+      "name": "圈内语音时长充值五五分成 · 真实库 不分成的情况：非成员带圈子来源（剥离归因照常买）、不带来源的平台充值、圈主给自己充值",
+      "sourceSha256": "d4e67ef389ffb6971d82a65f6a9637d177ef7e2b1e5e08b633c07c3da795ff83"
+    },
+    {
+      "path": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+      "name": "圈内语音时长充值五五分成 · 真实库 退款：记负数冲正（与入圈退款同口径），重复退款只冲一次",
+      "sourceSha256": "d4e67ef389ffb6971d82a65f6a9637d177ef7e2b1e5e08b633c07c3da795ff83"
+    },
+    {
+      "path": "apps/server/src/modules/voice/circle-voice-revenue.integration.spec.ts",
+      "name": "圈内语音时长充值五五分成 · 真实库 扣费顺序：圈子账户够则扣圈子；圈子账户用完改扣成员自己的时长",
+      "sourceSha256": "d4e67ef389ffb6971d82a65f6a9637d177ef7e2b1e5e08b633c07c3da795ff83"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 自然日 7 天提前提醒覆盖不同到期时刻，重放仅一条且计数准确",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 北京 10 点之前不打扰，10 点后可补发",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 今日到期既包含尚未到期也包含今日已到期，早已过期不误报今日",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 取消提醒、撤销等级、长期有效和其他日期不发送",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 数据库会话时区 UTC 不改变到期日、事件键或通知时间",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 数据库会话时区 Asia/Shanghai 不改变到期日、事件键或通知时间",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 数据库会话时区 America/Los_Angeles 不改变到期日、事件键或通知时间",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 通知 INSERT 实际失败不改变会员，旧 Redis 占位不能阻止新实例恢复",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 续期的新精确到期时刻不会被旧事件键挡住，改到其他日期不发过时提醒",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 旧版当日无键提醒不重复打扰，其他日期旧提醒不阻塞",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 已完成记录不占满批次，下一次补齐超过 200 人的待办",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 两个独立 Node 进程并发执行真实入口，最终只建立一条",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 提醒所在事务失败不会留下通知，下次事务可继续处理",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-renew.postgres.spec.ts",
+      "name": "会员续费提醒 PostgreSQL 持久补发 正在续期的用户不阻塞调度，提交新状态后不会发送旧到期提醒",
+      "sourceSha256": "5be7e2a96f27266514a7bdbb70e8f7c668caaac92f5e79d123f58f1be385fb32"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 同一用户与请求键并发建单仅生成一单、扣一次库存",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 库存不足的失败事务不占用请求键，补库存后同键可重试",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 同一请求键更换购买数量会拒绝，不复用旧单或再次扣库存",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 同键并发使用优惠券时只建一单、核销一次",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 不同请求键抢同一份库存时不能超卖",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 不同请求键并发使用同一张优惠券时只能成交一单",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 同一用户并发发券只占一个名额",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-order.local-db.spec.ts",
+      "name": "ShopOrderService 独立本地库并发 同一订单并发申请售后只生成一条待处理记录",
+      "sourceSha256": "4c099415d7267a84c8575012b8b4c0e44e2711bcaa2bc34120355496832df47b"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 错过月初原调度，当月恢复自动发一次，重复调度不重复加余额",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 原cron与恢复并发，逐用户锁仍只发一次",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 真实流水写入故障，恢复前无部分到账，下一次调度恢复",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 仅当月标记；过去月份已有记录不被重发",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 预期月份已过去，不能借当前月调用补历史权益",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 等待用户锁跨月，旧批次不能在锁内继续写入",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 过期与已撤销会员不恢复，零积分方案只写防重标记",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/member/member-monthly-recovery.postgres.spec.ts",
+      "name": "当前月恢复真实PG事务 同模板已有未用券仍安全回滚，不擅自改为仅赠积分或多发券",
+      "sourceSha256": "3c1b564ba2fba7ddd2ecc1535159116af2eb473113cca5f05dafb1fe0e07b919"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 governance读取后目标升为圈主：不删除、不造移出记录或通知",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 membership读取后目标升为圈主：不删除、不造移出记录或通知",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 governance读取后退圈重入：旧请求不能删除新成员行",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 membership读取后退圈重入：旧请求不能删除新成员行",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 governance人数为零的异常记录：不产生负数、删除和处理一并回滚",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 membership人数为零的异常记录：不产生负数、删除和处理一并回滚",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 governance人数写入故障：成员删除、处理均回滚且不清缓存或通知",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 membership人数写入故障：成员删除、处理均回滚且不清缓存或通知",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 两种移出入口争同一成员：只有一个成功，只减一人",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 管理端已有授权旁路保留，普通成员移出和计数同事务",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 governance真实数据库权限：普通成员拒绝，现圈主可以移出",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-member-removal.postgres.spec.ts",
+      "name": "圈子两种移出入口的身份与事务真实PG边界 membership真实数据库权限：普通成员拒绝，现圈主可以移出",
+      "sourceSha256": "7210e2869fc45996ad5b1daf023d7cddaacf3292bb85d6e7f811ee2bd36c5f8c"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+      "name": "BotQuotaPurchase PostgreSQL 购包幂等 真实 HTTP 入口透传请求号，重复请求只扣一次并返回同一权益",
+      "sourceSha256": "c11974c596c79a068bc187f6f9f0cd35ef62b0291b9169f55a372b20f38b1f56"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+      "name": "BotQuotaPurchase PostgreSQL 购包幂等 不同登录用户使用相同请求号时各自购买，权益和扣币不串户",
+      "sourceSha256": "c11974c596c79a068bc187f6f9f0cd35ef62b0291b9169f55a372b20f38b1f56"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+      "name": "BotQuotaPurchase PostgreSQL 购包幂等 同号并发及超时重试只扣一次币、发放一包；新号才再次购买",
+      "sourceSha256": "c11974c596c79a068bc187f6f9f0cd35ef62b0291b9169f55a372b20f38b1f56"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+      "name": "BotQuotaPurchase PostgreSQL 购包幂等 发放写入失败时整笔回滚，原请求号仍可重试",
+      "sourceSha256": "c11974c596c79a068bc187f6f9f0cd35ef62b0291b9169f55a372b20f38b1f56"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.purchase.postgres.spec.ts",
+      "name": "BotQuotaPurchase PostgreSQL 购包幂等 配置关闭购包后真实守卫拒绝请求，不扣币或创建购买记录",
+      "sourceSha256": "c11974c596c79a068bc187f6f9f0cd35ef62b0291b9169f55a372b20f38b1f56"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 免费入圈正常创建且人数只增加一次，重复入圈不增加",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 免费入圈人数写入失败时创建回滚，未清缓存",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 两次并发免费入圈只允许一个新成员和一次加人数",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 禁入成员不能通过免费入圈建成员或加人数",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 管理端代加新成员也复用同一创建与人数事务",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 正常退圈删除成员并减一次人数",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 退圈人数写入失败时删除回滚，未清缓存",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 异常零人数退圈整笔拒绝，不能删成员或产生负数",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 读取后升为圈主的成员不能被原退圈请求删除",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 读取后圈子实际归属变化也阻止旧退圈请求",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 退圈重入的新成员行不能被原退圈请求删除",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/circle/services/circle-membership-count.postgres.spec.ts",
+      "name": "普通入退圈成员与人数同事务的真实PG边界 并发退圈只删除一次和减一次人数",
+      "sourceSha256": "3e9e1234b84995759bf2f733c4935dd6c07dbe8290106b49dd520fea2a52ea19"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+      "name": "课程续购权限独立库 HTTP 旧单过期但最新续购有效时允许本人学习，不放行游客和未购用户",
+      "sourceSha256": "f1fd7e4e31aacf02ac7cff66a925f83d914f9f0a2c86aed9b0f744d2fd45dbd8"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+      "name": "课程续购权限独立库 HTTP 多笔有效续购在有效课程接口只展示最新一条",
+      "sourceSha256": "f1fd7e4e31aacf02ac7cff66a925f83d914f9f0a2c86aed9b0f744d2fd45dbd8"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-access.local-db.http.spec.ts",
+      "name": "课程续购权限独立库 HTTP 学习进度仅允许当前有权限的本人写入，退款后拒绝继续写入",
+      "sourceSha256": "f1fd7e4e31aacf02ac7cff66a925f83d914f9f0a2c86aed9b0f744d2fd45dbd8"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 分佣冲正失败不提前发成功通知或成功Webhook，保留PROCESSING恢复锚点",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 分佣故障重投后先收敛售后再发通知，重复回调只有一条通知且权益不重复冲正",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 售后终态实际数据库写入失败不发送成功，失败解除后重投可收敛",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 最终站内通知真实INSERT失败不阻断已完成退款，重投仍同键并数据库防重",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 权益冲正后事务故障仍一起回滚订单与权益，财务和成功通知均未执行",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 渠道PROCESSING不发送完成通知，不把订单标成退款成功",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 渠道CLOSED不发送完成通知，不把订单标成退款成功",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/shop/refund-completion-boundary.postgres.spec.ts",
+      "name": "退款成功通知最终收口真实PG 渠道ABNORMAL不发送完成通知，不把订单标成退款成功",
+      "sourceSha256": "1f9f9bf4f56a02a32d5c549c07f89c6fad6e606ec8470b602146b0cedbeb544c"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 没有接续场景：硬件开普通对话（scene=device）",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 接续自己的报告：硬件会话进入报告对话、挂在设备上；2 小时内每次按键都接着聊",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 权限：别人的报告、未加入的圈子设置不上；别人不能给我的设备设场景",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 使用时重新校验：圈子会员到期后，按键回到普通硬件对话并清掉接续场景",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 换主人：转赠后新主人拿不到上一任设置的场景",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-device-handoff.integration.spec.ts",
+      "name": "硬件场景接续 · 真实库 清除：清掉后回到普通硬件对话",
+      "sourceSha256": "e4dc83dc7c983d937afe1da45130b5784e4e8d809caa86cbbaa7c5449030b523"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+      "name": "智能体真实 HTTP 与 PostgreSQL 额度交付 非流式 HTTP 响应完成后确认消费，不把内部预留标识下发给用户",
+      "sourceSha256": "f8aec3aaed4e8f00c612ecad1a0052663d99ca2bb11f6d123bdd54050396fc9f"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+      "name": "智能体真实 HTTP 与 PostgreSQL 额度交付 SSE 首个可见片段写出后确认消费",
+      "sourceSha256": "f8aec3aaed4e8f00c612ecad1a0052663d99ca2bb11f6d123bdd54050396fc9f"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+      "name": "智能体真实 HTTP 与 PostgreSQL 额度交付 SSE 首字前失败返回错误并释放额度",
+      "sourceSha256": "f8aec3aaed4e8f00c612ecad1a0052663d99ca2bb11f6d123bdd54050396fc9f"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.http.postgres.spec.ts",
+      "name": "智能体真实 HTTP 与 PostgreSQL 额度交付 SSE 首字前客户端断开时停止等待并返还额度",
+      "sourceSha256": "f8aec3aaed4e8f00c612ecad1a0052663d99ca2bb11f6d123bdd54050396fc9f"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 20 个并发请求只预留一次试用；重复并发释放只返还一次",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 两个独立进程同时释放同一预留也只退一次",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 已购额度交付后不再被失败释放返还",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 预留流水写失败时整笔事务回滚，不白扣额度",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 退额账户写失败时释放状态回滚，后续仍可重试",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/bot/bot.quota.postgres.spec.ts",
+      "name": "BotQuotaReservation PostgreSQL 集成 进程遗留的过期预留可恢复；二次扫尾不重复返还",
+      "sourceSha256": "8f96cb441c7319207bc2fc00f5534767b68622d35502232052ee5be5cf3882cd"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+      "name": "有声读书 · 真实库 原文音频：并发 5 次只合成 1 次；再次请求复用、合成次数不变",
+      "sourceSha256": "03a626761f72f5bbc46a0c1c86fc63b8bf66ec7fff47a7f978f9de25d6542a98"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+      "name": "有声读书 · 真实库 签名地址：正确可取到音频；篡改签名、换资产、过期一律失效",
+      "sourceSha256": "03a626761f72f5bbc46a0c1c86fc63b8bf66ec7fff47a7f978f9de25d6542a98"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+      "name": "有声读书 · 真实库 白话音频：没有当前版本译文时拒绝（不在此代生成、不绕过计次）；有译文后按译文资产生成",
+      "sourceSha256": "03a626761f72f5bbc46a0c1c86fc63b8bf66ec7fff47a7f978f9de25d6542a98"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+      "name": "有声读书 · 真实库 未公开古籍的段落不能合成、不能取地址",
+      "sourceSha256": "03a626761f72f5bbc46a0c1c86fc63b8bf66ec7fff47a7f978f9de25d6542a98"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audiobook.integration.spec.ts",
+      "name": "有声读书 · 真实库 断点续听：按段落 ID 记位置；段落不属于该章节拒绝；倍速夹在合法范围",
+      "sourceSha256": "03a626761f72f5bbc46a0c1c86fc63b8bf66ec7fff47a7f978f9de25d6542a98"
+    },
+    {
+      "path": "apps/server/src/modules/shop/after-sale-access.local-db.http.spec.ts",
+      "name": "售后本人权限独立库 HTTP 列表和订单筛选只返回本人售后，详情不泄露其他用户理由",
+      "sourceSha256": "30f30c84e6d27bbeaf09b8496575d4f0ee9c213d88363e84c6d417c0da083ec5"
+    },
+    {
+      "path": "apps/server/src/modules/shop/after-sale-access.local-db.http.spec.ts",
+      "name": "售后本人权限独立库 HTTP 不能申请或取消他人售后；本人取消后状态与列表一致",
+      "sourceSha256": "30f30c84e6d27bbeaf09b8496575d4f0ee9c213d88363e84c6d417c0da083ec5"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+      "name": "AudioAsset / TextDerivedAsset 真实库并发去重 两个独立服务实例并发同一音频请求：外部合成 1 次、数据库 1 行",
+      "sourceSha256": "01e0f737a36deacfe23f8901f5a370b0d49fd5f47842931a682e8a729faccc77"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+      "name": "AudioAsset / TextDerivedAsset 真实库并发去重 assetKey 唯一约束在数据库层生效",
+      "sourceSha256": "01e0f737a36deacfe23f8901f5a370b0d49fd5f47842931a682e8a729faccc77"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+      "name": "AudioAsset / TextDerivedAsset 真实库并发去重 文本派生资产并发同一请求：模型调用 1 次",
+      "sourceSha256": "01e0f737a36deacfe23f8901f5a370b0d49fd5f47842931a682e8a729faccc77"
+    },
+    {
+      "path": "apps/server/src/modules/tts/audio-asset.service.integration.spec.ts",
+      "name": "AudioAsset / TextDerivedAsset 真实库并发去重 报告知识库真实查询：只命中已审核条目、按标签数组匹配；各派都返回、指定门派加权排第一（2026-09-18 口径）",
+      "sourceSha256": "01e0f737a36deacfe23f8901f5a370b0d49fd5f47842931a682e8a729faccc77"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+      "name": "语音时长充值 · 真实库 语音尚未开始计费（默认 chargeUsers=false）时拒绝下单：服务没开放不先收钱",
+      "sourceSha256": "a4895f9cb628c385aa7415a8f4f1f3fac4750b6009120631f2a557678d94997d"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+      "name": "语音时长充值 · 真实库 开始计费后：价格按服务端 2 元/分钟计算，前端金额无效；非法档位拒绝",
+      "sourceSha256": "a4895f9cb628c385aa7415a8f4f1f3fac4750b6009120631f2a557678d94997d"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-topup.integration.spec.ts",
+      "name": "语音时长充值 · 真实库 支付成功处理：同一事务加 10 分钟；重复执行只加一次；退款冲正扣回可用部分，已用部分待人工核对",
+      "sourceSha256": "a4895f9cb628c385aa7415a8f4f1f3fac4750b6009120631f2a557678d94997d"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-access.local-db.http.spec.ts",
+      "name": "通知本人权限独立库 HTTP 列表仅含本人通知；游客和其他用户无法查看正文，拒绝访问不修改已读",
+      "sourceSha256": "998d76256e779004ab2d51ecef36df3a0aef476855e29a93b58310e9673ee53e"
+    },
+    {
+      "path": "apps/server/src/modules/notification/notification-access.local-db.http.spec.ts",
+      "name": "通知本人权限独立库 HTTP 不能修改他人已读状态或调用管理员发送入口",
+      "sourceSha256": "998d76256e779004ab2d51ecef36df3a0aef476855e29a93b58310e9673ee53e"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+      "name": "支付回调与通知独立数据库事务 真实权益写入后失败，订单和权益回滚且不发成功通知",
+      "sourceSha256": "664e20151fc4555839f12ab045b932850b2abeaf54189e6ccca1a20bcbed4845"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+      "name": "支付回调与通知独立数据库事务 通知故障不阻断入账，重投不重复发权益并保持通知幂等键",
+      "sourceSha256": "664e20151fc4555839f12ab045b932850b2abeaf54189e6ccca1a20bcbed4845"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-payment-notification.local-db.spec.ts",
+      "name": "支付回调与通知独立数据库事务 外发箱故障保留已提交支付，重投补发而不重复发权益",
+      "sourceSha256": "664e20151fc4555839f12ab045b932850b2abeaf54189e6ccca1a20bcbed4845"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+      "name": "VoiceQuotaService 真实库 发放幂等：同一幂等键并发到达只加一次余额",
+      "sourceSha256": "c17369307f6eff4a40d6508ab7b16571b7d54066d4e89936796ae91c12c90655"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+      "name": "VoiceQuotaService 真实库 并发开始会话不会重复花同一笔余额；额度不足拒绝",
+      "sourceSha256": "c17369307f6eff4a40d6508ab7b16571b7d54066d4e89936796ae91c12c90655"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+      "name": "VoiceQuotaService 真实库 结算幂等：按用量扣减、释放剩余预留、记录供应商成本与估算标记",
+      "sourceSha256": "c17369307f6eff4a40d6508ab7b16571b7d54066d4e89936796ae91c12c90655"
+    },
+    {
+      "path": "apps/server/src/modules/voice/voice-quota.service.integration.spec.ts",
+      "name": "VoiceQuotaService 真实库 免费模式不扣额度，但限制单次时长并照常记录供应商成本",
+      "sourceSha256": "c17369307f6eff4a40d6508ab7b16571b7d54066d4e89936796ae91c12c90655"
+    },
+    {
+      "path": "apps/server/src/modules/course/course-review-status.local-db.http.spec.ts",
+      "name": "课程本人评价状态独立库 HTTP 真实本地库按 JWT 用户隔离本人记录且拒绝游客",
+      "sourceSha256": "e51dff88a2bfbfa1246087a275df2afb2a82a4166c374de34178539095987022"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-refund-notification.local-db.spec.ts",
+      "name": "退款回调与通知独立数据库事务 真实权益冲正写入后失败，订单和权益一起回滚且无成功通知",
+      "sourceSha256": "474adacfa6189d3f6ab92239c61d312f69a1cf06a04790519754fc9b283f1ac3"
+    },
+    {
+      "path": "apps/server/src/modules/shop/shop-refund-notification.local-db.spec.ts",
+      "name": "退款回调与通知独立数据库事务 回调重试成功后通知故障不回滚，重复回调不重复冲正且通知键稳定",
+      "sourceSha256": "474adacfa6189d3f6ab92239c61d312f69a1cf06a04790519754fc9b283f1ac3"
+    },
+    {
+      "path": "apps/server/src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts",
+      "name": "工作台报告创建与导入并发 · 真实库 两次手工新建抢最后一份免费配额，只有一份成功",
+      "sourceSha256": "cd35d248855a814af2150e893aba8e766a225da0468f89a0d39dc27a78e97968"
+    },
+    {
+      "path": "apps/server/src/modules/practitioner/practitioner-report-concurrency.integration.spec.ts",
+      "name": "工作台报告创建与导入并发 · 真实库 同一份小卜报告同时导入，只产生一份工作台稿",
+      "sourceSha256": "cd35d248855a814af2150e893aba8e766a225da0468f89a0d39dc27a78e97968"
+    }
+  ]
+}
