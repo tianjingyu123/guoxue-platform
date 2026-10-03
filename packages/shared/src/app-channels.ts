@@ -1,5 +1,7 @@
 /** 常见分发目录；存在目录项不表示已取得该商店上架身份或 WGT 许可。 */
 export const APP_CHANNELS = [
+  { id: "web", name: "H5网页入口", platforms: ["h5"] },
+  { id: "weixin", name: "微信小程序", platforms: ["mp-weixin"] },
   { id: "huawei", name: "华为应用市场", platforms: ["android", "harmony"] },
   { id: "xiaomi", name: "小米应用商店", platforms: ["android"] },
   { id: "oppo", name: "OPPO 软件商店", platforms: ["android"] },

@@ -1,1 +1,1 @@
-{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"skipLibCheck":true,"types":["@dcloudio/types","vite/client"],"lib":["esnext","dom"]},"include":["managed/**/*.ts","managed/**/*.vue"]}
+{"compilerOptions":{"target":"esnext","module":"esnext","moduleResolution":"bundler","strict":true,"skipLibCheck":true,"types":["@dcloudio/types","vite/client"],"lib":["esnext","dom"],"baseUrl":".","paths":{"@guoxue/shared/*":["../../packages/shared/src/*"]}},"include":["managed/**/*.ts","managed/**/*.vue"]}

@@ -18,9 +18,10 @@ export async function managedPresentation(prisma: PrismaService, scope: Distribu
   const config: ClientPresentation = JSON.parse(JSON.stringify(selected.config));
   config.entries = config.entries.map(entry => ({ ...entry, visible: entry.visible && enabled(entry.id) }));
   config.navigation = config.navigation.map(entry => ({ ...entry, visible: entry.visible && enabled(entry.id) }));
+  const displayed = (id: string) => enabled(id) && config.entries.find(entry => entry.id === id)?.visible !== false;
   for (const surface of Object.keys(config.pages) as PresentationSurface[]) {
     if (surface !== "home" && !allowed.has(surface === "shop" ? "shop" : surface)) { delete config.pages[surface]; continue; }
-    config.pages[surface] = config.pages[surface]!.filter(block => !block.targetEntryId || enabled(block.targetEntryId)).map(block => ({ ...block, entries: block.entries.filter(enabled) }));
+    config.pages[surface] = config.pages[surface]!.filter(block => !block.targetEntryId || displayed(block.targetEntryId)).map(block => ({ ...block, entries: block.entries.filter(displayed) }));
   }
   // 保持公共协议的非空内容流声明；独立入口没有挂载通用推荐/搜索接口，客户端不能借布局跨域读取。
   return { ...selected, config, reasons: [...selected.reasons, "已按当前合同、模板及公共运营开关收窄；数据接口另行校验"] };
