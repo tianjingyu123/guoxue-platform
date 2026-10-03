@@ -1,0 +1,99 @@
+name: 账号解绑真实数据库隔离验证
+on:
+  push:
+    branches: [codex/wechat-authorize-verify-20261003]
+    paths: [.github/workflows/account-unbind-verify.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
+        env:
+          POSTGRES_USER: qa_voice
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: entitlement_notice_qa_20261003_unbind
+        ports: ["55462:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      SOURCE_COMMIT: 1e1ff0b8c65c7ad481ea75dafa82c983e4eb8a70
+      DATABASE_URL: postgresql://qa_voice:synthetic-only@127.0.0.1:55462/entitlement_notice_qa_20261003_unbind
+      ENTITLEMENT_NOTICE_TEST_DATABASE_URL: postgresql://qa_voice:synthetic-only@127.0.0.1:55462/entitlement_notice_qa_20261003_unbind
+      NODE_OPTIONS: --max-old-space-size=4096
+      NODE_ENV: test
+      JWT_SECRET: synthetic-test-jwt-secret-32-bytes
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.SOURCE_COMMIT }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/.claude/
+      - name: 核验源码与清除临时鉴权
+        run: |
+          set -euo pipefail
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          mkdir -p artifacts/account-unbind
+          git rev-parse HEAD > artifacts/account-unbind/source-binding.txt
+          git ls-files -z package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs patches apps/server/src apps/server/prisma apps/server/package.json packages | xargs -0 sha256sum >> artifacts/account-unbind/source-binding.txt
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - name: 恢复隔离依赖并生成本任务客户端与合成库
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+          pnpm --filter @guoxue/server exec prisma generate
+          pnpm --filter @guoxue/server exec prisma db push --skip-generate
+      - name: 真实PG边界和相关回归
+        working-directory: apps/server
+        run: |
+          set -euo pipefail
+          pnpm exec jest --config jest.config.ts --runInBand --no-coverage --runTestsByPath src/modules/user/user-unbind.postgres.spec.ts src/modules/user/user.service.spec.ts src/modules/user/user.controller.spec.ts src/modules/auth/wechat-binding.http.spec.ts --json --outputFile ../../artifacts/account-unbind/regression.json 2>&1 | tee ../../artifacts/account-unbind/regression.log
+          pnpm exec tsc --noEmit 2>&1 | tee ../../artifacts/account-unbind/types.log
+          pnpm exec eslint src/modules/user/user.service.ts src/modules/user/user-unbind.postgres.spec.ts 2>&1 | tee ../../artifacts/account-unbind/lint.log
+      - name: 编译后的实际服务重跑数据库边界
+        run: |
+          set -euo pipefail
+          pnpm --filter @guoxue/server build 2>&1 | tee artifacts/account-unbind/build.log
+          node <<'NODE'
+          const fs=require('node:fs');
+          const source='apps/server/src/modules/user/user-unbind.postgres.spec.ts';
+          const test=fs.readFileSync(source,'utf8').replace('import { UserService } from "./user.service";','const { UserService }: typeof import("./user.service") = require("../../../dist/modules/user/user.service.js");');
+          if(test===fs.readFileSync(source,'utf8'))throw new Error('未替换真实编译入口');
+          fs.writeFileSync('apps/server/src/modules/user/.qa-unbind-compiled.postgres.spec.ts',test);
+          NODE
+          cd apps/server
+          pnpm exec jest --config jest.config.ts --runInBand --no-coverage --runTestsByPath src/modules/user/.qa-unbind-compiled.postgres.spec.ts --json --outputFile ../../artifacts/account-unbind/compiled.json 2>&1 | tee ../../artifacts/account-unbind/compiled.log
+      - name: 核对验证结果和编译身份
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+          const a='artifacts/account-unbind',read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          for(const [name,passed]of [['regression',118],['compiled',10]]){
+            const r=read(`${a}/${name}.json`);assert.equal(r.numPassedTests,passed);assert.equal(r.numFailedTests,0);assert.equal(r.numPendingTests,0);
+          }
+          const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          fs.writeFileSync(`${a}/verified.json`,JSON.stringify({sourceCommit:process.env.SOURCE_COMMIT,regressionPassed:118,realPostgresCases:10,compiledPassed:10,compiledSha256:hash('apps/server/dist/modules/user/user.service.js'),sourceSha256:hash('apps/server/src/modules/user/user.service.ts'),schemaSha256:hash('apps/server/prisma/schema.prisma'),realChannels:false,production:false,migrationUpgradeVerified:false},null,2));
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: account-unbind-${{ env.SOURCE_COMMIT }}-${{ github.run_id }}
+          path: artifacts/account-unbind/
+          retention-days: 14
+          if-no-files-found: error
