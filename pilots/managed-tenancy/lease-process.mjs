@@ -28,6 +28,12 @@ try {
       const result=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:input.messages,requestId:input.requestId}),signal:input.signal});
       if(!result.ok)throw new Error('合成供应商结果未知');return result.json();
     }};
+    if(config.syntheticRegisteredProviderFile){
+      const {registeredManagedChatProvider}=require(resolve(repo,'apps/server/src/modules/managed-tenancy/managed-chat-provider.ts'));
+      const deployment=await control.managedDeployment.findUnique({where:{customerId:config.customerId}}),transport=syntheticProvider.complete;
+      syntheticProvider=registeredManagedChatProvider(config.customerId,deployment.spaceKey,config.credential,config.syntheticRegisteredProviderFile,(_entry,input)=>transport(input));
+      if(!syntheticProvider)throw new Error('合成签名供应商须在进程启动前登记');
+    }
   }
   if(config.syntheticQwenProviderUrl){
     if(syntheticProvider)throw new Error('合成供应商配置只能选择一条通道');

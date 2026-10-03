@@ -22,6 +22,17 @@ const messageSelect={id:true,sequence:true,requestKey:true,userText:true,assista
 export class ManagedLeaseChatService {
   constructor(private readonly db:PrismaClient,private readonly actor:ManagedContentActor,private readonly scope:(agentId:string)=>Promise<ManagedChatScope>,private readonly historical:()=>Promise<unknown>,private readonly provider?:ManagedChatProvider){ }
   private owner(id:string){return {id:contentId(id),customerId:this.actor.customerId,applicationId:this.actor.applicationId,userId:this.actor.userId};}
+  /** 预留后再按当前授权核总次数及占位，减额不能让排队中的旧预留继续派发。 */
+  private async authorizeDispatch(){
+    await this.db.$transaction(async tx=>{
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`managed-chat-budget:${this.actor.customerId}`},0))`;
+      if(!this.provider?.ready())throw new ServiceUnavailableException("本客户模型调用授权已变化");
+      const budget=managedChatBudget(this.provider.budget());
+      const total=await tx.managedLeaseChatMessage.count({where:{session:{customerId:this.actor.customerId}}});
+      const pending=await tx.managedLeaseChatMessage.count({where:{session:{customerId:this.actor.customerId},state:{in:["DISPATCHING","UNKNOWN"]}}});
+      if(total>budget.maxRequests||pending>budget.maxUnresolved)throw new ForbiddenException("本客户当前模型授权不足以派发已预留请求");
+    });
+  }
   async create(value:unknown){
     const body=contentBody(value,["agentId"]),agentId=contentId(body.agentId),scope=await this.scope(agentId);
     return this.db.$transaction(async tx=>{
@@ -85,6 +96,7 @@ export class ManagedLeaseChatService {
       const messages:AiMessage[]=[{role:"system",content:instruction+"\n角色说明："+scope.persona+"\n仅本圈参考资料："+scope.knowledge.map(row=>`[${row.id}] ${row.content.slice(0,1000)}`).join("\n")},...history.reverse().flatMap(row=>[{role:"user" as const,content:row.userText},{role:"assistant" as const,content:row.assistantText||""}]),{role:"user",content:text}];
       // 再核验一次后才发出外部调用；不使用模型降级或供应商自动重试。
       await this.scope(session.agentId);
+      await this.authorizeDispatch();
       if(controller.signal.aborted)throw new Error("ABORTED");
       dispatched=true;
       response=await Promise.race([this.provider!.complete({messages,requestId:reservation.message.id,signal:controller.signal}),new Promise<never>((_resolve,reject)=>{if(controller.signal.aborted)reject(new Error("UNKNOWN"));else controller.signal.addEventListener("abort",()=>reject(new Error("UNKNOWN")),{once:true});})]);
@@ -97,10 +109,12 @@ export class ManagedLeaseChatService {
     }finally{clearTimeout(timer);controller.abort();}
     try{
       await this.scope(session.agentId);
+      if(!this.provider?.ready())throw new ServiceUnavailableException("模型调用授权已撤销，不保存或下发在途答复");
       return await this.db.$transaction(async tx=>{
         const changed=await tx.managedLeaseChatMessage.updateMany({where:{id:reservation.message.id,state:"DISPATCHING"},data:{state:"COMPLETED",assistantText:response!.content,providerRequestId:typeof response!.requestId==="string"&&/^[a-zA-Z0-9_.:-]{1,128}$/.test(response!.requestId)?response!.requestId:null,finishedAt:new Date()}});
         if(changed.count!==1)throw new ConflictException("调用结果已由维护流程处理");
         await tx.managedLeaseAudit.create({data:{customerId:this.actor.customerId,userId:this.actor.userId,action:"COMPLETE_OWN_CHAT",entityId:reservation.message.id}});await this.scope(session.agentId);
+        if(!this.provider?.ready())throw new ServiceUnavailableException("模型调用授权已撤销，不提交在途答复");
         return tx.managedLeaseChatMessage.findUnique({where:{id:reservation.message.id},select:messageSelect});
       });
     }catch(error){
